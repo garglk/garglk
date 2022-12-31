@@ -30,7 +30,7 @@
 #import "sysmac.h"
 
 // a queue of phrases to feed to the speech synthesizer
-static NSMutableArray * phraseQueue = nil;
+static NSMutableArray *phraseQueue = nil;
 static NSRange purgeRange;
 
 @interface SpeechDelegate : NSObject <NSSpeechSynthesizerDelegate>
@@ -46,24 +46,19 @@ static NSRange purgeRange;
 - (void) speechSynthesizer: (NSSpeechSynthesizer *) sender
          didFinishSpeaking: (BOOL) finishSpeaking
 {
-    if (finishSpeaking == NO)
-    {
+    if (finishSpeaking == NO) {
         // speaking stopped abruptly (see gli_tts_purge())
         [phraseQueue removeObjectsInRange: purgeRange];
-    }
-    else
-    {
+    } else {
         // remove the head of the list which just completed speaking
-        if (phraseQueue.count > 0)
-        {
+        if (phraseQueue.count > 0) {
             [phraseQueue removeObjectAtIndex: 0];
         }
     }
 
     // speak the next phrase
-    if (phraseQueue.count > 0)
-    {
-        [sender startSpeakingString: [phraseQueue objectAtIndex:0]];
+    if (phraseQueue.count > 0) {
+        [sender startSpeakingString: [phraseQueue objectAtIndex: 0]];
     }
 }
 @end
@@ -72,36 +67,31 @@ static NSRange purgeRange;
 static glui32 txtbuf[TXTSIZE + 1];
 static size_t txtlen;
 
-static NSSpeechSynthesizer * synth = nil;
+static NSSpeechSynthesizer *synth = nil;
 
 void gli_initialize_tts(void)
 {
-    if (gli_conf_speak)
-    {
+    if (gli_conf_speak) {
         // spawn speech synthesizer using the default voice
         synth = [NSSpeechSynthesizer new];
-        if (!synth)
-        {
+        if (!synth) {
             NSLog(@"Unable to initialize TTS support!");
             return;
         }
 
-        phraseQueue = [NSMutableArray arrayWithCapacity: 64];
+        phraseQueue = [NSMutableArray arrayWithCapacity:64];
 
         synth.delegate = [SpeechDelegate new];
 
         // configure optional non-default speaking voice/language
-        if (!gli_conf_speak_language.empty())
-        {
-            NSString * lang = [NSString stringWithCString: gli_conf_speak_language.c_str()
-                                                 encoding: NSUTF8StringEncoding];
+        if (!gli_conf_speak_language.empty()) {
+            NSString *lang = [NSString stringWithCString: gli_conf_speak_language.c_str()
+                                                encoding: NSUTF8StringEncoding];
 
-            NSArray * voices = [NSSpeechSynthesizer availableVoices];
-            for (NSString * voice in voices)
-            {
-                NSDictionary * attr = [NSSpeechSynthesizer attributesForVoice: voice];
-                if ([lang isEqualToString: [attr objectForKey: NSVoiceLocaleIdentifier]])
-                {
+            NSArray *voices = [NSSpeechSynthesizer availableVoices];
+            for (NSString *voice in voices) {
+                NSDictionary *attr = [NSSpeechSynthesizer attributesForVoice: voice];
+                if ([lang isEqualToString: [attr objectForKey: NSVoiceLocaleIdentifier]]) {
                     [synth setVoice: voice];
                 }
             }
@@ -119,23 +109,20 @@ static void ttsmac_add_phrase(NSString * phrase)
     [phraseQueue addObject: phrase];
 
     // if the queue was empty we need to explicitly start speaking
-    if (phraseQueue.count == 1)
-    {
-        [synth startSpeakingString: [phraseQueue objectAtIndex:0]];
+    if (phraseQueue.count == 1) {
+        [synth startSpeakingString: [phraseQueue objectAtIndex: 0]];
     }
 }
 
-static void ttsmac_flush(void)
+static void ttsmac_flush()
 {
-    if (txtlen > 0)
-    {
+    if (txtlen > 0) {
         // convert codepoints in buffer into an NSString
-        NSString * text = [[NSString alloc] initWithBytes: txtbuf
-                                                   length: (txtlen * sizeof(glui32))
-                                                 encoding: UTF32StringEncoding];
+        NSString *text = [[NSString alloc] initWithBytes: txtbuf
+                                                  length: (txtlen * sizeof(glui32))
+                                                encoding: UTF32StringEncoding];
 
-        if (text)
-        {
+        if (text) {
             ttsmac_add_phrase(text);
             [text release];
         }
@@ -144,18 +131,16 @@ static void ttsmac_flush(void)
     }
 }
 
-void gli_tts_flush(void)
+void gli_tts_flush()
 {
-    if (synth)
-    {
+    if (synth) {
         ttsmac_flush();
     }
 }
 
-void gli_tts_purge(void)
+void gli_tts_purge()
 {
-    if (synth)
-    {
+    if (synth) {
         purgeRange = NSMakeRange(0, phraseQueue.count);
         [synth stopSpeaking];
     }
@@ -163,16 +148,18 @@ void gli_tts_purge(void)
 
 void gli_tts_speak(const glui32 *buf, size_t len)
 {
-    if (!synth)
+    if (!synth) {
         return;
+    }
 
-    for (size_t i = 0; i < len; i++)
-    {
-        if (txtlen >= TXTSIZE)
+    for (size_t i = 0; i < len; i++) {
+        if (txtlen >= TXTSIZE) {
             gli_tts_flush();
+        }
 
-        if (buf[i] == '>' || buf[i] == '*')
+        if (buf[i] == '>' || buf[i] == '*') {
             continue;
+        }
 
         txtbuf[txtlen++] = buf[i];
 
@@ -186,25 +173,24 @@ void gli_tts_speak(const glui32 *buf, size_t len)
          * forms (at least for English). More work than I want to deal
          * with at this time.
          */
-        if (/*buf[i] == '.' || buf[i] == '!' || buf[i] == '?' || */buf[i] == '\n')
+        if (/*buf[i] == '.' || buf[i] == '!' || buf[i] == '?' || */ buf[i] == '\n') {
             gli_tts_flush();
+        }
     }
 }
 
-void gli_free_tts(void)
+void gli_free_tts()
 {
     gli_tts_purge();
 
-    if (synth)
-    {
+    if (synth) {
         id delegate = synth.delegate;
         synth.delegate = nil;
 
         [synth release];
         synth = nil;
 
-        if (delegate)
-        {
+        if (delegate) {
             [delegate release];
             delegate = nil;
         }

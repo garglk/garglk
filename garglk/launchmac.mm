@@ -20,7 +20,6 @@
  *                                                                            *
  *****************************************************************************/
 
-#include "glk.h"
 #include "garglk.h"
 #include "garversion.h"
 #include "launcher.h"
@@ -37,8 +36,8 @@
 
 #define MaxBuffer 1024
 
-static const char * AppName = GARGOYLE_NAME " " GARGOYLE_VERSION;
-static const char * DirSeparator = "/";
+static const char *AppName = GARGOYLE_NAME " " GARGOYLE_VERSION;
+static const char *DirSeparator = "/";
 
 static char dir[MaxBuffer];
 static char buf[MaxBuffer];
@@ -60,7 +59,7 @@ static const std::map<FileFilter, std::string> winfilters = {
     unsigned int textureHeight;
 }
 
-@property (retain) NSColor * backgroundColor;
+@property (retain) NSColor *backgroundColor;
 
 - (void) addFrame: (NSData *) frame
             width: (unsigned int) width
@@ -102,8 +101,7 @@ static const std::map<FileFilter, std::string> winfilters = {
 - (id) initWithFrame:(NSRect)frameRect pixelFormat:(NSOpenGLPixelFormat *)format
 {
     self = [super initWithFrame: frameRect pixelFormat: format];
-    if (self)
-    {
+    if (self) {
         self.backgroundColor = [NSColor colorWithCalibratedRed: 1.0f green: 1.0f blue: 1.0f alpha: 1.0f];
     }
     return self;
@@ -111,15 +109,16 @@ static const std::map<FileFilter, std::string> winfilters = {
 
 - (void) drawRect: (NSRect) bounds
 {
-    if (textureHeight == 0)
+    if (textureHeight == 0) {
         return;
+    }
 
     [[self openGLContext] makeCurrentContext];
 
     float viewScalingFactor = [self.window backingScaleFactor] / BACKING_SCALE_FACTOR;
     glViewport(0.0, 0.0, textureWidth * viewScalingFactor, textureHeight * viewScalingFactor);
 
-    NSColor * clearColor = self.backgroundColor;
+    NSColor *clearColor = self.backgroundColor;
     glClearColor([clearColor redComponent], [clearColor greenComponent], [clearColor blueComponent], [clearColor alphaComponent]);
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -144,15 +143,14 @@ static const std::map<FileFilter, std::string> winfilters = {
 
 - (void)reshape
 {
-
 }
 
 @end
 
 @interface GargoyleWindow : NSWindow
 {
-    NSMutableArray * eventlog;
-    NSTextView * textbuffer;
+    NSMutableArray *eventlog;
+    NSTextView *textbuffer;
     pid_t processID;
     NSTimeInterval lastMouseMove;
 }
@@ -196,7 +194,7 @@ static const std::map<FileFilter, std::string> winfilters = {
                               backing: bufferingType
                                 defer: deferCreation];
 
-    GargoyleView * view = [[GargoyleView alloc] initWithFrame: contentRect pixelFormat: [GargoyleView defaultPixelFormat]];
+    GargoyleView *view = [[GargoyleView alloc] initWithFrame: contentRect pixelFormat: [GargoyleView defaultPixelFormat]];
     [view setWantsBestResolutionOpenGLSurface:YES];
     view.backgroundColor = backgroundColor;
     [self setContentView: view];
@@ -226,10 +224,9 @@ static const std::map<FileFilter, std::string> winfilters = {
     return self;
 }
 
-static BOOL isTextbufferEvent(NSEvent * evt)
+static BOOL isTextbufferEvent(NSEvent *evt)
 {
-    if ([evt type] != NSKeyDown)
-    {
+    if ([evt type] != NSKeyDown) {
         return NO;
     }
 
@@ -238,84 +235,81 @@ static BOOL isTextbufferEvent(NSEvent * evt)
      */
 
     /* check for arrow keys */
-    if ([evt modifierFlags] & NSFunctionKeyMask)
-    {
+    if ([evt modifierFlags] & NSFunctionKeyMask) {
         /* alt/option modified key */
-        if ([evt modifierFlags] & NSAlternateKeyMask)
-        {
-            switch ([evt keyCode])
-            {
-                case NSKEY_LEFT  : return NO;
-                case NSKEY_RIGHT : return NO;
-                case NSKEY_DOWN  : return NO;
-                case NSKEY_UP    : return NO;
-                default: break;
+        if ([evt modifierFlags] & NSAlternateKeyMask) {
+            switch ([evt keyCode]) {
+            case NSKEY_LEFT:
+            case NSKEY_RIGHT:
+            case NSKEY_DOWN:
+            case NSKEY_UP:
+                return NO;
+            default:
+                break;
             }
         }
 
         /* command modified key */
-        if ([evt modifierFlags] & NSCommandKeyMask)
-        {
-            switch ([evt keyCode])
-            {
-                case NSKEY_LEFT  : return NO;
-                case NSKEY_RIGHT : return NO;
-                case NSKEY_DOWN  : return NO;
-                case NSKEY_UP    : return NO;
-                default: break;
+        if ([evt modifierFlags] & NSCommandKeyMask) {
+            switch ([evt keyCode]) {
+            case NSKEY_LEFT:
+            case NSKEY_RIGHT:
+            case NSKEY_DOWN:
+            case NSKEY_UP:
+                return NO;
+            default:
+                break;
             }
         }
 
         /* unmodified key for line editing */
-        switch ([evt keyCode])
-        {
-            case NSKEY_LEFT  : return NO;
-            case NSKEY_RIGHT : return NO;
-            case NSKEY_DOWN  : return NO;
-            case NSKEY_UP    : return NO;
-            default: break;
+        switch ([evt keyCode]) {
+        case NSKEY_LEFT:
+        case NSKEY_RIGHT:
+        case NSKEY_DOWN:
+        case NSKEY_UP:
+            return NO;
+        default:
+            break;
         }
     }
 
     /* check for menu commands */
-    if ([evt modifierFlags] & NSCommandKeyMask)
-    {
-        switch ([evt keyCode])
-        {
-            case NSKEY_X:
-            case NSKEY_C:
-                return NO;
-
-            case NSKEY_V:
-                return NO;
-
-            default: break;
+    if ([evt modifierFlags] & NSCommandKeyMask) {
+        switch ([evt keyCode]) {
+        case NSKEY_X:
+        case NSKEY_C:
+        case NSKEY_V:
+            return NO;
+        default:
+            break;
         }
     }
 
     /* check for command keys */
-    switch ([evt keyCode])
-    {
-        case NSKEY_PGUP : return NO;
-        case NSKEY_PGDN : return NO;
-        case NSKEY_HOME : return NO;
-        case NSKEY_END  : return NO;
-        case NSKEY_DEL  : return NO;
-        case NSKEY_BACK : return NO;
-        case NSKEY_ESC  : return NO;
-        case NSKEY_F1   : return NO;
-        case NSKEY_F2   : return NO;
-        case NSKEY_F3   : return NO;
-        case NSKEY_F4   : return NO;
-        case NSKEY_F5   : return NO;
-        case NSKEY_F6   : return NO;
-        case NSKEY_F7   : return NO;
-        case NSKEY_F8   : return NO;
-        case NSKEY_F9   : return NO;
-        case NSKEY_F10  : return NO;
-        case NSKEY_F11  : return NO;
-        case NSKEY_F12  : return NO;
-        default: break;
+    switch ([evt keyCode]) {
+    case NSKEY_PGUP:
+    case NSKEY_PGDN:
+    case NSKEY_HOME:
+    case NSKEY_END:
+    case NSKEY_DEL:
+    case NSKEY_BACK:
+    case NSKEY_ESC:
+    case NSKEY_F1:
+    case NSKEY_F2:
+    case NSKEY_F3:
+    case NSKEY_F4:
+    case NSKEY_F5:
+    case NSKEY_F6:
+    case NSKEY_F7:
+    case NSKEY_F8:
+    case NSKEY_F9:
+    case NSKEY_F10:
+    case NSKEY_F11:
+    case NSKEY_F12:
+        return NO;
+    default:
+        break;
     }
 
     return YES;
@@ -326,57 +320,46 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     int store = NO;
     int forward = YES;
 
-    switch ([event type])
-    {
-        case NSKeyDown:
-        case NSApplicationDefined:
-        {
+    switch ([event type]) {
+    case NSKeyDown:
+    case NSApplicationDefined:
+        store = YES;
+        forward = NO;
+        break;
+
+    case NSLeftMouseDown:
+    case NSLeftMouseUp:
+        store = YES;
+        break;
+
+    case NSLeftMouseDragged:
+    case NSMouseMoved:
+        if (([event timestamp] - lastMouseMove) > 0.05) {
+            lastMouseMove = [event timestamp];
             store = YES;
-            forward = NO;
-            break;
         }
+        break;
 
-        case NSLeftMouseDown:
-        case NSLeftMouseUp:
-        {
+    case NSScrollWheel:
+        if ([event deltaY] > 0.05 || [event deltaY] < -0.05) {
             store = YES;
-            break;
         }
 
-        case NSLeftMouseDragged:
-        case NSMouseMoved:
-        {
-            if (([event timestamp] - lastMouseMove) > 0.05)
-            {
-                lastMouseMove = [event timestamp];
-                store = YES;
-            }
-            break;
-        }
+        break;
 
-        case NSScrollWheel:
-        {
-            if ([event deltaY] > 0.05 || [event deltaY] < -0.05)
-                store = YES;
-
-            break;
-        }
-
-        default: break;
+    default:
+        break;
     }
 
-    if (store)
-    {
-        [eventlog insertObject: [event copy] atIndex:0];
-        if (isTextbufferEvent(event))
-        {
+    if (store) {
+        [eventlog insertObject: [event copy] atIndex: 0];
+        if (isTextbufferEvent(event)) {
             [textbuffer interpretKeyEvents: [NSArray arrayWithObject: event]];
         }
         kill(processID, SIGUSR1);
     }
 
-    if (forward)
-    {
+    if (forward) {
         [super sendEvent: event];
     }
 
@@ -385,10 +368,9 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (NSEvent *) retrieveEvent
 {
-    NSEvent * event = NULL;
+    NSEvent *event = NULL;
 
-    if ([eventlog count])
-    {
+    if ([eventlog count]) {
         event = [eventlog lastObject];
         [eventlog removeLastObject];
     }
@@ -498,11 +480,9 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (void) performRefresh: (NSNotification *) notice
 {
-    if (gli_conf_save_window_size)
-    {
+    if (gli_conf_save_window_size) {
         auto path = get_qt_plist_path();
-        if (path != nil)
-        {
+        if (path != nil) {
             NSMutableDictionary *config = [NSMutableDictionary dictionaryWithContentsOfFile: path];
             std::stringstream size;
             int w = self.frame.size.width;
@@ -530,24 +510,24 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 {
     int result;
 
-    NSOpenPanel * openDlg = [NSOpenPanel openPanel];
+    NSOpenPanel *openDlg = [NSOpenPanel openPanel];
 
     [openDlg setCanChooseFiles: YES];
     [openDlg setCanChooseDirectories: NO];
     [openDlg setAllowsMultipleSelection: NO];
     [openDlg setTitle: prompt];
 
-    if (filter != FileFilter::Data)
-    {
-        NSArray * filterTypes = [NSArray arrayWithObject: [NSString stringWithCString: winfilters.at(filter).c_str()
-                                                                             encoding: NSUTF8StringEncoding]];
+    if (filter != FileFilter::Data) {
+        NSArray *filterTypes = [NSArray arrayWithObject: [NSString stringWithCString: winfilters.at(filter).c_str()
+                                                                            encoding: NSUTF8StringEncoding]];
         [openDlg setAllowedFileTypes: filterTypes];
         [openDlg setAllowsOtherFileTypes: NO];
     }
     result = [openDlg runModal];
 
-    if (result == NSFileHandlingPanelOKButton)
+    if (result == NSFileHandlingPanelOKButton) {
         return [[openDlg URL] path];
+    }
 
     return nil;
 }
@@ -557,23 +537,23 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 {
     int result;
 
-    NSSavePanel * saveDlg = [NSSavePanel savePanel];
+    NSSavePanel *saveDlg = [NSSavePanel savePanel];
 
     [saveDlg setCanCreateDirectories: YES];
     [saveDlg setTitle: prompt];
 
-    if (filter != FileFilter::Data)
-    {
-        NSArray * filterTypes = [NSArray arrayWithObject: [NSString stringWithCString: winfilters.at(filter).c_str()
-                                                                             encoding: NSUTF8StringEncoding]];
+    if (filter != FileFilter::Data) {
+        NSArray *filterTypes = [NSArray arrayWithObject: [NSString stringWithCString: winfilters.at(filter).c_str()
+                                                                            encoding: NSUTF8StringEncoding]];
         [saveDlg setAllowedFileTypes: filterTypes];
         [saveDlg setAllowsOtherFileTypes: NO];
     }
 
     result = [saveDlg runModal];
 
-    if (result == NSFileHandlingPanelOKButton)
+    if (result == NSFileHandlingPanelOKButton) {
         return [[saveDlg URL] path];
+    }
 
     return nil;
 }
@@ -599,8 +579,8 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                          <GargoyleApp, NSApplicationDelegate, NSWindowDelegate>
 {
     BOOL openedFirstGame;
-    NSMutableDictionary * windows;
-    NSConnection * link;
+    NSMutableDictionary *windows;
+    NSConnection *link;
 }
 - (BOOL) launchFile: (NSString *) file;
 - (BOOL) launchFileDialog;
@@ -617,7 +597,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     windows = [[NSMutableDictionary alloc] init];
 
     /* set up controller link */
-    NSPort * port = [NSMachPort port];
+    NSPort *port = [NSMachPort port];
     link = [[NSConnection connectionWithReceivePort: port sendPort: port] retain];
     [link setRootObject: self];
     [link addRunLoop: [NSRunLoop currentRunLoop]];
@@ -625,7 +605,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     [link retain];
 
     /* set environment variable */
-    NSString * nsResources = [[NSBundle mainBundle] resourcePath];
+    NSString *nsResources = [[NSBundle mainBundle] resourcePath];
 
     [nsResources getCString: etc maxLength: sizeof etc encoding: NSUTF8StringEncoding];
 
@@ -651,26 +631,28 @@ static BOOL isTextbufferEvent(NSEvent * evt)
          fullscreen: (BOOL) fullscreen
     backgroundColor: (NSColor *) backgroundColor
 {
-    if (!(processID > 0))
+    if (!(processID > 0)) {
         return NO;
+    }
 
     unsigned int style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
 
     /* set up the window */
     NSRect rect = NSMakeRect(0, 0, width, height);
-    GargoyleWindow * window = [[GargoyleWindow alloc] initWithContentRect: rect
-                                                                styleMask: style
-                                                                  backing: NSBackingStoreBuffered
-                                                                    defer: NO
-                                                                  process: processID
-                                                          backgroundColor: backgroundColor];
+    GargoyleWindow *window = [[GargoyleWindow alloc] initWithContentRect: rect
+                                                               styleMask: style
+                                                                 backing: NSBackingStoreBuffered
+                                                                   defer: NO
+                                                                 process: processID
+                                                         backgroundColor: backgroundColor];
 
     [window makeKeyAndOrderFront: window];
     [window center];
     [window setReleasedWhenClosed: YES];
     [window setDelegate: self];
-    if (fullscreen)
+    if (fullscreen) {
         [window toggleFullScreen: self];
+    }
 
     [windows setObject: window forKey: [NSNumber numberWithInt: processID]];
 
@@ -679,10 +661,9 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (NSEvent *) getWindowEvent: (pid_t) processID
 {
-    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+    GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (window)
-    {
+    if (window) {
         return [window retrieveEvent];
     }
 
@@ -691,10 +672,9 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (NSRect) updateBackingSize: (pid_t) processID
 {
-    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+    GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (window)
-    {
+    if (window) {
         id view = [window contentView];
         NSRect viewRect = [view bounds];
         NSRect backingRect = [window convertRectToBacking: viewRect];
@@ -706,10 +686,9 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (CGFloat) getBackingScaleFactor: (pid_t) processID
 {
-    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+    GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (window)
-    {
+    if (window) {
         id view = [window contentView];
         return [view backingScaleFactor];
     }
@@ -720,10 +699,9 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 - (NSPoint) getWindowPoint: (pid_t) processID
                   forEvent: (NSEvent *) event;
 {
-    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+    GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (window)
-    {
+    if (window) {
         NSPoint point = [event locationInWindow];
         return point;
     }
@@ -733,10 +711,9 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (NSString *) getWindowCharString: (pid_t) processID
 {
-    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+    GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (window)
-    {
+    if (window) {
         return [window retrieveChars];
     }
 
@@ -745,10 +722,9 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (BOOL) clearWindowCharString: (pid_t) processID
 {
-    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+    GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (window)
-    {
+    if (window) {
         [window clearChars];
         return YES;
     }
@@ -759,10 +735,9 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 - (BOOL) setWindow: (pid_t) processID
         charString: (NSEvent *) event;
 {
-    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+    GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (window)
-    {
+    if (window) {
         [window sendChars: event];
         return YES;
     }
@@ -773,10 +748,9 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 - (BOOL) setWindow: (pid_t) processID
              title: (NSString *) title;
 {
-    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+    GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (window)
-    {
+    if (window) {
         [window setTitle: title];
         return YES;
     }
@@ -789,17 +763,17 @@ static BOOL isTextbufferEvent(NSEvent * evt)
              width: (unsigned int) width
             height: (unsigned int) height;
 {
-    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+    GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (window)
-    {
+    if (window) {
         [[window contentView] addFrame: frame
                                  width: width
                                 height: height];
 
         NSRect rect = NSMakeRect(0, 0, width, height);
-        if ([[window contentView] wantsBestResolutionOpenGLSurface])
+        if ([[window contentView] wantsBestResolutionOpenGLSurface]) {
             rect = [[window contentView] convertRectFromBacking: rect];
+        }
         [[window contentView] drawRect: rect];
         return YES;
     }
@@ -809,23 +783,20 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (void) closeWindow: (pid_t) processID
 {
-    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+    GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (window)
-    {
-        [window performClose:self];
+    if (window) {
+        [window performClose: self];
     }
-
 }
 
 - (NSString *) openWindowDialog: (pid_t) processID
                          prompt: (NSString *) prompt
                          filter: (FileFilter) filter
 {
-    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+    GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (window)
-    {
+    if (window) {
         return [window openFileDialog: prompt fileFilter: filter];
     }
 
@@ -836,10 +807,9 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                          prompt: (NSString *) prompt
                          filter: (FileFilter) filter
 {
-    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+    GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (window)
-    {
+    if (window) {
         return [window saveFileDialog: prompt fileFilter: filter];
     }
 
@@ -852,28 +822,27 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     NSRunAlertPanel(@"Fatal error", @"%@", nil, nil, nil, prompt);
 }
 
-#define kArrowCursor 1
-#define kIBeamCursor 2
+#define kArrowCursor        1
+#define kIBeamCursor        2
 #define kPointingHandCursor 3
 
 - (void) setCursor: (unsigned int) cursor
 {
-    switch (cursor)
-    {
-        case (kArrowCursor):
-            [[NSCursor arrowCursor] set];
-            break;
+    switch (cursor) {
+    case kArrowCursor:
+        [[NSCursor arrowCursor] set];
+        break;
 
-        case (kIBeamCursor):
-            [[NSCursor IBeamCursor] set];
-            break;
+    case kIBeamCursor:
+        [[NSCursor IBeamCursor] set];
+        break;
 
-        case (kPointingHandCursor):
-            [[NSCursor pointingHandCursor] set];
-            break;
+    case kPointingHandCursor:
+        [[NSCursor pointingHandCursor] set];
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 }
 
@@ -881,7 +850,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 {
     int result;
 
-    NSOpenPanel * openDlg = [NSOpenPanel openPanel];
+    NSOpenPanel *openDlg = [NSOpenPanel openPanel];
 
     [openDlg setCanChooseFiles: YES];
     [openDlg setCanChooseDirectories: NO];
@@ -894,8 +863,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                                   objectForKey:@"CFBundleDocumentTypes"] objectEnumerator];
     NSDictionary *docType;
 
-    while (docType = [docTypeEnum nextObject])
-    {
+    while (docType = [docTypeEnum nextObject]) {
         [filterTypes addObjectsFromArray:[docType objectForKey: @"CFBundleTypeExtensions"]];
     }
 
@@ -912,29 +880,33 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     [openDlg setAllowsOtherFileTypes: NO];
     result = [openDlg runModal];
 
-    if (result == NSFileHandlingPanelOKButton)
+    if (result == NSFileHandlingPanelOKButton) {
         return [self launchFile: [[openDlg URL] path]];
+    }
 
     return NO;
 }
 
 - (BOOL) launchFile: (NSString *) file
 {
-    if (![file length])
+    if (![file length]) {
         return NO;
+    }
 
     /* get dir of executable */
     winpath(dir);
 
     /* get story file */
-    if (![file getCString: buf maxLength: sizeof buf encoding: NSUTF8StringEncoding])
+    if (![file getCString: buf maxLength: sizeof buf encoding: NSUTF8StringEncoding]) {
         return NO;
+    }
 
     /* run story file */
     int ran = garglk::rungame(dir, buf);
 
-    if (ran)
+    if (ran) {
         [[NSDocumentController sharedDocumentController] noteNewRecentDocumentURL: [NSURL fileURLWithPath: file]];
+    }
 
     return ran;
 }
@@ -963,32 +935,30 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     BOOL result = YES;
     int i;
 
-    for (i=0; i < [files count]; i++)
-    {
-        result = result && [self launchFile:[files objectAtIndex: i]];
+    for (i = 0; i < [files count]; i++) {
+        result = result && [self launchFile: [files objectAtIndex: i]];
     }
 }
 
 - (void) openURL: (NSAppleEventDescriptor *) event withReplyEvent: (NSAppleEventDescriptor *) reply
 {
-    NSArray * urlParts = [[[event paramDescriptorForKeyword: keyDirectObject] stringValue] componentsSeparatedByString: @"garglk://"];
+    NSArray *urlParts = [[[event paramDescriptorForKeyword: keyDirectObject] stringValue] componentsSeparatedByString: @"garglk://"];
 
-    if (urlParts && [urlParts count] == 2)
-    {
+    if (urlParts && [urlParts count] == 2) {
         openedFirstGame = YES;
-        NSString * game = [[urlParts objectAtIndex: 1] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        NSString *game = [[urlParts objectAtIndex: 1] stringByReplacingPercentEscapesUsingEncoding: NSUTF8StringEncoding];
 
-        if ([[NSFileManager defaultManager] fileExistsAtPath: game] == YES)
+        if ([[NSFileManager defaultManager] fileExistsAtPath: game] == YES) {
             [self launchFile: game];
-        else
+        } else {
             NSRunAlertPanel(@"Could not open URL path:", @"%@", nil, nil, nil, game);
+        }
     }
-
 }
 
 - (BOOL) windowShouldClose: (id) sender
 {
-    GargoyleWindow * window = sender;
+    GargoyleWindow *window = sender;
     [windows removeObjectForKey: [NSNumber numberWithInt: [window retrieveID]]];
     [window quit];
     return YES;
@@ -996,8 +966,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (NSApplicationTerminateReply) applicationShouldTerminate: (NSApplication *) sender
 {
-    for (id key in windows)
-    {
+    for (id key in windows) {
         GargoyleWindow *window = [windows objectForKey: key];
         [window quit];
     }
@@ -1017,12 +986,13 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (IBAction) toggle: (id) sender
 {
-    NSFileManager * fm = [NSFileManager defaultManager];
-    NSString * home = [NSString stringWithFormat: @"%@/%@", [[[NSProcessInfo processInfo] environment] objectForKey: @"HOME"], @"garglk.ini"];
-    NSString * main = [NSString stringWithFormat: @"%@/%@", [[NSBundle mainBundle] resourcePath], @"garglk.ini"];
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSString *home = [NSString stringWithFormat: @"%@/%@", [[[NSProcessInfo processInfo] environment] objectForKey: @"HOME"], @"garglk.ini"];
+    NSString *main = [NSString stringWithFormat: @"%@/%@", [[NSBundle mainBundle] resourcePath], @"garglk.ini"];
 
-    if (![fm isWritableFileAtPath: home] && [fm isReadableFileAtPath: main])
+    if (![fm isWritableFileAtPath: home] && [fm isReadableFileAtPath: main]) {
         [fm createFileAtPath: home contents: [NSData dataWithContentsOfFile: main] attributes: NULL];
+    }
 
     [[NSWorkspace sharedWorkspace] openFile: home
                             withApplication: @"TextEdit"];
@@ -1032,7 +1002,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 void garglk::winmsg(const std::string &msg)
 {
-    NSString * nsMsg;
+    NSString *nsMsg;
     nsMsg = [NSString stringWithCString: msg.c_str() encoding: NSUTF8StringEncoding];
     NSRunAlertPanel(@"Fatal error", @"%@", nil, nil, nil, nsMsg);
 }
@@ -1046,42 +1016,43 @@ static void winpath(char *buffer)
     _NSGetExecutablePath(tmp, &exelen);
     exelen = (realpath(tmp, exepath) != NULL);
 
-    if (exelen <= 0 || exelen >= MaxBuffer)
-    {
+    if (exelen <= 0 || exelen >= MaxBuffer) {
         garglk::winmsg("Unable to locate executable path");
     }
 
     strcpy(buffer, exepath);
 
     char *dirpos = strrchr(buffer, *DirSeparator);
-    if ( dirpos != NULL )
+    if (dirpos != NULL) {
         *dirpos = '\0';
+    }
 }
 
 static int winexec(const char *cmd, const char **args)
 {
-    NSTask * proc = [[NSTask alloc] init];
+    NSTask *proc = [[NSTask alloc] init];
 
     /* prepare interpreter path */
-    NSArray * nsArray = [[NSString stringWithCString: cmd encoding: NSUTF8StringEncoding] componentsSeparatedByString: @"/"];
-    NSString * nsTerp = [nsArray objectAtIndex: [nsArray count] - 1];
-    NSString * nsCmd = [NSString stringWithFormat: @"%@/%@", [[NSBundle mainBundle] builtInPlugInsPath], nsTerp];
+    NSArray *nsArray = [[NSString stringWithCString: cmd encoding: NSUTF8StringEncoding] componentsSeparatedByString: @"/"];
+    NSString *nsTerp = [nsArray objectAtIndex: [nsArray count] - 1];
+    NSString *nsCmd = [NSString stringWithFormat: @"%@/%@", [[NSBundle mainBundle] builtInPlugInsPath], nsTerp];
 
     /* prepare interpreter arguments */
-    NSMutableArray * nsArgs = [NSMutableArray arrayWithCapacity:2];
+    NSMutableArray *nsArgs = [NSMutableArray arrayWithCapacity:2];
 
     /* prepare environment */
-    NSMutableDictionary * nsEnv = [[[NSProcessInfo processInfo] environment] mutableCopy];
+    NSMutableDictionary *nsEnv = [[[NSProcessInfo processInfo] environment] mutableCopy];
     [nsEnv setObject: [NSString stringWithFormat: @"com.googlecode.garglk-%04x", getpid()] forKey: @"GargoyleApp"];
 
-    if (args[1])
+    if (args[1]) {
         [nsArgs addObject: [[NSString alloc] initWithCString: args[1] encoding: NSUTF8StringEncoding]];
+    }
 
-    if (args[2])
+    if (args[2]) {
         [nsArgs addObject: [[NSString alloc] initWithCString: args[2] encoding: NSUTF8StringEncoding]];
+    }
 
-    if ([nsCmd length] && [nsArgs count])
-    {
+    if ([nsCmd length] && [nsArgs count]) {
         [proc setLaunchPath: nsCmd];
         [proc setArguments: nsArgs];
         [proc setEnvironment: nsEnv];
@@ -1097,14 +1068,11 @@ int garglk::winterp(const std::string &path, const std::string &exe, const std::
 
     const char *args[] = {NULL, NULL, NULL};
 
-    if (flags.find('-') != std::string::npos)
-    {
+    if (flags.find('-') != std::string::npos) {
         args[0] = (char *)exe.c_str();
         args[1] = (char *)flags.c_str();
         args[2] = buf;
-    }
-    else
-    {
+    } else {
         args[0] = (char *)exe.c_str();
         args[1] = buf;
     }
@@ -1117,11 +1085,11 @@ int garglk::winterp(const std::string &path, const std::string &exe, const std::
     return true;
 }
 
-int main (int argc, char **argv)
+int main(int argc, char **argv)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     [NSApplication sharedApplication];
-    [NSApp setDelegate: [[GargoyleApp alloc] init]];
+    [NSApp setDelegate:[[GargoyleApp alloc] init]];
     [pool drain];
-    return NSApplicationMain(argc, (const char **) argv);
+    return NSApplicationMain(argc, (const char **)argv);
 }
