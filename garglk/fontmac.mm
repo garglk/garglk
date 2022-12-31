@@ -1,30 +1,24 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2010 by Ben Cressey.                                         *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2010 by Ben Cressey.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #import <Cocoa/Cocoa.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
 
 #include "glk.h"
 #include "garglk.h"
@@ -41,7 +35,7 @@ static bool gli_sys_monob = false;
 static bool gli_sys_monoi = false;
 static bool gli_sys_monoz = false;
 
-static void monofont(char *file, FontStyle style)
+static void monofont(const std::string &file, FontStyle style)
 {
     switch (style) {
     case FontStyle::Roman:
@@ -102,7 +96,7 @@ static bool gli_sys_propb = false;
 static bool gli_sys_propi = false;
 static bool gli_sys_propz = false;
 
-static void propfont(char *file, FontStyle style)
+static void propfont(const std::string &file, FontStyle style)
 {
     switch (style) {
     case FontStyle::Roman: {
@@ -178,22 +172,18 @@ void garglk::fontreplace(const std::string &font, FontType type)
         [fontFamilyDescriptor matchingFontDescriptorsWithMandatoryKeys: nil];
 
     for (NSFontDescriptor *sysfont in fontMatches) {
-        /* find style for font */
+        // find style for font
         FontStyle style = FontStyle::Roman;
 
         if (([sysfont symbolicTraits] & NSFontBoldTrait) && ([sysfont symbolicTraits] & NSFontItalicTrait)) {
             style = FontStyle::BoldItalic;
-        }
-
-        else if ([sysfont symbolicTraits] & NSFontBoldTrait) {
+        } else if ([sysfont symbolicTraits] & NSFontBoldTrait) {
             style = FontStyle::Bold;
-        }
-
-        else if ([sysfont symbolicTraits] & NSFontItalicTrait) {
+        } else if ([sysfont symbolicTraits] & NSFontItalicTrait) {
             style = FontStyle::Italic;
         }
 
-        /* find path for font */
+        // find path for font
         CFURLRef urlRef = static_cast<CFURLRef>(CTFontDescriptorCopyAttribute((CTFontDescriptorRef)sysfont, kCTFontURLAttribute));
         if (!urlRef) {
             continue;
@@ -205,10 +195,7 @@ void garglk::fontreplace(const std::string &font, FontType type)
             NSString *fontPath = (__bridge NSString *)fontPathRef;
             NSLog(@"fontPath: %@", fontPath);
 
-            size_t pathLen = strlen([fontPath UTF8String]);
-            char *filebuf = new char[pathLen + 1];
-
-            strcpy(filebuf, [fontPath UTF8String]);
+            std::string filebuf = [fontPath UTF8String];
 
             switch (type) {
             case FontType::Monospace:
@@ -229,10 +216,10 @@ void garglk::fontreplace(const std::string &font, FontType type)
     [pool drain];
 }
 
-void fontload(void)
+void fontload()
 {
     // 'GARGLK_RESOURCES' should be the path to the Bundle's Resources directory
-    const char *env = getenv("GARGLK_RESOURCES");
+    const char *env = std::getenv("GARGLK_RESOURCES");
     if (!env) {
         return;
     }
@@ -264,7 +251,7 @@ void fontload(void)
         NSURL *fontURL = [NSURL fileURLWithPath: fontPath];
 
         // register font with system
-        CFErrorRef error = NULL;
+        CFErrorRef error = nullptr;
         if (!CTFontManagerRegisterFontsForURL((__bridge CFURLRef)fontURL, kCTFontManagerScopeProcess, &error)) {
             CFStringRef msg = CFErrorCopyFailureReason(error);
             NSLog(@"fontload: %@", msg);
@@ -278,7 +265,7 @@ void fontload(void)
     [pool drain];
 }
 
-void fontunload(void)
+void fontunload()
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
@@ -287,7 +274,7 @@ void fontunload(void)
         for (NSURL *url in gli_registered_fonts) {
             CFURLRef urlRef = (__bridge CFURLRef)url;
 
-            CFErrorRef error = NULL;
+            CFErrorRef error = nullptr;
             if (!CTFontManagerUnregisterFontsForURL(urlRef, kCTFontManagerScopeProcess, &error)) {
                 CFStringRef msg = CFErrorCopyFailureReason(error);
                 NSLog(@"fontunload: %@", msg);

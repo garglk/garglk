@@ -1,29 +1,26 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2010 by Ben Cressey.                                         *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2010 by Ben Cressey.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "garglk.h"
 #include "garversion.h"
 #include "launcher.h"
 
+#include <cstdlib>
 #include <map>
 #include <sstream>
 #include <string>
@@ -37,14 +34,8 @@
 #define MaxBuffer 1024
 
 static const char *AppName = GARGOYLE_NAME " " GARGOYLE_VERSION;
-static const char *DirSeparator = "/";
 
-static char dir[MaxBuffer];
-static char buf[MaxBuffer];
-static char tmp[MaxBuffer];
-static char etc[MaxBuffer];
-
-static void winpath(char *buffer);
+static std::string winpath();
 
 static const std::map<FileFilter, std::string> winfilters = {
     {FileFilter::Save, "glksave"},
@@ -77,19 +68,19 @@ static const std::map<FileFilter, std::string> winfilters = {
 {
     [[self openGLContext] makeCurrentContext];
 
-    /* allocate new texture */
+    // allocate new texture
     glDeleteTextures(1, &output);
     glGenTextures(1, &output);
 
-    /* bind target to texture */
+    // bind target to texture
     glEnable(GL_TEXTURE_RECTANGLE_ARB);
     glBindTexture(GL_TEXTURE_RECTANGLE_ARB, output);
 
-    /* set target parameters */
+    // set target parameters
     glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_STORAGE_HINT_APPLE, GL_STORAGE_CACHED_APPLE);
     glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
 
-    /* create texture from data */
+    // create texture from data
     glTexImage2D(GL_TEXTURE_RECTANGLE_ARB,
                  0, GL_RGB8, width, height, 0, GL_RGB,
                  GL_UNSIGNED_BYTE,
@@ -230,13 +221,11 @@ static BOOL isTextbufferEvent(NSEvent *evt)
         return NO;
     }
 
-    /*
-     * The following mirrors the checks in sysmac.m:winkey().
-     */
+    // The following mirrors the checks in sysmac.m:winkey().
 
-    /* check for arrow keys */
+    // check for arrow keys
     if ([evt modifierFlags] & NSFunctionKeyMask) {
-        /* alt/option modified key */
+        // alt/option modified key
         if ([evt modifierFlags] & NSAlternateKeyMask) {
             switch ([evt keyCode]) {
             case NSKEY_LEFT:
@@ -249,7 +238,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
             }
         }
 
-        /* command modified key */
+        // command modified key
         if ([evt modifierFlags] & NSCommandKeyMask) {
             switch ([evt keyCode]) {
             case NSKEY_LEFT:
@@ -262,7 +251,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
             }
         }
 
-        /* unmodified key for line editing */
+        // unmodified key for line editing
         switch ([evt keyCode]) {
         case NSKEY_LEFT:
         case NSKEY_RIGHT:
@@ -274,7 +263,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
         }
     }
 
-    /* check for menu commands */
+    // check for menu commands
     if ([evt modifierFlags] & NSCommandKeyMask) {
         switch ([evt keyCode]) {
         case NSKEY_X:
@@ -286,7 +275,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
         }
     }
 
-    /* check for command keys */
+    // check for command keys
     switch ([evt keyCode]) {
     case NSKEY_PGUP:
     case NSKEY_PGDN:
@@ -368,7 +357,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
 
 - (NSEvent *) retrieveEvent
 {
-    NSEvent *event = NULL;
+    NSEvent *event = nullptr;
 
     if ([eventlog count]) {
         event = [eventlog lastObject];
@@ -380,7 +369,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
 
 - (void) sendChars: (NSEvent *) event
 {
-    /* Does not work on macOS 10.12 (Sierra) */
+    // Does not work on macOS 10.12 (Sierra)
     //[textbuffer interpretKeyEvents: [NSArray arrayWithObject:event]];
 }
 
@@ -569,7 +558,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     [eventlog release];
     [textbuffer release];
 
-    /* shut interpreter down */
+    // shut interpreter down
     kill(processID, SIGUSR2);
 }
 
@@ -592,11 +581,11 @@ static BOOL isTextbufferEvent(NSEvent *evt)
 {
     self = [super init];
 
-    /* set internal variables */
+    // set internal variables
     openedFirstGame = NO;
     windows = [[NSMutableDictionary alloc] init];
 
-    /* set up controller link */
+    // set up controller link
     NSPort *port = [NSMachPort port];
     link = [[NSConnection connectionWithReceivePort: port sendPort: port] retain];
     [link setRootObject: self];
@@ -604,19 +593,18 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     [link registerName: [NSString stringWithFormat: @"com.googlecode.garglk-%04x", getpid()]];
     [link retain];
 
-    /* set environment variable */
+    // set environment variable
     NSString *nsResources = [[NSBundle mainBundle] resourcePath];
 
-    [nsResources getCString: etc maxLength: sizeof etc encoding: NSUTF8StringEncoding];
-
+    auto etc = [nsResources UTF8String];
     setenv("GARGLK_RESOURCES", etc, true);
 
-    /* set preference defaults */
+    // set preference defaults
     [[NSUserDefaults standardUserDefaults] registerDefaults:
      [NSDictionary dictionaryWithObject: [NSNumber numberWithBool: YES]
                                  forKey: @"NSDisabledCharacterPaletteMenuItem"]];
 
-    /* register for URL events */
+    // register for URL events
     [[NSAppleEventManager sharedAppleEventManager] setEventHandler: self
                                                        andSelector: @selector(openURL:withReplyEvent:)
                                                      forEventClass: kInternetEventClass
@@ -637,7 +625,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
 
     unsigned int style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
 
-    /* set up the window */
+    // set up the window
     NSRect rect = NSMakeRect(0, 0, width, height);
     GargoyleWindow *window = [[GargoyleWindow alloc] initWithContentRect: rect
                                                                styleMask: style
@@ -893,16 +881,14 @@ static BOOL isTextbufferEvent(NSEvent *evt)
         return NO;
     }
 
-    /* get dir of executable */
-    winpath(dir);
+    // get dir of executable
+    auto interpreter_dir = winpath();
 
-    /* get story file */
-    if (![file getCString: buf maxLength: sizeof buf encoding: NSUTF8StringEncoding]) {
-        return NO;
-    }
+    // get story file
+    auto game = [file UTF8String];
 
-    /* run story file */
-    int ran = garglk::rungame(dir, buf);
+    // run story file
+    int ran = garglk::rungame(interpreter_dir, game);
 
     if (ran) {
         [[NSDocumentController sharedDocumentController] noteNewRecentDocumentURL: [NSURL fileURLWithPath: file]];
@@ -991,7 +977,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     NSString *main = [NSString stringWithFormat: @"%@/%@", [[NSBundle mainBundle] resourcePath], @"garglk.ini"];
 
     if (![fm isWritableFileAtPath: home] && [fm isReadableFileAtPath: main]) {
-        [fm createFileAtPath: home contents: [NSData dataWithContentsOfFile: main] attributes: NULL];
+        [fm createFileAtPath: home contents: [NSData dataWithContentsOfFile: main] attributes: nullptr];
     }
 
     [[NSWorkspace sharedWorkspace] openFile: home
@@ -1007,49 +993,45 @@ void garglk::winmsg(const std::string &msg)
     NSRunAlertPanel(@"Fatal error", @"%@", nil, nil, nil, nsMsg);
 }
 
-static void winpath(char *buffer)
+static std::string winpath()
 {
-    char exepath[MaxBuffer] = {0};
-    unsigned int exelen;
+    char tmp[MaxBuffer];
+    std::uint32_t exelen = sizeof tmp;
+    char exepath[MaxBuffer];
 
-    exelen = sizeof(tmp);
-    _NSGetExecutablePath(tmp, &exelen);
-    exelen = (realpath(tmp, exepath) != NULL);
-
-    if (exelen <= 0 || exelen >= MaxBuffer) {
+    if (_NSGetExecutablePath(tmp, &exelen) != 0 ||
+        realpath(tmp, exepath) == nullptr) {
         garglk::winmsg("Unable to locate executable path");
     }
 
-    strcpy(buffer, exepath);
+    std::string buffer = exepath;
 
-    char *dirpos = strrchr(buffer, *DirSeparator);
-    if (dirpos != NULL) {
-        *dirpos = '\0';
+    auto slash = buffer.find_last_of('/');
+    if (slash != std::string::npos) {
+        buffer.erase(slash);
     }
+
+    return buffer;
 }
 
-static int winexec(const char *cmd, const char **args)
+static int winexec(const std::string &cmd, const std::vector<std::string> &args)
 {
     NSTask *proc = [[NSTask alloc] init];
 
-    /* prepare interpreter path */
-    NSArray *nsArray = [[NSString stringWithCString: cmd encoding: NSUTF8StringEncoding] componentsSeparatedByString: @"/"];
+    // prepare interpreter path
+    NSArray *nsArray = [[NSString stringWithCString: cmd.c_str() encoding: NSUTF8StringEncoding] componentsSeparatedByString: @"/"];
     NSString *nsTerp = [nsArray objectAtIndex: [nsArray count] - 1];
     NSString *nsCmd = [NSString stringWithFormat: @"%@/%@", [[NSBundle mainBundle] builtInPlugInsPath], nsTerp];
 
-    /* prepare interpreter arguments */
+    // prepare interpreter arguments
     NSMutableArray *nsArgs = [NSMutableArray arrayWithCapacity:2];
 
-    /* prepare environment */
+    // prepare environment
     NSMutableDictionary *nsEnv = [[[NSProcessInfo processInfo] environment] mutableCopy];
     [nsEnv setObject: [NSString stringWithFormat: @"com.googlecode.garglk-%04x", getpid()] forKey: @"GargoyleApp"];
 
-    if (args[1]) {
-        [nsArgs addObject: [[NSString alloc] initWithCString: args[1] encoding: NSUTF8StringEncoding]];
-    }
-
-    if (args[2]) {
-        [nsArgs addObject: [[NSString alloc] initWithCString: args[2] encoding: NSUTF8StringEncoding]];
+    for (const auto &arg : args) {
+        [nsArgs addObject: [[NSString alloc] initWithCString: arg.c_str() encoding: NSUTF8StringEncoding]];
     }
 
     if ([nsCmd length] && [nsArgs count]) {
@@ -1064,20 +1046,19 @@ static int winexec(const char *cmd, const char **args)
 
 int garglk::winterp(const std::string &path, const std::string &exe, const std::string &flags, const std::string &game)
 {
-    sprintf(tmp, "%s/%s", dir, exe.c_str());
+    std::ostringstream cmd;
+    cmd << path << "/" << exe;
 
-    const char *args[] = {NULL, NULL, NULL};
+    std::vector<std::string> args;
 
     if (flags.find('-') != std::string::npos) {
-        args[0] = (char *)exe.c_str();
-        args[1] = (char *)flags.c_str();
-        args[2] = buf;
+        args.push_back(flags);
+        args.push_back(game);
     } else {
-        args[0] = (char *)exe.c_str();
-        args[1] = buf;
+        args.push_back(game);
     }
 
-    if (!winexec(tmp, args)) {
+    if (!winexec(cmd.str(), args)) {
         garglk::winmsg("Could not start 'terp.\nSorry.");
         return false;
     }
@@ -1091,5 +1072,5 @@ int main(int argc, char **argv)
     [NSApplication sharedApplication];
     [NSApp setDelegate:[[GargoyleApp alloc] init]];
     [pool drain];
-    return NSApplicationMain(argc, (const char **)argv);
+    return NSApplicationMain(argc, const_cast<const char **>(argv));
 }
