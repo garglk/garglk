@@ -44,8 +44,8 @@ static volatile sig_atomic_t gli_event_waiting = false;
 static volatile sig_atomic_t gli_mach_allowed = false;
 static volatile sig_atomic_t gli_window_alive = true;
 
-#define kArrowCursor 1
-#define kIBeamCursor 2
+#define kArrowCursor        1
+#define kIBeamCursor        2
 #define kPointingHandCursor 3
 
 void wintick(CFRunLoopTimerRef timer, void *info);
@@ -80,10 +80,10 @@ void winhandler(int signal);
 
 - (void) sleep
 {
-    while (!timeouts && !gli_event_waiting)
-    {
-        if (!gli_window_alive)
+    while (!timeouts && !gli_event_waiting) {
+        if (!gli_window_alive) {
             exit(1);
+        }
 
         gli_mach_allowed = true;
         [[NSRunLoop currentRunLoop] acceptInputForMode: NSDefaultRunLoopMode beforeDate: [NSDate distantFuture]];
@@ -93,21 +93,21 @@ void winhandler(int signal);
 
 - (void) track: (CFTimeInterval) seconds
 {
-    if (timerid)
-    {
-        if (CFRunLoopTimerIsValid(timerid))
+    if (timerid) {
+        if (CFRunLoopTimerIsValid(timerid)) {
             CFRunLoopTimerInvalidate(timerid);
+        }
         CFRelease(timerid);
         timerid = 0;
         timeouts = 0;
     }
 
-    if (seconds)
-    {
+    if (seconds) {
         timerid = CFRunLoopTimerCreate(nullptr, CFAbsoluteTimeGetCurrent() + seconds, seconds,
                                        0, 0, &wintick, nullptr);
-        if (timerid)
+        if (timerid) {
             CFRunLoopAddTimer([[NSRunLoop currentRunLoop] getCFRunLoop], timerid, kCFRunLoopDefaultMode);
+        }
     }
 }
 
@@ -134,16 +134,16 @@ void winhandler(int signal);
 
 @end
 
-static NSObject<GargoyleApp> * gargoyle = nullptr;
-static GargoyleMonitor * monitor = nullptr;
-static NSString * cliptext = nullptr;
+static NSObject<GargoyleApp> *gargoyle = nullptr;
+static GargoyleMonitor *monitor = nullptr;
+static NSString *cliptext = nullptr;
 static pid_t processID = 0;
 
 static bool gli_refresh_needed = true;
 
 void glk_request_timer_events(glui32 millisecs)
 {
-    [monitor track: ((double) millisecs) / 1000];
+    [monitor track:((double)millisecs) / 1000];
 }
 
 void wintick(CFRunLoopTimerRef timer, void *info)
@@ -158,7 +158,7 @@ void gli_notification_waiting()
 
 void garglk::winabort(const std::string &msg)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     [gargoyle abortWindowDialog: processID
                          prompt: [NSString stringWithCString: msg.c_str() encoding: NSUTF8StringEncoding]];
     [pool drain];
@@ -168,22 +168,21 @@ void garglk::winabort(const std::string &msg)
 
 void winexit(void)
 {
-    [gargoyle closeWindow: processID];
+    [gargoyle closeWindow:processID];
     gli_exit(0);
 }
 
 std::string garglk::winopenfile(const char *prompt, FileFilter filter)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
-    NSString * fileref = [gargoyle openWindowDialog: processID
-                                             prompt: [NSString stringWithCString: prompt encoding: NSUTF8StringEncoding]
-                                             filter: filter];
+    NSString *fileref = [gargoyle openWindowDialog: processID
+                                            prompt: [NSString stringWithCString: prompt encoding: NSUTF8StringEncoding]
+                                            filter: filter];
 
     char buf[256];
 
-    if (fileref)
-    {
+    if (fileref) {
         [fileref getCString: buf maxLength: sizeof(buf) encoding: NSUTF8StringEncoding];
     }
 
@@ -194,16 +193,15 @@ std::string garglk::winopenfile(const char *prompt, FileFilter filter)
 
 std::string garglk::winsavefile(const char *prompt, FileFilter filter)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
-    NSString * fileref = [gargoyle saveWindowDialog: processID
-                                             prompt: [NSString stringWithCString: prompt encoding: NSUTF8StringEncoding]
-                                             filter: filter];
+    NSString *fileref = [gargoyle saveWindowDialog: processID
+                                            prompt: [NSString stringWithCString: prompt encoding: NSUTF8StringEncoding]
+                                            filter: filter];
 
     char buf[256];
 
-    if (fileref)
-    {
+    if (fileref) {
         [fileref getCString: buf maxLength: sizeof(buf) encoding: NSUTF8StringEncoding];
     }
 
@@ -214,8 +212,9 @@ std::string garglk::winsavefile(const char *prompt, FileFilter filter)
 
 void winclipstore(const glui32 *text, int len)
 {
-    if (!len)
+    if (!len) {
         return;
+    }
 
     if (cliptext) {
         [cliptext release];
@@ -229,9 +228,8 @@ void winclipstore(const glui32 *text, int len)
 
 void winclipsend(void)
 {
-    if (cliptext)
-    {
-        NSPasteboard * clipboard = [NSPasteboard generalPasteboard];
+    if (cliptext) {
+        NSPasteboard *clipboard = [NSPasteboard generalPasteboard];
         [clipboard declareTypes: [NSArray arrayWithObject: NSStringPboardType] owner:nil];
         [clipboard setString: cliptext forType: NSStringPboardType];
     }
@@ -242,35 +240,30 @@ void winclipreceive(void)
     int i, len;
     glui32 ch;
 
-    NSPasteboard * clipboard = [NSPasteboard generalPasteboard];
+    NSPasteboard *clipboard = [NSPasteboard generalPasteboard];
 
-    if ([clipboard availableTypeFromArray: [NSArray arrayWithObject: NSStringPboardType]])
-    {
-        NSString * input = [clipboard stringForType: NSStringPboardType];
-        if (input)
-        {
+    if ([clipboard availableTypeFromArray: [NSArray arrayWithObject: NSStringPboardType]]) {
+        NSString *input = [clipboard stringForType: NSStringPboardType];
+        if (input) {
             len = [input length];
-            for (i=0; i < len; i++)
-            {
+            for (i = 0; i < len; i++) {
                 if ([input getBytes: &ch maxLength: sizeof ch usedLength: nullptr
                            encoding: UTF32StringEncoding
                             options: 0
                               range: NSMakeRange(i, 1)
-                     remainingRange: nullptr])
-                {
-                    switch (ch)
-                    {
-                        case '\0':
-                            return;
+                     remainingRange: nullptr]) {
+                    switch (ch) {
+                    case '\0':
+                        return;
 
-                        case '\r':
-                        case '\n':
-                        case '\b':
-                        case '\t':
-                            break;
+                    case '\r':
+                    case '\n':
+                    case '\b':
+                    case '\t':
+                        break;
 
-                        default:
-                            gli_input_handle_key(ch);
+                    default:
+                        gli_input_handle_key(ch);
                     }
                 }
             }
@@ -280,19 +273,20 @@ void winclipreceive(void)
 
 void wintitle(void)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
-    NSString * story_title = [NSString stringWithCString: gli_story_title.c_str() encoding: NSUTF8StringEncoding];
-    NSString * story_name = [NSString stringWithCString: gli_story_name.c_str() encoding: NSUTF8StringEncoding];
-    NSString * program_name = [NSString stringWithCString: gli_program_name.c_str() encoding: NSUTF8StringEncoding];
+    NSString *story_title = [NSString stringWithCString: gli_story_title.c_str() encoding: NSUTF8StringEncoding];
+    NSString *story_name = [NSString stringWithCString: gli_story_name.c_str() encoding: NSUTF8StringEncoding];
+    NSString *program_name = [NSString stringWithCString: gli_program_name.c_str() encoding: NSUTF8StringEncoding];
 
-    NSString * title = nil;
-    if ([story_title length])
+    NSString *title = nil;
+    if ([story_title length]) {
         title = story_title;
-    else if ([story_name length])
-        title = [NSString stringWithFormat: @"%@ - %@", story_name, program_name];
-    else
+    } else if ([story_name length]) {
+        title = [NSString stringWithFormat:@"%@ - %@", story_name, program_name];
+    } else {
         title = program_name;
+    }
 
     [gargoyle setWindow: processID
                   title: title];
@@ -308,8 +302,9 @@ void winresize(void)
     unsigned int vw = static_cast<unsigned int>(NSWidth(viewRect) * textureFactor);
     unsigned int vh = static_cast<unsigned int>(NSHeight(viewRect) * textureFactor);
 
-    if (gli_image_rgb.width() == vw && gli_image_rgb.height() == vh)
+    if (gli_image_rgb.width() == vw && gli_image_rgb.height() == vh) {
         return;
+    }
 
     gli_windows_size_change(vw, vh);
 
@@ -321,22 +316,20 @@ static mach_port_t gli_signal_port = 0;
 
 void winmach(CFMachPortRef port, void *msg, CFIndex size, void *info)
 {
-    mach_msg_header_t* hdr = static_cast<mach_msg_header_t *>(msg);
-    switch (hdr->msgh_id)
-    {
-        case SIGUSR1:
-            gli_event_waiting = true;
-            break;
+    mach_msg_header_t *hdr = static_cast<mach_msg_header_t *>(msg);
+    switch (hdr->msgh_id) {
+    case SIGUSR1:
+        gli_event_waiting = true;
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 }
 
 void winhandler(int signal)
 {
-    if (signal == SIGUSR1)
-    {
+    if (signal == SIGUSR1) {
         if (gli_mach_allowed) {
             mach_msg_header_t header;
             header.msgh_bits        = MACH_MSGH_BITS(MACH_MSG_TYPE_MAKE_SEND, 0);
@@ -352,27 +345,24 @@ void winhandler(int signal)
         }
     }
 
-    if (signal == SIGUSR2)
-    {
+    if (signal == SIGUSR2) {
         gli_window_alive = false;
 
         /* Stop all sound channels */
-        for (channel_t *chan = glk_schannel_iterate(nullptr, nullptr); chan; chan = glk_schannel_iterate(chan, nullptr))
-        {
+        for (channel_t *chan = glk_schannel_iterate(nullptr, nullptr); chan; chan = glk_schannel_iterate(chan, nullptr)) {
             glk_schannel_stop(chan);
         }
-
     }
 }
 
 void wininit(int *argc, char **argv)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     gli_backingscalefactor = BACKING_SCALE_FACTOR;
 
     /* establish link to launcher */
-    NSString * linkName = [NSString stringWithUTF8String: getenv("GargoyleApp")];
-    NSConnection * link = [NSConnection connectionWithRegisteredName: linkName host: nullptr];
+    NSString *linkName = [NSString stringWithUTF8String: getenv("GargoyleApp")];
+    NSConnection *link = [NSConnection connectionWithRegisteredName: linkName host: nullptr];
     [link retain];
 
     /* monitor link for failure */
@@ -403,8 +393,7 @@ void wininit(int *argc, char **argv)
 NSString *get_qt_plist_path()
 {
     const char *home = std::getenv("HOME");
-    if (home != nullptr)
-    {
+    if (home != nullptr) {
         // Optimistically use the path that Qt uses with the hope/plan
         // of moving macOS to Qt one of these days.
         auto path = std::string(home) + "/Library/Preferences/com.io-github-garglk.Gargoyle.plist";
@@ -416,30 +405,26 @@ NSString *get_qt_plist_path()
 
 void winopen(void)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
     unsigned int defw = gli_wmarginx * 2 + gli_cellw * gli_cols / BACKING_SCALE_FACTOR;
     unsigned int defh = gli_wmarginy * 2 + gli_cellh * gli_rows / BACKING_SCALE_FACTOR;
-    NSColor * windowColor = [NSColor colorWithCalibratedRed: (float) gli_window_color[0] / 255.0f
-                                                      green: (float) gli_window_color[1] / 255.0f
-                                                       blue: (float) gli_window_color[2] / 255.0f
-                                                      alpha: 1.0f];
+    NSColor *windowColor = [NSColor colorWithCalibratedRed: (float) gli_window_color[0] / 255.0f
+                                                     green: (float) gli_window_color[1] / 255.0f
+                                                      blue: (float) gli_window_color[2] / 255.0f
+                                                     alpha: 1.0f];
 
-    if (gli_conf_save_window_size)
-    {
+    if (gli_conf_save_window_size) {
         auto path = get_qt_plist_path();
-        if (path != nil)
-        {
+        if (path != nil) {
             NSDictionary *config = [NSDictionary dictionaryWithContentsOfFile: path];
             NSString *sizeobj = config[@"window.size"];
 
-            if (sizeobj)
-            {
+            if (sizeobj) {
                 std::string size = [sizeobj UTF8String];
                 std::regex size_re(R"(^@Size\((\d+) (\d+)\)$)");
                 std::smatch cm;
-                if (std::regex_match(size, cm, size_re) && cm.size() == 3)
-                {
+                if (std::regex_match(size, cm, size_re) && cm.size() == 3) {
                     defw = std::stoi(cm[1]);
                     defh = std::stoi(cm[2]);
                 }
@@ -475,9 +460,9 @@ void winrefresh(void)
 {
     gli_windows_redraw();
 
-    NSData * frame = [NSData dataWithBytesNoCopy: gli_image_rgb.data()
-                                          length: gli_image_rgb.size()
-                                    freeWhenDone: NO];
+    NSData *frame = [NSData dataWithBytesNoCopy: gli_image_rgb.data()
+                                         length: gli_image_rgb.size()
+                                   freeWhenDone: NO];
 
     int refreshed = [gargoyle setWindow: processID
                                contents: frame
@@ -501,14 +486,16 @@ static void show_info(NSString *title, const std::string &text)
 static void show_paths()
 {
     std::string text = "Configuration file paths:\n\n";
-    for (const auto &path : garglk::all_configs)
+    for (const auto &path : garglk::all_configs) {
         text += "• " + path.path + "\n";
+    }
 
     text += "\nTheme paths:\n\n";
     auto appdata = garglk::winappdata();
     std::reverse(appdata.begin(), appdata.end());
-    for (const auto &path : appdata)
+    for (const auto &path : appdata) {
         text += "• " + path + "/themes\n";
+    }
 
     show_info(@"Paths", text);
 }
@@ -519,8 +506,9 @@ static void show_themes()
     auto theme_names = garglk::theme::names();
 
     std::sort(theme_names.begin(), theme_names.end());
-    for (const auto &theme_name : theme_names)
+    for (const auto &theme_name : theme_names) {
         text += "• " + theme_name + "\n";
+    }
 
     show_info(@"Themes", text);
 }
@@ -595,21 +583,17 @@ void winkey(NSEvent *evt)
         {{0, NSKEY_F12},  []{ gli_input_handle_key(keycode_Func12); }},
     };
 
-    try
-    {
+    try {
         keys.at(std::make_pair(modmasked, [evt keyCode]))();
         return;
+    } catch (const std::out_of_range &) {
     }
-    catch(const std::out_of_range &)
-    {
-    }
-
 
     /* send combined keystrokes to text buffer */
     [gargoyle setWindow: processID charString: evt];
 
     /* retrieve character from buffer as string */
-    NSString * evt_char = [gargoyle getWindowCharString: processID];
+    NSString *evt_char = [gargoyle getWindowCharString: processID];
 
     /* convert character to UTF-32 value */
     glui32 ch;
@@ -618,15 +602,18 @@ void winkey(NSEvent *evt)
                   encoding: UTF32StringEncoding
                    options: 0
                      range: NSMakeRange(0, [evt_char length])
-            remainingRange: nullptr])
-    {
-        if (used != 0)
-        {
-            switch (ch)
-            {
-                case '\n': gli_input_handle_key(keycode_Return); break;
-                case '\t': gli_input_handle_key(keycode_Tab);    break;
-                default: gli_input_handle_key(ch); break;
+            remainingRange: nullptr]) {
+        if (used != 0) {
+            switch (ch) {
+            case '\n':
+                gli_input_handle_key(keycode_Return);
+                break;
+            case '\t':
+                gli_input_handle_key(keycode_Tab);
+                break;
+            default:
+                gli_input_handle_key(ch);
+                break;
             }
         }
     }
@@ -644,105 +631,99 @@ void winmouse(NSEvent *evt)
 
     /* disregard most events outside of content window */
     if ((coords.y < 0 || y < 0 || x < 0 || x > gli_image_rgb.width())
-        && !([evt type] == NSEventTypeLeftMouseUp))
+        && !([evt type] == NSEventTypeLeftMouseUp)) {
         return;
-
-    switch ([evt type])
-    {
-        case NSEventTypeLeftMouseDown:
-        {
-            gli_input_handle_click(x, y);
-            [gargoyle setCursor: kArrowCursor];
-            break;
-        }
-
-        case NSEventTypeLeftMouseDragged:
-        {
-            if (gli_copyselect)
-            {
-                [gargoyle setCursor: kIBeamCursor];
-                gli_move_selection(x, y);
-            }
-            break;
-        }
-
-        case NSEventTypeMouseMoved:
-        {
-            if (gli_get_hyperlink(x, y))
-                [gargoyle setCursor: kPointingHandCursor];
-            else
-                [gargoyle setCursor: kArrowCursor];
-            break;
-        }
-
-        case NSEventTypeLeftMouseUp:
-        {
-            gli_copyselect = false;
-            [gargoyle setCursor: kArrowCursor];
-            break;
-        }
-
-        case NSEventTypeScrollWheel:
-        {
-            if ([evt deltaY] > 0)
-                gli_input_handle_key(keycode_MouseWheelUp);
-            else if ([evt deltaY] < 0)
-                gli_input_handle_key(keycode_MouseWheelDown);
-            break;
-        }
-
-        default: break;
     }
 
+    switch ([evt type]) {
+    case NSEventTypeLeftMouseDown: {
+        gli_input_handle_click(x, y);
+        [gargoyle setCursor:kArrowCursor];
+        break;
+    }
+
+    case NSEventTypeLeftMouseDragged: {
+        if (gli_copyselect) {
+            [gargoyle setCursor:kIBeamCursor];
+            gli_move_selection(x, y);
+        }
+        break;
+    }
+
+    case NSEventTypeMouseMoved: {
+        if (gli_get_hyperlink(x, y)) {
+            [gargoyle setCursor:kPointingHandCursor];
+        } else {
+            [gargoyle setCursor:kArrowCursor];
+        }
+        break;
+    }
+
+    case NSEventTypeLeftMouseUp: {
+        gli_copyselect = false;
+        [gargoyle setCursor:kArrowCursor];
+        break;
+    }
+
+    case NSEventTypeScrollWheel: {
+        if ([evt deltaY] > 0) {
+            gli_input_handle_key(keycode_MouseWheelUp);
+        } else if ([evt deltaY] < 0) {
+            gli_input_handle_key(keycode_MouseWheelDown);
+        }
+        break;
+    }
+
+    default:
+        break;
+    }
 }
 
 void winevent(NSEvent *evt)
 {
-    if (!evt)
-    {
+    if (!evt) {
         gli_event_waiting = false;
         return;
     }
 
-    switch ([evt type])
-    {
-        case NSEventTypeKeyDown:
-        {
-            winkey(evt);
-            return;
-        }
+    switch ([evt type]) {
+    case NSEventTypeKeyDown: {
+        winkey(evt);
+        return;
+    }
 
-        case NSEventTypeLeftMouseDown:
-        case NSEventTypeLeftMouseDragged:
-        case NSEventTypeLeftMouseUp:
-        case NSEventTypeMouseMoved:
-        case NSEventTypeScrollWheel:
-        {
-            winmouse(evt);
-            return;
-        }
+    case NSEventTypeLeftMouseDown:
+    case NSEventTypeLeftMouseDragged:
+    case NSEventTypeLeftMouseUp:
+    case NSEventTypeMouseMoved:
+    case NSEventTypeScrollWheel: {
+        winmouse(evt);
+        return;
+    }
 
-        case NSEventTypeApplicationDefined:
-        {
-            gli_refresh_needed = true;
-            winresize();
-            return;
-        }
+    case NSEventTypeApplicationDefined: {
+        gli_refresh_needed = true;
+        winresize();
+        return;
+    }
 
-        default: return;
+    default:
+        return;
     }
 }
 
 /* winloop handles at most one event */
 void winloop(void)
 {
-    NSEvent * evt = nullptr;
+    NSEvent *evt = nullptr;
 
-    if (gli_refresh_needed)
+    if (gli_refresh_needed) {
         winrefresh();
+    }
 
-    if (gli_event_waiting)
-        evt = [gargoyle getWindowEvent: processID];
+    if (gli_event_waiting) {
+        evt = [gargoyle getWindowEvent:processID];
+    }
 
     winevent(evt);
 }
@@ -750,27 +731,28 @@ void winloop(void)
 /* winpoll handles all queued events */
 void winpoll(void)
 {
-    NSEvent * evt = nullptr;
+    NSEvent *evt = nullptr;
 
-    do
-    {
-        if (gli_refresh_needed)
+    do {
+        if (gli_refresh_needed) {
             winrefresh();
+        }
 
-        if (gli_event_waiting)
+        if (gli_event_waiting) {
             evt = [gargoyle getWindowEvent: processID];
+        }
 
         winevent(evt);
-    }
-    while (evt);
+    } while (evt);
 }
 
 std::string garglk::winfontpath(const std::string &filename)
 {
     char *resources = getenv("GARGLK_RESOURCES");
 
-    if (resources != nullptr)
+    if (resources != nullptr) {
         return std::string(resources) + "/Fonts/" + filename;
+    }
 
     return "";
 }
@@ -781,8 +763,9 @@ std::vector<std::string> garglk::winappdata()
     char *resources = getenv("GARGLK_RESOURCES");
     std::vector<std::string> paths;
 
-    if (resources != nullptr)
+    if (resources != nullptr) {
         paths.push_back(resources);
+    }
 
     // This is what Qt returns for AppConfigLocation.
     paths.push_back(std::string([nspath UTF8String]) + "/Preferences/io.github.garglk/Gargoyle");
@@ -798,29 +781,27 @@ std::string garglk::winappdir()
 
 void gli_select(event_t *event, bool polled)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
     gli_event_clearevent(event);
 
     winpoll();
     gli_dispatch_event(event, polled);
 
-    if (event->type == evtype_None && !polled)
-    {
-        while (![monitor timeout])
-        {
+    if (event->type == evtype_None && !polled) {
+        while (![monitor timeout]) {
             winloop();
             gli_dispatch_event(event, polled);
 
-            if (event->type == evtype_None)
+            if (event->type == evtype_None) {
                 [monitor sleep];
-            else
+            } else {
                 break;
+            }
         }
     }
 
-    if (event->type == evtype_None && [monitor timeout])
-    {
+    if (event->type == evtype_None && [monitor timeout]) {
         gli_event_store(evtype_Timer, nullptr, 0, 0);
         gli_dispatch_event(event, polled);
         [monitor reset];
