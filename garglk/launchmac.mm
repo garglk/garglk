@@ -881,14 +881,11 @@ static BOOL isTextbufferEvent(NSEvent *evt)
         return NO;
     }
 
-    // get dir of executable
-    auto interpreter_dir = winpath();
-
     // get story file
     auto game = [file UTF8String];
 
     // run story file
-    int ran = garglk::rungame(interpreter_dir, game);
+    int ran = garglk::rungame(game);
 
     if (ran) {
         [[NSDocumentController sharedDocumentController] noteNewRecentDocumentURL: [NSURL fileURLWithPath: file]];
@@ -1044,10 +1041,13 @@ static int winexec(const std::string &cmd, const std::vector<std::string> &args)
     return [proc isRunning];
 }
 
-int garglk::winterp(const std::string &path, const std::string &exe, const std::string &flags, const std::string &game)
+int garglk::winterp(const std::string &exe, const std::string &flags, const std::string &game)
 {
+    // get dir of executable
+    auto interpreter_dir = winpath();
+
     std::ostringstream cmd;
-    cmd << path << "/" << exe;
+    cmd << interpreter_dir << "/" << exe;
 
     std::vector<std::string> args;
 

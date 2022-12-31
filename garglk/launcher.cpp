@@ -175,12 +175,12 @@ static const std::map<Format, Interpreter> interpreters = {
     {Format::ZCode6, Interpreter(T_ZSIX)},
 };
 
-static bool call_winterp(const std::string &interpreter_dir, const Interpreter &interpreter, const std::string &game)
+static bool call_winterp(const Interpreter &interpreter, const std::string &game)
 {
-    return garglk::winterp(interpreter_dir, GARGLKPRE + interpreter.terp, interpreter.flags, game);
+    return garglk::winterp(GARGLKPRE + interpreter.terp, interpreter.flags, game);
 }
 
-static bool runblorb(const std::string &interpreter_dir, const std::string &game, const Interpreter &interpreter)
+static bool runblorb(const std::string &game, const Interpreter &interpreter)
 {
     class BlorbError : public std::runtime_error {
     public:
@@ -241,7 +241,7 @@ static bool runblorb(const std::string &interpreter_dir, const std::string &game
         }
         }
 
-        return call_winterp(interpreter_dir, found_interpreter, game);
+        return call_winterp(found_interpreter, game);
     } catch (const BlorbError &e) {
         garglk::winmsg("Could not load Blorb file " + game + ":\n" + e.what());
         return false;
@@ -300,7 +300,7 @@ static void configterp(const std::string &gamepath, struct Interpreter &interpre
     }
 }
 
-int garglk::rungame(const std::string &interpreter_dir, const std::string &game)
+int garglk::rungame(const std::string &game)
 {
     const std::set<std::string> blorbs = {"blb", "blorb", "glb", "gbl", "gblorb", "zlb", "zbl", "zblorb"};
     Interpreter interpreter("");
@@ -328,16 +328,16 @@ int garglk::rungame(const std::string &interpreter_dir, const std::string &game)
     }
 
     if (is_blorb || std::find(blorbs.begin(), blorbs.end(), ext) != blorbs.end()) {
-        return runblorb(interpreter_dir, game, interpreter);
+        return runblorb(game, interpreter);
     }
 
     if (!interpreter.terp.empty()) {
-        return call_winterp(interpreter_dir, interpreter, game);
+        return call_winterp(interpreter, game);
     }
 
     try {
         auto format = extensions.at(ext);
-        return call_winterp(interpreter_dir, interpreters.at(format), game);
+        return call_winterp(interpreters.at(format), game);
     } catch (const std::out_of_range &) {
     }
 

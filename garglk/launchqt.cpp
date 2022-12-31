@@ -112,9 +112,29 @@ static QString winbrowsefile()
     return QFileDialog::getOpenFileName(nullptr, AppName, "", filter_string, nullptr, options);
 }
 
-int garglk::winterp(const std::string &interpreter_dir, const std::string &exe, const std::string &flags, const std::string &game)
+int garglk::winterp(const std::string &exe, const std::string &flags, const std::string &game)
 {
-    QString argv0 = QDir(interpreter_dir.c_str()).absoluteFilePath(exe.c_str());
+    // Find the directory that contains the interpreters. By default
+    // this is GARGLK_CONFIG_INTERPRETER_DIR but if that is not set, it
+    // is the containing directory of the gargoyle executable.
+    //
+    // For development purposes, the environment variable
+    // $GARGLK_INTERPRETER_DIR can be set to the interpreter build
+    // directory to allow the gargoyle binary to load the newly-built
+    // interpreters instead of the system-wide interpreters (or instead
+    // of failing if there are no interpreters installed). If this is
+    // set, the standard directory will *not* be used at all, even if no
+    // interpreter is found.
+    QString interpreter_dir = std::getenv("GARGLK_INTERPRETER_DIR");
+    if (interpreter_dir.isNull()) {
+#ifdef GARGLK_CONFIG_INTERPRETER_DIR
+        interpreter_dir = GARGLK_CONFIG_INTERPRETER_DIR;
+#else
+        interpreter_dir = QCoreApplication::applicationDirPath();
+#endif
+    }
+
+    QString argv0 = QDir(interpreter_dir).absoluteFilePath(exe.c_str());
 
     QStringList args;
 
@@ -224,26 +244,6 @@ int main(int argc, char **argv)
     app.setApplicationName(GARGOYLE_NAME);
     app.setApplicationVersion(GARGOYLE_VERSION);
 
-    // Find the directory that contains the interpreters. By default
-    // this is GARGLK_CONFIG_INTERPRETER_DIR but if that is not set, it
-    // is the containing directory of the gargoyle executable.
-    //
-    // For development purposes, the environment variable
-    // $GARGLK_INTERPRETER_DIR can be set to the interpreter build
-    // directory to allow the gargoyle binary to load the newly-built
-    // interpreters instead of the system-wide interpreters (or instead
-    // of failing if there are no interpreters installed). If this is
-    // set, the standard directory will *not* be used at all, even if no
-    // interpreter is found.
-    QString interpreter_dir = std::getenv("GARGLK_INTERPRETER_DIR");
-    if (interpreter_dir.isNull()) {
-#ifdef GARGLK_CONFIG_INTERPRETER_DIR
-        interpreter_dir = GARGLK_CONFIG_INTERPRETER_DIR;
-#else
-        interpreter_dir = QCoreApplication::applicationDirPath();
-#endif
-    }
-
     auto story = parse_args(app);
 
     if (story.isEmpty()) {
@@ -255,5 +255,5 @@ int main(int argc, char **argv)
     }
 
     // run story file
-    return garglk::rungame(interpreter_dir.toStdString(), story.toStdString());
+    return garglk::rungame(story.toStdString());
 }
