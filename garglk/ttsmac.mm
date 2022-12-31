@@ -1,28 +1,26 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2017 by Chris Spiegel.                                       *
- * Copyright (C) 2017 by Kerry Guerrero.                                      *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson.
+// Copyright (C) 2017 by Chris Spiegel.
+// Copyright (C) 2017 by Kerry Guerrero.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #import <Cocoa/Cocoa.h>
+
+#include <vector>
 
 #include "glk.h"
 #include "garglk.h"
@@ -63,13 +61,11 @@ static NSRange purgeRange;
 }
 @end
 
-#define TXTSIZE 4096
-static glui32 txtbuf[TXTSIZE + 1];
-static size_t txtlen;
+static std::vector<glui32> txtbuf;
 
 static NSSpeechSynthesizer *synth = nil;
 
-void gli_initialize_tts(void)
+void gli_initialize_tts()
 {
     if (gli_conf_speak) {
         // spawn speech synthesizer using the default voice
@@ -100,7 +96,7 @@ void gli_initialize_tts(void)
         NSLog(@"TTS configured with voice: %@", [synth voice]);
     }
 
-    txtlen = 0;
+    txtbuf.clear();
 }
 
 static void ttsmac_add_phrase(NSString * phrase)
@@ -116,10 +112,10 @@ static void ttsmac_add_phrase(NSString * phrase)
 
 static void ttsmac_flush()
 {
-    if (txtlen > 0) {
+    if (!txtbuf.empty()) {
         // convert codepoints in buffer into an NSString
-        NSString *text = [[NSString alloc] initWithBytes: txtbuf
-                                                  length: (txtlen * sizeof(glui32))
+        NSString *text = [[NSString alloc] initWithBytes: txtbuf.data()
+                                                  length: (txtbuf.size() * sizeof(glui32))
                                                 encoding: UTF32StringEncoding];
 
         if (text) {
@@ -127,7 +123,7 @@ static void ttsmac_flush()
             [text release];
         }
 
-        txtlen = 0;
+        txtbuf.clear();
     }
 }
 
@@ -153,26 +149,20 @@ void gli_tts_speak(const glui32 *buf, size_t len)
     }
 
     for (size_t i = 0; i < len; i++) {
-        if (txtlen >= TXTSIZE) {
-            gli_tts_flush();
-        }
-
         if (buf[i] == '>' || buf[i] == '*') {
             continue;
         }
 
-        txtbuf[txtlen++] = buf[i];
+        txtbuf.push_back(buf[i]);
 
-        /*
-         * Feed the synthesizer in paragraph-sized chunks. A compromise
-         * as doing it in smaller pieces (e.g. sentences) doesn't always
-         * sound right when dealing with quote-delimited text. The quoted
-         * text should be sent to the synthesizer in a single call which
-         * requires scanning for quote pairs (including typographic
-         * quotes) and correct handling of single-quotes and possesive
-         * forms (at least for English). More work than I want to deal
-         * with at this time.
-         */
+        // Feed the synthesizer in paragraph-sized chunks. A compromise
+        // as doing it in smaller pieces (e.g. sentences) doesn't always
+        // sound right when dealing with quote-delimited text. The quoted
+        // text should be sent to the synthesizer in a single call which
+        // requires scanning for quote pairs (including typographic
+        // quotes) and correct handling of single-quotes and possesive
+        // forms (at least for English). More work than I want to deal
+        // with at this time.
         if (/*buf[i] == '.' || buf[i] == '!' || buf[i] == '?' || */ buf[i] == '\n') {
             gli_tts_flush();
         }

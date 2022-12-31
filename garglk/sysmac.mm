@@ -1,24 +1,20 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2010 by Ben Cressey.                                         *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2010 by Ben Cressey.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm>
 #include <cstdlib>
@@ -48,8 +44,8 @@ static volatile sig_atomic_t gli_window_alive = true;
 #define kIBeamCursor        2
 #define kPointingHandCursor 3
 
-void wintick(CFRunLoopTimerRef timer, void *info);
-void winhandler(int signal);
+static void wintick(CFRunLoopTimerRef timer, void *info);
+static void winhandler(int signal);
 
 @interface GargoyleMonitor : NSObject
 {
@@ -72,7 +68,7 @@ void winhandler(int signal);
 {
     self = [super init];
 
-    timerid = 0;
+    timerid = nullptr;
     timeouts = 0;
 
     return self;
@@ -82,7 +78,7 @@ void winhandler(int signal);
 {
     while (!timeouts && !gli_event_waiting) {
         if (!gli_window_alive) {
-            exit(1);
+            std::exit(1);
         }
 
         gli_mach_allowed = true;
@@ -98,7 +94,7 @@ void winhandler(int signal);
             CFRunLoopTimerInvalidate(timerid);
         }
         CFRelease(timerid);
-        timerid = 0;
+        timerid = nullptr;
         timeouts = 0;
     }
 
@@ -119,7 +115,7 @@ void winhandler(int signal);
 
 - (BOOL) timeout
 {
-    return (timeouts != 0);
+    return timeouts != 0;
 }
 
 - (void) reset
@@ -129,7 +125,7 @@ void winhandler(int signal);
 
 - (void) connectionDied: (NSNotification *) notice
 {
-    exit(1);
+    std::exit(1);
 }
 
 @end
@@ -143,10 +139,10 @@ static bool gli_refresh_needed = true;
 
 void glk_request_timer_events(glui32 millisecs)
 {
-    [monitor track:((double)millisecs) / 1000];
+    [monitor track: millisecs / 1000.0];
 }
 
-void wintick(CFRunLoopTimerRef timer, void *info)
+static void wintick(CFRunLoopTimerRef timer, void *info)
 {
     [monitor tick];
 }
@@ -163,10 +159,10 @@ void garglk::winabort(const std::string &msg)
                          prompt: [NSString stringWithCString: msg.c_str() encoding: NSUTF8StringEncoding]];
     [pool drain];
 
-    exit(1);
+    std::exit(1);
 }
 
-void winexit(void)
+void winexit()
 {
     [gargoyle closeWindow:processID];
     gli_exit(0);
@@ -180,10 +176,10 @@ std::string garglk::winopenfile(const char *prompt, FileFilter filter)
                                             prompt: [NSString stringWithCString: prompt encoding: NSUTF8StringEncoding]
                                             filter: filter];
 
-    char buf[256];
+    std::string buf;
 
     if (fileref) {
-        [fileref getCString: buf maxLength: sizeof(buf) encoding: NSUTF8StringEncoding];
+        buf = [fileref UTF8String];
     }
 
     [pool drain];
@@ -199,10 +195,10 @@ std::string garglk::winsavefile(const char *prompt, FileFilter filter)
                                             prompt: [NSString stringWithCString: prompt encoding: NSUTF8StringEncoding]
                                             filter: filter];
 
-    char buf[256];
+    std::string buf;
 
     if (fileref) {
-        [fileref getCString: buf maxLength: sizeof(buf) encoding: NSUTF8StringEncoding];
+        buf = [fileref UTF8String];
     }
 
     [pool drain];
@@ -226,7 +222,7 @@ void winclipstore(const glui32 *text, int len)
                                       encoding: UTF32StringEncoding];
 }
 
-void winclipsend(void)
+void winclipsend()
 {
     if (cliptext) {
         NSPasteboard *clipboard = [NSPasteboard generalPasteboard];
@@ -235,7 +231,7 @@ void winclipsend(void)
     }
 }
 
-void winclipreceive(void)
+void winclipreceive()
 {
     int i, len;
     glui32 ch;
@@ -271,7 +267,7 @@ void winclipreceive(void)
     }
 }
 
-void wintitle(void)
+void wintitle()
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
@@ -294,13 +290,13 @@ void wintitle(void)
     [pool drain];
 }
 
-void winresize(void)
+void winresize()
 {
     NSRect viewRect = [gargoyle updateBackingSize: processID];
     float textureFactor = BACKING_SCALE_FACTOR / [gargoyle getBackingScaleFactor: processID];
 
-    unsigned int vw = static_cast<unsigned int>(NSWidth(viewRect) * textureFactor);
-    unsigned int vh = static_cast<unsigned int>(NSHeight(viewRect) * textureFactor);
+    unsigned int vw = NSWidth(viewRect) * textureFactor;
+    unsigned int vh = NSHeight(viewRect) * textureFactor;
 
     if (gli_image_rgb.width() == vw && gli_image_rgb.height() == vh) {
         return;
@@ -308,7 +304,7 @@ void winresize(void)
 
     gli_windows_size_change(vw, vh);
 
-    /* redraw window content */
+    // redraw window content
     gli_refresh_needed = true;
 }
 
@@ -327,7 +323,7 @@ void winmach(CFMachPortRef port, void *msg, CFIndex size, void *info)
     }
 }
 
-void winhandler(int signal)
+static void winhandler(int signal)
 {
     if (signal == SIGUSR1) {
         if (gli_mach_allowed) {
@@ -348,7 +344,7 @@ void winhandler(int signal)
     if (signal == SIGUSR2) {
         gli_window_alive = false;
 
-        /* Stop all sound channels */
+        // Stop all sound channels
         for (channel_t *chan = glk_schannel_iterate(nullptr, nullptr); chan; chan = glk_schannel_iterate(chan, nullptr)) {
             glk_schannel_stop(chan);
         }
@@ -360,28 +356,28 @@ void wininit(int *argc, char **argv)
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     gli_backingscalefactor = BACKING_SCALE_FACTOR;
 
-    /* establish link to launcher */
+    // establish link to launcher
     NSString *linkName = [NSString stringWithUTF8String: getenv("GargoyleApp")];
     NSConnection *link = [NSConnection connectionWithRegisteredName: linkName host: nullptr];
     [link retain];
 
-    /* monitor link for failure */
+    // monitor link for failure
     monitor = [[GargoyleMonitor alloc] init];
     [[NSNotificationCenter defaultCenter] addObserver: monitor
                                              selector: @selector(connectionDied:)
                                                  name: NSConnectionDidDieNotification
                                                object: link];
 
-    /* attach to app controller */
+    // attach to app controller
     gargoyle = (NSObject<GargoyleApp> *)[link rootProxy];
     [gargoyle retain];
 
-    /* listen for mach messages */
+    // listen for mach messages
     CFMachPortRef sigPort = CFMachPortCreate(nullptr, winmach, nullptr, nullptr);
     gli_signal_port = CFMachPortGetPort(sigPort);
     [[NSRunLoop currentRunLoop] addPort: [NSMachPort portWithMachPort: gli_signal_port] forMode: NSDefaultRunLoopMode];
 
-    /* load signal handler */
+    // load signal handler
     signal(SIGUSR1, winhandler);
     signal(SIGUSR2, winhandler);
 
@@ -403,7 +399,7 @@ NSString *get_qt_plist_path()
     return nil;
 }
 
-void winopen(void)
+void winopen()
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
@@ -456,7 +452,7 @@ bool windark()
     return [theme isEqualToString:@"Dark"];
 }
 
-void winrefresh(void)
+void winrefresh()
 {
     gli_windows_redraw();
 
@@ -518,33 +514,33 @@ void winkey(NSEvent *evt)
     NSEventModifierFlags modifiers = [evt modifierFlags];
     NSEventModifierFlags modmasked = modifiers & (NSEventModifierFlagOption | NSEventModifierFlagShift | NSEventModifierFlagCommand | NSEventModifierFlagControl);
 
-    /* queue a screen refresh */
+    // queue a screen refresh
     gli_refresh_needed = true;
 
-    /* special key combinations */
+    // special key combinations
     static const std::map<std::pair<decltype(modmasked), decltype([evt keyCode])>, std::function<void()>> keys = {
-        /* alt/option modified arrow key */
+        // alt/option modified arrow key
         {{NSEventModifierFlagOption, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_SkipWordLeft); }},
         {{NSEventModifierFlagOption, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_SkipWordRight); }},
         {{NSEventModifierFlagOption, NSKEY_DOWN},  []{ gli_input_handle_key(keycode_PageDown); }},
         {{NSEventModifierFlagOption, NSKEY_UP},    []{ gli_input_handle_key(keycode_PageUp); }},
 
-        /* command modified arrow key */
+        // command modified arrow key
         {{NSEventModifierFlagCommand, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_Home); }},
         {{NSEventModifierFlagCommand, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_End); }},
         {{NSEventModifierFlagCommand, NSKEY_DOWN},  []{ gli_input_handle_key(keycode_PageDown); }},
         {{NSEventModifierFlagCommand, NSKEY_UP},    []{ gli_input_handle_key(keycode_PageUp); }},
 
-        /* menu commands */
+        // menu commands
         {{NSEventModifierFlagCommand, NSKEY_X}, []{ winclipsend(); }},
         {{NSEventModifierFlagCommand, NSKEY_C}, []{ winclipsend(); }},
         {{NSEventModifierFlagCommand, NSKEY_V}, []{ winclipreceive(); }},
 
-        /* info */
+        // info
         {{NSEventModifierFlagCommand, NSKEY_PERIOD}, show_paths},
         {{NSEventModifierFlagShift | NSEventModifierFlagCommand, NSKEY_T}, show_themes},
 
-        /* readline/emacs-style controls */
+        // readline/emacs-style controls
         {{NSEventModifierFlagControl, NSKEY_A}, []{ gli_input_handle_key(keycode_Home); }},
         {{NSEventModifierFlagControl, NSKEY_B}, []{ gli_input_handle_key(keycode_Left); }},
         {{NSEventModifierFlagControl, NSKEY_D}, []{ gli_input_handle_key(keycode_Erase); }},
@@ -555,13 +551,13 @@ void winkey(NSEvent *evt)
         {{NSEventModifierFlagControl, NSKEY_P}, []{ gli_input_handle_key(keycode_Up); }},
         {{NSEventModifierFlagControl, NSKEY_U}, []{ gli_input_handle_key(keycode_Escape); }},
 
-        /* unmodified key for line editing */
+        // unmodified key for line editing
         {{0, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_Left); }},
         {{0, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_Right); }},
         {{0, NSKEY_DOWN},  []{ gli_input_handle_key(keycode_Down); }},
         {{0, NSKEY_UP},    []{ gli_input_handle_key(keycode_Up); }},
 
-        /* command keys */
+        // command keys
         {{0, NSKEY_PGUP}, []{ gli_input_handle_key(keycode_PageUp); }},
         {{0, NSKEY_PGDN}, []{ gli_input_handle_key(keycode_PageDown); }},
         {{0, NSKEY_HOME}, []{ gli_input_handle_key(keycode_Home); }},
@@ -589,13 +585,13 @@ void winkey(NSEvent *evt)
     } catch (const std::out_of_range &) {
     }
 
-    /* send combined keystrokes to text buffer */
+    // send combined keystrokes to text buffer
     [gargoyle setWindow: processID charString: evt];
 
-    /* retrieve character from buffer as string */
+    // retrieve character from buffer as string
     NSString *evt_char = [gargoyle getWindowCharString: processID];
 
-    /* convert character to UTF-32 value */
+    // convert character to UTF-32 value
     glui32 ch;
     NSUInteger used;
     if ([evt_char getBytes: &ch maxLength: sizeof ch usedLength: &used
@@ -618,7 +614,7 @@ void winkey(NSEvent *evt)
         }
     }
 
-    /* discard contents of text buffer */
+    // discard contents of text buffer
     [gargoyle clearWindowCharString: processID];
 }
 
@@ -629,9 +625,9 @@ void winmouse(NSEvent *evt)
     int x = coords.x * gli_backingscalefactor;
     int y = gli_image_rgb.height() - (coords.y * gli_backingscalefactor);
 
-    /* disregard most events outside of content window */
+    // disregard most events outside of content window
     if ((coords.y < 0 || y < 0 || x < 0 || x > gli_image_rgb.width())
-        && !([evt type] == NSEventTypeLeftMouseUp)) {
+        && ([evt type] != NSEventTypeLeftMouseUp)) {
         return;
     }
 
@@ -712,8 +708,8 @@ void winevent(NSEvent *evt)
     }
 }
 
-/* winloop handles at most one event */
-void winloop(void)
+// winloop handles at most one event
+void winloop()
 {
     NSEvent *evt = nullptr;
 
@@ -728,8 +724,8 @@ void winloop(void)
     winevent(evt);
 }
 
-/* winpoll handles all queued events */
-void winpoll(void)
+// winpoll handles all queued events
+void winpoll()
 {
     NSEvent *evt = nullptr;
 
@@ -748,7 +744,7 @@ void winpoll(void)
 
 std::string garglk::winfontpath(const std::string &filename)
 {
-    char *resources = getenv("GARGLK_RESOURCES");
+    char *resources = std::getenv("GARGLK_RESOURCES");
 
     if (resources != nullptr) {
         return std::string(resources) + "/Fonts/" + filename;
@@ -760,11 +756,11 @@ std::string garglk::winfontpath(const std::string &filename)
 std::vector<std::string> garglk::winappdata()
 {
     NSString *nspath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) lastObject];
-    char *resources = getenv("GARGLK_RESOURCES");
+    char *resources = std::getenv("GARGLK_RESOURCES");
     std::vector<std::string> paths;
 
     if (resources != nullptr) {
-        paths.push_back(resources);
+        paths.emplace_back(resources);
     }
 
     // This is what Qt returns for AppConfigLocation.
