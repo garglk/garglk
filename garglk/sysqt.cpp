@@ -626,11 +626,12 @@ bool windark()
         auto dbusvar = qvariant_cast<QDBusVariant>(reply.value());
         QVariant result = dbusvar.variant();
 #ifdef HAS_QT6
-        if (result.typeId() == QMetaType::Type::UInt)
+        if (result.typeId() == QMetaType::Type::UInt) {
 #else
-        if (result.type() == QVariant::UInt)
+        if (result.type() == QVariant::UInt) {
 #endif
             return result.toUInt() == 1;
+        }
     }
 #endif
 

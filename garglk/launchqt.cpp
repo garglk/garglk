@@ -236,12 +236,13 @@ int main(int argc, char **argv)
     // set, the standard directory will *not* be used at all, even if no
     // interpreter is found.
     QString interpreter_dir = std::getenv("GARGLK_INTERPRETER_DIR");
-    if (interpreter_dir.isNull())
+    if (interpreter_dir.isNull()) {
 #ifdef GARGLK_CONFIG_INTERPRETER_DIR
         interpreter_dir = GARGLK_CONFIG_INTERPRETER_DIR;
 #else
         interpreter_dir = QCoreApplication::applicationDirPath();
 #endif
+    }
 
     auto story = parse_args(app);
 

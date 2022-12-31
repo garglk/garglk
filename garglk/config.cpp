@@ -424,11 +424,12 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
                 std::string pattern;
                 while (s >> std::quoted(pattern)) {
 #ifdef _WIN32
-                    if (PathMatchSpec(garglk::downcase(match).c_str(), garglk::downcase(pattern).c_str()))
+                    if (PathMatchSpec(garglk::downcase(match).c_str(), garglk::downcase(pattern).c_str())) {
 #else
-                    if (fnmatch(garglk::downcase(pattern).c_str(), garglk::downcase(match).c_str(), 0) == 0)
+                    if (fnmatch(garglk::downcase(pattern).c_str(), garglk::downcase(match).c_str(), 0) == 0) {
 #endif
                         return true;
+                    }
                 }
                 return false;
             });
