@@ -1,0 +1,14 @@
+{
+    "name": "dark",
+    "window": "#31363b",
+    "border": "#000000",
+    "caret": "#e7e8e9",
+    "link": "#1d99f3",
+    "more": "#00cc00",
+    "text_buffer": {
+        "default": {"fg": "#e7e8e9", "bg": "#31363b"}
+    },
+    "text_grid": {
+        "default": {"fg": "#e7e8e9", "bg": "#31363b"}
+    }
+}

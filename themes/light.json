@@ -1,0 +1,14 @@
+{
+    "name": "light",
+    "window": "#ffffff",
+    "border": "#000000",
+    "caret": "#000000",
+    "link": "#000060",
+    "more": "#006000",
+    "text_buffer": {
+        "default": {"fg": "#000000", "bg": "#ffffff"}
+    },
+    "text_grid": {
+        "default": {"fg": "#000000", "bg": "#ffffff"}
+    }
+}
