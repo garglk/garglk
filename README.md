@@ -77,7 +77,7 @@ Gargoyle is highly configurable, although its configuration is done entirely
 through a text file rather than a graphical tool.
 
 Several methods are provided to aid with configuration. The preferred method is
-to start a game and then use the hotkey control-comma (command-comma on Mac).
+to start a game and then use the shortcut `Ctrl`+`,` (`Command`+`,` on Mac).
 This will open Gargoyle's configuration file in a text editor. If you already
 have a config file, it will use that; otherwise, a default config file will be
 copied to an appropriate location first. This should be enough for the vast
@@ -154,3 +154,28 @@ settings from user and system configurations.
 The upshot is that game-specific configurations can include just a few settings
 (e.g. enforcing a minimim column count), allowing the majority of the user's
 settings to still be applied.
+
+## Runtime options
+
+Gargoyle generally gets out of the way when running a game, presenting just the
+interpreter. However, there are a few shortcuts available (on Mac, use
+`Command` in place of `Ctrl`):
+
+* `Ctrl`+`,`: Open Gargoyle's configuration file in a text editor.
+* `Ctrl`+`.`: List the paths to all configuration files Gargoyle consults, as
+  well as all theme paths Gargoyle consults (see THEMES.md for more information
+  on color themes).
+* `Ctrl`+`Shift`+`t`: Display a list of all available color themes (see
+  THEMES.md for more information on color themes).
+
+In addition, Gargoyle supports many readline/Emacs-style line-editor bindings:
+
+* `Ctrl`+`a`: Go to the beginning of the line.
+* `Ctrl`+`b`: Move the cursor to the left.
+* `Ctrl`+`d`: Erase the key under the cursor.
+* `Ctrl`+`e`: Go to the end of the line.
+* `Ctrl`+`f`: Move the cursor to the right.
+* `Ctrl`+`h`: Erase the key to the left of the cursor.
+* `Ctrl`+`n`: Next history entry.
+* `Ctrl`+`p`: Previous history entry.
+* `Ctrl`+`u`: Erase entire line.
