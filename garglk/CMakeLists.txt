@@ -36,6 +36,22 @@ vtk_encode_string(
 
 set_property(SOURCE config.cpp launchqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLKINI_H="${GARGLKINI_H}")
 
+vtk_encode_string(
+    INPUT ../themes/dark.json
+    NAME theme_dark
+    HEADER_OUTPUT THEME_DARK_H
+    SOURCE_OUTPUT THEME_DARK_CXX
+)
+
+vtk_encode_string(
+    INPUT ../themes/light.json
+    NAME theme_light
+    HEADER_OUTPUT THEME_LIGHT_H
+    SOURCE_OUTPUT THEME_LIGHT_CXX
+)
+
+set_property(SOURCE theme.cpp PROPERTY COMPILE_DEFINITIONS THEME_DARK_H="${THEME_DARK_H}" THEME_LIGHT_H="${THEME_LIGHT_H}")
+
 if(INTERFACE STREQUAL "QT")
     set(CMAKE_AUTOMOC ON)
     set_property(SOURCE garglkini.cxx PROPERTY SKIP_AUTOMOC ON)
@@ -48,7 +64,7 @@ endif()
 add_library(garglk babeldata.cpp style.cpp config.cpp draw.cpp event.cpp
     garglk.cpp imgload.cpp imgscale.cpp theme.cpp winblank.cpp window.cpp
     wingfx.cpp wingrid.cpp winmask.cpp winpair.cpp wintext.cpp zbleep.cpp
-    ${GARGLKINI_CXX}
+    ${GARGLKINI_CXX} ${THEME_DARK_CXX} ${THEME_LIGHT_CXX}
 
     # These can't be a library in cheapglk/ because they contain
     # references to code in garglk, and garglk contains references to
@@ -310,6 +326,8 @@ elseif(UNIX)
         "${PROJECT_SOURCE_DIR}/themes/Lectrote Slate.json"
         "${PROJECT_SOURCE_DIR}/themes/Pencil.json"
         "${PROJECT_SOURCE_DIR}/themes/Zoom.json"
+        "${PROJECT_SOURCE_DIR}/themes/dark.json"
+        "${PROJECT_SOURCE_DIR}/themes/light.json"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/io.github.garglk/Gargoyle/themes")
 
 endif()

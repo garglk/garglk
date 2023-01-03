@@ -24,6 +24,9 @@
 
 #include "garglk.h"
 
+#include THEME_DARK_H
+#include THEME_LIGHT_H
+
 using json = nlohmann::json;
 
 template<size_t...Is, typename T>
@@ -131,14 +134,7 @@ struct Theme {
         gstyles.to(gli_gstyles);
     }
 
-    static Theme from_file(const std::string &filename) {
-        std::ifstream f(filename);
-        if (!f.is_open()) {
-            throw std::runtime_error("unable to open file");
-        }
-
-        auto j = json::parse(f);
-
+    static Theme from_json(const json &j) {
         if (!j.is_object()) {
             std::ostringstream ss;
             ss << "themes must be JSON objects (is " << j.type_name() << ")";
@@ -163,6 +159,19 @@ struct Theme {
             text_buffer,
             text_grid,
         };
+    }
+
+    static Theme from_string(const std::string &string) {
+        return from_json(json::parse(string));
+    }
+
+    static Theme from_file(const std::string &filename) {
+        std::ifstream f(filename);
+        if (!f.is_open()) {
+            throw std::runtime_error("unable to open file");
+        }
+
+        return from_json(json::parse(f));
     }
 
 private:
@@ -224,42 +233,7 @@ private:
     }
 };
 
-static Theme light{
-    "light",
-    white,
-    black,
-    black,
-    Color(0x00, 0x00, 0x60),
-    Color(0x00, 0x60, 0x00),
-    ThemeStyles{
-        ColorPair{black, white}, ColorPair{black, white},
-        ColorPair{black, white}, ColorPair{black, white},
-        ColorPair{black, white}, ColorPair{black, white},
-        ColorPair{black, white}, ColorPair{black, white},
-        ColorPair{Color(0x00, 0x60, 0x00), white}, ColorPair{black, white},
-        ColorPair{black, white},
-    },
-    ThemeStyles{make_array<style_NUMSTYLES>(ColorPair{gray, white})},
-};
-
-static const Color darkfg = Color(0xe7, 0xe8, 0xe9);
-static const Color darkbg = Color(0x31, 0x36, 0x3b);
-
-static Theme dark{
-    "dark",
-    Color(0x31, 0x36, 0x3b),
-    black,
-    Color(0xe7, 0xe8, 0xe9),
-    Color(0x1d, 0x99, 0xf3),
-    Color(0x00, 0xcc, 0x00),
-    ThemeStyles{make_array<style_NUMSTYLES>(ColorPair{darkfg, darkbg})},
-    ThemeStyles{make_array<style_NUMSTYLES>(ColorPair{darkfg, darkbg})},
-};
-
-static std::map<std::string, Theme> themes = {
-    {light.name, light},
-    {dark.name, dark},
-};
+static std::map<std::string, Theme> themes;
 
 std::vector<std::string> garglk::theme::paths()
 {
@@ -306,6 +280,20 @@ static std::vector<std::string> directory_entries(const std::string &dir)
 
 void garglk::theme::init()
 {
+    std::vector<std::pair<std::string, std::string>> builtin = {
+        {"dark", theme_dark},
+        {"light", theme_light},
+    };
+
+    for (const auto &pair : builtin) {
+        try {
+            themes.insert({pair.first, Theme::from_string(pair.second)});
+        } catch (std::exception &e) {
+            std::cerr << "garglk: fatal error parsing internal " << pair.first << " theme: " << e.what() << std::endl;
+            std::exit(1);
+        }
+    }
+
     for (const auto &themedir : garglk::theme::paths()) {
         for (const auto &filename : directory_entries(themedir)) {
             auto dot = filename.find_last_of('.');
@@ -327,7 +315,7 @@ void garglk::theme::init()
 
 static std::string system_theme_name()
 {
-    return windark() ? dark.name : light.name;
+    return windark() ? "dark" : "light";
 }
 
 void garglk::theme::set(std::string name)

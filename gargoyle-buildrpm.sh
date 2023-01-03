@@ -106,6 +106,8 @@ cp -v garglk.ini "%{buildroot}%{_sysconfdir}/"
 "%{_datarootdir}/io.github.garglk/Gargoyle/themes/Lectrote Slate.json"
 %{_datarootdir}/io.github.garglk/Gargoyle/themes/Pencil.json
 %{_datarootdir}/io.github.garglk/Gargoyle/themes/Zoom.json
+%{_datarootdir}/io.github.garglk/Gargoyle/themes/dark.json
+%{_datarootdir}/io.github.garglk/Gargoyle/themes/light.json
 %{_datarootdir}/icons/io.github.garglk.Gargoyle.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-adrift.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-advsys.png
