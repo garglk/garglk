@@ -14,6 +14,20 @@ paths, hit control-period (or command-period on Mac) while Gargoyle is running.
 The first listed theme path should be your personal path which you can install
 new themes into.
 
+## Definitions
+
+### Colors
+
+Colors are given in the usual *#RRGGBB* notation. Shorthand is not allowed (for
+example *#f0f* is not interpreted as *#ff00ff*).
+
+### Color pairs
+
+A color pair is a pair of colors representing a foreground color and a
+background color. It is a simple JSON object:
+
+    {"fg": "#333333", "bg": "#ffffff"}
+
 ## Theme format
 
 Example theme:
@@ -25,6 +39,7 @@ Example theme:
         "caret": "#ffffff",
         "link": "#000060",
         "more": "#ffddaa",
+        "scrollbar": {"fg": "#585868", "bg": "#4d4d4f"},
         "text_buffer": {
             "default": {"fg": "#ffffff", "bg": "#4d4d4f"},
             "input": {"fg": "#ddffdd", "bg": "#4d4d4f"}
@@ -39,31 +54,30 @@ All top-level keys are required.
 *name* is the name of the theme, and is
 how it is referred to in the configuration file.
 
-The following keys are all colors (described below):
+The following keys are all colors:
 
 * *window*: The overall color of the window background
 * *border*: The color of borders (if any) between windows
 * *caret*: The color of the input cursor
 * *link*: The color of hyperlinks
 * *more*: The color of the MORE prompt
-* *text_buffer*: The color of text styles for text buffer windows (see below)
-* *text_grid*: The color of text styles for text grid windows (see below)
 
-### Colors
+*scrollbar* is a color pair which gives the color of the scrollbar. By default,
+no scrollbar is shown in Gargoyle. The *scrollwidth* Gargoyle configuration
+option can be used to enable the scrollbar.
 
-Colors are given in the usual *#RRGGBB* notation. Shorthand is not allowed (for
-example *#f0f* is not interpreted as *#ff00ff*).
+The final two keys:
+
+* *text_buffer*: The color of text styles for text buffer windows
+* *text_grid*: The color of text styles for text grid windows
 
 ### Text styles
 
 Glk text can be styled in many different ways (see [Styles in the Glk
 specification](https://www.eblong.com/zarf/glk/Glk-Spec-075.html#stream_style)
-for more information). For text buffers and text grids, you must specify colors
-for all styles, although you can set a default which will be used as a fallback
-for styles which are not explicitly set. A style is a pair of foreground and
-background colors, and is a simple JSON object:
-
-    {"fg": "#333333", "bg": "#ffffff"}
+for more information). For text buffers and text grids, you must specify color
+pairs for all styles, although you can set a default which will be used as a
+fallback for styles which are not explicitly set.
 
 *text_buffer* and *text_grid* are objects mapping a style to a pair of colors.
 The key is either *default* to set the default pair, or one of the following,

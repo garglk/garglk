@@ -5,6 +5,7 @@
     "caret": "#ffffff",
     "link": "#bbbbff",
     "more": "#ffddaa",
+    "scrollbar": {"fg": "#585868", "bg": "#4d4d4f"},
     "text_buffer": {
         "default": {"fg": "#ffffff", "bg": "#4d4d4f"},
         "input": {"fg": "#ddffdd", "bg": "#4d4d4f"}

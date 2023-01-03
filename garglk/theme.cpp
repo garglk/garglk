@@ -116,6 +116,7 @@ struct Theme {
     Color caretcolor;
     Color linkcolor;
     Color morecolor;
+    std::pair<Color, Color> scrollbar;
     ThemeStyles tstyles;
     ThemeStyles gstyles;
 
@@ -130,17 +131,13 @@ struct Theme {
         gli_link_save = linkcolor;
         gli_more_color = morecolor;
         gli_more_save = morecolor;
+        gli_scroll_fg = scrollbar.first;
+        gli_scroll_bg = scrollbar.second;
         tstyles.to(gli_tstyles);
         gstyles.to(gli_gstyles);
     }
 
-    static Theme from_json(const json &j) {
-        if (!j.is_object()) {
-            std::ostringstream ss;
-            ss << "themes must be JSON objects (is " << j.type_name() << ")";
-            throw std::runtime_error(ss.str());
-        }
-
+    static Theme from_json(const json::object_t &j) {
         auto window = gli_parse_color(j.at("window"));
         auto border = gli_parse_color(j.at("border"));
         auto caret = gli_parse_color(j.at("caret"));
@@ -149,6 +146,10 @@ struct Theme {
         auto text_buffer = get_user_styles(j, "text_buffer");
         auto text_grid = get_user_styles(j, "text_grid");
 
+        json::object_t scrollbar = j.at("scrollbar");
+        auto scrollbarfg = gli_parse_color(scrollbar.at("fg"));
+        auto scrollbarbg = gli_parse_color(scrollbar.at("bg"));
+
         return {
             j.at("name"),
             window,
@@ -156,6 +157,7 @@ struct Theme {
             caret,
             link,
             more,
+            {scrollbarfg, scrollbarbg},
             text_buffer,
             text_grid,
         };
