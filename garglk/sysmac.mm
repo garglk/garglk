@@ -487,10 +487,10 @@ static void show_paths()
     }
 
     text += "\nTheme paths:\n\n";
-    auto appdata = garglk::winappdata();
-    std::reverse(appdata.begin(), appdata.end());
-    for (const auto &path : appdata) {
-        text += "• " + path + "/themes\n";
+    auto theme_paths = garglk::theme::paths();
+    std::reverse(theme_paths.begin(), theme_paths.end());
+    for (const auto &path : theme_paths) {
+        text += "• " + path + "\n";
     }
 
     show_info(@"Paths", text);
