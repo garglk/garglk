@@ -321,7 +321,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &gamepath = ""
     // default garglk.ini.
     const char *garglkini = std::getenv("GARGLK_RESOURCES");
     if (garglkini != nullptr) {
-        configs.push_back(ConfigFile(std::string(garglkini) + "/garglk.ini", ConfigFile::Type::System));
+        configs.emplace_back(std::string(garglkini) + "/garglk.ini", ConfigFile::Type::System);
     }
 #endif
 
