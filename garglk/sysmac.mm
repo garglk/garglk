@@ -482,8 +482,8 @@ static void show_info(NSString *title, const std::string &text)
 static void show_paths()
 {
     std::string text = "Configuration file paths:\n\n";
-    for (const auto &path : garglk::all_configs) {
-        text += "• " + path.path + "\n";
+    for (const auto &config : garglk::all_configs) {
+        text += "• " + config.path + " " + config.format_type() + "\n";
     }
 
     text += "\nTheme paths:\n\n";
