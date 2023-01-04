@@ -32,6 +32,7 @@
 
 #include "glk.h"
 #include "garglk.h"
+#include "garversion.h"
 
 #import "Cocoa/Cocoa.h"
 #import "sysmac.h"
@@ -755,7 +756,7 @@ std::string garglk::winfontpath(const std::string &filename)
 
 std::vector<std::string> garglk::winappdata()
 {
-    NSString *nspath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) lastObject];
+    NSArray *appdir_paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
     char *resources = std::getenv("GARGLK_RESOURCES");
     std::vector<std::string> paths;
 
@@ -763,8 +764,11 @@ std::vector<std::string> garglk::winappdata()
         paths.emplace_back(resources);
     }
 
-    // This is what Qt returns for AppConfigLocation.
-    paths.push_back(std::string([nspath UTF8String]) + "/Preferences/io.github.garglk/Gargoyle");
+    // This is what Qt returns for AppDataLocation (though Qt adds a
+    // few more directories that aren't particularly relevant).
+    for (NSString *appdir_path in appdir_paths) {
+        paths.push_back(std::string([appdir_path UTF8String]) + "/" + GARGOYLE_ORGANIZATION + "/" + GARGOYLE_NAME);
+    }
 
     return paths;
 }
