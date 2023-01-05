@@ -1347,30 +1347,30 @@ void glk_window_set_background_color(winid_t win, glui32 color)
     win_graphics_set_background_color(win->window.graphics, color);
 }
 
-void attrset(attr_t *attr, glui32 style)
+void attr_t::set(glui32 style_)
 {
-    attr->fgset = false;
-    attr->bgset = false;
-    attr->fgcolor = Color(0, 0, 0);
-    attr->bgcolor = Color(0, 0, 0);
-    attr->reverse = false;
-    attr->style = style;
+    fgset = false;
+    bgset = false;
+    fgcolor = Color(0, 0, 0);
+    bgcolor = Color(0, 0, 0);
+    reverse = false;
+    style = style_;
 }
 
-void attrclear(attr_t *attr)
+void attr_t::clear()
 {
-    attr->fgset = false;
-    attr->bgset = false;
-    attr->fgcolor = Color(0, 0, 0);
-    attr->bgcolor = Color(0, 0, 0);
-    attr->reverse = false;
-    attr->hyper = 0;
-    attr->style = 0;
+    fgset = false;
+    bgset = false;
+    fgcolor = Color(0, 0, 0);
+    bgcolor = Color(0, 0, 0);
+    reverse = false;
+    hyper = 0;
+    style = 0;
 }
 
-FontFace attrfont(const Styles &styles, const attr_t &attr)
+FontFace attr_t::font(const Styles &styles) const
 {
-    return styles[attr.style].font;
+    return styles[style].font;
 }
 
 static Color zcolor_LightGrey = Color(181, 181, 181);
@@ -1384,14 +1384,14 @@ static Color rgbshift(const Color &rgb)
                  std::min(rgb[2] + 0x30, 0xff));
 }
 
-Color attrbg(const Styles &styles, const attr_t &attr)
+Color attr_t::bg(const Styles &styles) const
 {
-    bool revset = attr.reverse || (styles[attr.style].reverse && !gli_override_reverse);
-    bool zfset = attr.fgset || gli_override_fg_set;
-    bool zbset = attr.bgset || gli_override_bg_set;
+    bool revset = reverse || (styles[style].reverse && !gli_override_reverse);
+    bool zfset = fgset || gli_override_fg_set;
+    bool zbset = bgset || gli_override_bg_set;
 
-    Color zfore(attr.fgset ? attr.fgcolor : gli_override_fg_val);
-    Color zback(attr.bgset ? attr.bgcolor : gli_override_bg_val);
+    Color zfore(fgset ? fgcolor : gli_override_fg_val);
+    Color zback(bgset ? bgcolor : gli_override_bg_val);
 
     if (zfset) {
         zcolor_Foreground = zfore;
@@ -1405,7 +1405,7 @@ Color attrbg(const Styles &styles, const attr_t &attr)
         if (zbset) {
             return zcolor_Background;
         } else {
-            return styles[attr.style].bg;
+            return styles[style].bg;
         }
     } else {
         if (zfset) {
@@ -1415,23 +1415,23 @@ Color attrbg(const Styles &styles, const attr_t &attr)
                 return zcolor_Foreground;
             }
         } else {
-            if (zbset && styles[attr.style].fg == zcolor_Background) {
+            if (zbset && styles[style].fg == zcolor_Background) {
                 return zcolor_LightGrey;
             } else {
-                return styles[attr.style].fg;
+                return styles[style].fg;
             }
         }
     }
 }
 
-Color attrfg(const Styles &styles, const attr_t &attr)
+Color attr_t::fg(const Styles &styles) const
 {
-    bool revset = attr.reverse || (styles[attr.style].reverse && !gli_override_reverse);
-    bool zfset = attr.fgset || gli_override_fg_set;
-    bool zbset = attr.bgset || gli_override_bg_set;
+    bool revset = reverse || (styles[style].reverse && !gli_override_reverse);
+    bool zfset = fgset || gli_override_fg_set;
+    bool zbset = bgset || gli_override_bg_set;
 
-    Color zfore(attr.fgset ? attr.fgcolor : gli_override_fg_val);
-    Color zback(attr.bgset ? attr.bgcolor : gli_override_bg_val);
+    Color zfore(fgset ? fgcolor : gli_override_fg_val);
+    Color zback(bgset ? bgcolor : gli_override_bg_val);
 
     if (zfset) {
         zcolor_Foreground = zfore;
@@ -1449,17 +1449,17 @@ Color attrfg(const Styles &styles, const attr_t &attr)
                 return zcolor_Foreground;
             }
         } else {
-            if (zbset && styles[attr.style].fg == zcolor_Background) {
+            if (zbset && styles[style].fg == zcolor_Background) {
                 return zcolor_LightGrey;
             } else {
-                return styles[attr.style].fg;
+                return styles[style].fg;
             }
         }
     } else {
         if (zbset) {
             return zcolor_Background;
         } else {
-            return styles[attr.style].bg;
+            return styles[style].bg;
         }
     }
 }

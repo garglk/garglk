@@ -71,7 +71,7 @@ void win_textgrid_rearrange(window_t *win, rect_t *box)
         dwin->lines[k].attrs.fill(attr_t{});
     }
 
-    attrclear(&dwin->owner->attr);
+    dwin->owner->attr.clear();
     dwin->width = newwid;
     dwin->height = newhgt;
 
@@ -79,7 +79,7 @@ void win_textgrid_rearrange(window_t *win, rect_t *box)
         touch(dwin, k);
         dwin->lines[k].chars.fill(' ');
         for (auto &attr : dwin->lines[k].attrs) {
-            attrclear(&attr);
+            attr.clear();
         }
     }
 }
@@ -111,9 +111,9 @@ void win_textgrid_redraw(window_t *win)
             for (b = 0; b < dwin->width; b++) {
                 if (ln->attrs[a] != ln->attrs[b]) {
                     link = ln->attrs[a].hyper;
-                    auto font = attrfont(dwin->styles, ln->attrs[a]);
-                    Color fgcolor = link ? gli_link_color : attrfg(dwin->styles, ln->attrs[a]);
-                    Color bgcolor = attrbg(dwin->styles, ln->attrs[a]);
+                    auto font = ln->attrs[a].font(dwin->styles);
+                    Color fgcolor = link ? gli_link_color : ln->attrs[a].fg(dwin->styles);
+                    Color bgcolor = ln->attrs[a].bg(dwin->styles);
                     w = (b - a) * gli_cellw;
                     gli_draw_rect(x, y, w, gli_leading, bgcolor);
                     o = x;
@@ -133,9 +133,9 @@ void win_textgrid_redraw(window_t *win)
                 }
             }
             link = ln->attrs[a].hyper;
-            auto font = attrfont(dwin->styles, ln->attrs[a]);
-            Color fgcolor = link ? gli_link_color : attrfg(dwin->styles, ln->attrs[a]);
-            Color bgcolor = attrbg(dwin->styles, ln->attrs[a]);
+            auto font = ln->attrs[a].font(dwin->styles);
+            Color fgcolor = link ? gli_link_color : ln->attrs[a].fg(dwin->styles);
+            Color bgcolor = ln->attrs[a].bg(dwin->styles);
             w = (b - a) * gli_cellw;
             w += win->bbox.x1 - (x + w);
             gli_draw_rect(x, y, w, gli_leading, bgcolor);
@@ -230,7 +230,7 @@ bool win_textgrid_unputchar_uni(window_t *win, glui32 ch)
     ln = &(dwin->lines[dwin->cury]);
     if (glk_char_to_upper(ln->chars[dwin->curx]) == glk_char_to_upper(ch)) {
         ln->chars[dwin->curx] = ' ';
-        attrclear(&ln->attrs[dwin->curx]);
+        ln->attrs[dwin->curx].clear();
         touch(dwin, dwin->cury);
         return true; // deleted the char
     } else {
@@ -329,7 +329,7 @@ static void win_textgrid_init_impl(window_t *win, void *buf, int maxlen, int ini
     dwin->inorgx = dwin->curx;
     dwin->inorgy = dwin->cury;
     dwin->origattr = win->attr;
-    attrset(&win->attr, style_Input);
+    win->attr.set(style_Input);
 
     if (initlen > maxlen) {
         initlen = maxlen;
@@ -340,7 +340,7 @@ static void win_textgrid_init_impl(window_t *win, void *buf, int maxlen, int ini
         tgline_t *ln = &(dwin->lines[dwin->inorgy]);
 
         for (ix = 0; ix < initlen; ix++) {
-            attrset(&ln->attrs[dwin->inorgx + ix], style_Input);
+            ln->attrs[dwin->inorgx + ix].set(style_Input);
             if (unicode) {
                 ln->chars[dwin->inorgx + ix] = (static_cast<glui32 *>(buf))[ix];
             } else {
@@ -641,7 +641,7 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
         for (ix = dwin->inlen; ix > dwin->incurs; ix--) {
             ln->chars[dwin->inorgx + ix] = ln->chars[dwin->inorgx + ix - 1];
         }
-        attrset(&ln->attrs[dwin->inorgx + dwin->inlen], style_Input);
+        ln->attrs[dwin->inorgx + dwin->inlen].set(style_Input);
         ln->chars[dwin->inorgx + dwin->incurs] = arg;
 
         dwin->incurs++;

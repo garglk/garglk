@@ -679,6 +679,12 @@ struct attr_t {
                bgcolor != other.bgcolor ||
                hyper != other.hyper;
     }
+
+    void set(glui32 style_);
+    void clear();
+    FontFace font(const Styles &styles) const;
+    Color bg(const Styles &styles) const;
+    Color fg(const Styles &styles) const;
 };
 
 struct glk_window_struct {
@@ -1063,13 +1069,6 @@ void gli_start_selection(int x, int y);
 void gli_resize_mask(unsigned int x, unsigned int y);
 void gli_move_selection(int x, int y);
 void gli_notification_waiting();
-
-void attrset(attr_t *attr, glui32 style);
-void attrclear(attr_t *attr);
-Color attrfg(const Styles &styles, const attr_t &attr);
-Color attrbg(const Styles &styles, const attr_t &attr);
-
-FontFace attrfont(const Styles &styles, const attr_t &attr);
 
 void gli_edit_config();
 

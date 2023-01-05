@@ -115,7 +115,7 @@ static void reflow(window_t *win)
     // copy text to temp buffers
 
     oldattr = win->attr;
-    attrclear(&curattr);
+    curattr.clear();
 
     x = 0;
     p = 0;
@@ -249,13 +249,13 @@ static int calcwidth(window_textbuffer_t *dwin,
     a = startchar;
     for (b = startchar; b < numchars; b++) {
         if (attrs[a] != attrs[b]) {
-            w += gli_string_width_uni(attrfont(dwin->styles, attrs[a]),
+            w += gli_string_width_uni(attrs[a].font(dwin->styles),
                     chars + a, b - a, spw);
             a = b;
         }
     }
 
-    w += gli_string_width_uni(attrfont(dwin->styles, attrs[a]),
+    w += gli_string_width_uni(attrs[a].font(dwin->styles),
             chars + a, b - a, spw);
 
     return w;
@@ -452,8 +452,8 @@ void win_textbuffer_redraw(window_t *win)
         for (b = 0; b < linelen; b++) {
             if (ln.attrs[a] != ln.attrs[b]) {
                 link = ln.attrs[a].hyper;
-                auto font = attrfont(dwin->styles, ln.attrs[a]);
-                color = attrbg(dwin->styles, ln.attrs[a]);
+                auto font = ln.attrs[a].font(dwin->styles);
+                color = ln.attrs[a].bg(dwin->styles);
                 w = gli_string_width_uni(font, &ln.chars[a], b - a, spw);
                 gli_draw_rect(x / GLI_SUBPIX, y,
                         w / GLI_SUBPIX, gli_leading,
@@ -471,8 +471,8 @@ void win_textbuffer_redraw(window_t *win)
             }
         }
         link = ln.attrs[a].hyper;
-        auto font = attrfont(dwin->styles, ln.attrs[a]);
-        color = attrbg(dwin->styles, ln.attrs[a]);
+        auto font = ln.attrs[a].font(dwin->styles);
+        color = ln.attrs[a].bg(dwin->styles);
         w = gli_string_width_uni(font, &ln.chars[a], b - a, spw);
         gli_draw_rect(x / GLI_SUBPIX, y, w / GLI_SUBPIX,
                 gli_leading, color);
@@ -511,16 +511,16 @@ void win_textbuffer_redraw(window_t *win)
         for (b = 0; b < linelen; b++) {
             if (ln.attrs[a] != ln.attrs[b]) {
                 link = ln.attrs[a].hyper;
-                font = attrfont(dwin->styles, ln.attrs[a]);
-                color = link ? gli_link_color : attrfg(dwin->styles, ln.attrs[a]);
+                font = ln.attrs[a].font(dwin->styles);
+                color = link ? gli_link_color : ln.attrs[a].fg(dwin->styles);
                 x = gli_draw_string_uni(x, y + gli_baseline,
                         font, color, &ln.chars[a], b - a, spw);
                 a = b;
             }
         }
         link = ln.attrs[a].hyper;
-        font = attrfont(dwin->styles, ln.attrs[a]);
-        color = link ? gli_link_color : attrfg(dwin->styles, ln.attrs[a]);
+        font = ln.attrs[a].font(dwin->styles);
+        color = link ? gli_link_color : ln.attrs[a].fg(dwin->styles);
         gli_draw_string_uni(x, y + gli_baseline,
                 font, color, &ln.chars[a], linelen - a, spw);
     }
@@ -781,7 +781,7 @@ static void put_text(window_textbuffer_t *dwin, char *buf, int len, int pos, int
         int i;
         for (i = 0; i < len; i++) {
             dwin->chars[pos + i] = buf[i];
-            attrset(&dwin->attrs[pos + i], style_Input);
+            dwin->attrs[pos + i].set(style_Input);
         }
     }
     dwin->numchars += diff;
@@ -817,7 +817,7 @@ static void put_text_uni(window_textbuffer_t *dwin, glui32 *buf, int len, int po
         int i;
         std::memmove(dwin->chars + pos, buf, len * 4);
         for (i = 0; i < len; i++) {
-            attrset(&dwin->attrs[pos + i], style_Input);
+            dwin->attrs[pos + i].set(style_Input);
         }
     }
     dwin->numchars += diff;
@@ -1108,7 +1108,7 @@ static void win_textbuffer_init_impl(window_t *win, void *buf, int maxlen, int i
     dwin->infence = dwin->numchars;
     dwin->incurs = dwin->numchars;
     dwin->origattr = win->attr;
-    attrset(&win->attr, style_Input);
+    win->attr.set(style_Input);
 
     if (initlen) {
         touch(dwin, 0);
