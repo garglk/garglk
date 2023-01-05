@@ -5,6 +5,7 @@
 //  Created by Petter Sjölund on 2022-01-10.
 //
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -190,7 +191,7 @@ void SaveGame(void)
         snprintf(buf, sizeof buf, "%d\n", Counters[ct]);
         glk_put_string_stream(file, buf);
     }
-    snprintf(buf, sizeof buf, "%llu %d %d %d %d\n", BitFlags, ProtagonistString, dummy, (int)LastImgType, LastImgIndex);
+    snprintf(buf, sizeof buf, "%llu %d %d %d %d\n", (unsigned long long)BitFlags, ProtagonistString, dummy, (int)LastImgType, LastImgIndex);
     glk_put_string_stream(file, buf);
     for (ct = 0; ct <= GameHeader.NumItems; ct++) {
         snprintf(buf, sizeof buf, "%hd\n", (short)Items[ct].Location);
@@ -226,15 +227,17 @@ int LoadGame(void)
 
     for (ct = 0; ct < 64; ct++) {
         glk_get_line_stream(file, buf, sizeof buf);
-        result = sscanf(buf, "%hd", &Counters[ct]);
+        result = sscanf(buf, "%" SCNu16, &Counters[ct]);
         if (result != 1) {
             RecoverFromBadRestore(state);
             return 0;
         }
     }
     glk_get_line_stream(file, buf, sizeof buf);
-    result = sscanf(buf, "%llu %d %d %d %d\n", &BitFlags,  &ProtagonistString,
-                    &dummy, (int *)&SavedImgType, &SavedImgIndex);
+    int SavedImgTypeInt;
+    result = sscanf(buf, "%" SCNu64 " %d %d %d %d\n", &BitFlags,  &ProtagonistString,
+                    &dummy, &SavedImgTypeInt, &SavedImgIndex);
+    SavedImgType = SavedImgTypeInt;
     debug_print("LoadGame: Result of sscanf: %d\n", result);
     if ((result < 3) || MyLoc > GameHeader.NumRooms || MyLoc < 1) {
         RecoverFromBadRestore(state);
