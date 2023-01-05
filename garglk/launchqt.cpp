@@ -39,7 +39,6 @@
 #include <QVector>
 
 #include "garglk.h"
-#include "glk.h"
 #include "garversion.h"
 #include "launcher.h"
 

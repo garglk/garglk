@@ -99,7 +99,7 @@ static const std::map<FileFilter, std::pair<QString, QString>> filters = {
 static QApplication *app;
 static Window *window;
 static QElapsedTimer last_tick;
-#define TICK_PERIOD_MILLIS 10
+static constexpr long long TICK_PERIOD_MILLIS = 10;
 
 static bool refresh_needed = true;
 
