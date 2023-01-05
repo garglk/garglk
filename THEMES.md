@@ -51,8 +51,8 @@ Example theme:
 
 All top-level keys are required.
 
-*name* is the name of the theme, and is
-how it is referred to in the configuration file.
+*name* is the name of the theme, and is how it is referred to in the
+configuration file.
 
 The following keys are all colors:
 
