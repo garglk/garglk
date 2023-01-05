@@ -1,15 +1,15 @@
 {
     "name": "Blue",
-    "window": "#0000ff",
+    "window": "#0000aa",
     "border": "#000000",
     "caret": "#ffffff",
     "link": "#000060",
     "more": "#ffffff",
-    "scrollbar": {"fg": "#ffffff", "bg": "#0000ff"},
+    "scrollbar": {"fg": "#ffffff", "bg": "#0000aa"},
     "text_buffer": {
-        "default": {"fg": "#ffffff", "bg": "#0000ff"}
+        "default": {"fg": "#ffffff", "bg": "#0000aa"}
     },
     "text_grid": {
-        "default": {"fg": "#ffffff", "bg": "#0000ff"}
+        "default": {"fg": "#ffffff", "bg": "#0000aa"}
     }
 }
