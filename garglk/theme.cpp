@@ -155,7 +155,9 @@ struct Theme {
         gstyles.to(gli_gstyles);
     }
 
-    static Theme from_json(const json::object_t &j) {
+    static Theme from_json(const json::object_t &jo) {
+        json j = jo;
+
         auto window = gli_parse_color(j.at("window"));
         auto border = gli_parse_color(j.at("border"));
         auto caret = gli_parse_color(j.at("caret"));
