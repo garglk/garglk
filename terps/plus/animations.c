@@ -56,7 +56,7 @@ void AddImageToBuffer(char *basename) {
     size_t len = strlen(basename) + 1;
     if (AnimationFilenames[ImgTail] != NULL)
         free(AnimationFilenames[ImgTail]);
-    AnimationFilenames[ImgTail] = MemAlloc((int)len);
+    AnimationFilenames[ImgTail] = MemAlloc(len);
     debug_print("AddImageToBuffer: Setting AnimationFilenames[%d] to %s\n", ImgTail, basename);
     memcpy(AnimationFilenames[ImgTail++], basename, len);
     AnimationFilenames[ImgTail] = NULL;
@@ -232,7 +232,7 @@ void UpdateAnimation(void) // Draw animation frame
 
     if (AnimationBackground) {
         char buf[5];
-        sprintf(buf, "S0%02d", AnimationBackground);
+        snprintf(buf, 5, "S0%02d", AnimationBackground);
         LastAnimationBackground = AnimationBackground;
         AnimationBackground = 0;
         DrawImageWithName(buf);

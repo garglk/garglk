@@ -56,97 +56,75 @@ static int PutByte(uint8_t work, uint8_t work2)
 }
 
 uint16_t CalcScreenAddress(uint8_t ypos) {
-    return descrambletable[ypos] + descrambletable[0xc0 + ypos] * 0x100 - 0x2000;
+    if (0xc0 + ypos >= 0x182)
+        return 0;
+    uint16_t result = descrambletable[ypos] + descrambletable[0xc0 + ypos] * 0x100 - 0x2000;
+    if (result > 0x1fff)
+        return 0;
+    return result;
 }
 
-int DrawScrambledApple2Image(uint8_t *origptr, size_t datasize) {
+int DrawScrambledApple2Image(uint8_t *ptr, size_t datasize) {
 
     if (screenmem == NULL) {
         screenmem = MemAlloc(0x2000);
         ClearApple2ScreenMem();
     }
 
-    uint8_t skip;
-    uint8_t lo = 0;
-    uint8_t hi = 0;
-    uint8_t repeats = 1;
-    uint16_t sourceaddr = 0;
-    uint8_t *ptr = origptr;
+    uint8_t *origptr = ptr;
+
+    uint8_t *end_of_data = ptr + datasize;
+
     uint8_t xoff = *ptr++;
     uint8_t yoff = *ptr++;
     uint8_t width = *ptr++;
     uint8_t height = *ptr++;
-    lo += 4;
+
     uint8_t xpos = xoff;
     uint8_t ypos = yoff;
-    if (ypos > 0xc0)
+
+    if (ypos > 0xc0) {
         return 0;
-    uint16_t screenaddr = CalcScreenAddress(ypos);
-again:
-    skip = 1;
-    sourceaddr = lo + hi * 0x100;
-    ptr = origptr + sourceaddr;
-    if (sourceaddr > datasize - 3)
-        return sourceaddr;
-    uint8_t work1 = *ptr++;
-    if (work1 == 0) {
-        if (sourceaddr > datasize - 4)
-            return sourceaddr;
-        skip = 3;
-        repeats = *ptr++;
-        work1 = *ptr++;
     }
-    uint8_t work2 = *ptr++;
 
-    unsigned int sum = lo + skip;
-    lo = sum & 0xff;
+    while (1) {
+        uint8_t repeats = 1;
 
-    if ((sum >> 8) != 0)
-        hi++;
-
-    if (repeats == 0)
-        repeats = 1;
-
-    do {
-        repeats--;
-        uint8_t screen_offset = xpos;
-        if (screenaddr + screen_offset > 0x1fff)
-            return sourceaddr;
-        screenmem[screenaddr + screen_offset] = work1;
-        ypos++;
-        screenaddr = CalcScreenAddress(ypos);
-        if (screenaddr + screen_offset > 0x1fff)
-            return sourceaddr;
-        screenmem[screenaddr + screen_offset] = work2;
-        ypos++;
-        if (height <= ypos) {
-            ypos = yoff;
-            xpos++;
-            screen_offset = xpos;
-            if (width <= screen_offset)
-                return sourceaddr;
+        if (ptr >= end_of_data - 1) {
+            return ptr - origptr;
         }
-        do {
-            screenaddr = CalcScreenAddress(ypos);
-            xpos = screen_offset;
-            if (repeats != 0)
-                break;
-            lo++;
-            if (lo != 0)
-                goto again;
-            hi++;
-            if (hi != 0)
-                goto again;
-            ypos = yoff;
-            xpos++;
-            screen_offset = xpos;
-            if (screen_offset == 0)
-                return sourceaddr;
-            screenaddr = CalcScreenAddress(ypos);
-            screenmem[screenaddr + screen_offset] = work2;
+
+        uint8_t work1 = *ptr++;
+        if (work1 == 0) {
+            if (ptr > end_of_data - 3) {
+                return ptr - origptr;
+            }
+            repeats = *ptr++;
+            work1 = *ptr++;
+        }
+
+        uint8_t work2 = *ptr++;
+
+        if (repeats == 0) {
+            repeats = 1;
+        }
+
+        while (repeats--) {
+            uint16_t screenaddr = CalcScreenAddress(ypos);
+            screenmem[screenaddr + xpos] = work1;
             ypos++;
-        } while (1);
-    } while (1);
+            screenaddr = CalcScreenAddress(ypos);
+            screenmem[screenaddr + xpos] = work2;
+            ypos++;
+            if (height <= ypos) {
+                ypos = yoff;
+                xpos++;
+                if (width <= xpos) {
+                    return ptr - origptr;
+                }
+            }
+        }
+    }
 }
 
 int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
@@ -171,10 +149,6 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
     int countflag = (CurrentGame == COUNT_US);
 
     x = 0; y = 0;
-//
-//    work = *ptr++;
-//    size = work + (*ptr++ * 256);
-//    size = datasize;
 
     if (!countflag) {
         // Get the offsets
@@ -194,14 +168,6 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
             xlen = *ptr++;
             ylen = *ptr++;
         }
-//        ptr += 2;
-        //        ImageWidth = 280;
-        //        ImageHeight = 152;
-
-//        if (CurrentGame == CLAYMORGUE_US) {
-//            xlen = *ptr++;
-//            ylen = *ptr++;
-//        }
     }
 
     while (xlen == 0 && ylen == 0) {
@@ -210,30 +176,6 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
     }
 
     debug_print("xlen: %d ylen: %d\n", xlen, ylen);
-
-
-//    if (CurrentGame == CLAYMORGUE_US) {
-//        ptr += 2;
-//    }
-
-//    glui32 curheight, curwidth;
-//    glk_window_get_size(Graphics, &curwidth, &curheight);
-
-//    if (yoff == 0 && (LastImgType == IMG_ROOM || LastImgType == IMG_SPECIAL)) {
-//        ImageHeight = ylen + 2;
-//        ImageWidth = xlen * 8 - 32;
-//    }
-//
-//    int optimal_height = ImageHeight * pixel_size;
-//    if (curheight != optimal_height && ImageWidth * pixel_size <= curwidth) {
-//        x_offset = (curwidth - ImageWidth * pixel_size) / 2;
-//        right_margin = (ImageWidth * pixel_size) + x_offset;
-//        winid_t parent = glk_window_get_parent(Graphics);
-//        if (parent) {
-//            glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-//                                   optimal_height, NULL);
-//        }
-//    }
 
 
     while (ptr - origptr < datasize - 2)
@@ -304,6 +246,8 @@ static void PutApplePixel(glsi32 xpos, glsi32 ypos, glui32 color)
                          ypos, pixel_size, pixel_size);
 }
 
+/* The code below is borrowed from the MAME Apple 2 driver */
+
 #define BLACK   0
 #define PURPLE  0xD53EF9
 #define BLUE    0x458ff7
@@ -320,7 +264,7 @@ static const int32_t hires_artifact_color_table[] =
 static int32_t *m_hires_artifact_map = NULL;
 
 static void generate_artifact_map(void) {
-// generate hi-res artifact data
+    /* generate hi-res artifact data */
     int i, j;
     uint16_t c;
 
@@ -390,4 +334,3 @@ void DrawApple2ImageFromVideoMem(void)
         }
     }
 }
-

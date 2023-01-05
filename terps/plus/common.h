@@ -60,6 +60,7 @@ extern uint64_t BitFlags;
 extern winid_t Bottom;
 
 extern char *DirPath;
+extern size_t DirPathLength;
 extern const char *game_file;
 
 extern Header GameHeader;

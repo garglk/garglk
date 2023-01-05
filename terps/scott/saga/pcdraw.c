@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "scott.h"
 #include "sagagraphics.h"
@@ -28,7 +29,8 @@ uint8_t *FindImageFile(const char *shortname, size_t *datasize) {
     *datasize = 0;
     uint8_t *data = NULL;
     char filename[2048];
-    int n = sprintf(filename, "%s%s.PAK", DirPath, shortname);
+    size_t namelength = strlen(DirPath) + strlen(shortname) + 5;
+    int n = snprintf(filename, namelength, "%s%s.PAK", DirPath, shortname);
     if (n > 0) {
         FILE *infile=fopen(filename,"rb");
         if (infile) {

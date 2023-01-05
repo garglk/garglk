@@ -50,7 +50,7 @@ void DrawBlack(void)
 
 char *ShortNameFromType(char type, int index) {
     char buf[5];
-    int n = sprintf(buf, "%c0%02d", type, index);
+    int n = snprintf(buf, 5, "%c0%02d", type, index);
     if (n < 0)
         return NULL;
     size_t len = strlen(buf) + 1;
@@ -184,7 +184,7 @@ void DrawItemImage(int item) {
     LastImgIndex = item;
     char buf[1024];
 
-        int n = sprintf( buf, "B0%02d", item);
+        int n = snprintf( buf, 5, "B0%02d", item);
         if (n < 0)
             return;
 
@@ -198,7 +198,7 @@ int DrawCloseup(int img) {
     LastImgIndex = img;
     char buf[1024];
 
-    int n = sprintf( buf, "S0%02d", img);
+    int n = snprintf( buf, 5, "S0%02d", img);
     if (n < 0)
         return 0;
 
@@ -224,7 +224,7 @@ int DrawRoomImage(int roomimg) {
     LastImgIndex = roomimg;
 
     char buf[5];
-    int n = sprintf( buf, "R0%02d", roomimg);
+    int n = snprintf( buf, 5, "R0%02d", roomimg);
     if (n < 0)
         return 0;
     buf[4] = 0;
