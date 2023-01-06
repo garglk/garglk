@@ -925,7 +925,9 @@ static struct Command *CommandFromStrings(int index, struct Command *previous)
 static int CreateAllCommands(struct Command *command)
 {
 
-    int exceptions[GameHeader.NumItems];
+    if (GameHeader.NumItems > 2048)
+        Fatal("Bad number of items");
+    int exceptions[2048];
     int exceptioncount = 0;
 
     int location = CARRIED;

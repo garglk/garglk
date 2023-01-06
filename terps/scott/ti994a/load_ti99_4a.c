@@ -530,7 +530,9 @@ static int TryLoadingTI994A(struct DATAHEADER dh, int loud)
     ct = 0;
     ip = Items;
 
-    int objectlinks[ni + 1];
+    if (ni >= 1024)
+        Fatal("Bad number of items");
+    int objectlinks[1024];
 
     if (SeekIfNeeded(FixAddress(FixWord(dh.p_obj_link)), &offset, &ptr) == 0)
         return 0;

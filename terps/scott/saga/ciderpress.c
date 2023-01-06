@@ -282,8 +282,17 @@ static int fVTOCNumSectors;
 
 uint8_t fVTOC[kSectorSize];
 
+static void *MemAlloc(size_t size)
+{
+    void *t = (void *)malloc(size);
+    if (t == NULL) {
+        fprintf(stderr, "Out of memory\n");
+        exit( 1 );
+    }
+    return (t);
+}
 
-uint8_t access_ringbuf(ringbuf_handle_t ringbuf, int index) {
+static uint8_t access_ringbuf(ringbuf_handle_t ringbuf, int index) {
     if (ringbuf == NULL || ringbuf->initialized == 0 || ringbuf->buffer == NULL || *(ringbuf->buffer) == NULL) {
         debug_print("ERROR! Ringbuf not ready!\n");
         return -1;
@@ -303,14 +312,14 @@ uint8_t access_ringbuf(ringbuf_handle_t ringbuf, int index) {
  *
  * Should be called once, at DLL initialization time.
  */
-/*static*/ void CalcNibbleInvTables(void)
+static void CalcNibbleInvTables(void)
 {
     unsigned int i;
 
     if (kInvDiskBytes62 != NULL)
         return;
 
-    kInvDiskBytes62 = malloc(256);
+    kInvDiskBytes62 = MemAlloc(256);
 
     memset(kInvDiskBytes62, kInvInvalidValue, 256);
     for (i = 0; i < sizeof(kDiskBytes62); i++) {
@@ -319,14 +328,14 @@ uint8_t access_ringbuf(ringbuf_handle_t ringbuf, int index) {
     }
 }
 
-uint16_t ConvFrom44(uint8_t val1, uint8_t val2) {
+static uint16_t ConvFrom44(uint8_t val1, uint8_t val2) {
     return ((val1 << 1) | 0x01) & val2;
 }
 
 /*
  * Decode the values in the address field.
  */
-void DecodeAddr(ringbuf_handle_t ringbuffer, int offset,
+static void DecodeAddr(ringbuf_handle_t ringbuffer, int offset,
                 short* pVol, short* pTrack, short* pSector, short* pChksum)
 {
     //unsigned int vol, track, sector, chksum;
@@ -360,7 +369,7 @@ const NibbleDescr *pNibbleDescr = &nibbleDescr;
  *
  * Returns the index start on success or -1 on failure.
  */
-int  FindNibbleSectorStart(ringbuf_handle_t ringbuffer, int track,
+static int  FindNibbleSectorStart(ringbuf_handle_t ringbuffer, int track,
                            int sector, int* pVol)
 {
     //DIError dierr;
@@ -619,9 +628,7 @@ DIError LoadNibbleTrack(long track, long* pTrackLen)
 
     /* alloc track buffer if needed */
     if (fNibbleTrackBuf == NULL) {
-        fNibbleTrackBuf = malloc(kTrackAllocSize);
-        if (fNibbleTrackBuf == NULL)
-            return kDIErrMalloc;
+        fNibbleTrackBuf = MemAlloc(kTrackAllocSize);
     }
 
     /*
@@ -746,7 +753,7 @@ void FreeDiskImage(void) {
 
 
 uint8_t *ReadImageFromNib(size_t offset, size_t size, uint8_t *data, size_t datasize) {
-    uint8_t *result = malloc(size);
+    uint8_t *result = MemAlloc(size);
 
     rawdata = data;
     rawdatalen = datasize;
@@ -988,17 +995,12 @@ static DIError LoadTSList(A2FileDOS *DOSFile)
 
     /* over-alloc for small files to reduce reallocs */
     tsAlloc = kMaxTSPairs * kDefaultTSAlloc;
-    tsList = malloc(tsAlloc * sizeof(TrackSector));
+    tsList = MemAlloc(tsAlloc * sizeof(TrackSector));
     tsCount = 0;
 
     indexAlloc = kDefaultIndexAlloc;
-    indexList = malloc(indexAlloc * sizeof(TrackSector));
+    indexList = MemAlloc(indexAlloc * sizeof(TrackSector));
     indexCount = 0;
-
-    if (tsList == NULL || indexList == NULL) {
-        dierr = kDIErrMalloc;
-        goto bail;
-    }
 
     /* get the first T/S sector for this file */
     track = DOSFile->fTSListTrack;
@@ -1027,11 +1029,7 @@ static DIError LoadTSList(A2FileDOS *DOSFile)
             debug_print("+++ expanding index list\n");
             TrackSector* newList;
             indexAlloc += kDefaultIndexAlloc;
-            newList = malloc(indexAlloc * sizeof(TrackSector));
-            if (newList == NULL) {
-                dierr = kDIErrMalloc;
-                goto bail;
-            }
+            newList = MemAlloc(indexAlloc * sizeof(TrackSector));
             memcpy(newList, indexList, indexCount * sizeof(TrackSector));
             free(indexList);
             indexList = newList;
@@ -1073,11 +1071,7 @@ static DIError LoadTSList(A2FileDOS *DOSFile)
             debug_print("+++ expanding ts list\n");
             TrackSector* newList;
             tsAlloc += kMaxTSPairs * kDefaultTSAlloc;
-            newList = malloc(tsAlloc * sizeof(TrackSector));
-            if (newList == NULL) {
-                dierr = kDIErrMalloc;
-                goto bail;
-            }
+            newList = MemAlloc(tsAlloc * sizeof(TrackSector));
             memcpy(newList, tsList, tsCount * sizeof(TrackSector));
             free(tsList);
             tsList = newList;
@@ -1251,7 +1245,7 @@ static DIError ProcessCatalogSector(int catTrack, int catSect,
 
     for (i = 0; i < kCatalogEntriesPerSect; i++) {
         if (pEntry[0x00] != kEntryUnused && pEntry[0x00] != kEntryDeleted) {
-            pFile = malloc(sizeof(A2FileDOS));
+            pFile = MemAlloc(sizeof(A2FileDOS));
             pFile->prev = NULL;
             pFile->next = NULL;
 
@@ -1457,7 +1451,7 @@ uint8_t *ReadApple2DOSFile(uint8_t *data, size_t *len, uint8_t **invimg, size_t 
     A2FileDOS *file = find_SAGA_database();
     if (file) {
         Open(file);
-        buf = malloc(file->fLengthInSectors * kSectorSize);
+        buf = MemAlloc(file->fLengthInSectors * kSectorSize);
         size_t actual;
         Read(file, buf, (file->fLengthInSectors - 1) * kSectorSize, &actual);
         *len = actual;
@@ -1469,28 +1463,29 @@ uint8_t *ReadApple2DOSFile(uint8_t *data, size_t *len, uint8_t **invimg, size_t 
     }
     if (file) {
         Open(file);
-        uint8_t inventemp[file->fLengthInSectors * kSectorSize];
+        uint8_t *inventemp = MemAlloc(file->fLengthInSectors * kSectorSize);
         debug_print("inventemp is size %d\n", file->fLengthInSectors * kSectorSize);
         Read(file, inventemp, (file->fLengthInSectors - 1) * kSectorSize, invimglen);
         debug_print("*invimglen is %zu\n", *invimglen);
         debug_print("*invimglen - 4 is %zu\n", *invimglen);
-        *invimg = malloc(*invimglen);
+        *invimg = MemAlloc(*invimglen);
         memcpy(*invimg, inventemp + 4, *invimglen - 4);
+        free(inventemp);
     }
 
     /* Image unscrambling tables are usually found somewhere in a file named M2 (As in memory part 2?) */
     file = find_file_named("M2");
     if (file) {
         Open(file);
-        uint8_t m2temp[file->fLengthInSectors * kSectorSize];
-        debug_print("m2temp is size %d\n", file->fLengthInSectors * kSectorSize);
+        uint8_t *m2temp = MemAlloc(file->fLengthInSectors * kSectorSize);
         size_t m2len;
         Read(file, m2temp, (file->fLengthInSectors - 1) * kSectorSize, &m2len);
 
         if (m2len > 0x1747 + 0x180 && strncmp((char *)(m2temp + 0x172C), "COPYRIGHT 1983 NORMAN L. SAILER", 31) == 0) {
-            *m2 = malloc(0x182);
+            *m2 = MemAlloc(0x182);
             memcpy(*m2, m2temp + 0x174B, 0x182);
         }
+        free(m2temp);
     }
 
     return buf;
