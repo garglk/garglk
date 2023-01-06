@@ -423,7 +423,7 @@ static int StripBrackets(char sideB[], size_t length) {
 
 static uint8_t *LookForAtari8CompanionFilename(int index, CompanionNameType type, size_t stringlen, size_t *filesize) {
 
-    char sideB[stringlen + 10];
+    char *sideB = MemAlloc(stringlen + 10);
     uint8_t *result = NULL;
 
     memcpy(sideB, game_file, stringlen + 1);
@@ -467,8 +467,10 @@ static uint8_t *LookForAtari8CompanionFilename(int index, CompanionNameType type
             size_t ppos = stringlen - 1;
             while(sideB[ppos] != '.' && ppos > 0)
                 ppos--;
-            if (ppos < 1)
+            if (ppos < 1) {
+                free(sideB);
                 return NULL;
+            }
             // Then we copy the extension to the new end position
             for (size_t i = ppos; i <= stringlen; i++) {
                 sideB[i + 8] = sideB[i];
@@ -485,7 +487,7 @@ static uint8_t *LookForAtari8CompanionFilename(int index, CompanionNameType type
             result = ReadFileIfExists(sideB, filesize);
         }
     }
-
+    free(sideB);
     return result;
 }
 

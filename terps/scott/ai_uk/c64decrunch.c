@@ -465,7 +465,9 @@ void LoadC64USImages(uint8_t *data, size_t length) {
         unsigned char rawname[1024];
         if (filenames) {
             int imgindex = 0;
-            char *imagefiles[numfiles];
+            if (numfiles > 1024)
+                numfiles = 1024;
+            char *imagefiles[1024];
             for (int i = 0; i < numfiles; i++) {
                 if (issagaimg(filenames[i])) {
                     imagefiles[imgindex++] = filenames[i];
@@ -550,7 +552,7 @@ GameIDType DetectC64(uint8_t **sf, size_t *extent)
                 if (buflen <= 0 || buflen > MAX_LENGTH)
                     return 0;
 
-                uint8_t megabuf[buflen];
+                uint8_t *megabuf = MemAlloc(buflen);
                 memcpy(megabuf, largest_file, newlength);
                 if (appendix != NULL) {
                     memcpy(megabuf + newlength + c64_registry[i].parameter, appendix + 2,
@@ -564,6 +566,7 @@ GameIDType DetectC64(uint8_t **sf, size_t *extent)
                     memcpy(*sf, megabuf, newlength);
                     *extent = newlength;
                 }
+                free(megabuf);
 
             } else if (c64_registry[i].type == TYPE_T64) {
                 uint8_t *file_records = *sf + 64;

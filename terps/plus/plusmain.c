@@ -428,7 +428,9 @@ static void FlushRoomDescription(char *buf,  int transcript)
         int line = 0;
         int index = 0;
         int i;
-        char string[TopWidth + 1];
+        if (TopWidth > 2046)
+            TopWidth = 2046;
+        char string[2048];
         for (line = 0; line < rows && index < length; line++) {
             for (i = 0; i < TopWidth; i++) {
                 string[i] = text_with_breaks[index++];

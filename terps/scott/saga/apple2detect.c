@@ -849,7 +849,7 @@ uint8_t *ReadA2DiskImageFile(const char *filename, size_t *filesize, int *isnib)
 
 uint8_t *LookForA2CompanionFilename(int index, CompanionNameType type, size_t stringlen, size_t *filesize, int *isnib) {
 
-    char sideB[stringlen + 9];
+    char *sideB = MemAlloc(stringlen + 9);
     uint8_t *result = NULL;
 
     *isnib = 0;
@@ -895,8 +895,10 @@ uint8_t *LookForA2CompanionFilename(int index, CompanionNameType type, size_t st
             size_t ppos = stringlen - 1;
             while(sideB[ppos] != '.' && ppos > 0)
                 ppos--;
-            if (ppos < 1)
+            if (ppos < 1) {
+                free(sideB);
                 return NULL;
+            }
             // Then we copy the extension to the new end position
             for (size_t i = ppos; i <= stringlen; i++) {
                 sideB[i + 7] = sideB[i];
@@ -912,7 +914,7 @@ uint8_t *LookForA2CompanionFilename(int index, CompanionNameType type, size_t st
             result = ReadA2DiskImageFile(sideB, filesize, isnib);
         }
     }
-
+    free(sideB);
     return result;
 }
 

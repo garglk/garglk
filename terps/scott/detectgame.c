@@ -120,7 +120,9 @@ int SanityCheckHeader(void)
 uint8_t *ReadDictionary(struct GameInfo info, uint8_t **pointer, int loud)
 {
     uint8_t *ptr = *pointer;
-    char dictword[info.word_length + 2];
+    if (info.word_length + 2 > 1024)
+        Fatal("Bad word length");
+    char dictword[1024];
     char c = 0;
     int wordnum = 0;
     int charindex = 0;

@@ -123,8 +123,16 @@ static void FatalError( char *format, ... )
     exit( 1 );
 }
 
+static void *MemAlloc(size_t size)
+{
+    void *t = (void *)malloc(size);
+    if (t == NULL)
+        FatalError("Out of memory");
+    return (t);
+}
+
 static char *create_bitstring(uint8_t *bitstream, int bit_count) {
-    char *result = malloc(bit_count + 1);
+    char *result = MemAlloc(bit_count + 1);
     for (int i = 0; i <= bit_count / 8; i++) {
         uint8_t byte = bitstream[i];
         int byteindex = i * 8;
@@ -165,10 +173,10 @@ static char *extract_nibble(char *bitstring, int *length, char nibble[8]) {
 
     memcpy(nibble, bitstring + i, 8);
     *length = *length - i - 8;
-    uint8_t temp[*length];
+    uint8_t *temp = MemAlloc(*length);
     memcpy(temp, bitstring + i + 8, *length);
     memcpy(bitstring, temp, *length);
-
+    free(temp);
     bitstring[*length] = '\0';
     return bitstring;
 }
@@ -229,7 +237,7 @@ uint8_t *woz2nib(uint8_t *ptr, size_t *len) {
             chunk_size += woz_buffer[woz_unpack_pos + 4 + i] << (8 * i);
         }
         chunkstring[4] = '\0';
-        uint8_t chunk_data[chunk_size];
+        uint8_t *chunk_data = MemAlloc(chunk_size);
         woz_unpack_pos += 8;
         memcpy(chunk_data, woz_buffer + woz_unpack_pos, chunk_size);
         woz_unpack_pos += chunk_size;
@@ -246,6 +254,7 @@ uint8_t *woz2nib(uint8_t *ptr, size_t *len) {
             case INFO:
                 if (chunk_size != 60) {
                     debug_print("INFO chunk size is not 60 but %d bytes\n", chunk_size);
+                    free(chunk_data);
                     return NULL;
                 }
                 info_found = 1;
@@ -290,6 +299,7 @@ uint8_t *woz2nib(uint8_t *ptr, size_t *len) {
                 tmap_found = 1;
                 if (chunk_size != 160) {
                     debug_print("TMAP chunk size is not 160 but %d bytes\n", chunk_size);
+                    free(chunk_data);
                     return NULL;
                 }
                 uint8_t tempmap[160];
@@ -318,7 +328,6 @@ uint8_t *woz2nib(uint8_t *ptr, size_t *len) {
 //                        debug_print("%d,%d,%d/", trks[i].starting_block, trks[i].block_count, trks[i].bit_count);
                     }
 //                    debug_print("\n");
-
                 } else {
                     if (magic[3] != '1')
                         FatalError("bug");
@@ -327,13 +336,14 @@ uint8_t *woz2nib(uint8_t *ptr, size_t *len) {
                     while (chunkdatalen >= 6656 && idx < 160) {
                         trks[idx].bytes_used = chunk_data[6646] + chunk_data[6647] * 256;
                         trks[idx].bit_count = chunk_data[6648] + chunk_data[6649] * 256;
-                        trks[idx].bitstream = malloc(6646);
+                        trks[idx].bitstream = MemAlloc(6646);
                         memcpy(trks[idx].bitstream, chunk_data, 6646);
                         int newlen = chunkdatalen - 6656;
                         if (newlen > 0) {
-                            uint8_t tempdata[newlen];
+                            uint8_t *tempdata = MemAlloc(newlen);
                             memcpy(tempdata, chunk_data + 6656, newlen);
                             memcpy(chunk_data, tempdata, newlen);
+                            free(tempdata);
                         }
                         chunkdatalen -= 6656;
                         idx++;
@@ -354,6 +364,7 @@ uint8_t *woz2nib(uint8_t *ptr, size_t *len) {
                 debug_print("ignoring unknown chunk: %s; size=%dbytes\n", chunkstring, chunk_size);
                 break;
         }
+        free(chunk_data);
     }
 
     if (info_found == 0)
@@ -366,7 +377,7 @@ uint8_t *woz2nib(uint8_t *ptr, size_t *len) {
     size_t out_file_size = nr_tracks * ((format == NIBBLE) ? NIBBLES_PER_TRACK : (SECTORS_PER_TRACK * BYTES_PER_SECTOR));
     *len = out_file_size;
 
-    uint8_t *outfile = malloc(out_file_size);
+    uint8_t *outfile = MemAlloc(out_file_size);
 
     int nr_empty_nonstandard_tracks = 0;
 
@@ -393,7 +404,7 @@ uint8_t *woz2nib(uint8_t *ptr, size_t *len) {
         trksdata *trk = &trks[trks_index];
         if (trk == NULL) {
             debug_print("T[%s]: bad TMAP value\n", t_hex);
-            return 0;
+            return NULL;
         }
 
         if (magic[3] == '2') {
@@ -438,45 +449,52 @@ uint8_t *woz2nib(uint8_t *ptr, size_t *len) {
                 int tail_len = bit_count - offset - sync_len;
                 int head_len = offset + sync_len;
 
-                char head[head_len];
+                char *head = MemAlloc(head_len);
                 memcpy(head, bitstring, head_len);
 
-                char tail[tail_len];
+                char *tail = MemAlloc(tail_len);
                 memcpy(tail, bitstring + head_len, tail_len);
 
                 memcpy(bitstring, tail, tail_len);
                 memcpy(bitstring + tail_len, head, head_len);
                 bitstring[bit_count] = '\0';
+                free(head);
+                free(tail);
                 break;
             } else { // has been split when linearizing the circular track?
                 debug_print ("rotate and retry by %d bits\n", sync_len);
 
                 int tail_len = bit_count - sync_len;
 
-                char head[sync_len];
+                char *head = MemAlloc(sync_len);
                 memcpy(head, bitstring + tail_len, sync_len);
 
-                char tail[tail_len];
+                char *tail = MemAlloc(tail_len);
                 memcpy(tail, bitstring, tail_len);
 
                 memcpy(bitstring, head, sync_len);
                 memcpy(bitstring + sync_len, tail, tail_len);
 
+                free(head);
+                free(tail);
+
                 pos = strstr(bitstring, sync_bytes[ns]); //try once more...
                 if (pos != NULL) {
                     int offset = (int)(pos - bitstring);
                     nr_sectors = ns;
-                    int tail_len = bit_count - offset - sync_len;
-                    int head_len = offset + sync_len;
-                    char head[head_len];
-                    memcpy(head, bitstring, head_len);
+                    int tail_len2 = bit_count - offset - sync_len;
+                    int head_len2 = offset + sync_len;
+                    char *head2 = MemAlloc(head_len2);
+                    memcpy(head2, bitstring, head_len2);
 
-                    char tail[tail_len];
-                    memcpy(tail, bitstring + head_len, tail_len);
+                    char *tail2 = MemAlloc(tail_len2);
+                    memcpy(tail2, bitstring + head_len2, tail_len2);
 
-                    memcpy(bitstring, tail, tail_len);
-                    memcpy(bitstring + tail_len, head, head_len);
+                    memcpy(bitstring, tail2, tail_len2);
+                    memcpy(bitstring + tail_len2, head2, head_len2);
                     bitstring[bit_count] = '\0';
+                    free(head2);
+                    free(tail2);
                     break;
                 }
             }
