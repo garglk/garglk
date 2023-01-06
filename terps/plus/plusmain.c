@@ -300,7 +300,7 @@ void Updates(event_t ev)
         OpenGraphicsWindow();
         if (AnimationRunning && LastAnimationBackground) {
             char buf[5];
-            snprintf(buf, 5, "S0%02d", LastAnimationBackground);
+            snprintf(buf, sizeof buf, "S0%02d", LastAnimationBackground);
             DrawImageWithName(buf);
         } else {
             SetBit(DRAWBIT);

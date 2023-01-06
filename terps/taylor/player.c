@@ -755,7 +755,7 @@ static void PrintNumber(unsigned char n)
 {
     char buf[4];
     char *p = buf;
-    snprintf(buf, 3, "%d", (int)n);
+    snprintf(buf, sizeof buf, "%d", (int)n);
     while(*p)
         OutChar(*p++);
 }
@@ -1850,7 +1850,7 @@ static void ExecuteLineCode(unsigned char *p, int *done)
                 char buf[5];
                 char *q = buf;
                 /* TurnsLow = turns % 100, TurnsHigh == turns / 100 */
-                snprintf(buf, 5, "%04d", TurnsLow + TurnsHigh * 100);
+                snprintf(buf, sizeof buf, "%04d", TurnsLow + TurnsHigh * 100);
                 while(*q)
                     OutChar(*q++);
                 SysMessage(14);
@@ -1861,7 +1861,7 @@ static void ExecuteLineCode(unsigned char *p, int *done)
                     /* Calculate "restedness" percentage */
                     /* Flag[7] == 80 means 100 percent rested */
                     q = buf;
-                    snprintf(buf, 4, "%d", (Flag[7] >> 2) + Flag[7]);
+                    snprintf(buf, sizeof buf, "%d", (Flag[7] >> 2) + Flag[7]);
                     while(*q)
                         OutChar(*q++);
                 }
