@@ -377,7 +377,7 @@ uint8_t *woz2nib(uint8_t *ptr, size_t *len) {
     char *bitstring = NULL;
 
     for (int track = 0; track < nr_tracks; track++) {
-        snprintf(t_hex, 3, "%02x", track);
+        snprintf(t_hex, sizeof t_hex, "%02x", track);
         debug_print("Track $%s\n", t_hex);
         trks_index = tmap[track];
         if (trks_index == 0xff) { // empty track

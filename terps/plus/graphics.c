@@ -50,7 +50,7 @@ void DrawBlack(void)
 
 char *ShortNameFromType(char type, int index) {
     char buf[5];
-    int n = snprintf(buf, 5, "%c0%02d", type, index);
+    int n = snprintf(buf, sizeof buf, "%c0%02d", type, index);
     if (n < 0)
         return NULL;
     size_t len = strlen(buf) + 1;
@@ -182,11 +182,11 @@ int DrawImageWithName(char *filename)
 void DrawItemImage(int item) {
     LastImgType = IMG_OBJECT;
     LastImgIndex = item;
-    char buf[1024];
+    char buf[5];
 
-        int n = snprintf( buf, 5, "B0%02d", item);
-        if (n < 0)
-            return;
+    int n = snprintf(buf, sizeof buf, "B0%02d", item);
+    if (n < 0)
+        return;
 
     upside_down = (CurrentGame == SPIDERMAN && Items[0].Location == MyLoc);
 
@@ -196,9 +196,9 @@ void DrawItemImage(int item) {
 int DrawCloseup(int img) {
     LastImgType = IMG_SPECIAL;
     LastImgIndex = img;
-    char buf[1024];
+    char buf[5];
 
-    int n = snprintf( buf, 5, "S0%02d", img);
+    int n = snprintf(buf, sizeof buf, "S0%02d", img);
     if (n < 0)
         return 0;
 
@@ -224,7 +224,7 @@ int DrawRoomImage(int roomimg) {
     LastImgIndex = roomimg;
 
     char buf[5];
-    int n = snprintf( buf, 5, "R0%02d", roomimg);
+    int n = snprintf(buf, sizeof buf, "R0%02d", roomimg);
     if (n < 0)
         return 0;
     buf[4] = 0;
