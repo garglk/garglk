@@ -16,6 +16,7 @@
 // along with Gargoyle; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+#include <algorithm>
 #include <array>
 #include <exception>
 #include <fstream>
@@ -307,6 +308,8 @@ void garglk::theme::init()
         {"light", theme_light},
     };
 
+    themes.clear();
+
     for (const auto &pair : builtin) {
         try {
             themes.insert({pair.first, Theme::from_string(pair.second)});
@@ -362,6 +365,8 @@ std::vector<std::string> garglk::theme::names()
     }
 
     theme_names.push_back(std::string("system (") + system_theme_name() + ")");
+
+    std::sort(theme_names.begin(), theme_names.end());
 
     return theme_names;
 }

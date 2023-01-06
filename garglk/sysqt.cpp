@@ -381,10 +381,8 @@ static void show_paths()
 static void show_themes()
 {
     QString text("The following themes are available:\n\n");
-    auto theme_names = garglk::theme::names();
 
-    std::sort(theme_names.begin(), theme_names.end());
-    for (const auto &theme_name : theme_names) {
+    for (const auto &theme_name : garglk::theme::names()) {
         text += QString("• ") + QString::fromStdString(theme_name) + "\n";
     }
 

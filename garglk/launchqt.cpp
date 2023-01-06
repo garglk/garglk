@@ -180,7 +180,8 @@ static QString parse_args(const QApplication &app)
         {{"d", "dump-config"}, "Dump the default config file to standard out."},
         {{"e", "edit-config"}, "Edit the configuration file."},
         {{"h", "help"}, "Displays help on commandline options."},
-        {{"p", "paths"}, "Displays configuration file and theme paths."}
+        {{"p", "paths"}, "Displays configuration file and theme paths."},
+        {{"t", "themes"}, "Displays all available color themes."},
     });
 
     parser.addVersionOption();
@@ -227,6 +228,13 @@ static QString parse_args(const QApplication &app)
         std::reverse(theme_paths.begin(), theme_paths.end());
         for (const auto &path : theme_paths) {
             std::cout << canonicalize(path) << std::endl;
+        }
+
+        std::exit(0);
+    } else if (parser.isSet("t")) {
+        garglk::theme::init();
+        for (const auto &theme_name : garglk::theme::names()) {
+            std::cout << theme_name << std::endl;
         }
 
         std::exit(0);
