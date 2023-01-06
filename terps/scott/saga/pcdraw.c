@@ -28,8 +28,9 @@ extern char *DirPath;
 uint8_t *FindImageFile(const char *shortname, size_t *datasize) {
     *datasize = 0;
     uint8_t *data = NULL;
-    char filename[strlen(DirPath) + strlen(shortname) + 5];
-    int n = snprintf(filename, sizeof filename, "%s%s.PAK", DirPath, shortname);
+    size_t pathlen = strlen(DirPath) + strlen(shortname) + 5;
+    char *filename = MemAlloc(pathlen);
+    int n = snprintf(filename, pathlen, "%s%s.PAK", DirPath, shortname);
     if (n > 0) {
         FILE *infile=fopen(filename,"rb");
         if (infile) {
@@ -46,6 +47,7 @@ uint8_t *FindImageFile(const char *shortname, size_t *datasize) {
             fprintf(stderr, "Could not find or read image file %s\n", filename);
         }
     }
+    free(filename);
     return data;
 }
 
