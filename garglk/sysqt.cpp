@@ -386,7 +386,7 @@ static void show_themes()
         text += QString("• ") + QString::fromStdString(theme_name) + "\n";
     }
 
-    QMessageBox box(QMessageBox::Icon::Information, "Paths", text);
+    QMessageBox box(QMessageBox::Icon::Information, "Themes", text);
     box.setTextFormat(Qt::TextFormat::PlainText);
     box.exec();
 }
