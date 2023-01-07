@@ -375,16 +375,16 @@ extern void (*gli_unregister_arr)(void *array, glui32 len, char *typecode,
 
 // Some useful type declarations.
 
-typedef struct glk_window_struct window_t;
-typedef struct glk_stream_struct stream_t;
-typedef struct glk_fileref_struct fileref_t;
-typedef struct glk_schannel_struct channel_t;
+using window_t = struct glk_window_struct;
+using stream_t = struct glk_stream_struct;
+using fileref_t = struct glk_fileref_struct;
+using channel_t = struct glk_schannel_struct;
 
-typedef struct window_blank_s window_blank_t;
-typedef struct window_pair_s window_pair_t;
-typedef struct window_textgrid_s window_textgrid_t;
-typedef struct window_textbuffer_s window_textbuffer_t;
-typedef struct window_graphics_s window_graphics_t;
+struct window_blank_t;
+struct window_pair_t;
+struct window_textgrid_t;
+struct window_textbuffer_t;
+struct window_graphics_t;
 
 // ----------------------------------------------------------------------
 //
@@ -730,15 +730,15 @@ struct glk_window_struct {
     window_t *next, *prev; // in the big linked list of windows
 };
 
-struct window_blank_s {
-    explicit window_blank_s(window_t *win) : owner(win) {
+struct window_blank_t {
+    explicit window_blank_t(window_t *win) : owner(win) {
     }
 
     window_t *owner;
 };
 
-struct window_pair_s {
-    window_pair_s(window_t *win, glui32 method, window_t *key_, glui32 size_) :
+struct window_pair_t {
+    window_pair_t(window_t *win, glui32 method, window_t *key_, glui32 size_) :
         owner(win),
         dir(method & winmethod_DirMask),
         vertical(dir == winmethod_Left || dir == winmethod_Right),
@@ -770,8 +770,8 @@ struct tgline_t {
     std::array<attr_t, 256> attrs;
 };
 
-struct window_textgrid_s {
-    window_textgrid_s(window_t *owner_, Styles styles_) :
+struct window_textgrid_t {
+    window_textgrid_t(window_t *owner_, Styles styles_) :
         owner(owner_),
         styles(std::move(styles_))
     {
@@ -811,8 +811,8 @@ struct tbline_t {
     std::array<attr_t, TBLINELEN> attrs;
 };
 
-struct window_textbuffer_s {
-    window_textbuffer_s(window_t *owner_, Styles styles_, int scrollback_) :
+struct window_textbuffer_t {
+    window_textbuffer_t(window_t *owner_, Styles styles_, int scrollback_) :
         owner(owner_),
         scrollback(scrollback_),
         styles(std::move(styles_))
@@ -870,8 +870,8 @@ struct window_textbuffer_s {
     int copypos = 0;
 };
 
-struct window_graphics_s {
-    explicit window_graphics_s(window_t *win) :
+struct window_graphics_t {
+    explicit window_graphics_t(window_t *win) :
         owner(win),
         bgnd(win->bgcolor)
     {
