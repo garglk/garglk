@@ -37,7 +37,7 @@ jobs:
           qtbase5-dev-tools
           wget
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Build AppImage
         run: |
