@@ -120,7 +120,7 @@ void DrawImage(int image);
 void OpenGraphicsWindow(void);
 size_t GetFileLength(FILE *in);
 void *MemAlloc(int size);
-int LoadDatabase(FILE *f, int loud);
+GameIDType LoadDatabase(FILE *f, int loud);
 void CloseGraphicsWindow(void);
 void Updates(event_t ev);
 int PerformExtraCommand(int extra_stop_time);

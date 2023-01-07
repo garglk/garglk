@@ -706,7 +706,7 @@ void FreeDatabase(void)
     free(Messages);
 }
 
-int LoadDatabase(FILE *f, int loud)
+GameIDType LoadDatabase(FILE *f, int loud)
 {
     int ni, na, nw, nr, mc, pr, tr, wl, lt, mn, trm;
     int ct;
@@ -723,7 +723,7 @@ int LoadDatabase(FILE *f, int loud)
         < 10) {
         if (loud)
             debug_print("Invalid database(bad header)\n");
-        return 0;
+        return UNKNOWN_GAME;
     }
     GameHeader.NumItems = ni;
     Items = (Item *)MemAlloc(sizeof(Item) * (ni + 1));
@@ -777,7 +777,7 @@ int LoadDatabase(FILE *f, int loud)
             != 8) {
             fprintf(stderr, "Bad action line (%d)\n", ct);
             FreeDatabase();
-            return 0;
+            return UNKNOWN_GAME;
         }
 
         if (loud) {
@@ -821,7 +821,7 @@ int LoadDatabase(FILE *f, int loud)
             != 6) {
             debug_print("Bad room line (%d)\n", ct);
             FreeDatabase();
-            return 0;
+            return UNKNOWN_GAME;
         }
 
         rp->Text = ReadString(f);
@@ -866,7 +866,7 @@ int LoadDatabase(FILE *f, int loud)
         if (fscanf(f, "%hd", &lo) != 1) {
             debug_print("Bad item line (%d)\n", ct);
             FreeDatabase();
-            return 0;
+            return UNKNOWN_GAME;
         }
         ip->Location = (unsigned char)lo;
         if (loud)
@@ -884,14 +884,14 @@ int LoadDatabase(FILE *f, int loud)
     if (fscanf(f, "%d", &ct) != 1) {
         debug_print("Cannot read version\n");
         FreeDatabase();
-        return 0;
+        return UNKNOWN_GAME;
     }
     if (loud)
         debug_print("Version %d.%02d of Adventure ", ct / 100, ct % 100);
     if (fscanf(f, "%d", &ct) != 1) {
         debug_print("Cannot read adventure number\n");
         FreeDatabase();
-        return 0;
+        return UNKNOWN_GAME;
     }
     if (loud)
         debug_print("%d.\nLoad Complete.\n\n", ct);
@@ -2483,7 +2483,7 @@ void glk_main(void)
 
     GameIDType game_type = DetectGame(game_file);
 
-    if (!game_type)
+    if (game_type == UNKNOWN_GAME)
 		Fatal("Unsupported game!");
 
     if (game_type != SCOTTFREE && game_type != TI994A) {

@@ -649,20 +649,19 @@ static int ExtractImagesFromAtariCompanionFile(uint8_t *data, size_t datasize, u
 
 static const uint8_t atrheader[6] = { 0x96, 0x02, 0x80, 0x16, 0x80, 0x00 };
 
-int DetectAtari8(uint8_t **sf, size_t *extent)
+GameIDType DetectAtari8(uint8_t **sf, size_t *extent)
 {
-
-    int result = 0;
+    GameIDType result = UNKNOWN_GAME;
     size_t data_start = 0x04c1;
     // Header actually starts at offset 0x04f9 (0x04c1 + 0x38).
     // We add 50 bytes at the head to match the C64 files.
 
     if (*extent > MAX_LENGTH || *extent < data_start)
-        return 0;
+        return UNKNOWN_GAME;
 
     for (int i = 0; i < 6; i++)
         if ((*sf)[i] != atrheader[i])
-            return 0;
+            return UNKNOWN_GAME;
 
     size_t companionsize;
     uint8_t *companionfile = GetAtari8CompanionFile(&companionsize);
@@ -670,10 +669,10 @@ int DetectAtari8(uint8_t **sf, size_t *extent)
     ImageWidth = 280;
     ImageHeight = 158;
     result = LoadBinaryDatabase(*sf + data_start, *extent - data_start, *Game, 0);
-    if (!result && companionfile != NULL && companionsize > data_start) {
+    if (result == UNKNOWN_GAME && companionfile != NULL && companionsize > data_start) {
         debug_print("Could not find database in this file, trying the companion file\n");
         result = LoadBinaryDatabase(companionfile + data_start, companionsize - data_start, *Game, 0);
-        if (result) {
+        if (result != UNKNOWN_GAME) {
             debug_print("Found database in companion file. Switching files.\n");
             uint8_t *temp = companionfile;
             size_t tempsize = companionsize;
@@ -684,7 +683,7 @@ int DetectAtari8(uint8_t **sf, size_t *extent)
         }
     }
     
-    if (result) {
+    if (result != UNKNOWN_GAME) {
         CurrentSys = SYS_ATARI8;
         if (companionfile) {
             ExtractImagesFromAtariCompanionFile(companionfile, companionsize, *sf, *extent);

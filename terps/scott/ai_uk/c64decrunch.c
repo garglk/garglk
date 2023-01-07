@@ -233,7 +233,7 @@ int save_island_appendix_1_length = 0;
 uint8_t *save_island_appendix_2 = NULL;
 int save_island_appendix_2_length = 0;
 
-static int savage_island_menu(uint8_t **sf, size_t *extent, int recindex)
+static GameIDType savage_island_menu(uint8_t **sf, size_t *extent, int recindex)
 {
     Output("This disk image contains two games. Select one.\n\n1. Savage Island "
            "part I\n2. Savage Island part II");
@@ -283,7 +283,7 @@ static int savage_island_menu(uint8_t **sf, size_t *extent, int recindex)
         return DecrunchC64(sf, extent, rec);
     } else {
         fprintf(stderr, "SCOTT: DetectC64() Failed loading file %s\n", rec.appendfile);
-        return 0;
+        return UNKNOWN_GAME;
     }
 }
 
@@ -309,7 +309,7 @@ static void appendSIfiles(uint8_t **sf, size_t *extent)
     memcpy(*sf, megabuf, *extent);
 }
 
-static int mysterious_menu(uint8_t **sf, size_t *extent, int recindex)
+static GameIDType mysterious_menu(uint8_t **sf, size_t *extent, int recindex)
 {
     recindex = 0;
 
@@ -368,11 +368,11 @@ static int mysterious_menu(uint8_t **sf, size_t *extent, int recindex)
         return DecrunchC64(sf, extent, rec);
     } else {
         fprintf(stderr, "SCOTT: DetectC64() Failed loading file %s\n", filename);
-        return 0;
+        return UNKNOWN_GAME;
     }
 }
 
-static int mysterious_menu2(uint8_t **sf, size_t *extent, int recindex)
+static GameIDType mysterious_menu2(uint8_t **sf, size_t *extent, int recindex)
 {
     recindex = 6;
 
@@ -428,7 +428,7 @@ static int mysterious_menu2(uint8_t **sf, size_t *extent, int recindex)
         return DecrunchC64(sf, extent, rec);
     } else {
         fprintf(stderr, "Failed loading file %s\n", filename);
-        return 0;
+        return UNKNOWN_GAME;
     }
 }
 
@@ -460,7 +460,6 @@ void LoadC64USImages(uint8_t *data, size_t length) {
 
     DiskImage *d64 = di_create_from_data(data, length);
     if (d64) {
-
         char **filenames = get_all_file_names(d64, &numfiles);
         unsigned char rawname[1024];
         if (filenames) {
@@ -479,9 +478,7 @@ void LoadC64USImages(uint8_t *data, size_t length) {
 
             if (imgindex) {
                 USImages = new_image();
-
                 struct USImage *image = USImages;
-
                 for (int i = 0; i < imgindex; i++) {
                     const char *shortname = imagefiles[i];
                     di_rawname_from_name(rawname, shortname);
@@ -512,7 +509,6 @@ void LoadC64USImages(uint8_t *data, size_t length) {
                     free(USImages);
                     USImages = NULL;
                 }
-
             }
         }
     }
@@ -590,7 +586,7 @@ GameIDType DetectC64(uint8_t **sf, size_t *extent)
                 uint8_t *database_file = get_file_named(*sf, *extent, &newlength, c64_registry[i].appendfile);
                 if (database_file == NULL) {
                     fprintf(stderr, "SCOTT: DetectC64() Could not find database in D64\n");
-                    return 0;
+                    return UNKNOWN_GAME;
                 }
 
                 if (c64_registry[i].decompress_iterations) {
@@ -626,7 +622,7 @@ GameIDType DetectC64(uint8_t **sf, size_t *extent)
             return DecrunchC64(sf, extent, c64_registry[i]);
         }
     }
-    return 0;
+    return UNKNOWN_GAME;
 }
 
 int unp64(uint8_t *compressed, size_t length, uint8_t *destination_buffer,
@@ -684,7 +680,7 @@ static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record
 
     if (record.type == TYPE_US) {
         *extent = length;
-        return 1;
+        return record.id;
     }
 
     for (int i = 0; games[i].Title != NULL; i++) {

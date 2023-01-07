@@ -118,7 +118,7 @@ static void GetMaxTI99Items(struct DATAHEADER dh)
 //    debug_print("Unknown: %d\n", header.strange);
 //}
 
-static int TryLoadingTI994A(struct DATAHEADER dh, int loud);
+static GameIDType TryLoadingTI994A(struct DATAHEADER dh, int loud);
 
 GameIDType DetectTI994A()
 {
@@ -375,7 +375,7 @@ static uint8_t *LoadTitleScreen(void)
     return result;
 }
 
-static int TryLoadingTI994A(struct DATAHEADER dh, int loud)
+static GameIDType TryLoadingTI994A(struct DATAHEADER dh, int loud)
 {
     int ni, nw, nr, mc, pr, tr, wl, lt, mn, trm;
     int ct;
@@ -477,7 +477,7 @@ static int TryLoadingTI994A(struct DATAHEADER dh, int loud)
 #pragma mark room connections
 #endif
     if (SeekIfNeeded(FixAddress(FixWord(dh.p_room_exit)), &offset, &ptr) == 0)
-        return 0;
+        return UNKNOWN_GAME;
 
     ct = 0;
     rp = Rooms;
@@ -494,7 +494,7 @@ static int TryLoadingTI994A(struct DATAHEADER dh, int loud)
 #pragma mark item locations
 #endif
     if (SeekIfNeeded(FixAddress(FixWord(dh.p_orig_items)), &offset, &ptr) == 0)
-        return 0;
+        return UNKNOWN_GAME;
 
     ct = 0;
     ip = Items;
@@ -535,7 +535,7 @@ static int TryLoadingTI994A(struct DATAHEADER dh, int loud)
     int objectlinks[1024];
 
     if (SeekIfNeeded(FixAddress(FixWord(dh.p_obj_link)), &offset, &ptr) == 0)
-        return 0;
+        return UNKNOWN_GAME;
 
     do {
         objectlinks[ct] = *(ptr++ - file_baseline_offset);

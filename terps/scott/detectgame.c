@@ -1320,7 +1320,7 @@ GameIDType DetectGame(const char *file_name)
     if (file_length > MAX_GAMEFILE_SIZE) {
         debug_print("File too large to be a vaild game file (%zu bytes, max is %d)\n",
             file_length, MAX_GAMEFILE_SIZE);
-        return 0;
+        return UNKNOWN_GAME;
     }
 
     Game = (struct GameInfo *)MemAlloc(sizeof(struct GameInfo));
@@ -1329,7 +1329,7 @@ GameIDType DetectGame(const char *file_name)
     // Check if the original ScottFree LoadDatabase() function can read the file.
     GameIDType detectedGame = LoadDatabase(f, Options & DEBUGGING);
 
-    if (!detectedGame) { /* Not a ScottFree game, check if TI99/4A */
+    if (detectedGame == UNKNOWN_GAME) { /* Not a ScottFree game, check if TI99/4A */
         entire_file = MemAlloc(file_length);
         fseek(f, 0, SEEK_SET);
         size_t result = fread(entire_file, 1, file_length, f);
@@ -1339,27 +1339,23 @@ GameIDType DetectGame(const char *file_name)
 
         detectedGame = DetectTI994A();
 
-        if (!detectedGame) /* Not a TI99/4A game, check if C64 */
+        if (detectedGame == UNKNOWN_GAME) /* Not a TI99/4A game, check if C64 */
             detectedGame = DetectC64(&entire_file, &file_length);
 
-        if (!detectedGame) { /* Not a C64 game, check if Atari */
-            result = DetectAtari8(&entire_file, &file_length);
-            if (result)
-                detectedGame = CurrentGame;
+        if (detectedGame == UNKNOWN_GAME) { /* Not a C64 game, check if Atari */
+            detectedGame = DetectAtari8(&entire_file, &file_length);
         }
 
-        if (!detectedGame) { /* Not an Atari game, check if Apple 2 */
-            result = DetectApple2(&entire_file, &file_length);
-            if (result)
-                detectedGame = CurrentGame;
+        if (detectedGame == UNKNOWN_GAME) { /* Not an Atari game, check if Apple 2 */
+            detectedGame = DetectApple2(&entire_file, &file_length);
         }
 
-        if (!detectedGame) { /* Not an Apple 2 game, check if ZX Spectrum */
+        if (detectedGame == UNKNOWN_GAME) { /* Not an Apple 2 game, check if ZX Spectrum */
             detectedGame = DetectZXSpectrum();
         }
 
-        if (Game == NULL)
-            return 0;
+        if (detectedGame == UNKNOWN_GAME)
+            return UNKNOWN_GAME;
     }
 
     if (detectedGame == HULK_US) {
