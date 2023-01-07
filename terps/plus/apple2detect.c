@@ -252,7 +252,7 @@ int DetectApple2(uint8_t **sf, size_t *extent)
             free(new);
             new = MemAlloc(companionsize);
             offset = companionsize - 256;
-            for (int i = 0; i < companionsize && i < companionsize; i += 256) {
+            for (int i = 0; i < companionsize; i += 256) {
                 memcpy(new + offset, companionfile + i, 256);
                 offset -= 256;
             }

@@ -223,8 +223,8 @@ static void FlushRoomDescription(void)
     int i;
     int empty_lines = 0;
     char string[2048];
-    if (TopWidth > 2046)
-        TopWidth = 2046;
+    if (TopWidth > 2047)
+        TopWidth = 2047;
     for (line = 0; line < rows && index < length; line++) {
         for (i = 0; i < TopWidth; i++) {
             string[i] = text_with_breaks[index++];

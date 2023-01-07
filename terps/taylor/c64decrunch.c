@@ -63,7 +63,7 @@ static uint16_t checksum(uint8_t *sf, size_t extent)
     return c;
 }
 
-static int DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec entry);
+static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec entry);
 
 static uint8_t *get_largest_file(uint8_t *data, size_t length, size_t *newlength)
 {
@@ -184,10 +184,10 @@ static int terror_menu(uint8_t **sf, size_t *extent, int recindex)
     return 0;
 }
 
-int DetectC64(uint8_t **sf, size_t *extent)
+GameIDType DetectC64(uint8_t **sf, size_t *extent)
 {
     if (*extent > MAX_LENGTH || *extent < MIN_LENGTH)
-        return 0;
+        return UNKNOWN_GAME;
 
     uint16_t chksum = checksum(*sf, *extent);
 
@@ -220,7 +220,7 @@ int DetectC64(uint8_t **sf, size_t *extent)
             return DecrunchC64(sf, extent, c64_registry[i]);
         }
     }
-    return 0;
+    return UNKNOWN_GAME;
 }
 
 int unp64(uint8_t *compressed, size_t length, uint8_t *destination_buffer,
@@ -228,7 +228,7 @@ int unp64(uint8_t *compressed, size_t length, uint8_t *destination_buffer,
     return 0;
 }
 
-static int DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record)
+static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record)
 {
     size_t decompressed_length = *extent;
 
