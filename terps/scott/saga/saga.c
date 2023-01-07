@@ -298,7 +298,7 @@ uint8_t *Skip(uint8_t *ptr, int count, uint8_t *eof) {
     return  ptr + count;
 }
 
-int LoadBinaryDatabase(uint8_t *data, size_t length, struct GameInfo info, int dict_start)
+GameIDType LoadBinaryDatabase(uint8_t *data, size_t length, struct GameInfo info, int dict_start)
 {
     int ni, na, nw, nr, mc, pr, tr, wl, lt, mn, trm;
     int ct;
@@ -350,7 +350,7 @@ int LoadBinaryDatabase(uint8_t *data, size_t length, struct GameInfo info, int d
     }
 
     if (ptr == NULL)
-        return 0;
+        return UNKNOWN_GAME;
 
     ptr = ReadHeader(ptr);
 
@@ -360,7 +360,7 @@ int LoadBinaryDatabase(uint8_t *data, size_t length, struct GameInfo info, int d
     PrintHeaderInfo(header, ni, na, nw, nr, mc, pr, tr, wl, lt, mn, trm);
 
     if (!SanityCheckScottFreeHeader(ni, na, nw, nr, mc))
-        return 0;
+        return UNKNOWN_GAME;
 
     GameHeader.NumItems = ni;
     Items = (Item *)MemAlloc(sizeof(Item) * (ni + 1));
@@ -385,7 +385,7 @@ int LoadBinaryDatabase(uint8_t *data, size_t length, struct GameInfo info, int d
     if (dict_start) {
         if (header[0] != info.word_length || header[1] != info.number_of_words || header[2] != info.number_of_actions || header[3] != info.number_of_items || header[4] != info.number_of_messages || header[5] != info.number_of_rooms || header[6] != info.max_carried) {
             //    debug_print("Non-matching header\n");
-            return 0;
+            return UNKNOWN_GAME;
         }
     }
 
@@ -395,7 +395,7 @@ int LoadBinaryDatabase(uint8_t *data, size_t length, struct GameInfo info, int d
         ptr++;
 
     if (ptr - data >= length - 2)
-        return 0;
+        return UNKNOWN_GAME;
 
     ptr = ReadUSDictionary(ptr);
 
@@ -559,7 +559,7 @@ int LoadBinaryDatabase(uint8_t *data, size_t length, struct GameInfo info, int d
     // Return if not reading UK Hulk
     if (!dict_start) {
         ptr = Skip(ptr, 0xe4, data + length);
-        return 1;
+        return CurrentGame;
     }
 
 #pragma mark room images
@@ -579,7 +579,7 @@ int LoadBinaryDatabase(uint8_t *data, size_t length, struct GameInfo info, int d
 #pragma mark item images
 
     if (SeekIfNeeded(info.start_of_item_image_list, &offset, &ptr) == 0)
-        return 0;
+        return UNKNOWN_GAME;
 
     ip = Items;
 
@@ -604,7 +604,7 @@ int LoadBinaryDatabase(uint8_t *data, size_t length, struct GameInfo info, int d
         hulk_image_offset = -0x7ff;
     }
 
-    return 1;
+    return CurrentGame;
 }
 
 

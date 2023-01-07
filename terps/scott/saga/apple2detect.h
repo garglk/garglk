@@ -10,6 +10,8 @@
 
 #include <stdio.h>
 
-int DetectApple2(uint8_t **sf, size_t *extent);
+#include "scottdefines.h"
+
+GameIDType DetectApple2(uint8_t **sf, size_t *extent);
 
 #endif /* apple2detect_h */

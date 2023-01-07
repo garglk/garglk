@@ -670,10 +670,10 @@ static const imglist a2listVoodoo[] = {
 static uint8_t *GetApple2CompanionFile(size_t *size, int *isnib);
 static int ExtractImagesFromApple2CompanionFile(uint8_t *data, size_t datasize, int isnib);
 
-int DetectApple2(uint8_t **sf, size_t *extent)
+GameIDType DetectApple2(uint8_t **sf, size_t *extent)
 {
     if (*extent > MAX_LENGTH || *extent < kDiskImageSize)
-        return 0;
+        return UNKNOWN_GAME;
 
     if ((*sf)[0] == 'W' && (*sf)[1] == 'O' && (*sf)[2] == 'Z') {
         uint8_t *result = woz2nib(*sf, extent);
@@ -731,7 +731,6 @@ int DetectApple2(uint8_t **sf, size_t *extent)
     uint8_t *database = NULL;
     size_t newlength = 0;
 
-
     if (datafile) {
         size_t data_start = 0x135;
 
@@ -746,20 +745,20 @@ int DetectApple2(uint8_t **sf, size_t *extent)
         memcpy(database, datafile + data_start, newlength);
     } else {
         debug_print("Failed loading database\n");
-        return 0;
+        return UNKNOWN_GAME;
     }
 
     if (database) {
-        int result = LoadBinaryDatabase(database, newlength, *Game, 0);
-        if (!result && newlength > 0x3d00) {
+        GameIDType result = LoadBinaryDatabase(database, newlength, *Game, 0);
+        if (result == UNKNOWN_GAME && newlength > 0x3d00) {
             result = LoadBinaryDatabase(database + 0x3d00, newlength - 0x3d00, *Game, 0);
         }
 
-        if (!result && newlength > 0x3803) {
+        if (result == UNKNOWN_GAME && newlength > 0x3803) {
             result = LoadBinaryDatabase(database + 0x3803, newlength - 0x3803, *Game, 0);
         }
 
-        if (result) {
+        if (result != UNKNOWN_GAME) {
             CurrentSys = SYS_APPLE2;
 
             ImageWidth = 280;
@@ -791,7 +790,7 @@ int DetectApple2(uint8_t **sf, size_t *extent)
     } else {
         free (datafile);
         debug_print("Failed loading database\n");
-        return 0;
+        return UNKNOWN_GAME;
     }
 }
 
