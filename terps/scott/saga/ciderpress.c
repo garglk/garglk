@@ -163,7 +163,7 @@ typedef enum DIError {
     kDIErrNotSupported          = -105, // feature not currently supported
     kDIErrCancelled             = -106, // an operation was cancelled by user
 
-    kDIErrNufxLibInitFailed     = -110,
+    kDIErrNufxLibInitFailed     = -110
 } DIError;
 
 struct ringbuf_t {
@@ -188,7 +188,7 @@ enum {
     kNibbleAddrPrologLen = 3,       // d5 aa 96
     kNibbleAddrEpilogLen = 3,       // de aa eb
     kNibbleDataPrologLen = 3,       // d5 aa ad
-    kNibbleDataEpilogLen = 3,       // de aa eb
+    kNibbleDataEpilogLen = 3        // de aa eb
 };
 
 typedef struct {
@@ -369,7 +369,7 @@ const NibbleDescr *pNibbleDescr = &nibbleDescr;
  *
  * Returns the index start on success or -1 on failure.
  */
-static int  FindNibbleSectorStart(ringbuf_handle_t ringbuffer, int track,
+static int FindNibbleSectorStart(ringbuf_handle_t ringbuffer, int track,
                            int sector, int* pVol)
 {
     //DIError dierr;
@@ -464,7 +464,7 @@ static int  FindNibbleSectorStart(ringbuf_handle_t ringbuffer, int track,
 /*
  * Decode 6&2 encoding.
  */
-DIError DecodeNibbleData(ringbuf_handle_t ringbuffer, int idx,
+static DIError DecodeNibbleData(ringbuf_handle_t ringbuffer, int idx,
                          uint8_t* sctBuf)
 {
     uint8_t twos[kChunkSize62 * 3];   // 258
@@ -590,7 +590,7 @@ static DIError CalcSectorAndOffset(long track, int sector, size_t* pOffset, int*
  * tracks in TrackStar images.  A default implementation is provided and
  * used for everything but TrackStar.
  */
-int GetNibbleTrackLength(PhysicalFormat physical, int track)
+static int GetNibbleTrackLength(PhysicalFormat physical, int track)
 {
     if (physical == kPhysicalFormatNib525_6656)
         return kTrackLenNib525;
@@ -603,7 +603,7 @@ int GetNibbleTrackLength(PhysicalFormat physical, int track)
 /*
  * Load a nibble track into our track buffer.
  */
-DIError LoadNibbleTrack(long track, long* pTrackLen)
+static DIError LoadNibbleTrack(long track, long* pTrackLen)
 {
     DIError dierr = kDIErrNone;
     long offset;
@@ -644,31 +644,12 @@ DIError LoadNibbleTrack(long track, long* pTrackLen)
 }
 
 /*
- * Get the contents of the nibble track.
- *
- * "buf" must be able to hold kTrackAllocSize bytes.
- */
-DIError ReadNibbleTrack(long track, uint8_t* buf, long* pTrackLen)
-{
-    DIError dierr;
-
-    dierr = LoadNibbleTrack(track, pTrackLen);
-    if (dierr != kDIErrNone) {
-        debug_print("   DI ReadNibbleTrack: LoadNibbleTrack %ld failed", track);
-        return dierr;
-    }
-
-    memcpy(buf, fNibbleTrackBuf, *pTrackLen);
-    return kDIErrNone;
-}
-
-/*
  * Read a sector from a nibble image.
  *
  * While fNumTracks is valid, fNumSectPerTrack is a little flaky, because
  * in theory each track could be formatted differently.
  */
-DIError ReadNibbleSector(long track, int sector, uint8_t *buf)
+static DIError ReadNibbleSector(long track, int sector, uint8_t *buf)
 {
     if (pNibbleDescr == NULL) {
         /* disk has no recognizable sectors */

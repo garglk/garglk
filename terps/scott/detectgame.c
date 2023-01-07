@@ -191,7 +191,7 @@ uint8_t *ReadDictionary(struct GameInfo info, uint8_t **pointer, int loud)
         }
         wordnum++;
 
-        if (c != 0 && c > 127)
+        if (c > 127)
             return ptr;
 
         charindex = 0;
@@ -597,7 +597,7 @@ int TryLoadingOld(struct GameInfo info, int dict_start)
             if (charindex > 255)
                 break;
         }
-        if (c != 0 && c > 127)
+        if (c > 127)
             return 0;
     } while (ct < nr + 1);
 
@@ -953,7 +953,7 @@ int TryLoading(struct GameInfo info, int dict_start, int loud)
                     if (charindex > 255)
                         break;
                 }
-                if (c != 0 && c > 127)
+                if (c > 127)
                     return 0;
             } while (ct < nr + 1);
         } else {

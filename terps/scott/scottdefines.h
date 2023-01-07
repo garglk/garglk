@@ -132,7 +132,7 @@ typedef enum {
 typedef enum {
     IMG_ROOM,
     IMG_ROOM_OBJ,
-    IMG_INV_OBJ,
+    IMG_INV_OBJ
 } USImageType;
 
 typedef enum {
@@ -233,7 +233,7 @@ typedef enum {
     SECRET_MISSION_VARIANT,
     SEAS_OF_BLOOD_VARIANT,
     US_VARIANT,
-    OLD_STYLE,
+    OLD_STYLE
 } GameType;
 
 typedef enum {

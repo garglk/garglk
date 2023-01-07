@@ -428,8 +428,8 @@ static void FlushRoomDescription(char *buf,  int transcript)
         int line = 0;
         int index = 0;
         int i;
-        if (TopWidth > 2046)
-            TopWidth = 2046;
+        if (TopWidth > 2047)
+            TopWidth = 2047;
         char string[2048];
         for (line = 0; line < rows && index < length; line++) {
             for (i = 0; i < TopWidth; i++) {

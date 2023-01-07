@@ -2484,7 +2484,7 @@ void glk_main(void)
 {
     /* The message analyser will look for version 0 games */
 
-    if (DetectC64(&FileImage, &FileImageLen)) {
+    if (DetectC64(&FileImage, &FileImageLen) != UNKNOWN_GAME) {
         EndOfData = FileImage + FileImageLen;
     }
 

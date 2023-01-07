@@ -114,7 +114,7 @@ uint8_t *ReadUSDictionary(uint8_t *ptr)
         }
         wordnum++;
 
-        if (c != 0 && c > 127)
+        if (c > 127)
             return ptr;
 
         charindex = 0;
