@@ -17,7 +17,7 @@ development environment (compiler, linker, etc.):
 
 In addition, if you want sound support, there are two backends: SDL and
 Qt. For SDL, you will need SDL2 and SDL2\_mixer. For Qt, you will need
-QtMultimedia, libsndfile, mpg123, and libopenmpt.
+QtMultimedia, libsndfile (with Vorbis support), mpg123, and libopenmpt.
 
 If you want text-to-speech support on Unix, you will need
 speech-dispatcher. Windows and macOS natively provide text-to-speech
