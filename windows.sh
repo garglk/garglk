@@ -26,7 +26,9 @@ fatal() {
     exit 1
 }
 
-while getopts "a:bg" o
+GARGOYLE_SOUND="SDL"
+
+while getopts "a:bgq" o
 do
     case "${o}" in
         a)
@@ -38,8 +40,11 @@ do
         g)
             GARGOYLE_MINGW_GCC=1
             ;;
+        q)
+            GARGOYLE_SOUND="QT"
+            ;;
         *)
-            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-b] [-g]"
+            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-b] [-g] [-q]"
             ;;
     esac
 done
@@ -82,7 +87,7 @@ mkdir build-mingw
 
 (
 cd build-mingw
-env MINGW_TRIPLE=${target} MINGW_LOCATION=${mingw_location} cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+env MINGW_TRIPLE=${target} MINGW_LOCATION=${mingw_location} cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DSOUND=${GARGOYLE_SOUND}
 make -j${nproc}
 make install
 )
@@ -100,7 +105,16 @@ else
     cp "${mingw_location}/${target}/bin/libunwind.dll" "build/dist"
 fi
 
-for dll in Qt5Core Qt5Gui Qt5Widgets SDL2 SDL2_mixer libfreetype-6 libjpeg-8 libmodplug-1 libmpg123-0 libogg-0 libopenmpt-0 libpng16-16 libvorbis-0 libvorbisfile-3 zlib1
+case ${GARGOYLE_SOUND} in
+    QT)
+        SOUND_DLLS="Qt5Multimedia Qt5Network libFLAC-12 libmodplug-1 libmpg123-0 libogg-0 libopenmpt-0 libsndfile libvorbis-0 libvorbisenc-2 libvorbisfile-3"
+        ;;
+    SDL)
+        SOUND_DLLS="SDL2 SDL2_mixer libmodplug-1 libmpg123-0 libogg-0 libopenmpt-0 libvorbis-0 libvorbisfile-3"
+        ;;
+esac
+
+for dll in Qt5Core Qt5Gui Qt5Widgets libfreetype-6 libjpeg-8 libpng16-16 zlib1 ${SOUND_DLLS}
 do
     cp "${mingw_location}/${target}/bin/${dll}.dll" "build/dist"
 done
@@ -109,6 +123,12 @@ find build/dist \( -name '*.exe' -o -name '*.dll' \) -exec ${target}-strip --str
 
 mkdir -p "build/dist/plugins/platforms"
 cp "${mingw_location}/${target}/plugins/platforms/qwindows.dll" "build/dist/plugins/platforms"
+
+if [[ "${GARGOYLE_SOUND}" == "QT" ]]
+then
+    mkdir -p build/dist/plugins/audio
+    cp "${mingw_location}/${target}/plugins/audio/qtaudio_windows.dll" "build/dist/plugins/audio"
+fi
 
 [[ "${GARGOYLE_BUILD_ONLY}" ]] && exit
 
