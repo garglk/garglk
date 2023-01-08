@@ -29,7 +29,7 @@
 // The index is the ZSCII value, minus 155 (so entry 0 refers to ZSCII
 // value 155); and the value at the index is the Unicode character that
 // the ZSCII value maps to. Because Latin-1 and Unicode are equivalent
-// for 0–255, this table maps to both Unicode and Latin1, with the
+// for 0–255, this table maps to both Unicode and Latin-1, with the
 // caveat that values greater than 255 should be considered invalid in
 // Latin-1, and are translated as a question mark below in
 // setup_tables() where appropriate.
@@ -272,8 +272,8 @@ static void build_zscii_to_character_graphics_table()
     zscii_to_font3[121] = 0x16a5; // ᚥ
     zscii_to_font3[122] = 0x16df; // ᛟ
 
-    // These are reversed (see §16); a slightly ugly hack in screen.c is
-    // used to accomplish this.
+    // These are reversed (see §16); a slightly ugly hack in screen.cpp
+    // is used to accomplish this.
     zscii_to_font3[123] = 0x2191; // ↑
     zscii_to_font3[124] = 0x2193; // ↓
     zscii_to_font3[125] = 0x2195; // ↕
@@ -315,7 +315,7 @@ uint16_t unicode_tolower(uint16_t c)
     return lower;
 #else
     // This is adapted from Zip2000 (Copyright 2001 Kevin Bracey).
-    static const unsigned char basic_latin[0x100] = {
+    static const std::array<unsigned char, 0x100> basic_latin = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
         0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
         0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
@@ -394,6 +394,13 @@ uint16_t char_to_unicode(char c)
     }
 }
 #endif
+
+// Standard 1.1 notes that Unicode characters 0–31 and 127–159
+// are invalid due to the fact that they’re control codes.
+bool valid_unicode(uint16_t c)
+{
+    return (c >= 32 && c <= 126) || c >= 160;
+}
 
 #ifdef ZTERP_DOS
 // Convert from Unicode to code page 437, used by DOS.

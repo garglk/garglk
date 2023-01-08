@@ -27,11 +27,32 @@
 #include "process.h"
 #include "screen.h"
 #include "types.h"
-#include "unicode.h"
 #include "zterp.h"
 
 #ifdef ZTERP_GLK
 #include <glk.h>
+#endif
+
+// Values are usually stored in a uint16_t because most parts of the
+// Z-machine make use of 16-bit unsigned integers. However, in a few
+// places the unsigned value must be treated as signed. The “obvious”
+// solution is to simply convert to an int16_t, but this is technically
+// implementation-defined behavior in C++ and not guaranteed to provide
+// the expected result. In order to be maximally portable, this
+// function converts a uint16_t to its int16_t counterpart manually.
+// Although it ought to be slower, both Gcc and Clang recognize this
+// construct and generate the same code as a direct conversion. An
+// alternative direct conversion method is included here for reference.
+#if 1
+int16_t as_signed(uint16_t n)
+{
+    return ((n & 0x8000) == 0x8000) ? static_cast<long>(n) - 0x10000L : n;
+}
+#else
+int16_t as_signed(uint16_t n)
+{
+    return n;
+}
 #endif
 
 #ifndef ZTERP_NO_SAFETY_CHECKS
@@ -111,7 +132,7 @@ void help()
         }
 
         line = fstring("%s %-12s%s", arg.name, typestr, arg.description);
-        screen_puts(line.c_str());
+        screen_puts(line);
     }
 }
 
@@ -119,7 +140,7 @@ void help()
 // It should not be called more than once.
 static int zoptind = 0;
 static const char *zoptarg;
-static int zgetopt(int argc, char **argv, const char *optstring)
+static int zgetopt(int argc, char *const argv[], const char *optstring)
 {
     static const char *p = "";
     const char *optp;
@@ -173,7 +194,7 @@ void process_arguments(int argc, char **argv)
 {
     int c;
 
-    while ( (c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGhHikl:mn:N:prR:sS:tT:u:vxXyYz:Z:")) != -1 ) {
+    while ((c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGhHikl:mn:N:prR:sS:tT:u:vxXyYz:Z:")) != -1) {
         switch (c) {
         case 'a':
             options.eval_stack_size = std::strtoul(zoptarg, nullptr, 10);
@@ -257,7 +278,7 @@ void process_arguments(int argc, char **argv)
             options.transcript_name = std::make_unique<std::string>(zoptarg);
             break;
         case 'u':
-            options.max_saves = std::strtoul(zoptarg, nullptr, 10);
+            options.undo_slots = std::strtoul(zoptarg, nullptr, 10);
             break;
         case 'v':
             options.show_version = true;
@@ -354,9 +375,4 @@ std::string rtrim(const std::string &s)
     } else {
         return s;
     }
-}
-
-std::string operator"" _s(const char *s, size_t len)
-{
-    return {s, len};
 }

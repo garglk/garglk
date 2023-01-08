@@ -4,6 +4,7 @@
 #define ZTERP_STACK_H
 
 #include <stdexcept>
+#include <string>
 
 #include "types.h"
 
@@ -59,7 +60,7 @@ enum class SaveResult {
 SaveResult push_save(SaveStackType type, SaveType savetype, SaveOpcode saveopcode, const char *desc);
 bool pop_save(SaveStackType type, size_t saveno, SaveOpcode &saveopcode);
 bool drop_save(SaveStackType type, size_t i);
-void list_saves(SaveStackType type, void (*printer)(const char *));
+void list_saves(SaveStackType type, void (*printer)(const std::string &));
 
 void zpush();
 void zpull();

@@ -15,7 +15,6 @@
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <array>
-#include <climits>
 #include <cstdlib>
 #include <cstring>
 #include <vector>
@@ -136,12 +135,12 @@ uint16_t Dictionary::find(const uint8_t *token, size_t len) const {
     auto encoded = encode_string(token, len);
 
     if (m_num_entries > 0) {
-        ret = static_cast<uint8_t *>(std::bsearch(&encoded[0], &memory[m_base], m_num_entries, m_entry_length, dict_compar));
+        ret = static_cast<uint8_t *>(std::bsearch(encoded.data(), &memory[m_base], m_num_entries, m_entry_length, dict_compar));
     } else {
         for (long i = 0; i < -m_num_entries; i++) {
             const uint8_t *entry = &memory[m_base + (i * m_entry_length)];
 
-            if (dict_compar(&encoded[0], entry) == 0) {
+            if (dict_compar(encoded.data(), entry) == 0) {
                 ret = entry;
                 break;
             }
@@ -159,7 +158,7 @@ static uint16_t lookup_replacement(uint16_t original, const std::vector<uint8_t>
 {
     uint16_t d;
 
-    d = dictionary.find(&replacement[0], replacement.size());
+    d = dictionary.find(replacement.data(), replacement.size());
 
     if (d == 0) {
         return original;
@@ -254,7 +253,7 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictaddr, bool flag)
 
     ZASSERT(text + 1 + (zversion >= 5) + text_len < memory_size, "attempt to tokenize out-of-bounds string");
 
-    string = &memory[text + 1 + (zversion >= 5)];
+    string = &memory[text + 1 + (zversion >= 5 ? 1 : 0)];
 
     for (p = string; p - string < text_len && *p == ZSCII_SPACE; p++) {
     }

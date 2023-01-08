@@ -15,6 +15,7 @@
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <cstring>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -24,12 +25,18 @@
 #include "util.h"
 #include "zterp.h"
 
+#ifdef ZTERP_GLK
+extern "C" {
+#include <glk.h>
+}
+#endif
+
 struct Replacement {
     uint32_t addr;
-    size_t n;
+    uint32_t n;
     std::vector<uint8_t> in;
     std::vector<uint8_t> out;
-    std::function<bool()> active = []{ return true; };
+    std::function<bool()> active = [] { return true; };
 };
 
 struct Patch {
@@ -388,9 +395,9 @@ static bool apply_patch(const Replacement &r)
 {
     if (r.addr >= header.static_start &&
         r.addr + r.n < memory_size &&
-        std::memcmp(&memory[r.addr], &r.in[0], r.n) == 0) {
+        std::memcmp(&memory[r.addr], r.in.data(), r.n) == 0) {
 
-        std::memcpy(&memory[r.addr], &r.out[0], r.n);
+        std::memcpy(&memory[r.addr], r.out.data(), r.n);
 
         return true;
     }
@@ -417,17 +424,17 @@ void apply_patches()
 static bool read_into(std::vector<uint8_t> &buf, long count)
 {
     for (long i = 0; i < count; i++) {
-        long byte;
+        long b;
         bool valid;
         char *p = std::strtok(nullptr, " \t[],");
         if (p == nullptr) {
             return false;
         }
-        byte = parseint(p, 16, valid);
-        if (!valid || byte < 0 || byte > 255) {
+        b = parseint(p, 16, valid);
+        if (!valid || b < 0 || b > 255) {
             return false;
         }
-        buf.push_back(byte);
+        buf.push_back(b);
     }
 
     return true;
@@ -439,13 +446,13 @@ static bool read_into(std::vector<uint8_t> &buf, long count)
 //
 // For example, one of the Stationfall fixes would look like this:
 //
-// 0xd3d4 3 0x31 0x0c 0x73 0x51 0x73 0x0c
+// 0xe3fe 3 0x31 0x0c 0x77 0x51 0x77 0x0c
 //
 // Square brackets and commas are treated as whitespace for the actual
 // bytes, so for convenience this could also be written:
 //
-// 0xd3d4 3 [0x31, 0x0c, 0x73] [0x51, 0x73, 0x0c]
-PatchStatus apply_user_patch(std::string patchstr)
+// 0xe3fe 3 [0x31, 0x0c, 0x77] [0x51, 0x77, 0x0c]
+void apply_user_patch(std::string patchstr)
 {
     char *p;
     bool valid;
@@ -454,26 +461,26 @@ PatchStatus apply_user_patch(std::string patchstr)
 
     p = std::strtok(&patchstr[0], " \t");
     if (p == nullptr) {
-        return PatchStatus::SyntaxError;
+        throw PatchStatus::SyntaxError();
     }
 
     addr = parseint(p, 16, valid);
     if (!valid) {
-        return PatchStatus::SyntaxError;
+        throw PatchStatus::SyntaxError();
     }
 
     p = std::strtok(nullptr, " \t");
     if (p == nullptr) {
-        return PatchStatus::SyntaxError;
+        throw PatchStatus::SyntaxError();
     }
 
     count = parseint(p, 10, valid);
     if (!valid) {
-        return PatchStatus::SyntaxError;
+        throw PatchStatus::SyntaxError();
     }
 
     if (!read_into(in, count) || !read_into(out, count)) {
-        return PatchStatus::SyntaxError;
+        throw PatchStatus::SyntaxError();
     }
 
     Replacement replacement = {
@@ -483,5 +490,7 @@ PatchStatus apply_user_patch(std::string patchstr)
         out,
     };
 
-    return apply_patch(replacement) ? PatchStatus::Ok : PatchStatus::NotFound;
+    if (!apply_patch(replacement)) {
+        throw PatchStatus::NotFound();
+    }
 }

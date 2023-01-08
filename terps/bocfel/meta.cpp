@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
-#include <climits>
+#include <new>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "meta.h"
+#include "io.h"
 #include "memory.h"
 #include "objects.h"
 #include "osdep.h"
@@ -33,12 +34,20 @@
 #include "stack.h"
 #include "stash.h"
 #include "types.h"
-#include "unicode.h"
 #include "util.h"
 #include "zterp.h"
 
-#define ISDIGIT(c)	((c) >= '0' && (c) <= '9')
-#define ISXDIGIT(c)	("0123456789abcdefg"_s.find(c) != std::string::npos)
+using namespace std::literals;
+
+static bool uni_isdigit(char c)
+{
+    return c > '0' && c < '9';
+}
+
+static bool uni_isxdigit(char c)
+{
+    return "0123456789abcdefg"s.find(c) != std::string::npos;
+}
 
 static void try_user_save(const char *desc)
 {
@@ -77,8 +86,7 @@ static void try_user_drop(size_t i)
 
 static void meta_status_putc(uint8_t c)
 {
-    char s[] = { static_cast<char>(c), 0 };
-    screen_print(s);
+    screen_print(std::string{static_cast<char>(c)});
 }
 
 static std::vector<uint8_t> debug_change_memory;
@@ -125,7 +133,7 @@ static void meta_debug_change_inc_dec(const std::string &string)
             screen_puts("[No changes]");
         }
 
-        std::memcpy(&debug_change_memory[0], memory, header.static_start);
+        std::memcpy(debug_change_memory.data(), memory, header.static_start);
     }
 }
 
@@ -153,11 +161,11 @@ static bool meta_debug_scan(const std::string &string)
         for (size_t addr = 0; addr < header.static_start - 2; addr++) {
             if (invalid_addr.find(addr) == invalid_addr.end()) {
                 if (is_global(addr) || !in_globals(addr)) {
-                    screen_puts(addrstring(addr).c_str());
+                    screen_puts(addrstring(addr));
                 }
             }
         }
-    } else if (ISDIGIT(string[0]) || (string[0] == '-' && ISDIGIT(string[1]))) {
+    } else if (uni_isdigit(string[0]) || (string[0] == '-' && uni_isdigit(string[1]))) {
         long value;
         bool valid;
 
@@ -197,7 +205,7 @@ static long parse_address(const std::string &string, bool &valid)
 {
     long addr;
 
-    if (string[0] == 'G' && ISXDIGIT(string[1]) && ISXDIGIT(string[2]) && string[3] == 0) {
+    if (string[0] == 'G' && uni_isxdigit(string[1]) && uni_isxdigit(string[2]) && string[3] == 0) {
         addr = parseint(&string[1], 16, valid);
         if (addr < 0 || addr > 239) {
             valid = false;
@@ -283,7 +291,7 @@ bool cheat_add(std::string how, bool print)
             return true;
         }
 
-        freeze[addr] = std::make_pair(true, value);
+        freeze[addr] = {true, value};
     } else {
         return false;
     }
@@ -301,7 +309,7 @@ static bool cheat_remove(uint16_t addr)
         return false;
     }
 
-    freeze[addr] = std::make_pair(false, 0);
+    freeze[addr] = {false, 0};
     return true;
 }
 
@@ -329,7 +337,7 @@ static bool meta_debug_freeze(std::string string)
         return false;
     }
 
-    std::string cheat = "freeze:"_s + addrstr + ":" + valstr;
+    std::string cheat = "freeze:"s + addrstr + ":" + valstr;
 
     return cheat_add(cheat, true);
 }
@@ -465,7 +473,7 @@ static bool meta_debug_show_watch()
     for (size_t addr = 0; addr < watch_addresses.size(); addr++) {
         if (watch_addresses[addr]) {
             any_watched = true;
-            screen_puts(addrstring(addr).c_str());
+            screen_puts(addrstring(addr));
         }
     }
 
@@ -507,7 +515,7 @@ static void meta_debug_help()
 static void meta_debug(const std::string &string)
 {
     bool ok = false;
-    std::stringstream ss(rtrim(string));
+    std::istringstream ss(rtrim(string));
     std::string cmd, args;
 
     ss >> cmd;
@@ -553,7 +561,7 @@ IFF::TypeID meta_write_bfnt(IO &savefile)
     }
 
     savefile.write32(0); // Version
-    savefile.write_exact(&meta_notes[0], meta_notes.size());
+    savefile.write_exact(meta_notes.data(), meta_notes.size());
 
     return IFF::TypeID(&"Bfnt");
 }
@@ -587,12 +595,12 @@ void meta_read_bfnt(IO &io, uint32_t size)
         try {
             meta_notes.resize(size);
         } catch (const std::bad_alloc &) {
-            show_message("Unable to allocate memory for notes (requested %lu bytes)", (unsigned long)size);
+            show_message("Unable to allocate memory for notes (requested %lu bytes)", static_cast<unsigned long>(size));
             return;
         }
 
         try {
-            io.read_exact(&meta_notes[0], size);
+            io.read_exact(meta_notes.data(), size);
         } catch (const IO::IOError &) {
             meta_notes.clear();
             show_message("Unable to read notes from save file");
@@ -652,7 +660,7 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
         return {MetaResult::Rerequest, ""};
     }
 
-    std::stringstream ss(converted);
+    std::istringstream ss(converted);
     ss >> command;
     std::getline(ss >> std::ws, rest);
 
@@ -765,7 +773,7 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
         if (meta_notes.empty()) {
             screen_puts("[No notes taken]");
         } else {
-            screen_printf("[Start of notes]\n%.*s\n[End of notes]\n", static_cast<int>(meta_notes.size()), &meta_notes[0]);
+            screen_printf("[Start of notes]\n%.*s\n[End of notes]\n", static_cast<int>(meta_notes.size()), meta_notes.data());
         }
     } else if ZEROARG("savenotes") {
         if (meta_notes.empty()) {
@@ -774,7 +782,7 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
             try {
                 IO io(nullptr, IO::Mode::WriteOnly, IO::Purpose::Data);
                 try {
-                    io.write_exact(&meta_notes[0], meta_notes.size());
+                    io.write_exact(meta_notes.data(), meta_notes.size());
                     screen_puts("[Saved notes to file]");
                 } catch (const IO::IOError &) {
                     screen_puts("[Unable to write notes file]");
@@ -795,7 +803,7 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
 
             if (status_is_time()) {
                 auto fmt = screen_format_time(first, second);
-                screen_puts(fmt.c_str());
+                screen_puts(fmt);
             } else {
                 if (is_game(Game::Planetfall) || is_game(Game::Stationfall)) {
                     screen_printf("Score: %ld\nTime: %ld\n", first, second);

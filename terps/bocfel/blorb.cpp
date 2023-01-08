@@ -14,12 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <algorithm>
 #include <map>
 #include <memory>
 #include <stdexcept>
 #include <utility>
-#include <vector>
 
 #include "blorb.h"
 #include "iff.h"
@@ -39,7 +37,7 @@ Blorb::Blorb(const std::shared_ptr<IO> &io)
 
     try {
         iff = std::make_unique<IFF>(io, IFF::TypeID(&"IFRS"));
-    } catch(const IFF::InvalidFile &) {
+    } catch (const IFF::InvalidFile &) {
         throw InvalidFile();
     }
 
@@ -77,24 +75,20 @@ Blorb::Blorb(const std::shared_ptr<IO> &io)
             }
 
             saved = iff->io()->tell();
-            if (saved == -1) {
-                throw InvalidFile();
-            }
-
             iff->io()->seek(start, IO::SeekFrom::Start);
             type_ = iff->io()->read32();
             size = iff->io()->read32();
             iff->io()->seek(saved, IO::SeekFrom::Start);
 
-            auto type = IFF::TypeID(type_);
+            IFF::TypeID type(type_);
 
             if (type == IFF::TypeID(&"FORM")) {
                 start -= 8;
                 size += 8;
             }
 
-            Chunk chunk(usage, number, type, start + 8, size);
-            m_chunks.push_back(chunk);
+            Chunk chunk(type, start + 8, size);
+            m_chunks.insert({{usage, number}, chunk});
         }
     } catch (const IO::IOError &) {
         throw InvalidFile();
@@ -103,11 +97,9 @@ Blorb::Blorb(const std::shared_ptr<IO> &io)
 
 const Blorb::Chunk *Blorb::find(Blorb::Usage usage, uint32_t number)
 {
-    auto it = std::find_if(m_chunks.begin(), m_chunks.end(), [&](const Chunk &chunk) { return chunk.usage == usage && chunk.number == number; });
-
-    if (it != m_chunks.end()) {
-        return &*it;
+    try {
+        return &m_chunks.at({usage, number});
+    } catch (const std::out_of_range &) {
+        return nullptr;
     }
-
-    return nullptr;
 }

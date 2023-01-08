@@ -57,11 +57,11 @@ enum StyleBit {
 
 zprintflike(1, 2)
 void show_message(const char *fmt, ...);
-void screen_print(const char *s);
+void screen_print(const std::string &s);
 zprintflike(1, 2)
 void screen_printf(const char *fmt, ...);
-void screen_puts(const char *s);
-void screen_message_prompt(const char *message);
+void screen_puts(const std::string &s);
+void screen_message_prompt(const std::string &message);
 void screen_flush();
 
 #ifdef ZTERP_GLK

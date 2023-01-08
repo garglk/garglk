@@ -15,8 +15,13 @@
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <array>
+#include <exception>
+#include <map>
+#include <set>
+#include <stdexcept>
 
 #include "sound.h"
+#include "blorb.h"
 #include "process.h"
 #include "types.h"
 #include "zterp.h"
@@ -24,94 +29,266 @@
 #ifdef ZTERP_GLK
 extern "C" {
 #include <glk.h>
+#if defined(GLK_MODULE_SOUND2) && defined(ZTERP_GLK_BLORB)
+#include <gi_blorb.h>
+#endif
 }
 #endif
 
-#ifdef GLK_MODULE_SOUND
-static schanid_t sound_channel = nullptr;
-static bool sound_playing;
-uint16_t sound_routine;
+#ifdef GLK_MODULE_SOUND2
+struct Channel {
+    class Error : public std::exception {
+    };
 
-static struct {
-    uint16_t number;
-    uint8_t volume;
-} queued;
+    Channel()
+    {
+        if (channel == nullptr) {
+            throw Error();
+        }
+    }
+
+    ~Channel() {
+        glk_schannel_destroy(channel);
+    }
+
+    Channel(const Channel &other) = delete;
+    Channel &operator=(const Channel &other) = delete;
+
+    schanid_t channel = glk_schannel_create(0);
+    bool playing = false;
+    uint16_t routine = 0;
+
+    struct {
+        uint16_t number;
+        uint8_t volume;
+    } queued = {0, 0};
+};
+
+class Channels {
+public:
+    static constexpr glui32 Effects = 1;
+    static constexpr glui32 Music = 2;
+
+    void create() {
+        try {
+            m_channels.emplace(Effects, std::make_shared<Channel>());
+        } catch (const Channel::Error &) {
+            return;
+        }
+
+        // Try to create a music channel, but if that fails, alias it to
+        // the effects channel. This will allow music and effects to
+        // interrupt each other, but that’s better than no music.
+        try {
+            m_channels.emplace(Music, std::make_shared<Channel>());
+        } catch (const std::exception &) {
+            m_channels.emplace(Music, m_channels.at(Effects));
+        }
+    };
+
+    bool loaded() {
+        return !m_channels.empty();
+    }
+
+    std::shared_ptr<Channel> at(glui32 chantype) {
+        return m_channels.at(chantype);
+    }
+
+private:
+    std::map<glui32, std::shared_ptr<Channel>> m_channels;
+};
+
+constexpr glui32 Channels::Effects;
+constexpr glui32 Channels::Music;
+
+static Channels channels;
+
+static std::set<uint32_t> looping_sounds;
+static std::map<uint32_t, bool> music_sounds;
 #endif
 
 void init_sound()
 {
-#ifdef GLK_MODULE_SOUND
+#ifdef GLK_MODULE_SOUND2
     if (sound_loaded()) {
         return;
     }
 
-    if (glk_gestalt(gestalt_Sound, 0)) {
-        sound_channel = glk_schannel_create(0);
+    if (glk_gestalt(gestalt_Sound2, 0)) {
+        channels.create();
     }
+
+#ifdef ZTERP_GLK_BLORB
+    // Blorb files support a “Loop” chunk which is used to specify which
+    // sound resources, when played, loop indefinitely. This exists
+    // solely to support The Lurking Horror’s sounds, some of which are
+    // looping. The Lurking Horror embedded the looping information
+    // directly into the sound files themselves, which is why Blorbs
+    // include the looping information. This is only used in V3 games.
+    // See §11.4 of the Blorb specification.
+    auto map = giblorb_get_resource_map();
+    if (zversion == 3 && sound_loaded() && map != nullptr) {
+        giblorb_result_t res;
+        glui32 chunktype = IFF::TypeID(&"Loop").val();
+        if (giblorb_load_chunk_by_type(map, giblorb_method_Memory, &res, chunktype, 0) == giblorb_err_None) {
+            for (size_t i = 0; i < res.length; i += 8) {
+                auto read32 = [&res](size_t offset) {
+                    auto *p = static_cast<const char *>(res.data.ptr) + offset;
+                    return (static_cast<uint32_t>(p[0]) << 24) |
+                           (static_cast<uint32_t>(p[1]) << 16) |
+                           (static_cast<uint32_t>(p[2]) <<  8) |
+                           (static_cast<uint32_t>(p[3]) <<  0);
+                    };
+                uint32_t n = read32(i);
+                uint32_t repeats = read32(i + 4);
+                if (repeats == 0) {
+                    looping_sounds.insert(n);
+                }
+            }
+            giblorb_unload_chunk(map, res.chunknum);
+        }
+    }
+#endif
 #endif
 }
 
 bool sound_loaded()
 {
-#ifdef GLK_MODULE_SOUND
-    return sound_channel != nullptr;
+#ifdef GLK_MODULE_SOUND2
+    return channels.loaded();
 #else
     return false;
 #endif
 }
 
-#ifdef GLK_MODULE_SOUND
-static void start_sound(uint16_t number, uint8_t repeats, uint8_t volume)
+#ifdef GLK_MODULE_SOUND2
+static void start_sound(glui32 chantype, Channel *channel, uint16_t number, uint8_t repeats, uint8_t volume)
 {
     const std::array<uint32_t, 8> vols = {
         0x02000, 0x04000, 0x06000, 0x08000,
         0x0a000, 0x0c000, 0x0e000, 0x10000
     };
 
-    queued.number = 0;
+    channel->queued.number = 0;
 
-    glk_schannel_set_volume(sound_channel, vols[volume - 1]);
+    try {
+        glk_schannel_set_volume(channel->channel, vols.at(volume - 1));
+    } catch (const std::out_of_range &) {
+        return;
+    }
 
-    if (glk_schannel_play_ext(sound_channel, number, repeats == 255 ? -1 : repeats, 1)) {
-        sound_playing = true;
+    if (glk_schannel_play_ext(channel->channel, number, repeats == 255 ? -1 : repeats, chantype)) {
+        channel->playing = true;
     } else {
-        sound_playing = false;
-        sound_routine = 0;
+        channel->playing = false;
+        channel->routine = 0;
     }
 }
 
-void sound_stopped()
+void sound_stopped(glui32 chantype)
 {
-    sound_playing = false;
+    try {
+        auto channel = channels.at(chantype);
 
-    if (queued.number != 0) {
-        start_sound(queued.number, 1, queued.volume);
-        queued.number = 0;
+        channel->playing = false;
+
+        if (channel->queued.number != 0) {
+            start_sound(chantype, channel.get(), channel->queued.number, 1, channel->queued.volume);
+            channel->queued.number = 0;
+        }
+    } catch (const std::out_of_range &) {
+    }
+}
+
+uint16_t sound_get_routine(glui32 chantype)
+{
+    try {
+        auto channel = channels.at(chantype);
+        auto routine = channel->routine;
+        channel->routine = 0;
+        return routine;
+    } catch (const std::out_of_range &) {
+        return 0;
     }
 }
 #endif
 
 void zsound_effect()
 {
-#ifdef GLK_MODULE_SOUND
+    uint16_t number = znargs == 0 ? 1 : zargs[0];
+
+    if (number == 1 || number == 2) {
+#ifdef GLK_MODULE_GARGLKBLEEP
+        garglk_zbleep(number);
+#endif
+        return;
+    }
+
+    if (znargs < 2) {
+        return;
+    }
+
+#ifdef GLK_MODULE_SOUND2
+    if (!channels.loaded()) {
+        return;
+    }
+
+    glui32 chantype = Channels::Effects;
+
+#ifdef ZTERP_GLK_BLORB
+    // According to §9: “Only one sound effect of each type can play at
+    // any given time, so that starting a new music sound effect stops
+    // any current music playing, and starting any new sample sound
+    // effect stops any current sample sound playing. Samples and music
+    // do not interrupt each other.”
+    //
+    // The Standard doesn’t go into the difference between sound effects
+    // and music, but the Blorb standard (in §14.3) indicates that MOD
+    // and Ogg Vorbis are music, while AIFF is a sound effect. One can
+    // assume that SONGs (Blorb §3.4), although deprecated, count as
+    // music as well.
+    //
+    // The Blorb standard (§14.5) notes that Adrift Blorbs are allowed
+    // more sound formats than standard Blorb: WAV, MIDI, and MP3. While
+    // there’s likely never going to be a Blorb file with these sound
+    // formats meant for use with the Z-Machine, there's no harm in
+    // adding MIDI and MP3 as music types here.
+    if (music_sounds.find(number) == music_sounds.end()) {
+        auto map = giblorb_get_resource_map();
+        if (map != nullptr) {
+            giblorb_result_t res;
+            if (giblorb_load_resource(map, giblorb_method_DontLoad, &res, giblorb_ID_Snd, number) == giblorb_err_None) {
+                switch (res.chunktype) {
+                case 0x4d4f4420: /* MOD */
+                case 0x4f474756: /* OGGV */
+                case 0x534f4e47: /* SONG */
+                case 0x4d494449: /* MIDI (non-standard) */
+                case 0x4d503320: /* MP3 (non-standard) */
+                    music_sounds.emplace(number, true);
+                    break;
+                }
+            }
+        }
+    }
+
+    if (music_sounds[number]) {
+        chantype = Channels::Music;
+    }
+#endif
+
+    std::shared_ptr<Channel> channel;
+    try {
+        channel = channels.at(chantype);
+    } catch (const std::out_of_range &) {
+        return;
+    }
+
     constexpr uint16_t SOUND_EFFECT_PREPARE = 1;
     constexpr uint16_t SOUND_EFFECT_START = 2;
     constexpr uint16_t SOUND_EFFECT_STOP = 3;
     constexpr uint16_t SOUND_EFFECT_FINISH = 4;
 
-    uint16_t number, effect;
-
-    if (sound_channel == nullptr || znargs == 0) {
-        return;
-    }
-
-    number = zargs[0];
-    effect = zargs[1];
-
-    // Beeps and boops aren’t supported.
-    if (number == 1 || number == 2) {
-        return;
-    }
+    uint16_t effect = zargs[1];
 
     // Sound effect 0 is invalid, except that it can be used to mean
     // “stop all sounds”.
@@ -124,20 +301,15 @@ void zsound_effect()
         glk_sound_load_hint(number, 1);
         break;
     case SOUND_EFFECT_START: {
+        if (znargs < 3) {
+            return;
+        }
+
         uint8_t repeats = zargs[2] >> 8;
         uint8_t volume = zargs[2] & 0xff;
 
-        // V3 doesn’t support repeats, but in The Lurking Horror,
-        // repeating sounds are achieved by encoding repeats into the
-        // sound files themselves. According to sounds.txt from The
-        // Lurking Horror’s source code, the following sounds are
-        // “looping sounds”, so force that here.
-        if (is_game(Game::LurkingHorror)) {
-            switch (number) {
-            case 4: case 10: case 13: case 15: case 16: case 17: case 18:
-                repeats = 255;
-                break;
-            }
+        if (looping_sounds.find(number) != looping_sounds.end()) {
+            repeats = 255;
         }
 
         // Illegal, but recommended by standard 1.1.
@@ -172,18 +344,14 @@ void zsound_effect()
         // stop events are ignored below if a queued sound exists, so
         // the “stopping” must happen here by only playing the sample
         // once.
-        //
-        // This seems to be the only place S-CRETIN is used so it
-        // probably doesn’t even need to be tagged as a repeating sound,
-        // but there’s no harm in doing so.
-        if (is_game(Game::LurkingHorror) && sound_playing && (number == 9 || number == 16)) {
-            queued.number = number;
-            queued.volume = volume;
+        if (is_game(Game::LurkingHorror) && chantype == Channels::Effects && channel->playing && (number == 9 || number == 16)) {
+            channel->queued.number = number;
+            channel->queued.volume = volume;
             return;
         }
 
-        sound_routine = znargs >= 4 ? zargs[3] : 0;
-        start_sound(number, repeats, volume);
+        channel->routine = znargs >= 4 ? zargs[3] : 0;
+        start_sound(chantype, channel.get(), number, repeats, volume);
 
         break;
     }
@@ -208,9 +376,9 @@ void zsound_effect()
         // play. A queued sound will only play once, so ignoring this
         // stop request is effectively just delaying it till the queued
         // sound finishes.
-        if (queued.number == 0) {
-            glk_schannel_stop(sound_channel);
-            sound_routine = 0;
+        if (channel->queued.number == 0) {
+            glk_schannel_stop(channel->channel);
+            channel->routine = 0;
         }
         break;
     case SOUND_EFFECT_FINISH:

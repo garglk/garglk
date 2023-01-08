@@ -5,7 +5,7 @@
 
 // Unless deprecated C headers are included, various types (size_t,
 // uint8_t, etc) are only declared in the std namespace. Such headers
-// are not included in Bocfel because they pollute the std namespace,
+// are not included in Bocfel because they pollute the global namespace,
 // but these types are used all over the place so bring them into the
 // global namespace here.
 

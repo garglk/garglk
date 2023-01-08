@@ -11,7 +11,7 @@
 #include "stack.h"
 #include "types.h"
 
-class Exit : public std::exception {
+class Exit : std::exception {
 public:
     explicit Exit(int code) : m_code(code) {
     }
@@ -53,7 +53,7 @@ struct Options {
     std::unique_ptr<std::string> record_name = nullptr;
     bool transcript_on = false;
     std::unique_ptr<std::string> transcript_name = nullptr;
-    unsigned long max_saves = 100;
+    unsigned long undo_slots = 100;
     bool show_version = false;
     bool disable_abbreviations = false;
     bool enable_censorship = false;
@@ -70,7 +70,7 @@ struct Options {
 extern std::string game_file;
 extern Options options;
 
-#define ZTERP_VERSION	"2.0.1"
+#define ZTERP_VERSION	"2.1"
 
 // v3
 constexpr uint8_t FLAGS1_STATUSTYPE  = 1U << 1;

@@ -122,7 +122,7 @@ static uint16_t property_length(uint16_t propaddr)
     if (zversion <= 3) {
         length = (b >> 5) + 1;
     } else {
-        if (b & 0x80) {
+        if ((b & 0x80) == 0x80) {
             length = b & 0x3f;
             if (length == 0) {
                 length = 64;
@@ -245,7 +245,7 @@ void ztest_attr()
 
     uint16_t addr = find_object(zargs[0]) + (zargs[1] / 8);
 
-    branch_if(byte(addr) & ATTR_BIT(zargs[1]));
+    branch_if((byte(addr) & ATTR_BIT(zargs[1])) != 0);
 }
 
 void zset_attr()
