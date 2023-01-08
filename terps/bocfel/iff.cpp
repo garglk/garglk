@@ -39,8 +39,6 @@ IFF::IFF(std::shared_ptr<IO> io, TypeID type) : m_io(std::move(io))
         }
 
         while (true) {
-            uint32_t size;
-
             try {
                 type_val = m_io->read32();
             } catch (const IO::IOError &) {
@@ -49,14 +47,10 @@ IFF::IFF(std::shared_ptr<IO> io, TypeID type) : m_io(std::move(io))
                 break;
             }
 
-            size = m_io->read32();
+            auto size = m_io->read32();
+            auto offset = m_io->tell();
 
-            auto entry = Entry(TypeID(type_val), m_io->tell(), size);
-            m_entries.push_back(entry);
-
-            if (entry.offset == -1) {
-                throw InvalidFile();
-            }
+            m_entries.emplace_back(TypeID(type_val), offset, size);
 
             if ((size & 1) == 1) {
                 size++;
@@ -67,7 +61,6 @@ IFF::IFF(std::shared_ptr<IO> io, TypeID type) : m_io(std::move(io))
     } catch (const IO::IOError &) {
         throw InvalidFile();
     }
-
 }
 
 bool IFF::find(TypeID type_id, uint32_t &size)

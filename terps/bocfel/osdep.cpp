@@ -20,10 +20,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -39,6 +41,8 @@ extern "C" {
 #include "types.h"
 #include "util.h"
 #include "zterp.h"
+
+using namespace std::literals;
 
 // OS-specific functions should all be collected in this file for
 // convenience. A sort of poor-man’s “reverse” inheritance is used: for
@@ -178,7 +182,7 @@ static std::vector<char> read_file(const std::string &filename)
 
         if (size != 0) {
             new_file.resize(size);
-            io.read_exact(&new_file[0], size);
+            io.read_exact(new_file.data(), size);
         }
     } catch (...) {
         throw std::runtime_error("unable to read file");
@@ -195,6 +199,7 @@ static std::vector<char> read_file(const std::string &filename)
 #include <cstring>
 #include <vector>
 
+#include <spawn.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -263,19 +268,18 @@ std::unique_ptr<std::string> zterp_os_rcfile(bool create_parent)
 #else
     const char *home;
     const char *config_home;
-    std::string s;
 
     home = std::getenv("HOME");
     if (home != nullptr) {
         // This is the legacy location of the config file.
-        s = std::string(home) + "/.bocfelrc";
+        auto s = std::string(home) + "/.bocfelrc";
         if (access(s.c_str(), R_OK) == 0) {
             return std::make_unique<std::string>(s);
         }
     }
 
     config_home = std::getenv("XDG_CONFIG_HOME");
-    if (config_home != nullptr) {
+    if (config_home != nullptr && config_home[0] == '/') {
         config_file = std::make_unique<std::string>(std::string(config_home) + "/bocfel/bocfelrc");
     } else if (home != nullptr) {
         config_file = std::make_unique<std::string>(std::string(home) + "/.config/bocfel/bocfelrc");
@@ -307,7 +311,7 @@ static std::unique_ptr<std::string> data_file(const std::string &filename)
     std::unique_ptr<std::string> name;
 
     data_home = std::getenv("XDG_DATA_HOME");
-    if (data_home != nullptr) {
+    if (data_home != nullptr && data_home[0] == '/') {
         name = std::make_unique<std::string>(std::string(data_home) + "/bocfel/" + filename);
     } else {
         char *home = std::getenv("HOME");
@@ -327,7 +331,7 @@ static std::unique_ptr<std::string> data_file(const std::string &filename)
 
 std::unique_ptr<std::string> zterp_os_autosave_name()
 {
-    std::string filename = "autosave/"_s + unique_name();
+    std::string filename = "autosave/"s + unique_name();
 
     return data_file(filename);
 }
@@ -339,14 +343,12 @@ std::unique_ptr<std::string> zterp_os_aux_file(const std::string &filename)
         return nullptr;
     }
 
-    return data_file("auxiliary/"_s + unique_name() + "/" + filename);
+    return data_file("auxiliary/"s + unique_name() + "/" + filename);
 }
 #define have_zterp_os_aux_file
 
-void zterp_os_edit_file(const std::string &filename)
+static pid_t launch_editor(const std::string &filename)
 {
-    pid_t pid;
-
     // A list of possible text editors. The user can specify a text
     // editor using the config file. If he doesn’t, or if it doesn’t
     // exist, keep trying various possible editors in hopes that one
@@ -358,7 +360,7 @@ void zterp_os_edit_file(const std::string &filename)
 #elif defined(__serenity__)
         "TextEditor",
 #elif defined(__APPLE__)
-        "open -W -t",
+        "open -Wnt",
 #else
         "kwrite",
         "kate",
@@ -368,67 +370,85 @@ void zterp_os_edit_file(const std::string &filename)
 #endif
     };
 
-    pid = fork();
-    switch (pid) {
-    case -1:
-        throw std::runtime_error("unable to create new process");
-    case 0: {
+    auto edit_with = [&filename](const std::string &editor) {
+        std::istringstream ss(editor);
+        std::vector<std::string> args;
+        std::string token;
+
+        while (ss >> std::quoted(token)) {
+            args.push_back(token);
+        }
+        args.push_back(filename);
+
+        std::vector<char *> c_args;
+        for (const auto &arg : args) {
+            c_args.push_back(const_cast<char *>(arg.c_str()));
+        }
+        c_args.push_back(nullptr);
+
+        pid_t pid;
+        extern char **environ;
+        int rval = posix_spawnp(&pid, c_args[0], nullptr, nullptr, c_args.data(), environ);
+        if (rval != 0) {
+            throw rval;
+        }
+
+        return pid;
+    };
+
+    // Try the user’s editor explicitly instead of prepending it to the
+    // list of defaults so a diagnostic message can easily be displayed.
+    if (options.editor != nullptr) {
         try {
-            auto edit_with = [&filename](std::string editor) {
-                std::vector<char *> args;
-                for (char *token = std::strtok(&editor[0], " "); token != nullptr; token = std::strtok(nullptr, " ")) {
-                    args.push_back(token);
-                }
-                args.push_back(const_cast<char *>(filename.data()));
-                args.push_back(nullptr);
-                execvp(args[0], args.data());
-            };
-
-            // Try the user’s editor explicitly instead of prepending it to
-            // the list of defaults so a diagnostic message can easily be
-            // displayed.
-            if (options.editor != nullptr) {
-                edit_with(*options.editor);
-                std::cerr << "Unable to execute " << *options.editor << ": " << std::strerror(errno) << std::endl;
-            }
-
-            for (const auto &editor : editors) {
-                edit_with(editor);
-            }
-        } catch (...) {
+            return edit_with(*options.editor);
+        } catch (int err) {
+            std::cerr << "Unable to execute " << *options.editor << ": " << std::strerror(err) << std::endl;
         }
-
-        std::_Exit(127);
     }
-    default: {
-        int status;
 
-#ifdef ZTERP_GLK
-        while (waitpid(pid, &status, WNOHANG) != pid) {
-            usleep(10000);
-            glk_tick();
+    for (const auto &editor : editors) {
+        try {
+            return edit_with(editor);
+        } catch (int) {
         }
+    }
+
+    return 0;
+}
+
+void zterp_os_edit_file(const std::string &filename)
+{
+    pid_t pid = launch_editor(filename);
+    if (pid == 0) {
+        throw std::runtime_error("unable to find a text editor");
+    }
+
+    int status;
+
+#ifdef ZTERP_GLK_TICK
+    while (waitpid(pid, &status, WNOHANG) != pid) {
+        std::this_thread::sleep_for(100ms);
+        glk_tick();
+    }
 #else
-        waitpid(pid, &status, 0);
+    waitpid(pid, &status, 0);
 #endif
 
-        if (!WIFEXITED(status)) {
-            throw std::runtime_error("editor process terminated abnormally");
-        }
+    if (!WIFEXITED(status)) {
+        throw std::runtime_error("editor process terminated abnormally");
+    }
 
 #ifndef __APPLE__
-        if (WEXITSTATUS(status) == 127) {
-            throw std::runtime_error("unable to find a text editor");
-        }
+    if (WEXITSTATUS(status) == 127) {
+        throw std::runtime_error("unable to find a text editor");
+    }
 #endif
 
-        if (WEXITSTATUS(status) != 0) {
-            std::stringstream errstr;
+    if (WEXITSTATUS(status) != 0) {
+        std::ostringstream errstr;
 
-            errstr << "editor had exit status " << WEXITSTATUS(status);
-            throw std::runtime_error(errstr.str());
-        }
-    }
+        errstr << "editor had exit status " << WEXITSTATUS(status);
+        throw std::runtime_error(errstr.str());
     }
 }
 #define have_zterp_os_edit_file
@@ -495,8 +515,8 @@ std::vector<char> zterp_os_edit_notes(const std::vector<char> &notes)
 #ifndef ZTERP_GLK
 
 #ifndef ZTERP_NO_CURSES
-#include <sys/ioctl.h>
 #include <curses.h>
+#include <sys/ioctl.h>
 #include <term.h>
 #ifdef TIOCGWINSZ
 std::pair<unsigned int, unsigned int> zterp_os_get_screen_size()
@@ -630,10 +650,10 @@ void zterp_os_set_style(const Style &style, const Color &fg, const Color &bg)
 // ║ Windows functions                                                            ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 #elif defined(ZTERP_WIN32)
-#include <windows.h>
 #include <direct.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <windows.h>
 
 #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
 #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
@@ -707,7 +727,7 @@ std::unique_ptr<std::string> unique_name()
     return std::make_unique<std::string>(std::string(fname) + ext + "-" + get_story_id());
 }
 
-std::unique_ptr<std::string> data_file(const std::string &filename)
+static std::unique_ptr<std::string> data_file(const std::string &filename)
 {
     const char *appdata;
 
@@ -733,7 +753,7 @@ std::unique_ptr<std::string> zterp_os_autosave_name()
         return nullptr;
     }
 
-    return data_file("autosave\\"_s + *filename);
+    return data_file("autosave\\"s + *filename);
 }
 #define have_zterp_os_autosave_name
 
@@ -749,7 +769,7 @@ std::unique_ptr<std::string> zterp_os_aux_file(const std::string &filename)
         return nullptr;
     }
 
-    return data_file("auxiliary\\"_s + *basename + "\\" + filename);
+    return data_file("auxiliary\\"s + *basename + "\\" + filename);
 }
 #define have_zterp_os_aux_file
 
@@ -784,7 +804,7 @@ void zterp_os_edit_file(const std::string &filename)
 
 class Remover {
 public:
-    explicit Remover(const std::string filename) : m_filename(filename) {
+    explicit Remover(const std::string &filename) : m_filename(filename) {
     }
 
     Remover(const Remover &) = delete;
@@ -944,7 +964,7 @@ std::unique_ptr<std::string> zterp_os_autosave_name()
 #endif
 
 #ifndef have_zterp_os_aux_file
-std::unique_ptr<std::string> zterp_os_aux_file(const std::string &filename)
+std::unique_ptr<std::string> zterp_os_aux_file(const std::string &)
 {
     return nullptr;
 }

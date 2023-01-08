@@ -71,7 +71,7 @@ public:
         uint32_t size;
     };
 
-    class InvalidFile : public std::exception {
+    class InvalidFile : std::exception {
     };
 
     IFF(std::shared_ptr<IO> io, TypeID type);

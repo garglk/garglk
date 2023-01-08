@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
+#include <climits>
 #include <cstdio>
 #include <cstring>
-#include <climits>
 #include <new>
 #include <stdexcept>
 #include <vector>
@@ -65,7 +65,7 @@ bool IO::textmode() const {
 // be able to access any file on the filesystem, and the latter needs to
 // prompt. This is a headache.
 //
-// Prompting is assumed to be necessary if “filename” is nullptr.
+// Prompting is assumed to be necessary if “filename” is null.
 IO::IO(const std::string *filename, Mode mode, Purpose purpose) :
     m_mode(mode),
     m_purpose(purpose)
@@ -180,7 +180,12 @@ IO::IO(const std::string *filename, Mode mode, Purpose purpose) :
 //
 // The I/O object starts out with the contents of the passed-in buffer,
 // which may be empty. The offset always starts at 0.
-IO::IO(std::vector<uint8_t> buf, Mode mode) : m_file(File(std::move(buf))), m_type(Type::Memory), m_mode(mode), m_purpose(Purpose::Data) {
+IO::IO(std::vector<uint8_t> buf, Mode mode) :
+    m_file(File(std::move(buf))),
+    m_type(Type::Memory),
+    m_mode(mode),
+    m_purpose(Purpose::Data)
+{
     // Append isn’t used with memory-backed I/O, so it’s not supported.
     if (m_mode != Mode::ReadOnly && m_mode != Mode::WriteOnly) {
         throw OpenError();
@@ -191,7 +196,8 @@ IO::IO(std::vector<uint8_t> buf, Mode mode) : m_file(File(std::move(buf))), m_ty
 // represents the state of the “file” at the time the function is
 // called. The reference is only valid until the next call to an I/O
 // method on this same I/O instance.
-const std::vector<uint8_t> &IO::get_memory() {
+const std::vector<uint8_t> &IO::get_memory()
+{
     if (m_type != Type::Memory) {
         throw std::runtime_error("not a memory object");
     }
@@ -199,7 +205,8 @@ const std::vector<uint8_t> &IO::get_memory() {
     return m_file.backing.memory;
 }
 
-void IO::seek(long offset, SeekFrom whence) {
+void IO::seek(long offset, SeekFrom whence)
+{
     // To smooth over differences between Glk and standard I/O, don’t
     // allow seeking in append-only streams.
     if (m_mode == Mode::Append) {
@@ -254,15 +261,30 @@ void IO::seek(long offset, SeekFrom whence) {
     }
 }
 
-long IO::tell() {
+long IO::tell()
+{
     switch (m_type) {
-    case Type::StandardIO:
-        return std::ftell(m_file.stdio.get());
+    case Type::StandardIO: {
+        auto offset = std::ftell(m_file.stdio.get());
+        if (offset == -1) {
+            throw IOError();
+        }
+
+        return offset;
+    }
     case Type::Memory:
         return m_file.backing.offset;
 #ifdef ZTERP_GLK
-    case Type::Glk:
-        return glk_stream_get_position(m_file.glk.get());
+    case Type::Glk: {
+        auto offset = glk_stream_get_position(m_file.glk.get());
+#if LONG_MAX < UINT32_MAX
+        if (offset > LONG_MAX) {
+            throw IOError();
+        }
+#endif
+
+        return offset;
+    }
 #endif
     default:
         bad_type();
@@ -270,7 +292,8 @@ long IO::tell() {
 }
 
 // read() and write() always operate in terms of bytes, not characters.
-size_t IO::read(void *buf, size_t n) {
+size_t IO::read(void *buf, size_t n)
+{
     size_t total = 0;
 
     while (total < n) {
@@ -467,7 +490,7 @@ long IO::getc(bool limit16)
     }
 
     // Read a byte and make sure it’s part of a valid UTF-8 sequence.
-    auto read_byte = [this]{
+    auto read_byte = [this] {
         uint8_t b = read8();
 
         if ((b & 0x80) != 0x80) {

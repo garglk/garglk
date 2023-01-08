@@ -11,9 +11,9 @@ extern "C" {
 
 #include "types.h"
 
-#ifdef GLK_MODULE_SOUND
-extern uint16_t sound_routine;
-void sound_stopped();
+#ifdef GLK_MODULE_SOUND2
+void sound_stopped(glui32 chantype);
+uint16_t sound_get_routine(glui32 chantype);
 #endif
 
 void init_sound();

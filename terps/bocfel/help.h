@@ -28,7 +28,7 @@
 { const_cast<char *>("-u"), glkunix_arg_NumberValue, const_cast<char *>("Set the maximum number of UNDO slots") },
 { const_cast<char *>("-v"), glkunix_arg_NoValue, const_cast<char *>("Display version and configuration information then exit") },
 { const_cast<char *>("-x"), glkunix_arg_NoValue, const_cast<char *>("Disable abbreviations (x, g, z, o) provided by Bocfel for old Infocom games") },
-{ const_cast<char *>("-X"), glkunix_arg_NoValue, const_cast<char *>("Turn on Tandy censorship") },
+{ const_cast<char *>("-X"), glkunix_arg_NoValue, const_cast<char *>("Turn on the Tandy/censorship flag") },
 { const_cast<char *>("-y"), glkunix_arg_NoValue, const_cast<char *>("Overwrite transcripts rather than appending to them") },
 { const_cast<char *>("-Y"), glkunix_arg_NoValue, const_cast<char *>("Use internal UNDO handling code only") },
 { const_cast<char *>("-z"), glkunix_arg_NumberValue, const_cast<char *>("Provide a seed for the PRNG") },

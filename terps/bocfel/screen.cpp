@@ -56,8 +56,8 @@ extern "C" {
 #include "dict.h"
 #include "iff.h"
 #include "io.h"
-#include "meta.h"
 #include "memory.h"
+#include "meta.h"
 #include "objects.h"
 #include "osdep.h"
 #include "process.h"
@@ -321,7 +321,7 @@ static glui32 gargoyle_color(const Color &color)
 
 #ifdef ZTERP_GLK
 // These functions make it so that code elsewhere needn’t check have_unicode before printing.
-static inline void xglk_put_char(uint16_t c)
+static void xglk_put_char(uint16_t c)
 {
     if (!have_unicode) {
         glk_put_char(unicode_to_latin1[c]);
@@ -330,7 +330,7 @@ static inline void xglk_put_char(uint16_t c)
     }
 }
 
-static inline void xglk_put_char_stream(strid_t s, uint32_t c)
+static void xglk_put_char_stream(strid_t s, uint32_t c)
 {
     if (!have_unicode) {
         glk_put_char_stream(s, unicode_to_latin1[c]);
@@ -340,7 +340,7 @@ static inline void xglk_put_char_stream(strid_t s, uint32_t c)
 }
 #endif
 
-static void set_window_style(Window *win)
+static void set_window_style(const Window *win)
 {
 #ifdef ZTERP_GLK
     auto style = win->style;
@@ -494,10 +494,6 @@ public:
 
     void add_input_end() {
         add(Entry(Entry::Type::InputEnd));
-    }
-
-    void add_input_char(uint32_t c) {
-        add(Entry::character(c));
     }
 
     void add_char(uint32_t c) {
@@ -671,9 +667,9 @@ void put_char(uint8_t c)
 // written to any transcripts which are active, as well as to the
 // history buffer. For convenience, carriage returns are ignored under
 // the assumption that they are coming from a Windows text stream.
-void screen_print(const char *s)
+void screen_print(const std::string &s)
 {
-    auto io = std::make_unique<IO>(std::vector<uint8_t>(s, s + strlen(s)), IO::Mode::ReadOnly);
+    auto io = std::make_unique<IO>(std::vector<uint8_t>(s.begin(), s.end()), IO::Mode::ReadOnly);
 #ifdef ZTERP_GLK
     strid_t stream = glk_window_get_stream(mainwin->id);
 #endif
@@ -700,10 +696,10 @@ void screen_printf(const char *fmt, ...)
     message = vstring(fmt, ap);
     va_end(ap);
 
-    screen_print(message.c_str());
+    screen_print(message);
 }
 
-void screen_puts(const char *s)
+void screen_puts(const std::string &s)
 {
     screen_print(s);
     screen_print("\n");
@@ -758,7 +754,7 @@ void show_message(const char *fmt, ...)
     }
 }
 
-void screen_message_prompt(const char *message)
+void screen_message_prompt(const std::string &message)
 {
     screen_puts(message);
     if (curwin == mainwin) {
@@ -771,7 +767,7 @@ void screen_message_prompt(const char *message)
 // Deselecting a stream is always successful.
 bool output_stream(int16_t number, uint16_t table)
 {
-    ZASSERT(std::labs(number) <= (zversion >= 3 ? 4 : 2), "invalid output stream selected: %ld", (long)number);
+    ZASSERT(std::labs(number) <= (zversion >= 3 ? 4 : 2), "invalid output stream selected: %ld", static_cast<long>(number));
 
     if (number == 0) {
         return true;
@@ -842,7 +838,7 @@ bool input_stream(int which)
             }
         }
     } else {
-        ZASSERT(0, "invalid input stream: %d", istream);
+        ZASSERT(false, "invalid input stream: %d", istream);
     }
 
     return istream == which;
@@ -1113,7 +1109,7 @@ void term_keys_add(uint8_t key)
 // terminating characters for Glk line input on the specified window. If
 // there are no terminating characters, disable the use of terminating
 // characters for Glk input.
-static void check_terminators(Window *window)
+static void check_terminators(const Window *window)
 {
     if (header.terminating_characters_table != 0) {
         term_keys_reset();
@@ -1144,7 +1140,7 @@ static int print_zcode(uint32_t addr, bool in_abbr, void (*outc)(uint8_t))
 {
     enum class TenBit { None, Start, Half } tenbit = TenBit::None;
     int abbrev = 0, shift = 0;
-    int c, lastc = 0; // initialize to appease gcc
+    int c, lastc = 0; // initialize to appease g++
     uint16_t w;
     uint32_t counter = addr;
     int current_alphabet = 0;
@@ -1234,7 +1230,7 @@ static int print_zcode(uint32_t addr, bool in_abbr, void (*outc)(uint8_t))
 // Prints the string at addr “addr”.
 //
 // Returns the number of bytes the string took up. “outc” is passed as
-// the character-print function to print_zcode(); if it is nullptr,
+// the character-print function to print_zcode(); if it is null,
 // put_char is used.
 int print_handler(uint32_t addr, void (*outc)(uint8_t))
 {
@@ -1488,7 +1484,7 @@ void zprint_table()
     uint16_t n = 0;
 
 #ifdef ZTERP_GLK
-    uint16_t start = 0; // initialize to appease gcc
+    uint16_t start = 0; // initialize to appease g++
 
     if (curwin == upperwin) {
         start = upperwin->x + 1;
@@ -1535,7 +1531,7 @@ void zprint_char()
 
 void zprint_num()
 {
-    std::stringstream ss;
+    std::ostringstream ss;
 
     ss << as_signed(zargs[0]);
     for (const auto &c : ss.str()) {
@@ -1653,9 +1649,9 @@ static void request_line(Line &line, glui32 maxlen)
     check_terminators(curwin);
 
     if (have_unicode) {
-        glk_request_line_event_uni(curwin->id, &line.unicode[0], maxlen, line.len);
+        glk_request_line_event_uni(curwin->id, line.unicode.data(), maxlen, line.len);
     } else {
-        glk_request_line_event(curwin->id, &line.latin1[0], maxlen, line.len);
+        glk_request_line_event(curwin->id, line.latin1.data(), maxlen, line.len);
     }
 }
 
@@ -1663,7 +1659,7 @@ static void request_line(Line &line, glui32 maxlen)
 // be restarted after the interrupt returns. If this was a line input
 // event, “line” will be updated with the length of the input that had
 // been entered at the time of cancellation.
-static void cancel_read_events(Window *window, Line &line)
+static void cancel_read_events(const Window *window, Line &line)
 {
     event_t ev;
 
@@ -1739,15 +1735,15 @@ void screen_flush()
     case evtype_Arrange:
         window_change();
         break;
-#ifdef GLK_MODULE_SOUND
-    case evtype_SoundNotify:
+#ifdef GLK_MODULE_SOUND2
+    case evtype_SoundNotify: {
+        sound_stopped(ev.val2);
+        uint16_t sound_routine = sound_get_routine(ev.val2);
         if (sound_routine != 0) {
-            uint16_t current_routine = sound_routine;
-            sound_routine = 0;
-            handle_interrupt(current_routine, nullptr);
+            handle_interrupt(sound_routine, nullptr);
         }
-        sound_stopped();
         break;
+    }
 #endif
     default:
         // No other events should arrive. Timers are only started in
@@ -1763,7 +1759,11 @@ void screen_flush()
 }
 #endif
 
-#define special_zscii(c) ((c) >= 129 && (c) <= 154)
+template <typename T>
+static bool special_zscii(T c)
+{
+    return c > 129 && c < 154;
+}
 
 // This is called when input stream 1 (read from file) is selected. If
 // it succefully reads a character/line from the file, it fills the
@@ -2126,16 +2126,16 @@ static bool get_input(uint16_t timer, uint16_t routine, Input &input)
             }
 
             break;
-#ifdef GLK_MODULE_SOUND
-        case evtype_SoundNotify:
+#ifdef GLK_MODULE_SOUND2
+        case evtype_SoundNotify: {
+            sound_stopped(ev.val2);
+            uint16_t sound_routine = sound_get_routine(ev.val2);
             if (sound_routine != 0) {
-                uint16_t current_routine = sound_routine;
-                sound_routine = 0;
-                handle_interrupt(current_routine, &line);
+                handle_interrupt(sound_routine, &line);
                 restart_read_events(line, input, enable_mouse);
             }
-            sound_stopped();
             break;
+        }
 #endif
         }
     }
@@ -2300,7 +2300,6 @@ void zread_char()
 
     store(input.key);
 }
-#undef special_zscii
 
 #ifdef ZTERP_GLK
 static void status_putc(uint8_t c)
@@ -2406,7 +2405,7 @@ static bool read_handler()
     uint16_t text = zargs[0], parse = zargs[1];
     ZASSERT(zversion >= 5 || user_byte(text) > 0, "text buffer cannot be zero sized");
     uint8_t maxchars = zversion >= 5 ? user_byte(text) : user_byte(text) - 1;
-    uint8_t zscii_string[256];
+    std::array<uint8_t, 256> zscii_string;
     Input input;
     input.type = Input::Type::Line;
     input.maxlen = maxchars;
@@ -2451,11 +2450,10 @@ static bool read_handler()
         // allowing the already-printed text to be edited. However, there is no
         // requirement that the preloaded text already be on-screen. For
         // example, what should happen if the text “ZZZ” is printed out, but the
-        // text “AAA” is preloaded? The interpreter for Hitchiker’s Guide that
-        // comes with the Lost Treasures of Infocom displays “ZZZ” (and not
-        // “AAA”), and allows the user to edit it; but any characters not edited
-        // by the user (that is, not backspaced over) are actually stored as “A”
-        // characters. The on-screen “Z” characters are not stored.
+        // text “AAA” is preloaded? Infocom’s interpreters display “ZZZ” (and
+        // not “AAA”), and allow the user to edit it; but any characters not
+        // edited by the user (that is, not backspaced over) are actually stored
+        // as “A” characters. The on-screen “Z” characters are not stored.
         //
         // This isn’t possible under Glk, and as it stands, isn’t possible under
         // Gargoyle either (although it could be extended to support it). For
@@ -2496,7 +2494,7 @@ static bool read_handler()
                 curwin->x -= unput;
                 starting_x -= unput;
             } else {
-                garglk_unput_string_uni(&line32[0]);
+                garglk_unput_string_uni(line32.data());
             }
         }
 #endif
@@ -2514,7 +2512,7 @@ static bool read_handler()
 #endif
 
     if (curwin == mainwin) {
-        history.add_input(&input.line[0], input.len);
+        history.add_input(input.line.data(), input.len);
     }
 
     if (options.enable_escape) {
@@ -2562,7 +2560,7 @@ static bool read_handler()
             }
 #endif
 
-            auto result = handle_meta_command(&input.line[0], input.len);
+            auto result = handle_meta_command(input.line.data(), input.len);
             switch (result.first) {
             case MetaResult::Rerequest:
                 // The game still wants input, so try again. If this is the main
@@ -2857,7 +2855,6 @@ static void set_default_styles()
     std::array<int, 7> styles = { style_Subheader, style_Emphasized, style_Alert, style_Preformatted, style_User1, style_User2, style_Note };
 
     for (const auto &style : styles) {
-        glk_stylehint_set(wintype_AllTypes, style, stylehint_Size, 0);
         glk_stylehint_set(wintype_AllTypes, style, stylehint_Weight, 0);
         glk_stylehint_set(wintype_AllTypes, style, stylehint_Oblique, 0);
 
@@ -2959,12 +2956,12 @@ bool create_upperwin()
 
 // Write out the screen state for a Scrn chunk.
 //
-// This implements version 0 as described in stack.c.
+// This implements version 0 as described in stack.cpp.
 IFF::TypeID screen_write_scrn(IO &io)
 {
     io.write32(0);
 
-    io.write8(curwin - &windows[0]);
+    io.write8(curwin - windows.data());
 #ifdef ZTERP_GLK
     io.write16(upper_window_height);
     io.write16(starting_x);
@@ -3289,7 +3286,7 @@ void screen_read_bfhs(IO &io, bool autosave)
 #else
             IO::standard_out().putc(c);
 #endif
-            history.add_input_char(c);
+            history.add_char(c);
             break;
         default:
             return;
@@ -3345,7 +3342,7 @@ void screen_read_bfts(IO &io, uint32_t size)
         }
 
         try {
-            io.read_exact(&buf[0], size);
+            io.read_exact(buf.data(), size);
         } catch (const IO::IOError &) {
             show_message("Unable to read persistent transcript from save file");
             return;

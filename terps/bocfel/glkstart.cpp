@@ -16,7 +16,6 @@
 
 #include <initializer_list>
 #include <string>
-#include <vector>
 
 #include "types.h"
 #include "util.h"
@@ -32,12 +31,12 @@ extern "C" {
 }
 #endif
 
+static void load_resources();
+
 #ifdef ZTERP_GLK_UNIX
 extern "C" {
 #include <glkstart.h>
 }
-
-static void load_resources();
 
 // The “standard” function (provided by remglk as an extension) for
 // getting a filename from a fileref is glkunix_fileref_get_filename;
@@ -50,8 +49,7 @@ static void load_resources();
 #define glkunix_fileref_get_filename garglk_fileref_get_name
 #endif
 
-glkunix_argumentlist_t glkunix_arguments[] =
-{
+glkunix_argumentlist_t glkunix_arguments[] = {
 #include "help.h"
     { const_cast<char *>(""),		glkunix_arg_ValueFollows,	const_cast<char *>("file to load") },
     { nullptr, glkunix_arg_End, nullptr }
@@ -110,8 +108,8 @@ int glkunix_startup_code(glkunix_startup_t *data)
     return 1;
 }
 #elif defined(ZTERP_GLK_WINGLK)
-#include <cstdio>
 #include <cstdlib>
+#include <sstream>
 
 #include <WinGlk.h>
 
@@ -149,12 +147,12 @@ static void startup()
 
     if (game_file.empty()) {
         const char *patterns = "*.z1;*.z2;*.z3;*.z4;*.z5;*.z6;*.z7.*.z8;*.zblorb;*.zlb;*.blorb;*.blb";
-        char filter[512];
+        std::ostringstream filter;
         const char *filename;
 
-        std::snprintf(filter, sizeof filter, "Z-Code Files (%s)|%s|All Files (*.*)|*.*||", patterns, patterns);
+        filter << "Z-Code Files (" << patterns << ")|" << patterns << "|All Files (*.*)|*.*||";
 
-        filename = winglk_get_initial_filename(nullptr, "Choose a Z-Code Game", filter);
+        filename = winglk_get_initial_filename(nullptr, "Choose a Z-Code Game", filter.str().c_str());
         if (filename != nullptr) {
             game_file = filename;
         }
@@ -177,7 +175,7 @@ static void startup()
         if (!filename.empty()) {
             auto dot = filename.find_last_of('.');
             if (dot != std::string::npos) {
-                filename = filename.substr(0, dot);
+                filename.resize(dot);
             }
 
             sglk_set_basename(&filename[0]);
@@ -187,7 +185,7 @@ static void startup()
     }
 }
 
-int WINAPI WinMain(HINSTANCE instance, HINSTANCE previnstance, LPSTR cmdline, int cmdshow)
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
     if (!InitGlk(0x00000700)) {
         std::exit(EXIT_FAILURE);

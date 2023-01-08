@@ -3,7 +3,7 @@
 #ifndef ZTERP_IO_H
 #define ZTERP_IO_H
 
-#include <climits>
+#include <cstdio>
 #include <exception>
 #include <functional>
 #include <memory>
@@ -19,20 +19,19 @@ extern "C" {
 #endif
 
 #include "types.h"
-#include "util.h"
 
 class IO {
 public:
-    class Error : public std::exception {
+    class Error : std::exception {
     };
 
-    class OpenError : public Error {
+    class OpenError : Error {
     };
 
-    class IOError : public Error {
+    class IOError : Error {
     };
 
-    class EndOfFile : public Error {
+    class EndOfFile : Error {
     };
 
     enum class Mode {
