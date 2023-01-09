@@ -15,6 +15,9 @@
 .Fl e
 .Fl \-edit-config
 .Nm
+.Fl m
+.Fl \-migrate-config
+.Nm
 .Fl p
 .Fl \-paths
 .Nm
@@ -59,38 +62,25 @@ If
 is provided, it will be played.
 Otherwise, a file chooser will be displayed so a story can be selected.
 .Pp
-If the
-.Fl d
-or (equivalent)
-.Fl \-dump-config
-flag is set, instead of playing a game,
-.Nm
-will dump the default config file to standard output.
-.Pp
-If the
-.Fl e
-or (equivalent)
-.Fl \-edit-config
-flag is set, instead of playing a game,
-.Nm
-will open its configuration file in a text editor.
-.Pp
-If the
-.Fl p
-or (equivalent)
-.Fl \-paths
-flag is set, instead of playing a game,
-.Nm
-will display a list of configuration file paths as well as theme paths
-that will be used at runtime.
-.Pp
-If the
-.Fl t
-or (equivalent)
-.Fl \-themes
-flag is set, instead of playing a game,
-.Nm
-will display a list of available color themes.
+The following options are available:
+.Bl -tag -width flag
+.It Fl d , \-dump-config
+Dump the default config file to standard output.
+.It Fl e , \-edit-config
+Open Gargoyle's configuration file in a text editor, first creating it
+if necessary.
+.It Fl m , \-migrate-config
+Search for a move a legacy configuration file to the preferred location.
+In general, on Unix systems, this will mean renaming
+.Pa $HOME/.garglkrc
+to
+.Pa $HOME/.config/garglk.ini .
+.It Fl p , \-paths
+Display a list of configuration file paths as well as theme paths that
+will be used at runtime.
+.It Fl t , \-themes
+Display a list of available color themes.
+.El
 .Sh CONFIGURATION
 .Nm
 is highly configurable, although all configuration is done through a text-based
