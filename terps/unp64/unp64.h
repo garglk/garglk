@@ -71,7 +71,6 @@ extern char appstr[80];
 int desledge(unsigned int p, unsigned int prle, unsigned int startm,
              unsigned char *mem);
 int xxOpenFile(FILE **hh, unpstr *Unp, int p);
-char *normalizechar(char *app, unsigned char *m, int *ps);
 void printmsg(unsigned char *mem, int start, int num);
 void PrintInfo(unpstr *Unp, int id);
 void Scanners(unpstr *);

@@ -105,7 +105,7 @@ static uint8_t *GetFileFromT64(int filenum, int number_of_records, uint8_t **sf,
     return file;
 }
 
-static int terror_menu(uint8_t **sf, size_t *extent, int recindex)
+static GameIDType terror_menu(uint8_t **sf, size_t *extent, int recindex)
 {
     OpenBottomWindow();
     Display(Bottom, "This datasette image contains one version of Temple of Terror with pictures, and one with without pictures but slightly more text.\n\nPlease select one:\n1. Graphics version\n2. Text-only version\n3. Use pictures from file 1 and text from file 2");
@@ -120,7 +120,7 @@ static int terror_menu(uint8_t **sf, size_t *extent, int recindex)
 
     if (file1 == NULL || file2 == NULL) {
         fprintf(stderr, "TAYLOR: terror_menu() Failed loading file!\n");
-        return 0;
+        return UNKNOWN_GAME;
     }
     glk_request_char_event(Bottom);
 
@@ -178,10 +178,8 @@ static int terror_menu(uint8_t **sf, size_t *extent, int recindex)
         }
         default:
             fprintf(stderr, "TAYLOR: invalid switch case!\n");
-            return 0;
-
     }
-    return 0;
+    return UNKNOWN_GAME;
 }
 
 GameIDType DetectC64(uint8_t **sf, size_t *extent)

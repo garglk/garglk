@@ -170,7 +170,7 @@ uint16_t checksum(uint8_t *sf, uint32_t extent)
     return c;
 }
 
-static int DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec entry);
+static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec entry);
 
 size_t writeToFile(const char *name, uint8_t *data, size_t size)
 {
@@ -514,10 +514,10 @@ void LoadC64USImages(uint8_t *data, size_t length) {
     }
 }
 
-int DetectC64(uint8_t **sf, size_t *extent)
+GameIDType DetectC64(uint8_t **sf, size_t *extent)
 {
     if (*extent > MAX_LENGTH || *extent < MIN_LENGTH)
-        return 0;
+        return UNKNOWN_GAME;
 
     uint16_t chksum = checksum(*sf, *extent);
 
@@ -546,7 +546,7 @@ int DetectC64(uint8_t **sf, size_t *extent)
 
                 size_t buflen = newlength + appendixlen;
                 if (buflen <= 0 || buflen > MAX_LENGTH)
-                    return 0;
+                    return UNKNOWN_GAME;
 
                 uint8_t *megabuf = MemAlloc(buflen);
                 memcpy(megabuf, largest_file, newlength);

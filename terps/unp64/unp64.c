@@ -1,44 +1,39 @@
-// This is a cut-down version of UNP64 with only the bare minimum
-// needed to decompress a number of Scott Adams Commodore 64 games
-// for the ScottFree interpreter.
+/* This is a cut-down version of UNP64 with only the bare minimum
+   needed to decompress a number of Scott Adams Commodore 64 games
+   for the ScottFree interpreter. It is distributed under the zlib
+   License by kind permission of the original authors iAN CooG and
+   Magnus Lind.
+*/
 
 /*
 UNP64 - generic Commodore 64 prg unpacker
 (C) 2008-2019 iAN CooG/HVSC Crew^C64Intros
 original source and idea: testrun.c, taken from exo20b7
-
-Follows original disclaimer
 */
 
 /*
- * Copyright (c) 2002 - 2008 Magnus Lind.
+ * Copyright (c) 2008 - 2023 Magnus Lind.
  *
- * This software is provided 'as-is', without any express or implied warranty.
- * In no event will the authors be held liable for any damages arising from
- * the use of this software.
  *
- * Permission is granted to anyone to use this software, alter it and re-
- * distribute it freely for any non-commercial, non-profit purpose subject to
- * the following restrictions:
+ * This software is provided 'as-is', without any express or implied
+ * warranty. In no event will the authors be held liable for any damages
+ * arising from the use of this software.
  *
- *   1. The origin of this software must not be misrepresented; you must not
- *   claim that you wrote the original software. If you use this software in a
- *   product, an acknowledgment in the product documentation would be
- *   appreciated but is not required.
+ * Permission is granted to anyone to use this software for any purpose,
+ * including commercial applications, and to alter it and redistribute it
+ * freely, subject to the following restrictions:
  *
- *   2. Altered source versions must be plainly marked as such, and must not
- *   be misrepresented as being the original software.
- *
- *   3. This notice may not be removed or altered from any distribution.
- *
- *   4. The names of this software and/or it's copyright holders may not be
- *   used to endorse or promote products derived from this software without
- *   specific prior written permission.
+ * 1. The origin of this software must not be misrepresented; you must not
+ * claim that you wrote the original software. If you use this software
+ * in a product, an acknowledgment in the product documentation would be
+ * appreciated but is not required.
+ * 2. Altered source versions must be plainly marked as such, and must not be
+ * misrepresented as being the original software.
+ * 3. This notice may not be removed or altered from any source distribution.
  *
  */
 
 #include "unp64.h"
-//#include "log.h"
 #include "exo_util.h"
 #include "6502emu.h"
 
@@ -83,12 +78,14 @@ int desledge(unsigned int p, unsigned int prle, unsigned int startm,
 void printmsg(unsigned char *mem, int start, int num)
 {
     int q, p;
-    for (q = 0, p = start; q < num; q++, p++) {
+    p = start;
+    for (q = 0; q < num; q++) {
         if (mem[p] == 0)
             break;
         appstr[q] = mem[p] & 0x7f;
         if (appstr[q] < 0x20)
             appstr[q] |= 0x40;
+        p++;
     }
     appstr[q] = 0;
     fprintf(stderr, "\"%s\"\n", appstr);
@@ -178,7 +175,7 @@ int xxOpenFile(FILE **hh, unpstr *Unpstring, int p)
     if (h == NULL) {
         fprintf(stderr, nfmask, appstr);
     retry:
-        strcat(appstr, ".prg");
+        strncat(appstr, ".prg", sizeof appstr - 1);
         h = fopen(appstr, "rb");
     }
     if (h == NULL) {
@@ -235,30 +232,7 @@ int IsBasicRun2(int pc)
     else
         return 0;
 }
-/*****************************************************************************/
-char *normalizechar(char *app, unsigned char *m, int *ps)
-{
-    int i, s = *ps;
-    memset(app, 0, 0x20);
-    for(i=0;m[s]&&i<16;i++)
-    {
-        if( (m[s]=='<') ||
-            (m[s]=='|') ||
-            (m[s]=='>') ||
-            (m[s]==' ') ||
-            (m[s]=='?') ||
-            (m[s]=='\\')||
-            (m[s]=='/') ||
-            (m[s]=='*') )
-        {
-            m[s] = '_';
-        }
-        app[i] = m[s++] & 0x7f;
-    }
-    *ps = s;
-    strcat(app, ".prg");
-    return app;
-}
+
 /*****************************************************************************/
 // int main(int argc, char *argv[])
 int unp64(uint8_t *compressed, size_t length, uint8_t *destination_buffer,
@@ -924,11 +898,14 @@ looprecurse:
         }
     }
     if (*forcedname) {
-        strcpy(name, forcedname);
+        strncpy(name, forcedname, sizeof name);
     } else {
-        if (strlen(name) > 248) /* dirty hack in case name is REALLY long */
+        size_t ln = strlen(name);
+        if (ln > 248) {/* dirty hack in case name is REALLY long */
             name[248] = 0;
-        sprintf(name + strlen(name), ".%04x%s", r->pc,
+            ln = 248;
+        }
+        snprintf(name + strlen(name), sizeof(name) - ln, ".%04x%s", r->pc,
             (Unp.WrMemF | Unp.LfMemF ? ".clean" : ""));
     }
     //    h=fopen(name,"wb");
