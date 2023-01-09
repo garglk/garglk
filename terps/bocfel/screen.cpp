@@ -1120,7 +1120,7 @@ static void check_terminators(const Window *window)
 
 #ifdef GLK_MODULE_LINE_TERMINATORS
         if (glk_gestalt(gestalt_LineTerminators, 0)) {
-            glk_set_terminators_line_event(window->id, &term_keys[0], term_keys.size());
+            glk_set_terminators_line_event(window->id, term_keys.data(), term_keys.size());
         }
     } else {
         if (glk_gestalt(gestalt_LineTerminators, 0)) {
