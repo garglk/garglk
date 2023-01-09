@@ -586,21 +586,6 @@ static DIError CalcSectorAndOffset(long track, int sector, size_t* pOffset, int*
 }
 
 /*
- * Some additional goodies required for accessing variable-length nibble
- * tracks in TrackStar images.  A default implementation is provided and
- * used for everything but TrackStar.
- */
-static int GetNibbleTrackLength(PhysicalFormat physical, int track)
-{
-    if (physical == kPhysicalFormatNib525_6656)
-        return kTrackLenNib525;
-    else {
-        assert(0);
-        return -1;
-    }
-}
-
-/*
  * Load a nibble track into our track buffer.
  */
 static DIError LoadNibbleTrack(long track, long* pTrackLen)
@@ -609,8 +594,11 @@ static DIError LoadNibbleTrack(long track, long* pTrackLen)
     long offset;
     assert(track >= 0 && track < kMaxNibbleTracks525);
 
-    *pTrackLen = GetNibbleTrackLength(physical, track);
-    offset = GetNibbleTrackLength(physical, 0) * track;
+    if (physical != kPhysicalFormatNib525_6656)
+        return kDIErrNotSupported;
+
+    *pTrackLen = kTrackLenNib525;
+    offset = kTrackLenNib525 * track;
     assert(*pTrackLen > 0);
     assert(offset >= 0);
 
@@ -663,7 +651,6 @@ static DIError ReadNibbleSector(long track, int sector, uint8_t *buf)
     }
 
     assert(pNibbleDescr != NULL);
-    //    assert(IsNibbleFormat(fPhysical));
     assert(track >= 0 && track < kNumTracks);
     assert(sector >= 0 && sector < pNibbleDescr->numSectors);
 
