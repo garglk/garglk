@@ -64,6 +64,10 @@ if(WITH_PLUS OR WITH_SCOTT OR WITH_TAYLOR)
     add_subdirectory(c64diskimage)
 endif()
 
+if(WITH_SCOTT OR WITH_TAYLOR)
+    add_subdirectory(unp64)
+endif()
+
 
 # ------------------------------------------------------------------------------
 #
@@ -369,7 +373,7 @@ if(WITH_SCOTT)
         scott/saga/sagagraphics.c scott/saga/woz2nib.c scott/titleimage.c
         scott/ai_uk/seasofblood.c scott/ti994a/ti99_4a_terp.c
         INCLUDE_DIRS ${SCOTT_INCLUDE_DIRS}
-        LIBS c64diskimage)
+        LIBS c64diskimage unp64)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -385,5 +389,5 @@ if(WITH_TAYLOR)
         taylor/layouttext.c taylor/loadtotpicture.c taylor/parseinput.c taylor/player.c
         taylor/restorestate.c taylor/sagadraw.c taylor/ui.c taylor/utility.c
         INCLUDE_DIRS ${TAYLOR_INCLUDE_DIRS}
-        LIBS c64diskimage)
+        LIBS c64diskimage unp64)
 endif()

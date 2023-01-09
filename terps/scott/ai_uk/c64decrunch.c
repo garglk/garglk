@@ -22,7 +22,7 @@
 
 #include "hulk.h"
 
-//#include "unp64_interface.h"
+#include "unp64_interface.h"
 
 typedef enum {
     UNKNOWN_FILE_TYPE,
@@ -517,7 +517,7 @@ void LoadC64USImages(uint8_t *data, size_t length) {
 GameIDType DetectC64(uint8_t **sf, size_t *extent)
 {
     if (*extent > MAX_LENGTH || *extent < MIN_LENGTH)
-        return 0;
+        return UNKNOWN_GAME;
 
     uint16_t chksum = checksum(*sf, *extent);
 
@@ -546,7 +546,7 @@ GameIDType DetectC64(uint8_t **sf, size_t *extent)
 
                 size_t buflen = newlength + appendixlen;
                 if (buflen <= 0 || buflen > MAX_LENGTH)
-                    return 0;
+                    return UNKNOWN_GAME;
 
                 uint8_t *megabuf = MemAlloc(buflen);
                 memcpy(megabuf, largest_file, newlength);
@@ -625,11 +625,6 @@ GameIDType DetectC64(uint8_t **sf, size_t *extent)
     return UNKNOWN_GAME;
 }
 
-int unp64(uint8_t *compressed, size_t length, uint8_t *destination_buffer,
-          size_t *final_length, char *settings[], int numsettings) {
-    return 0;
-}
-
 static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record)
 {
     size_t length = *extent;
@@ -651,9 +646,6 @@ static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record
 
     size_t result = 0;
 
-    if (record.decompress_iterations > 0) {
-        Fatal("Unsupported game");
-    }
     for (int i = 1; i <= record.decompress_iterations; i++) {
         /* We only send switches on the iteration specified by parameter */
         if (i == record.parameter && record.switches != NULL) {

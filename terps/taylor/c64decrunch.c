@@ -16,7 +16,7 @@
 #include "c64decrunch.h"
 #include "c64diskimage.h"
 
-//#include "unp64_interface.h"
+#include "unp64_interface.h"
 
 #define MAX_LENGTH 300000
 #define MIN_LENGTH 24
@@ -105,7 +105,7 @@ static uint8_t *GetFileFromT64(int filenum, int number_of_records, uint8_t **sf,
     return file;
 }
 
-static int terror_menu(uint8_t **sf, size_t *extent, int recindex)
+static GameIDType terror_menu(uint8_t **sf, size_t *extent, int recindex)
 {
     OpenBottomWindow();
     Display(Bottom, "This datasette image contains one version of Temple of Terror with pictures, and one with without pictures but slightly more text.\n\nPlease select one:\n1. Graphics version\n2. Text-only version\n3. Use pictures from file 1 and text from file 2");
@@ -120,7 +120,7 @@ static int terror_menu(uint8_t **sf, size_t *extent, int recindex)
 
     if (file1 == NULL || file2 == NULL) {
         fprintf(stderr, "TAYLOR: terror_menu() Failed loading file!\n");
-        return 0;
+        return UNKNOWN_GAME;
     }
     glk_request_char_event(Bottom);
 
@@ -178,10 +178,8 @@ static int terror_menu(uint8_t **sf, size_t *extent, int recindex)
         }
         default:
             fprintf(stderr, "TAYLOR: invalid switch case!\n");
-            return 0;
-
     }
-    return 0;
+    return UNKNOWN_GAME;
 }
 
 GameIDType DetectC64(uint8_t **sf, size_t *extent)
@@ -223,11 +221,6 @@ GameIDType DetectC64(uint8_t **sf, size_t *extent)
     return UNKNOWN_GAME;
 }
 
-int unp64(uint8_t *compressed, size_t length, uint8_t *destination_buffer,
-          size_t *final_length, char *settings[], int numsettings) {
-    return 0;
-}
-
 static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record)
 {
     size_t decompressed_length = *extent;
@@ -248,9 +241,6 @@ static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record
 
     size_t result = 0;
 
-    if (record.decompress_iterations > 0) {
-        Fatal("Unsupported game");
-    }
     for (int i = 1; i <= record.decompress_iterations; i++) {
         /* We only send switches on the iteration specified by parameter */
         if (i == record.parameter && record.switches != NULL) {
