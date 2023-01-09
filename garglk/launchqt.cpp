@@ -29,6 +29,7 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QList>
 #include <QMessageBox>
@@ -180,6 +181,7 @@ static QString parse_args(const QApplication &app)
         {{"d", "dump-config"}, "Dump the default config file to standard out."},
         {{"e", "edit-config"}, "Edit the configuration file."},
         {{"h", "help"}, "Displays help on commandline options."},
+        {{"m", "migrate-config"}, "Move a legacy configuration file to the preferred location."},
         {{"p", "paths"}, "Displays configuration file and theme paths."},
         {{"t", "themes"}, "Displays all available color themes."},
     });
@@ -206,6 +208,47 @@ static QString parse_args(const QApplication &app)
         std::exit(0);
     } else if (parser.isSet("h")) {
         std::cout << parser.helpText().toStdString() << std::endl;
+        std::exit(0);
+    } else if (parser.isSet("m")) {
+        auto configs = garglk::configs("");
+        std::remove_if(configs.begin(), configs.end(), [](const auto &config) {
+            return config.type != garglk::ConfigFile::Type::User;
+        });
+
+        if (configs.empty()) {
+            std::cerr << "Unable to determine configuration file locations.\n";
+            std::exit(1);
+        }
+
+        auto preferred = QString::fromStdString(configs.front().path);
+        if (QFile::exists(preferred)) {
+            std::cout << "Preferred configuration file " << preferred.toStdString() << " already exists.\n";
+        } else {
+            std::vector<garglk::ConfigFile> existing;
+
+            std::copy_if(configs.begin(), configs.end(), std::back_inserter(existing), [&preferred](const auto &config) {
+                auto path = QString::fromStdString(config.path);
+                return path != preferred && QFile::exists(path);
+            });
+
+            if (existing.empty()) {
+                std::cout << "No existing configuration files found.\n";
+            } else if (existing.size() != 1) {
+                std::cout << "Won't migrate, found multiple existing configuration files:\n\n";
+                for (const auto &config : existing) {
+                    std::cout << config.path << std::endl;
+                }
+            } else {
+                auto old = existing.front().path;
+                std::cout << "Renaming " << old << " to " << preferred.toStdString() << std::endl;
+                QFile file(QString::fromStdString(old));
+                if (!file.rename(preferred)) {
+                    std::cerr << "Unable to rename file: " << file.errorString().toStdString() << std::endl;
+                    std::exit(1);
+                }
+            }
+        }
+
         std::exit(0);
     } else if (parser.isSet("p")) {
         // Convert to native separators and return absolute path.
