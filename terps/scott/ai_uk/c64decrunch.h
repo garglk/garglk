@@ -9,9 +9,6 @@
 #define c64decrunch_h
 
 #include <stdio.h>
-
-#include "scottdefines.h"
-
-GameIDType DetectC64(uint8_t **sf, size_t *extent);
+int DetectC64(uint8_t **sf, size_t *extent);
 
 #endif /* c64decrunch_h */
