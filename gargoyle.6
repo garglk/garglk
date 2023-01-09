@@ -7,7 +7,7 @@
 .Aq Lk https://github.com/garglk/garglk
 .Sh SYNOPSIS
 .Nm
-.Ar story
+.Op Ar story
 .Nm
 .Fl d
 .Fl \-dump-config
@@ -20,11 +20,10 @@
 .Nm
 .Fl p
 .Fl \-paths
+.Op Ar story
 .Nm
 .Fl t
 .Fl \-themes
-.Nm
-.Op Ar story
 .Sh DESCRIPTION
 .Nm
 is an interactive fiction player that supports all the major interactive fiction
@@ -78,6 +77,9 @@ to
 .It Fl p , \-paths
 Display a list of configuration file paths as well as theme paths that
 will be used at runtime.
+If
+.Ar story
+is provided, game-specific configuration paths will be included.
 .It Fl t , \-themes
 Display a list of available color themes.
 .El
