@@ -281,7 +281,9 @@ void win_textbuffer_redraw(window_t *win)
     int i;
     int hx0, hx1, hy0, hy1;
     bool selbuf, selrow, selchar;
-    int sx0, sx1, selleft, selright;
+    // NOTE: GCC complains these might be used uninitialized; they're
+    // not, but do this to silence the warning.
+    int sx0 = 0, sx1 = 0, selleft = 0, selright = 0;
     int tx, tsc, tsw, lsc, rsc;
 
     dwin->lines[0].len = dwin->numchars;
