@@ -20,10 +20,10 @@
 #include <array>
 #include <cstdio>
 #include <functional>
-#include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <jpeglib.h>
@@ -44,7 +44,7 @@ struct PicturePair {
     std::shared_ptr<picture_t> scaled;
 };
 
-std::map<unsigned long, PicturePair> picstore;
+static std::unordered_map<unsigned long, PicturePair> picstore;
 
 static int gli_piclist_refcount = 0; // count references to loaded pictures
 
@@ -144,7 +144,7 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
         std::fseek(fl.get(), pos, SEEK_SET);
     }
 
-    const std::map<int, std::function<std::shared_ptr<picture_t>(FILE *, unsigned long)>> loaders = {
+    const std::unordered_map<int, std::function<std::shared_ptr<picture_t>(FILE *, unsigned long)>> loaders = {
         {giblorb_ID_PNG, load_image_png},
         {giblorb_ID_JPEG, load_image_jpeg},
     };

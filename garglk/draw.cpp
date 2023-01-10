@@ -22,10 +22,10 @@
 #include <cmath>
 #include <cstddef>
 #include <functional>
-#include <map>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -78,11 +78,11 @@ public:
 private:
     FontFace m_fontface;
     FT_Face m_face = nullptr;
-    std::map<glui32, FontEntry> m_entries;
+    std::unordered_map<glui32, FontEntry> m_entries;
     bool m_make_bold = false;
     bool m_make_oblique = false;
     bool m_kerned = false;
-    std::map<std::pair<glui32, glui32>, int> m_kerncache;
+    std::unordered_map<unsigned long long, int> m_kerncache;
 };
 
 //
@@ -554,7 +554,7 @@ int Font::charkern(glui32 c0, glui32 c1)
         return 0;
     }
 
-    auto key = std::make_pair(c0, c1);
+    unsigned long long key = (static_cast<unsigned long long>(c0) << 32) | c1;
     try {
         return m_kerncache.at(key);
     } catch (const std::out_of_range &) {

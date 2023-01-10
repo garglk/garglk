@@ -72,6 +72,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -90,7 +91,7 @@
 static QString cliptext;
 
 // filters and extensions for file dialogs
-static const std::map<FileFilter, std::pair<QString, QString>> filters = {
+static const std::unordered_map<FileFilter, std::pair<QString, QString>> filters = {
     {FileFilter::Save, std::make_pair("Saved game files (*.glksave *.sav)", "glksave")},
     {FileFilter::Text, std::make_pair("Text files (*.txt)", "txt")},
     {FileFilter::Data, std::make_pair("Data files (*.glkdata)", "glkdata")},

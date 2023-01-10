@@ -21,9 +21,9 @@
 #include "launcher.h"
 
 #include <cstdlib>
-#include <map>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 
 #import <Cocoa/Cocoa.h>
 #import <OpenGL/gl.h>
@@ -37,7 +37,7 @@ static const char *AppName = GARGOYLE_NAME " " GARGOYLE_VERSION;
 
 static std::string winpath();
 
-static const std::map<FileFilter, std::string> winfilters = {
+static const std::unordered_map<FileFilter, std::string> winfilters = {
     {FileFilter::Save, "glksave"},
     {FileFilter::Text, "txt"},
     {FileFilter::Data, "glkdata"},
