@@ -1,13 +1,13 @@
 /*----------------------------------------------------------------------*\
 
-	Abstract datatype Set for Alan interpreter
+    Abstract datatype Set for Alan interpreter
 
-	A set is implemented as a struct holding a size and a
-	dynamically allocated array of members. Members can be
-	integers or instance numbers. Attributes of Set type is
-	allocated and the pointer to it is used as the attribute
-	value. As members are only references, clearing a set can
-	simply be done by setting the size to zero.
+    A set is implemented as a struct holding a size and a
+    dynamically allocated array of members. Members can be
+    integers or instance numbers. Attributes of Set type is
+    allocated and the pointer to it is used as the attribute
+    value. As members are only references, clearing a set can
+    simply be done by setting the size to zero.
 
 \*----------------------------------------------------------------------*/
 #include "set.h"
@@ -88,8 +88,8 @@ bool inSet(Set *theSet, Aword member)
 
   for (i = 1; i <= theSet->size; i++)
     if (getSetMember(theSet, i) == member)
-      return TRUE;
-  return FALSE;
+      return true;
+  return false;
 }
 
 
@@ -130,7 +130,7 @@ void removeFromSet(Set *theSet, Aword member)
   for (i = 0; i < theSet->size; i++) {
     if ((Aword)theSet->members[i] == member) {
       for (j = i; j < theSet->size-1; j++)
-	theSet->members[j] = theSet->members[j+1];
+    theSet->members[j] = theSet->members[j+1];
       theSet->size--;
       break;
     }
@@ -143,13 +143,13 @@ bool equalSets(Set *set1, Set *set2)
 {
   int i;
 
-  if (set1->size != set2->size) return FALSE;
+  if (set1->size != set2->size) return false;
 
   for (i = 0; i < set1->size; i++) {
     if (!inSet(set2, set1->members[i]))
-      return FALSE;
+      return false;
   }
-  return TRUE;
+  return true;
 }
 
 

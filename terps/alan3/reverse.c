@@ -32,12 +32,12 @@ static bool alreadyDone(Aaddr address)
 {
     int i;
 
-    if (address == 0) return TRUE;
+    if (address == 0) return true;
 
     /* Have we already done it? */
     for (i = 0; i < numberDone; i++)
         if (addressesDone[i] == address)
-            return TRUE;
+            return true;
 
     if (doneSize == numberDone) {
         doneSize += 100;
@@ -46,7 +46,7 @@ static bool alreadyDone(Aaddr address)
     addressesDone[numberDone] = address;
     numberDone++;
 
-    return FALSE;
+    return false;
 }
 
 
@@ -116,7 +116,7 @@ static void reverseStms(Aword adr)
 
   if (!adr || alreadyDone(adr)) return;
 
-  while (TRUE) {
+  while (true) {
     reverse(e);
     if (*e == ((Aword)C_STMOP<<28|(Aword)I_RETURN)) break;
     e++;

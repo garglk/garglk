@@ -16,6 +16,7 @@
 
 /* PREPROCESSOR */
 #define FORWARD
+#define protected
 #define NEW(type) ((type *)allocate(sizeof(type)))
 
 
@@ -40,6 +41,10 @@
 /* TYPES */
 
 #include <stdbool.h>
+
+/* A char type that accepts 8-bit characters (ISO8859-1 and UTF-8) */
+/* TODO: change all char arrays that are strings to uchar */
+typedef unsigned char uchar;
 
 /* The various tables */
 typedef struct VerbEntry {	/* VERB TABLE */

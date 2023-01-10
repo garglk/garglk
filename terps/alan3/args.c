@@ -66,7 +66,7 @@ static bool isQuoted(char *argument) {
 /*----------------------------------------------------------------------*/
 static char *addAcodeExtension(char *adventureFileName) {
     if (strlen(adventureFileName) < strlen(ACODEEXTENSION)
-        || compareStrings(&adventureFileName[strlen(adventureFileName)-4], ACODEEXTENSION) != 0) {
+        || !equalStrings(&adventureFileName[strlen(adventureFileName)-4], ACODEEXTENSION)) {
         adventureFileName = realloc(adventureFileName, strlen(adventureFileName)+strlen(ACODEEXTENSION)+1);
         strcat(adventureFileName, ACODEEXTENSION);
     }
@@ -100,47 +100,54 @@ static void switches(int argc, char *argv[])
                     terminate(0);
                     break;
                 case 'i':
-                    ignoreErrorOption = TRUE;
+                    encodingOption = ENCODING_ISO;
+                    break;
+                case 'u':
+                    encodingOption = ENCODING_UTF;
+                    break;
+                case 'e':
+                    ignoreErrorOption = true;
                     break;
                 case 't':
-                    traceSectionOption = TRUE;
+                    traceSectionOption = true;
                     switch (argument[2]) {
                     case '9':
                     case '8':
                     case '7':
                     case '6':
-                    case '5' : tracePushOption = TRUE;
-                    case '4' : traceStackOption = TRUE;
-                    case '3' : traceInstructionOption = TRUE;
-                    case '2' : traceSourceOption = TRUE;
+                    case '5' : tracePushOption = true;
+                    case '4' : traceStackOption = true;
+                    case '3' : traceInstructionOption = true;
+                    case '2' : traceSourceOption = true;
                     case '\0':
-                    case '1': traceSectionOption = TRUE;
+                    case '1': traceSectionOption = true;
                     }
                     break;
                 case 'd':
-                    debugOption = TRUE;
+                    debugOption = true;
                     break;
                 case 'l':
-                    transcriptOption = TRUE;
-                    logOption = FALSE;
+                    transcriptOption = true;
                     break;
                 case 'v':
                     if (strcmp(argument, "-version") == 0) {
                         version();
                         terminate(0);
                     } else
-                        verboseOption = TRUE;
+                        verboseOption = true;
                     break;
                 case 'n':
-                    statusLineOption = FALSE;
+                    statusLineOption = false;
                     break;
                 case 'c':
-                    logOption = TRUE;
-                    transcriptOption = FALSE;
+                    commandLogOption = true;
+                    break;
+                case 'p':
+                    nopagingOption = true;
                     break;
                 case 'r':
-                    regressionTestOption = TRUE;
-                    statusLineOption = FALSE;
+                    regressionTestOption = true;
+                    statusLineOption = false;
                     break;
                 case '-':
                     if (strcasecmp(&argument[2], "version") == 0) {

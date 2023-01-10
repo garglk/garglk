@@ -52,12 +52,7 @@
 #define FNM_FILE_NAME        FNM_PATHNAME
 #endif
 
-#include <sys/cdefs.h>
 
-__BEGIN_DECLS
-int      fnmatch __P((const char *, const char *, int));
-__END_DECLS
+int fnmatch(const char *, const char *, int);
 
 #endif /* !_FNMATCH_H_ */
-
-

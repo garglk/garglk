@@ -32,8 +32,8 @@ Interpreter unit for Alan interpreter Arun
 #endif
 
 
-bool stopAtNextLine = FALSE;
-bool fail = FALSE;
+bool stopAtNextLine = false;
+bool fail = false;
 
 
 /* PRIVATE DATA */
@@ -253,7 +253,7 @@ static void tracePC(int pc) {
     resultTraced = false;
 }
 
-static bool skipStackDump = FALSE; /* Need to be able to skip it for some outputs */
+static bool skipStackDump = false; /* Need to be able to skip it for some outputs */
 
 /*----------------------------------------------------------------------*/
 static void traceSkip() {
@@ -272,7 +272,7 @@ static void interpretIf(Aword v)
     if (!v) {
         /* Skip to next ELSE or ENDIF on same level */
         traceSkip();
-        while (TRUE) {
+        while (true) {
             i = memory[pc++];
             if (I_CLASS(i) == (Aword)C_STMOP)
                 switch (I_OP(i)) {
@@ -307,7 +307,7 @@ static void interpretElse(void)
     Aword i;
 
     traceSkip();
-    while (TRUE) {
+    while (true) {
         /* Skip to ENDIF on the same level */
         i = memory[pc++];
         if (I_CLASS(i) == (Aword)C_STMOP)
@@ -330,7 +330,7 @@ static void goToLOOPEND(void) {
     int i;
 
     traceSkip();
-    while (TRUE) {
+    while (true) {
         /* Skip past LOOPEND on the same level */
         i = memory[pc];
         if (I_CLASS(i) == (Aword)C_STMOP)
@@ -356,7 +356,7 @@ static void jumpBackToStartOfMatchingLOOP(void) {
 
     traceSkip();
     pc--;				/* Ignore the instruction we're on */
-    while (TRUE) {
+    while (true) {
         /* Skip back past LOOP on the same level */
         i = memory[--pc];
         if (I_CLASS(i) == (Aword)C_STMOP)
@@ -415,7 +415,7 @@ static void depexec(Aword v)
         /* The expression was not true, skip to next CASE on the same
            level which could be a DEPCASE or DEPELSE */
         if (traceInstructionOption) printf("\n    : ");
-        while (TRUE) {
+        while (true) {
             i = memory[pc++];
             if (I_CLASS(i) == (Aword)C_STMOP)
                 switch (I_OP(i)) {
@@ -459,7 +459,7 @@ static void depcase(void)
     */
 
     if (traceInstructionOption) printf("\n    : ");
-    while (TRUE) {
+    while (true) {
         i = memory[pc++];
         if (I_CLASS(i) == (Aword)C_STMOP)
             switch (I_OP(i)) {
@@ -618,7 +618,7 @@ void interpret(Aaddr adr)
 
     oldpc = pc;
     pc = adr;
-    while(TRUE) {
+    while(true) {
         if (pc > memTop)
             syserr("Interpreting outside program.");
 
@@ -708,7 +708,7 @@ void interpret(Aaddr adr)
                 traceInstruction2("LINE", file, line);
                 if (traceStackOption)
                     traceStack(stack);
-                skipStackDump = TRUE;
+                skipStackDump = true;
                 if (line != 0) {
                     bool atNext = stopAtNextLine && line != current.sourceLine;
                     bool atBreakpoint =  breakpointIndex(file, line) != -1;
@@ -722,8 +722,8 @@ void interpret(Aaddr adr)
                     current.sourceLine = line;
                     current.sourceFile = file;
                     if (atNext || atBreakpoint) {
-                        stopAtNextLine = FALSE;
-                        debug(TRUE, line, file);
+                        stopAtNextLine = false;
+                        debug(true, line, file);
                     }
                 }
                 break;
@@ -1473,7 +1473,7 @@ void interpret(Aaddr adr)
             if (traceStackOption) {
                 if (!skipStackDump)
                     traceStack(stack);
-                skipStackDump = FALSE;
+                skipStackDump = false;
             }
             break;
 
