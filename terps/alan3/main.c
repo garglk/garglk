@@ -51,9 +51,6 @@
 
 /* PUBLIC DATA */
 
-winid_t glkMainWin;
-winid_t glkStatusWin;
-
 /* Amachine structures - Static */
 VerbEntry *vrbs;		/* Verb table pointer */
 
