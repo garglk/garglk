@@ -54,7 +54,7 @@ bool isAObject(int instance)
 
 bool isAContainer(int instance)
 {
-    return instance != 0 && !isLiteral(instance) && instances[instance].container != 0;
+    return instance != 0 && !isLiteral(instance) && (instances[instance].container != 0);
 }
 
 bool isAActor(int instance)
@@ -125,7 +125,7 @@ void setInstanceSetAttribute(int instance, int attribute, Aptr set)
 
 
 /*----------------------------------------------------------------------*/
-static Aptr literalAttribute(int literal, int attribute)
+static Aword getLiteralAttribute(int literal, int attribute)
 {
     if (isPreBeta3(header->version)) {
         if (attribute == 1)
@@ -143,12 +143,12 @@ static Aptr literalAttribute(int literal, int attribute)
 
 
 /*======================================================================*/
-Aptr getInstanceAttribute(int instance, int attribute)
+Aword getInstanceAttribute(int instance, int attribute)
 {
     char str[80];
 
     if (isLiteral(instance))
-        return literalAttribute(instance, attribute);
+        return getLiteralAttribute(instance, attribute);
     else {
         if (instance > 0 && instance <= header->instanceMax) {
             if (attribute == -1)
@@ -156,11 +156,18 @@ Aptr getInstanceAttribute(int instance, int attribute)
             else
                 return getAttribute(admin[instance].attributes, attribute);
         } else {
-            sprintf(str, "Can't ATTRIBUTE item (%d).", instance);
+            sprintf(str, "Can't ATTRIBUTE instance %d.", instance);
             syserr(str);
+            // No return from syserr()
+            return EOF;
         }
     }
-    return(EOF);
+}
+
+
+/*======================================================================*/
+bool hasAttribute(Aid instance, Aid attribute) {
+    return attributeExists(admin[instance].attributes, attribute);
 }
 
 
@@ -249,10 +256,10 @@ bool isIn(int instance, int container, ATrans trans)
             loc = admin[loc].location;
         while (loc != 0 && !isA(loc, LOCATION))
             if (loc == container)
-                return TRUE;
+                return true;
             else
                 loc = admin[loc].location;
-        return FALSE;
+        return false;
     }
 }
 
@@ -262,7 +269,7 @@ bool isIn(int instance, int container, ATrans trans)
 /* Look see if an instance is AT another. */
 bool isAt(int instance, int other, ATrans trans)
 {
-    if (instance == 0 || other == 0) return FALSE;
+    if (instance == 0 || other == 0) return false;
 
     if (isALocation(instance)) {
         /* Nested locations */
@@ -273,19 +280,19 @@ bool isAt(int instance, int other, ATrans trans)
             return admin[instance].location == other;
         case INDIRECT:
             if (current == other)
-                return FALSE;
+                return false;
             current = admin[current].location;
         case TRANSITIVE:
             while (current != 0) {
                 if (current == other)
-                    return TRUE;
+                    return true;
                 else
                     current = admin[current].location;
             }
-            return FALSE;
+            return false;
         }
         syserr("Unexpected value in switch in isAt() for location");
-        return FALSE;
+        return false;
     } else if (isALocation(other)) {
         /* Instance is not a location but other is */
         switch (trans) {
@@ -293,7 +300,7 @@ bool isAt(int instance, int other, ATrans trans)
             return admin[instance].location == other;
         case INDIRECT: {
             if (admin[instance].location == other)
-                return FALSE;   /* Directly, so not Indirectly */
+                return false;   /* Directly, so not Indirectly */
             /* Fall through to transitive handling of the location */
         }
         case TRANSITIVE: {
@@ -301,15 +308,15 @@ bool isAt(int instance, int other, ATrans trans)
             int current = other;
             while (current != 0) {
                 if (current == location)
-                    return TRUE;
+                    return true;
                 else
                     current = admin[current].location;
             }
-            return FALSE;
+            return false;
         }
         }
         syserr("Unexpected value in switch in isAt() for non-location");
-        return FALSE;
+        return false;
     } else {
         /* Other is also not a location */
         switch (trans) {
@@ -319,24 +326,24 @@ bool isAt(int instance, int other, ATrans trans)
             int location = locationOf(instance);
             int current = other;
             if (location == current)
-                return FALSE;
+                return false;
             else
                 current = admin[current].location;
             while (current != 0) {
                 if (current == location)
-                    return TRUE;
+                    return true;
                 else
                     current = admin[current].location;
             }
-            return FALSE;
+            return false;
         }
         case TRANSITIVE: {
             int location = locationOf(other);
             int current = locationOf(instance);
-            bool ok = FALSE;
+            bool ok = false;
             while (current != 0 && !ok) {
                 if (current == location)
-                    ok = TRUE;
+                    ok = true;
                 else
                     current = admin[current].location;
             }
@@ -344,7 +351,7 @@ bool isAt(int instance, int other, ATrans trans)
         }
         }
         syserr("Unexpected value in switch in isAt() for non-location");
-        return FALSE;
+        return false;
     }
 }
 
@@ -411,11 +418,11 @@ int where(int instance, ATrans trans)
 
 /*----------------------------------------------------------------------*/
 static bool executeInheritedMentioned(int class) {
-    if (class == 0) return FALSE;
+    if (class == 0) return false;
 
     if (classes[class].mentioned) {
         interpret(classes[class].mentioned);
-        return TRUE;
+        return true;
     } else
         return executeInheritedMentioned(classes[class].parent);
 }
@@ -425,7 +432,7 @@ static bool executeInheritedMentioned(int class) {
 static bool mention(int instance) {
     if (instances[instance].mentioned) {
         interpret(instances[instance].mentioned);
-        return TRUE;
+        return true;
     } else
         return executeInheritedMentioned(instances[instance].parent);
 }
@@ -452,7 +459,7 @@ void sayInstance(int instance)
                     /* ... and then the noun, capitalized if necessary */
                     if (header->capitalizeNouns) {
                         capitalized = strdup((char *)pointerTo(dict[wrds[params[p].lastWord]].wrd));
-                        capitalized[0] = IsoToUpperCase(capitalized[0]);
+                        capitalized[0] = toUpper(capitalized[0]);
                         output(capitalized);
                         deallocate(capitalized);
                     } else
@@ -471,7 +478,7 @@ void sayInteger(int value)
 {
     char buf[25];
 
-    if (isHere(HERO, FALSE)) {
+    if (isHere(HERO, false)) {
         sprintf(buf, "%d", value);
         output(buf);
     }
@@ -481,7 +488,7 @@ void sayInteger(int value)
 /*======================================================================*/
 void sayString(char *string)
 {
-    if (isHere(HERO, FALSE))
+    if (isHere(HERO, false))
         output(string);
     deallocate(string);
 }
@@ -519,7 +526,7 @@ static char *wordWithCode(int classBit, int code) {
 static bool sayInheritedDefiniteForm(int class) {
     if (class == 0) {
         syserr("No default definite article");
-        return FALSE;
+        return false;
     } else {
         if (classes[class].definite.address) {
             interpret(classes[class].definite.address);
@@ -546,7 +553,7 @@ static void sayDefinite(int instance) {
 static bool sayInheritedIndefiniteForm(int class) {
     if (class == 0) {
         syserr("No default indefinite article");
-        return FALSE;
+        return false;
     } else {
         if (classes[class].indefinite.address) {
             interpret(classes[class].indefinite.address);
@@ -573,7 +580,7 @@ static void sayIndefinite(int instance) {
 static bool sayInheritedNegativeForm(int class) {
     if (class == 0) {
         syserr("No default negative form");
-        return FALSE;
+        return false;
     } else {
         if (classes[class].negative.address) {
             interpret(classes[class].negative.address);
@@ -652,7 +659,7 @@ void say(int instance)
     Aword previousInstance = current.instance;
     current.instance = instance;
 
-    if (isHere(HERO, FALSE)) {
+    if (isHere(HERO, false)) {
         if (isLiteral(instance))
             sayLiteral(instance);
         else {
@@ -686,11 +693,11 @@ bool isDescribable(int instance) {
 static bool inheritsDescriptionFrom(int class)
 {
     if (classes[class].description != 0)
-        return TRUE;
+        return true;
     else if (classes[class].parent != 0)
         return inheritsDescriptionFrom(classes[class].parent);
     else
-        return FALSE;
+        return false;
 }
 
 
@@ -698,11 +705,11 @@ static bool inheritsDescriptionFrom(int class)
 bool hasDescription(int instance)
 {
     if (instances[instance].description != 0)
-        return TRUE;
+        return true;
     else if (instances[instance].parent != 0)
         return inheritsDescriptionFrom(instances[instance].parent);
     else
-        return FALSE;
+        return false;
 }
 
 
@@ -731,7 +738,7 @@ void describeAnything(int instance)
         if (instances[instance].parent != 0)
             describeClass(instances[instance].parent);
     }
-    admin[instance].alreadyDescribed = TRUE;
+    admin[instance].alreadyDescribed = true;
 }
 
 
@@ -746,17 +753,17 @@ static void describeObject(int object)
         if (instances[object].container != 0)
             describeContainer(object);
     }
-    admin[object].alreadyDescribed = TRUE;
+    admin[object].alreadyDescribed = true;
 }
 
 
 /*----------------------------------------------------------------------*/
 static bool inheritedDescriptionCheck(int class)
 {
-    if (class == 0) return TRUE;
-    if (!inheritedDescriptionCheck(classes[class].parent)) return FALSE;
-    if (classes[class].descriptionChecks == 0) return TRUE;
-    return !checksFailed(classes[class].descriptionChecks, TRUE);
+    if (class == 0) return true;
+    if (!inheritedDescriptionCheck(classes[class].parent)) return false;
+    if (classes[class].descriptionChecks == 0) return true;
+    return !checksFailed(classes[class].descriptionChecks, true);
 }
 
 /*----------------------------------------------------------------------*/
@@ -768,11 +775,11 @@ static bool descriptionCheck(int instance)
     current.instance = instance;
     if (inheritedDescriptionCheck(instances[instance].parent)) {
         if (instances[instance].checks == 0)
-            r = TRUE;
+            r = true;
         else
-            r = !checksFailed(instances[instance].checks, TRUE);
+            r = !checksFailed(instances[instance].checks, true);
     } else
-        r = FALSE;
+        r = false;
     current.instance = previousInstance;
     return r;
 }
@@ -801,7 +808,7 @@ void describeInstances(void)
                 printMessageWithInstanceParameter(M_SEE_START, i);
             else if (found > 1)
                 printMessageWithInstanceParameter(M_SEE_COMMA, lastInstanceFound);
-            admin[i].alreadyDescribed = TRUE;
+            admin[i].alreadyDescribed = true;
 
             // TODO : isOpaque()
             if (instances[i].container && containerSize(i, DIRECT) > 0 && !getInstanceAttribute(i, OPAQUEATTRIBUTE)) {
@@ -831,7 +838,7 @@ void describeInstances(void)
 
     /* Clear the describe flag for all instances */
     for (i = 1; i <= header->instanceMax; i++)
-        admin[i].alreadyDescribed = FALSE;
+        admin[i].alreadyDescribed = false;
 }
 
 
@@ -844,7 +851,7 @@ bool describe(int instance)
     current.instance = instance;
     verifyInstance(instance, "DESCRIBE");
     if (descriptionCheck(instance)) {
-        descriptionOk = TRUE;
+        descriptionOk = true;
         if (isAObject(instance)) {
             describeObject(instance);
         } else if (isAActor(instance)) {
@@ -852,7 +859,7 @@ bool describe(int instance)
         } else
             describeAnything(instance);
     } else
-        descriptionOk = FALSE;
+        descriptionOk = false;
     current.instance = previousInstance;
     return descriptionOk;
 }
@@ -1075,11 +1082,11 @@ static bool runExtractChecks(int instance, int containerId) {
     if (theContainer->extractChecks != 0) {
         traceExtract(instance, containerId, "Checking");
         if (checksFailed(theContainer->extractChecks, EXECUTE_CHECK_BODY_ON_FAIL)) {
-            fail = TRUE;
-            return FALSE;       /* Failed! */
+            fail = true;
+            return false;       /* Failed! */
         }
     }
-    return TRUE;                /* Passed! */
+    return true;                /* Passed! */
 }
 
 
@@ -1122,5 +1129,5 @@ void locate(int instance, int whr)
     else
         locateObject(instance, whr);
 
-    gameStateChanged = TRUE;
+    gameStateChanged = true;
 }

@@ -39,7 +39,7 @@ void go(int location, int dir)
     if (instances[location].exits != 0)
         while (!isEndOfArray(theExit)) {
             if (theExit->code == dir) {
-                ok = TRUE;
+                ok = true;
                 if (theExit->checks != 0) {
                     if (traceSectionOption)
                         traceExit(location, dir, "Checking");
@@ -74,13 +74,13 @@ bool exitto(int to, int from)
     ExitEntry *theExit;
 
     if (instances[from].exits == 0)
-        return FALSE; /* No exits */
-    
+        return false; /* No exits */
+
     for (theExit = (ExitEntry *) pointerTo(instances[from].exits); !isEndOfArray(theExit); theExit++)
         if (theExit->target == to)
-            return TRUE;
-    
-    return FALSE;
+            return true;
+
+    return false;
 }
 
 
@@ -91,7 +91,7 @@ void look(void)
 
     /* Set describe flag for all objects and actors */
     for (i = 1; i <= header->instanceMax; i++)
-        admin[i].alreadyDescribed = FALSE;
+        admin[i].alreadyDescribed = false;
 
     if (anyOutput)
         para();
@@ -101,10 +101,7 @@ void look(void)
     setNormalStyle();
 
     newline();
-    capitalize = TRUE;
+    capitalize = true;
     if (describe(current.location))
         describeInstances();
 }
-
-
-

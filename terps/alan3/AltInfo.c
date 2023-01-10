@@ -1,9 +1,9 @@
 #include "AltInfo.h"
 
 /*----------------------------------------------------------------------*\
- 
+
 An info node about the Verb Alternatives found and possibly executed
- 
+
 \*----------------------------------------------------------------------*/
 
 #include "types.h"
@@ -33,8 +33,8 @@ void primeAltInfo(AltInfo *altInfo, int level, int parameter, int instance, int 
     altInfo->parameter = parameter;
     altInfo->instance = instance;
     altInfo->class = class;
-    altInfo->done = FALSE;
-    altInfo->end = FALSE;
+    altInfo->done = false;
+    altInfo->end = false;
 }
 
 
@@ -59,14 +59,14 @@ static void traceAltInfo(AltInfo *alt) {
         traceInstanceAndItsClass(current.location, alt->class);
         break;
     case PARAMETER_LEVEL: {
-		char *parameterName = parameterNameInSyntax(current.verb, alt->parameter);
-		if (parameterName != NULL)
-			printf("in parameter %s(#%d)=", parameterName, alt->parameter);
-		else
-			printf("in parameter #%d=", alt->parameter);
+        char *parameterName = parameterNameInSyntax(current.verb, alt->parameter);
+        if (parameterName != NULL)
+            printf("in parameter '%s'(#%d)=", parameterName, alt->parameter);
+        else
+            printf("in parameter #%d=", alt->parameter);
         traceInstanceAndItsClass(globalParameters[alt->parameter-1].instance, alt->class);
         break;
-	}
+    }
     }
 }
 
@@ -89,11 +89,11 @@ bool checkFailed(AltInfo *altInfo, bool execute)
         traceVerbCheck(altInfo, execute);
         // TODO Why does this not generate a regression error with !
         // Need a new regression case?
-        fail = FALSE;
-        if (checksFailed(altInfo->alt->checks, execute)) return TRUE;
-        if (fail) return TRUE;
+        fail = false;
+        if (checksFailed(altInfo->alt->checks, execute)) return true;
+        if (fail) return true;
     }
-    return FALSE;
+    return false;
 }
 
 
@@ -122,13 +122,13 @@ static void traceVerbExecution(AltInfo *alt)
 /*======================================================================*/
 bool executedOk(AltInfo *altInfo)
 {
-    fail = FALSE;
+    fail = false;
     if (!altInfo->done && altInfo->alt->action != 0) {
         traceVerbExecution(altInfo);
         current.instance = altInfo->instance;
         interpret(altInfo->alt->action);
     }
-    altInfo->done = TRUE;
+    altInfo->done = true;
     return !fail;
 }
 
@@ -143,8 +143,8 @@ bool canBeExecuted(AltInfo *altInfo) {
 AltInfo *duplicateAltInfoArray(AltInfo original[]) {
     int size;
     AltInfo *duplicate;
-	
-    for (size = 0; original[size].end != TRUE; size++)
+
+    for (size = 0; original[size].end != true; size++)
         ;
     size++;
     duplicate = allocate(size*sizeof(AltInfo));
@@ -157,7 +157,7 @@ AltInfo *duplicateAltInfoArray(AltInfo original[]) {
 int lastAltInfoIndex(AltInfo altInfo[])
 {
     int altIndex;
-	
+
     /* Loop to last alternative */
     for (altIndex = -1; !altInfo[altIndex+1].end; altIndex++)
         ;
@@ -174,11 +174,11 @@ static AltInfo *nextFreeAltInfo(AltInfoArray altInfos) {
 /*----------------------------------------------------------------------*/
 static void addAlternative(AltInfoArray altInfos, int verb, int level, Aint parameterNumber, Aint theClass, Aid theInstance, AltEntryFinder finder) {
     AltInfo *altInfoP = nextFreeAltInfo(altInfos);
-	
+
     altInfoP->alt = (*finder)(verb, parameterNumber, theInstance, theClass);
     if (altInfoP->alt != NULL) {
         primeAltInfo(altInfoP, level, parameterNumber, theInstance, theClass);
-        altInfoP[1].end = TRUE;
+        altInfoP[1].end = true;
     }
 }
 
@@ -197,7 +197,7 @@ static void addAlternativesFromParents(AltInfoArray altInfos, int verb, int leve
                                    classes[theClass].parent,
                                    theInstance,
                                    finder);
-	
+
     addAlternative(altInfos, verb, level, parameterNumber, theClass, theInstance, finder);
 }
 
@@ -206,14 +206,14 @@ static void addAlternativesFromParents(AltInfoArray altInfos, int verb, int leve
 static void addAlternativesFromLocation(AltInfoArray altInfos, int verb, Aid location, AltEntryFinder finder) {
     if (admin[location].location != 0)
         addAlternativesFromLocation(altInfos, verb, admin[location].location, finder);
-	
+
     addAlternativesFromParents(altInfos, verb,
                                LOCATION_LEVEL,
                                NO_PARAMETER,
                                instances[location].parent,
                                location,
                                finder);
-	
+
     addAlternative(altInfos, verb, LOCATION_LEVEL, NO_PARAMETER, NO_CLASS, location, finder);
 }
 
@@ -222,13 +222,13 @@ static void addAlternativesFromLocation(AltInfoArray altInfos, int verb, Aid loc
 static void addAlternativesFromParameter(AltInfoArray altInfos, int verb, Parameter parameters[], int parameterNumber, AltEntryFinder finder) {
     Aid parent;
     Aid theInstance = parameters[parameterNumber-1].instance;
-	
+
     if (isLiteral(theInstance))
         parent = literals[literalFromInstance(theInstance)].class;
     else
         parent = instances[theInstance].parent;
     addAlternativesFromParents(altInfos, verb, PARAMETER_LEVEL, parameterNumber, parent, theInstance, finder);
-	
+
     if (!isLiteral(theInstance))
         addAlternative(altInfos, verb, PARAMETER_LEVEL, parameterNumber, NO_CLASS, theInstance, finder);
 }
@@ -238,14 +238,14 @@ static void addAlternativesFromParameter(AltInfoArray altInfos, int verb, Parame
 bool anyCheckFailed(AltInfoArray altInfo, bool execute)
 {
     int altIndex;
-    
+
     if (altInfo != NULL)
-	for (altIndex = 0; !altInfo[altIndex].end; altIndex++) {
-	    current.instance = altInfo[altIndex].instance;
-	    if (checkFailed(&altInfo[altIndex], execute))
-		return TRUE;
-	}
-    return FALSE;
+    for (altIndex = 0; !altInfo[altIndex].end; altIndex++) {
+        current.instance = altInfo[altIndex].instance;
+        if (checkFailed(&altInfo[altIndex], execute))
+        return true;
+    }
+    return false;
 }
 
 
@@ -253,13 +253,13 @@ bool anyCheckFailed(AltInfoArray altInfo, bool execute)
 bool anythingToExecute(AltInfo altInfo[])
 {
     int altIndex;
-	
+
     /* Check for anything to execute... */
     if (altInfo != NULL)
-	for (altIndex = 0; !altInfo[altIndex].end; altIndex++)
-	    if (canBeExecuted(&altInfo[altIndex]))
-		return TRUE;
-    return FALSE;
+    for (altIndex = 0; !altInfo[altIndex].end; altIndex++)
+        if (canBeExecuted(&altInfo[altIndex]))
+        return true;
+    return false;
 }
 
 
@@ -285,14 +285,14 @@ static AltEntry *findAlternative(Aaddr verbTableAddress, int verbCode, int param
 {
     AltEntry *alt;
     VerbEntry *verbEntry;
-	
+
     if (verbTableAddress == 0) return NULL;
 
     verbEntry = findVerbEntry(verbCode, (VerbEntry *) pointerTo(verbTableAddress));
     if (verbEntry != NULL)
         for (alt = (AltEntry *) pointerTo(verbEntry->alts); !isEndOfArray(alt); alt++) {
             if (alt->param == parameterNumber || alt->param == 0) {
-                if (verbEntry->code < 0) current.meta = TRUE;
+                if (verbEntry->code < 0) current.meta = true;
                 return alt;
             }
         }
@@ -316,10 +316,10 @@ static AltEntry *alternativeFinder(int verb, int parameterNumber, int theInstanc
 AltInfo *findAllAlternatives(int verb, Parameter parameters[]) {
     int parameterNumber;
     AltInfo altInfos[1000];
-    altInfos[0].end = TRUE;
-    
+    altInfos[0].end = true;
+
     addGlobalAlternatives(altInfos, verb, &alternativeFinder);
-	
+
     addAlternativesFromLocation(altInfos, verb, current.location, &alternativeFinder);
 
     for (parameterNumber = 1; !isEndOfArray(&parameters[parameterNumber-1]); parameterNumber++) {
@@ -339,9 +339,9 @@ static bool possibleWithFinder(int verb, Parameter parameters[], AltInfoFinder *
     // TODO Need to do this since anyCheckFailed() call execute() which assumes the global parameters
     setGlobalParameters(parameters);
     if (anyCheckFailed(allAlternatives, DONT_EXECUTE_CHECK_BODY_ON_FAIL))
-        anything = FALSE;
+        anything = false;
     else
-	anything = anythingToExecute(allAlternatives);
+    anything = anythingToExecute(allAlternatives);
 
     if (allAlternatives != NULL)
       deallocate(allAlternatives);

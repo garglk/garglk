@@ -12,16 +12,16 @@ bool checksFailed(Aaddr adr, bool execute)
     if (chk->exp == 0) {
         if (execute == EXECUTE_CHECK_BODY_ON_FAIL)
             interpret(chk->stms);
-        return TRUE;
+        return true;
     } else {
         while (!isEndOfArray(chk)) {
             if (!evaluate(chk->exp)) {
                 if (execute == EXECUTE_CHECK_BODY_ON_FAIL)
                     interpret(chk->stms);
-                return TRUE;
+                return true;
             }
             chk++;
         }
-        return FALSE;
+        return false;
     }
 }

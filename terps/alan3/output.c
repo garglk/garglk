@@ -12,26 +12,30 @@
 #include "msg.h"
 #include "readline.h"
 #include "instance.h"
+#include "converter.h"
+
 
 #ifdef HAVE_GLK
 #include "glkio.h"
 #endif
 
 /* PUBLIC DATA */
-bool anyOutput = FALSE;
-bool capitalize = FALSE;
-bool needSpace = FALSE;
-bool skipSpace = FALSE;
+bool anyOutput = false;
+bool capitalize = false;
+bool needSpace = false;
+bool skipSpace = false;
 
 /* Screen formatting info */
 int col, lin;
 int pageLength, pageWidth;
 
-/* Logfile */
+/* Logfiles */
 #ifdef HAVE_GLK
-strid_t logFile;
+strid_t commandLogFile;
+strid_t transcriptFile;
 #else
-FILE *logFile;
+FILE *commandLogFile;
+FILE *transcriptFile;
 #endif
 
 
@@ -71,9 +75,9 @@ void newline(void)
 #ifndef HAVE_GLK
     char buf[256];
 
-    if (!regressionTestOption && lin == pageLength - 1) {
-        printAndLog("\n");
-        needSpace = FALSE;
+    printAndLog("\n");
+    if ((!nopagingOption && !regressionTestOption) && lin == pageLength - 1) {
+        needSpace = false;
         col = 0;
         lin = 0;
         printMessage(M_MORE);
@@ -82,15 +86,14 @@ void newline(void)
         if (fgets(buf, 256, stdin) == 0)
             /* ignore error */;
         getPageSize();
-    } else
-        printAndLog("\n");
+    }
 
     lin++;
 #else
     printAndLog("\n");
 #endif
     col = 1;
-    needSpace = FALSE;
+    needSpace = false;
 }
 
 
@@ -106,7 +109,7 @@ void para(void)
     if (col != 1)
         newline();
     newline();
-    capitalize = TRUE;
+    capitalize = true;
 }
 
 
@@ -116,7 +119,7 @@ void clear(void)
 #ifdef HAVE_GLK
     glk_window_clear(glkMainWin);
 #else
-#ifdef HAVE_ANSI
+#ifdef HAVE_ANSI_CONTROL
     if (!statusLineOption) return;
     printf("\x1b[2J");
     printf("\x1b[%d;1H", pageLength);
@@ -133,47 +136,60 @@ static void capitalizeFirst(char *str) {
     while (i < strlen(str) && isSpace(str[i])) i++;
     if (i < strlen(str)) {
         str[i] = toUpper(str[i]);
-        capitalize = FALSE;
+        capitalize = false;
     }
 }
+
 
 
 /*======================================================================*/
 void printAndLog(char string[])
 {
+    /* TODO: clean up the GLK code to use same converted string */
 #ifdef HAVE_GLK
-    static int column = 0;
-    char *stringCopy;
-    char *stringPart;
+    printf("%s", string);
+#else
+    char *outputString = ensureExternalEncoding(string);
+    printf("%s", outputString);
 #endif
 
-    printf("%s", string);
-    if (!onStatusLine && transcriptOption) {
 #ifdef HAVE_GLK
-        // TODO Is this assuming only 70-char wide windows for GLK?
-        if (strlen(string) > 70-column) {
-            stringCopy = strdup(string);  /* Make sure we can write NULLs */
-            stringPart = stringCopy;
-            while (strlen(stringPart) > 70-column) {
-                int p;
-                for (p = 70-column; p>0 && !isspace((int)stringPart[p]); p--);
-                stringPart[p] = '\0';
-                glk_put_string_stream(logFile, stringPart);
-                glk_put_char_stream(logFile, '\n');
-                column = 0;
-                stringPart = &stringPart[p+1];
-            }
-            glk_put_string_stream(logFile, stringPart);
-            column = updateColumn(column, stringPart);
-            free(stringCopy);
-        } else {
-            glk_put_string_stream(logFile, string);
-            column = updateColumn(column, string);
+    if (!onStatusLine && transcriptOption) {
+        static int column = 0;
+        char *stringCopy;
+        char *stringPart;
+
+        // For GLK terps we need to do the formatting of transcript
+        // output here as GLK formats output for the terminal. Non-GLK
+        // terps will format all output in justify().  Using 70-char
+        // wide transcript lines.
+        /* The transcript file should be generated in external coding even for GLK terps */
+        stringCopy = strdup(string);  /* Make sure string is modifiable */
+        stringPart = stringCopy;
+        while (strlen(stringPart) > 70-column) {
+            int p;
+            for (p = 70-column; p>0 && !isspace((int)stringPart[p]); p--);
+            stringPart[p] = '\0';
+            char *converted = ensureExternalEncoding(stringPart);
+            glk_put_string_stream(transcriptFile, converted);
+            free(converted);
+            glk_put_string_stream(transcriptFile, "\n");
+            column = 0;
+            stringPart = &stringPart[p+1];
         }
-#else
-        fprintf(logFile, "%s", string);
-#endif
+        char *converted = ensureExternalEncoding(stringPart);
+        glk_put_string_stream(transcriptFile, converted);
+        free(converted);
+        column = updateColumn(column, stringPart);
+        free(stringCopy);
     }
+#else
+    if (!onStatusLine && transcriptOption) {
+        fprintf(transcriptFile, "%s", outputString);
+        fflush(transcriptFile);
+    }
+    free(outputString);
+#endif
 }
 
 
@@ -204,7 +220,7 @@ static void justify(char str[])
             ch = str[i];      /* Save space or NULL */
             str[i] = '\0';        /* Terminate string */
             printAndLog(str);     /* and print it */
-            skipSpace = FALSE;        /* If skipping, now we're done */
+            skipSpace = false;        /* If skipping, now we're done */
             str[i] = ch;      /* Restore character */
             /* Skip white after printed portion */
             for (str = &str[i]; isSpace(str[0]) && str[0] != '\0'; str++);
@@ -222,14 +238,14 @@ static void justify(char str[])
 static void space(void)
 {
     if (skipSpace)
-        skipSpace = FALSE;
+        skipSpace = false;
     else {
         if (needSpace) {
             printAndLog(" ");
             col++;
         }
     }
-    needSpace = FALSE;
+    needSpace = false;
 }
 
 
@@ -297,18 +313,18 @@ static char *printSymbol(char str[]) /* IN - The string starting with '$' */
     else switch (toLower(str[1])) {
         case 'n':
             newline();
-            needSpace = FALSE;
+            needSpace = false;
             break;
         case 'i':
             newline();
             printAndLog("    ");
             col = 5;
-            needSpace = FALSE;
+            needSpace = false;
             break;
         case 'o':
             space();
             sayParameter(0, 0);
-            needSpace = TRUE;       /* We did print something non-white */
+            needSpace = true;       /* We did print something non-white */
             break;
         case '+':
         case '0':
@@ -325,7 +341,7 @@ static char *printSymbol(char str[]) /* IN - The string starting with '$' */
                 default: form = SAY_SIMPLE; break;
                 }
                 sayParameter(str[2]-'1', form);
-                needSpace = TRUE;
+                needSpace = true;
             }
             advance = 3;
             break;
@@ -340,26 +356,26 @@ static char *printSymbol(char str[]) /* IN - The string starting with '$' */
         case '9':
             space();
             sayParameter(str[1]-'1', SAY_SIMPLE);
-            needSpace = TRUE;       /* We did print something non-white */
+            needSpace = true;       /* We did print something non-white */
             break;
         case 'l':
             space();
             say(current.location);
-            needSpace = TRUE;       /* We did print something non-white */
+            needSpace = true;       /* We did print something non-white */
             break;
         case 'a':
             space();
             say(current.actor);
-            needSpace = TRUE;       /* We did print something non-white */
+            needSpace = true;       /* We did print something non-white */
             break;
         case 'v':
             space();
             justify((char *)pointerTo(dictionary[verbWord].string));
-            needSpace = TRUE;       /* We did print something non-white */
+            needSpace = true;       /* We did print something non-white */
             break;
         case 'p':
             para();
-            needSpace = FALSE;
+            needSpace = false;
             break;
         case 't': {
             int i;
@@ -367,12 +383,12 @@ static char *printSymbol(char str[]) /* IN - The string starting with '$' */
 
             for (i = 0; i<spaces; i++) printAndLog(" ");
             col = col + spaces;
-            needSpace = FALSE;
+            needSpace = false;
             break;
         }
         case '$':
-            skipSpace = TRUE;
-            capitalize = FALSE;
+            skipSpace = true;
+            capitalize = false;
             break;
         case '_':
             advance = 2;
@@ -397,7 +413,7 @@ static bool inhibitSpace(char *str) {
 /*----------------------------------------------------------------------*/
 static bool isSpaceEquivalent(char str[]) {
     if (str[0] == ' ')
-        return TRUE;
+        return true;
     else
         return strncmp(str, "$p", 2) == 0
             || strncmp(str, "$n", 2) == 0
@@ -428,11 +444,14 @@ void output(char original[])
     char *str, *copy;
     char *symptr;
 
+    if (strlen(original) == 0)
+        return;
+
     copy = strdup(original);
     str = copy;
 
     if (inhibitSpace(str) || punctuationNext(str))
-        needSpace = FALSE;
+        needSpace = false;
     else
         space();            /* Output space if needed (& not inhibited) */
 
@@ -441,15 +460,15 @@ void output(char original[])
         ch = *symptr;       /* Terminate before symbol */
         *symptr = '\0';
         if (strlen(str) > 0) {
-            skipSpace = FALSE;    /* Only let skipSpace through if it is
+            skipSpace = false;    /* Only let skipSpace through if it is
                                      last in the string */
             if (lastCharOf(str) == ' ') {
                 str[strlen(str)-1] = '\0'; /* Truncate space character */
                 justify(str);       /* Output part before '$' */
-                needSpace = TRUE;
+                needSpace = true;
             } else {
                 justify(str);       /* Output part before '$' */
-                needSpace = FALSE;
+                needSpace = false;
             }
         }
         *symptr = ch;       /* restore '$' */
@@ -458,13 +477,13 @@ void output(char original[])
 
     if (str[0] != 0) {
         justify(str);           /* Output trailing part */
-        skipSpace = FALSE;
+        skipSpace = false;
         if (lastCharOf(str) != ' ')
-            needSpace = TRUE;
+            needSpace = true;
     }
     if (needSpace)
         capitalize = strchr("!?.", str[strlen(str)-1]) != 0;
-    anyOutput = TRUE;
+    anyOutput = true;
     free(copy);
 }
 
@@ -479,9 +498,9 @@ bool confirm(MsgKind msgno)
     printMessage(msgno);
 
 #ifdef USE_READLINE
-    if (!readline(buf)) return TRUE;
+    if (!readline(buf)) return true;
 #else
-    if (gets(buf) == NULL) return TRUE;
+    if (gets(buf) == NULL) return true;
 #endif
     col = 1;
 

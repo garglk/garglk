@@ -113,8 +113,8 @@ int findMultiplePosition(Parameter parameters[]) {
     // TODO: this should look at the isAll and isExplicitMultiple flags instead
     int multiplePosition;
     for (multiplePosition = 0; !isEndOfArray(&parameters[multiplePosition]); multiplePosition++)
-	if (parameters[multiplePosition].instance == 0)
-	    return multiplePosition;
+    if (parameters[multiplePosition].instance == 0)
+        return multiplePosition;
     return -1;
 }
 
@@ -125,8 +125,8 @@ void compressParameterArray(Parameter theArray[])
     int i, j;
 
     for (i = 0, j = 0; !isEndOfArray(&theArray[j]); j++)
-		if (theArray[j].instance != 0)
-			theArray[i++] = theArray[j];
+        if (theArray[j].instance != 0)
+            theArray[i++] = theArray[j];
     setEndOfArray(&theArray[i]);
 }
 
@@ -150,12 +150,12 @@ bool equalParameterArrays(Parameter parameters1[], Parameter parameters2[])
     int i;
 
     if ((parameters1 == NULL) != (parameters2 == NULL))
-        return FALSE;
+        return false;
     if (parameters1 == NULL) // Because then parameter2 is also NULL
-        return TRUE;
+        return true;
     for (i = 0; !isEndOfArray(&parameters1[i]); i++) {
-        if (isEndOfArray(&parameters2[i])) return FALSE;
-        if (parameters1[i].instance != parameters2[i].instance) return FALSE;
+        if (isEndOfArray(&parameters2[i])) return false;
+        if (parameters1[i].instance != parameters2[i].instance) return false;
     }
     return isEndOfArray(&parameters2[i]);
 }
@@ -225,7 +225,7 @@ void copyParameterArray(ParameterArray to, ParameterArray from)
 void subtractParameterArrays(Parameter theArray[], Parameter remove[])
 {
     int i;
-    
+
     if (remove == NULL) return;
 
     for (i = 0; !isEndOfArray(&theArray[i]); i++)
@@ -252,8 +252,8 @@ void intersectParameterArrays(Parameter one[], Parameter other[])
 
 
     for (i = 0; !isEndOfArray(&one[i]); i++)
-		if (inParameterArray(other, one[i].instance))
-			one[last++] = one[i];
+        if (inParameterArray(other, one[i].instance))
+            one[last++] = one[i];
     setEndOfArray(&one[last]);
 }
 
@@ -276,7 +276,7 @@ void addParameterForInstance(Parameter *parameters, int instance) {
     Parameter *parameter = findEndOfParameterArray(parameters);
 
     parameter->instance = instance;
-    parameter->useWords = FALSE;
+    parameter->useWords = false;
 
     setEndOfArray(parameter+1);
 }
@@ -288,7 +288,7 @@ void addParameterForInteger(ParameterArray parameters, int value) {
 
     createIntegerLiteral(value);
     parameter->instance = instanceFromLiteral(litCount);
-    parameter->useWords = FALSE;
+    parameter->useWords = false;
 
     setEndOfArray(parameter+1);
 }
@@ -299,7 +299,7 @@ void addParameterForString(Parameter *parameters, char *value) {
 
     createStringLiteral(value);
     parameter->instance = instanceFromLiteral(litCount);
-    parameter->useWords = FALSE;
+    parameter->useWords = false;
 
     setEndOfArray(parameter+1);
 }
@@ -309,8 +309,7 @@ void printParameterArray(Parameter parameters[]) {
     int i;
     printf("[");
     for (i = 0; !isEndOfArray(&parameters[i]); i++) {
-	printf("%d ", (int)parameters[i].instance);
+    printf("%d ", (int)parameters[i].instance);
     }
     printf("]\n");
 }
-

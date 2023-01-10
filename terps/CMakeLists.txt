@@ -129,22 +129,22 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Alan interpreter 3.0beta7
+# Alan interpreter 3.0beta8
 #
 if(WITH_ALAN3)
     terp(alan3
         SRCS alan3/alan.version.c alan3/act.c alan3/actor.c alan3/args.c
         alan3/arun.c alan3/attribute.c alan3/checkentry.c alan3/class.c
-        alan3/current.c alan3/debug.c alan3/decode.c alan3/dictionary.c
-        alan3/event.c alan3/exe.c alan3/fnmatch.c alan3/glkio.c alan3/glkstart.c
-        alan3/instance.c alan3/inter.c alan3/lists.c alan3/literal.c alan3/main.c
-        alan3/memory.c alan3/msg.c alan3/options.c alan3/output.c alan3/params.c
-        alan3/parse.c alan3/readline.c alan3/reverse.c alan3/rules.c alan3/save.c
-        alan3/scan.c alan3/score.c alan3/set.c alan3/stack.c alan3/state.c
-        alan3/syntax.c alan3/sysdep.c alan3/syserr.c alan3/term.c alan3/types.c
-        alan3/utils.c alan3/word.c alan3/compatibility.c alan3/AltInfo.c
-        alan3/Container.c alan3/Location.c alan3/ParameterPosition.c
-        alan3/StateStack.c
+        alan3/converter.c alan3/current.c alan3/debug.c alan3/decode.c
+        alan3/dictionary.c alan3/event.c alan3/exe.c alan3/fnmatch.c
+        alan3/glkio.c alan3/glkstart.c alan3/instance.c alan3/inter.c
+        alan3/lists.c alan3/literal.c alan3/main.c alan3/memory.c alan3/msg.c
+        alan3/options.c alan3/output.c alan3/params.c alan3/parse.c
+        alan3/readline.c alan3/reverse.c alan3/rules.c alan3/save.c alan3/scan.c
+        alan3/score.c alan3/set.c alan3/stack.c alan3/state.c alan3/syntax.c
+        alan3/sysdep.c alan3/syserr.c alan3/term.c alan3/types.c alan3/utils.c
+        alan3/word.c alan3/compatibility.c alan3/AltInfo.c alan3/Container.c
+        alan3/Location.c alan3/ParameterPosition.c alan3/StateStack.c
         MACROS GLK HAVE_GARGLK BUILD=0
         POSIX)
 endif()

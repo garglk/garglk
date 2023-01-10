@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------*\
 
-	actor
+    actor
 
 \*----------------------------------------------------------------------*/
 #include "actor.h"
@@ -69,7 +69,5 @@ void describeActor(int actor)
         if (instances[actor].container != 0)
             describeContainer(actor);
     }
-    admin[actor].alreadyDescribed = TRUE;
+    admin[actor].alreadyDescribed = true;
 }
-
-

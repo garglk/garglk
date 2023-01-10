@@ -52,8 +52,7 @@
 #define FNM_FILE_NAME        FNM_PATHNAME
 #endif
 
-int      fnmatch (const char *, const char *, int);
+
+int fnmatch(const char *, const char *, int);
 
 #endif /* !_FNMATCH_H_ */
-
-

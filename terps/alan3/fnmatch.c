@@ -37,7 +37,6 @@
 #include "fnmatch.h"
 
 #include <stdio.h>
-
 #include <ctype.h>
 #include <stdint.h>
 #include <string.h>

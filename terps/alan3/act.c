@@ -48,7 +48,7 @@ static void executeCommand(int verb, Parameter parameters[])
             }
     }
 
-    /* Then execute any not declared as AFTER, i.e. the default */
+    /* Then execute any not declared as AFTER, i.e. the default, from outside in */
     for (altIndex = 0; !altInfos[altIndex].end; altIndex++) {
         if (altInfos[altIndex].alt != 0)
             if (altInfos[altIndex].alt->qual != (Aword)Q_AFTER)
@@ -56,7 +56,7 @@ static void executeCommand(int verb, Parameter parameters[])
                     abortPlayerCommand();
     }
 
-    /* Finally, the ones declared as AFTER */
+    /* Finally, the ones declared as AFTER, from inside out */
     for (altIndex = lastAltInfoIndex(altInfos); altIndex >= 0; altIndex--) {
         if (altInfos[altIndex].alt != 0)
             if (!executedOk(&altInfos[altIndex]))

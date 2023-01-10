@@ -231,7 +231,7 @@ void rememberGameState(void) {
         initStateStack();
 
     pushGameState(stateStack, &gameState);
-    gameStateChanged = FALSE;
+    gameStateChanged = false;
 }
 
 

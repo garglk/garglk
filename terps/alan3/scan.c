@@ -23,6 +23,8 @@
 #include "debug.h"
 #include "msg.h"
 #include "inter.h"
+#include "converter.h"
+
 
 #ifdef USE_READLINE
 #include "readline.h"
@@ -34,13 +36,12 @@
 
 
 /* PUBLIC DATA */
-bool continued = FALSE;
+bool continued = false;
 
 
 /* PRIVATE DATA */
-static char buf[1000]; /* The input buffer */
-static char isobuf[1000]; /* The input buffer in ISO */
-static bool eol = TRUE; /* Looking at End of line? Yes, initially */
+static char input_buffer[1000]; /* The input buffer */
+static bool eol = true; /* Looking at End of line? Yes, initially */
 static char *token = NULL;
 
 
@@ -52,16 +53,11 @@ void forceNewPlayerInput() {
 
 /*----------------------------------------------------------------------*/
 static void unknown(char token[]) {
-    char *str = strdup(token);
     Parameter *messageParameters = newParameterArray();
 
-#if ISO == 0
-    fromIso(str, str);
-#endif
-    addParameterForString(messageParameters, str);
+    addParameterForString(messageParameters, token);
     printMessageWithParameters(M_UNKNOWN_WORD, messageParameters);
     deallocate(messageParameters);
-    free(str);
     abortPlayerCommand();
 }
 
@@ -81,7 +77,7 @@ static int lookup(char wrd[]) {
 
     // TODO: Why do we start at 0, is there a word code == 0?
     for (i = 0; !isEndOfArray(&dictionary[i]); i++) {
-        if (compareStrings(wrd, (char *) pointerTo(dictionary[i].string)) == 0) {
+        if (equalStrings(wrd, (char *) pointerTo(dictionary[i].string))) {
             return i;
         }
     }
@@ -91,7 +87,7 @@ static int lookup(char wrd[]) {
 
 /*----------------------------------------------------------------------*/
 static bool isWordCharacter(int ch) {
-    return isISOLetter(ch) || isdigit(ch) || ch == '\'' || ch == '-' || ch == '_';
+    return isLetter(ch) || isdigit(ch) || ch == '\'' || ch == '-' || ch == '_';
 }
 
 /*----------------------------------------------------------------------*/
@@ -127,7 +123,7 @@ static char *gettoken(char *buf) {
     while (*marker != '\0' && isSpace(*marker) && *marker != '\n')
         marker++;
     buf = marker;
-    if (isISOLetter(*marker))
+    if (isLetter(*marker))
         readWord(&marker);
     else if (isdigit((int)*marker))
         readNumber(&marker);
@@ -144,23 +140,28 @@ static char *gettoken(char *buf) {
 }
 
 
+static void printPrompt() {
+    if (header->prompt) {
+        anyOutput = false;
+        interpret(header->prompt);
+        if (anyOutput)
+            printAndLog(" ");
+        needSpace = false;
+    } else
+        printAndLog("> ");
+}
+
+
 /*----------------------------------------------------------------------*/
 // TODO replace dependency to exe.c with injection of quitGame() and undo()
 static void getLine(void) {
     para();
     do {
         statusline();
-        if (header->prompt) {
-            anyOutput = FALSE;
-            interpret(header->prompt);
-            if (anyOutput)
-                printAndLog(" ");
-            needSpace = FALSE;
-        } else
-            printAndLog("> ");
+        printPrompt();
 
 #ifdef USE_READLINE
-        if (!readline(buf))
+        if (!readline(input_buffer))
 #else
         fflush(stdout);
         if (fgets(buf, LISTLEN, stdin) == NULL)
@@ -171,32 +172,42 @@ static void getLine(void) {
         }
 
         getPageSize();
-        anyOutput = FALSE;
-        if (transcriptOption || logOption) {
-            // TODO Refactor out the logging to log.c?
+        anyOutput = false;
+        if (commandLogOption || transcriptOption) {
+            /* Command log ("solution") needs to be in external encoding even for GLK terps */
+            char *converted = ensureExternalEncoding(input_buffer);
+            if (commandLogOption) {
 #ifdef HAVE_GLK
-            glk_put_string_stream(logFile, buf);
-            glk_put_char_stream(logFile, '\n');
+                glk_put_string_stream(commandLogFile, converted);
+                glk_put_char_stream(commandLogFile, '\n');
 #else
-            fprintf(logFile, "%s\n", buf);
+                fprintf(commandLogFile, "%s\n", converted);
+                fflush(commandLogFile);
 #endif
+            }
+            if (transcriptOption) {
+#ifdef HAVE_GLK
+                glk_put_string_stream(transcriptFile, converted);
+                glk_put_char_stream(transcriptFile, '\n');
+#else
+                fprintf(transcriptFile, "%s\n", converted);
+                fflush(commandLogFile);
+#endif
+            }
+            free(converted);
         }
-        /* If the player input an empty command he forfeited his command */
-        if (strlen(buf) == 0) {
+
+        /* If the player inputs an empty command he forfeited his command */
+        if (strlen(input_buffer) == 0) {
             clearWordList(playerWords);
             longjmp(forfeitLabel, 0);
         }
 
-#if ISO == 0
-        toIso(isobuf, buf, NATIVECHARSET);
-#else
-        strcpy(isobuf, buf);
-#endif
-        token = gettoken(isobuf);
+        token = gettoken(input_buffer);
         if (token != NULL) {
             if (strcmp("debug", token) == 0 && header->debug) {
-                debugOption = TRUE;
-                debug(FALSE, 0, 0);
+                debugOption = true;
+                debug(false, 0, 0);
                 token = NULL;
             } else if (strcmp("undo", token) == 0) {
                 token = gettoken(NULL);
@@ -206,7 +217,7 @@ static void getLine(void) {
             }
         }
     } while (token == NULL);
-    eol = FALSE;
+    eol = false;
 }
 
 
@@ -292,7 +303,7 @@ void scan(void) {
         token = gettoken(NULL);
         if (token == NULL) /* Or did he just finish the command with a full stop? */
             getLine();
-        continued = FALSE;
+        continued = false;
     } else
         getLine();
 
@@ -304,16 +315,16 @@ void scan(void) {
         playerWords[i].start = token;
         playerWords[i].end = strchr(token, '\0');
 
-        if (isISOLetter(token[0])) {
+        if (isLetter(token[0])) {
             i = handle_word(i);
         } else if (isdigit((int)token[0]) || token[0] == '\"') {
             i = handle_literal(i);
         } else if (token[0] == ',') {
             playerWords[i++].code = conjWord;
         } else if (token[0] == '.') {
-            continued = TRUE;
+            continued = true;
             setEndOfArray(&playerWords[i]);
-            eol = TRUE;
+            eol = true;
             break;
         } else
             unknown(token);
