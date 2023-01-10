@@ -23,21 +23,21 @@
 #define NO_CLASS ((Aword)-1)
 
 /* tryCheck() flags */
-#define EXECUTE_CHECK_BODY_ON_FAIL TRUE
-#define DONT_EXECUTE_CHECK_BODY_ON_FAIL FALSE
+#define EXECUTE_CHECK_BODY_ON_FAIL true
+#define DONT_EXECUTE_CHECK_BODY_ON_FAIL false
 
 
 /* Types */
 
 typedef struct AltInfo {
-	bool end;		/* Indicator of end in AltInfoArray, first empty has TRUE here */
-	AltEntry *alt;
-	bool done;
-	Aint level;		/* 0 - Global, 1 - location, 2 - parameter */
-	Aid class;		/* In which class, only used for tracing */
-	Aid instance;	/* In which instance the Alternative was found,
-					   used to set current.instance and tracing */
-	Aid parameter;	   /* In which parameter, only used for tracing */
+    bool end;          /* Indicator of end in AltInfoArray, first empty has TRUE here */
+    AltEntry *alt;
+    bool done;
+    Aint level;        /* 0 - Global, 1 - location, 2 - parameter */
+    Aid class;         /* In which class, only used for tracing */
+    Aid instance;      /* In which instance the Alternative was found,
+                          used to set current.instance and tracing */
+    Aid parameter;     /* In which parameter, only used for tracing */
 } AltInfo;
 
 typedef AltEntry *(*AltEntryFinder)(int verb, int parameterNumber, int theInstance, int theClass);

@@ -24,7 +24,7 @@ void deallocateParameterPositions(ParameterPosition *parameterPositions) {
 void uncheckAllParameterPositions(ParameterPosition parameterPositions[]) {
     int position;
     for (position = 0; position < MAXPARAMS; position++) {
-        parameterPositions[position].checked = FALSE;
+        parameterPositions[position].checked = false;
     }
 }
 
@@ -34,7 +34,7 @@ void copyParameterPositions(ParameterPosition originalParameterPositions[], Para
     int i;
     for (i = 0; !originalParameterPositions[i].endOfList; i++)
         parameterPositions[i] = originalParameterPositions[i];
-    parameterPositions[i].endOfList = TRUE;
+    parameterPositions[i].endOfList = true;
 }
 
 
@@ -43,9 +43,9 @@ bool equalParameterPositions(ParameterPosition parameterPositions1[], ParameterP
     int i;
     for (i = 0; !parameterPositions1[i].endOfList; i++) {
         if (parameterPositions2[i].endOfList)
-            return FALSE;
+            return false;
         if (!equalParameterArrays(parameterPositions1[i].parameters, parameterPositions2[i].parameters))
-            return FALSE;
+            return false;
     }
     return parameterPositions2[i].endOfList;
 }

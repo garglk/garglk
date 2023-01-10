@@ -36,13 +36,19 @@
 #endif
 
 glkunix_argumentlist_t glkunix_arguments[] = {
-    { "-l", glkunix_arg_NoValue, "-l: log player command and game output" },
-    { "-c", glkunix_arg_NoValue, "-c: log player commands to a file" },
-    { "-n", glkunix_arg_NoValue, "-n: no status line" },
-    { "-i", glkunix_arg_NoValue, "-i: ignore version and checksum errors" },
-    { "-d", glkunix_arg_NoValue, "-d: enter debug mode" },
-    { "-t", glkunix_arg_NoValue, "-t [<n>]: trace game execution, higher <n> gives more trace" },
-    { "-r", glkunix_arg_NoValue, "-r: refrain from printing timestamps and paging (making regression testing easier)" },
+    { "-h", glkunix_arg_NoValue, "this help" },
+    { "-u", glkunix_arg_NoValue, "use UTF-8 encoding for input and output" },
+    { "-i", glkunix_arg_NoValue, "use ISO8859-1 encoding for input and output" },
+    { "-v", glkunix_arg_NoValue, "verbose mode" },
+    { "-l", glkunix_arg_NoValue, "log game transcript to a file ('.a3t')" },
+    { "-c", glkunix_arg_NoValue, "log player command input (the solution) to a file ('.a3s')" },
+    { "-n", glkunix_arg_NoValue, "don't show the Status Line" },
+    { "-p", glkunix_arg_NoValue, "don't page output" },
+    { "-d", glkunix_arg_NoValue, "enter debug mode immediately" },
+    { "-t", glkunix_arg_ValueCanFollow, "[<n>] trace game execution, higher <n> gives more trace" },
+    { "-r", glkunix_arg_NoValue, "make regression testing easier (don't timestamp, page break, randomize...)" },
+    { "-e", glkunix_arg_NoValue, "ignore version and checksum errors (dangerous)" },
+    { "--version", glkunix_arg_NoValue, "print version and exit" },
     { "", glkunix_arg_ValueFollows, "filename: The game file to load." },
     { NULL, glkunix_arg_End, NULL }
 };
@@ -70,30 +76,30 @@ static void openGlkWindows() {
 /*----------------------------------------------------------------------*/
 static void openResourceFile() {
     char *originalFileName = strdup(adventureFileName);
-	char *resourceFileName = originalFileName;
+    char *resourceFileName = originalFileName;
     char *extension = strrchr(resourceFileName, '.');
     frefid_t resourceFileRef;
     giblorb_err_t ecode;
 
 #ifdef HAVE_GARGLK
-	if (strrchr(resourceFileName, '/'))
-		resourceFileName = strrchr(resourceFileName, '/') + 1;
-	else if (strrchr(resourceFileName, '\\'))
-		resourceFileName = strrchr(resourceFileName, '\\') + 1;
-	if (!resourceFileName)
-		resourceFileName = originalFileName;
+    if (strrchr(resourceFileName, '/'))
+        resourceFileName = strrchr(resourceFileName, '/') + 1;
+    else if (strrchr(resourceFileName, '\\'))
+        resourceFileName = strrchr(resourceFileName, '\\') + 1;
+    if (!resourceFileName)
+        resourceFileName = originalFileName;
 
-	if (extension)
-		strcpy(extension, ".a3r");
-	else
-		strcat(resourceFileName, ".a3r");
+    if (extension)
+        strcpy(extension, ".a3r");
+    else
+        strcat(resourceFileName, ".a3r");
 #else
     strcpy(extension, ".a3r");
 #endif
 
 #ifdef HAVE_WINGLK
     resourceFileRef = winglk_fileref_create_by_name(fileusage_BinaryMode,
-                                                    resourceFileName, 0, FALSE);
+                                                    resourceFileName, 0, false);
 #else
     resourceFileRef = glk_fileref_create_by_name(fileusage_BinaryMode,
                                                  resourceFileName, 0);
@@ -125,11 +131,15 @@ int glkunix_startup_code(glkunix_startup_t *data)
         garglk_set_program_name(name);
     }
 #else
-	garglk_set_program_name(alan.shortHeader);
+    garglk_set_program_name(alan.shortHeader);
 #endif
-	char info[80];
-	sprintf(info, "%s Interpreter by Thomas Nilefalk\n", alan.shortHeader);
-	garglk_set_program_info(info);
+    char info[200];
+#ifdef GIT_VERSION
+    sprintf(info, "%s Interpreter by Thomas Nilefalk\nFrom git %s\n", alan.shortHeader, GIT_VERSION);
+#else
+    sprintf(info, "%s Interpreter by Thomas Nilefalk\n", alan.shortHeader);
+#endif
+    garglk_set_program_info(info);
 #endif
 
     /* now process the command line arguments */
@@ -144,7 +154,7 @@ int glkunix_startup_code(glkunix_startup_t *data)
     /* Open any possible blorb resource file */
     openResourceFile();
 
-    return TRUE;
+    return true;
 }
 
 
@@ -211,6 +221,6 @@ int winglk_startup_code(const char* cmdline)
     /* Open any possible blorb resource file */
     openResourceFile();
 
-    return TRUE;
+    return true;
 }
 #endif

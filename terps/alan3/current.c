@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------*\
 
-	current
+    current
 
 \*----------------------------------------------------------------------*/
 #include "current.h"
@@ -13,7 +13,7 @@
 
 /* PUBLIC DATA */
 CurVars current;
-bool gameStateChanged = FALSE;
+bool gameStateChanged = false;
 
 
 
@@ -21,4 +21,3 @@ bool gameStateChanged = FALSE;
 
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++*/
-

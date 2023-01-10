@@ -9,35 +9,21 @@
   - os name (WIN32, Cygwin, MSYS2...)
   - compiler name and version (DJGPP, CYGWIN, GCC271, THINK-C, ...)
 
-  The set symbols should indicate if a feature is on or off like the GNU
-  AUTOCONFIG package does.
-
-  This is not completely done yet!
-
 \*----------------------------------------------------------------------*/
 #ifndef _SYSDEP_H_
 #define _SYSDEP_H_
 
+#include <stdbool.h>
 
 /* Place definitions of OS and compiler here if necessary */
-#ifndef __unix__
-#ifdef unix
-#define __unix__
-#endif
-#endif
 
-#ifdef __APPLE__
-// At least GCC 3.x does define this for Darwin
-#define __macosx__
-#define __unix__
-#endif
+/* For command line editing in "pure" (non-Glk, non-Gargoyle)
+ * interpreters, we need termio, assume it's available */
+#define HAVE_TERMIOS
 
 #ifdef __MINGW32__
 #define __windows__
-#endif
-
-#ifdef __CYGWIN32__
-#define __cygwin__
+#undef HAVE_TERMIOS
 #endif
 
 #ifdef HAVE_WINGLK
@@ -67,17 +53,10 @@
 
 
 #ifdef __STDC__
-#define _PROTOTYPES_
 #include <stdlib.h>
 #include <string.h>
 #endif
 
-
-#ifdef __mac__
-#define _PROTOTYPES_
-#include <stdlib.h>
-#include <string.h>
-#endif
 
 /***********************/
 /* ISO character sets? */
@@ -101,14 +80,6 @@
 #define NATIVECHARSET 2
 #endif
 
-/* Old Macs uses other CHARSET, Mac OS X uses ISO */
-#ifdef __mac__
-#undef ISO
-#define ISO 0
-#undef NATIVECHARSET
-#define NATIVECHARSET 1
-#endif
-
 #endif
 
 /**************************/
@@ -118,35 +89,18 @@
 #define WRITE_MODE "wb"
 
 
-/****************************/
-/* Allocates cleared bytes? */
-/****************************/
-
-#ifdef __CYGWIN__
-#define NOTCALLOC
-#endif
-
-#ifdef __MINGW32__
-#define NOTCALLOC
-#endif
-
-#ifdef __unix__
-#define NOTCALLOC
-#endif
-
-
 /****************/
 /* Have termio? */
 /****************/
 
 #ifdef HAVE_GLK
-#  undef HAVE_TERMIO   /* don't need TERMIO */
+#  undef HAVE_TERMIOS   /* don't need TERMIO */
 #else
 #  ifdef __CYGWIN__
-#    define HAVE_TERMIO
+#    define HAVE_TERMIOS
 #  endif
 #  ifdef __unix__
-#    define HAVE_TERMIO
+#    define HAVE_TERMIOS
 #  endif
 #endif
 
@@ -155,10 +109,10 @@
 /*******************************/
 
 #ifdef HAVE_GLK
-#  undef HAVE_ANSI /* don't need ANSI */
+#  undef HAVE_ANSI_CONTROL /* don't need ANSI */
 #else
 #  ifdef __CYGWIN__
-#    define HAVE_ANSI
+#    define HAVE_ANSI_CONTROL
 #  endif
 #endif
 
@@ -170,44 +124,20 @@
 #  undef USE_READLINE
 #endif
 
-/* Special cases and definition overrides */
-#ifdef __unix__
-#define MULTI
-#endif
 
+/* Internal character functions */
+extern int isSpace(unsigned int c);      /* IN - Internal character to test */
+extern int isLower(unsigned int c);      /* IN - Internal character to test */
+extern int isUpper(unsigned int c);      /* IN - Internal character to test */
+extern int isLetter(unsigned int c);     /* IN - Internal character to test */
+extern int toLower(unsigned int c);      /* IN - Internal character to convert */
+extern int toUpper(unsigned int c);      /* IN - Internal character to convert */
+extern void stringToLowerCase(char str[]); /* INOUT - Internal string to convert */
 
-/* Native character functions */
-extern int isSpace(unsigned int c);      /* IN - Native character to test */
-extern int isLower(unsigned int c);      /* IN - Native character to test */
-extern int isUpper(unsigned int c);      /* IN - Native character to test */
-extern int isLetter(unsigned int c);     /* IN - Native character to test */
-extern int toLower(unsigned int c);      /* IN - Native character to convert */
-extern int toUpper(unsigned int c);      /* IN - Native character to convert */
-extern char *strlow(char str[]); /* INOUT - Native string to convert */
-extern char *strupp(char str[]); /* INOUT - Native string to convert */
-
-/* ISO character functions */
-extern int isISOLetter(int c);  /* IN - ISO character to test */
-extern char IsoToLowerCase(int c); /* IN - ISO character to convert */
-extern char IsoToUpperCase(int c); /* IN - ISO character to convert */
-extern char *stringLower(char str[]); /* INOUT - ISO string to convert */
-extern char *stringUpper(char str[]); /* INOUT - ISO string to convert */
-extern int compareStrings(char str1[], char str2[]); /* Case-insensitive compare */
-
-/* ISO string conversion functions */
-extern void toIso(char copy[],  /* OUT - Mapped string */
-          char original[], /* IN - string to convert */
-          int charset);	/* IN - The current character set */
-
-extern void fromIso(char copy[], /* OUT - Mapped string */
-            char original[]); /* IN - string to convert */
-
-extern void toNative(char copy[], /* OUT - Mapped string */
-             char original[], /* IN - string to convert */
-             int charset); /* IN - current character set */
+extern bool equalStrings(char str1[], char str2[]); /* Case-insensitive compare */
 
 extern int littleEndian(void);
 
 extern char *baseNameStart(char *fullPathName);
 
-#endif                          /* -- sysdep.h -- */
+#endif

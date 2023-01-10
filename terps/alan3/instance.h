@@ -43,7 +43,8 @@ extern bool isLiteral(int instance);
 extern bool isANumeric(int instance);
 extern bool isAString(int instance);
 
-extern Aptr getInstanceAttribute(int instance, int attribute);
+extern bool hasAttribute(Aid instance, Aid attribute);
+extern Aword getInstanceAttribute(int instance, int attribute);
 extern char *getInstanceStringAttribute(int instane, int attribute);
 extern Set *getInstanceSetAttribute(int instance, int attribute);
 

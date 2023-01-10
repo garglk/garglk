@@ -6,32 +6,47 @@
 
 
 /*----------------------------------------------------------------------*/
-static AttributeEntry *findAttribute(AttributeEntry *attributeTable, int attributeCode)
+static AttributeEntry *lookupAttribute(AttributeEntry *attributeTable, int attributeCode)
 {
-  AttributeEntry *attribute = attributeTable;
-  while (attribute->code != attributeCode) {
-    attribute++;
-    if (isEndOfArray(attribute))
-      syserr("Attribute not found.");
-  }
-  return attribute;
+    AttributeEntry *attribute = attributeTable;
+    while (attribute->code != attributeCode) {
+        attribute++;
+        if (isEndOfArray(attribute))
+            return NULL;
+    }
+    return attribute;
 }
 
 
 /*======================================================================*/
-Aptr getAttribute(AttributeEntry *attributeTable, int attributeCode)
+bool attributeExists(AttributeEntry *attributeTable, int attributeCode)
 {
-  AttributeEntry *attribute = findAttribute(attributeTable, attributeCode);
+    AttributeEntry *attribute = lookupAttribute(attributeTable, attributeCode);
 
-  return attribute->value;
+    return attribute != NULL;
+}
+
+
+/*======================================================================*/
+Aword getAttribute(AttributeEntry *attributeTable, int attributeCode)
+{
+    AttributeEntry *attribute = lookupAttribute(attributeTable, attributeCode);
+
+    if (attribute == NULL)
+        syserr("Attribute not found.");
+
+    return attribute->value;
 }
 
 
 /*======================================================================*/
 void setAttribute(AttributeEntry *attributeTable, int attributeCode, Aptr newValue)
 {
-  AttributeEntry *attribute = findAttribute(attributeTable, attributeCode);
+    AttributeEntry *attribute = lookupAttribute(attributeTable, attributeCode);
 
-  attribute->value = newValue;
-  gameStateChanged = TRUE;
+    if (attribute == NULL)
+        syserr("Attribute not found.");
+
+    attribute->value = newValue;
+    gameStateChanged = true;
 }

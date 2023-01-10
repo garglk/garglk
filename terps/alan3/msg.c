@@ -58,6 +58,7 @@ void error(MsgKind msgno)   /* IN - The error message number */
 /*======================================================================*/
 void abortPlayerCommand(void)
 {
+    recursionDepth = 0;         /* We are aborting all execution... */
     error(NO_MSG);
 }
 

@@ -1,18 +1,18 @@
-/* alan.c - Created by venum 4.2 beta */
+/* alan.version.c - Created by venum 4.2beta1 */
 
 #include "alan.version.h"
 
 Product alan = {
   "Alan",
   "Adventure Language System",
-  "Alan 3.0beta7",
-  "Alan 3.0beta7 -- Adventure Language System (2020-09-07 22:49)",
-  "2020-09-07",
-  "22:49:37",
-  "Thomas",
+  "Alan 3.0beta8",
+  "Alan 3.0beta8 -- Adventure Language System (2021-08-17 08:33)",
+  "2021-08-17",
+  "08:33:17",
+  "",
   "thoni64",
-  "cygwin64",
-  {"3.0beta7", 3, 0, 7, 1599511777, "beta"}
+  "linux",
+  {"3.0beta8", 3, 0, 8, 1629181997, "beta"}
 };
 
 char *alanId =
