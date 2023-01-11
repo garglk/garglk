@@ -21,12 +21,12 @@
 #include <exception>
 #include <fstream>
 #include <iostream>
-#include <map>
 #include <regex>
 #include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -56,18 +56,6 @@ std::array<T, sizeof...(Is)> make_array(const T &value, std::index_sequence<Is..
 template<size_t N, typename T>
 std::array<T, N> make_array(const T &value) {
     return make_array(value, std::make_index_sequence<N>());
-}
-
-template<typename K, typename V>
-static std::set<K> map_keys(const std::map<K, V> &map)
-{
-    std::set<K> keys;
-
-    for (const auto &pair : map) {
-        keys.insert(pair.first);
-    }
-
-    return keys;
 }
 
 Color gli_parse_color(const std::string &str)
@@ -201,9 +189,9 @@ private:
     static ThemeStyles get_user_styles(const json &j, const std::string &color)
     {
         std::array<nonstd::optional<ColorPair>, style_NUMSTYLES> possible_colors;
-        std::map<std::string, json> styles = j.at(color);
+        std::unordered_map<std::string, json> styles = j.at(color);
 
-        static std::map<std::string, int> stylemap = {
+        static const std::unordered_map<std::string, int> stylemap = {
             {"normal", 0},
             {"emphasized", 1},
             {"preformatted", 2},
@@ -231,11 +219,11 @@ private:
 
         styles.erase("default");
         for (const auto &style : styles) {
-            if (stylemap.find(style.first) == stylemap.end()) {
+            try {
+                parse_colors(style.second, stylemap.at(style.first));
+            } catch (const std::out_of_range &) {
                 throw std::runtime_error("invalid style in " + color + ": " + style.first);
             }
-
-            parse_colors(style.second, stylemap[style.first]);
         }
 
         auto colors = make_array<style_NUMSTYLES>(ColorPair{white, black});
@@ -256,7 +244,7 @@ private:
     }
 };
 
-static std::map<std::string, Theme> themes;
+static std::unordered_map<std::string, Theme> themes;
 
 std::vector<std::string> garglk::theme::paths()
 {

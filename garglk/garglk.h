@@ -36,9 +36,9 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
-#include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -355,7 +355,7 @@ public:
     std::vector<std::uint8_t> &at(int number);
 
 private:
-    std::map<int, nonstd::optional<std::vector<std::uint8_t>>> m_bleeps = {
+    std::unordered_map<int, nonstd::optional<std::vector<std::uint8_t>>> m_bleeps = {
         {1, nonstd::nullopt},
         {2, nonstd::nullopt},
     };

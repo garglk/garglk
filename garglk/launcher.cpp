@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
-#include <map>
 #include <memory>
 #include <regex>
 #include <set>
@@ -29,6 +28,7 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -98,7 +98,7 @@ enum class Format {
 
 static nonstd::optional<Format> probe(const std::vector<char> &header)
 {
-    std::map<std::string, Format> magic = {
+    std::vector<std::pair<std::string, Format>> magic = {
         {R"(^[\x01\x02\x03\x04\x05\x07\x08][\s\S]{17}\d{6})", Format::ZCode},
         {R"(^\x06[\s\S]{17}\d{6})", Format::ZCode6},
         {R"(^TADS2 bin\x0a\x0d\x1a)", Format::TADS2},
@@ -125,7 +125,7 @@ static nonstd::optional<Format> probe(const std::vector<char> &header)
 }
 
 // Map extensions to formats
-static const std::map<std::string, Format> extensions = {
+static const std::unordered_map<std::string, Format> extensions = {
     {"taf", Format::Adrift},
     {"agx", Format::AGT},
     {"d$$", Format::AGT},
@@ -155,7 +155,7 @@ static const std::map<std::string, Format> extensions = {
 };
 
 // Map formats to default interpreters
-static const std::map<Format, Interpreter> interpreters = {
+static const std::unordered_map<Format, Interpreter> interpreters = {
     {Format::Adrift, Interpreter(T_ADRIFT)},
     {Format::AdvSys, Interpreter(T_ADVSYS)},
     {Format::AGT, Interpreter(T_AGT, "-gl")},
