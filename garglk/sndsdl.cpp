@@ -360,7 +360,7 @@ Uint32 volume_timer_callback(Uint32 interval, void *param)
 }
 
 // Start a fade timer
-void init_fade(schanid_t chan, int glk_volume, int duration, int notify)
+void init_fade(schanid_t chan, int vol, int duration, int notify)
 {
     if (chan == nullptr) {
         gli_strict_warning("init_fade: invalid channel.");
@@ -369,7 +369,7 @@ void init_fade(schanid_t chan, int glk_volume, int duration, int notify)
 
     chan->volume_notify = notify;
 
-    chan->target_volume = GLK_VOLUME_TO_SDL_VOLUME(glk_volume);
+    chan->target_volume = GLK_VOLUME_TO_SDL_VOLUME(vol);
 
     chan->float_volume = static_cast<double>(chan->volume);
     chan->volume_delta = static_cast<double>(chan->target_volume - chan->volume) / FADE_GRANULARITY;
@@ -393,7 +393,7 @@ void glk_schannel_set_volume(schanid_t chan, glui32 vol)
     glk_schannel_set_volume_ext(chan, vol, 0, 0);
 }
 
-void glk_schannel_set_volume_ext(schanid_t chan, glui32 glk_volume,
+void glk_schannel_set_volume_ext(schanid_t chan, glui32 vol,
         glui32 duration, glui32 notify)
 {
     if (chan == nullptr) {
@@ -403,7 +403,7 @@ void glk_schannel_set_volume_ext(schanid_t chan, glui32 glk_volume,
 
     if (duration == 0) {
 
-        chan->volume = GLK_VOLUME_TO_SDL_VOLUME(glk_volume);
+        chan->volume = GLK_VOLUME_TO_SDL_VOLUME(vol);
 
         switch (chan->status) {
         case CHANNEL_IDLE:
@@ -416,7 +416,7 @@ void glk_schannel_set_volume_ext(schanid_t chan, glui32 glk_volume,
             break;
         }
     } else {
-        init_fade(chan, glk_volume, duration, notify);
+        init_fade(chan, vol, duration, notify);
     }
 }
 

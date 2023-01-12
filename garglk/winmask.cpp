@@ -132,7 +132,6 @@ void gli_start_selection(int x, int y)
     gli_claimselect = false;
     gli_force_redraw = true;
     gli_windows_redraw();
-    return;
 }
 
 void gli_move_selection(int x, int y)
@@ -156,7 +155,6 @@ void gli_move_selection(int x, int y)
 
     gli_claimselect = false;
     gli_windows_redraw();
-    return;
 }
 
 void gli_clear_selection()
@@ -177,7 +175,6 @@ void gli_clear_selection()
     gli_mask.select.y1 = 0;
 
     gli_claimselect = false;
-    return;
 }
 
 bool gli_check_selection(int x0, int y0,

@@ -397,7 +397,7 @@ std::string garglk::user_config()
     return path;
 }
 
-void garglk::config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, std::function<void(const std::string &cmd, const std::string &arg)> callback)
+void garglk::config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, const std::function<void(const std::string &cmd, const std::string &arg)> &callback)
 {
     std::string line;
     bool accept = accept_bare;
@@ -508,9 +508,9 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
         } else if (cmd == "propfont") {
             gli_conf_propfont = arg;
         } else if (cmd == "leading") {
-            gli_leading = std::max(1.0, std::round(std::stod(arg)));
+            gli_leading = std::max(1, std::stoi(arg));
         } else if (cmd == "baseline") {
-            gli_baseline = std::max(0.0, std::round(std::stod(arg)));
+            gli_baseline = std::max(0, std::stoi(arg));
         } else if (cmd == "rows") {
             gli_rows = std::max(1, std::stoi(arg));
         } else if (cmd == "cols") {
@@ -570,7 +570,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
         } else if (cmd == "tmarginy") {
             gli_tmarginy = std::max(0, std::stoi(arg));
         } else if (cmd == "gamma") {
-            gli_conf_gamma = std::max(0.0, std::stod(arg));
+            gli_conf_gamma = std::max(0.0f, std::stof(arg));
         } else if (cmd == "caretcolor") {
             parsecolor(arg, gli_caret_color);
             parsecolor(arg, gli_caret_save);
@@ -642,7 +642,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
         } else if (cmd == "fullscreen") {
             gli_conf_fullscreen = asbool(arg);
         } else if (cmd == "zoom") {
-            gli_zoom = std::max(0.1, std::stod(arg));
+            gli_zoom = std::max(0.1f, std::stof(arg));
         } else if (cmd == "speak") {
             gli_conf_speak = asbool(arg);
         } else if (cmd == "speak_input") {

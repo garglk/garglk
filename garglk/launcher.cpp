@@ -327,7 +327,7 @@ bool garglk::rungame(const std::string &game)
         ext = garglk::downcase(game.substr(dot + 1));
     }
 
-    if (is_blorb || std::find(blorbs.begin(), blorbs.end(), ext) != blorbs.end()) {
+    if (is_blorb || blorbs.find(ext) != blorbs.end()) {
         return runblorb(game, interpreter);
     }
 

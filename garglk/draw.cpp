@@ -89,7 +89,7 @@ private:
 // Globals
 //
 
-std::array<unsigned short, 256> gammamap;
+std::array<std::uint16_t, 256> gammamap;
 std::array<unsigned char, 1 << GAMMA_BITS> gammainv;
 
 class FontTable {
@@ -288,7 +288,7 @@ static std::string font_path_fallback_local(const std::string &, const std::stri
     return fallback;
 }
 
-static const std::string fontface_to_name(FontFace &fontface)
+static std::string fontface_to_name(FontFace &fontface)
 {
     std::string type = fontface.monospace ? "Mono" : "Proportional";
     std::string style = (fontface.bold && fontface.italic) ? "Bold Italic" :
@@ -341,7 +341,7 @@ Font::Font(FontFace fontface, const std::string &fallback) :
         garglk::winabort("Unable to find font " + family + " for " + fontface_to_name(fontface) + ", and fallback " + fallback + " not found");
     }
 
-    auto dot = fontpath.rfind(".");
+    auto dot = fontpath.rfind('.');
     if (dot != std::string::npos) {
         std::string afmbuf = fontpath;
         auto ext = afmbuf.substr(dot);
@@ -374,11 +374,11 @@ void gli_initialize_fonts()
     int err;
 
     for (int i = 0; i < 256; i++) {
-        gammamap[i] = std::pow(i / 255.0, gli_conf_gamma) * GAMMA_MAX + 0.5;
+        gammamap[i] = std::round(std::pow(i / 255.0, gli_conf_gamma) * GAMMA_MAX);
     }
 
     for (int i = 0; i <= GAMMA_MAX; i++) {
-        gammainv[i] = std::pow(i / static_cast<float>(GAMMA_MAX), 1.0 / gli_conf_gamma) * 255.0 + 0.5;
+        gammainv[i] = std::round(std::pow(i / static_cast<float>(GAMMA_MAX), 1.0 / gli_conf_gamma) * 255.0);
     }
 
     err = FT_Init_FreeType(&ftlib);
@@ -425,7 +425,7 @@ void gli_initialize_fonts()
 
     gfont_table = FontTable();
 
-    auto &entry = gfont_table->at(FontFace::monor()).getglyph('0');
+    const auto &entry = gfont_table->at(FontFace::monor()).getglyph('0');
 
     gli_cellh = gli_leading;
     gli_cellw = (entry.adv + GLI_SUBPIX - 1) / GLI_SUBPIX;
@@ -455,13 +455,13 @@ static void draw_pixel_gamma(int x, int y, unsigned char alpha, const Color &rgb
         return;
     }
 
-    unsigned short invalf = GAMMA_MAX - (alpha * GAMMA_MAX / 255);
-    std::array<unsigned short, 3> bg = {
+    std::uint16_t invalf = GAMMA_MAX - (alpha * GAMMA_MAX / 255);
+    std::array<std::uint16_t, 3> bg = {
         gammamap[gli_image_rgb[y][x][0]],
         gammamap[gli_image_rgb[y][x][1]],
         gammamap[gli_image_rgb[y][x][2]]
     };
-    std::array<unsigned short, 3> fg = {
+    std::array<std::uint16_t, 3> fg = {
         gammamap[rgb[0]],
         gammamap[rgb[1]],
         gammamap[rgb[2]]
@@ -481,17 +481,17 @@ static void draw_pixel_lcd_gamma(int x, int y, const unsigned char *alpha, const
         return;
     }
 
-    std::array<unsigned short, 3> invalf = {
-        static_cast<unsigned short>(GAMMA_MAX - (alpha[0] * GAMMA_MAX / 255)),
-        static_cast<unsigned short>(GAMMA_MAX - (alpha[1] * GAMMA_MAX / 255)),
-        static_cast<unsigned short>(GAMMA_MAX - (alpha[2] * GAMMA_MAX / 255)),
+    std::array<std::uint16_t, 3> invalf = {
+        static_cast<std::uint16_t>(GAMMA_MAX - (alpha[0] * GAMMA_MAX / 255)),
+        static_cast<std::uint16_t>(GAMMA_MAX - (alpha[1] * GAMMA_MAX / 255)),
+        static_cast<std::uint16_t>(GAMMA_MAX - (alpha[2] * GAMMA_MAX / 255)),
     };
-    std::array<unsigned short, 3> bg = {
+    std::array<std::uint16_t, 3> bg = {
         gammamap[gli_image_rgb[y][x][0]],
         gammamap[gli_image_rgb[y][x][1]],
         gammamap[gli_image_rgb[y][x][2]]
     };
-    std::array<unsigned short, 3> fg = {
+    std::array<std::uint16_t, 3> fg = {
         gammamap[rgb[0]],
         gammamap[rgb[1]],
         gammamap[rgb[2]]

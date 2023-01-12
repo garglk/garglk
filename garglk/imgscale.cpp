@@ -38,9 +38,9 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
     // documentation.  This software is provided "as is" without express or
     // implied warranty.
 
-#define SCALE 4096
-#define HALFSCALE 2048
-#define maxval 255
+    constexpr int SCALE = 4096;
+    constexpr int HALFSCALE = 2048;
+    constexpr int maxval = 255;
 
     auto dst = gli_picture_retrieve(src->id, true);
 

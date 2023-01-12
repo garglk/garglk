@@ -32,11 +32,11 @@
 #define SLOP (2 * GLI_SUBPIX)
 
 static void
-put_text(window_textbuffer_t *dwin, char *buf, int len, int pos, int oldlen);
+put_text(window_textbuffer_t *dwin, const char *buf, int len, int pos, int oldlen);
 static void
 put_text_uni(window_textbuffer_t *dwin, glui32 *buf, int len, int pos, int oldlen);
 static bool
-put_picture(window_textbuffer_t *dwin, std::shared_ptr<picture_t> pic, glui32 align, glui32 linkval);
+put_picture(window_textbuffer_t *dwin, const std::shared_ptr<picture_t> &pic, glui32 align, glui32 linkval);
 
 static void touch(window_textbuffer_t *dwin, int line)
 {
@@ -768,7 +768,7 @@ static void scrolloneline(window_textbuffer_t *dwin, bool forced)
 }
 
 // only for input text
-static void put_text(window_textbuffer_t *dwin, char *buf, int len, int pos, int oldlen)
+static void put_text(window_textbuffer_t *dwin, const char *buf, int len, int pos, int oldlen)
 {
     int diff = len - oldlen;
 
@@ -1575,7 +1575,7 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
     touch(dwin, 0);
 }
 
-static bool put_picture(window_textbuffer_t *dwin, std::shared_ptr<picture_t> pic, glui32 align, glui32 linkval)
+static bool put_picture(window_textbuffer_t *dwin, const std::shared_ptr<picture_t> &pic, glui32 align, glui32 linkval)
 {
     if (align == imagealign_MarginRight) {
         if (dwin->lines[0].rpic || dwin->numchars != 0) {
