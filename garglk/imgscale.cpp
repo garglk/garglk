@@ -50,7 +50,8 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
 
     int row, col;
 
-    int rowsread, needtoreadrow;
+    int rowsread;
+    bool needtoreadrow;
 
     int cols = src->w;
     int rows = src->h;
@@ -79,7 +80,7 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
 
     rowsread = 1;
     fracrowleft = syscale;
-    needtoreadrow = 0;
+    needtoreadrow = false;
 
     fracrowtofill = SCALE;
 
@@ -90,7 +91,6 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
                 if (needtoreadrow) {
                     if (rowsread < rows) {
                         ++rowsread;
-                        // needtoreadrow = 0;
                     }
                 }
 
@@ -104,14 +104,14 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
 
                 fracrowtofill -= fracrowleft;
                 fracrowleft = syscale;
-                needtoreadrow = 1;
+                needtoreadrow = true;
             }
 
             // Now fracrowleft is >= fracrowtofill, so we can produce a row.
             if (needtoreadrow) {
                 if (rowsread < rows) {
                     ++rowsread;
-                    needtoreadrow = 0;
+                    needtoreadrow = false;
                 }
             }
 
@@ -155,7 +155,7 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
             fracrowleft -= fracrowtofill;
             if (fracrowleft == 0) {
                 fracrowleft = syscale;
-                needtoreadrow = 1;
+                needtoreadrow = true;
             }
             fracrowtofill = SCALE;
         }
@@ -164,11 +164,11 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
         {
             long r, g, b, a;
             long fraccoltofill, fraccolleft;
-            int needcol;
+            bool needcol;
 
             fraccoltofill = SCALE;
             r = g = b = a = HALFSCALE;
-            needcol = 0;
+            needcol = false;
 
             int dstcol = 0;
             for (col = 0; col < cols; ++col) {
@@ -217,14 +217,14 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
 
                     fraccolleft -= fraccoltofill;
                     fraccoltofill = SCALE;
-                    needcol = 1;
+                    needcol = true;
                 }
 
                 if (fraccolleft > 0) {
                     if (needcol) {
                         dstcol++;
                         r = g = b = a = HALFSCALE;
-                        needcol = 0;
+                        needcol = false;
                     }
 
                     r += fraccolleft * tempxel_blended_r;

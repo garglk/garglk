@@ -78,7 +78,7 @@ struct glk_schannel_struct {
     glui32 loop;
     int notify;
 
-    int paused;
+    bool paused;
 
     // for volume fades
     int volume_notify;
@@ -108,7 +108,7 @@ gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
 
 void gli_initialize_sound()
 {
-    if (gli_conf_sound == 1) {
+    if (gli_conf_sound) {
         SDL_SetMainReady();
         if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_TIMER) == -1) {
             gli_strict_warning("SDL init failed\n");
@@ -153,7 +153,7 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
     chan->notify = 0;
     chan->sdl_rwops = nullptr;
     chan->sample = nullptr;
-    chan->paused = 0;
+    chan->paused = false;
     chan->sdl_channel = -1;
     chan->music = nullptr;
 
@@ -611,7 +611,8 @@ static glui32 play_mod(schanid_t chan, long len)
 {
     std::FILE *file;
     const char *tempdir;
-    int music_busy, loop;
+    bool music_busy;
+    int loop;
 
     if (chan == nullptr) {
         gli_strict_warning("MOD player called with an invalid channel!");
@@ -681,7 +682,7 @@ glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, gl
 {
     glui32 type;
     glui32 result = 0;
-    glui32 paused = 0;
+    bool paused = false;
 
     if (!chan) {
         gli_strict_warning("schannel_play_ext: invalid id.");
@@ -757,7 +758,7 @@ void glk_schannel_pause(schanid_t chan)
         break;
     }
 
-    chan->paused = 1;
+    chan->paused = true;
 }
 
 void glk_schannel_unpause(schanid_t chan)
@@ -775,7 +776,7 @@ void glk_schannel_unpause(schanid_t chan)
         break;
     }
 
-    chan->paused = 0;
+    chan->paused = false;
 }
 
 void glk_schannel_stop(schanid_t chan)
@@ -785,7 +786,7 @@ void glk_schannel_stop(schanid_t chan)
         return;
     }
     SDL_LockAudio();
-    chan->paused = 0;
+    chan->paused = false;
     glk_schannel_unpause(chan);
     SDL_UnlockAudio();
     switch (chan->status) {

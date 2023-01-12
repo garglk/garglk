@@ -77,7 +77,7 @@ void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigne
     int ty0 = y0 < y1 ? y0 : y1;
     int ty1 = y0 < y1 ? y1 : y0;
 
-    if (!gli_mask.initialized || !gli_mask.hor || !gli_mask.ver) {
+    if (!gli_mask.initialized || gli_mask.hor == 0 || gli_mask.ver == 0) {
         gli_strict_warning("set_hyperlink: struct not initialized");
         return;
     }

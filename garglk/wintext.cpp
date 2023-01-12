@@ -283,7 +283,8 @@ void win_textbuffer_redraw(window_t *win)
     bool selbuf, selrow, selchar;
     // NOTE: GCC complains these might be used uninitialized; they're
     // not, but do this to silence the warning.
-    int sx0 = 0, sx1 = 0, selleft = 0, selright = 0;
+    int sx0 = 0, sx1 = 0;
+    bool selleft = false, selright = false;
     int tx, tsc, tsw, lsc, rsc;
 
     dwin->lines[0].len = dwin->numchars;
@@ -461,9 +462,11 @@ void win_textbuffer_redraw(window_t *win)
                         w / GLI_SUBPIX, gli_leading,
                         color);
                 if (link) {
-                    gli_draw_rect(x / GLI_SUBPIX + 1, y + gli_baseline + 1,
-                            w / GLI_SUBPIX + 1, gli_link_style,
-                            gli_link_color);
+                    if (gli_underline_hyperlinks) {
+                        gli_draw_rect(x / GLI_SUBPIX + 1, y + gli_baseline + 1,
+                                w / GLI_SUBPIX + 1, 1,
+                                gli_link_color);
+                    }
                     gli_put_hyperlink(link, x / GLI_SUBPIX, y,
                             x / GLI_SUBPIX + w / GLI_SUBPIX,
                             y + gli_leading);
@@ -479,9 +482,11 @@ void win_textbuffer_redraw(window_t *win)
         gli_draw_rect(x / GLI_SUBPIX, y, w / GLI_SUBPIX,
                 gli_leading, color);
         if (link) {
-            gli_draw_rect(x / GLI_SUBPIX + 1, y + gli_baseline + 1,
-                    w / GLI_SUBPIX + 1, gli_link_style,
-                    gli_link_color);
+            if (gli_underline_hyperlinks) {
+                gli_draw_rect(x / GLI_SUBPIX + 1, y + gli_baseline + 1,
+                        w / GLI_SUBPIX + 1, 1,
+                        gli_link_color);
+            }
             gli_put_hyperlink(link, x / GLI_SUBPIX, y,
                     x / GLI_SUBPIX + w / GLI_SUBPIX,
                     y + gli_leading);
@@ -905,9 +910,9 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
         return;
     }
 
-    if (gli_conf_quotes) {
+    if (gli_conf_quotes != 0) {
         // fails for 'tis a wonderful day in the '80s
-        if (gli_conf_quotes > 1 && ch == '\'') {
+        if (gli_conf_quotes == 2 && ch == '\'') {
             if (dwin->numchars == 0 || leftquote(dwin->chars[dwin->numchars - 1])) {
                 ch = UNI_LSQUO;
             }
@@ -1147,7 +1152,8 @@ void win_textbuffer_cancel_line(window_t *win, event_t *ev)
     int ix;
     int len;
     void *inbuf;
-    int inmax, inunicode;
+    int inmax;
+    bool inunicode;
 
     if (!dwin->inbuf) {
         return;
@@ -1306,7 +1312,8 @@ static void acceptline(window_t *win, glui32 keycode)
     int ix;
     int len;
     void *inbuf;
-    int inmax, inunicode;
+    int inmax;
+    bool inunicode;
     gidispatch_rock_t inarrayrock;
     window_textbuffer_t *dwin = win->window.textbuffer;
 
@@ -1605,7 +1612,7 @@ static bool put_picture(window_textbuffer_t *dwin, std::shared_ptr<picture_t> pi
     return true;
 }
 
-glui32 win_textbuffer_draw_picture(window_textbuffer_t *dwin,
+bool win_textbuffer_draw_picture(window_textbuffer_t *dwin,
     glui32 image, glui32 align, bool scaled, glui32 width, glui32 height)
 {
     glui32 hyperlink;
@@ -1632,12 +1639,11 @@ glui32 win_textbuffer_draw_picture(window_textbuffer_t *dwin,
     return put_picture(dwin, pic, align, hyperlink);
 }
 
-glui32 win_textbuffer_flow_break(window_textbuffer_t *dwin)
+void win_textbuffer_flow_break(window_textbuffer_t *dwin)
 {
     while (dwin->ladjn || dwin->radjn) {
         win_textbuffer_putchar_uni(dwin->owner, '\n');
     }
-    return true;
 }
 
 void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)

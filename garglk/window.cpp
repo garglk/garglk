@@ -429,7 +429,7 @@ void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid
 {
     window_pair_t *dwin;
     glui32 newdir;
-    int newvertical, newbackward;
+    bool newvertical, newbackward;
 
     gli_force_redraw = true;
 
@@ -499,7 +499,7 @@ void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid
     if (key && (key->type == wintype_Graphics) && (newdir == winmethod_Fixed)) {
         dwin->size = gli_zoom_int(dwin->size);
     }
-    dwin->wborder = ((method & winmethod_BorderMask) == winmethod_Border);
+    dwin->wborder = (method & winmethod_BorderMask) == winmethod_Border;
 
     dwin->vertical = (dwin->dir == winmethod_Left || dwin->dir == winmethod_Right);
     dwin->backward = (dwin->dir == winmethod_Left || dwin->dir == winmethod_Above);

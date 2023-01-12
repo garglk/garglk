@@ -124,8 +124,10 @@ void win_textgrid_redraw(window_t *win)
                         o += gli_cellw;
                     }
                     if (link) {
-                        gli_draw_rect(x, y + gli_baseline + 1, w,
-                                      gli_link_style, gli_link_color);
+                        if (gli_underline_hyperlinks) {
+                            gli_draw_rect(x, y + gli_baseline + 1, w,
+                                        1, gli_link_color);
+                        }
                         gli_put_hyperlink(link, x, y, x + w, y + gli_leading);
                     }
                     x += w;
@@ -147,8 +149,10 @@ void win_textgrid_redraw(window_t *win)
                 o += gli_cellw;
             }
             if (link) {
-                gli_draw_rect(x, y + gli_baseline + 1, w,
-                              gli_link_style, gli_link_color);
+                if (gli_underline_hyperlinks) {
+                    gli_draw_rect(x, y + gli_baseline + 1, w,
+                                1, gli_link_color);
+                }
                 gli_put_hyperlink(link, x, y, x + w, y + gli_leading);
             }
         }
@@ -378,7 +382,8 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
 {
     int ix;
     void *inbuf;
-    int inoriglen, inunicode;
+    int inoriglen;
+    bool inunicode;
     gidispatch_rock_t inarrayrock;
     window_textgrid_t *dwin = win->window.textgrid;
     tgline_t *ln = &(dwin->lines[dwin->inorgy]);
