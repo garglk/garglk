@@ -90,7 +90,7 @@ public:
         return m_buf.size();
     }
 
-    off_t tell() {
+    off_t tell() const {
         return m_offset;
     }
 
@@ -356,11 +356,12 @@ public:
         mpg123_format_none(m_handle.get());
 
 #if MPG123_API_VERSION < 46
-        if (mpg123_format(m_handle.get(), 44100, MPG123_STEREO | MPG123_MONO, MPG123_ENC_FLOAT_32) != MPG123_OK)
+        if (mpg123_format(m_handle.get(), 44100, MPG123_STEREO | MPG123_MONO, MPG123_ENC_FLOAT_32) != MPG123_OK) {
 #else
-        if (mpg123_format2(m_handle.get(), 0, MPG123_STEREO | MPG123_MONO, MPG123_ENC_FLOAT_32) != MPG123_OK)
+        if (mpg123_format2(m_handle.get(), 0, MPG123_STEREO | MPG123_MONO, MPG123_ENC_FLOAT_32) != MPG123_OK) {
 #endif
             throw SoundError("can't set mp3 format");
+        }
 
         int encoding;
         if (mpg123_getformat(m_handle.get(), &m_rate, &m_channels, &encoding) != MPG123_OK) {
@@ -374,8 +375,7 @@ public:
         set_format(m_rate, m_channels);
     }
 
-    qint64 source_read(void *data, qint64 max) override
-    {
+    qint64 source_read(void *data, qint64 max) override {
         int err;
         std::size_t done;
 
@@ -436,6 +436,9 @@ struct glk_schannel_struct {
                 (gidispatch_rock_t){ .ptr = nullptr })
     {
     }
+
+    glk_schannel_struct(const glk_schannel_struct &) = delete;
+    glk_schannel_struct &operator=(const glk_schannel_struct &) = delete;
 
     ~glk_schannel_struct() {
         if (gli_unregister_obj != nullptr) {
@@ -619,19 +622,19 @@ void glk_schannel_set_volume(schanid_t chan, glui32 vol)
     glk_schannel_set_volume_ext(chan, vol, 0, 0);
 }
 
-void glk_schannel_set_volume_ext(schanid_t chan, glui32 glk_volume, glui32 duration, glui32 notify)
+void glk_schannel_set_volume_ext(schanid_t chan, glui32 vol, glui32 duration, glui32 notify)
 {
     if (chan == nullptr) {
         gli_strict_warning("schannel_set_volume: invalid id.");
         return;
     }
 
-    if (glk_volume > GLK_MAXVOLUME) {
-        glk_volume = GLK_MAXVOLUME;
+    if (vol > GLK_MAXVOLUME) {
+        vol = GLK_MAXVOLUME;
     }
 
     chan->current_volume = chan->target_volume;
-    chan->target_volume = glk_volume;
+    chan->target_volume = vol;
     chan->volume_notify = notify;
 
     if (duration == 0) {
@@ -660,8 +663,7 @@ static int detect_format(const QByteArray &data)
         {
         }
 
-        bool matches(const QByteArray &data) const override
-        {
+        bool matches(const QByteArray &data) const override {
             QByteArray subarray = data.mid(m_offset, m_string.size());
 
             return QString(subarray) == m_string;
@@ -673,8 +675,7 @@ static int detect_format(const QByteArray &data)
     };
 
     struct MagicMod : public Magic {
-        bool matches(const QByteArray &data) const override
-        {
+        bool matches(const QByteArray &data) const override {
             std::size_t size = std::min(openmpt_probe_file_header_get_recommended_size(), static_cast<std::size_t>(data.size()));
 
             return openmpt_probe_file_header(OPENMPT_PROBE_FILE_HEADER_FLAGS_DEFAULT,
@@ -763,7 +764,7 @@ static std::pair<int, QByteArray> load_sound_resource(glui32 snd)
     }
 }
 
-glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify, std::function<std::pair<int, QByteArray>(glui32)> load_resource)
+glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify, const std::function<std::pair<int, QByteArray>(glui32)> &load_resource)
 {
     if (chan == nullptr) {
         gli_strict_warning("schannel_play_ext: invalid id.");

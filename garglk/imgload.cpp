@@ -60,12 +60,12 @@ void gli_piclist_decrement()
     }
 }
 
-static void gli_picture_store_original(std::shared_ptr<picture_t> pic)
+static void gli_picture_store_original(const std::shared_ptr<picture_t> &pic)
 {
     picstore[pic->id] = PicturePair{pic, nullptr};
 }
 
-static void gli_picture_store_scaled(std::shared_ptr<picture_t> pic)
+static void gli_picture_store_scaled(const std::shared_ptr<picture_t> &pic)
 {
     try {
         auto &picpair = picstore.at(pic->id);
@@ -74,7 +74,7 @@ static void gli_picture_store_scaled(std::shared_ptr<picture_t> pic)
     }
 }
 
-void gli_picture_store(std::shared_ptr<picture_t> pic)
+void gli_picture_store(const std::shared_ptr<picture_t> &pic)
 {
     if (!pic) {
         return;
@@ -131,9 +131,7 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
         }
 
         std::rewind(fl.get());
-    }
-
-    else {
+    } else {
         long pos;
         FILE *blorb_fl;
         giblorb_get_resource(giblorb_ID_Pict, id, &blorb_fl, &pos, nullptr, &chunktype);
@@ -141,7 +139,9 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
             return nullptr;
         }
         fl = {blorb_fl, [](FILE *) { return 0; }};
-        std::fseek(fl.get(), pos, SEEK_SET);
+        if (std::fseek(fl.get(), pos, SEEK_SET) != 0) {
+            return nullptr;
+        }
     }
 
     const std::unordered_map<int, std::function<std::shared_ptr<picture_t>(FILE *, unsigned long)>> loaders = {

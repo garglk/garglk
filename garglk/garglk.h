@@ -28,6 +28,7 @@
 #ifdef __cplusplus
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -69,7 +70,7 @@ struct FontFace {
     static FontFace monoi() { return {true, false, true}; }
     static FontFace monoz() { return {true, true, true}; }
 
-    bool operator==(const FontFace &other) {
+    bool operator==(const FontFace &other) const {
         return monospace == other.monospace &&
                bold == other.bold &&
                italic == other.italic;
@@ -148,7 +149,7 @@ void winabort(const std::string &msg);
 std::string downcase(const std::string &string);
 void fontreplace(const std::string &font, FontType type);
 std::vector<ConfigFile> configs(const std::string &gamepath);
-void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, std::function<void(const std::string &cmd, const std::string &arg)> callback);
+void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, const std::function<void(const std::string &cmd, const std::string &arg)> &callback);
 std::string user_config();
 void set_lcdfilter(const std::string &filter);
 std::string winfontpath(const std::string &filename);
@@ -398,8 +399,6 @@ struct window_graphics_t;
 #define HISTORYLEN 100
 
 #define GLI_SUBPIX 8
-#define gli_zoom_int(x) ((x) * gli_zoom + 0.5)
-#define gli_unzoom_int(x) ((x) / gli_zoom + 0.5)
 
 extern std::string gli_program_name;
 extern std::string gli_program_info;
@@ -452,14 +451,14 @@ struct style_t {
     Color fg;
     bool reverse;
 
-    bool operator==(const style_t &other) {
+    bool operator==(const style_t &other) const {
         return font == other.font &&
                bg == other.bg &&
                fg == other.fg &&
                reverse == other.reverse;
     }
 
-    bool operator!=(const style_t &other) {
+    bool operator!=(const style_t &other) const {
         return !(*this == other);
     }
 };
@@ -580,6 +579,18 @@ extern bool gli_claimselect;
 
 extern bool gli_conf_per_game_config;
 
+template <typename T>
+T gli_zoom_int(T x)
+{
+    return std::round(x * gli_zoom);
+}
+
+template <typename T>
+T gli_unzoom_int(T x)
+{
+    return std::round(x / gli_zoom);
+}
+
 //
 // Standard Glk I/O stuff
 //
@@ -689,6 +700,8 @@ struct attr_t {
 
 struct glk_window_struct {
     glk_window_struct(glui32 type_, glui32 rock_);
+    glk_window_struct(const glk_window_struct &) = delete;
+    glk_window_struct &operator=(const glk_window_struct &) = delete;
     ~glk_window_struct();
 
     glui32 magicnum = MAGIC_WINDOW_NUM;
@@ -1014,25 +1027,25 @@ void fontunload();
 void giblorb_get_resource(glui32 usage, glui32 resnum, std::FILE **file, long *pos, long *len, glui32 *type);
 
 std::shared_ptr<picture_t> gli_picture_load(unsigned long id);
-void gli_picture_store(std::shared_ptr<picture_t> pic);
+void gli_picture_store(const std::shared_ptr<picture_t> &pic);
 std::shared_ptr<picture_t> gli_picture_retrieve(unsigned long id, bool scaled);
-std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int destwidth, int destheight);
+std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int newrows);
 void gli_piclist_increment();
 void gli_piclist_decrement();
 
 window_graphics_t *win_graphics_create(window_t *win);
-void win_graphics_destroy(window_graphics_t *cutwin);
+void win_graphics_destroy(window_graphics_t *dwin);
 void win_graphics_rearrange(window_t *win, rect_t *box);
 void win_graphics_get_size(window_t *win, glui32 *width, glui32 *height);
 void win_graphics_redraw(window_t *win);
 void win_graphics_click(window_graphics_t *dwin, int x, int y);
 
-bool win_graphics_draw_picture(window_graphics_t *cutwin,
+bool win_graphics_draw_picture(window_graphics_t *dwin,
   glui32 image, glsi32 xpos, glsi32 ypos,
   bool scale, glui32 imagewidth, glui32 imageheight);
-void win_graphics_erase_rect(window_graphics_t *cutwin, bool whole, glsi32 xpos, glsi32 ypos, glui32 width, glui32 height);
-void win_graphics_fill_rect(window_graphics_t *cutwin, glui32 color, glsi32 xpos, glsi32 ypos, glui32 width, glui32 height);
-void win_graphics_set_background_color(window_graphics_t *cutwin, glui32 color);
+void win_graphics_erase_rect(window_graphics_t *dwin, bool whole, glsi32 x0, glsi32 y0, glui32 width, glui32 height);
+void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color, glsi32 x0, glsi32 y0, glui32 width, glui32 height);
+void win_graphics_set_background_color(window_graphics_t *dwin, glui32 color);
 
 bool win_textbuffer_draw_picture(window_textbuffer_t *dwin, glui32 image, glui32 align, bool scaled, glui32 width, glui32 height);
 void win_textbuffer_flow_break(window_textbuffer_t *win);

@@ -314,7 +314,7 @@ extern glui32 glk_fileref_does_file_exist(frefid_t fref);
 extern void glk_select(event_t *event);
 extern void glk_select_poll(event_t *event);
 
-extern void glk_request_timer_events(glui32 millisecs);
+extern void glk_request_timer_events(glui32 ms);
 
 extern void glk_request_line_event(winid_t win, char *buf, glui32 maxlen,
     glui32 initlen);
