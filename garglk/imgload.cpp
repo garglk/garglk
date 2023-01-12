@@ -121,7 +121,7 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
             return nullptr;
         }
 
-        if (!png_sig_cmp(buf.data(), 0, buf.size())) {
+        if (png_sig_cmp(buf.data(), 0, buf.size()) == 0) {
             chunktype = giblorb_ID_PNG;
         } else if (buf[0] == 0xFF && buf[1] == 0xD8 && buf[2] == 0xFF) {
             chunktype = giblorb_ID_JPEG;
@@ -137,7 +137,7 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
         long pos;
         FILE *blorb_fl;
         giblorb_get_resource(giblorb_ID_Pict, id, &blorb_fl, &pos, nullptr, &chunktype);
-        if (!blorb_fl) {
+        if (blorb_fl == nullptr) {
             return nullptr;
         }
         fl = {blorb_fl, [](FILE *) { return 0; }};

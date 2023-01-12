@@ -499,7 +499,7 @@ extern bool gli_override_bg_set;
 extern Color gli_override_bg_val;
 extern bool gli_override_reverse;
 
-extern int gli_link_style;
+extern bool gli_underline_hyperlinks;
 extern int gli_caret_shape;
 extern int gli_wborderx;
 extern int gli_wbordery;
@@ -760,7 +760,7 @@ struct window_pair_t {
     window_t *key;           // NULL or a leaf-descendant (not a Pair)
     bool keydamage = false;  // used as scratch space in window closing
     glui32 size;             // size value
-    glui32 wborder;          // winMethod_Border, NoBorder
+    bool wborder;            // winMethod_Border, NoBorder
 };
 
 // One line of the grid window.
@@ -1034,8 +1034,8 @@ void win_graphics_erase_rect(window_graphics_t *cutwin, bool whole, glsi32 xpos,
 void win_graphics_fill_rect(window_graphics_t *cutwin, glui32 color, glsi32 xpos, glsi32 ypos, glui32 width, glui32 height);
 void win_graphics_set_background_color(window_graphics_t *cutwin, glui32 color);
 
-glui32 win_textbuffer_draw_picture(window_textbuffer_t *dwin, glui32 image, glui32 align, bool scaled, glui32 width, glui32 height);
-glui32 win_textbuffer_flow_break(window_textbuffer_t *win);
+bool win_textbuffer_draw_picture(window_textbuffer_t *dwin, glui32 image, glui32 align, bool scaled, glui32 width, glui32 height);
+void win_textbuffer_flow_break(window_textbuffer_t *win);
 
 void gli_calc_padding(window_t *win, int *x, int *y);
 

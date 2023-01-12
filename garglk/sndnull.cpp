@@ -51,7 +51,7 @@ void glk_schannel_destroy(schanid_t chan)
 
 schanid_t glk_schannel_iterate(schanid_t chan, glui32 *rockptr)
 {
-    if (rockptr) {
+    if (rockptr != nullptr) {
         *rockptr = 0;
     }
     return nullptr;

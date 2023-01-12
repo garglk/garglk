@@ -172,7 +172,7 @@ void garglk::fontreplace(const std::string &font, FontType type)
 
 void fontload()
 {
-    initialized = FcInit();
+    initialized = FcInit() != 0;
 }
 
 void fontunload()

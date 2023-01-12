@@ -200,7 +200,7 @@ const FontEntry &Font::getglyph(glui32 cid)
 
             err = FT_Load_Glyph(m_face, gid,
                     FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
-            if (err) {
+            if (err != 0) {
                 freetype_error(err, "Error in FT_Load_Glyph");
             }
 
@@ -224,7 +224,7 @@ const FontEntry &Font::getglyph(glui32 cid)
                 err = FT_Render_Glyph(m_face->glyph, FT_RENDER_MODE_LIGHT);
             }
 
-            if (err) {
+            if (err != 0) {
                 freetype_error(err, "Error in FT_Render_Glyph");
             }
 
@@ -354,19 +354,19 @@ Font::Font(FontFace fontface, const std::string &fallback) :
     }
 
     err = FT_Set_Char_Size(m_face, size * aspect * 64, size * 64, 72, 72);
-    if (err) {
+    if (err != 0) {
         freetype_error(err, "Error in FT_Set_Char_Size for " + fontpath);
     }
 
     err = FT_Select_Charmap(m_face, ft_encoding_unicode);
-    if (err) {
+    if (err != 0) {
         freetype_error(err, "Error in FT_Select_CharMap for " + fontpath);
     }
 
     m_kerned = FT_HAS_KERNING(m_face);
 
-    m_make_bold = fontface.bold && !(m_face->style_flags & FT_STYLE_FLAG_BOLD);
-    m_make_oblique = fontface.italic && !(m_face->style_flags & FT_STYLE_FLAG_ITALIC);
+    m_make_bold = fontface.bold && ((m_face->style_flags & FT_STYLE_FLAG_BOLD) == 0);
+    m_make_oblique = fontface.italic && ((m_face->style_flags & FT_STYLE_FLAG_ITALIC) == 0);
 }
 
 void gli_initialize_fonts()
@@ -382,7 +382,7 @@ void gli_initialize_fonts()
     }
 
     err = FT_Init_FreeType(&ftlib);
-    if (err) {
+    if (err != 0) {
         freetype_error(err, "Unable to initialize FreeType");
     }
 
@@ -568,7 +568,7 @@ int Font::charkern(glui32 c0, glui32 c1)
     }
 
     err = FT_Get_Kerning(m_face, g0, g1, FT_KERNING_UNFITTED, &v);
-    if (err) {
+    if (err != 0) {
         freetype_error(err, "Error in FT_Get_Kerning");
     }
 

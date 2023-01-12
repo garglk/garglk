@@ -300,7 +300,7 @@ static void configterp(const std::string &gamepath, struct Interpreter &interpre
     }
 }
 
-int garglk::rungame(const std::string &game)
+bool garglk::rungame(const std::string &game)
 {
     const std::set<std::string> blorbs = {"blb", "blorb", "glb", "gbl", "gblorb", "zlb", "zbl", "zblorb"};
     Interpreter interpreter("");
@@ -343,5 +343,5 @@ int garglk::rungame(const std::string &game)
 
     garglk::winmsg("Unknown file type: \"" + ext + "\"\nSorry.");
 
-    return 0;
+    return false;
 }

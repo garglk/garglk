@@ -41,8 +41,8 @@ window_textgrid_t *win_textgrid_create(window_t *win)
 
 void win_textgrid_destroy(window_textgrid_t *dwin)
 {
-    if (dwin->inbuf) {
-        if (gli_unregister_arr) {
+    if (dwin->inbuf != nullptr) {
+        if (gli_unregister_arr != nullptr) {
             const char *typedesc = (dwin->inunicode ? "&+#!Iu" : "&+#!Cn");
             (*gli_unregister_arr)(dwin->inbuf, dwin->inoriglen, const_cast<char *>(typedesc), dwin->inarrayrock);
         }
@@ -112,7 +112,7 @@ void win_textgrid_redraw(window_t *win)
                 if (ln->attrs[a] != ln->attrs[b]) {
                     link = ln->attrs[a].hyper;
                     auto font = ln->attrs[a].font(dwin->styles);
-                    Color fgcolor = link ? gli_link_color : ln->attrs[a].fg(dwin->styles);
+                    Color fgcolor = link != 0 ? gli_link_color : ln->attrs[a].fg(dwin->styles);
                     Color bgcolor = ln->attrs[a].bg(dwin->styles);
                     w = (b - a) * gli_cellw;
                     gli_draw_rect(x, y, w, gli_leading, bgcolor);
@@ -123,9 +123,11 @@ void win_textgrid_redraw(window_t *win)
                                 &ln->chars[k], 1, -1);
                         o += gli_cellw;
                     }
-                    if (link) {
-                        gli_draw_rect(x, y + gli_baseline + 1, w,
-                                      gli_link_style, gli_link_color);
+                    if (link != 0) {
+                        if (gli_underline_hyperlinks) {
+                            gli_draw_rect(x, y + gli_baseline + 1, w,
+                                        1, gli_link_color);
+                        }
                         gli_put_hyperlink(link, x, y, x + w, y + gli_leading);
                     }
                     x += w;
@@ -134,7 +136,7 @@ void win_textgrid_redraw(window_t *win)
             }
             link = ln->attrs[a].hyper;
             auto font = ln->attrs[a].font(dwin->styles);
-            Color fgcolor = link ? gli_link_color : ln->attrs[a].fg(dwin->styles);
+            Color fgcolor = link != 0 ? gli_link_color : ln->attrs[a].fg(dwin->styles);
             Color bgcolor = ln->attrs[a].bg(dwin->styles);
             w = (b - a) * gli_cellw;
             w += win->bbox.x1 - (x + w);
@@ -146,9 +148,11 @@ void win_textgrid_redraw(window_t *win)
                                     &ln->chars[k], 1, -1);
                 o += gli_cellw;
             }
-            if (link) {
-                gli_draw_rect(x, y + gli_baseline + 1, w,
-                              gli_link_style, gli_link_color);
+            if (link != 0) {
+                if (gli_underline_hyperlinks) {
+                    gli_draw_rect(x, y + gli_baseline + 1, w,
+                                1, gli_link_color);
+                }
                 gli_put_hyperlink(link, x, y, x + w, y + gli_leading);
             }
         }
@@ -301,7 +305,7 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
 
     if (win->hyper_request) {
         glui32 linkval = gli_get_hyperlink(sx, sy);
-        if (linkval) {
+        if (linkval != 0) {
             gli_event_store(evtype_Hyperlink, win, linkval, 0);
             win->hyper_request = false;
             if (gli_conf_safeclicks) {
@@ -335,7 +339,7 @@ static void win_textgrid_init_impl(window_t *win, void *buf, int maxlen, int ini
         initlen = maxlen;
     }
 
-    if (initlen) {
+    if (initlen != 0) {
         int ix;
         tgline_t *ln = &(dwin->lines[dwin->inorgy]);
 
@@ -358,7 +362,7 @@ static void win_textgrid_init_impl(window_t *win, void *buf, int maxlen, int ini
 
     dwin->line_terminators = win->line_terminators;
 
-    if (gli_register_arr) {
+    if (gli_register_arr != nullptr) {
         dwin->inarrayrock = (*gli_register_arr)(dwin->inbuf, dwin->inoriglen, const_cast<char *>(unicode ? "&+#!Iu" : "&+#!Cn"));
     }
 }
@@ -378,12 +382,13 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
 {
     int ix;
     void *inbuf;
-    int inoriglen, inunicode;
+    int inoriglen;
+    bool inunicode;
     gidispatch_rock_t inarrayrock;
     window_textgrid_t *dwin = win->window.textgrid;
     tgline_t *ln = &(dwin->lines[dwin->inorgy]);
 
-    if (!dwin->inbuf) {
+    if (dwin->inbuf == nullptr) {
         return;
     }
 
@@ -400,14 +405,14 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
             }
             (static_cast<char *>(inbuf))[ix] = static_cast<char>(ch);
         }
-        if (win->echostr) {
+        if (win->echostr != nullptr) {
             gli_stream_echo_line(win->echostr, static_cast<char *>(inbuf), dwin->inlen);
         }
     } else {
         for (ix = 0; ix < dwin->inlen; ix++) {
             (static_cast<glui32 *>(inbuf))[ix] = ln->chars[dwin->inorgx + ix];
         }
-        if (win->echostr) {
+        if (win->echostr != nullptr) {
             gli_stream_echo_line_uni(win->echostr, static_cast<glui32 *>(inbuf), dwin->inlen);
         }
     }
@@ -430,7 +435,7 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
     dwin->inorgx = 0;
     dwin->inorgy = 0;
 
-    if (gli_unregister_arr) {
+    if (gli_unregister_arr != nullptr) {
         const char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
         (*gli_unregister_arr)(inbuf, inoriglen, const_cast<char *>(typedesc), inarrayrock);
     }
@@ -476,7 +481,7 @@ static void acceptline(window_t *win, glui32 keycode)
     window_textgrid_t *dwin = win->window.textgrid;
     tgline_t *ln = &(dwin->lines[dwin->inorgy]);
 
-    if (!dwin->inbuf) {
+    if (dwin->inbuf == nullptr) {
         return;
     }
 
@@ -489,14 +494,14 @@ static void acceptline(window_t *win, glui32 keycode)
         for (ix = 0; ix < dwin->inlen; ix++) {
             (static_cast<char *>(inbuf))[ix] = static_cast<char>(ln->chars[dwin->inorgx + ix]);
         }
-        if (win->echostr) {
+        if (win->echostr != nullptr) {
             gli_stream_echo_line(win->echostr, static_cast<char *>(inbuf), dwin->inlen);
         }
     } else {
         for (ix = 0; ix < dwin->inlen; ix++) {
             (static_cast<glui32 *>(inbuf))[ix] = ln->chars[dwin->inorgx + ix];
         }
-        if (win->echostr) {
+        if (win->echostr != nullptr) {
             gli_stream_echo_line_uni(win->echostr, static_cast<glui32 *>(inbuf), dwin->inlen);
         }
     }
@@ -523,7 +528,7 @@ static void acceptline(window_t *win, glui32 keycode)
     dwin->inorgx = 0;
     dwin->inorgy = 0;
 
-    if (gli_unregister_arr) {
+    if (gli_unregister_arr != nullptr) {
         const char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
         (*gli_unregister_arr)(inbuf, inoriglen, const_cast<char *>(typedesc), inarrayrock);
     }
@@ -536,7 +541,7 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
     window_textgrid_t *dwin = win->window.textgrid;
     tgline_t *ln = &(dwin->lines[dwin->inorgy]);
 
-    if (!dwin->inbuf) {
+    if (dwin->inbuf == nullptr) {
         return;
     }
 

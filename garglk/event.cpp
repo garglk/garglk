@@ -120,7 +120,7 @@ void gli_input_handle_key(glui32 key)
 
     window_t *win = gli_focuswin;
 
-    if (!win) {
+    if (win == nullptr) {
         if (gli_terminated) {
             winexit();
         }
@@ -156,7 +156,7 @@ void gli_input_handle_key(glui32 key)
 
 void gli_input_handle_click(int x, int y)
 {
-    if (gli_rootwin) {
+    if (gli_rootwin != nullptr) {
         gli_window_click(gli_rootwin, x, y);
     }
 }
@@ -168,7 +168,7 @@ static void gli_input_guess_focus()
     window_t *altwin = gli_focuswin;
 
     do {
-        if (altwin
+        if (altwin != nullptr
             && (altwin->line_request || altwin->char_request ||
                 altwin->line_request_uni || altwin->char_request_uni)) {
             break;
@@ -190,7 +190,7 @@ static void gli_input_more_focus()
     window_t *altwin = gli_focuswin;
 
     do {
-        if (altwin
+        if (altwin != nullptr
             && (altwin->more_request)) {
             break;
         }
@@ -208,7 +208,7 @@ static void gli_input_next_focus()
 
     do {
         altwin = gli_window_iterate_treeorder(altwin);
-        if (altwin
+        if (altwin != nullptr
             && (altwin->line_request || altwin->char_request ||
                 altwin->line_request_uni || altwin->char_request_uni)) {
             break;
@@ -229,7 +229,7 @@ static void gli_input_scroll_focus()
     window_t *altwin = gli_focuswin;
 
     do {
-        if (altwin
+        if (altwin != nullptr
             && (altwin->scroll_request)) {
             break;
         }

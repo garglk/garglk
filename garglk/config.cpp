@@ -147,7 +147,7 @@ Color gli_scroll_fg(0x80, 0x80, 0x80);
 int gli_scroll_width = 0;
 
 int gli_caret_shape = 2;
-int gli_link_style = 1;
+bool gli_underline_hyperlinks = true;
 
 bool gli_conf_lcd = true;
 std::array<unsigned char, 5> gli_conf_lcd_weights = {28, 56, 85, 56, 28};
@@ -466,6 +466,10 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
     std::vector<std::string> matches = {argv0, gamefile};
 
     garglk::config_entries(fname, true, matches, [](const std::string &cmd, const std::string &arg) {
+        auto asbool = [](const std::string &arg) {
+            return std::stoi(arg) != 0;
+        };
+
         if (cmd == "moreprompt") {
             base_more_prompt = arg;
         } else if (cmd == "morecolor") {
@@ -532,9 +536,9 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 gli_cols = r;
             }
         } else if (cmd == "lockrows") {
-            gli_conf_lockrows = !!std::stoi(arg);
+            gli_conf_lockrows = asbool(arg);
         } else if (cmd == "lockcols") {
-            gli_conf_lockcols = !!std::stoi(arg);
+            gli_conf_lockcols = asbool(arg);
         } else if (cmd == "save_window") {
             std::stringstream ss(arg);
             std::string entry;
@@ -580,7 +584,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             parsecolor(arg, gli_window_color);
             parsecolor(arg, gli_window_save);
         } else if (cmd == "lcd") {
-            gli_conf_lcd = !!std::stoi(arg);
+            gli_conf_lcd = asbool(arg);
         } else if (cmd == "lcdfilter") {
             garglk::set_lcdfilter(arg);
         } else if (cmd == "lcdweights") {
@@ -598,7 +602,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
         } else if (cmd == "caretshape") {
             gli_caret_shape = clamp(std::stoi(arg), 0, 4);
         } else if (cmd == "linkstyle") {
-            gli_link_style = !!std::stoi(arg);
+            gli_underline_hyperlinks = asbool(arg);
         } else if (cmd == "scrollwidth") {
             gli_scroll_width = std::max(0, std::stoi(arg));
         } else if (cmd == "scrollbg") {
@@ -606,7 +610,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
         } else if (cmd == "scrollfg") {
             parsecolor(arg, gli_scroll_fg);
         } else if (cmd == "justify") {
-            gli_conf_justify = clamp(std::stoi(arg), 0, 1);
+            gli_conf_justify = asbool(arg);
         } else if (cmd == "quotes") {
             gli_conf_quotes = clamp(std::stoi(arg), 0, 2);
         } else if (cmd == "dashes") {
@@ -614,11 +618,11 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
         } else if (cmd == "spaces") {
             gli_conf_spaces = clamp(std::stoi(arg), 0, 2);
         } else if (cmd == "caps") {
-            gli_conf_caps = !!std::stoi(arg);
+            gli_conf_caps = asbool(arg);
         } else if (cmd == "graphics") {
-            gli_conf_graphics = !!std::stoi(arg);
+            gli_conf_graphics = asbool(arg);
         } else if (cmd == "sound") {
-            gli_conf_sound = !!std::stoi(arg);
+            gli_conf_sound = asbool(arg);
         } else if (cmd == "zbleep") {
             std::istringstream argstream(arg);
             int number, frequency;
@@ -636,19 +640,19 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 gli_bleeps.update(number, path);
             }
         } else if (cmd == "fullscreen") {
-            gli_conf_fullscreen = !!std::stoi(arg);
+            gli_conf_fullscreen = asbool(arg);
         } else if (cmd == "zoom") {
             gli_zoom = std::max(0.1, std::stod(arg));
         } else if (cmd == "speak") {
-            gli_conf_speak = !!std::stoi(arg);
+            gli_conf_speak = asbool(arg);
         } else if (cmd == "speak_input") {
-            gli_conf_speak_input = !!std::stoi(arg);
+            gli_conf_speak_input = asbool(arg);
         } else if (cmd == "speak_language") {
             gli_conf_speak_language = arg;
         } else if (cmd == "stylehint") {
-            gli_conf_stylehint = !!std::stoi(arg);
+            gli_conf_stylehint = asbool(arg);
         } else if (cmd == "safeclicks") {
-            gli_conf_safeclicks = !!std::stoi(arg);
+            gli_conf_safeclicks = asbool(arg);
         } else if (cmd == "theme") {
             garglk::theme::set(arg);
         } else if (cmd == "tcolor" || cmd == "gcolor") {
@@ -688,7 +692,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 }
             }
         } else if (cmd == "game_config") {
-            gli_conf_per_game_config = clamp(std::stoi(arg), 0, 1);
+            gli_conf_per_game_config = asbool(arg);
         }
     });
 }
