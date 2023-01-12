@@ -38,7 +38,7 @@ void gli_initialize_babel()
     }
 
     auto ctx = garglk::unique(get_babel_ctx(), release_babel_ctx);
-    if (babel_init_ctx(const_cast<char *>(gli_workfile.c_str()), ctx.get())) {
+    if (babel_init_ctx(const_cast<char *>(gli_workfile.c_str()), ctx.get()) != nullptr) {
         int metaSize = babel_treaty_ctx(GET_STORY_FILE_METADATA_EXTENT_SEL, nullptr, 0, ctx.get());
         if (metaSize > 0) {
             try {

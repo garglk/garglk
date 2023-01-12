@@ -99,7 +99,7 @@ void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigne
 
 glui32 gli_get_hyperlink(int x, int y)
 {
-    if (!gli_mask.initialized || !gli_mask.hor || !gli_mask.ver) {
+    if (!gli_mask.initialized || gli_mask.hor == 0 || gli_mask.ver == 0) {
         gli_strict_warning("get_hyperlink: struct not initialized");
         return 0;
     }
@@ -116,7 +116,7 @@ void gli_start_selection(int x, int y)
 {
     int tx, ty;
 
-    if (!gli_mask.initialized || !gli_mask.hor || !gli_mask.ver) {
+    if (!gli_mask.initialized || gli_mask.hor == 0 || gli_mask.ver == 0) {
         gli_strict_warning("start_selection: mask not initialized");
         return;
     }
@@ -143,7 +143,7 @@ void gli_move_selection(int x, int y)
         return;
     }
 
-    if (!gli_mask.initialized || !gli_mask.hor || !gli_mask.ver) {
+    if (!gli_mask.initialized || gli_mask.hor == 0 || gli_mask.ver == 0) {
         gli_strict_warning("move_selection: mask not initialized");
         return;
     }
@@ -166,8 +166,8 @@ void gli_clear_selection()
         return;
     }
 
-    if (gli_mask.select.x0 || gli_mask.select.x1
-            || gli_mask.select.y0 || gli_mask.select.y1) {
+    if (gli_mask.select.x0 != 0 || gli_mask.select.x1 != 0
+            || gli_mask.select.y0 != 0 || gli_mask.select.y1 != 0) {
         gli_force_redraw = true;
     }
 
@@ -201,7 +201,7 @@ bool gli_check_selection(int x0, int y0,
             ? gli_mask.select.y1
             : gli_mask.select.y0;
 
-    if (!cx0 || !cx1 || !cy0 || !cy1) {
+    if (cx0 == 0 || cx1 == 0 || cy0 == 0 || cy1 == 0) {
         return false;
     }
 
@@ -364,11 +364,11 @@ bool gli_get_selection(int x0, int y0,
         }
     }
 
-    if (rx0 && !rx1) {
+    if (rx0 != nullptr && rx1 == nullptr) {
         *rx1 = x1;
     }
 
-    return (rx0 && rx1);
+    return rx0 != nullptr && rx1 != nullptr;
 }
 
 void gli_clipboard_copy(const glui32 *buf, int len)

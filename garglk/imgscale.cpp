@@ -121,7 +121,7 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
 
                 a = as[col] + fracrowtofill * alpha;
 
-                if (!a) {
+                if (a == 0) {
                     r = g = b = a;
                 } else {
                     r = rs[col] + fracrowtofill * src->rgba[rowsread - 1][col][0] * alpha;
@@ -186,7 +186,7 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
 
                     a += fraccoltofill * alpha;
 
-                    if (!a) {
+                    if (a == 0) {
                         r = g = b = a;
                     } else {
                         r += fraccoltofill * tempxel_blended_r;
@@ -244,7 +244,7 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
             }
 
             if (!needcol) {
-                if (!a) {
+                if (a == 0) {
                     r = g = b = a;
                 } else {
                     r /= a;

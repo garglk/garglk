@@ -132,7 +132,7 @@ void win_graphics_click(window_graphics_t *dwin, int sx, int sy)
 
     if (win->hyper_request) {
         glui32 linkval = gli_get_hyperlink(gli_unzoom_int(sx), gli_unzoom_int(sy));
-        if (linkval) {
+        if (linkval != 0) {
             gli_event_store(evtype_Hyperlink, win, linkval, 0);
             win->hyper_request = false;
             if (gli_conf_safeclicks) {

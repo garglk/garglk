@@ -62,7 +62,7 @@ void win_pair_rearrange(window_t *win, rect_t *box)
 
     case winmethod_Fixed:
         key = dwin->key;
-        if (!key) {
+        if (key == nullptr) {
             split = 0;
         } else {
             switch (key->type) {
@@ -151,7 +151,7 @@ void win_pair_redraw(window_t *win)
     window_t *child;
     int x0, y0, x1, y1;
 
-    if (!win) {
+    if (win == nullptr) {
         return;
     }
 
@@ -167,7 +167,7 @@ void win_pair_redraw(window_t *win)
     }
 
     x0 = child->bbox.x0;
-    y0 = child->yadj ? child->bbox.y0 - child->yadj : child->bbox.y0;
+    y0 = child->yadj != 0 ? child->bbox.y0 - child->yadj : child->bbox.y0;
     x1 = child->bbox.x1;
     y1 = child->bbox.y1;
 
@@ -186,7 +186,7 @@ void win_pair_click(window_pair_t *dwin, int x, int y)
 {
     int x0, y0, x1, y1;
 
-    if (!dwin) {
+    if (dwin == nullptr) {
         return;
     }
 

@@ -51,7 +51,7 @@ void gli_initialize_windows()
 
 static void gli_windows_rearrange()
 {
-    if (gli_rootwin) {
+    if (gli_rootwin != nullptr) {
         rect_t box;
 
         if (gli_conf_lockcols && gli_cols <= MAX_TEXT_COLUMNS) {
@@ -150,8 +150,8 @@ winid_t glk_window_open(winid_t splitwin,
 
     gli_force_redraw = true;
 
-    if (!gli_rootwin) {
-        if (splitwin) {
+    if (gli_rootwin == nullptr) {
+        if (splitwin != nullptr) {
             gli_strict_warning("window_open: ref must be NULL");
             return nullptr;
         }
@@ -161,7 +161,7 @@ winid_t glk_window_open(winid_t splitwin,
     }
 
     else {
-        if (!splitwin) {
+        if (splitwin == nullptr) {
             gli_strict_warning("window_open: ref must not be NULL");
             return nullptr;
         }
@@ -180,7 +180,7 @@ winid_t glk_window_open(winid_t splitwin,
         }
 
         oldparent = splitwin->parent;
-        if (oldparent && oldparent->type != wintype_Pair) {
+        if (oldparent != nullptr && oldparent->type != wintype_Pair) {
             gli_strict_warning("window_open: parent window is not Pair");
             return nullptr;
         }
@@ -217,7 +217,7 @@ winid_t glk_window_open(winid_t splitwin,
         return nullptr;
     }
 
-    if (!splitwin) {
+    if (splitwin == nullptr) {
         gli_rootwin = newwin;
     } else {
         // create pairwin, with newwin as the key
@@ -232,7 +232,7 @@ winid_t glk_window_open(winid_t splitwin,
         newwin->parent = pairwin;
         pairwin->parent = oldparent;
 
-        if (oldparent) {
+        if (oldparent != nullptr) {
             window_pair_t *dparentwin = oldparent->window.pair;
             if (dparentwin->child1 == splitwin) {
                 dparentwin->child1 = pairwin;
@@ -257,7 +257,7 @@ static void gli_window_close(window_t *win, bool recurse)
         gli_focuswin = nullptr;
     }
 
-    for (wx = win->parent; wx; wx = wx->parent) {
+    for (wx = win->parent; wx != nullptr; wx = wx->parent) {
         if (wx->type == wintype_Pair) {
             window_pair_t *dwx = wx->window.pair;
             if (dwx->key == win) {
@@ -280,10 +280,10 @@ static void gli_window_close(window_t *win, bool recurse)
     case wintype_Pair: {
         window_pair_t *dwin = win->window.pair;
         if (recurse) {
-            if (dwin->child1) {
+            if (dwin->child1 != nullptr) {
                 gli_window_close(dwin->child1, true);
             }
-            if (dwin->child2) {
+            if (dwin->child2 != nullptr) {
                 gli_window_close(dwin->child2, true);
             }
         }
@@ -314,7 +314,7 @@ void glk_window_close(window_t *win, stream_result_t *result)
 {
     gli_force_redraw = true;
 
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_close: invalid ref");
         return;
     }
@@ -347,7 +347,7 @@ void glk_window_close(window_t *win, stream_result_t *result)
         }
 
         grandparwin = pairwin->parent;
-        if (!grandparwin) {
+        if (grandparwin == nullptr) {
             gli_rootwin = sibwin;
             sibwin->parent = nullptr;
         } else {
@@ -390,7 +390,7 @@ void glk_window_get_arrangement(window_t *win, glui32 *method, glui32 *size,
     window_pair_t *dwin;
     glui32 val;
 
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_get_arrangement: invalid ref");
         return;
     }
@@ -407,20 +407,20 @@ void glk_window_get_arrangement(window_t *win, glui32 *method, glui32 *size,
         val |= winmethod_NoBorder;
     }
 
-    if (size) {
+    if (size != nullptr) {
         *size = dwin->size;
-        if (dwin->key && (dwin->key->type == wintype_Graphics) && (dwin->dir == winmethod_Fixed)) {
+        if (dwin->key != nullptr && (dwin->key->type == wintype_Graphics) && (dwin->dir == winmethod_Fixed)) {
             *size = gli_unzoom_int(*size);
         }
     }
-    if (keywin) {
-        if (dwin->key) {
+    if (keywin != nullptr) {
+        if (dwin->key != nullptr) {
             *keywin = dwin->key;
         } else {
             *keywin = nullptr;
         }
     }
-    if (method) {
+    if (method != nullptr) {
         *method = val;
     }
 }
@@ -433,7 +433,7 @@ void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid
 
     gli_force_redraw = true;
 
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_set_arrangement: invalid ref");
         return;
     }
@@ -443,13 +443,13 @@ void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid
         return;
     }
 
-    if (key) {
+    if (key != nullptr) {
         window_t *wx;
         if (key->type == wintype_Pair) {
             gli_strict_warning("window_set_arrangement: keywin cannot be a Pair");
             return;
         }
-        for (wx = key; wx; wx = wx->parent) {
+        for (wx = key; wx != nullptr; wx = wx->parent) {
             if (wx == win) {
                 break;
             }
@@ -465,7 +465,7 @@ void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid
     newdir = method & winmethod_DirMask;
     newvertical = (newdir == winmethod_Left || newdir == winmethod_Right);
     newbackward = (newdir == winmethod_Left || newdir == winmethod_Above);
-    if (!key) {
+    if (key == nullptr) {
         key = dwin->key;
     }
 
@@ -478,7 +478,7 @@ void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid
         return;
     }
 
-    if (key && key->type == wintype_Blank
+    if (key != nullptr && key->type == wintype_Blank
         && (method & winmethod_DivisionMask) == winmethod_Fixed) {
         gli_strict_warning("window_set_arrangement: a Blank window cannot have a fixed size");
         return;
@@ -496,7 +496,7 @@ void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid
     dwin->division = method & winmethod_DivisionMask;
     dwin->key = key;
     dwin->size = size;
-    if (key && (key->type == wintype_Graphics) && (newdir == winmethod_Fixed)) {
+    if (key != nullptr && (key->type == wintype_Graphics) && (newdir == winmethod_Fixed)) {
         dwin->size = gli_zoom_int(dwin->size);
     }
     dwin->wborder = (method & winmethod_BorderMask) == winmethod_Border;
@@ -512,7 +512,7 @@ void glk_window_get_size(window_t *win, glui32 *width, glui32 *height)
     glui32 wid = 0;
     glui32 hgt = 0;
 
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_get_size: invalid ref");
         return;
     }
@@ -540,10 +540,10 @@ void glk_window_get_size(window_t *win, glui32 *width, glui32 *height)
         break;
     }
 
-    if (width) {
+    if (width != nullptr) {
         *width = wid;
     }
-    if (height) {
+    if (height != nullptr) {
         *height = hgt;
     }
 }
@@ -551,7 +551,7 @@ void glk_window_get_size(window_t *win, glui32 *width, glui32 *height)
 void gli_calc_padding(window_t *win, int *x, int *y)
 {
     window_pair_t *wp;
-    if (!win) {
+    if (win == nullptr) {
         return;
     }
     if (win->type == wintype_Pair) {
@@ -572,20 +572,20 @@ void gli_calc_padding(window_t *win, int *x, int *y)
 
 winid_t glk_window_iterate(winid_t win, glui32 *rock)
 {
-    if (!win) {
+    if (win == nullptr) {
         win = gli_windowlist;
     } else {
         win = win->next;
     }
 
-    if (win) {
-        if (rock) {
+    if (win != nullptr) {
+        if (rock != nullptr) {
             *rock = win->rock;
         }
         return win;
     }
 
-    if (rock) {
+    if (rock != nullptr) {
         *rock = 0;
     }
     return nullptr;
@@ -593,7 +593,7 @@ winid_t glk_window_iterate(winid_t win, glui32 *rock)
 
 window_t *gli_window_iterate_treeorder(window_t *win)
 {
-    if (!win) {
+    if (win == nullptr) {
         return gli_rootwin;
     }
 
@@ -608,7 +608,7 @@ window_t *gli_window_iterate_treeorder(window_t *win)
         window_t *parwin;
         window_pair_t *dwin;
 
-        while (win->parent) {
+        while (win->parent != nullptr) {
             parwin = win->parent;
             dwin = parwin->window.pair;
             if (!dwin->backward) {
@@ -629,7 +629,7 @@ window_t *gli_window_iterate_treeorder(window_t *win)
 
 glui32 glk_window_get_rock(window_t *win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_get_rock: invalid ref.");
         return 0;
     }
@@ -639,7 +639,7 @@ glui32 glk_window_get_rock(window_t *win)
 
 winid_t glk_window_get_root()
 {
-    if (!gli_rootwin) {
+    if (gli_rootwin == nullptr) {
         return nullptr;
     }
     return gli_rootwin;
@@ -647,11 +647,11 @@ winid_t glk_window_get_root()
 
 winid_t glk_window_get_parent(window_t *win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_get_parent: invalid ref");
         return nullptr;
     }
-    if (win->parent) {
+    if (win->parent != nullptr) {
         return win->parent;
     } else {
         return nullptr;
@@ -662,11 +662,11 @@ winid_t glk_window_get_sibling(window_t *win)
 {
     window_pair_t *dparwin;
 
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_get_sibling: invalid ref");
         return nullptr;
     }
-    if (!win->parent) {
+    if (win->parent == nullptr) {
         return nullptr;
     }
 
@@ -681,7 +681,7 @@ winid_t glk_window_get_sibling(window_t *win)
 
 glui32 glk_window_get_type(window_t *win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_get_parent: invalid ref");
         return 0;
     }
@@ -690,7 +690,7 @@ glui32 glk_window_get_type(window_t *win)
 
 strid_t glk_window_get_stream(window_t *win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_get_stream: invalid ref");
         return nullptr;
     }
@@ -700,12 +700,12 @@ strid_t glk_window_get_stream(window_t *win)
 
 strid_t glk_window_get_echo_stream(window_t *win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_get_echo_stream: invalid ref");
         return nullptr;
     }
 
-    if (win->echostr) {
+    if (win->echostr != nullptr) {
         return win->echostr;
     } else {
         return nullptr;
@@ -714,7 +714,7 @@ strid_t glk_window_get_echo_stream(window_t *win)
 
 void glk_window_set_echo_stream(window_t *win, stream_t *str)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_set_echo_stream: invalid window id");
         return;
     }
@@ -724,7 +724,7 @@ void glk_window_set_echo_stream(window_t *win, stream_t *str)
 
 void glk_set_window(window_t *win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_stream_set_current(nullptr);
     } else {
         gli_stream_set_current(win->str);
@@ -734,7 +734,7 @@ void glk_set_window(window_t *win)
 void gli_windows_unechostream(stream_t *str)
 {
     window_t *win;
-    for (win = gli_windowlist; win; win = win->next) {
+    for (win = gli_windowlist; win != nullptr; win = win->next) {
         if (win->echostr == str) {
             win->echostr = nullptr;
         }
@@ -780,7 +780,7 @@ void gli_window_redraw(window_t *win)
 {
     if (gli_force_redraw) {
         Color color = gli_override_bg_set ? gli_window_color : win->bgcolor;
-        int y0 = win->yadj ? win->bbox.y0 - win->yadj : win->bbox.y0;
+        int y0 = win->yadj != 0 ? win->bbox.y0 - win->yadj : win->bbox.y0;
         gli_draw_rect(win->bbox.x0, y0,
                 win->bbox.x1 - win->bbox.x0,
                 win->bbox.y1 - y0,
@@ -811,7 +811,7 @@ void gli_window_refocus(window_t *win)
     window_t *focus = win;
 
     do {
-        if (focus && focus->more_request) {
+        if (focus != nullptr && focus->more_request) {
             gli_focuswin = focus;
             return;
         }
@@ -831,7 +831,7 @@ void gli_windows_redraw()
         gli_draw_clear(gli_window_color);
     }
 
-    if (gli_rootwin) {
+    if (gli_rootwin != nullptr) {
         gli_window_redraw(gli_rootwin);
     }
 
@@ -854,7 +854,7 @@ void gli_redraw_rect(int x0, int y0, int x1, int y1)
 
 void glk_request_char_event(window_t *win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("request_char_event: invalid ref");
         return;
     }
@@ -877,7 +877,7 @@ void glk_request_char_event(window_t *win)
 
 void glk_request_char_event_uni(window_t *win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("request_char_event_uni: invalid ref");
         return;
     }
@@ -901,7 +901,7 @@ void glk_request_char_event_uni(window_t *win)
 void glk_request_line_event(window_t *win, char *buf, glui32 maxlen,
     glui32 initlen)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("request_line_event: invalid ref");
         return;
     }
@@ -929,7 +929,7 @@ void glk_request_line_event(window_t *win, char *buf, glui32 maxlen,
 void glk_request_line_event_uni(window_t *win, glui32 *buf, glui32 maxlen,
     glui32 initlen)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("request_line_event_uni: invalid ref");
         return;
     }
@@ -956,7 +956,7 @@ void glk_request_line_event_uni(window_t *win, glui32 *buf, glui32 maxlen,
 
 void glk_set_echo_line_event(window_t *win, glui32 val)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("set_echo_line_event: invalid ref");
         return;
     }
@@ -972,7 +972,7 @@ void glk_set_echo_line_event(window_t *win, glui32 val)
 
 void glk_set_terminators_line_event(winid_t win, glui32 *keycodes, glui32 count)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("set_terminators_line_event: invalid ref");
         return;
     }
@@ -1010,7 +1010,7 @@ bool gli_window_check_terminator(glui32 ch)
 
 void glk_request_mouse_event(window_t *win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("request_mouse_event: invalid ref");
         return;
     }
@@ -1028,7 +1028,7 @@ void glk_request_mouse_event(window_t *win)
 
 void glk_request_hyperlink_event(winid_t win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("request_hyperlink_event: invalid ref");
         return;
     }
@@ -1047,7 +1047,7 @@ void glk_request_hyperlink_event(winid_t win)
 
 void glk_cancel_char_event(window_t *win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("cancel_char_event: invalid ref");
         return;
     }
@@ -1068,13 +1068,13 @@ void glk_cancel_line_event(window_t *win, event_t *ev)
 {
     event_t dummyev;
 
-    if (!ev) {
+    if (ev == nullptr) {
         ev = &dummyev;
     }
 
     gli_event_clearevent(ev);
 
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("cancel_line_event: invalid ref");
         return;
     }
@@ -1098,7 +1098,7 @@ void glk_cancel_line_event(window_t *win, event_t *ev)
 
 void glk_cancel_mouse_event(window_t *win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("cancel_mouse_event: invalid ref");
         return;
     }
@@ -1116,7 +1116,7 @@ void glk_cancel_mouse_event(window_t *win)
 
 void glk_cancel_hyperlink_event(winid_t win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("cancel_hyperlink_event: invalid ref");
         return;
     }
@@ -1179,7 +1179,7 @@ bool gli_window_unput_char_uni(window_t *win, glui32 ch)
 
 void glk_window_clear(window_t *win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_clear: invalid ref");
         return;
     }
@@ -1209,7 +1209,7 @@ void glk_window_clear(window_t *win)
 
 void glk_window_move_cursor(window_t *win, glui32 xpos, glui32 ypos)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_move_cursor: invalid ref");
         return;
     }
@@ -1228,7 +1228,7 @@ void glk_window_move_cursor(window_t *win, glui32 xpos, glui32 ypos)
 
 glui32 glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("image_draw: invalid ref");
         return false;
     }
@@ -1251,7 +1251,7 @@ glui32 glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2)
 glui32 glk_image_draw_scaled(winid_t win, glui32 image,
         glsi32 val1, glsi32 val2, glui32 width, glui32 height)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("image_draw_scaled: invalid ref");
         return false;
     }
@@ -1283,10 +1283,10 @@ glui32 glk_image_get_info(glui32 image, glui32 *width, glui32 *height)
         return false;
     }
 
-    if (width) {
+    if (width != nullptr) {
         *width = pic->w;
     }
-    if (height) {
+    if (height != nullptr) {
         *height = pic->h;
     }
 
@@ -1295,7 +1295,7 @@ glui32 glk_image_get_info(glui32 image, glui32 *width, glui32 *height)
 
 void glk_window_flow_break(winid_t win)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_erase_rect: invalid ref");
         return;
     }
@@ -1309,7 +1309,7 @@ void glk_window_flow_break(winid_t win)
 void glk_window_erase_rect(winid_t win,
         glsi32 left, glsi32 top, glui32 width, glui32 height)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_erase_rect: invalid ref");
         return;
     }
@@ -1323,7 +1323,7 @@ void glk_window_erase_rect(winid_t win,
 void glk_window_fill_rect(winid_t win, glui32 color,
         glsi32 left, glsi32 top, glui32 width, glui32 height)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_fill_rect: invalid ref");
         return;
     }
@@ -1336,7 +1336,7 @@ void glk_window_fill_rect(winid_t win, glui32 color,
 
 void glk_window_set_background_color(winid_t win, glui32 color)
 {
-    if (!win) {
+    if (win == nullptr) {
         gli_strict_warning("window_set_background_color: invalid ref");
         return;
     }

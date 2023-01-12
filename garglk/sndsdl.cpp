@@ -167,11 +167,11 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
     chan->chain_prev = nullptr;
     chan->chain_next = gli_channellist;
     gli_channellist = chan;
-    if (chan->chain_next) {
+    if (chan->chain_next != nullptr) {
         chan->chain_next->chain_prev = chan;
     }
 
-    if (gli_register_obj) {
+    if (gli_register_obj != nullptr) {
         chan->disprock = (*gli_register_obj)(chan, gidisp_Class_Schannel);
     } else {
         chan->disprock.ptr = nullptr;
@@ -182,7 +182,7 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
 
 static void cleanup_channel(schanid_t chan)
 {
-    if (chan->sdl_rwops) {
+    if (chan->sdl_rwops != nullptr) {
         SDL_FreeRW(chan->sdl_rwops);
         chan->sdl_rwops = nullptr;
     }
@@ -191,7 +191,7 @@ static void cleanup_channel(schanid_t chan)
 
     switch (chan->status) {
     case CHANNEL_SOUND:
-        if (chan->sample) {
+        if (chan->sample != nullptr) {
             Mix_FreeChunk(chan->sample);
         }
         if (chan->sdl_channel >= 0) {
@@ -200,7 +200,7 @@ static void cleanup_channel(schanid_t chan)
         }
         break;
     case CHANNEL_MUSIC:
-        if (chan->music) {
+        if (chan->music != nullptr) {
             Mix_FreeMusic(chan->music);
             music_channel = nullptr;
         }
@@ -210,7 +210,7 @@ static void cleanup_channel(schanid_t chan)
     chan->sdl_channel = -1;
     chan->music = nullptr;
 
-    if (chan->timer) {
+    if (chan->timer != 0) {
         SDL_RemoveTimer(chan->timer);
     }
 
@@ -221,14 +221,14 @@ void glk_schannel_destroy(schanid_t chan)
 {
     channel_t *prev, *next;
 
-    if (!chan) {
+    if (chan == nullptr) {
         gli_strict_warning("schannel_destroy: invalid id.");
         return;
     }
 
     glk_schannel_stop(chan);
     cleanup_channel(chan);
-    if (gli_unregister_obj) {
+    if (gli_unregister_obj != nullptr) {
         (*gli_unregister_obj)(chan, gidisp_Class_Schannel, chan->disprock);
     }
 
@@ -237,13 +237,13 @@ void glk_schannel_destroy(schanid_t chan)
     chan->chain_prev = nullptr;
     chan->chain_next = nullptr;
 
-    if (prev) {
+    if (prev != nullptr) {
         prev->chain_next = next;
     } else {
         gli_channellist = next;
     }
 
-    if (next) {
+    if (next != nullptr) {
         next->chain_prev = prev;
     }
 
@@ -252,20 +252,20 @@ void glk_schannel_destroy(schanid_t chan)
 
 schanid_t glk_schannel_iterate(schanid_t chan, glui32 *rock)
 {
-    if (!chan) {
+    if (chan == nullptr) {
         chan = gli_channellist;
     } else {
         chan = chan->chain_next;
     }
 
-    if (chan) {
-        if (rock) {
+    if (chan != nullptr) {
+        if (rock != nullptr) {
             *rock = chan->rock;
         }
         return chan;
     }
 
-    if (rock) {
+    if (rock != nullptr) {
         *rock = 0;
     }
     return nullptr;
@@ -273,7 +273,7 @@ schanid_t glk_schannel_iterate(schanid_t chan, glui32 *rock)
 
 glui32 glk_schannel_get_rock(schanid_t chan)
 {
-    if (!chan) {
+    if (chan == nullptr) {
         gli_strict_warning("schannel_get_rock: invalid id.");
         return 0;
     }
@@ -307,7 +307,7 @@ Uint32 volume_timer_callback(Uint32 interval, void *param)
 {
     schanid_t chan = static_cast<schanid_t>(param);
 
-    if (!chan) {
+    if (chan == nullptr) {
         gli_strict_warning("volume_timer_callback: invalid channel.");
         return 0;
     }
@@ -332,13 +332,13 @@ Uint32 volume_timer_callback(Uint32 interval, void *param)
 
     // If the timer has fired FADE_GRANULARITY times, kill it
     if (chan->volume_timeout <= 0) {
-        if (chan->volume_notify) {
+        if (chan->volume_notify != 0) {
             gli_event_store(evtype_VolumeNotify, nullptr,
                 0, chan->volume_notify);
             gli_notification_waiting();
         }
 
-        if (!chan->timer) {
+        if (chan->timer == 0) {
             gli_strict_warning("volume_timer_callback: invalid timer.");
             return 0;
         }
@@ -362,7 +362,7 @@ Uint32 volume_timer_callback(Uint32 interval, void *param)
 // Start a fade timer
 void init_fade(schanid_t chan, int glk_volume, int duration, int notify)
 {
-    if (!chan) {
+    if (chan == nullptr) {
         gli_strict_warning("init_fade: invalid channel.");
         return;
     }
@@ -376,13 +376,13 @@ void init_fade(schanid_t chan, int glk_volume, int duration, int notify)
 
     chan->volume_timeout = FADE_GRANULARITY;
 
-    if (chan->timer) {
+    if (chan->timer != 0) {
         SDL_RemoveTimer(chan->timer);
     }
 
     chan->timer = SDL_AddTimer(static_cast<Uint32>(duration / FADE_GRANULARITY), volume_timer_callback, chan);
 
-    if (!chan->timer) {
+    if (chan->timer == 0) {
         gli_strict_warning("init_fade: failed to create volume change timer.");
         return;
     }
@@ -396,12 +396,12 @@ void glk_schannel_set_volume(schanid_t chan, glui32 vol)
 void glk_schannel_set_volume_ext(schanid_t chan, glui32 glk_volume,
         glui32 duration, glui32 notify)
 {
-    if (!chan) {
+    if (chan == nullptr) {
         gli_strict_warning("schannel_set_volume: invalid id.");
         return;
     }
 
-    if (!duration) {
+    if (duration == 0) {
 
         chan->volume = GLK_VOLUME_TO_SDL_VOLUME(glk_volume);
 
@@ -423,7 +423,7 @@ void glk_schannel_set_volume_ext(schanid_t chan, glui32 glk_volume,
 // Notify the music channel completion
 static void music_completion_callback()
 {
-    if (!music_channel) {
+    if (music_channel == nullptr) {
         gli_strict_warning("music callback failed");
         return;
     } else {
@@ -439,12 +439,12 @@ static void sound_completion_callback(int chan)
 {
     channel_t *sound_channel = sound_channels[chan];
 
-    if (!sound_channel) {
+    if (sound_channel == nullptr) {
         gli_strict_warning("sound completion callback called with invalid channel");
         return;
     }
 
-    if (sound_channel->notify) {
+    if (sound_channel->notify != 0) {
         gli_event_store(evtype_SoundNotify, nullptr,
             sound_channel->resid, sound_channel->notify);
         gli_notification_waiting();
@@ -552,7 +552,7 @@ static glui32 load_sound_resource(glui32 snd, std::vector<unsigned char> &buf)
         long pos;
 
         giblorb_get_resource(giblorb_ID_Snd, snd, &file, &pos, &len, &type);
-        if (!file) {
+        if (file == nullptr) {
             return 0;
         }
 
@@ -584,7 +584,7 @@ static glui32 play_sound(schanid_t chan)
     if (chan->sdl_channel < 0) {
         gli_strict_warning("No available sound channels");
     }
-    if (chan->sdl_channel >= 0 && chan->sample) {
+    if (chan->sdl_channel >= 0 && chan->sample != nullptr) {
         SDL_LockAudio();
         sound_channels[chan->sdl_channel] = chan;
         SDL_UnlockAudio();
@@ -656,7 +656,7 @@ static glui32 play_mod(schanid_t chan, long len)
     std::fclose(file);
     chan->music = Mix_LoadMUS(tn.data());
     std::remove(tn.data());
-    if (chan->music) {
+    if (chan->music != nullptr) {
         SDL_LockAudio();
         music_channel = chan;
         SDL_UnlockAudio();
@@ -684,7 +684,7 @@ glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, gl
     glui32 result = 0;
     bool paused = false;
 
-    if (!chan) {
+    if (chan == nullptr) {
         gli_strict_warning("schannel_play_ext: invalid id.");
         return 0;
     }
@@ -730,7 +730,7 @@ glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, gl
     }
 
     // if channel was paused it should be paused again
-    if (result && paused) {
+    if (result != 0 && paused) {
         glk_schannel_pause(chan);
     }
 
@@ -744,7 +744,7 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
 
 void glk_schannel_pause(schanid_t chan)
 {
-    if (!chan) {
+    if (chan == nullptr) {
         gli_strict_warning("schannel_pause: invalid id.");
         return;
     }
@@ -763,7 +763,7 @@ void glk_schannel_pause(schanid_t chan)
 
 void glk_schannel_unpause(schanid_t chan)
 {
-    if (!chan) {
+    if (chan == nullptr) {
         gli_strict_warning("schannel_unpause: invalid id.");
         return;
     }
@@ -781,7 +781,7 @@ void glk_schannel_unpause(schanid_t chan)
 
 void glk_schannel_stop(schanid_t chan)
 {
-    if (!chan) {
+    if (chan == nullptr) {
         gli_strict_warning("schannel_stop: invalid id.");
         return;
     }

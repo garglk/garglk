@@ -477,7 +477,7 @@ void View::mouseMoveEvent(QMouseEvent *event)
         setCursor(Qt::IBeamCursor);
         gli_move_selection(event->pos().x(), event->pos().y());
     } else {
-        if (gli_get_hyperlink(event->pos().x(), event->pos().y())) {
+        if (gli_get_hyperlink(event->pos().x(), event->pos().y()) != 0) {
             setCursor(Qt::PointingHandCursor);
         } else {
             unsetCursor();
