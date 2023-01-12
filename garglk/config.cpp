@@ -286,7 +286,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &gamepath = ""
     configs.push_back(ConfigFile("garglk.ini", ConfigFile::Type::User));
 #else
 
-    const char *home = getenv("HOME");
+    const char *home = std::getenv("HOME");
 
 #ifdef __APPLE__
     // On macOS, when the config file is edited via the UI, it is placed in
@@ -299,7 +299,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &gamepath = ""
 
     // XDG Base Directory Specification
     std::string xdg_path;
-    const char *xdg = getenv("XDG_CONFIG_HOME");
+    const char *xdg = std::getenv("XDG_CONFIG_HOME");
     if (xdg != nullptr && xdg[0] == '/') {
         xdg_path = xdg;
     } else if (home != nullptr) {

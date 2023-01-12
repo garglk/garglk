@@ -113,8 +113,8 @@ static int CALLBACK propfont_cb(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *lpntme, 
 static std::string make_font_filepath(const std::string &filename)
 {
     // create the absolute path to the font file
-    if (filename.find(':') == std::string::npos && getenv("SYSTEMROOT") != nullptr) {
-        return std::string(getenv("SYSTEMROOT")) + "\\Fonts\\" + filename;
+    if (filename.find(':') == std::string::npos && std::getenv("SYSTEMROOT") != nullptr) {
+        return std::string(std::getenv("SYSTEMROOT")) + "\\Fonts\\" + filename;
     } else {
         return filename;
     }
