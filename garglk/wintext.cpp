@@ -787,7 +787,7 @@ static void put_text(window_textbuffer_t *dwin, char *buf, int len, int pos, int
     if (len > 0) {
         int i;
         for (i = 0; i < len; i++) {
-            dwin->chars[pos + i] = buf[i];
+            dwin->chars[pos + i] = static_cast<unsigned char>(buf[i]);
             dwin->attrs[pos + i].set(style_Input);
         }
     }
