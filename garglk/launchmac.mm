@@ -885,7 +885,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     auto game = [file UTF8String];
 
     // run story file
-    int ran = garglk::rungame(game);
+    bool ran = garglk::rungame(game);
 
     if (ran) {
         [[NSDocumentController sharedDocumentController] noteNewRecentDocumentURL: [NSURL fileURLWithPath: file]];
@@ -905,21 +905,20 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     return [self launchFileDialog];
 }
 
-- (BOOL) application: (NSApplication *) theApplication openFile: (NSString *) file
+- (void) application: (NSApplication *) theApplication openFile: (NSString *) file
 {
     openedFirstGame = YES;
-    return [self launchFile:file];
+    [self launchFile:file];
 }
 
 - (void) application: (NSApplication *) theApplication openFiles: (NSArray *) files
 {
     openedFirstGame = YES;
 
-    BOOL result = YES;
     int i;
 
     for (i = 0; i < [files count]; i++) {
-        result = result && [self launchFile: [files objectAtIndex: i]];
+        [self launchFile: [files objectAtIndex: i]];
     }
 }
 
@@ -1041,7 +1040,7 @@ static int winexec(const std::string &cmd, const std::vector<std::string> &args)
     return [proc isRunning];
 }
 
-int garglk::winterp(const std::string &exe, const std::string &flags, const std::string &game)
+bool garglk::winterp(const std::string &exe, const std::string &flags, const std::string &game)
 {
     // get dir of executable
     auto interpreter_dir = winpath();

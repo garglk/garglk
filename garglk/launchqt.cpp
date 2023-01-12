@@ -112,7 +112,7 @@ static QString winbrowsefile()
     return QFileDialog::getOpenFileName(nullptr, AppName, "", filter_string, nullptr, options);
 }
 
-int garglk::winterp(const std::string &exe, const std::string &flags, const std::string &game)
+bool garglk::winterp(const std::string &exe, const std::string &flags, const std::string &game)
 {
     // Find the directory that contains the interpreters. By default
     // this is GARGLK_CONFIG_INTERPRETER_DIR but if that is not set, it
@@ -150,15 +150,15 @@ int garglk::winterp(const std::string &exe, const std::string &flags, const std:
 
     if (!proc.waitForStarted(5000)) {
         garglk::winmsg("Could not start interpreter " + argv0.toStdString());
-        return 1;
+        return false;
     }
 
     proc.waitForFinished(-1);
 
     if (proc.exitStatus() != QProcess::NormalExit) {
-        return 1;
+        return false;
     } else {
-        return proc.exitCode();
+        return proc.exitCode() == 0;
     }
 }
 
@@ -305,5 +305,5 @@ int main(int argc, char **argv)
     }
 
     // run story file
-    return garglk::rungame(story.toStdString());
+    return garglk::rungame(story.toStdString()) ? 0 : 1;
 }

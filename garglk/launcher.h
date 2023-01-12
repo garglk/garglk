@@ -26,8 +26,8 @@
 namespace garglk {
 
 void winmsg(const std::string &msg);
-int winterp(const std::string &exe, const std::string &flags, const std::string &game);
-int rungame(const std::string &game);
+bool winterp(const std::string &exe, const std::string &flags, const std::string &game);
+bool rungame(const std::string &game);
 
 }
 
