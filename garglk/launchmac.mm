@@ -613,6 +613,12 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     return self;
 }
 
+- (NSSize)windowWillResize:(NSWindow *)sender
+                    toSize:(NSSize)frameSize {
+    frameSize.width += (NSUInteger)frameSize.width & 1;
+    return frameSize;
+}
+
 - (BOOL) initWindow: (pid_t) processID
               width: (unsigned int) width
              height: (unsigned int) height
