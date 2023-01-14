@@ -905,10 +905,10 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     return [self launchFileDialog];
 }
 
-- (void) application: (NSApplication *) theApplication openFile: (NSString *) file
+- (BOOL) application: (NSApplication *) theApplication openFile: (NSString *) file
 {
     openedFirstGame = YES;
-    [self launchFile:file];
+    return [self launchFile:file];
 }
 
 - (void) application: (NSApplication *) theApplication openFiles: (NSArray *) files
