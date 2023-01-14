@@ -773,6 +773,7 @@ void gli_windows_size_change(int w, int h)
 
     gli_force_redraw = true;
     gli_windows_rearrange();
+    gli_windows_redraw();
     gli_event_store(evtype_Arrange, nullptr, 0, 0);
 }
 

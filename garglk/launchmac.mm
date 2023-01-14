@@ -78,7 +78,7 @@ static const std::unordered_map<FileFilter, std::string> winfilters = {
 
     // set target parameters
     glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_STORAGE_HINT_APPLE, GL_STORAGE_CACHED_APPLE);
-    glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
     // create texture from data
     glTexImage2D(GL_TEXTURE_RECTANGLE_ARB,
