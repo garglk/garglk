@@ -586,7 +586,7 @@ static const std::vector<std::pair<std::vector<glui32>, glui32>> ligatures = {
     {{'f', 'l'}, UNI_LIG_FL},
 };
 
-static int gli_string_impl(int x, FontFace face, const glui32 *s, std::size_t n, int spw, std::function<void(int, const std::array<Bitmap, GLI_SUBPIX> &)> callback)
+static int gli_string_impl(int x, FontFace face, const glui32 *s, std::size_t n, int spw, const std::function<void(int, const std::array<Bitmap, GLI_SUBPIX> &)> &callback)
 {
     auto &f = gfont_table->at(face);
     bool dolig = !FT_IS_FIXED_WIDTH(f.face());
@@ -642,9 +642,9 @@ static int gli_string_impl(int x, FontFace face, const glui32 *s, std::size_t n,
 }
 
 int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb,
-                        const glui32 *s, int n, int spw)
+                        const glui32 *text, int len, int spacewidth)
 {
-    return gli_string_impl(x, face, s, n, spw, [&y, &rgb](int x, const std::array<Bitmap, GLI_SUBPIX> &glyphs) {
+    return gli_string_impl(x, face, text, len, spacewidth, [&y, &rgb](int x, const std::array<Bitmap, GLI_SUBPIX> &glyphs) {
         int px = x / GLI_SUBPIX;
         int sx = x % GLI_SUBPIX;
 
@@ -656,9 +656,9 @@ int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb,
     });
 }
 
-int gli_string_width_uni(FontFace face, const glui32 *s, int n, int spw)
+int gli_string_width_uni(FontFace face, const glui32 *text, int len, int spacewidth)
 {
-    return gli_string_impl(0, face, s, n, spw, [](int, const std::array<Bitmap, GLI_SUBPIX> &) {});
+    return gli_string_impl(0, face, text, len, spacewidth, [](int, const std::array<Bitmap, GLI_SUBPIX> &) {});
 }
 
 void gli_draw_caret(int x, int y)
@@ -682,18 +682,18 @@ void gli_draw_caret(int x, int y)
     }
 }
 
-void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1, int dy1)
+void gli_draw_picture(picture_t *pic, int x0, int y0, int dx0, int dy0, int dx1, int dy1)
 {
     int x1, y1, sx0, sy0, sx1, sy1;
     int w, h;
 
     sx0 = 0;
     sy0 = 0;
-    sx1 = src->w;
-    sy1 = src->h;
+    sx1 = pic->w;
+    sy1 = pic->h;
 
-    x1 = x0 + src->w;
-    y1 = y0 + src->h;
+    x1 = x0 + pic->w;
+    y1 = y0 + pic->h;
 
     if (x1 <= dx0 || x0 >= dx1) {
         return;
@@ -722,11 +722,11 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
     for (int y = 0; y < h; y++) {
         for (int x = 0; x < w; x++) {
             auto existing = gli_image_rgb[y + y0][x + x0];
-            unsigned char sa = src->rgba[y + sy0][x + sx0][3];
+            unsigned char sa = pic->rgba[y + sy0][x + sx0][3];
             unsigned char na = 255 - sa;
-            unsigned char sr = mul255(src->rgba[y + sy0][x + sx0][0], sa);
-            unsigned char sg = mul255(src->rgba[y + sy0][x + sx0][1], sa);
-            unsigned char sb = mul255(src->rgba[y + sy0][x + sx0][2], sa);
+            unsigned char sr = mul255(pic->rgba[y + sy0][x + sx0][0], sa);
+            unsigned char sg = mul255(pic->rgba[y + sy0][x + sx0][1], sa);
+            unsigned char sb = mul255(pic->rgba[y + sy0][x + sx0][2], sa);
             gli_image_rgb[y + y0][x + x0] = Pixel<3>(sr + mul255(existing[0], na),
                                                      sg + mul255(existing[1], na),
                                                      sb + mul255(existing[2], na));

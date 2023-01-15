@@ -1001,7 +1001,7 @@ void gli_draw_pixel(int x, int y, const Color &rgb);
 void gli_draw_clear(const Color &rgb);
 void gli_draw_rect(int x, int y, int w, int h, const Color &rgb);
 int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb, const glui32 *text, int len, int spacewidth);
-int gli_string_width_uni(FontFace font, const glui32 *text, int len, int spw);
+int gli_string_width_uni(FontFace face, const glui32 *text, int len, int spacewidth);
 void gli_draw_caret(int x, int y);
 void gli_draw_picture(picture_t *pic, int x, int y, int x0, int y0, int x1, int y1);
 
