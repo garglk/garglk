@@ -143,7 +143,7 @@ static const std::unordered_map<std::string, Format> extensions = {
     {"gam", Format::TADS2},
     {"t3", Format::TADS3},
     {"tay", Format::Taylor},
-    {"dat", Format::ZCode},
+    {"dat", Format::Scott},
     {"z1", Format::ZCode},
     {"z2", Format::ZCode},
     {"z3", Format::ZCode},
