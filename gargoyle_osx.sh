@@ -12,7 +12,7 @@ fi
 if [ "${MAC_USEHOMEBREW}" == "yes" ]; then
   HOMEBREW_OR_MACPORTS_LOCATION="$(brew --prefix)"
 else
-  HOMEBREW_OR_MACPORTS_LOCATION="$(pushd "$(dirname $(which port))/.." > /dev/null ; pwd -P ; popd > /dev/null)"
+  HOMEBREW_OR_MACPORTS_LOCATION="$(pushd "$(dirname "$(which port)")/.." > /dev/null ; pwd -P ; popd > /dev/null)"
 fi
 
 # If building with XCode 10+ (SDK 10.14+ Mojave), the minimum target SDK is
@@ -52,7 +52,7 @@ rm -rf $GARGDIST
 mkdir -p build-osx
 cd build-osx
 cmake .. -DBUILD_SHARED_LIBS=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOS_MIN_VER} -DDIST_INSTALL=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_FRAMEWORK=LAST -DCMAKE_EXPORT_COMPILE_COMMANDS=1
-make -j${NUMJOBS}
+make "-j${NUMJOBS}"
 make install
 cd -
 
@@ -63,20 +63,19 @@ cp "$GARGDIST/gargoyle" "$BUNDLE/MacOS/Gargoyle"
 find "${GARGDIST}" -type f -not -name '*.dylib' -not -name 'gargoyle' -print0 | xargs -0 -J @ cp @ "$BUNDLE/PlugIns"
 
 # Copy the dylibs built to the Frameworks directory.
-for dylib in $(find "${GARGDIST}" -type f -name '*.dylib'); do
-  cp "${dylib}" "$BUNDLE/Frameworks"
-done
+find "${GARGDIST}" -type f -name '*.dylib' -exec cp {} "$BUNDLE/Frameworks" \;
 
 echo "Copying all required dylibs..."
 PREVIOUS_UNIQUE_DYLIB_PATHS="$(mktemp -t gargoylebuild)"
 copy_new_dylibs() {
   # Get the dylibs needed.
   ALL_DYLIB_PATHS="$(mktemp -t gargoylebuild)"
-  for file in $(find "${BUNDLE}" -type f); do
-    otool -L "${file}" | fgrep "${HOMEBREW_OR_MACPORTS_LOCATION}" | sed -E -e 's/^[[:space:]]+(.*)[[:space:]]+\([^)]*\)$/\1/' >> "${ALL_DYLIB_PATHS}"
+  find "${BUNDLE}" -type f -print0 | while IFS= read -r -d "" file
+  do
+    otool -L "${file}" | grep -F "${HOMEBREW_OR_MACPORTS_LOCATION}" | sed -E -e 's/^[[:space:]]+(.*)[[:space:]]+\([^)]*\)$/\1/' >> "${ALL_DYLIB_PATHS}"
   done
   UNIQUE_DYLIB_PATHS="$(mktemp -t gargoylebuild)"
-  cat "${ALL_DYLIB_PATHS}" | sort | uniq > "${UNIQUE_DYLIB_PATHS}"
+  sort "${ALL_DYLIB_PATHS}" | uniq > "${UNIQUE_DYLIB_PATHS}"
   rm "${ALL_DYLIB_PATHS}"
 
   # Compare the list to the previous one.
@@ -90,10 +89,11 @@ copy_new_dylibs() {
   diff "${PREVIOUS_UNIQUE_DYLIB_PATHS}" "${UNIQUE_DYLIB_PATHS}"
 
   # Copy dylibs to the Frameworks directory.
-  for dylib in $(cat ${UNIQUE_DYLIB_PATHS}); do
+  while IFS= read -r dylib
+  do
     cp "${dylib}" "$BUNDLE/Frameworks"
-    chmod 644 "$BUNDLE/Frameworks/$(basename ${dylib})"
-  done
+    chmod 644 "$BUNDLE/Frameworks/$(basename "${dylib}")"
+  done < "${UNIQUE_DYLIB_PATHS}"
   return 1
 }
 until copy_new_dylibs ; do true; done
@@ -101,27 +101,27 @@ until copy_new_dylibs ; do true; done
 echo "Changing dylib IDs and references..."
 
 # Change the dylib IDs in Frameworks.
-for dylib_path in $(find "${BUNDLE}/Frameworks" -type f); do
-  install_name_tool -id "@executable_path/../Frameworks/$(basename "${dylib_path}")" "${dylib_path}"
-done
+find "${BUNDLE}/Frameworks" -type f -exec install_name_tool -id "@executable_path/../Frameworks/$(basename "{}")" {} \;
 
 # Use the dylibs in Frameworks.
-for file_path in $(find "${BUNDLE}" -type f); do
+find "${BUNDLE}" -type f -print0 | while IFS= read -r -d "" file_path
+do
   # Replace dylib paths.
-  for original_dylib_path in $(otool -L "${file_path}" | fgrep "${HOMEBREW_OR_MACPORTS_LOCATION}" | sed -E -e 's/^[[:space:]]+(.*)[[:space:]]+\([^)]*\)$/\1/'); do
+  for original_dylib_path in $(otool -L "${file_path}" | grep -F "${HOMEBREW_OR_MACPORTS_LOCATION}" | sed -E -e 's/^[[:space:]]+(.*)[[:space:]]+\([^)]*\)$/\1/'); do
     install_name_tool -change "${original_dylib_path}" "@executable_path/../Frameworks/$(basename "${original_dylib_path}")" "${file_path}"
   done
 done
 
 # Use the built dylibs.
-for file_path in $(find "${BUNDLE}" -type f); do
-  for dylib_built_path in $(find "${GARGDIST}" -type f -name '*.dylib'); do
-    install_name_tool -change "@executable_path/$(basename "${dylib_built_path}")" "@executable_path/../Frameworks/$(basename "${dylib_built_path}")" "${file_path}"
-  done
+find "${BUNDLE}" -type f -print0 | while IFS= read -r -d "" file_path
+do
+  find "${GARGDIST}" -type f -name '*.dylib' -exec install_name_tool -change "@executable_path/$(basename "{}")" "@executable_path/../Frameworks/$(basename "{}")" "${file_path}" \;
 done
 
+# exit
+
 echo "Copying additional support files..."
-cat garglk/launcher.plist | /usr/bin/sed -E -e "s/INSERT_VERSION_HERE/$GARVERSION/" > $BUNDLE/Info.plist
+/usr/bin/sed -E -e "s/INSERT_VERSION_HERE/$GARVERSION/" garglk/launcher.plist > $BUNDLE/Info.plist
 
 cp garglk/launchmac.nib "$BUNDLE/Resources/MainMenu.nib"
 cp garglk/garglk.ini "$BUNDLE/Resources"
