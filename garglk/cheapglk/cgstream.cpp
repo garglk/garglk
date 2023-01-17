@@ -114,8 +114,7 @@ void gli_delete_stream(stream_t *str)
 #ifdef GARGLK
     for (win = gli_window_iterate_treeorder(NULL);
          win != NULL;
-         win = gli_window_iterate_treeorder(win))
-    {
+         win = gli_window_iterate_treeorder(win)) {
         if (win->echostr == str)
             win->echostr = NULL;
     }
@@ -692,15 +691,12 @@ static void gli_put_char(stream_t *str, unsigned char ch)
             break;
         case strtype_Window:
 #ifdef GARGLK
-            if (str->win->line_request || str->win->line_request_uni)
-            {
-                if (gli_conf_safeclicks && gli_forceclick)
-                {
+            if (str->win->line_request || str->win->line_request_uni) {
+                if (gli_conf_safeclicks && gli_forceclick) {
                     glk_cancel_line_event(str->win, NULL);
                     gli_forceclick = false;
                 }
-                else
-                {
+                else {
                     gli_strict_warning("put_char: window has pending line request");
                     break;
                 }
@@ -780,15 +776,12 @@ static void gli_put_char_uni(stream_t *str, glui32 ch)
             break;
         case strtype_Window:
 #ifdef GARGLK
-            if (str->win->line_request || str->win->line_request_uni)
-            {
-                if (gli_conf_safeclicks && gli_forceclick)
-                {
+            if (str->win->line_request || str->win->line_request_uni) {
+                if (gli_conf_safeclicks && gli_forceclick) {
                     glk_cancel_line_event(str->win, NULL);
                     gli_forceclick = false;
                 }
-                else
-                {
+                else {
                     gli_strict_warning("put_char: window has pending line request");
                     break;
                 }
@@ -896,15 +889,12 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
             break;
         case strtype_Window:
 #ifdef GARGLK
-            if (str->win->line_request || str->win->line_request_uni)
-            {
-                if (gli_conf_safeclicks && gli_forceclick)
-                {
+            if (str->win->line_request || str->win->line_request_uni) {
+                if (gli_conf_safeclicks && gli_forceclick) {
                     glk_cancel_line_event(str->win, NULL);
                     gli_forceclick = false;
                 }
-                else
-                {
+                else {
                     gli_strict_warning("put_buffer: window has pending line request");
                     break;
                 }
@@ -1764,7 +1754,8 @@ glui32 glk_get_buffer_stream(stream_t *str, char *buf, glui32 len)
 glui32 gli_strlen_uni(const glui32 *s)
 {
     glui32 length = 0;
-    while (*s++) length++;
+    while (*s++)
+        length++;
     return length;
 }
 

@@ -311,8 +311,7 @@ frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode,
     FileFilter filter;
     const char *prompt;
 
-    switch (usage & fileusage_TypeMask)
-    {
+    switch (usage & fileusage_TypeMask) {
         case fileusage_SavedGame:
             prompt = "Saved game";
             filter = FileFilter::Save;
@@ -337,8 +336,7 @@ frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode,
     else
         buf = garglk::winsavefile(prompt, filter);
 
-    if (buf.empty())
-    {
+    if (buf.empty()) {
         /* The player just hit return. It would be nice to provide a
             default value, but this implementation is too cheap. */
         return NULL;
