@@ -63,7 +63,7 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
 
     // Allocate destination image and scratch space
 
-    dst = std::make_shared<picture_t>(src->id, newcols, newrows, true);
+    Canvas<4> rgba(newcols, newrows);
 
     std::vector<Pixel<4>> tempxelrow(cols);
     std::vector<long> rs(cols, HALFSCALE);
@@ -213,7 +213,7 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
                         }
                     }
 
-                    dst->rgba[row][dstcol] = Pixel<4>(r, g, b, a);
+                    rgba[row][dstcol] = Pixel<4>(r, g, b, a);
 
                     fraccolleft -= fraccoltofill;
                     fraccoltofill = SCALE;
@@ -265,10 +265,12 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
                     }
                 }
 
-                dst->rgba[row][dstcol] = Pixel<4>(r, g, b, a);
+                rgba[row][dstcol] = Pixel<4>(r, g, b, a);
             }
         }
     }
+
+    dst = std::make_shared<picture_t>(src->id, rgba, true);
 
     gli_picture_store(dst);
 

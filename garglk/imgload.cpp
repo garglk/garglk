@@ -177,7 +177,7 @@ static std::shared_ptr<picture_t> load_image_jpeg(std::FILE *fl, unsigned long i
     jpeg_decompress_struct cinfo;
     jpeg_error_mgr jerr;
     std::array<JSAMPROW, 1> rowarray;
-    int n, i;
+    int n;
 
     cinfo.err = jpeg_std_error(&jerr);
     jerr.error_exit = [](j_common_ptr cinfo) {
@@ -200,28 +200,28 @@ static std::shared_ptr<picture_t> load_image_jpeg(std::FILE *fl, unsigned long i
         return nullptr;
     }
 
-    auto pic = std::make_shared<picture_t>(id, cinfo.output_width, cinfo.output_height, false);
+    Canvas<4> rgba(cinfo.output_width, cinfo.output_height);
 
-    std::vector<JSAMPLE> row(pic->w * n);
+    std::vector<JSAMPLE> row(cinfo.output_width * n);
     rowarray[0] = row.data();
 
     while (cinfo.output_scanline < cinfo.output_height) {
         JDIMENSION y = cinfo.output_scanline;
         jpeg_read_scanlines(&cinfo, rowarray.data(), 1);
         if (n == 1) {
-            for (i = 0; i < pic->w; i++) {
-                pic->rgba[y][i] = Pixel<4>(row[i], row[i], row[i], 0xff);
+            for (int i = 0; i < rgba.width(); i++) {
+                rgba[y][i] = Pixel<4>(row[i], row[i], row[i], 0xff);
             }
         } else if (n == 3) {
-            for (i = 0; i < pic->w; i++) {
-                pic->rgba[y][i] = Pixel<4>(row[i * 3 + 0], row[i * 3 + 1], row[i * 3 + 2], 0xff);
+            for (int i = 0; i < rgba.width(); i++) {
+                rgba[y][i] = Pixel<4>(row[i * 3 + 0], row[i * 3 + 1], row[i * 3 + 2], 0xff);
             }
         }
     }
 
     jpeg_finish_decompress(&cinfo);
 
-    return pic;
+    return std::make_shared<picture_t>(id, rgba, false);
 }
 
 static std::shared_ptr<picture_t> load_image_png(std::FILE *fl, unsigned long id)
@@ -237,11 +237,13 @@ static std::shared_ptr<picture_t> load_image_png(std::FILE *fl, unsigned long id
     }
 
     image.format = PNG_FORMAT_RGBA;
-    auto pic = std::make_shared<picture_t>(id, image.width, image.height, false);
+    Canvas<4> rgba(image.width, image.height);
 
-    if (png_image_finish_read(&image, nullptr, pic->rgba.data(), 0, nullptr) == 0) {
+    if (png_image_finish_read(&image, nullptr, rgba.data(), 0, nullptr) == 0) {
         throw LoadError("png", image.message);
     }
+
+    auto pic = std::make_shared<picture_t>(id, rgba, false);
 
     return pic;
 }
