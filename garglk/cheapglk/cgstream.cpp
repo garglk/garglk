@@ -1845,20 +1845,16 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
             {
                 if (fg == zcolor_Default)
                 {
-                    str->win->attr.fgset = false;
-                    str->win->attr.fgcolor = Color(0, 0, 0);
-                    gli_override_fg_set = false;
-                    gli_override_fg_val = Color(0, 0, 0);
+                    str->win->attr.fgcolor.reset();
+                    gli_override_fg.reset();
                     gli_more_color = gli_more_save;
                     gli_caret_color = gli_caret_save;
                     gli_link_color = gli_link_save;
                 }
                 else if (fg != zcolor_Current)
                 {
-                    str->win->attr.fgset = true;
                     str->win->attr.fgcolor = fore;
-                    gli_override_fg_set = true;
-                    gli_override_fg_val = fore;
+                    gli_override_fg = fore;
                     gli_more_color = fore;
                     gli_caret_color = fore;
                     gli_link_color = fore;
@@ -1869,19 +1865,15 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
             {
                 if (bg == zcolor_Default)
                 {
-                    str->win->attr.bgset = false;
-                    str->win->attr.bgcolor = Color(0, 0, 0);
-                    gli_override_bg_set = false;
-                    gli_override_bg_val = Color(0, 0, 0);
+                    str->win->attr.bgcolor.reset();
+                    gli_override_bg.reset();
                     gli_window_color = gli_window_save;
                     gli_border_color = gli_border_save;
                 }
                 else if (bg != zcolor_Current)
                 {
-                    str->win->attr.bgset = true;
                     str->win->attr.bgcolor = back;
-                    gli_override_bg_set = true;
-                    gli_override_bg_val = back;
+                    gli_override_bg = back;
                     gli_window_color = back;
                     gli_border_color = back;
                 }

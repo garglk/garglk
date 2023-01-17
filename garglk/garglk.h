@@ -519,10 +519,8 @@ extern Color gli_caret_save;
 extern Color gli_more_save;
 extern Color gli_link_save;
 
-extern bool gli_override_fg_set;
-extern Color gli_override_fg_val;
-extern bool gli_override_bg_set;
-extern Color gli_override_bg_val;
+extern nonstd::optional<Color> gli_override_fg;
+extern nonstd::optional<Color> gli_override_bg;
 extern bool gli_override_reverse;
 
 extern bool gli_underline_hyperlinks;
@@ -705,18 +703,14 @@ struct glk_fileref_struct {
 #undef hyper
 
 struct attr_t {
-    bool fgset = false;
-    bool bgset = false;
     bool reverse = false;
     glui32 style = 0;
-    Color fgcolor = Color(0, 0, 0);
-    Color bgcolor = Color(0, 0, 0);
+    nonstd::optional<Color> fgcolor;
+    nonstd::optional<Color> bgcolor;
     glui32 hyper = 0;
 
     bool operator!=(const attr_t &other) const {
-        return fgset != other.fgset ||
-               bgset != other.bgset ||
-               reverse != other.reverse ||
+        return reverse != other.reverse ||
                style != other.style ||
                fgcolor != other.fgcolor ||
                bgcolor != other.bgcolor ||

@@ -45,6 +45,8 @@
 #include <FindDirectory.h>
 #endif
 
+#include "optional.hpp"
+
 #include "glk.h"
 #include "glkstart.h"
 #include "garglk.h"
@@ -130,10 +132,8 @@ Color gli_border_save(0x00, 0x00, 0x00);
 Color gli_more_save(0x00, 0x60, 0x00);
 Color gli_link_save(0x00, 0x00, 0x60);
 
-bool gli_override_fg_set = false;
-Color gli_override_fg_val(0x00, 0x00, 0x00);
-bool gli_override_bg_set = false;
-Color gli_override_bg_val(0x00, 0x00, 0x00);
+nonstd::optional<Color> gli_override_fg;
+nonstd::optional<Color> gli_override_bg;
 bool gli_override_reverse = false;
 
 static std::string base_more_prompt = "— more —";

@@ -249,10 +249,8 @@ void win_textgrid_clear(window_t *win)
     window_textgrid_t *dwin = win->window.textgrid;
     int k;
 
-    win->attr.fgset = gli_override_fg_set;
-    win->attr.bgset = gli_override_bg_set;
-    win->attr.fgcolor = gli_override_fg_set ? gli_override_fg_val : Color(0, 0, 0);
-    win->attr.bgcolor = gli_override_bg_set ? gli_override_bg_val : Color(0, 0, 0);
+    win->attr.fgcolor = gli_override_fg;
+    win->attr.bgcolor = gli_override_bg;
     win->attr.reverse = false;
 
     for (k = 0; k < dwin->height; k++) {
