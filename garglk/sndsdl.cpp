@@ -491,7 +491,7 @@ static int detect_format(const std::vector<unsigned char> &buf)
 
     for (const auto &entry : formats) {
         auto offset = entry.first.first;
-        auto magics = entry.first.second;
+        const auto &magics = entry.first.second;
         auto format = entry.second;
 
         if (std::any_of(magics.begin(), magics.end(), [&offset, &buf](const auto &magic) {

@@ -597,7 +597,7 @@ static int gli_string_impl(int x, FontFace face, const glui32 *s, std::size_t n,
         auto it = ligatures.end();
         if (dolig) {
             it = std::find_if(ligatures.begin(), ligatures.end(), [s, n](const std::pair<std::vector<glui32>, glui32> &ligentry) {
-                auto ligature = ligentry.first;
+                const auto &ligature = ligentry.first;
                 if (ligature.size() > n) {
                     return false;
                 }
@@ -621,7 +621,7 @@ static int gli_string_impl(int x, FontFace face, const glui32 *s, std::size_t n,
             n--;
         }
 
-        auto entry = f.getglyph(c);
+        const auto &entry = f.getglyph(c);
 
         if (prev != -1) {
             x += f.charkern(prev, c);
