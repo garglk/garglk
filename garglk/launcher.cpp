@@ -115,8 +115,7 @@ static nonstd::optional<Format> probe(const std::vector<char> &header)
     };
 
     for (const auto &pair : magic) {
-        auto re = std::regex(pair.first);
-        if (std::regex_search(header.begin(), header.end(), re)) {
+        if (std::regex_search(header.begin(), header.end(), std::regex(pair.first))) {
             return pair.second;
         }
     }
