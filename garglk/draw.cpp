@@ -754,7 +754,7 @@ void gli_draw_caret(int x, int y)
     }
 }
 
-void gli_draw_picture(picture_t *pic, int x0, int y0, int dx0, int dy0, int dx1, int dy1)
+void gli_draw_picture(const picture_t *pic, int x0, int y0, int dx0, int dy0, int dx1, int dy1)
 {
     int x1, y1, sx0, sy0, sx1, sy1;
     int w, h;
