@@ -216,7 +216,7 @@ private:
 // is *not* owned by instances of this class. Instead, users of this
 // class must pass in a pointer to an appropriately-sized buffer (at
 // least N bytes) from/to which pixel data will be read/written.
-// Assigning a Pixel to a PixelData will overwrite the pixel pointer
+// Assigning a Pixel to a PixelView will overwrite the pixel pointer
 // with the new pixel data.
 template <std::size_t N>
 class PixelView {
