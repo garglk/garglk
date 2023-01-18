@@ -134,7 +134,7 @@ set_target_properties(garglkmain PROPERTIES POSITION_INDEPENDENT_CODE "${GARGLK_
 
 find_package(Freetype REQUIRED)
 find_package(JPEG REQUIRED)
-find_package(PNG REQUIRED)
+find_package(PNG 1.6 REQUIRED)
 target_include_directories(garglk PUBLIC cheapglk PRIVATE ${FREETYPE_INCLUDE_DIRS} ${JPEG_INCLUDE_DIRS} ${PNG_INCLUDE_DIRS})
 target_link_libraries(garglk PRIVATE ${FREETYPE_LIBRARIES} ${JPEG_LIBRARIES} ${PNG_LIBRARIES})
 
