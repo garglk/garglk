@@ -169,8 +169,8 @@ static std::shared_ptr<picture_t> load_image_jpeg(std::FILE *fl, unsigned long i
     int n, i;
 
     cinfo.err = jpeg_std_error(&jerr);
-    jerr.error_exit = [](j_common_ptr cinfo) {
-        throw cinfo->err;
+    jerr.error_exit = [](j_common_ptr) {
+        throw std::exception();
     };
 
     try {
@@ -205,7 +205,7 @@ static std::shared_ptr<picture_t> load_image_jpeg(std::FILE *fl, unsigned long i
         jpeg_finish_decompress(&cinfo);
 
         return pic;
-    } catch (const jpeg_error_mgr *) {
+    } catch (const std::exception &) {
         return nullptr;
     }
 }
