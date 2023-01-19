@@ -19,6 +19,7 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iomanip>
 #include <ios>
@@ -322,7 +323,14 @@ static bool runblorb(const std::string &game)
         }
 
         std::ostringstream msg;
-        msg << "Unknown game type: 0x" << std::hex << std::setw(8) << std::setfill('0') << res.chunktype;
+        std::string name;
+        auto val = [](unsigned char c) -> char {
+            return std::isprint(c) ? c : '?';
+        };
+        auto ck = res.chunktype;
+
+        msg << "Unknown game type: 0x" << std::hex << std::setw(8) << std::setfill('0') << ck <<
+            " (" << val(ck >> 24) << val(ck >> 16) << val(ck >> 8) << val(ck) << ")";
         throw BlorbError(msg.str());
     } catch (const BlorbError &e) {
         garglk::winmsg("Could not load Blorb file " + game + ":\n" + e.what());
