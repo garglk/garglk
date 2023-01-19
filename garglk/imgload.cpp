@@ -26,6 +26,9 @@
 #include <unordered_map>
 #include <vector>
 
+// jpeglib.h requires these to be defined.
+using std::size_t, std::FILE;
+
 #include <jpeglib.h>
 #include <png.h>
 
@@ -163,8 +166,8 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
 
 static std::shared_ptr<picture_t> load_image_jpeg(std::FILE *fl, unsigned long id)
 {
-    struct jpeg_decompress_struct cinfo;
-    struct jpeg_error_mgr jerr;
+    jpeg_decompress_struct cinfo;
+    jpeg_error_mgr jerr;
     std::array<JSAMPROW, 1> rowarray;
     int n, i;
 
@@ -182,6 +185,11 @@ static std::shared_ptr<picture_t> load_image_jpeg(std::FILE *fl, unsigned long i
         jpeg_start_decompress(&cinfo);
 
         n = cinfo.output_components;
+
+        // Currently Gargoyle only understands 1 or 3 components.
+        if (n != 1 && n != 3) {
+            return nullptr;
+        }
 
         auto pic = std::make_shared<picture_t>(id, cinfo.output_width, cinfo.output_height, false);
 
