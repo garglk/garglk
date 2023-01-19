@@ -1040,7 +1040,7 @@ static int winexec(const std::string &cmd, const std::vector<std::string> &args)
     return [proc isRunning];
 }
 
-bool garglk::winterp(const std::string &exe, const std::string &flags, const std::string &game)
+bool garglk::winterp(const std::string &exe, const nonstd::optional<std::string> &flags, const std::string &game)
 {
     // get dir of executable
     auto interpreter_dir = winpath();
@@ -1050,8 +1050,8 @@ bool garglk::winterp(const std::string &exe, const std::string &flags, const std
 
     std::vector<std::string> args;
 
-    if (flags.find('-') != std::string::npos) {
-        args.push_back(flags);
+    if (flags.has_value()) {
+        args.push_back(flags.value());
         args.push_back(game);
     } else {
         args.push_back(game);

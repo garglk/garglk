@@ -175,13 +175,13 @@ std::string winsavefile(const char *prompt, FileFilter filter);
 void winabort(const std::string &msg);
 std::string downcase(const std::string &string);
 void fontreplace(const std::string &font, FontType type);
-std::vector<ConfigFile> configs(const std::string &gamepath);
+std::vector<ConfigFile> configs(const nonstd::optional<std::string> &gamepath);
 void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, const std::function<void(const std::string &cmd, const std::string &arg)> &callback);
 std::string user_config();
 void set_lcdfilter(const std::string &filter);
-std::string winfontpath(const std::string &filename);
+nonstd::optional<std::string> winfontpath(const std::string &filename);
 std::vector<std::string> winappdata();
-std::string winappdir();
+nonstd::optional<std::string> winappdir();
 
 namespace theme {
 void init();
@@ -531,7 +531,7 @@ extern Canvas<3> gli_image_rgb;
 //
 
 extern std::string gli_workdir;
-extern std::string gli_workfile;
+extern nonstd::optional<std::string> gli_workfile;
 
 extern Styles gli_tstyles;
 extern Styles gli_gstyles;
@@ -1018,7 +1018,7 @@ extern bool gcmd_accept_scroll(window_t *win, glui32 arg);
 
 extern void gli_initialize_misc();
 extern void gli_initialize_windows();
-extern void gli_initialize_babel();
+extern void gli_initialize_babel(const std::string &filename);
 
 extern window_t *gli_window_iterate_treeorder(window_t *win);
 

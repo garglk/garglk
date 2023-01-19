@@ -69,14 +69,14 @@
 #define ID_ADRI (giblorb_make_id('A', 'D', 'R', 'I'))
 
 struct Interpreter {
-    explicit Interpreter(std::string terp_, std::string flags_ = "") :
+    explicit Interpreter(std::string terp_, nonstd::optional<std::string> flags_ = nonstd::nullopt) :
         terp(std::move(terp_)),
         flags(std::move(flags_))
     {
     }
 
     std::string terp;
-    std::string flags;
+    nonstd::optional<std::string> flags;
 };
 
 enum class Format {
@@ -347,13 +347,12 @@ static nonstd::optional<Interpreter> findterp(const std::string &file, const std
     garglk::config_entries(file, false, matches, [&interpreter](const std::string &cmd, const std::string &arg) {
         if (cmd == "terp") {
             std::istringstream argstream(arg);
-            std::string terp, opt, flags;
+            std::string terp, opt;
+            nonstd::optional<std::string> flags;
 
             if (argstream >> terp) {
                 if (argstream >> opt && opt[0] == '-') {
                     flags = opt;
-                } else {
-                    flags = "";
                 }
 
                 interpreter.emplace(terp, flags);

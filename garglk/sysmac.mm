@@ -34,6 +34,8 @@
 #include "garglk.h"
 #include "garversion.h"
 
+#include "optional.hpp"
+
 #import "Cocoa/Cocoa.h"
 #import "sysmac.h"
 
@@ -750,7 +752,7 @@ void winpoll()
     } while (evt);
 }
 
-std::string garglk::winfontpath(const std::string &filename)
+nonstd::optional<std::string> garglk::winfontpath(const std::string &filename)
 {
     char *resources = std::getenv("GARGLK_RESOURCES");
 
@@ -758,7 +760,7 @@ std::string garglk::winfontpath(const std::string &filename)
         return std::string(resources) + "/Fonts/" + filename;
     }
 
-    return "";
+    return nonstd::nullopt;
 }
 
 std::vector<std::string> garglk::winappdata()
@@ -780,10 +782,10 @@ std::vector<std::string> garglk::winappdata()
     return paths;
 }
 
-std::string garglk::winappdir()
+nonstd::optional<std::string> garglk::winappdir()
 {
     // This is only used on Windows.
-    return "";
+    return nonstd::nullopt;
 }
 
 void gli_select(event_t *event, bool polled)
