@@ -247,7 +247,7 @@ static bool runblorb(const std::string &game, const Interpreter &interpreter)
     }
 }
 
-static bool findterp(const std::string &file, const std::string &target, struct Interpreter &interpreter)
+static bool findterp(const std::string &file, const std::string &target, Interpreter &interpreter)
 {
     std::vector<std::string> matches = {target};
 
@@ -269,7 +269,8 @@ static bool findterp(const std::string &file, const std::string &target, struct 
     return !interpreter.terp.empty();
 }
 
-static void configterp(const std::string &gamepath, struct Interpreter &interpreter)
+// Find a possible interpreter specified in the config file.
+static void configterp(const std::string &gamepath, Interpreter &interpreter)
 {
     std::string story = gamepath;
 
