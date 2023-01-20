@@ -200,7 +200,7 @@ static bool runblorb(const std::string &game, const Interpreter &interpreter)
         }
 
         if (giblorb_create_map(file.get(), &basemap) != giblorb_err_None) {
-            throw BlorbError("Does not appear to be a Blorb file");
+            throw BlorbError("Does not appear to be a valid Blorb file");
         }
 
         auto map = garglk::unique(basemap, giblorb_destroy_map);
@@ -302,23 +302,26 @@ static void configterp(const std::string &gamepath, Interpreter &interpreter)
 
 bool garglk::rungame(const std::string &game)
 {
-    const std::set<std::string> blorbs = {"blb", "blorb", "glb", "gbl", "gblorb", "zlb", "zbl", "zblorb"};
     Interpreter interpreter("");
     std::vector<char> header(64);
-    bool is_blorb = false;
 
     configterp(game, interpreter);
+    if (!interpreter.terp.empty()) {
+        return call_winterp(interpreter, game);
+    }
 
     std::ifstream f(game, std::ios::binary);
     if (f.is_open() && f.read(header.data(), header.size())) {
-        if (interpreter.terp.empty()) {
-            auto format = probe(header);
-            if (format.has_value()) {
-                interpreter = interpreters.at(*format);
-            }
+        auto is_blorb = std::regex_search(header.begin(), header.end(), std::regex(R"(^FORM[\s\S]{4}IFRSRIdx)"));
+        if (is_blorb) {
+            return runblorb(game, interpreter);
         }
 
-        is_blorb = std::regex_search(header.begin(), header.end(), std::regex(R"(^FORM[\s\S]{4}IFRSRIdx)"));
+        auto format = probe(header);
+        if (format.has_value()) {
+            interpreter = interpreters.at(*format);
+            return call_winterp(interpreter, game);
+        }
     }
 
     std::string ext = "";
@@ -327,21 +330,13 @@ bool garglk::rungame(const std::string &game)
         ext = garglk::downcase(game.substr(dot + 1));
     }
 
-    if (is_blorb || blorbs.find(ext) != blorbs.end()) {
-        return runblorb(game, interpreter);
-    }
-
-    if (!interpreter.terp.empty()) {
-        return call_winterp(interpreter, game);
-    }
-
     try {
         auto format = extensions.at(ext);
         return call_winterp(interpreters.at(format), game);
     } catch (const std::out_of_range &) {
     }
 
-    garglk::winmsg("Unknown file type: \"" + ext + "\"\nSorry.");
+    garglk::winmsg("Unable to find an interpreter for " + game);
 
     return false;
 }
