@@ -179,7 +179,7 @@ static bool call_winterp(const Interpreter &interpreter, const std::string &game
     return garglk::winterp(GARGLKPRE + interpreter.terp, interpreter.flags, game);
 }
 
-static bool runblorb(const std::string &game, const Interpreter &interpreter)
+static bool runblorb(const std::string &game)
 {
     class BlorbError : public std::runtime_error {
     public:
@@ -189,7 +189,6 @@ static bool runblorb(const std::string &game, const Interpreter &interpreter)
 
     try {
         giblorb_result_t res;
-        Interpreter found_interpreter = interpreter;
         giblorb_map_t *basemap;
 
         auto file = garglk::unique(glkunix_stream_open_pathname(const_cast<char *>(game.c_str()), 0, 0), [](strid_t file) {
@@ -209,38 +208,23 @@ static bool runblorb(const std::string &game, const Interpreter &interpreter)
             throw BlorbError("Does not contain a story file (look for a corresponding game file to load instead)");
         }
 
-        switch (res.chunktype) {
-        case ID_ZCOD:
-            if (interpreter.terp.empty()) {
-                char zversion;
+        if (res.chunktype == ID_ZCOD) {
+            char zversion;
 
-                glk_stream_set_position(file.get(), res.data.startpos, 0);
-                if (glk_get_buffer_stream(file.get(), &zversion, 1) != 1) {
-                    throw BlorbError("Unable to read story file (possibly corrupted Blorb file)");
-                }
-
-                if (zversion == 6) {
-                    found_interpreter = interpreters.at(Format::ZCode6);
-                } else {
-                    found_interpreter = interpreters.at(Format::ZCode);
-                }
+            glk_stream_set_position(file.get(), res.data.startpos, 0);
+            if (glk_get_buffer_stream(file.get(), &zversion, 1) != 1) {
+                throw BlorbError("Unable to read story file (possibly corrupted Blorb file)");
             }
-            break;
 
-        case ID_GLUL:
-            if (interpreter.terp.empty()) {
-                found_interpreter = interpreters.at(Format::Glulx);
-            }
-            break;
-
-        default: {
-            std::ostringstream msg;
-            msg << "Unknown game type: 0x" << std::hex << std::setw(8) << std::setfill('0') << res.chunktype;
-            throw BlorbError(msg.str());
-        }
+            Format format = zversion == 6 ? Format::ZCode6 : Format::ZCode;
+            return call_winterp(interpreters.at(format), game);
+        } else if (res.chunktype == ID_GLUL) {
+            return call_winterp(interpreters.at(Format::Glulx), game);
         }
 
-        return call_winterp(found_interpreter, game);
+        std::ostringstream msg;
+        msg << "Unknown game type: 0x" << std::hex << std::setw(8) << std::setfill('0') << res.chunktype;
+        throw BlorbError(msg.str());
     } catch (const BlorbError &e) {
         garglk::winmsg("Could not load Blorb file " + game + ":\n" + e.what());
         return false;
@@ -314,7 +298,7 @@ bool garglk::rungame(const std::string &game)
     if (f.is_open() && f.read(header.data(), header.size())) {
         auto is_blorb = std::regex_search(header.begin(), header.end(), std::regex(R"(^FORM[\s\S]{4}IFRSRIdx)"));
         if (is_blorb) {
-            return runblorb(game, interpreter);
+            return runblorb(game);
         }
 
         auto format = probe(header);
