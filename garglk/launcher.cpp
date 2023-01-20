@@ -96,7 +96,7 @@ enum class Format {
     ZCode6,
 };
 
-static nonstd::optional<Format> probe(const std::vector<char> &header)
+static nonstd::optional<Format> probe(const std::array<char, 32> &header)
 {
     std::vector<std::pair<std::string, Format>> magic = {
         {R"(^[\x01\x02\x03\x04\x05\x07\x08][\s\S]{17}\d{6})", Format::ZCode},
@@ -287,7 +287,7 @@ static void configterp(const std::string &gamepath, Interpreter &interpreter)
 bool garglk::rungame(const std::string &game)
 {
     Interpreter interpreter("");
-    std::vector<char> header(64);
+    std::array<char, 32> header;
 
     configterp(game, interpreter);
     if (!interpreter.terp.empty()) {
