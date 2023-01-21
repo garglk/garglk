@@ -27,7 +27,8 @@
 #include <vector>
 
 // jpeglib.h requires these to be defined.
-using std::size_t, std::FILE;
+using std::size_t;
+using std::FILE;
 
 #include <jpeglib.h>
 #include <png.h>
