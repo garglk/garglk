@@ -8,9 +8,6 @@
 #include "types.h"
 #include "prototypes.h"
 
-extern struct object_type       *object[];
-extern int                      objects;
-
 /**************************************/
 /* Queue functions                    */
 /**************************************/
@@ -28,13 +25,13 @@ typedef struct
 	QueueNode *tail;
 } Queue;
 
-void
+static void
 qInit(Queue *q)
 {
 	q->head = q->tail = NULL;
 }
 
-void
+static void
 qDelete(Queue *q)
 {
 	QueueNode *node, *next;
@@ -48,13 +45,13 @@ qDelete(Queue *q)
 	q->head = q->tail = NULL;
 }
 
-int
+static int
 qIsEmpty(Queue *q)
 {
 	return (q->head == NULL);
 }
 
-void
+static void
 qDebug(Queue *q)
 {
 	printf("Queue:");
@@ -75,7 +72,7 @@ qDebug(Queue *q)
 	putchar('\n');
 }
 
-void
+static void
 qAppend(Queue *q, int val, int val2)
 {
 	QueueNode *node = (QueueNode*) malloc(sizeof(QueueNode));
@@ -94,7 +91,7 @@ qAppend(Queue *q, int val, int val2)
 	}
 }
 
-void
+static void
 qPop(Queue *q, int *val, int *val2)
 {
 	//assert(q->head != NULL);
@@ -112,8 +109,8 @@ qPop(Queue *q, int *val, int *val2)
 	}
 }
 
-void
-qTest()
+static void
+qTest(void)
 {
 	int val, val2;
 	Queue q;
@@ -168,7 +165,7 @@ typedef struct
 	SetNode *node[SET_HASHSIZE];
 } Set;
 
-void
+static void
 setInit(Set *set)
 {
 	int n;
@@ -179,7 +176,7 @@ setInit(Set *set)
 	}
 }
 
-void
+static void
 setDelete(Set *set)
 {
 	int n;
@@ -198,7 +195,7 @@ setDelete(Set *set)
 	}
 }
 
-void
+static void
 setDebug(Set *set)
 {
 	int n;
@@ -218,13 +215,13 @@ setDebug(Set *set)
 	putchar('\n');
 }
 
-int
+static int
 setHash(int val)
 {
 	return abs(val) % SET_HASHSIZE;
 }
 
-void
+static void
 setAdd(Set *set, int val)
 {
 	SetNode *node;
@@ -245,7 +242,7 @@ setAdd(Set *set, int val)
 
 /* returns 1 if the set contains val, otherwise returns 0 */
 
-int
+static int
 setContains(Set *set, int val)
 {
 	SetNode *node;
@@ -259,7 +256,7 @@ setContains(Set *set, int val)
 	return 0;
 }
 
-void setTest()
+static void setTest(void)
 {
 	Set s;
 

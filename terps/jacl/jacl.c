@@ -31,6 +31,9 @@
 #include "language.h"
 #include <string.h>
 #include "prototypes.h"
+#include "interpreter.h"
+#include "parser.h"
+#include "encapsulate.h"
 
 #ifdef GARGLK
 #include <glkstart.h>
@@ -41,34 +44,14 @@
 #include "glkterm/glk.h"
 #endif
 
-int convert_to_utf32 (unsigned char *text);
-
 glui32 				status_width, status_height;
 
 schanid_t 			sound_channel[8] = { NULL, NULL, NULL, NULL, 
 										 NULL, NULL, NULL, NULL };
 
-event_t				*cancelled_event;
-
-extern struct csv_parser parser_csv;
-
-extern char			text_buffer[];
-extern char			*word[];
-extern short int	quoted[];
-extern short int	punctuated[];
-extern int			wp;
-
-extern int			custom_error;
-extern int			interrupted;
+static event_t		*cancelled_event;
 
 extern int			jpp_error;
-
-extern int			it;
-extern int			them[];
-extern int			her;
-extern int			him;
-
-extern int			oops_word;
 
 #ifdef WINGLK
 struct	string_type	*resolved_string;
@@ -84,25 +67,24 @@ char            walkthru[81] = "\0";
 
 char            function_name[81];
 
-char            default_function[81];
 char            override[81];
 
 char            temp_buffer[1024];
 char            error_buffer[1024];
-unsigned char   chunk_buffer[4096];
+static unsigned char chunk_buffer[4096];
 #ifndef NOUNICODE
-glui32          chunk_buffer_uni[4096];
+static glui32   chunk_buffer_uni[4096];
 #endif
 char            proxy_buffer[1024];
 
-char			oops_buffer[1024];
-char			oopsed_current[1024];
+static char		oops_buffer[1024];
+static char		oopsed_current[1024];
 char            last_command[1024];
 char			*blank_command = "blankjacl\0";
-char            *current_command = (char *) NULL;
-char			command_buffer[1024];
+static char            *current_command = NULL;
+static char		command_buffer[1024];
 #ifndef NOUNICODE
-glui32			command_buffer_uni[1024];
+static glui32	command_buffer_uni[1024];
 #endif
 char			players_command[1024];
 
@@ -117,7 +99,7 @@ int             objects, integers, functions, strings;
 strid_t         game_stream = NULL;
 
 /* THE STREAM FOR OPENING UP THE ARCHIVE CONTAINING GRAPHICS AND SOUND */
-strid_t				blorb_stream;
+extern strid_t	blorb_stream;
 
 /* A FILE REFERENCE FOR THE TRANSCRIPT FILE. */
 static frefid_t script_fref = NULL;
@@ -127,10 +109,10 @@ static strid_t script_stream = NULL;
 int             noun[4];
 int             player = 0;
 
-int             noun3_backup;
-int             player_backup = 0;
+static int      noun3_backup;
+static int      player_backup = 0;
 
-int             variable_contents;
+static int      variable_contents;
 int             oec;
 int            *object_element_address,
 			   *object_backup_address;
@@ -177,8 +159,19 @@ struct word_type *grammar_table = NULL;
 struct synonym_type *synonym_table = NULL;
 struct filter_type *filter_table = NULL;
 
-// JACL used to use gli_strict_warning, but this is internal to
-// Gargoyle, and is not for interpreters.
+static void version_info(void);
+static void jacl_set_window(winid_t new_window);
+static void walking_thru(void);
+static void scripting(void);
+static void save_game_state(void);
+static void restore_game_state(void);
+static void word_check(void);
+#ifdef READLINE
+static char* object_generator(const char* text, int state);
+static char* verb_generator(const char* text, int state);
+static void add_word(const char * word);
+#endif
+
 static void jacl_strict_warning(const char *msg)
 {
 	fprintf(stderr, "JACL error: %s\n", msg);
@@ -256,8 +249,9 @@ glk_main(void)
 #ifndef GARGLK
 	if (blorb_file != NULL && glk_fileref_does_file_exist(blorb_file)) {
 		blorb_stream = glk_stream_open_file(blorb_file, filemode_Read, 0);
-#endif
+#else
         {
+#endif
 
 		if (blorb_stream != NULL) {
 			/* IF THE FILE EXISTS, SET THE RESOURCE MAP */
@@ -594,21 +588,20 @@ word_check()
 			TIME->value = FALSE;
 		}
 	} else if (!strcmp(word[wp], cstring_resolve("AGAIN_WORD")->value) || !strcmp(word[wp], "g")) {
-		if (TOTAL_MOVES->value == 0) {
-			write_text(cstring_resolve("NO_MOVES")->value);
-			TIME->value = FALSE;
-		} else if (last_command[0] == 0) {
-			write_text(cstring_resolve("NOT_CLEVER")->value);
-			TIME->value = FALSE;
-		} else {
-			strcpy(text_buffer, last_command);
-			current_command = last_command;
-			command_encapsulate();
-			jacl_truncate();
-			//printf("--- command started at %d\n", start_of_last_command);
-			wp = start_of_last_command;
-			word_check();
-		}
+                if (TOTAL_MOVES->value == 0) {
+                        write_text(cstring_resolve("NO_MOVES")->value);
+                        TIME->value = FALSE;
+                } else if (last_command[0] == 0) {
+                        write_text(cstring_resolve("NOT_CLEVER")->value);
+                        TIME->value = FALSE;
+                } else {
+                        strcpy(current_command, last_command);
+                        strcpy(text_buffer, last_command);
+                        command_encapsulate();
+                        jacl_truncate();
+                        wp = start_of_last_command;
+                        word_check();
+                }
 	} else if (!strcmp(word[wp], cstring_resolve("SCRIPT_WORD")->value) || !strcmp(word[wp], "transcript")) {
 		scripting();
 	} else if (!strcmp(word[wp], cstring_resolve("UNSCRIPT_WORD")->value)) {
@@ -706,8 +699,7 @@ save_game_state()
 }
 
 int
-save_interaction(filename)
-	char 		*filename;
+save_interaction(const char *filename)
 {
 	frefid_t saveref;
 
@@ -721,7 +713,7 @@ save_interaction(filename)
 	if (filename == NULL) {
 		saveref = glk_fileref_create_by_prompt(fileusage_SavedGame | fileusage_BinaryMode, filemode_Write, 0);
 	} else {
-		saveref = glk_fileref_create_by_name(fileusage_SavedGame | fileusage_BinaryMode, filename, 0);
+		saveref = glk_fileref_create_by_name(fileusage_SavedGame | fileusage_BinaryMode, (char*)filename, 0);
 
 	}
 
@@ -788,8 +780,7 @@ restore_game_state()
 }
 
 void
-write_text(string_buffer)
-	 char            *string_buffer;
+write_text(const char *string_buffer)
 {
 	int             index,
 					length;
@@ -899,8 +890,7 @@ newline()
 }
 
 void
-more(message)
-	char* message;
+more(const char* message)
 {
 	int character;
 
@@ -943,10 +933,7 @@ get_key()
 }
 
 int
-get_number(insist, low, high)
-	int		insist;
-	int		low;
-	int		high;
+get_number(int insist, int low, int high)
 {
     char *cx;
 	char commandbuf[256];
@@ -1111,8 +1098,7 @@ get_yes_or_no(void)
 }
 
 char
-get_character(message)
-    char			*message;
+get_character(const char *message)
 {
     char *cx;
 	char commandbuf[256];
@@ -1159,16 +1145,13 @@ get_character(message)
 }
 
 strid_t
-open_glk_file (usage, mode, filename)
-	glui32 			usage;
-	glui32 			mode;
-	char *			filename;
+open_glk_file (glui32 usage, glui32 mode, const char *filename)
 {
 
 	frefid_t	file_reference;
 	strid_t		stream_reference;
 
-   	file_reference = glk_fileref_create_by_name(usage, filename, 0);
+   	file_reference = glk_fileref_create_by_name(usage, (char *)filename, 0);
 
 	if (file_reference) {
     	stream_reference = glk_stream_open_file(file_reference, mode, 0);
@@ -1326,8 +1309,7 @@ walking_thru()
 }
 
 int
-restore_interaction(filename)
-	char 		*filename;
+restore_interaction(const char *filename)
 {
 	frefid_t saveref;
 
@@ -1341,7 +1323,7 @@ restore_interaction(filename)
 	if (filename == NULL) {
 		saveref = glk_fileref_create_by_prompt(fileusage_SavedGame | fileusage_BinaryMode, filemode_Read, 0);
 	} else {
-		saveref = glk_fileref_create_by_name(fileusage_SavedGame | fileusage_BinaryMode, filename, 0);
+		saveref = glk_fileref_create_by_name(fileusage_SavedGame | fileusage_BinaryMode, (char*)filename, 0);
 	}
 
 	jacl_set_window(mainwin);
@@ -1360,10 +1342,7 @@ restore_interaction(filename)
 }
 
 glui32
-glk_get_bin_line_stream(file_stream, buffer, max_length)
-	strid_t         file_stream;
-	char *			buffer;
-	glui32			max_length;
+glk_get_bin_line_stream(strid_t file_stream, char *buffer, glui32 max_length)
 {
 	glsi32 character = 0;
 
@@ -1386,8 +1365,7 @@ glk_get_bin_line_stream(file_stream, buffer, max_length)
 }
 
 void
-jacl_set_window(new_window)
-	winid_t	new_window;
+jacl_set_window(winid_t	new_window)
 {
 	current_window = new_window;
 	glk_set_window(new_window);
@@ -1395,10 +1373,7 @@ jacl_set_window(new_window)
 
 #ifdef READLINE
 char **
-command_completion(text, start, end)
-char* text;
-int start;
-int end;
+command_completion(char* text, int start, int end)
 {
     /* READLINE TAB COMPLETION CODE */
     char **options;
@@ -1412,12 +1387,9 @@ int end;
 
     return (options);
 }
-#endif
 
 char *
-object_generator(text, state)
-char* text;
-int state;
+object_generator(char* text, int state)
 {
     static int len;
     static struct command_type* now;
@@ -1441,7 +1413,7 @@ int state;
                    THEM TO THE COMPLETION LIST */
                 current_name = object[index]->first_name;
                 while (current_name) {
-                    add_word (current_name);
+                    add_word (current_name->name);
                     current_name = current_name->next_name;
                 }
             }
@@ -1463,9 +1435,7 @@ int state;
 }
 
 char *
-verb_generator(text, state)
-char* text;
-int state;
+verb_generator(char* text, int state)
 {
     static int len;
     static struct command_type* now;
@@ -1509,8 +1479,7 @@ int state;
 /* ADD A COPY OF STRING TO A LIST OF STRINGS IF IT IS NOT
    ALREADY IN THE LIST. THIS IS FOR THE USE OF READLINE */
 void
-add_word(word)
-char * word;
+add_word(const char * word)
 {
     static struct command_type *current_word = NULL;
     struct command_type *previous_word = NULL;
@@ -1538,6 +1507,7 @@ char * word;
 		}
     }
 }
+#endif
 
 void 
 convert_to_utf8(glui32 *text, int len) {

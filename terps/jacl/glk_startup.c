@@ -19,22 +19,13 @@
 
 int					jpp_error = FALSE;
 
-extern strid_t 		game_stream;
-extern char			game_file[];
-extern char			temp_buffer[];
-extern char			error_buffer[];
-extern char			processed_file[];
-
 short int			encrypt;
 extern short int	release;
 
 glkunix_startup_t *arguments;
 
 /* THE STREAM FOR OPENING UP THE ARCHIVE CONTAINING GRAPHICS AND SOUND */
-extern strid_t				blorb_stream;
-
-/* PROTOTYPE FOR NEEDED UTILITY FUNCTION */
-void create_paths();
+strid_t				blorb_stream;
 
 glkunix_argumentlist_t glkunix_arguments[] = {
     {"", glkunix_arg_ValueFollows, "filename: The game file to load." },

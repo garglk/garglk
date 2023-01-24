@@ -9,33 +9,13 @@
 #include "types.h"
 #include "prototypes.h"
 
-extern struct object_type		*object[];
-extern struct integer_type		*integer_table;
-extern struct integer_type		*integer[];
-extern struct function_type		*function_table;
-extern struct string_type       *string_table;
-
-extern schanid_t				sound_channel[];
-
-extern char						temp_buffer[];
-
-extern int						objects;
-extern int						integers;
-extern int						functions;
-extern int						strings;
-extern int						player;
-
-extern int						it;
-extern int						them[];
-extern int						her;
-extern int						him;
-extern int						parent;
-
-extern int    			        noun[];
+static void write_integer(strid_t stream, int x);
+static void write_long(strid_t stream, long x);
+static int  read_integer(strid_t stream);
+static long read_long(strid_t stream);
 
 int
-save_game(saveref)
-	 frefid_t           saveref;
+save_game(frefid_t saveref)
 {
 	struct integer_type *current_integer = integer_table;
     struct function_type *current_function = function_table;
@@ -85,7 +65,7 @@ save_game(saveref)
 
 	/* WRITE OUT ALL THE CURRENT VALUES OF THE STRING VARIABLES */
     while (current_string != NULL) {
-		for (index = 0; index < 255; index++) {
+		for (index = 0; index < 1024; index++) {
     		glk_put_char_stream(bookmark, current_string->value[index]);
 		}
         current_string = current_string->next_string;
@@ -111,9 +91,7 @@ save_game(saveref)
 }
 
 int
-restore_game(saveref, warn)
-	 frefid_t           saveref;
-	 int			 	warn;
+restore_game(frefid_t saveref, int warn)
 {
 	struct integer_type *current_integer = integer_table;
     struct function_type *current_function = function_table;
@@ -177,7 +155,7 @@ restore_game(saveref, warn)
 	}
 
     while (current_string != NULL) {
-		for (index = 0; index < 255; index++) {
+		for (index = 0; index < 1024; index++) {
     		current_string->value[index] = glk_get_char_stream(bookmark);
 		}
         current_string = current_string->next_string;
