@@ -537,23 +537,23 @@ static void draw_pixel_lcd_gamma(int x, int y, const unsigned char *alpha, const
                                    gammainv[fg[2] + mulhigh(static_cast<int>(bg[2]) - fg[2], invalf[2])]);
 }
 
-static void draw_bitmap_gamma(const Bitmap *b, int x, int y, const Color &rgb)
+static void draw_bitmap_gamma(const Bitmap &b, int x, int y, const Color &rgb)
 {
     int i, k, c;
-    for (k = 0; k < b->h; k++) {
-        for (i = 0; i < b->w; i++) {
-            c = b->data[k * b->pitch + i];
-            draw_pixel_gamma(x + b->lsb + i, y - b->top + k, c, rgb);
+    for (k = 0; k < b.h; k++) {
+        for (i = 0; i < b.w; i++) {
+            c = b.data[k * b.pitch + i];
+            draw_pixel_gamma(x + b.lsb + i, y - b.top + k, c, rgb);
         }
     }
 }
 
-static void draw_bitmap_lcd_gamma(const Bitmap *b, int x, int y, const Color &rgb)
+static void draw_bitmap_lcd_gamma(const Bitmap &b, int x, int y, const Color &rgb)
 {
     int i, j, k;
-    for (k = 0; k < b->h; k++) {
-        for (i = 0, j = 0; i < b->w; i += 3, j++) {
-            draw_pixel_lcd_gamma(x + b->lsb + j, y - b->top + k, b->data.data() + k * b->pitch + i, rgb);
+    for (k = 0; k < b.h; k++) {
+        for (i = 0, j = 0; i < b.w; i += 3, j++) {
+            draw_pixel_lcd_gamma(x + b.lsb + j, y - b.top + k, b.data.data() + k * b.pitch + i, rgb);
         }
     }
 }
@@ -721,9 +721,9 @@ int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb,
         int sx = x % GLI_SUBPIX;
 
         if (gli_conf_lcd) {
-            draw_bitmap_lcd_gamma(&glyphs[sx], px, y, rgb);
+            draw_bitmap_lcd_gamma(glyphs[sx], px, y, rgb);
         } else {
-            draw_bitmap_gamma(&glyphs[sx], px, y, rgb);
+            draw_bitmap_gamma(glyphs[sx], px, y, rgb);
         }
     });
 }
