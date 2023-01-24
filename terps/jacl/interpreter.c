@@ -16,6 +16,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+// For strcasecemp()
+#include <strings.h>
+
 #ifdef WIN32
 struct flock {
     short l_type;
