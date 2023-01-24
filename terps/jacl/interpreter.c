@@ -19,7 +19,7 @@
 // For strcasecemp()
 #include <strings.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 struct flock {
     short l_type;
     short l_whence;
