@@ -38,8 +38,7 @@ void waitch()
 #endif
 }
 
-void putch(ch,fp)
-  int ch; FILE *fp;
+void putch(int ch, FILE *fp)
 {
 #ifdef UNIX
     putc(ch,fp);
