@@ -269,6 +269,12 @@ if(WITH_JACL)
     if(CMAKE_C_COMPILER_ID MATCHES "Clang$")
         # This is a style choice in the code.
         target_compile_options(jacl PRIVATE "-Wno-parentheses-equality")
+
+        # Non-prototype (K&R) declarations have been fixed in JACL's Git
+        # repository, but there hasn't been a release yet since then, so
+        # just ignore the warnings here; remove in the future when a new
+        # JACL is upstreamed.
+        target_compile_options(jacl PRIVATE "-Wno-deprecated-non-prototype")
     endif()
 endif()
 
