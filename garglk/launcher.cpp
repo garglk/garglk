@@ -295,7 +295,12 @@ bool garglk::rungame(const std::string &game)
     }
 
     std::ifstream f(game, std::ios::binary);
-    if (f.is_open() && f.read(header.data(), header.size())) {
+    if (!f.is_open()) {
+        garglk::winmsg("Unable to open " + game);
+        return false;
+    }
+
+    if (f.read(header.data(), header.size())) {
         auto is_blorb = std::regex_search(header.begin(), header.end(), std::regex(R"(^FORM[\s\S]{4}IFRSRIdx)"));
         if (is_blorb) {
             return runblorb(game);
