@@ -694,6 +694,8 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 }
             } else if (cmd == "game_config") {
                 gli_conf_per_game_config = asbool(arg);
+            } else if (cmd == "redraw_hack") {
+                gli_conf_redraw_hack = asbool(arg);
             }
 
         // For now just ignore failure; in the future, probably log it.
