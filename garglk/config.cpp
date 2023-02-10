@@ -470,229 +470,235 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             return std::stoi(arg) != 0;
         };
 
-        if (cmd == "moreprompt") {
-            base_more_prompt = arg;
-        } else if (cmd == "morecolor") {
-            parsecolor(arg, gli_more_color);
-            parsecolor(arg, gli_more_save);
-        } else if (cmd == "morefont") {
-            gli_more_font = font2idx(arg);
-        } else if (cmd == "morealign") {
-            gli_more_align = clamp(std::stoi(arg), 0, 2);
-        } else if (cmd == "monoaspect") {
-            gli_conf_monoaspect = std::stof(arg);
-        } else if (cmd == "propaspect") {
-            gli_conf_propaspect = std::stof(arg);
-        } else if (cmd == "monosize") {
-            gli_conf_monosize = std::stof(arg);
-        } else if (cmd == "monor") {
-            gli_conf_mono_override.r = arg;
-        } else if (cmd == "monob") {
-            gli_conf_mono_override.b = arg;
-        } else if (cmd == "monoi") {
-            gli_conf_mono_override.i = arg;
-        } else if (cmd == "monoz") {
-            gli_conf_mono_override.z = arg;
-        } else if (cmd == "monofont") {
-            gli_conf_monofont = arg;
-        } else if (cmd == "propsize") {
-            gli_conf_propsize = std::stof(arg);
-        } else if (cmd == "propr") {
-            gli_conf_prop_override.r = arg;
-        } else if (cmd == "propb") {
-            gli_conf_prop_override.b = arg;
-        } else if (cmd == "propi") {
-            gli_conf_prop_override.i = arg;
-        } else if (cmd == "propz") {
-            gli_conf_prop_override.z = arg;
-        } else if (cmd == "propfont") {
-            gli_conf_propfont = arg;
-        } else if (cmd == "leading") {
-            gli_leading = std::max(1, std::stoi(arg));
-        } else if (cmd == "baseline") {
-            gli_baseline = std::max(0, std::stoi(arg));
-        } else if (cmd == "rows") {
-            gli_rows = std::max(1, std::stoi(arg));
-        } else if (cmd == "cols") {
-            gli_cols = std::max(1, std::stoi(arg));
-        } else if (cmd == "minrows") {
-            int r = std::max(0, std::stoi(arg));
-            if (gli_rows < r) {
-                gli_rows = r;
-            }
-        } else if (cmd == "maxrows") {
-            int r = std::max(0, std::stoi(arg));
-            if (gli_rows > r) {
-                gli_rows = r;
-            }
-        } else if (cmd == "mincols") {
-            int r = std::max(0, std::stoi(arg));
-            if (gli_cols < r) {
-                gli_cols = r;
-            }
-        } else if (cmd == "maxcols") {
-            int r = std::max(0, std::stoi(arg));
-            if (gli_cols > r) {
-                gli_cols = r;
-            }
-        } else if (cmd == "lockrows") {
-            gli_conf_lockrows = asbool(arg);
-        } else if (cmd == "lockcols") {
-            gli_conf_lockcols = asbool(arg);
-        } else if (cmd == "save_window") {
-            std::stringstream ss(arg);
-            std::string entry;
-
-            while (ss >> entry) {
-                entry = garglk::downcase(entry);
-                if (entry == "size") {
-                    gli_conf_save_window_size = true;
-                } else if (entry == "location") {
-                    gli_conf_save_window_location = true;
+        try {
+            if (cmd == "moreprompt") {
+                base_more_prompt = arg;
+            } else if (cmd == "morecolor") {
+                parsecolor(arg, gli_more_color);
+                parsecolor(arg, gli_more_save);
+            } else if (cmd == "morefont") {
+                gli_more_font = font2idx(arg);
+            } else if (cmd == "morealign") {
+                gli_more_align = clamp(std::stoi(arg), 0, 2);
+            } else if (cmd == "monoaspect") {
+                gli_conf_monoaspect = std::stof(arg);
+            } else if (cmd == "propaspect") {
+                gli_conf_propaspect = std::stof(arg);
+            } else if (cmd == "monosize") {
+                gli_conf_monosize = std::stof(arg);
+            } else if (cmd == "monor") {
+                gli_conf_mono_override.r = arg;
+            } else if (cmd == "monob") {
+                gli_conf_mono_override.b = arg;
+            } else if (cmd == "monoi") {
+                gli_conf_mono_override.i = arg;
+            } else if (cmd == "monoz") {
+                gli_conf_mono_override.z = arg;
+            } else if (cmd == "monofont") {
+                gli_conf_monofont = arg;
+            } else if (cmd == "propsize") {
+                gli_conf_propsize = std::stof(arg);
+            } else if (cmd == "propr") {
+                gli_conf_prop_override.r = arg;
+            } else if (cmd == "propb") {
+                gli_conf_prop_override.b = arg;
+            } else if (cmd == "propi") {
+                gli_conf_prop_override.i = arg;
+            } else if (cmd == "propz") {
+                gli_conf_prop_override.z = arg;
+            } else if (cmd == "propfont") {
+                gli_conf_propfont = arg;
+            } else if (cmd == "leading") {
+                gli_leading = std::max(1, std::stoi(arg));
+            } else if (cmd == "baseline") {
+                gli_baseline = std::max(0, std::stoi(arg));
+            } else if (cmd == "rows") {
+                gli_rows = std::max(1, std::stoi(arg));
+            } else if (cmd == "cols") {
+                gli_cols = std::max(1, std::stoi(arg));
+            } else if (cmd == "minrows") {
+                int r = std::max(0, std::stoi(arg));
+                if (gli_rows < r) {
+                    gli_rows = r;
                 }
-            }
-        } else if (cmd == "wmarginx") {
-            gli_wmarginx = std::max(0, std::stoi(arg));
-            gli_wmarginx_save = gli_wmarginx;
-        } else if (cmd == "wmarginy") {
-            gli_wmarginy = std::max(0, std::stoi(arg));
-            gli_wmarginy_save = gli_wmarginy;
-        } else if (cmd == "wpaddingx") {
-            gli_wpaddingx = std::max(0, std::stoi(arg));
-        } else if (cmd == "wpaddingy") {
-            gli_wpaddingy = std::max(0, std::stoi(arg));
-        } else if (cmd == "wborderx") {
-            gli_wborderx = std::max(0, std::stoi(arg));
-        } else if (cmd == "wbordery") {
-            gli_wbordery = std::max(0, std::stoi(arg));
-        } else if (cmd == "tmarginx") {
-            gli_tmarginx = std::max(0, std::stoi(arg));
-        } else if (cmd == "tmarginy") {
-            gli_tmarginy = std::max(0, std::stoi(arg));
-        } else if (cmd == "gamma") {
-            gli_conf_gamma = std::max(0.0f, std::stof(arg));
-        } else if (cmd == "caretcolor") {
-            parsecolor(arg, gli_caret_color);
-            parsecolor(arg, gli_caret_save);
-        } else if (cmd == "linkcolor") {
-            parsecolor(arg, gli_link_color);
-            parsecolor(arg, gli_link_save);
-        } else if (cmd == "bordercolor") {
-            parsecolor(arg, gli_border_color);
-            parsecolor(arg, gli_border_save);
-        } else if (cmd == "windowcolor") {
-            parsecolor(arg, gli_window_color);
-            parsecolor(arg, gli_window_save);
-        } else if (cmd == "lcd") {
-            gli_conf_lcd = asbool(arg);
-        } else if (cmd == "lcdfilter") {
-            garglk::set_lcdfilter(arg);
-        } else if (cmd == "lcdweights") {
-            std::istringstream argstream(arg);
-            int weight;
-            std::vector<unsigned char> weights;
+            } else if (cmd == "maxrows") {
+                int r = std::max(0, std::stoi(arg));
+                if (gli_rows > r) {
+                    gli_rows = r;
+                }
+            } else if (cmd == "mincols") {
+                int r = std::max(0, std::stoi(arg));
+                if (gli_cols < r) {
+                    gli_cols = r;
+                }
+            } else if (cmd == "maxcols") {
+                int r = std::max(0, std::stoi(arg));
+                if (gli_cols > r) {
+                    gli_cols = r;
+                }
+            } else if (cmd == "lockrows") {
+                gli_conf_lockrows = asbool(arg);
+            } else if (cmd == "lockcols") {
+                gli_conf_lockcols = asbool(arg);
+            } else if (cmd == "save_window") {
+                std::stringstream ss(arg);
+                std::string entry;
 
-            while (argstream >> weight) {
-                weights.push_back(weight);
-            }
-
-            if (weights.size() == gli_conf_lcd_weights.size()) {
-                std::copy(weights.begin(), weights.end(), gli_conf_lcd_weights.begin());
-            }
-        } else if (cmd == "caretshape") {
-            gli_caret_shape = clamp(std::stoi(arg), 0, 4);
-        } else if (cmd == "linkstyle") {
-            gli_underline_hyperlinks = asbool(arg);
-        } else if (cmd == "scrollwidth") {
-            gli_scroll_width = std::max(0, std::stoi(arg));
-        } else if (cmd == "scrollbg") {
-            parsecolor(arg, gli_scroll_bg);
-        } else if (cmd == "scrollfg") {
-            parsecolor(arg, gli_scroll_fg);
-        } else if (cmd == "justify") {
-            gli_conf_justify = asbool(arg);
-        } else if (cmd == "quotes") {
-            gli_conf_quotes = clamp(std::stoi(arg), 0, 2);
-        } else if (cmd == "dashes") {
-            gli_conf_dashes = clamp(std::stoi(arg), 0, 2);
-        } else if (cmd == "spaces") {
-            gli_conf_spaces = clamp(std::stoi(arg), 0, 2);
-        } else if (cmd == "caps") {
-            gli_conf_caps = asbool(arg);
-        } else if (cmd == "graphics") {
-            gli_conf_graphics = asbool(arg);
-        } else if (cmd == "sound") {
-            gli_conf_sound = asbool(arg);
-        } else if (cmd == "zbleep") {
-            std::istringstream argstream(arg);
-            int number, frequency;
-            double duration;
-
-            if (argstream >> number >> duration >> frequency) {
-                gli_bleeps.update(number, duration, frequency);
-            }
-        } else if (cmd == "zbleep_file") {
-            std::istringstream argstream(arg);
-            int number;
-            std::string path;
-
-            if (argstream >> number >> path) {
-                gli_bleeps.update(number, path);
-            }
-        } else if (cmd == "fullscreen") {
-            gli_conf_fullscreen = asbool(arg);
-        } else if (cmd == "zoom") {
-            gli_zoom = std::max(0.1f, std::stof(arg));
-        } else if (cmd == "speak") {
-            gli_conf_speak = asbool(arg);
-        } else if (cmd == "speak_input") {
-            gli_conf_speak_input = asbool(arg);
-        } else if (cmd == "speak_language") {
-            gli_conf_speak_language = arg;
-        } else if (cmd == "stylehint") {
-            gli_conf_stylehint = asbool(arg);
-        } else if (cmd == "safeclicks") {
-            gli_conf_safeclicks = asbool(arg);
-        } else if (cmd == "theme") {
-            garglk::theme::set(arg);
-        } else if (cmd == "tcolor" || cmd == "gcolor") {
-            std::istringstream argstream(arg);
-            std::string style, fg, bg;
-
-            if (argstream >> style >> fg >> bg) {
-                Styles &styles = cmd[0] == 't' ? gli_tstyles : gli_gstyles;
-
-                if (style == "*") {
-                    for (int i = 0; i < style_NUMSTYLES; i++) {
-                        parsecolor(fg, styles[i].fg);
-                        parsecolor(bg, styles[i].bg);
+                while (ss >> entry) {
+                    entry = garglk::downcase(entry);
+                    if (entry == "size") {
+                        gli_conf_save_window_size = true;
+                    } else if (entry == "location") {
+                        gli_conf_save_window_location = true;
                     }
-                } else {
+                }
+            } else if (cmd == "wmarginx") {
+                gli_wmarginx = std::max(0, std::stoi(arg));
+                gli_wmarginx_save = gli_wmarginx;
+            } else if (cmd == "wmarginy") {
+                gli_wmarginy = std::max(0, std::stoi(arg));
+                gli_wmarginy_save = gli_wmarginy;
+            } else if (cmd == "wpaddingx") {
+                gli_wpaddingx = std::max(0, std::stoi(arg));
+            } else if (cmd == "wpaddingy") {
+                gli_wpaddingy = std::max(0, std::stoi(arg));
+            } else if (cmd == "wborderx") {
+                gli_wborderx = std::max(0, std::stoi(arg));
+            } else if (cmd == "wbordery") {
+                gli_wbordery = std::max(0, std::stoi(arg));
+            } else if (cmd == "tmarginx") {
+                gli_tmarginx = std::max(0, std::stoi(arg));
+            } else if (cmd == "tmarginy") {
+                gli_tmarginy = std::max(0, std::stoi(arg));
+            } else if (cmd == "gamma") {
+                gli_conf_gamma = std::max(0.0f, std::stof(arg));
+            } else if (cmd == "caretcolor") {
+                parsecolor(arg, gli_caret_color);
+                parsecolor(arg, gli_caret_save);
+            } else if (cmd == "linkcolor") {
+                parsecolor(arg, gli_link_color);
+                parsecolor(arg, gli_link_save);
+            } else if (cmd == "bordercolor") {
+                parsecolor(arg, gli_border_color);
+                parsecolor(arg, gli_border_save);
+            } else if (cmd == "windowcolor") {
+                parsecolor(arg, gli_window_color);
+                parsecolor(arg, gli_window_save);
+            } else if (cmd == "lcd") {
+                gli_conf_lcd = asbool(arg);
+            } else if (cmd == "lcdfilter") {
+                garglk::set_lcdfilter(arg);
+            } else if (cmd == "lcdweights") {
+                std::istringstream argstream(arg);
+                int weight;
+                std::vector<unsigned char> weights;
+
+                while (argstream >> weight) {
+                    weights.push_back(weight);
+                }
+
+                if (weights.size() == gli_conf_lcd_weights.size()) {
+                    std::copy(weights.begin(), weights.end(), gli_conf_lcd_weights.begin());
+                }
+            } else if (cmd == "caretshape") {
+                gli_caret_shape = clamp(std::stoi(arg), 0, 4);
+            } else if (cmd == "linkstyle") {
+                gli_underline_hyperlinks = asbool(arg);
+            } else if (cmd == "scrollwidth") {
+                gli_scroll_width = std::max(0, std::stoi(arg));
+            } else if (cmd == "scrollbg") {
+                parsecolor(arg, gli_scroll_bg);
+            } else if (cmd == "scrollfg") {
+                parsecolor(arg, gli_scroll_fg);
+            } else if (cmd == "justify") {
+                gli_conf_justify = asbool(arg);
+            } else if (cmd == "quotes") {
+                gli_conf_quotes = clamp(std::stoi(arg), 0, 2);
+            } else if (cmd == "dashes") {
+                gli_conf_dashes = clamp(std::stoi(arg), 0, 2);
+            } else if (cmd == "spaces") {
+                gli_conf_spaces = clamp(std::stoi(arg), 0, 2);
+            } else if (cmd == "caps") {
+                gli_conf_caps = asbool(arg);
+            } else if (cmd == "graphics") {
+                gli_conf_graphics = asbool(arg);
+            } else if (cmd == "sound") {
+                gli_conf_sound = asbool(arg);
+            } else if (cmd == "zbleep") {
+                std::istringstream argstream(arg);
+                int number, frequency;
+                double duration;
+
+                if (argstream >> number >> duration >> frequency) {
+                    gli_bleeps.update(number, duration, frequency);
+                }
+            } else if (cmd == "zbleep_file") {
+                std::istringstream argstream(arg);
+                int number;
+                std::string path;
+
+                if (argstream >> number >> path) {
+                    gli_bleeps.update(number, path);
+                }
+            } else if (cmd == "fullscreen") {
+                gli_conf_fullscreen = asbool(arg);
+            } else if (cmd == "zoom") {
+                gli_zoom = std::max(0.1f, std::stof(arg));
+            } else if (cmd == "speak") {
+                gli_conf_speak = asbool(arg);
+            } else if (cmd == "speak_input") {
+                gli_conf_speak_input = asbool(arg);
+            } else if (cmd == "speak_language") {
+                gli_conf_speak_language = arg;
+            } else if (cmd == "stylehint") {
+                gli_conf_stylehint = asbool(arg);
+            } else if (cmd == "safeclicks") {
+                gli_conf_safeclicks = asbool(arg);
+            } else if (cmd == "theme") {
+                garglk::theme::set(arg);
+            } else if (cmd == "tcolor" || cmd == "gcolor") {
+                std::istringstream argstream(arg);
+                std::string style, fg, bg;
+
+                if (argstream >> style >> fg >> bg) {
+                    Styles &styles = cmd[0] == 't' ? gli_tstyles : gli_gstyles;
+
+                    if (style == "*") {
+                        for (int i = 0; i < style_NUMSTYLES; i++) {
+                            parsecolor(fg, styles[i].fg);
+                            parsecolor(bg, styles[i].bg);
+                        }
+                    } else {
+                        int i = std::stoi(style);
+
+                        if (i >= 0 && i < style_NUMSTYLES) {
+                            parsecolor(fg, styles[i].fg);
+                            parsecolor(bg, styles[i].bg);
+                        }
+                    }
+                }
+            } else if (cmd == "tfont" || cmd == "gfont") {
+                std::istringstream argstream(arg);
+                std::string style, font;
+
+                if (argstream >> style >> font) {
                     int i = std::stoi(style);
 
                     if (i >= 0 && i < style_NUMSTYLES) {
-                        parsecolor(fg, styles[i].fg);
-                        parsecolor(bg, styles[i].bg);
+                        if (cmd[0] == 't') {
+                            gli_tstyles[i].font = font2idx(font);
+                        } else {
+                            gli_gstyles[i].font = font2idx(font);
+                        }
                     }
                 }
+            } else if (cmd == "game_config") {
+                gli_conf_per_game_config = asbool(arg);
             }
-        } else if (cmd == "tfont" || cmd == "gfont") {
-            std::istringstream argstream(arg);
-            std::string style, font;
 
-            if (argstream >> style >> font) {
-                int i = std::stoi(style);
-
-                if (i >= 0 && i < style_NUMSTYLES) {
-                    if (cmd[0] == 't') {
-                        gli_tstyles[i].font = font2idx(font);
-                    } else {
-                        gli_gstyles[i].font = font2idx(font);
-                    }
-                }
-            }
-        } else if (cmd == "game_config") {
-            gli_conf_per_game_config = asbool(arg);
+        // For now just ignore failure; in the future, probably log it.
+        } catch (const std::invalid_argument &) {
+        } catch (const std::out_of_range &) {
         }
     });
 }

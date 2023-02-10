@@ -422,8 +422,15 @@ void winopen()
                 std::regex size_re(R"(^@Size\((\d+) (\d+)\)$)");
                 std::smatch cm;
                 if (std::regex_match(size, cm, size_re) && cm.size() == 3) {
-                    defw = std::stoi(cm[1]);
-                    defh = std::stoi(cm[2]);
+                    int w, h;
+                    try {
+                        w = std::stoi(cm[1]);
+                        h = std::stoi(cm[2]);
+
+                        defw = w;
+                        defh = h;
+                    } catch (...) {
+                    }
                 }
             }
         }
