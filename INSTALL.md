@@ -354,12 +354,11 @@ For sound support, Qt must be used instead of SDL. This looks to be
 because both Qt and SDL create a `BApplication` instance, but there can
 be only one such instance.
 
-In addition, Haiku has no text-to-speech support, so that must be
-disabled. Building is then straightforward:
+To compile:
 
     $ mkdir build
     $ cd build
-    $ cmake .. -DSOUND=QT -DWITH_TTS=OFF
+    $ cmake .. -DSOUND=QT
     $ make
 
 At the moment there is no installation procedure for Haiku, but
