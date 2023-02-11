@@ -156,7 +156,7 @@ void random_read_rand(IO &io)
         return;
     }
 
-    if (static_cast<RNGType>(rng_type) == RNGType::XORShift && state != 0) {
+    if (rng_type == static_cast<uint16_t>(RNGType::XORShift) && state != 0) {
         xstate = state;
         mode = Mode::Predictable;
     }
