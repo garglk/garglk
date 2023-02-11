@@ -30,9 +30,20 @@ static void gli_input_more_focus();
 static void gli_input_next_focus();
 static void gli_input_scroll_focus();
 
+// See issue #730. Some fonts leave trails, where they "leak" into the
+// margins. A redraw cleans these up. The hidden "redraw_hack" option
+// does this, allowing affected users to work around it until a proper
+// fix is implemented.
+bool gli_conf_redraw_hack = false;
+
 void gli_dispatch_event(event_t *event, bool polled)
 {
     std::list<event_t>::iterator it;
+
+    if (gli_conf_redraw_hack) {
+        gli_force_redraw = true;
+        gli_windows_redraw();
+    }
 
     if (!polled) {
         it = gli_events.begin();

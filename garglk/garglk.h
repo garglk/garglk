@@ -579,6 +579,9 @@ extern bool gli_claimselect;
 
 extern bool gli_conf_per_game_config;
 
+// XXX See issue #730.
+extern bool gli_conf_redraw_hack;
+
 template <typename T>
 T gli_zoom_int(T x)
 {
