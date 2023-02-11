@@ -321,8 +321,7 @@ void start_v6()
 #ifdef ZTERP_GLK
 uint16_t internal_call(uint16_t routine)
 {
-    int saved_nargs = znargs;
-    uint16_t saved_arg = zargs[0];
+    std::vector<uint16_t> saved_args(zargs.begin(), zargs.begin() + znargs);
 
     znargs = 1;
     zargs[0] = routine;
@@ -330,8 +329,8 @@ uint16_t internal_call(uint16_t routine)
 
     process_instructions();
 
-    znargs = saved_nargs;
-    zargs[0] = saved_arg;
+    std::copy(saved_args.begin(), saved_args.end(), zargs.begin());
+    znargs = saved_args.size();
 
     return pop_stack();
 }

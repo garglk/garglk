@@ -740,18 +740,23 @@ void show_message(const char *fmt, ...)
     // If windows are not supported (e.g. in cheapglk or no Glk), messages
     // will not get displayed. If this is the case, print to the main
     // window.
+    strid_t stream;
     if (errorwin != nullptr) {
-        strid_t stream = glk_window_get_stream(errorwin);
-
+        stream = glk_window_get_stream(errorwin);
         glk_set_style_stream(stream, style_Alert);
-        for (size_t i = 0; message[i] != 0; i++) {
-            xglk_put_char_stream(stream, char_to_unicode(message[i]));
-        }
-    } else
-#endif
-    {
-        screen_printf("\n[%s]\n", message.c_str());
+    } else {
+        stream = glk_window_get_stream(mainwin->id);
+        message = "\n[" + message + "]\n";
     }
+
+    for (size_t i = 0; message[i] != 0; i++) {
+        xglk_put_char_stream(stream, char_to_unicode(message[i]));
+    }
+#else
+    {
+        std::cout << "\n[" << message << "]\n";
+    }
+#endif
 }
 
 void screen_message_prompt(const std::string &message)

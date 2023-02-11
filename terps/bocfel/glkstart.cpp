@@ -66,7 +66,7 @@ int glkunix_startup_code(glkunix_startup_t *data)
 {
     process_arguments(data->argc, data->argv);
 
-    if (arg_status == ArgStatus::Help) {
+    if (arg_status != ArgStatus::Ok) {
         return 1;
     }
 
@@ -141,7 +141,7 @@ static void startup()
 
     process_arguments(__argc, __argv);
 
-    if (arg_status == ArgStatus::Help) {
+    if (arg_status != ArgStatus::Ok) {
         return;
     }
 

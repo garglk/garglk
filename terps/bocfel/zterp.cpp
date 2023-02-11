@@ -194,8 +194,10 @@ static void read_config()
     }
 
     int lineno = 0;
-    while (std::getline(f >> std::ws, line)) {
+    while (std::getline(f, line)) {
         lineno++;
+
+        line = ltrim(line);
 
         auto comment = line.find('#');
         if (comment != std::string::npos) {
