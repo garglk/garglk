@@ -92,19 +92,15 @@ void trm_wait()
 /* trm_line - get an input line */
 char *trm_line(char *line)
 {
-	event_t event;
+    event_t event;
 
-	do {
-		glk_request_line_event(window, line, LINEMAX, 0);
-		glk_select(&event);
-	
-		switch (event.type) {
-		case evtype_LineInput:
-			line[event.val1] = 0;	/* Null terminate it */
-			break;
-		};
-	} while (event.type != evtype_LineInput);
+    glk_request_line_event(window, line, LINEMAX, 0);
+    do {
+        glk_select(&event);
+    } while (event.type != evtype_LineInput);
 
-	return line;
+    /* Null terminate it */
+    line[event.val1] = 0;
+
+    return line;
 }
-
