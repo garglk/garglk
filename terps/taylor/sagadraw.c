@@ -1061,7 +1061,7 @@ void DrawTaylor(int loc)
                 ptr += 2;
                 break;
             case 0xfc: // Draw colour: x, y, attribute, length 7808
-                if (Game->type != HEMAN_TYPE) {
+                if (Version != HEMAN_TYPE) {
                     // fprintf(stderr, "0xfc (7808) Draw attribute %x at %d,%d length %d\n", *(ptr + 3), *(ptr + 1), *(ptr + 2), *(ptr + 4));
                     draw_colour_old(*(ptr + 1), *(ptr + 2), *(ptr + 3), *(ptr + 4));
                     ptr = ptr + 4;
@@ -1087,7 +1087,7 @@ void DrawTaylor(int loc)
             case 0xf8:
                 // fprintf(stderr, "0xf8: Skip rest of picture if object %d is not present\n", *(ptr + 1));
                 ptr++;
-                if (CurrentGame == BLIZZARD_PASS || CurrentGame == REBEL_PLANET || CurrentGame == REBEL_PLANET_64 ) {
+                if (CurrentGame == BLIZZARD_PASS || BaseGame == REBEL_PLANET) {
                     if (ObjectLoc[*ptr] == MyLoc) {
                         DrawSagaPictureAtPos(*(ptr + 1), *(ptr + 2), *(ptr + 3));
                     }
@@ -1141,7 +1141,7 @@ void DrawTaylor(int loc)
                 ClearGraphMem();
                 break;
             case 0xf7: // set A to 0c and call 70b7, but A seems to not be used. Vestigial code?
-                if ((CurrentGame == REBEL_PLANET || CurrentGame == REBEL_PLANET_64) && MyLoc == 43 && ObjectLoc[131] == 252)
+                if (BaseGame == REBEL_PLANET && MyLoc == 43 && ObjectLoc[131] == 252)
                     return;
             case 0xf6: // set A to 04 and call 70b7. See 0xf7 above.
             case 0xf5: // set A to 08 and call 70b7. See 0xf7 above.

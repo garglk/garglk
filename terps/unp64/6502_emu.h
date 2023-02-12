@@ -1,6 +1,6 @@
 /* Code from Exomizer distributed under the zlib License
- * by kind permission of the original author
- * Magnus Lind.
+ * by kind permission of the original authors
+ * Magnus Lind and iAN CooG.
  */
 
 /*
@@ -26,29 +26,29 @@
  */
 
 /*
+ Original: Magnus Lind
+ Modifications for UNP64: iAN CooG and Petter Sjölund
  C++ version based on code adapted to ScummVM by Avijeet Maurya
  */
 
-#ifndef UNP64_EXO_UTIL_H
-#define UNP64_EXO_UTIL_H
 
-#include "types.h"
+#ifndef UNP64_6502_EMU_H
+#define UNP64_6502_EMU_H
 
 namespace Unp64 {
 
-struct LoadInfo {
-	int _basicTxtStart; /* in */
-	int _basicVarStart; /* out */
-	int _run;           /* out */
-	int _start;         /* out */
-	int _end;           /* out */
+struct CpuCtx {
+	uint32_t _cycles;
+	uint16_t _pc;
+	uint8_t *_mem;
+	uint8_t _sp;
+	uint8_t _flags;
+	uint8_t _a;
+	uint8_t _x;
+	uint8_t _y;
 };
 
-int findSys(const uint8_t *buf, int target);
-
-void loadData(uint8_t *data, size_t dataLength, uint8_t mem[65536], LoadInfo *info);
-
-int strToInt(const char *str, int *value);
+int nextInst(CpuCtx *r);
 
 } // End of namespace Unp64
 

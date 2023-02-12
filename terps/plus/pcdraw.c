@@ -108,7 +108,7 @@ int DrawDOSImageFromData(uint8_t *ptr, size_t datasize)
     rawoffset = work + (*ptr * 256);
     xoff = ((rawoffset % 80) * 4) - 24;
     yoff = rawoffset / 40;
-    yoff -= (yoff % 2 == 1);
+    yoff -= (yoff & 1);
     x = xoff;
     y = yoff;
 

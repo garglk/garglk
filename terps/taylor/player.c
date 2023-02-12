@@ -58,6 +58,7 @@ static int FoundMatch;
 static int PrintedOK;
 int Redraw = 0;
 
+#define Location (Flag[0])
 #define OtherGuyLoc (Flag[1])
 #define OtherGuyInv (Flag[3])
 #define TurnsLow (Flag[26])
@@ -96,6 +97,8 @@ extern struct GameInfo games[];
 strid_t room_description_stream = NULL;
 
 extern int AnimationRunning;
+
+int DeferredGoto = 0;
 
 #ifdef DEBUG
 
@@ -862,7 +865,7 @@ static void NewGame(void)
         Flag[2] = 254;
         Flag[3] = 253;
     }
-    Flag[0] = 0;
+    Location = 0;
     memcpy(ObjectLoc, FileImage + ObjLocBase, NumObjects());
     if (WaitFlag() != -1)
         Flag[WaitFlag()] = 0;
@@ -949,6 +952,10 @@ static int LoadPrompt(void)
 
     if (!YesOrNo()) {
         glk_window_clear(Bottom);
+        if (DeferredGoto == 1) {
+            Location = 1;
+            DeferredGoto = 0;
+        }
         return 0;
     } else {
         return LoadGame();
@@ -1290,8 +1297,12 @@ void Look(void) {
 static void Goto(unsigned char loc) {
     if (BaseGame == QUESTPROBE3 && !PrintedOK)
         Okay();
-    Flag[0] = loc;
-    Redraw = 1;
+    if (BaseGame == HEMAN && Location == 0 && loc == 1) {
+        DeferredGoto = 1;
+    } else {
+        Location = loc;
+        Redraw = 1;
+    }
 }
 
 static void Delay(unsigned char seconds) {
@@ -1305,7 +1316,7 @@ static void Delay(unsigned char seconds) {
     glk_cancel_char_event(Bottom);
 
     glk_request_timer_events(1000 * seconds);
-    
+
     event_t ev;
 
     do {
@@ -1880,7 +1891,7 @@ static void ExecuteLineCode(unsigned char *p, int *done)
             }
             case SWITCHCHARACTER:
                 /* Go to the location of the other guy */
-                Flag[0] = ObjectLoc[arg1];
+                Location = ObjectLoc[arg1];
                 /* Pick him up, so that you don't see yourself */
                 GetObject(arg1);
                 Redraw = 1;
@@ -1987,6 +1998,8 @@ static void RunCommandTable(void)
     FoundMatch = 0;
 
     while(*p != 0x7F) {
+        /* Match input to table entry as VERB NOUN or NOUN VERB */
+        /* 126 is wildcard that matches any word */
         if(((*p == 126 || *p == Word[0]) &&
            (p[1] == 126 || p[1] == Word[1])) ||
            (*p == Word[1] && p[1] == Word[0]) ||
@@ -2000,7 +2013,7 @@ static void RunCommandTable(void)
             if (p[0] != 126) {
                 FoundMatch = 1;
             }
-            /* Work around some Questprobe bugs */
+            /* Work around a Questprobe 3 bug */
             if (Version == QUESTPROBE3_TYPE) {
                 /* In great room, Xandu present */
                 if (Present(33)) {
@@ -2381,7 +2394,7 @@ struct GameInfo *DetectGame(size_t LocalVerbBase)
     return NULL;
 }
 
-void UnparkFileImage(uint8_t *ParkedFile, size_t ParkedLength, long ParkedOffset, int FreeCompanion)
+static void UnparkFileImage(uint8_t *ParkedFile, size_t ParkedLength, long ParkedOffset, int FreeCompanion)
 {
     FileImage = ParkedFile;
     FileImageLen = ParkedLength;
@@ -2390,7 +2403,7 @@ void UnparkFileImage(uint8_t *ParkedFile, size_t ParkedLength, long ParkedOffset
         free(CompanionFile);
 }
 
-void LookForSecondTOTGame(void)
+static void LookForSecondTOTGame(void)
 {
     size_t namelen = strlen(Filename);
     char *secondfile = MemAlloc(namelen + 1);
@@ -2482,11 +2495,11 @@ void LookForSecondTOTGame(void)
 
 void glk_main(void)
 {
-    /* The message analyser will look for version 0 games */
-
     if (DetectC64(&FileImage, &FileImageLen) != UNKNOWN_GAME) {
         EndOfData = FileImage + FileImageLen;
-    }
+    } else {
+    	fprintf(stderr, "DetectC64 did not recognize the game\n");
+	}
 
 #ifdef DEBUG
     fprintf(stderr, "Loaded %zu bytes.\n", FileImageLen);

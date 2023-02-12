@@ -632,28 +632,16 @@ static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record
 
     uint8_t *uncompressed = MemAlloc(0x10000);
 
-    char *switches[3];
-    char string[100];
-    int numswitches = 0;
-
-    if (record.switches != NULL) {
-        strncpy(string, record.switches, strlen(record.switches));
-        switches[numswitches] = strtok(string, " ");
-
-        while (switches[numswitches] != NULL)
-            switches[++numswitches] = strtok(NULL, " ");
-    }
-
-    size_t result = 0;
+    int result = 0;
 
     for (int i = 1; i <= record.decompress_iterations; i++) {
         /* We only send switches on the iteration specified by parameter */
         if (i == record.parameter && record.switches != NULL) {
             result = unp64(*sf, length, uncompressed,
-                &decompressed_length, switches, numswitches);
+                &decompressed_length, record.switches);
         } else
             result = unp64(*sf, length, uncompressed,
-                &decompressed_length, NULL, 0);
+                &decompressed_length, NULL);
         if (result) {
             if (*sf != NULL)
                 free(*sf);
@@ -707,7 +695,7 @@ static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record
         Fatal("Wrong game?");
     }
 
-    if (!TryLoading(*Game, offset, 0)) {
+    if (TryLoading(*Game, offset, 0) == UNKNOWN_GAME) {
         Fatal("Game could not be read!");
     }
 

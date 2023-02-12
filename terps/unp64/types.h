@@ -1,6 +1,15 @@
-/* Code from Exomizer distributed under the zlib License
- * by kind permission of the original author
- * Magnus Lind.
+/* This is a cut-down version of UNP64 with only the bare minimum
+ * needed to decompress a number of Commodore 64 adventure games.
+ * It is distributed under the zlib License by kind permission of
+ * the original authors Magnus Lind and iAN CooG.
+ */
+
+/*
+ UNP64 - generic Commodore 64 prg unpacker
+ (C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
+ original source and idea: testrun.c, taken from exo20b7
+
+ Follows original disclaimer
  */
 
 /*
@@ -29,26 +38,31 @@
  C++ version based on code adapted to ScummVM by Avijeet Maurya
  */
 
-#ifndef UNP64_EXO_UTIL_H
-#define UNP64_EXO_UTIL_H
+#ifndef UNP64_TYPES_H
+#define UNP64_TYPES_H
 
-#include "types.h"
+#include <cstdint>
 
 namespace Unp64 {
 
-struct LoadInfo {
-	int _basicTxtStart; /* in */
-	int _basicVarStart; /* out */
-	int _run;           /* out */
-	int _start;         /* out */
-	int _end;           /* out */
-};
+#if !defined(SIZE_MAX)
+#define SIZE_MAX 0xFFFFFFFF
+#endif
 
-int findSys(const uint8_t *buf, int target);
+#if !defined ARRAYSIZE
+#define ARRAYSIZE(x) ((int)(sizeof(x) / sizeof(x[0])))
+#endif
 
-void loadData(uint8_t *data, size_t dataLength, uint8_t mem[65536], LoadInfo *info);
+#if !defined MIN
+#define MIN(a,b) (a < b ? a : b)
+#endif
 
-int strToInt(const char *str, int *value);
+typedef unsigned long long size_t;
+
+inline uint16_t READ_LE_UINT16(const void *ptr) {
+    const uint8_t *b = (const uint8_t *)ptr;
+    return (b[1] << 8) | b[0];
+}
 
 } // End of namespace Unp64
 
