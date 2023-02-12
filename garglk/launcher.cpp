@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
+#include <ios>
 #include <memory>
 #include <regex>
 #include <set>
@@ -64,6 +65,7 @@
 
 #define ID_ZCOD (giblorb_make_id('Z', 'C', 'O', 'D'))
 #define ID_GLUL (giblorb_make_id('G', 'L', 'U', 'L'))
+#define ID_ADRI (giblorb_make_id('A', 'D', 'R', 'I'))
 
 struct Interpreter {
     explicit Interpreter(std::string terp_, std::string flags_ = "") :
@@ -78,6 +80,7 @@ struct Interpreter {
 
 enum class Format {
     Adrift,
+    Adrift5,
     AdvSys,
     AGT,
     Alan2,
@@ -105,7 +108,8 @@ static nonstd::optional<Format> probe(const std::array<char, 32> &header)
         {R"(^T3-image\x0d\x0a\x1a(\x01|\x02)\x00)", Format::TADS3},
         {R"(^Glul)", Format::Glulx},
         {R"(^MaSc[\s\S]{4}\x00\x00\x00\x2a\x00[\x00\x01\x02\x03\x04])", Format::Magnetic},
-        {R"(^\x3c\x42\x3f\xc9\x6a\x87\xc2\xcf[\x92\x93\x94]\x45[\x3e\x37\x36]\x61)", Format::Adrift},
+        {R"(^\x3c\x42\x3f\xc9\x6a\x87\xc2\xcf[\x93\x94]\x45)", Format::Adrift},
+        {R"(^\x3c\x42\x3f\xc9\x6a\x87\xc2\xcf[\x92]\x45)", Format::Adrift5},
         {R"(^\x58\xc7\xc1\x51)", Format::AGT},
         {R"(^[\s\S]{2}\xa0\x9d\x8b\x8e\x88\x8e)", Format::AdvSys},
         {R"(^[\x16\x18\x19\x1e\x1f][\s\S]{2}\d\d-\d\d-\d\d)", Format::Hugo},
@@ -179,6 +183,96 @@ static bool call_winterp(const Interpreter &interpreter, const std::string &game
     return garglk::winterp(GARGLKPRE + interpreter.terp, interpreter.flags, game);
 }
 
+static bool call_winterp(Format format, const std::string &game)
+{
+    try {
+        return call_winterp(interpreters.at(format), game);
+    } catch (const std::out_of_range &) {
+        // At the moment the only "known" but unsupported game type is
+        // Adrift 5, so hard-code it here. The other path is just for
+        // completeness, and should never be taken.
+        if (format == Format::Adrift5) {
+            garglk::winmsg("Adrift 5 games are not yet supported");
+        } else {
+            garglk::winmsg("This game type is not supported");
+        }
+
+        return false;
+    }
+}
+
+// Adrift 5 can create invalid Blorb files: the reported file size is
+// smaller than the actual file size. gi_blorb (correctly) fails to load
+// these files, but they still exist, so must be dealt with. If the
+// overall size is ignored and the Blorb file is just read as though
+// it's valid, all the chunks can be found (which is to say, the only
+// problem with them is the file size, and that's not needed to iterate
+// through the file). So, do just enough work here to determine if
+// there's an Exec resource of type ADRI. If so, assume this is an
+// Adrift file and leave it to the interpreter to run it properly.
+static nonstd::optional<Format> find_adrift_blorb_format(const std::string &game)
+{
+    std::ifstream f(game, std::ios::binary);
+    if (!f.is_open()) {
+        return nonstd::nullopt;
+    }
+
+    auto seek = [&f](std::streamoff offset, std::ios::seekdir dir) {
+        if (!f.seekg(offset, dir)) {
+            throw std::runtime_error("unable to seek");
+        }
+    };
+
+    auto be32 = [&f]() {
+        std::array<char, 4> bytes;
+        if (!f.read(bytes.data(), bytes.size())) {
+            throw std::runtime_error("short read");
+        }
+
+        return (static_cast<std::uint32_t>(bytes[0]) << 24) |
+               (static_cast<std::uint32_t>(bytes[1]) << 16) |
+               (static_cast<std::uint32_t>(bytes[2]) <<  8) |
+               (static_cast<std::uint32_t>(bytes[3]) <<  0);
+    };
+
+    try {
+        // Probing has already determined that this file starts with
+        // FORM....IFRSRidx, so there's no need to validate that.
+        seek(20, std::ios::beg);
+
+        auto nresources = be32();
+
+        for (std::uint32_t i = 0; i < nresources; i++) {
+            if (be32() == giblorb_ID_Exec) {
+                seek(4, std::ios::cur);
+                seek(be32(), std::ios::beg);
+                if (be32() != ID_ADRI) {
+                    return nonstd::nullopt;
+                }
+
+                seek(12, std::ios::cur);
+                unsigned char version;
+                if (!f.read(reinterpret_cast<char *>(&version), 1)) {
+                    return nonstd::nullopt;
+                }
+
+                if (version == 0x92) {
+                    return Format::Adrift5;
+                } else if (version == 0x93 || version == 0x94) {
+                    return Format::Adrift;
+                } else {
+                    return nonstd::nullopt;
+                }
+            } else {
+                seek(8, std::ios::cur);
+            }
+        }
+    } catch (const std::runtime_error &) {
+    }
+
+    return nonstd::nullopt;
+}
+
 static bool runblorb(const std::string &game)
 {
     class BlorbError : public std::runtime_error {
@@ -186,6 +280,11 @@ static bool runblorb(const std::string &game)
         explicit BlorbError(const std::string &msg) : std::runtime_error(msg) {
         }
     };
+
+    auto adrift_format = find_adrift_blorb_format(game);
+    if (adrift_format.has_value()) {
+        return call_winterp(adrift_format.value(), game);
+    }
 
     try {
         giblorb_result_t res;
@@ -217,9 +316,9 @@ static bool runblorb(const std::string &game)
             }
 
             Format format = zversion == 6 ? Format::ZCode6 : Format::ZCode;
-            return call_winterp(interpreters.at(format), game);
+            return call_winterp(format, game);
         } else if (res.chunktype == ID_GLUL) {
-            return call_winterp(interpreters.at(Format::Glulx), game);
+            return call_winterp(Format::Glulx, game);
         }
 
         std::ostringstream msg;
@@ -308,8 +407,7 @@ bool garglk::rungame(const std::string &game)
 
         auto format = probe(header);
         if (format.has_value()) {
-            interpreter = interpreters.at(*format);
-            return call_winterp(interpreter, game);
+            return call_winterp(format.value(), game);
         }
     }
 
@@ -320,12 +418,11 @@ bool garglk::rungame(const std::string &game)
     }
 
     try {
-        auto format = extensions.at(ext);
-        return call_winterp(interpreters.at(format), game);
+        return call_winterp(extensions.at(ext), game);
     } catch (const std::out_of_range &) {
     }
 
-    garglk::winmsg("Unable to find an interpreter for " + game);
+    garglk::winmsg("Unknown file type");
 
     return false;
 }
