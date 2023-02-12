@@ -91,18 +91,21 @@ int unp64cpp(uint8_t *compressed, size_t length, uint8_t *destinationBuffer, siz
     int numSettings = 0;
 
     if (switches != NULL) {
-        Unp64::size_t switches_length = std::strlen(switches);
+        Unp64::size_t string_length = std::strlen(switches);
         char string[100];
-        if (switches_length > 0 && switches_length <= 100) {
-            strncpy(string, switches, switches_length);
+        if (string_length > 0 && string_length <= 100) {
+            strncpy(string, switches, string_length);
+            string[string_length] = '\0';
             char *setting = strtok(string, " ");
             while (setting != NULL && numSettings < 4) {
-                strncpy(settings[numSettings++], setting, std::strlen(setting));
+                string_length = std::strlen(setting);
+                strncpy(settings[numSettings], setting, string_length);
+                settings[numSettings][string_length] = '\0';
+                numSettings++;
                 setting = strtok(NULL, " ");
             }
         }
     }
-
 
 	CpuCtx r[1];
 	LoadInfo info[1];
