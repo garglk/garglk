@@ -87,25 +87,23 @@ int isBasicRun2(int pc) {
 
 int unp64cpp(uint8_t *compressed, size_t length, uint8_t *destinationBuffer, size_t *finalLength, const char *switches) {
 
-    char settings[4][64];
-    int numSettings = 0;
+	char settings[4][64];
+	int numSettings = 0;
 
-    if (switches != NULL) {
-        Unp64::size_t string_length = std::strlen(switches);
-        char string[100];
-        if (string_length > 0 && string_length <= 100) {
-            strncpy(string, switches, string_length);
-            string[string_length] = '\0';
-            char *setting = strtok(string, " ");
-            while (setting != NULL && numSettings < 4) {
-                string_length = std::strlen(setting);
-                strncpy(settings[numSettings], setting, string_length);
-                settings[numSettings][string_length] = '\0';
-                numSettings++;
-                setting = strtok(NULL, " ");
-            }
-        }
-    }
+	if (switches != NULL) {
+		Unp64::size_t string_length = std::strlen(switches);
+		char string[100];
+		if (string_length > 0 && string_length < 100) {
+			snprintf(string, sizeof string, "%s", switches);
+			char *setting = strtok(string, " ");
+			while (setting != NULL && numSettings < 4) {
+				string_length = std::strlen(setting);
+				snprintf(settings[numSettings], sizeof settings[numSettings], "%s", setting);
+				numSettings++;
+				setting = strtok(NULL, " ");
+			}
+		}
+	}
 
 	CpuCtx r[1];
 	LoadInfo info[1];
@@ -400,7 +398,7 @@ int unp64cpp(uint8_t *compressed, size_t length, uint8_t *destinationBuffer, siz
 			return 0;
 
 		_G(_iter)++;
- 		if (_G(_iter) == iterMax) {
+		if (_G(_iter) == iterMax) {
 				return 0;
 		}
 
@@ -588,7 +586,7 @@ int unp64cpp(uint8_t *compressed, size_t length, uint8_t *destinationBuffer, siz
 	}
 
 	if (*forcedname) {
-		strncpy(name, forcedname, 248);
+		snprintf(name, sizeof name, "%s", forcedname);
 	} else {
 		size_t ln = strlen(name);
 		if (ln > 248) {/* dirty hack in case name is REALLY long */
@@ -727,19 +725,19 @@ int unp64cpp(uint8_t *compressed, size_t length, uint8_t *destinationBuffer, siz
 
 int unp64(uint8_t *compressed, size_t length, uint8_t *destinationBuffer, size_t *finalLength, const char *settings) {
 
-    Unp64::size_t scottlength = (Unp64::size_t)length;
-    Unp64::size_t scottfinallength;
+	Unp64::size_t scottlength = (Unp64::size_t)length;
+	Unp64::size_t scottfinallength;
 
-    using namespace Unp64;
+	using namespace Unp64;
 
-    g_globals = new Globals;
+	g_globals = new Globals;
 
-    int result = unp64cpp(compressed, scottlength, destinationBuffer, &scottfinallength, settings);
+	int result = unp64cpp(compressed, scottlength, destinationBuffer, &scottfinallength, settings);
 
-    *finalLength = scottfinallength;
+	*finalLength = scottfinallength;
 
-    delete g_globals;
-    g_globals = nullptr;
+	delete g_globals;
+	g_globals = nullptr;
 
-    return result;
+	return result;
 }
