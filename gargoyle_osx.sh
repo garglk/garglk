@@ -2,6 +2,19 @@
 
 set -e
 
+# XXX Temporary hack for a broken sdl2_mixer or readline package in Homebrew.
+# sdl2_mixer's pkg-config file requires readline, but the readline pkg-config
+# file isn't installed to /usr/local/lib/pkgconfig, meaning it can't be found.
+# I don't know the logic behind what gets symlinked into /usr/local/lib/pkgconfig
+# so I don't know who's at fault here, but the hacky way around it is to set
+# $PKG_CONFIG_PATH to point to readline's pkg-config directory. This only
+# happens if $PKG_CONFIG_PATH isn't already set.
+if ! pkg-config readline --exists; then
+    if [[ -z "${PKG_CONFIG_PATH}" ]]; then
+        export PKG_CONFIG_PATH="$(dirname $(find /usr/local/Cellar/readline -name readline.pc|tail -1))"
+    fi
+fi
+
 # Use Homebrew if available. Alternately, you could just set the variable to
 # either yes or no.
 if [ "${MAC_USEHOMEBREW}" == "" ]; then
