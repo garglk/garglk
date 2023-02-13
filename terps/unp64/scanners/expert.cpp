@@ -96,7 +96,7 @@ void scnExpert(UnpStr *unp) {
 					for (q = 0x980; q < 0xfff0; q++) {
 						if (((mem[q] ^ (p & 0xff)) == 0xac) &&
 							((mem[q + 3] ^ (p & 0xff)) == 0xc0) &&
-							(((*(unsigned int *)(mem + q + 7)) ^ p) == 0xC001F2AC)) {
+							(((*(unsigned int *)(mem + q + 7)) ^ (unsigned int)p) == 0xC001F2AC)) {
 							mem[q + 0x06] = (p & 0xff); /* 2nd anti hack */
 							mem[q + 0x0d] = (p & 0xff);
 							break;
@@ -135,7 +135,7 @@ void scnExpert(UnpStr *unp) {
 			p = mem[0x919];
 			q = p << 24 | p << 16 | p << 8 | p;
 			for (p = 0x900; p < 0xfff0; p++) {
-				if (((*(unsigned int *)(mem + p) ^ q) == 0xA2F3D0CA) &&
+				if (((*(unsigned int *)(mem + p) ^ (unsigned int)q) == 0xA2F3D0CA) &&
 					((mem[p + 0x05] ^ (q & 0xff)) == 0x4c)) {
 					q = (mem[p + 0x06] ^ (q & 0xff)) | (mem[p + 0x07] ^ (q & 0xff)) << 8;
 					if (q != 0x100) {
@@ -158,7 +158,7 @@ void scnExpert(UnpStr *unp) {
 			p = mem[0x923];
 			q = p << 24 | p << 16 | p << 8 | p;
 			for (p = 0x900; p < 0xfff0; p++) {
-				if (((*(unsigned int *)(mem + p) ^ q) == 0xA2F3D0CA) &&
+				if (((*(unsigned int *)(mem + p) ^ (unsigned int)q) == 0xA2F3D0CA) &&
 					((mem[p + 0x05] ^ (q & 0xff)) == 0x4c)) {
 					q = (mem[p + 0x06] ^ (q & 0xff)) | (mem[p + 0x07] ^ (q & 0xff)) << 8;
 					if (q != 0x100) {

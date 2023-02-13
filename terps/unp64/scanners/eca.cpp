@@ -52,7 +52,7 @@ void scnECA(UnpStr *unp) {
 	if (unp->_depAdr == 0) {
 		// for(p=0x810;p<0x830;p+=0x4)
 		for (p = 0x80d; p < 0x830; p += 0x1) {
-			if ((*(unsigned int *)(mem + p + 0x08) == (unsigned int)0x2D9D0032 + p) &&
+			if ((*(unsigned int *)(mem + p + 0x08) == (unsigned int)(0x2D9D0032 + p)) &&
 				(*(unsigned int *)(mem + p + 0x3a) == 0x2a2a2a2a) &&
 				(*(unsigned int *)(mem + p + 0x0c) == 0xF710CA00)) {
 				if (((*(unsigned int *)(mem + p + 0x00) & 0xf4fff000) == 0x8434A000) &&

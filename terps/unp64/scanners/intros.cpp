@@ -410,7 +410,7 @@ void scnIntros(UnpStr *unp) {
 			p = mem[0x837];
 			if ((p == 0x3e) || (p == 0x48)) {
 				unp->_endAdr = mem[0x80f] | mem[0x811] << 8;
-				memmove(mem + 0x1000, mem + 0x839, unp->_endAdr - 0x1000);
+				memmove(mem + 0x1000, mem + 0x839, (size_t)(unp->_endAdr - 0x1000));
 				if (p == 0x3e) {
 					unp->_strMem = READ_LE_UINT16(&mem[0x113c]);
 				} else /* if(p==0x48) */

@@ -611,7 +611,7 @@ char **get_all_file_names(DiskImage *di, int *numfiles)
     }
     if (filename_index == 0)
         return NULL;
-    char **filenames = malloc((filename_index + 1) * sizeof(char *));
+    char **filenames = malloc((unsigned long)(filename_index + 1) * sizeof(char *));
     for (int i = 0; i < filename_index; i++) {
         size_t len = strlen(temp_filenames[i]);
         if (len == 0) {

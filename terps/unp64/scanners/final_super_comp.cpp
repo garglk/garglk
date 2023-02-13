@@ -159,7 +159,7 @@ void scnFinalSuperComp(UnpStr *unp) {
 				mem[0x2a8] == 0x01 &&
 				mem[0x2a9] == 0x4c) {
 				p = READ_LE_UINT16(&mem[0x2aa]);
-				if ((*(unsigned int *)(mem + p) == ((((mem[0x2aa] + 0x15) & 0xff) << 24) | 0x00B99EA0)) &&
+				if ((*(unsigned int *)(mem + p) == (((unsigned int)((mem[0x2aa] + 0x15) & 0xff) << 24) | 0x00B99EA0U)) &&
 					(*(unsigned int *)(mem + p + 0x96) == 0x033B4CFE)) {
 					unp->_forced = 0x2a7;
 					unp->_depAdr = 0x334;

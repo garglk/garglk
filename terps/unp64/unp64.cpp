@@ -454,7 +454,7 @@ int unp64cpp(uint8_t *compressed, size_t length, uint8_t *destinationBuffer, siz
 				if (_G(_unp)._mon1st == 0) {
 					_G(_unp)._strMem = p;
 				}
-				_G(_unp)._mon1st = _G(_unp)._strMem;
+				_G(_unp)._mon1st = (unsigned int)_G(_unp)._strMem;
 				_G(_unp)._strMem = (p < _G(_unp)._strMem ? p : _G(_unp)._strMem);
 			}
 		}
@@ -515,9 +515,9 @@ int unp64cpp(uint8_t *compressed, size_t length, uint8_t *destinationBuffer, siz
 	}
 
 	if (_G(_unp)._fEndAf && _G(_unp)._monEnd) {
-		_G(_unp)._endAdC = mem[_G(_unp)._fEndAf] | mem[_G(_unp)._fEndAf + 1] << 8;
+		_G(_unp)._endAdC = (unsigned int)(mem[_G(_unp)._fEndAf] | mem[_G(_unp)._fEndAf + 1] << 8);
 		if ((int)_G(_unp)._endAdC > _G(_unp)._endAdr)
-			_G(_unp)._endAdr = _G(_unp)._endAdC;
+			_G(_unp)._endAdr = (int)_G(_unp)._endAdC;
 
 		_G(_unp)._endAdC = 0;
 		_G(_unp)._fEndAf = 0;
@@ -710,8 +710,8 @@ int unp64cpp(uint8_t *compressed, size_t length, uint8_t *destinationBuffer, siz
 	mem[_G(_unp)._strMem - 2] = _G(_unp)._strMem & 0xff;
 	mem[_G(_unp)._strMem - 1] = _G(_unp)._strMem >> 8;
 
-	memcpy(destinationBuffer, mem + (_G(_unp)._strMem - 2), _G(_unp)._endAdr - _G(_unp)._strMem + 2);
-	*finalLength = _G(_unp)._endAdr - _G(_unp)._strMem + 2;
+	memcpy(destinationBuffer, mem + (_G(_unp)._strMem - 2), (size_t)(_G(_unp)._endAdr - _G(_unp)._strMem + 2));
+	*finalLength = (size_t)(_G(_unp)._endAdr - _G(_unp)._strMem + 2);
 
 	if (_G(_unp)._recurs) {
 		if (++_G(_unp)._recurs > RECUMAX)

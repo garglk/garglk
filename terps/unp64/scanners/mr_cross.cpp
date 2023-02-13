@@ -63,23 +63,23 @@ void scnMrCross(UnpStr *unp) {
 			if ((*(unsigned int *)(mem + p + 0x00) == 0x8538A978) &&
 				(*(unsigned int *)(mem + p + 0x04) == 0x9AF9A201) &&
 				(*(unsigned int *)(mem + p + 0x0b) == 0xCA01069D) &&
-				(*(unsigned int *)(mem + p + 0x36) == 0x60D8d000 + (p >> 8)) /*((p+0x3b)>>8)*/
+				(*(unsigned int *)(mem + p + 0x36) == 0x60D8d000U + (unsigned int)(p >> 8))
 			) {
 				unp->_depAdr = READ_LE_UINT16(&mem[p + 0x96]);
 				unp->_depAdr += 0x1f;
 				unp->_forced = p;
 				unp->_retAdr = READ_LE_UINT16(&mem[p + 0x9a]);
 				unp->_strMem = READ_LE_UINT16(&mem[p + 0x4d]);
-				unp->_monEnd = (mem[p + 0x87]) << 24 |
+				unp->_monEnd = (unsigned int)((mem[p + 0x87]) << 24 |
 							   (mem[p + 0x86]) << 16 |
 							   (mem[p + 0x8d]) << 8 |
-							   (mem[p + 0x8c]);
+							   (mem[p + 0x8c]));
 				break;
 			}
 			if ((*(unsigned int *)(mem + p + 0x00) == 0x8538A978) &&
 				(*(unsigned int *)(mem + p + 0x04) == 0x9AF9A201) &&
 				(*(unsigned int *)(mem + p + 0x0b) == 0xCA01089D) &&
-				(*(unsigned int *)(mem + p + 0x36) == 0xe0D8d000 + (p >> 8)) /*((p+0xc8)>>8)*/
+                (*(unsigned int *)(mem + p + 0x36) == 0xe0D8d000U + (unsigned int)(p >> 8))
 			) {
 				unp->_depAdr = 0x1f6;
 				unp->_forced = p;

@@ -113,7 +113,7 @@ int findSys(const uint8_t *buf, int target) {
 
 static void loadPrgData(uint8_t mem[65536], uint8_t *data, size_t dataLength, LoadInfo *info) {
 	int len = MIN(65536 - info->_start, static_cast<int>(dataLength));
-	memcpy(mem + info->_start, data, len);
+	memcpy(mem + info->_start, data, (size_t)len);
 
 	info->_end = info->_start + len;
 	info->_basicVarStart = -1;
