@@ -142,7 +142,7 @@ void Display(winid_t w, const char *fmt, ...)
     va_end(ap);
     
     glk_put_string_stream(glk_window_get_stream(w), msg);
-    if (Transcript)
+    if (Transcript && w == Bottom)
         glk_put_string_stream(Transcript, msg);
 }
 
@@ -397,14 +397,16 @@ static void PrintWindowDelimiter(void)
 static void FlushRoomDescription(char *buf,  int transcript)
 {
     glk_stream_close(room_description_stream, 0);
-    
-    strid_t StoredTranscript = Transcript;
-    
-    if (!transcript)
-        Transcript = NULL;
 
-    if (Transcript)
+    if (Transcript && transcript) {
         glk_put_string_stream(Transcript, "\n");
+        size_t buflen = strlen(buf);
+        char *roomtranscript = MemAlloc(buflen);
+        strncpy(roomtranscript, buf, buflen - 2);
+        roomtranscript[buflen - 2] = '\0';
+        glk_put_string_stream(Transcript, roomtranscript);
+        free(roomtranscript);
+    }
     
     int print_delimiter = 1;
     
@@ -462,7 +464,6 @@ static void FlushRoomDescription(char *buf,  int transcript)
         PrintWindowDelimiter();
     }
     
-    Transcript = StoredTranscript;
     if (buf != NULL) {
         free(buf);
         buf = NULL;

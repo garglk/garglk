@@ -1827,9 +1827,8 @@ static void ExecuteLineCode(unsigned char *p, int *done)
                 Put(arg1, ObjectLoc[arg2]);
                 break;
             case BEEP:
-#if defined(GLK_MODULE_GARGLKBLEEP)
-                garglk_zbleep(1 + (arg1 == 250));
-#elif defined(SPATTERLIGHT)
+#ifdef SPATTERLIGHT
+                fprintf(stderr, "BEEP: arg1: %d arg2: %d\n", arg1, arg2);
                 win_beep(1 + (arg1 == 250));
 #else
                 putchar('\007');
@@ -2499,7 +2498,7 @@ void glk_main(void)
     if (DetectC64(&FileImage, &FileImageLen) != UNKNOWN_GAME) {
         EndOfData = FileImage + FileImageLen;
     } else {
-    	fprintf(stderr, "DetectC64 did not recognize the game\n");
+        fprintf(stderr, "DetectC64 did not recognize the game\n");
 	}
 
 #ifdef DEBUG
