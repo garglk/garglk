@@ -97,7 +97,6 @@ int unp64cpp(uint8_t *compressed, size_t length, uint8_t *destinationBuffer, siz
 			snprintf(string, sizeof string, "%s", switches);
 			char *setting = strtok(string, " ");
 			while (setting != NULL && numSettings < 4) {
-				string_length = std::strlen(setting);
 				snprintf(settings[numSettings], sizeof settings[numSettings], "%s", setting);
 				numSettings++;
 				setting = strtok(NULL, " ");
