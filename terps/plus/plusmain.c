@@ -75,6 +75,9 @@ int found_match = 0;
 /* JustStarted is only used for the error message "Can't undo on first move" */
 int JustStarted = 1;
 
+/* JustRestarted is only used to adjust newlines and room descriptions in the transcript */
+extern int JustRestarted;
+
 int showing_inventory = 0;
 
 Header GameHeader;
@@ -399,13 +402,17 @@ static void FlushRoomDescription(char *buf,  int transcript)
     glk_stream_close(room_description_stream, 0);
 
     if (Transcript && transcript) {
+        if (!lastwasnewline)
+            glk_put_string_stream(Transcript, "\n");
         glk_put_string_stream(Transcript, "\n");
         size_t buflen = strlen(buf);
         char *roomtranscript = MemAlloc(buflen);
-        strncpy(roomtranscript, buf, buflen - 2);
-        roomtranscript[buflen - 2] = '\0';
+        buflen -= 2;
+        strncpy(roomtranscript, buf, buflen);
+        roomtranscript[buflen] = '\0';
         glk_put_string_stream(Transcript, roomtranscript);
         free(roomtranscript);
+        glk_put_string_stream(Transcript, " ");
     }
     
     int print_delimiter = 1;
@@ -733,6 +740,10 @@ static int MatchUpItem(int noun, int loc)
 
 static void PrintMessage(int index)
 {
+    if (JustRestarted && Transcript) {
+        glk_put_string_stream(Transcript, "\n\n");
+        JustRestarted = 0;
+    }
     const char *message = Messages[index];
     debug_print("Print message %d: \"%s\"\n", index, message);
     if (lastwasnewline)
@@ -850,8 +861,6 @@ static void MoveItemAToLocOfItemB(int itemA, int itemB)
 
 static void DoneIt(void)
 {
-    if (split_screen && Top)
-        Look(1);
     Output("\n");
     lastwasnewline = 1;
     SystemMessage(PLAY_AGAIN);
@@ -1726,8 +1735,9 @@ debug_print("\nPerforming line %d: ", ct);
                     break;
                 case 108:
                     debug_print("Put random number (1 to 100) in counter %d\n", arg1);
-                    unsigned int rv = pow(rand(), 6);
-                    rv %= 100;
+                    uint64_t rv = (uint64_t)rand() << 6;
+                    rv &= 0xffffffff;
+                    rv %= 100 + 1;
                     Counters[arg1] = rv;
                     cc++;
                     break;
@@ -2323,6 +2333,7 @@ void glk_main(void) {
         }
 
         JustRestored = 0;
+        JustRestarted = 0;
 
         if (GetInput() == 1)
             continue;

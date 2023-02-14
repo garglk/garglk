@@ -117,7 +117,6 @@ typedef struct {
 
 typedef struct {
     char *Text;
-    /* PORTABILITY WARNING: THESE TWO MUST BE 8 BIT VALUES. */
     uint8_t Location;
     uint8_t InitialLoc;
     uint8_t Flag;
