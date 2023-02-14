@@ -89,8 +89,8 @@ private:
 // Globals
 //
 
-std::array<std::uint16_t, 256> gammamap;
-std::array<unsigned char, 1 << GAMMA_BITS> gammainv;
+static std::array<std::uint16_t, 256> gammamap;
+static std::array<unsigned char, 1 << GAMMA_BITS> gammainv;
 
 class FontTable {
 public:
