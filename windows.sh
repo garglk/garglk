@@ -139,7 +139,8 @@ then
 fi
 
 cp licenses/*.txt build/dist
-cp fonts/*.ttf build/dist
+cp fonts/Gargoyle*.ttf build/dist
+cp fonts/unifont*.otf build/dist
 mkdir build/dist/themes
 cp themes/*.json build/dist/themes
 unix2dos -n garglk/garglk.ini build/dist/garglk.ini

@@ -81,6 +81,32 @@ struct FontFace {
     bool italic;
 };
 
+// Taken from Boost 1.81.0.
+// Copyright (c) 2019 Vinnie Falco (vinnie.falco@gmail.com).
+inline std::size_t hash_combine(std::size_t seed, std::size_t h) noexcept {
+    return seed ^ (h + 0x9e3779b9 + (seed << 6U) + (seed >> 2U));
+}
+
+namespace std {
+template<>
+struct hash<FontFace> {
+    std::size_t operator()(const FontFace &fontface) const {
+        return (fontface.monospace ? 1 : 0) |
+               (fontface.bold      ? 2 : 0) |
+               (fontface.italic    ? 4 : 0);
+    }
+};
+
+template<>
+struct hash<std::pair<FontFace, glui32>> {
+    std::size_t operator()(const std::pair<FontFace, glui32> &pair) const {
+        auto seed = hash_combine(0, std::hash<FontFace>()(pair.first));
+        seed = hash_combine(seed, std::hash<glui32>()(pair.second));
+        return seed;
+    }
+};
+}
+
 namespace garglk {
 
 // This represents a possible configuration file (garglk.ini).
@@ -579,6 +605,8 @@ extern bool gli_drawselect;
 extern bool gli_claimselect;
 
 extern bool gli_conf_per_game_config;
+
+extern std::unordered_map<FontFace, std::vector<std::string>> gli_conf_glyph_substitution_files;
 
 // XXX See issue #730.
 extern bool gli_conf_redraw_hack;

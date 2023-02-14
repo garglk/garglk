@@ -696,6 +696,41 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 gli_conf_per_game_config = asbool(arg);
             } else if (cmd == "redraw_hack") {
                 gli_conf_redraw_hack = asbool(arg);
+            } else if (cmd == "glyph_substitution_file") {
+                std::istringstream argstream(arg);
+                std::string style, file;
+                static const std::unordered_map<std::string, std::vector<FontFace>> facemap = {
+                    {"*", {FontFace::monor(), FontFace::monob(), FontFace::monoi(), FontFace::monoz(),
+                           FontFace::propr(), FontFace::propb(), FontFace::propi(), FontFace::propz()}},
+
+                    {"*r", {FontFace::monor(), FontFace::propr()}},
+                    {"*b", {FontFace::monob(), FontFace::propb()}},
+                    {"*i", {FontFace::monoi(), FontFace::propi()}},
+                    {"*z", {FontFace::monoz(), FontFace::propz()}},
+
+                    {"mono", {FontFace::monor(), FontFace::monob(), FontFace::monoi(), FontFace::monoz()}},
+                    {"prop", {FontFace::propr(), FontFace::propb(), FontFace::propi(), FontFace::propz()}},
+
+                    {"monor", {FontFace::monor()}},
+                    {"monob", {FontFace::monob()}},
+                    {"monoi", {FontFace::monoi()}},
+                    {"monoz", {FontFace::monoz()}},
+                    {"propr", {FontFace::propr()}},
+                    {"propb", {FontFace::propb()}},
+                    {"propi", {FontFace::propi()}},
+                    {"propz", {FontFace::propz()}},
+                };
+
+                if (argstream >> style) {
+                    while (argstream >> std::quoted(file)) {
+                        try {
+                            for (const auto &fontface : facemap.at(style)) {
+                                gli_conf_glyph_substitution_files[fontface].push_back(file);
+                            }
+                        } catch (const std::out_of_range &) {
+                        }
+                    }
+                }
             }
 
         // For now just ignore failure; in the future, probably log it.

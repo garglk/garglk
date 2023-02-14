@@ -319,6 +319,11 @@ elseif(UNIX)
         DESTINATION "${FONT_DIRECTORY}")
 
     install(FILES
+        "${PROJECT_SOURCE_DIR}/fonts/unifont.otf"
+        "${PROJECT_SOURCE_DIR}/fonts/unifont_upper.otf"
+        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/io.github.garglk/Gargoyle")
+
+    install(FILES
         "${PROJECT_SOURCE_DIR}/themes/Blue.json"
         "${PROJECT_SOURCE_DIR}/themes/Breeze Darker.json"
         "${PROJECT_SOURCE_DIR}/themes/Lectrote Dark.json"
@@ -348,4 +353,6 @@ file(COPY
     "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Bold.ttf"
     "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Italic.ttf"
     "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif.ttf"
+    "${PROJECT_SOURCE_DIR}/fonts/unifont.otf"
+    "${PROJECT_SOURCE_DIR}/fonts/unifont_upper.otf"
     DESTINATION "${CMAKE_BINARY_DIR}")
