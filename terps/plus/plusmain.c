@@ -815,6 +815,7 @@ static void PlayerIsDead(void)
     SetBit(DRAWBIT);
     MyLoc = Counters[35];
     Counters[17] = Counters[17] & 0x0f;
+    Look(0);
 }
 
 void CheckForObjectImage(int obj) {
