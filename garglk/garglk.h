@@ -145,6 +145,7 @@ const T &clamp(const T &value, const T &min, const T &max)
 
 std::string winopenfile(const char *prompt, FileFilter filter);
 std::string winsavefile(const char *prompt, FileFilter filter);
+[[noreturn]]
 void winabort(const std::string &msg);
 std::string downcase(const std::string &string);
 void fontreplace(const std::string &font, FontType type);
