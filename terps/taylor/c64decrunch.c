@@ -312,7 +312,7 @@ static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record
 {
     size_t decompressed_length = *extent;
 
-    uint8_t *uncompressed = MemAlloc(0xffff);
+    uint8_t *uncompressed = MemAlloc(0x10000);
 
     int result = 0;
 

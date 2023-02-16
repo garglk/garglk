@@ -57,42 +57,42 @@ void scnMrZ(UnpStr *unp) {
 	mem = unp->_mem;
 	if (unp->_depAdr == 0) {
 		for (q = 0x810; q < 0x880; q++) {
-			if ((*(unsigned int *)(mem + q) == 0x8D00A978) &&
-				(*(unsigned int *)(mem + q + 4) == 0x0BA9D020) &&
-				(*(unsigned int *)(mem + q + 8) == 0xE6D0118D) &&
-				(*(unsigned short int *)(mem + q + 0xc) == (unsigned short int)0x4c01)) {
+			if (u32eq(mem + q, 0x8D00A978) &&
+				u32eq(mem + q + 4, 0x0BA9D020) &&
+				u32eq(mem + q + 8, 0xE6D0118D) &&
+				u16eq(mem + q + 0xc, (unsigned short int)0x4c01)) {
 				p = READ_LE_UINT16(&mem[q + 0xe]);
 				unp->_forced = q;
 				break;
 			}
-			if ((*(unsigned int *)(mem + q) == 0x208D00A9) &&
-				(*(unsigned int *)(mem + q + 4) == 0x8D0BA9D0) &&
-				(*(unsigned int *)(mem + q + 8) == 0xE678D011) &&
-				(*(unsigned short int *)(mem + q + 0xc) == (unsigned short int)0x4c01)) {
+			if (u32eq(mem + q, 0x208D00A9) &&
+				u32eq(mem + q + 4, 0x8D0BA9D0) &&
+				u32eq(mem + q + 8, 0xE678D011) &&
+				u16eq(mem + q + 0xc, (unsigned short int)0x4c01)) {
 				p = READ_LE_UINT16(&mem[q + 0xe]);
 				unp->_forced = q;
 				break;
 			}
-			if ((*(unsigned int *)(mem + q) == 0xD9409901) &&
-				(*(unsigned int *)(mem + q + 4) == 0xD0FCC6C8) &&
-				(*(unsigned int *)(mem + q + 8) == 0xDFD0E8ED) &&
-				(*(unsigned int *)(mem + q + 0xc) == 0x4C01E678)) {
+			if (u32eq(mem + q, 0xD9409901) &&
+				u32eq(mem + q + 4, 0xD0FCC6C8) &&
+				u32eq(mem + q + 8, 0xDFD0E8ED) &&
+				u32eq(mem + q + 0xc, 0x4C01E678)) {
 				p = READ_LE_UINT16(&mem[q + 0x10]);
 				break;
 			}
 			/* mrz crunch, identical apart preamble? %) */
-			if ((*(unsigned int *)(mem + q + 0x00) == 0x6FD0116F) &&
-				(*(unsigned int *)(mem + q + 0x0a) == 0xFACA0820) &&
-				(*(unsigned int *)(mem + q + 0x1b) == 0x3737261F) &&
-				(*(unsigned int *)(mem + q + 0x42) == 0x4C01E678)) {
+			if (u32eq(mem + q + 0x00, 0x6FD0116F) &&
+				u32eq(mem + q + 0x0a, 0xFACA0820) &&
+				u32eq(mem + q + 0x1b, 0x3737261F) &&
+				u32eq(mem + q + 0x42, 0x4C01E678)) {
 				p = READ_LE_UINT16(&mem[q + 0x46]);
 				break;
 			}
 		}
 		if (p) {
-			if ((*(unsigned int *)(mem + p) == 0xA29AFAA2) &&
-				(*(unsigned int *)(mem + p + 0x08) == 0x10CA3995) &&
-				(*(unsigned int *)(mem + p + 0x2b) == 0xB901004C)) {
+			if (u32eq(mem + p, 0xA29AFAA2) &&
+				u32eq(mem + p + 0x08, 0x10CA3995) &&
+				u32eq(mem + p + 0x2b, 0xB901004C)) {
 				unp->_depAdr = 0x100;
 				unp->_endAdr = READ_LE_UINT16(&mem[p + 0x36]);
 				if (unp->_endAdr == 0)
@@ -107,11 +107,11 @@ void scnMrZ(UnpStr *unp) {
 						q += 2;
 						continue;
 					}
-					if ((mem[q] == 0x20) && ((*(unsigned short int *)(mem + q + 1) == 0xe3bf) ||
-											 (*(unsigned short int *)(mem + q + 1) == 0xfda3) ||
-											 (*(unsigned short int *)(mem + q + 1) == 0xa660) ||
-											 (*(unsigned short int *)(mem + q + 1) == 0xa68e) ||
-											 (*(unsigned short int *)(mem + q + 1) == 0xa659))) {
+					if (mem[q] == 0x20 && (u16eq(mem + q + 1, 0xe3bf) ||
+											 u16eq(mem + q + 1, 0xfda3) ||
+											 u16eq(mem + q + 1, 0xa660) ||
+											 u16eq(mem + q + 1, 0xa68e) ||
+											 u16eq(mem + q + 1, 0xa659))) {
 						mem[q] = 0x2c;
 						q += 2;
 						continue;

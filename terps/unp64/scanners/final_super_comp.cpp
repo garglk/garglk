@@ -52,11 +52,11 @@ void scnFinalSuperComp(UnpStr *unp) {
 		return;
 	mem = unp->_mem;
 	if (unp->_depAdr == 0) {
-		if (((*(unsigned int *)(mem + 0x810) & 0xff00ff00) == 0x9A00A200) &&
-			(*(unsigned int *)(mem + 0x832) == 0x0DF008C9) &&
-			(*(unsigned int *)(mem + 0x836) == 0xB1083DCE) &&
-			(*(unsigned int *)(mem + 0x8af) == 0x4C00FFBD) &&
-			((mem[0x88e] == 0x4c) || (mem[0x889] == 0x4c))) {
+        if (((*(unsigned int *)(mem + 0x810) & 0xff00ff00) == 0x9A00A200) &&
+			u32eq(mem + 0x832, 0x0DF008C9) &&
+			u32eq(mem + 0x836, 0xB1083DCE) &&
+			u32eq(mem + 0x8af, 0x4C00FFBD) &&
+			(mem[0x88e] == 0x4c || mem[0x889] == 0x4c)) {
 			mem[0x812] = 0xff; /* fixed, can't be otherwise */
 			unp->_depAdr = READ_LE_UINT16(&mem[0x856]);
 			if (unp->_info->_run == -1)
@@ -80,8 +80,8 @@ void scnFinalSuperComp(UnpStr *unp) {
 			if (mem[p + 2] == 0xb9) {
 				if (mem[p + 5] == 0x99 && mem[p + 0x15] == 0x4c &&
 					mem[p + 0x10] == mem[p + 0x81] &&
-					(*(unsigned int *)(mem + p + 0x78) == 0x18F7D0FC) &&
-					(*(unsigned int *)(mem + p + 0x8c) == 0xD0FCC4C8)) {
+					u32eq(mem + p + 0x78, 0x18F7D0FC) &&
+					u32eq(mem + p + 0x8c, 0xD0FCC4C8)) {
 					unp->_depAdr = READ_LE_UINT16(&mem[p + 0x16]);
 					for (q = 0x80b; q < 0x813; q++) {
 						if (mem[q] == 0x78) {
@@ -110,12 +110,12 @@ void scnFinalSuperComp(UnpStr *unp) {
 	}
 	/* SC/Equal chars */
 	if (unp->_depAdr == 0) {
-		if (((*(unsigned int *)(mem + 0x810) & 0xf0ffffff) == 0xA0A93878) &&
-			((*(unsigned int *)(mem + 0x814) == 0xFC852DE5) ||
-			 (*(unsigned int *)(mem + 0x814) == 0xFC85aeE5)) &&
-			((*(unsigned int *)(mem + 0x818) == 0xafE508A9) ||
-			 (*(unsigned int *)(mem + 0x818) == 0x2EE508A9)) &&
-			((*(unsigned int *)(mem + 0x844) & 0x00ffffff) == 0x00004C9A)) {
+        if (((*(unsigned int *)(mem + 0x810) & 0xf0ffffff) == 0xA0A93878) &&
+			(u32eq(mem + 0x814, 0xFC852DE5) ||
+			 u32eq(mem + 0x814, 0xFC85aeE5)) &&
+			(u32eq(mem + 0x818, 0xafE508A9) ||
+			 u32eq(mem + 0x818, 0x2EE508A9)) &&
+            ((*(unsigned int *)(mem + 0x844) & 0x00ffffff) == 0x00004C9A)) {
 			unp->_depAdr = READ_LE_UINT16(&mem[0x846]);
 			unp->_forced = 0x810;
 			unp->_retAdr = READ_LE_UINT16(&mem[0x872]);
@@ -128,10 +128,10 @@ void scnFinalSuperComp(UnpStr *unp) {
 	}
 	/* FinalSuperCompressor/flexible hacked? */
 	if (unp->_depAdr == 0) {
-		if (((*(unsigned int *)(mem + 0x80d) & 0xff00ffff) == 0x9A00A278) &&
-			(*(unsigned int *)(mem + 0x814) == 0x9D0847BD) &&
-			(*(unsigned int *)(mem + 0x818) == 0x21BD0334) &&
-			(*(unsigned int *)(mem + 0x81c) == 0x040E9D09) &&
+        if (u32eqmasked(mem + 0x80d, 0xff00ffff, 0x9A00A278) &&
+			u32eq(mem + 0x814, 0x9D0847BD) &&
+			u32eq(mem + 0x818, 0x21BD0334) &&
+			u32eq(mem + 0x81c, 0x040E9D09) &&
 			mem[0x878] == 0x4c) {
 			mem[0x80f] = 0xff; /* fixed, can't be otherwise */
 			unp->_depAdr = 0x334;
@@ -160,7 +160,7 @@ void scnFinalSuperComp(UnpStr *unp) {
 				mem[0x2a9] == 0x4c) {
 				p = READ_LE_UINT16(&mem[0x2aa]);
 				if ((*(unsigned int *)(mem + p) == (((unsigned int)((mem[0x2aa] + 0x15) & 0xff) << 24) | 0x00B99EA0U)) &&
-					(*(unsigned int *)(mem + p + 0x96) == 0x033B4CFE)) {
+                    u32eq(mem + p + 0x96, 0x033B4CFE)) {
 					unp->_forced = 0x2a7;
 					unp->_depAdr = 0x334;
 					unp->_retAdr = READ_LE_UINT16(&mem[p + 0x2c]);
@@ -186,9 +186,9 @@ void scnFinalSuperComp(UnpStr *unp) {
 				mem[0x2ad] == 0x01 &&
 				mem[0x2ae] == 0x4c) {
 				p = READ_LE_UINT16(&mem[0x2af]);
-				if ((mem[p] == 0xa9) &&
-					(*(unsigned int *)(mem + p + 0x0a) == 0xAF852E85) &&
-					(*(unsigned int *)(mem + p + 0x1f) == 0x8D034B4C)) {
+				if (mem[p] == 0xa9 &&
+					u32eq(mem + p + 0x0a, 0xAF852E85) &&
+					u32eq(mem + p + 0x1f, 0x8D034B4C)) {
 					unp->_forced = 0x2ac;
 					unp->_depAdr = 0x34b;
 					unp->_fEndAf = 0x2d;
@@ -200,11 +200,11 @@ void scnFinalSuperComp(UnpStr *unp) {
 	}
 	/* another special hack */
 	if (unp->_depAdr == 0) {
-		if (((*(unsigned int *)(mem + 0x80d) & 0xff00ffff) == 0x9a00a278) &&
-			(*(unsigned int *)(mem + 0x811) == 0x018534a9) &&
-			(*(unsigned int *)(mem + 0x818) == 0x34990846) &&
-			(*(unsigned int *)(mem + 0x81c) == 0x0927b903) &&
-			(mem[0x87e] == 0x4c)) {
+		if (u32eqmasked(mem + 0x80d, 0xff00ffff, 0x9a00a278) &&
+			u32eq(mem + 0x811, 0x018534a9) &&
+			u32eq(mem + 0x818, 0x34990846) &&
+			u32eq(mem + 0x81c, 0x0927b903) &&
+			mem[0x87e] == 0x4c) {
 			mem[0x80f] = 0xff; /* fixed, can't be otherwise */
 			unp->_depAdr = 0x334;
 			if (unp->_info->_run == -1)
@@ -224,11 +224,11 @@ void scnFinalSuperComp(UnpStr *unp) {
 	}
 	/* Flexible / Generic Hack */
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x8b0) == 0x4D4C00FF) &&
-			(*(unsigned int *)(mem + 0x918) == 0x4D4C0187) &&
-			(*(unsigned int *)(mem + 0x818) == 0x57BDCCA2) &&
-			((*(unsigned int *)(mem + 0x81c) & 0xf0ffffff) == 0x00339d08) &&
-			(mem[0x88e] == 0x4c)) {
+		if (u32eq(mem + 0x8b0, 0x4D4C00FF) &&
+			u32eq(mem + 0x918, 0x4D4C0187) &&
+			u32eq(mem + 0x818, 0x57BDCCA2) &&
+			u32eqmasked(mem + 0x81c, 0xf0ffffff, 0x00339d08) &&
+			mem[0x88e] == 0x4c) {
 			unp->_depAdr = READ_LE_UINT16(&mem[0x856]);
 			for (p = 0x80b; p < 0x818; p++) {
 				if (mem[p] == 0x78) {
@@ -246,10 +246,10 @@ void scnFinalSuperComp(UnpStr *unp) {
 	}
 	/* eq seq + indirect jmp ($0348) -> expects $00b9 containing $60 (rts) */
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x810) == 0x8534A978) &&
-			(*(unsigned int *)(mem + 0x834) == 0x03354C48) &&
-			(*(unsigned int *)(mem + 0x850) == 0xF0C81BF0) &&
-			(*(unsigned int *)(mem + 0x865) == 0xEE03486C)) {
+		if (u32eq(mem + 0x810, 0x8534A978) &&
+			u32eq(mem + 0x834, 0x03354C48) &&
+			u32eq(mem + 0x850, 0xF0C81BF0) &&
+			u32eq(mem + 0x865, 0xEE03486C)) {
 			unp->_depAdr = 0x335;
 			unp->_forced = 0x810;
 			unp->_retAdr = mem[0x82f] | mem[0x80e] << 8;
@@ -266,10 +266,10 @@ void scnFinalSuperComp(UnpStr *unp) {
 	}
 	/* eq char hack, usually 2nd layer of previous eq seq hack */
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x810) == 0x1EB97FA0) &&
-			(*(unsigned int *)(mem + 0x814) == 0x033B9908) &&
-			(*(unsigned int *)(mem + 0x838) == 0xFE912DB1) &&
-			(*(unsigned int *)(mem + 0x88a) == 0xFE850369)) {
+		if (u32eq(mem + 0x810, 0x1EB97FA0) &&
+			u32eq(mem + 0x814, 0x033B9908) &&
+			u32eq(mem + 0x838, 0xFE912DB1) &&
+			u32eq(mem + 0x88a, 0xFE850369)) {
 			unp->_depAdr = 0x33b;
 			unp->_forced = 0x810;
 			unp->_retAdr = READ_LE_UINT16(&mem[0x89a]);

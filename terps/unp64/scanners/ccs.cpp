@@ -51,10 +51,10 @@ void scnCCS(UnpStr *unp) {
 		return;
 	mem = unp->_mem;
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x817) == 0xB901E678) &&
-			(*(unsigned int *)(mem + 0x81b) == 0xFD990831) &&
-			(*(unsigned int *)(mem + 0x8ff) == 0xFEE60290) &&
-			(*(unsigned int *)(mem + 0x90f) == 0x02903985)) {
+		if (u32eq(mem + 0x817, 0xB901E678) &&
+			u32eq(mem + 0x81b, 0xFD990831) &&
+			u32eq(mem + 0x8ff, 0xFEE60290) &&
+			u32eq(mem + 0x90f, 0x02903985)) {
 			if (unp->_info->_run == -1)
 				unp->_forced = 0x817;
 			unp->_depAdr = 0x0ff;
@@ -71,10 +71,10 @@ void scnCCS(UnpStr *unp) {
 	}
 	/* derived from supercomp/eqseq */
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x80b) == 0x8C7800A0) &&
-			(*(unsigned int *)(mem + 0x812) == 0x0099082F) &&
-			(*(unsigned int *)(mem + 0x846) == 0x0DADF2D0) &&
-			(*(unsigned int *)(mem + 0x8c0) == 0xF001124C)) {
+		if (u32eq(mem + 0x80b, 0x8C7800A0) &&
+			u32eq(mem + 0x812, 0x0099082F) &&
+			u32eq(mem + 0x846, 0x0DADF2D0) &&
+			u32eq(mem + 0x8c0, 0xF001124C)) {
 			if (unp->_info->_run == -1)
 				unp->_forced = 0x80b;
 			unp->_depAdr = 0x100;
@@ -89,10 +89,10 @@ void scnCCS(UnpStr *unp) {
 		}
 	}
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x814) == 0xB901E678) &&
-			(*(unsigned int *)(mem + 0x818) == 0xFD990829) &&
-			(*(unsigned int *)(mem + 0x8a1) == 0xFDA6FDB1) &&
-			(*(unsigned int *)(mem + 0x8a5) == 0xFEC602D0)) {
+		if (u32eq(mem + 0x814, 0xB901E678) &&
+			u32eq(mem + 0x818, 0xFD990829) &&
+			u32eq(mem + 0x8a1, 0xFDA6FDB1) &&
+			u32eq(mem + 0x8a5, 0xFEC602D0)) {
 			if (unp->_info->_run == -1)
 				unp->_forced = 0x814;
 			unp->_depAdr = 0x0ff;
@@ -102,10 +102,10 @@ void scnCCS(UnpStr *unp) {
 		}
 	}
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x818) == 0x2CB901E6) &&
-			(*(unsigned int *)(mem + 0x81c) == 0x00FB9908) &&
-			(*(unsigned int *)(mem + 0x850) == 0xFBB1C84A) &&
-			(*(unsigned int *)(mem + 0x854) == 0xB1C81185)) {
+		if (u32eq(mem + 0x818, 0x2CB901E6) &&
+			u32eq(mem + 0x81c, 0x00FB9908) &&
+			u32eq(mem + 0x850, 0xFBB1C84A) &&
+			u32eq(mem + 0x854, 0xB1C81185)) {
 			if (unp->_info->_run == -1)
 				unp->_forced = 0x812;
 			unp->_depAdr = 0x0ff;
@@ -115,10 +115,10 @@ void scnCCS(UnpStr *unp) {
 		}
 	}
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x818) == 0x2CB901E6) &&
-			(*(unsigned int *)(mem + 0x81c) == 0x00FB9908) &&
-			(*(unsigned int *)(mem + 0x851) == 0xFBB1C812) &&
-			(*(unsigned int *)(mem + 0x855) == 0xB1C81185)) {
+		if (u32eq(mem + 0x818, 0x2CB901E6) &&
+			u32eq(mem + 0x81c, 0x00FB9908) &&
+			u32eq(mem + 0x851, 0xFBB1C812) &&
+			u32eq(mem + 0x855, 0xB1C81185)) {
 			if (unp->_info->_run == -1)
 				unp->_forced = 0x812;
 			unp->_depAdr = 0x0ff;
@@ -128,10 +128,10 @@ void scnCCS(UnpStr *unp) {
 		}
 	}
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x82c) == 0x018538A9) &&
-			(*(unsigned int *)(mem + 0x831) == 0xFD990842) &&
-			(*(unsigned int *)(mem + 0x83e) == 0x00FF4CF1) &&
-			(*(unsigned int *)(mem + 0x8a5) == 0x50C651C6)) {
+		if (u32eq(mem + 0x82c, 0x018538A9) &&
+			u32eq(mem + 0x831, 0xFD990842) &&
+			u32eq(mem + 0x83e, 0x00FF4CF1) &&
+			u32eq(mem + 0x8a5, 0x50C651C6)) {
 			if (unp->_info->_run == -1)
 				unp->_forced = 0x822;
 			unp->_depAdr = 0x0ff;
@@ -142,11 +142,11 @@ void scnCCS(UnpStr *unp) {
 		}
 	}
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned short int *)(mem + 0x81a) == 0x00A0) &&
-			((*(unsigned int *)(mem + 0x820) == 0xFB990837) ||
-			 (*(unsigned int *)(mem + 0x824) == 0xFB990837)) &&
-			(*(unsigned int *)(mem + 0x83b) == 0xFD91FBB1) &&
-			(*(unsigned int *)(mem + 0x8bc) == 0xEE00FC99)) {
+		if (u16eq(mem + 0x81a, 0x00A0) &&
+			(u32eq(mem + 0x820, 0xFB990837) ||
+			 u32eq(mem + 0x824, 0xFB990837)) &&
+			u32eq(mem + 0x83b, 0xFD91FBB1) &&
+			u32eq(mem + 0x8bc, 0xEE00FC99)) {
 			if (unp->_info->_run == -1)
 				unp->_forced = 0x81a;
 			unp->_depAdr = 0x0ff;
@@ -158,11 +158,11 @@ void scnCCS(UnpStr *unp) {
 		}
 	}
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x812) == 0xE67800A0) &&
-			(*(unsigned int *)(mem + 0x816) == 0x0823B901) &&
-			(*(unsigned int *)(mem + 0x81a) == 0xC800FD99) &&
-			(*(unsigned int *)(mem + 0x81e) == 0xFF4CF7D0) &&
-			(*(unsigned int *)(mem + 0x885) == 0xFDA6FDB1)) {
+		if (u32eq(mem + 0x812, 0xE67800A0) &&
+			u32eq(mem + 0x816, 0x0823B901) &&
+			u32eq(mem + 0x81a, 0xC800FD99) &&
+			u32eq(mem + 0x81e, 0xFF4CF7D0) &&
+			u32eq(mem + 0x885, 0xFDA6FDB1)) {
 			if (unp->_info->_run == -1)
 				unp->_forced = 0x812;
 			unp->_depAdr = 0x0ff;
@@ -172,7 +172,7 @@ void scnCCS(UnpStr *unp) {
 			// unp->_fEndAf=0x2d;
 			unp->_endAdr = READ_LE_UINT16(&mem[0x803]);
 			unp->_endAdr++;
-			if (*(unsigned int *)(mem + 0x87f) == 0x4CA65920)
+			if (u32eq(mem + 0x87f, 0x4CA65920))
 				mem[0x87f] = 0x2c;
 			unp->_retAdr = READ_LE_UINT16(&mem[0x883]);
 			unp->_idFlag = 1;
@@ -180,10 +180,10 @@ void scnCCS(UnpStr *unp) {
 		}
 	}
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x812) == 0xE67800A0) &&
-			(*(unsigned int *)(mem + 0x816) == 0x084CB901) &&
-			(*(unsigned int *)(mem + 0x81a) == 0xA900FB99) &&
-			(*(unsigned int *)(mem + 0x848) == 0x00FF4CE2)) {
+		if (u32eq(mem + 0x812, 0xE67800A0) &&
+			u32eq(mem + 0x816, 0x084CB901) &&
+			u32eq(mem + 0x81a, 0xA900FB99) &&
+			u32eq(mem + 0x848, 0x00FF4CE2)) {
 			if (unp->_info->_run == -1)
 				unp->_forced = 0x812;
 			unp->_depAdr = 0x0ff;
@@ -195,10 +195,10 @@ void scnCCS(UnpStr *unp) {
 	}
 	/* Triad Hack */
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x838) == 0xB9080099) &&
-			(*(unsigned int *)(mem + 0x83f) == 0xD0880816) &&
-			(*(unsigned int *)(mem + 0x8ff) == 0xFEE60290) &&
-			(*(unsigned int *)(mem + 0x90f) == 0x02903985)) {
+		if (u32eq(mem + 0x838, 0xB9080099) &&
+			u32eq(mem + 0x83f, 0xD0880816) &&
+			u32eq(mem + 0x8ff, 0xFEE60290) &&
+			u32eq(mem + 0x90f, 0x02903985)) {
 			if (unp->_info->_run == -1) {
 				for (p = 0x80b; p < 0x820; p++) {
 					if ((mem[p] & 0xa0) == 0xa0) {

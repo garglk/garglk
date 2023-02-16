@@ -52,11 +52,11 @@ void scnSection8(UnpStr *unp) {
 	mem = unp->_mem;
 	if (unp->_depAdr == 0) {
 		for (p = 0x810; p <= 0x828; p++) {
-			if ((*(unsigned int *)(mem + p) == (unsigned int)(0x00BD00A2 + (((p & 0xff) + 0x11) << 24))) &&
-				(*(unsigned int *)(mem + p + 0x04) == 0x01009D08) &&
-				(*(unsigned int *)(mem + p + 0x10) == 0x34A97801) &&
-				(*(unsigned int *)(mem + p + 0x6a) == 0xB1017820) &&
-				(*(unsigned int *)(mem + p + 0x78) == 0x017F20AE)) {
+			if (u32eq(mem + p, (unsigned int)(0x00BD00A2 + (((p & 0xff) + 0x11) << 24))) &&
+				u32eq(mem + p + 0x04, 0x01009D08) &&
+				u32eq(mem + p + 0x10, 0x34A97801) &&
+				u32eq(mem + p + 0x6a, 0xB1017820) &&
+				u32eq(mem + p + 0x78, 0x017F20AE)) {
 				unp->_depAdr = 0x100;
 				break;
 			}
@@ -78,16 +78,16 @@ void scnSection8(UnpStr *unp) {
 	}
 	/* Crackman variant? */
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x827) == 0x38BD00A2) &&
-			(*(unsigned int *)(mem + 0x82b) == 0x01009D08) &&
-			(*(unsigned int *)(mem + 0x837) == 0x34A97801) &&
-			(*(unsigned int *)(mem + 0x891) == 0xB1018420) &&
-			(*(unsigned int *)(mem + 0x89f) == 0x018b20AE)) {
+		if (u32eq(mem + 0x827, 0x38BD00A2) &&
+			u32eq(mem + 0x82b, 0x01009D08) &&
+			u32eq(mem + 0x837, 0x34A97801) &&
+			u32eq(mem + 0x891, 0xB1018420) &&
+			u32eq(mem + 0x89f, 0x018b20AE)) {
 			unp->_depAdr = 0x100;
 			if (unp->_info->_run == -1)
 				unp->_forced = 0x827;
 			unp->_strMem = mem[0x86e] | mem[0x872] << 8;
-			if (*(unsigned short int *)(mem + 0x8b7) == 0xff5b) {
+			if (u16eq(mem + 0x8b7, 0xff5b)) {
 				mem[0x8b6] = 0x2c;
 				unp->_retAdr = READ_LE_UINT16(&mem[0x8ba]); // mem[0x8ba] | mem[0x8bb] << 8;
 			} else {
@@ -100,10 +100,10 @@ void scnSection8(UnpStr *unp) {
 	}
 	/* PET||SLAN variant? */
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x812) == 0x20BD00A2) &&
-			(*(unsigned int *)(mem + 0x816) == 0x033c9D08) &&
-			(*(unsigned int *)(mem + 0x863) == 0xB103B420) &&
-			(*(unsigned int *)(mem + 0x86c) == 0x03BB20AE)) {
+		if (u32eq(mem + 0x812, 0x20BD00A2) &&
+			u32eq(mem + 0x816, 0x033c9D08) &&
+			u32eq(mem + 0x863, 0xB103B420) &&
+			u32eq(mem + 0x86c, 0x03BB20AE)) {
 			unp->_depAdr = 0x33c;
 			if (unp->_info->_run == -1)
 				unp->_forced = 0x812;

@@ -53,12 +53,12 @@ void scnAbuzeCrunch(UnpStr *unp) {
 	mem = unp->_mem;
 	if (unp->_depAdr == 0) {
 		for (q = 0x80b; q < 0x820; q++) {
-			if ((*(unsigned int *)(mem + q) == 0x1BA200A0) &&
-				(*(unsigned int *)(mem + q + 0x13) == 0x10CAA095) &&
-				(*(unsigned short int *)(mem + q + 0x20) == 0x4CF7)) {
+			if (u32eq(mem + q, 0x1BA200A0) &&
+				u32eq(mem + q + 0x13, 0x10CAA095) &&
+				u16eq(mem + q + 0x20, 0x4CF7)) {
 				p = READ_LE_UINT16(&mem[q + 0xc]);
-				if ((*(unsigned int *)(mem + p + 0x25) == 0xFFA9FE91) ||
-					(*(unsigned int *)(mem + p + 0x25) == 0xFeA5FE91)) {
+				if (u32eq(mem + p + 0x25, 0xFFA9FE91) ||
+					u32eq(mem + p + 0x25, 0xFeA5FE91)) {
 					unp->_depAdr = READ_LE_UINT16(&mem[q + 0x22]);
 					break;
 				}
@@ -79,11 +79,11 @@ void scnAbuzeCrunch(UnpStr *unp) {
 	}
 	if (unp->_depAdr == 0) {
 		for (q = 0x80b; q < 0x820; q++) {
-			if ((*(unsigned int *)(mem + q) == 0xA27800A0) &&
-				(*(unsigned int *)(mem + q + 4) == 0xBAA59AFF) &&
-				(*(unsigned short int *)(mem + q + 0x2c) == 0x4CF7)) {
+			if (u32eq(mem + q, 0xA27800A0) &&
+				u32eq(mem + q + 4, 0xBAA59AFF) &&
+				u16eq(mem + q + 0x2c, 0x4CF7)) {
 				p = READ_LE_UINT16(&mem[q + 0x12]);
-				if (*(unsigned int *)(mem + p + 0x25) == 0xFeA5FE91) {
+				if (u32eq(mem + p + 0x25, 0xFeA5FE91)) {
 					unp->_depAdr = READ_LE_UINT16(&mem[q + 0x2e]);
 					break;
 				}
@@ -101,11 +101,11 @@ void scnAbuzeCrunch(UnpStr *unp) {
 	}
 	/* Abuze 5.0/FLT */
 	if (unp->_depAdr == 0) {
-		if ((*(unsigned int *)(mem + 0x80b) == 0x1BA200A0) &&
-			(*(unsigned int *)(mem + 0x813) == 0x10CAA095) &&
-			(*(unsigned int *)(mem + 0x822) == 0x011F4C01)) {
+		if (u32eq(mem + 0x80b, 0x1BA200A0) &&
+			u32eq(mem + 0x813, 0x10CAA095) &&
+			u32eq(mem + 0x822, 0x011F4C01)) {
 			p = READ_LE_UINT16(&mem[0x819]);
-			if (*(unsigned int *)(mem + p + 0x06) == 0x9101E520) {
+			if (u32eq(mem + p + 0x06, 0x9101E520)) {
 				unp->_depAdr = 0x11f;
 				if (unp->_info->_run == -1)
 					unp->_forced = 0x80b;
