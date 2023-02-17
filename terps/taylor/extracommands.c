@@ -107,6 +107,7 @@ const extra_command ExtraCommandsKey[] = {
 extern int ShouldRestart;
 extern int StopTime;
 extern int Redraw;
+extern int WordsInInput;
 
 extern winid_t Bottom;
 
@@ -194,8 +195,8 @@ int TryExtraCommand(void)
 {
     int verb = ParseExtraCommand(InputWordStrings[WordPositions[0]]);
     int noun = NO_COMMAND;
-    if (WordPositions[1] != WordPositions[0])
-        noun = ParseExtraCommand(InputWordStrings[WordPositions[1]]);
+    if (WordPositions[0] + 1 < WordsInInput)
+        noun = ParseExtraCommand(InputWordStrings[WordPositions[0] + 1]);
     if (noun == NO_COMMAND)
         noun = Word[1];
 

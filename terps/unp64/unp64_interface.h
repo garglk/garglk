@@ -1,15 +1,19 @@
-//
-//  unp64_interface.h
-//
-//  Created by Petter Sjölund on 2022-01-31.
-//
+/* Unp64 ScummVM version C interface written by Petter Sjölund */
 
-#ifndef unp64_interface_h
-#define unp64_interface_h
+#ifndef UNP64_INTERFACE_H
+#define UNP64_INTERFACE_H
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #include <stdint.h>
 
-int unp64(uint8_t *compressed, size_t length, uint8_t *destination_buffer,
-          size_t *final_length, char *settings[], int numsettings);
+extern int unp64(uint8_t *compressed, size_t length, uint8_t *destinationBuffer, size_t *finalLength, const char *settings);
 
-#endif /* unp64_interface_h */
+#ifdef __cplusplus
+}
+#endif
+
+#endif 

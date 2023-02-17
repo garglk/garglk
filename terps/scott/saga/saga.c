@@ -291,11 +291,13 @@ static int SanityCheckScottFreeHeader(int ni, int na, int nw, int nr, int mc)
 }
 
 uint8_t *Skip(uint8_t *ptr, int count, uint8_t *eof) {
+#if (DEBUG_PRINT)
     for (int i = 0; i < count && ptr + i + 1 < eof; i += 2) {
         uint16_t val =  ptr[i] + ptr[i+1] * 0x100;
         debug_print("Unknown value %d: %d (%x)\n", i/2, val, val);
     }
-    return  ptr + count;
+#endif
+    return ptr + count;
 }
 
 GameIDType LoadBinaryDatabase(uint8_t *data, size_t length, struct GameInfo info, int dict_start)
@@ -596,7 +598,7 @@ GameIDType LoadBinaryDatabase(uint8_t *data, size_t length, struct GameInfo info
             Items[index].Image = image++;
     } while (index != 255);
 
-    if (CurrentGame == HULK_C64) {
+    if (info.gameID == HULK_C64) {
         hulk_coordinates = 0x22cd;
         hulk_item_image_offsets = 0x2731;
         hulk_look_image_offsets = 0x2761;
@@ -604,7 +606,7 @@ GameIDType LoadBinaryDatabase(uint8_t *data, size_t length, struct GameInfo info
         hulk_image_offset = -0x7ff;
     }
 
-    return CurrentGame;
+    return info.gameID;
 }
 
 

@@ -1437,7 +1437,12 @@ uint8_t *ReadApple2DOSFile(uint8_t *data, size_t *len, uint8_t **invimg, size_t 
         debug_print("*invimglen is %zu\n", *invimglen);
         debug_print("*invimglen - 4 is %zu\n", *invimglen);
         *invimg = MemAlloc(*invimglen);
-        memcpy(*invimg, inventemp + 4, *invimglen - 4);
+        if (*invimglen < 4 || *invimglen > 100000) {
+            *invimglen = 0;
+            *invimg = NULL;
+        } else {
+            memcpy(*invimg, inventemp + 4, *invimglen - 4);
+        }
         free(inventemp);
     }
 

@@ -167,7 +167,7 @@ void Display(winid_t w, const char *fmt, ...)
     if (w != Bottom)
         lastwasnewline = oldlastwasnewline;
     glk_put_string_stream_uni(glk_window_get_stream(w), unistring);
-    if (Transcript)
+    if (Transcript && w == Bottom)
         glk_put_string_stream_uni(Transcript, unistring);
     free(unistring);
 }
@@ -246,9 +246,11 @@ static void FlushRoomDescription(char *buf)
 {
     glk_stream_close(room_description_stream, 0);
 
-    strid_t StoredTranscript = Transcript;
-    if (!print_look_to_transcript)
-        Transcript = NULL;
+    if (Transcript && print_look_to_transcript) {
+        glui32 *unistring = ToUnicode(buf);
+        glk_put_string_stream_uni(Transcript, unistring);
+        free(unistring);
+    }
 
     int print_delimiter = (Options & (TRS80_STYLE | SPECTRUM_STYLE | TI994A_STYLE));
 
@@ -311,7 +313,6 @@ static void FlushRoomDescription(char *buf)
         pause_next_room_description = 0;
     }
 
-    Transcript = StoredTranscript;
     if (buf != NULL) {
         free(buf);
         buf = NULL;

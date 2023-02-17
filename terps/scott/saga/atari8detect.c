@@ -628,9 +628,10 @@ static int ExtractImagesFromAtariCompanionFile(uint8_t *data, size_t datasize, u
         memcpy(image->imagedata, otherdisk + 0x988e, image->datasize);
     } else if (image->imagedata == NULL) {
         /* Free the last image, it is empty */
-        if (image->previous) {
+        if (image != USImages) {
             image->previous->next = NULL;
             free(image);
+            image = NULL;
         } else {
             free(USImages);
             USImages = NULL;

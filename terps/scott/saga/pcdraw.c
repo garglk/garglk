@@ -139,7 +139,7 @@ int DrawDOSImage(USImage *image)
     rawoffset = work + (*ptr * 256);
     xoff=((rawoffset % 80)*4)-24;
     yoff=rawoffset / 40;
-    yoff -= (yoff % 2 == 1);
+    yoff -= (yoff & 1);
     x=xoff;
     y=yoff;
 

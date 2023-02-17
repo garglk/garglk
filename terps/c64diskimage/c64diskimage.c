@@ -251,7 +251,6 @@ static unsigned char *di_get_ts_addr(DiskImage *di, TrackSector ts)
 /* get error info for a sector */
 static int get_ts_doserr(DiskImage *di, TrackSector ts)
 {
-    //	return 1;
     if (di->errinfo == NULL) {
         return 1; /* return OK if image has no error info */
     }
@@ -612,7 +611,7 @@ char **get_all_file_names(DiskImage *di, int *numfiles)
     }
     if (filename_index == 0)
         return NULL;
-    char **filenames = malloc((filename_index + 1) * sizeof(char *));
+    char **filenames = malloc((unsigned long)(filename_index + 1) * sizeof(char *));
     for (int i = 0; i < filename_index; i++) {
         size_t len = strlen(temp_filenames[i]);
         if (len == 0) {
@@ -707,6 +706,47 @@ static RawDirEntry *alloc_file_entry(DiskImage *di, unsigned char *rawname,
         return NULL;
     }
 }
+
+/* create a hacked fake file */
+ImageFile *di_create_file_from_ts(DiskImage *di, int track, int sector)
+{
+    ImageFile *imgfile;
+    unsigned char *p;
+
+    if ((imgfile = malloc(sizeof(*imgfile))) == NULL) {
+        return NULL;
+    }
+
+    memset(imgfile->visited, 0, sizeof(imgfile->visited));
+
+    imgfile->mode = 'r';
+
+    imgfile->ts.track = track;
+    imgfile->ts.sector = sector;
+
+    p = di_get_ts_addr(di, imgfile->ts);
+    imgfile->buffer = p + 2;
+
+    imgfile->nextts = next_ts_in_chain(di, imgfile->ts);
+
+    imgfile->buflen = 254;
+
+    if (!di_ts_is_valid(di->type, imgfile->nextts)) {
+        set_status(di, 66, imgfile->nextts.track, imgfile->nextts.sector);
+        free(imgfile);
+        return NULL;
+    }
+
+    imgfile->diskimage = di;
+    imgfile->rawdirentry = NULL;
+    imgfile->position = 0;
+    imgfile->bufptr = 0;
+
+    ++(di->openfiles);
+    set_status(di, 0, 0, 0);
+    return imgfile;
+}
+
 
 /* open a file */
 ImageFile *di_open(DiskImage *di, unsigned char *rawname, FileType type,

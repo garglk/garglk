@@ -62,7 +62,7 @@ void Display(winid_t w, const char *fmt, ...)
     va_end(ap);
 
     glk_put_string_stream(glk_window_get_stream(w), msg);
-    if (Transcript)
+    if (Transcript && w == Bottom)
         glk_put_string_stream(Transcript, msg);
 }
 
@@ -194,11 +194,14 @@ static void FlushRoomDescription(void)
 {
     if (!room_description_stream)
         return;
+
     glk_stream_close(room_description_stream, 0);
 
-    //    strid_t StoredTranscript = Transcript;
-    //    if (!print_look_to_transcript)
-    //        Transcript = NULL;
+    if (Transcript) {
+        if (LastChar != '\n')
+            glk_put_string_stream(Transcript, "\n");
+        glk_put_string_stream(Transcript, roomdescbuf);
+    }
 
     int print_delimiter = 1;
 

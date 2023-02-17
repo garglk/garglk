@@ -10,19 +10,6 @@
 #include "restorestate.h"
 #include "extracommands.h"
 
-typedef enum {
-    COM_IT = 1,
-    COM_AGAIN = 2,
-    COM_WHERE = 4,
-    COM_UNDO = 5,
-    COM_TRANSCRIPT = 6,
-    COM_TRANSCRIPT_OFF = 7,
-    COM_RESTART = 8,
-    COM_ON = 9,
-    COM_OFF = 10,
-    COM_MAND = 12,
-} ExtraWordType;
-
 DictWord ExtraWords[] = {
     { "IT", 1 },
     { "HER", 1 },
@@ -40,11 +27,21 @@ DictWord ExtraWords[] = {
     { "SCRIPT", 6 },
     { "POFF", 7 },
     { "RESTART", 8 },
-    { "ON", 9 },
-    { "OFF", 10 },
-    { "COMMAND", 12 },
-    { "MOVE", 12 },
-    { "TURN", 12 },
+    { "RAMSAVE", 9 },
+    { "RAMRESTORE", 10 },
+    { "RAMLOAD", 10 },
+    { "ON", 11 },
+    { "OFF", 12 },
+    { "COMMAND", 13 },
+    { "MOVE", 13 },
+    { "TURN", 13 },
+    { "LOAD", 14 },
+    { "RESTORE", 14 },
+    { "SAVE", 15 },
+    { "RAM", 16 },
+    { "GAME", 17 },
+    { "STORY", 17 },
+    { "SESSION", 17 },
 
     { NULL, 0 }
 };
@@ -92,7 +89,7 @@ static void TranscriptOff(void)
     SystemMessage(TRANSCRIPT_OFF);
 }
 
-int PerformExtraCommand(int command, int nextcommand) {
+ExtraCommandResult PerformExtraCommand(int command, int nextcommand) {
     switch (command) {
         case COM_AGAIN:
             CurVerb = LastVerb;
@@ -101,26 +98,47 @@ int PerformExtraCommand(int command, int nextcommand) {
             CurPartp = LastPartp;
             CurNoun2 = LastNoun2;
             CurAdverb = LastAdverb;
-            return 0;
+            return RESULT_AGAIN;
         case COM_UNDO:
             RestoreUndo(1);
-            return 1;
+            if (nextcommand == COM_MAND)
+                return RESULT_TWO_WORDS;
+            return RESULT_ONE_WORD;
         case COM_RESTART:
             SystemMessage(ARE_YOU_SURE);
             if (YesOrNo())
                 should_restart = 1;
-            return 1;
+            if (nextcommand == COM_GAME)
+                return RESULT_TWO_WORDS;
+            return RESULT_ONE_WORD;
         case COM_TRANSCRIPT:
-            if (nextcommand == COM_OFF)
+            if (nextcommand == COM_OFF) {
                 TranscriptOff();
-            else
+                return RESULT_TWO_WORDS;
+            } else
                 TranscriptOn();
-            return 1;
+            if (nextcommand == COM_ON)
+                return RESULT_TWO_WORDS;
+            return RESULT_ONE_WORD;
         case COM_TRANSCRIPT_OFF:
             TranscriptOff();
-            return 1;
+            return RESULT_ONE_WORD;
+        case COM_RAM:
+            if (nextcommand == COM_LOAD) {
+                RamLoad();
+                return RESULT_TWO_WORDS;
+            } else if (nextcommand == COM_SAVE) {
+                RamSave(1);
+                return RESULT_TWO_WORDS;
+            } else return RESULT_NOT_UNDERSTOOD;
+        case COM_RAMSAVE:
+            RamSave(1);
+            return RESULT_ONE_WORD;
+        case COM_RAMRESTORE:
+            RamLoad();
+            return RESULT_ONE_WORD;
         default:
-            return 3;
+            return RESULT_NOT_UNDERSTOOD;
     }
 }
 

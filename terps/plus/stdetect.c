@@ -204,7 +204,7 @@ uint32_t get_next_cluster12(uint8_t *sf, uint32_t cluster) {
 
     int fat_offset = boot.reserved * boot.sector_size;
     // If the cluster number is odd, we're getting the last half of the three bytes.
-    if (cluster % 2) {
+    if (cluster & 1) {
         memcpy(&fat_entry[0], &sf[fat_offset + ((cluster/2)*3)+1], 1);
         memcpy(&fat_entry[1], &sf[fat_offset + ((cluster/2)*3)+2], 1);
         memcpy(&new_clust, &fat_entry[0], 2);

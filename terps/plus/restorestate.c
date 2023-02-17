@@ -29,6 +29,7 @@ extern uint8_t ObjectLoc[];
 extern winid_t Bottom;
 
 int JustRestored = 0;
+int JustRestarted = 0;
 ImgType SavedImgType;
 int SavedImgIndex;
 
@@ -87,7 +88,10 @@ void RestoreState(struct SavedState *state)
         ResetBit(9);
         ResetBit(10);
     }
-    Look(1);
+    if (JustRestarted && CurrentGame != BANZAI)
+        Look(0);
+    else
+        Look(1);
     if (CurrentGame == FANTASTIC4) {
         LastImgType = state->LastImgType;
         LastImgIndex = state->LastImgIndex;
@@ -135,13 +139,15 @@ void RestoreUndo(int game)
         SystemMessage(NO_UNDO_STATES);
         return;
     }
+
+    if (game)
+        SystemMessage(MOVE_UNDONE);
+
     struct SavedState *current = last_undo;
     last_undo = current->previousState;
     if (last_undo->previousState == NULL)
         oldest_undo = last_undo;
     RestoreState(last_undo);
-    if (game)
-        SystemMessage(MOVE_UNDONE);
     free(current);
     number_of_undos--;
 }
@@ -155,18 +161,18 @@ void RamSave(int game)
 
     ramsave = SaveCurrentState();
     if (game)
-        Display(Bottom, "State saved.\n");
+        SystemMessage(STATE_SAVED);
 }
 
 void RamLoad(void)
 {
     if (ramsave == NULL) {
-        Display(Bottom, "No saved state exists.\n");
+        SystemMessage(NO_SAVED_STATE);
         return;
     }
 
+    SystemMessage(STATE_RESTORED);
     RestoreState(ramsave);
-    Display(Bottom, "State restored.\n");
     SaveUndo();
 }
 
@@ -273,7 +279,7 @@ int LoadGame(void)
     LastImgIndex = SavedImgIndex;
 
     SetBit(DRAWBIT);
-    Look(1);
+    Look(0);
 
     if (LastImgType == IMG_SPECIAL) {
         DrawCloseup(LastImgIndex);
@@ -290,6 +296,7 @@ int LoadGame(void)
 void RestartGame(void)
 {
     FreeInputWords();
+    JustRestarted = 1;
     RestoreState(InitialState);
     JustStarted = 0;
     lastwasnewline = 1;

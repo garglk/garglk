@@ -1,60 +1,64 @@
-#ifndef EXO_UTIL_ALREADY_INCLUDED
-#define EXO_UTIL_ALREADY_INCLUDED
+/* Code from Exomizer distributed under the zlib License
+ * by kind permission of the original author
+ * Magnus Lind.
+ */
 
 /*
- * Copyright (c) 2008 Magnus Lind.
+ * Copyright (c) 2002 - 2023 Magnus Lind.
  *
- * This software is provided 'as-is', without any express or implied warranty.
- * In no event will the authors be held liable for any damages arising from
- * the use of this software.
  *
- * Permission is granted to anyone to use this software, alter it and re-
- * distribute it freely for any non-commercial, non-profit purpose subject to
- * the following restrictions:
+ * This software is provided 'as-is', without any express or implied
+ * warranty. In no event will the authors be held liable for any damages
+ * arising from the use of this software.
  *
- *   1. The origin of this software must not be misrepresented; you must not
- *   claim that you wrote the original software. If you use this software in a
- *   product, an acknowledgment in the product documentation would be
- *   appreciated but is not required.
+ * Permission is granted to anyone to use this software for any purpose,
+ * including commercial applications, and to alter it and redistribute it
+ * freely, subject to the following restrictions:
  *
- *   2. Altered source versions must be plainly marked as such, and must not
- *   be misrepresented as being the original software.
- *
- *   3. This notice may not be removed or altered from any distribution.
- *
- *   4. The names of this software and/or it's copyright holders may not be
- *   used to endorse or promote products derived from this software without
- *   specific prior written permission.
+ * 1. The origin of this software must not be misrepresented; you must not
+ * claim that you wrote the original software. If you use this software
+ * in a product, an acknowledgment in the product documentation would be
+ * appreciated but is not required.
+ * 2. Altered source versions must be plainly marked as such, and must not be
+ * misrepresented as being the original software.
+ * 3. This notice may not be removed or altered from any source distribution.
  *
  */
 
-#include <stdint.h>
-
-#include "log.h"
-#include "membuf.h"
-
 /*
- * target is the basic token for the sys/call basic command
- * it may be -1 for hardcoded detection of a few targets.
+ C++ version based on code adapted to ScummVM by Avijeet Maurya
  */
-int find_sys(const unsigned char *buf, int target);
 
-struct load_info {
-  int basic_txt_start; /* in */
-  int basic_var_start; /* out */
-  int run;             /* out */
-  int start;           /* out */
-  int end;             /* out */
+#ifndef UNP64_EXO_UTIL_H
+#define UNP64_EXO_UTIL_H
+
+#include "types.h"
+
+namespace Unp64 {
+
+struct LoadInfo {
+	int _basicTxtStart; /* in */
+	int _basicVarStart; /* out */
+	int _run;           /* out */
+	int _start;         /* out */
+	int _end;           /* out */
 };
 
-void load_located(char *filename, unsigned char mem[65536],
-                  struct load_info *info);
+int findSys(const uint8_t *buf, int target);
 
-void load_data(uint8_t *data, size_t data_length, unsigned char mem[65536],
-               struct load_info *info);
+void loadData(uint8_t *data, size_t dataLength, uint8_t mem[65536], LoadInfo *info);
 
-int str_to_int(const char *str, int *value);
+int strToInt(const char *str, int *value);
 
-const char *fixup_appl(char *appl);
+bool u32eq(const unsigned char *addr, uint32_t val);
+bool u16eq(const unsigned char *addr, uint16_t val);
+bool u16gteq(const unsigned char *addr, uint16_t val);
+bool u16lteq(const unsigned char *addr, uint16_t val);
+bool u16noteq(const unsigned char *addr, uint16_t val);
+bool u32eqmasked(const unsigned char *addr, uint32_t mask, uint32_t val);
+bool u32eqxored(const unsigned char *addr, uint32_t ormask, uint32_t val);
+bool u16eqmasked(const unsigned char *addr, uint16_t mask, uint16_t val);
+
+} // End of namespace Unp64
 
 #endif

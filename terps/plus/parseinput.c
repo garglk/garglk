@@ -20,6 +20,7 @@
 char **InputWordStrings = NULL;
 int WordsInInput = 0;
 int WordIndex = 0;
+int InitialIndex = 0;
 int ProtagonistString = 0;
 
 DictWord *Verbs;
@@ -314,19 +315,21 @@ static char **SplitIntoWords(const char *string, int length)
 WordToken *TokenWords = NULL;
 
 static int IntendedAsVerb(int i) {
-    if (i == 0)
+    if (i == InitialIndex || i == 0)
         return 1;
-    for (int j = i; j >= 0; j--)
-        if (TokenWords[j].Type != ADVERB_TYPE)
-            return 0;
-    return 1;
+    /* if the word before was an adverb and the one before that was not a verb */
+    if (TokenWords[i - 1].Type == ADVERB_TYPE && (i == InitialIndex + 1 || (i > InitialIndex + 1 && TokenWords[i - 2].Type != VERB_TYPE)))
+        return 1;
+    return 0;
 }
 
 static void WordNotFoundError(int i) {
-    if (IntendedAsVerb(i))
-        Display(Bottom, "I don't know how to %s something! ", InputWordStrings[i]);
+    if (TokenWords[i].Type == ADVERB_TYPE)
+        Display(Bottom, "%s do what?\n", InputWordStrings[i]);
+    else if (IntendedAsVerb(i))
+        Display(Bottom, "I don't know how to %s something!\n", InputWordStrings[i]);
     else
-        Display(Bottom, "I don't know what %s means. ", InputWordStrings[i]);
+        Display(Bottom, "I don't know what %s means.\n", InputWordStrings[i]);
 }
 
 static int TokenizeInputWords(void) {
@@ -334,6 +337,8 @@ static int TokenizeInputWords(void) {
         free(TokenWords);
     int word_not_found = -1;
     int found_verb = 0;
+    int verb_position = -1;
+
     TokenWords = MemAlloc(WordsInInput * sizeof(WordToken));
     int result = 0;
 
@@ -344,6 +349,7 @@ static int TokenizeInputWords(void) {
             if (result > 0) {
                 debug_print("Found verb %s at %d\n", InputWordStrings[i], i);
                 found_verb = 1;
+                verb_position = i;
                 TokenWords[i].Index = result;
                 TokenWords[i].Type = VERB_TYPE;
                 continue;
@@ -397,16 +403,17 @@ static int TokenizeInputWords(void) {
             TokenWords[i].Index = result;
             TokenWords[i].Type = VERB_TYPE;
             found_verb = 1;
+            verb_position = i;
             continue;
         }
 
         result = ParseWord(InputWordStrings[i], ExtraWords);
         if (result > 0) {
             debug_print("Found extra word %s at %d\n", InputWordStrings[i], i);
-            if (result == 1) {
+            if (result == COM_IT) {
                 TokenWords[i].Index = LastNoun;
                 TokenWords[i].Type = NOUN_TYPE;
-            } else if (result ==4) {
+            } else if (result == COM_WHERE) {
                 Output("I'm only your puppet! You must figure things out for yourself! ");
                 WordIndex = 255;
                 return 0;
@@ -417,16 +424,21 @@ static int TokenizeInputWords(void) {
             continue;
         }
 
+        TokenWords[i].Type = WORD_NOT_FOUND;
         word_not_found = i;
     }
 
     /* We wait to report "word not recognized" errors until we have tokenized all words   */
-    /* as we want to give other errors priority. Also helps deciding whether "The rest of */
     /* as we want to give other errors priority. Also helps deciding whether to say       */
     /* "The rest of your command was ignored." */
     if (word_not_found >= 0) {
+        if (!found_verb || verb_position > word_not_found)
+            WordNotFoundError(0);
+        if (word_not_found != 0)
+            for (int j = 1; j <= word_not_found; j++)
+                if (TokenWords[j].Type == WORD_NOT_FOUND)
+                    WordNotFoundError(j);
         WordIndex = word_not_found;
-        WordNotFoundError(word_not_found);
         return 0;
     }
 
@@ -468,14 +480,11 @@ static int CommandFromTokens(int verb, int noun)
         return 1;
     }
 
-    int initialindex = WordIndex;
+    InitialIndex = WordIndex;
 
     for (int i = WordIndex; i < WordsInInput; i++) {
-        size_t len = strlen(InputWordStrings[i]);
         char str[128];
-        for (int j = 0; j < len; j++)
-            str[j] = InputWordStrings[i][j];
-        str[len] = 0;
+        snprintf(str, sizeof str, "%s", InputWordStrings[i]);
         debug_print("Word %d: %s\n", i, str);
     }
 
@@ -486,12 +495,22 @@ static int CommandFromTokens(int verb, int noun)
         if (WordIndex < WordsInInput) {
             nextword = ParseWord(InputWordStrings[WordIndex], ExtraWords);
         }
-        if (nextword < 9) {
+        /* The extra command words before ON are verbs */
+        /* and we want verb only or verb + noun/preposition, */
+        /* not two verbs. */
+        if (nextword < COM_ON) {
             nextword = 0;
-        } else WordIndex++;
-        int result = PerformExtraCommand(word, nextword);
-        if (result < 3)
-            return result;
+        };
+        ExtraCommandResult result = PerformExtraCommand(word, nextword);
+        if (result != RESULT_NOT_UNDERSTOOD) {
+            if (result == RESULT_AGAIN)
+                return 0;
+            SetBit(STOPTIMEBIT);
+            WordIndex += (result == RESULT_TWO_WORDS);
+            return 1;
+        } else {
+            WordIndex = InitialIndex;
+        }
     }
 
     CurPartp = 0;
@@ -514,9 +533,10 @@ static int CommandFromTokens(int verb, int noun)
     }
 
     if (verb == 0) {
-        WordNotFoundError(0);
-        Output("\nTry again please. ");
-        WordIndex = WordsInInput;
+        WordNotFoundError(InitialIndex);
+        Output("Try again please. ");
+        StopProcessingCommand();
+        SetBit(STOPTIMEBIT);
         return 1;
     }
 
@@ -600,7 +620,7 @@ static int CommandFromTokens(int verb, int noun)
         debug_print("Found participle but no second noun. This should never happen.\n");
     }
 
-    if (WordIndex <= initialindex)
+    if (WordIndex <= InitialIndex)
         WordIndex++;
 
     debug_print("Index: %d Words in input: %d ", WordIndex, WordsInInput);
@@ -667,7 +687,7 @@ static void LineInput(void)
 static int RemainderContainsVerb(void) {
     debug_print("RemainderContainsVerb: WordIndex: %d WordsInInput: %d\n", WordIndex, WordsInInput);
     if (WordIndex < WordsInInput - 1) {
-        for (int i = 0; i < WordsInInput; i++)
+        for (int i = WordIndex; i < WordsInInput; i++)
             if (TokenWords[i].Type == VERB_TYPE)
                 return 1;
     }
@@ -698,7 +718,8 @@ int GetInput(void)
 
         if (!TokenizeInputWords()) {
             if (WordIndex < 255)
-                Output("\nTry again please. ");
+                Output("Try again please. ");
+            SetBit(STOPTIMEBIT);
             StopProcessingCommand();
             return 1;
         }

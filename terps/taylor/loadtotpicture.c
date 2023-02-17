@@ -34,7 +34,7 @@ static int parity(uint8_t x) {
     for (int i = 0; i < 8; i++)
         if (x & (1 << i))
             bitsset++;
-    return (bitsset % 2 == 0);
+    return ((bitsset & 1) == 0);
 }
 
 static uint16_t *DrawAdresses = NULL;

@@ -116,6 +116,9 @@ void SetAnimationTimer(glui32 milliseconds) {
 
 void Animate(int frame) {
 
+    if (Images[0].Filename == NULL)
+        return;
+
     int cannonanimation = (CurrentGame == FANTASTIC4 && MyLoc == 5);
 
     if (PostCannonAnimationSeam) {

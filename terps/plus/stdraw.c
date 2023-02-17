@@ -181,14 +181,14 @@ static void DrawPattern(uint8_t pattern, Pixel **pixels) {
 
     // CurAddr: screen memory where we're currently writing
     int y1 = CurAddr / 160;
-    int x1 = 2 * (CurAddr % 160) + 6 * (CurAddr % 2);
+    int x1 = 2 * (CurAddr % 160) + 6 * (CurAddr & 1);
 
     DrawSTNibble(pattern, mask, x1, y1, pixels);
 
     mask = mask ^ 0xff;
     LastMask = LastMask ^ 0xff;
     if (mask != 0xf) {
-        CurAddr += 1 + 6 * (CurAddr % 2);
+        CurAddr += 1 + 6 * (CurAddr & 1);
     }
 
     // LineBytesLeft = bytes remaining to draw this line

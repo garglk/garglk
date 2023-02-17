@@ -66,6 +66,10 @@ char *LineBreakText(char *source, int columns, int *rows, int *length)
 
             buf[destpos++] = source[sourcepos++];
 
+            if (destpos >= 768) {
+                return NULL;
+            }
+
             if (source[sourcepos] == 10 || source[sourcepos] == 13)
                 col--;
         }

@@ -90,6 +90,7 @@ typedef struct imagefile {
 
 ImageFile *di_open(DiskImage *di, unsigned char *rawname, FileType type,
                    char *mode);
+ImageFile *di_create_file_from_ts(DiskImage *di, int track, int sector);
 int di_read(ImageFile *imgfile, unsigned char *buffer, int len);
 int di_rawname_from_name(unsigned char *rawname, const char *name);
 
