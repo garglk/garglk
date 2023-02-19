@@ -324,6 +324,8 @@ void garglk::theme::init()
             }
         }
     }
+
+    garglk::theme::set("system");
 }
 
 static std::string system_theme_name()
