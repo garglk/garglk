@@ -142,6 +142,7 @@ cp garglk/*.icns "$BUNDLE/Resources"
 cp licenses/* "$BUNDLE/Resources"
 
 cp fonts/Gargoyle*.ttf $BUNDLE/Resources/Fonts
+cp fonts/unifont*.otf $BUNDLE/Resources
 cp themes/*.json $BUNDLE/Resources/themes
 
 codesign -s - -f --deep Gargoyle.app

@@ -21,4 +21,10 @@ font files directly from two locations: a system-specific data directory (e.g.
 /usr/lib/gargoyle/fonts), and, failing that, the current directory (Unix) or the
 directory containing the Gargoyle executable (Windows).
 
+This also includes GNU Unifont which is used as a fallback for glyphs which
+don't exist in the user's preferred font. Unlike the Gargoyle fonts, this is not
+meant to be installed system-wide. Instead, it is installed in a known location
+and Gargoyle directly loads it, as opposed to using the system's native font
+loading mechanism.
+
 The licenses for these fonts are available in the top-level "licenses" directory.

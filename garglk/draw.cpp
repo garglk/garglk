@@ -44,6 +44,8 @@
 #include <windows.h>
 #endif
 
+using namespace std::literals;
+
 #define GAMMA_BITS 11
 #define GAMMA_MAX ((1 << GAMMA_BITS) - 1)
 
@@ -63,9 +65,9 @@ struct FontEntry {
 
 class Font {
 public:
-    Font(FontFace fontface, const std::string &fallback);
+    Font(FontFace fontface, FT_Face face, const std::string &fontpath);
 
-    const FontEntry &getglyph(glui32 cid);
+    FontEntry getglyph(glui32 cid);
     int charkern(glui32 c0, glui32 c1);
     const FT_Face &face() {
         return m_face;
@@ -78,7 +80,6 @@ public:
 private:
     FontFace m_fontface;
     FT_Face m_face = nullptr;
-    std::unordered_map<glui32, FontEntry> m_entries;
     bool m_make_bold = false;
     bool m_make_oblique = false;
     bool m_kerned = false;
@@ -89,39 +90,13 @@ private:
 // Globals
 //
 
+std::unordered_map<FontFace, std::vector<std::string>> gli_conf_glyph_substitution_files;
+
 static std::array<std::uint16_t, 256> gammamap;
 static std::array<unsigned char, 1 << GAMMA_BITS> gammainv;
 
-class FontTable {
-public:
-    FontTable() {
-        m_table = {
-            Font(FontFace::monor(), "Gargoyle-Mono.ttf"),
-            Font(FontFace::monob(), "Gargoyle-Mono-Bold.ttf"),
-            Font(FontFace::monoi(), "Gargoyle-Mono-Italic.ttf"),
-            Font(FontFace::monoz(), "Gargoyle-Mono-Bold-Italic.ttf"),
-            Font(FontFace::propr(), "Gargoyle-Serif.ttf"),
-            Font(FontFace::propb(), "Gargoyle-Serif-Bold.ttf"),
-            Font(FontFace::propi(), "Gargoyle-Serif-Italic.ttf"),
-            Font(FontFace::propz(), "Gargoyle-Serif-Bold-Italic.ttf"),
-        };
-    }
-
-    Font &at(const FontFace &fontface) {
-        for (auto &font : m_table) {
-            if (font.fontface() == fontface) {
-                return font;
-            }
-        }
-
-        throw std::out_of_range("internal error: missing font");
-    }
-
-private:
-    std::vector<Font> m_table;
-};
-
-static nonstd::optional<FontTable> gfont_table;
+static std::unordered_map<FontFace, Font> gfont_table;
+static std::unordered_map<FontFace, std::vector<Font>> glyph_substitution_fonts;
 
 int gli_cellw = 8;
 int gli_cellh = 8;
@@ -155,94 +130,101 @@ void garglk::set_lcdfilter(const std::string &filter)
 // Font loading
 //
 
-// FT_Error_String() was introduced in FreeType 2.10.0.
+static std::string convert_ft_error(FT_Error err, const std::string &basemsg)
+{
+    // FT_Error_String() was introduced in FreeType 2.10.0.
 #if FREETYPE_MAJOR == 2 && FREETYPE_MINOR < 10
-#define FT_Error_String(err) nullptr
+    const char *errstr = nullptr;
+#else
+    // If FreeType was not built with FT_CONFIG_OPTION_ERROR_STRINGS,
+    // this will always be null.
+    const char *errstr = FT_Error_String(err);
 #endif
 
-static void freetype_error(int err, const std::string &basemsg)
-{
-    std::ostringstream msg;
-    // If FreeType was not built with FT_CONFIG_OPTION_ERROR_STRINGS,
-    // this will always be nullptr.
-    const char *errstr = FT_Error_String(err);
-
     if (errstr == nullptr) {
-        msg << basemsg << " (error code " << err << ")";
+        return basemsg + " (error code " + std::to_string(err) + ")";
     } else {
-        msg << basemsg << ": " << errstr;
+        return basemsg + ": " + errstr;
     }
-
-    garglk::winabort(msg.str());
 }
 
-const FontEntry &Font::getglyph(glui32 cid)
-{
-    auto it = m_entries.find(cid);
-    if (it == m_entries.end()) {
-        FT_Vector v;
-        int err;
-        glui32 gid;
-        int x;
-        FontEntry entry;
-        std::size_t datasize;
-
-        gid = FT_Get_Char_Index(m_face, cid);
-        if (gid == 0) {
-            gid = FT_Get_Char_Index(m_face, '?');
-        }
-
-        for (x = 0; x < GLI_SUBPIX; x++) {
-            v.x = (x * 64) / GLI_SUBPIX;
-            v.y = 0;
-
-            FT_Set_Transform(m_face, nullptr, &v);
-
-            err = FT_Load_Glyph(m_face, gid,
-                    FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
-            if (err != 0) {
-                freetype_error(err, "Error in FT_Load_Glyph");
-            }
-
-            if (m_make_bold) {
-                FT_Outline_Embolden(&m_face->glyph->outline, FT_MulFix(m_face->units_per_EM, m_face->size->metrics.y_scale) / 24);
-            }
-
-            if (m_make_oblique) {
-                FT_Outline_Transform(&m_face->glyph->outline, &ftmat);
-            }
-
-            if (gli_conf_lcd) {
-                if (use_freetype_preset_filter) {
-                    FT_Library_SetLcdFilter(ftlib, freetype_preset_filter);
-                } else {
-                    FT_Library_SetLcdFilterWeights(ftlib, gli_conf_lcd_weights.data());
-                }
-
-                err = FT_Render_Glyph(m_face->glyph, FT_RENDER_MODE_LCD);
-            } else {
-                err = FT_Render_Glyph(m_face->glyph, FT_RENDER_MODE_LIGHT);
-            }
-
-            if (err != 0) {
-                freetype_error(err, "Error in FT_Render_Glyph");
-            }
-
-            datasize = m_face->glyph->bitmap.pitch * m_face->glyph->bitmap.rows;
-            entry.adv = (m_face->glyph->advance.x * GLI_SUBPIX + 32) / 64;
-
-            entry.glyph[x].lsb = m_face->glyph->bitmap_left;
-            entry.glyph[x].top = m_face->glyph->bitmap_top;
-            entry.glyph[x].w = m_face->glyph->bitmap.width;
-            entry.glyph[x].h = m_face->glyph->bitmap.rows;
-            entry.glyph[x].pitch = m_face->glyph->bitmap.pitch;
-            entry.glyph[x].data.assign(&m_face->glyph->bitmap.buffer[0], &m_face->glyph->bitmap.buffer[datasize]);
-        }
-
-        it = m_entries.emplace(cid, entry).first;
+class FreetypeError : public std::exception {
+public:
+    FreetypeError(FT_Error err, const std::string &basemsg) :
+        m_what(convert_ft_error(err, basemsg))
+    {
     }
 
-    return it->second;
+    const char *what() const noexcept override {
+        return m_what.c_str();
+    }
+
+private:
+    std::string m_what;
+};
+
+FontEntry Font::getglyph(glui32 cid)
+{
+    FT_Vector v;
+    int err;
+    glui32 gid;
+    int x;
+    FontEntry entry;
+    std::size_t datasize;
+
+    gid = FT_Get_Char_Index(m_face, cid);
+    if (gid == 0) {
+        throw std::out_of_range("no glyph for " + std::to_string(gid));
+    }
+
+    for (x = 0; x < GLI_SUBPIX; x++) {
+        v.x = (x * 64) / GLI_SUBPIX;
+        v.y = 0;
+
+        FT_Set_Transform(m_face, nullptr, &v);
+
+        err = FT_Load_Glyph(m_face, gid,
+                FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
+        if (err != 0) {
+            throw FreetypeError(err, "Error in FT_Load_Glyph");
+        }
+
+        if (m_make_bold) {
+            FT_Outline_Embolden(&m_face->glyph->outline, FT_MulFix(m_face->units_per_EM, m_face->size->metrics.y_scale) / 24);
+        }
+
+        if (m_make_oblique) {
+            FT_Outline_Transform(&m_face->glyph->outline, &ftmat);
+        }
+
+        if (gli_conf_lcd) {
+            if (use_freetype_preset_filter) {
+                FT_Library_SetLcdFilter(ftlib, freetype_preset_filter);
+            } else {
+                FT_Library_SetLcdFilterWeights(ftlib, gli_conf_lcd_weights.data());
+            }
+
+            err = FT_Render_Glyph(m_face->glyph, FT_RENDER_MODE_LCD);
+        } else {
+            err = FT_Render_Glyph(m_face->glyph, FT_RENDER_MODE_LIGHT);
+        }
+
+        if (err != 0) {
+            throw FreetypeError(err, "Error in FT_Render_Glyph");
+        }
+
+        datasize = m_face->glyph->bitmap.pitch * m_face->glyph->bitmap.rows;
+        entry.adv = (m_face->glyph->advance.x * GLI_SUBPIX + 32) / 64;
+
+        entry.glyph[x].lsb = m_face->glyph->bitmap_left;
+        entry.glyph[x].top = m_face->glyph->bitmap_top;
+        entry.glyph[x].w = m_face->glyph->bitmap.width;
+        entry.glyph[x].h = m_face->glyph->bitmap.rows;
+        entry.glyph[x].pitch = m_face->glyph->bitmap.pitch;
+        entry.glyph[x].data.assign(&m_face->glyph->bitmap.buffer[0], &m_face->glyph->bitmap.buffer[datasize]);
+    }
+
+    return entry;
 }
 
 // Look for a user-specified font. This will be either based on a font
@@ -299,13 +281,9 @@ static std::string fontface_to_name(FontFace &fontface)
     return type + " " + style;
 }
 
-Font::Font(FontFace fontface, const std::string &fallback) :
-    m_fontface(fontface)
+static Font make_font(FontFace fontface, const std::string &fallback)
 {
-    int err = 0;
     std::string fontpath;
-    float aspect, size;
-    std::string family;
     std::vector<std::function<std::string(const std::string &path, const std::string &fallback)>> font_paths = {
         font_path_user,
         font_path_fallback_system,
@@ -324,21 +302,57 @@ Font::Font(FontFace fontface, const std::string &fallback) :
         fontface == FontFace::propz() ? gli_conf_prop.z :
                                         gli_conf_mono.r;
 
-    if (fontface.monospace) {
+    for (const auto &get_font_path : font_paths) {
+        auto fontpath = get_font_path(path, fallback);
+        FT_Face face;
+        if (!fontpath.empty() && FT_New_Face(ftlib, fontpath.c_str(), 0, &face) == 0) {
+            return {fontface, face, fontpath};
+        }
+    }
+
+    garglk::winabort("Unable to find font " + (fontface.monospace ? gli_conf_monofont : gli_conf_propfont) + " for " + fontface_to_name(fontface) + ", and fallback " + fallback + " not found");
+}
+
+static std::vector<Font> make_substitution_fonts(FontFace fontface)
+{
+    FT_Face face;
+    std::vector<Font> fonts;
+
+    auto files = gli_conf_glyph_substitution_files[fontface];
+
+    for (const auto &datadir : garglk::winappdata()) {
+        files.push_back(datadir + "/unifont.otf");
+        files.push_back(datadir + "/unifont_upper.otf");
+    }
+
+    files.emplace_back("./unifont.otf");
+    files.emplace_back("./unifont_upper.otf");
+
+    for (const auto &file : files) {
+        if (FT_New_Face(ftlib, file.c_str(), 0, &face) == 0) {
+            try {
+                fonts.emplace_back(fontface, face, file);
+            } catch (const FreetypeError &) {
+            }
+        }
+    }
+
+    return fonts;
+}
+
+Font::Font(FontFace fontface, FT_Face face, const std::string &fontpath) :
+    m_fontface(fontface),
+    m_face(face)
+{
+    int err = 0;
+    float aspect, size;
+
+    if (m_fontface.monospace) {
         aspect = gli_conf_monoaspect;
         size = gli_conf_monosize;
-        family = gli_conf_monofont;
     } else {
         aspect = gli_conf_propaspect;
         size = gli_conf_propsize;
-        family = gli_conf_propfont;
-    }
-
-    if (!std::any_of(font_paths.begin(), font_paths.end(), [&](const auto &get_font_path) {
-            fontpath = get_font_path(path, fallback);
-            return !fontpath.empty() && FT_New_Face(ftlib, fontpath.c_str(), 0, &m_face) == 0;
-        })) {
-        garglk::winabort("Unable to find font " + family + " for " + fontface_to_name(fontface) + ", and fallback " + fallback + " not found");
     }
 
     auto dot = fontpath.rfind('.');
@@ -355,18 +369,18 @@ Font::Font(FontFace fontface, const std::string &fallback) :
 
     err = FT_Set_Char_Size(m_face, size * aspect * 64, size * 64, 72, 72);
     if (err != 0) {
-        freetype_error(err, "Error in FT_Set_Char_Size for " + fontpath);
+        throw FreetypeError(err, "Error in FT_Set_Char_Size for " + fontpath);
     }
 
     err = FT_Select_Charmap(m_face, ft_encoding_unicode);
     if (err != 0) {
-        freetype_error(err, "Error in FT_Select_CharMap for " + fontpath);
+        throw FreetypeError(err, "Error in FT_Select_CharMap for " + fontpath);
     }
 
     m_kerned = FT_HAS_KERNING(m_face);
 
-    m_make_bold = fontface.bold && ((m_face->style_flags & FT_STYLE_FLAG_BOLD) == 0);
-    m_make_oblique = fontface.italic && ((m_face->style_flags & FT_STYLE_FLAG_ITALIC) == 0);
+    m_make_bold = m_fontface.bold && ((m_face->style_flags & FT_STYLE_FLAG_BOLD) == 0);
+    m_make_oblique = m_fontface.italic && ((m_face->style_flags & FT_STYLE_FLAG_ITALIC) == 0);
 }
 
 void gli_initialize_fonts()
@@ -383,7 +397,7 @@ void gli_initialize_fonts()
 
     err = FT_Init_FreeType(&ftlib);
     if (err != 0) {
-        freetype_error(err, "Unable to initialize FreeType");
+        garglk::winabort(convert_ft_error(err, "Unable to initialize FreeType"));
     }
 
     fontload();
@@ -417,18 +431,40 @@ void gli_initialize_fonts()
         gli_conf_prop.z = gli_conf_prop_override.z;
     }
 
+    // Set up the Unicode fallback font.
+    auto faces = {FontFace::propr(), FontFace::propi(), FontFace::propb(), FontFace::propz(),
+                  FontFace::monor(), FontFace::monoi(), FontFace::monob(), FontFace::monoz()};
+    for (const auto &fontface : faces) {
+        glyph_substitution_fonts.insert({fontface, make_substitution_fonts(fontface)});
+    }
+
     // create oblique transform matrix
     ftmat.xx = 0x10000L;
     ftmat.yx = 0x00000L;
     ftmat.xy = 0x03000L;
     ftmat.yy = 0x10000L;
 
-    gfont_table = FontTable();
+    auto make_entry = [](FontFace face, const std::string &filename) {
+        return std::make_pair(face, make_font(face, filename));
+    };
 
-    const auto &entry = gfont_table->at(FontFace::monor()).getglyph('0');
+    try {
+        gfont_table.insert(make_entry(FontFace::monor(), "Gargoyle-Mono.ttf"));
+        gfont_table.insert(make_entry(FontFace::monob(), "Gargoyle-Mono-Bold.ttf"));
+        gfont_table.insert(make_entry(FontFace::monoi(), "Gargoyle-Mono-Italic.ttf"));
+        gfont_table.insert(make_entry(FontFace::monoz(), "Gargoyle-Mono-Bold-Italic.ttf"));
+        gfont_table.insert(make_entry(FontFace::propr(), "Gargoyle-Serif.ttf"));
+        gfont_table.insert(make_entry(FontFace::propb(), "Gargoyle-Serif-Bold.ttf"));
+        gfont_table.insert(make_entry(FontFace::propi(), "Gargoyle-Serif-Italic.ttf"));
+        gfont_table.insert(make_entry(FontFace::propz(), "Gargoyle-Serif-Bold-Italic.ttf"));
 
-    gli_cellh = gli_leading;
-    gli_cellw = (entry.adv + GLI_SUBPIX - 1) / GLI_SUBPIX;
+        const auto &entry = gfont_table.at(FontFace::monor()).getglyph('0');
+
+        gli_cellh = gli_leading;
+        gli_cellw = (entry.adv + GLI_SUBPIX - 1) / GLI_SUBPIX;
+    } catch (const FreetypeError &e) {
+        garglk::winabort(e.what());
+    }
 }
 
 //
@@ -569,7 +605,7 @@ int Font::charkern(glui32 c0, glui32 c1)
 
     err = FT_Get_Kerning(m_face, g0, g1, FT_KERNING_UNFITTED, &v);
     if (err != 0) {
-        freetype_error(err, "Error in FT_Get_Kerning");
+        throw FreetypeError(err, "Error in FT_Get_Kerning");
     }
 
     int value = (v.x * GLI_SUBPIX) / 64.0;
@@ -586,9 +622,9 @@ static const std::vector<std::pair<std::vector<glui32>, glui32>> ligatures = {
     {{'f', 'l'}, UNI_LIG_FL},
 };
 
-static int gli_string_impl(int x, FontFace face, const glui32 *s, std::size_t n, int spw, const std::function<void(int, const std::array<Bitmap, GLI_SUBPIX> &)> &callback)
+static int gli_string_impl(int x, FontFace fontface, const glui32 *s, std::size_t n, int spw, const std::function<void(int, const std::array<Bitmap, GLI_SUBPIX> &)> &callback)
 {
-    auto &f = gfont_table->at(face);
+    auto &f = gfont_table.at(fontface);
     bool dolig = !FT_IS_FIXED_WIDTH(f.face());
     int prev = -1;
     glui32 c;
@@ -621,18 +657,55 @@ static int gli_string_impl(int x, FontFace face, const glui32 *s, std::size_t n,
             n--;
         }
 
-        const auto &entry = f.getglyph(c);
+        auto glyph = [&f, &fontface](glui32 c) -> std::shared_ptr<const FontEntry> {
+            // Cache all glyphs. If a glyph is not found, return null.
+            static std::unordered_map<std::pair<FontFace, glui32>, std::shared_ptr<FontEntry>> fallback_cache;
+
+            auto key = std::make_pair(fontface, c);
+
+            auto it = fallback_cache.find(key);
+            if (it == fallback_cache.end()) {
+                std::shared_ptr<FontEntry> entry;
+
+                try {
+                    entry = std::make_shared<FontEntry>(f.getglyph(c));
+                } catch (const std::out_of_range &) {
+                    for (auto &font : glyph_substitution_fonts[fontface]) {
+                        try {
+                            entry = std::make_shared<FontEntry>(font.getglyph(c));
+                            break;
+                        } catch (const std::out_of_range &) {
+                        }
+                    }
+                }
+
+                it = fallback_cache.emplace(key, entry).first;
+            }
+
+            return it->second;
+        };
+
+        std::shared_ptr<const FontEntry> entry;
+        try {
+            entry = glyph(c);
+        } catch (const std::out_of_range &) {
+            entry = glyph('?');
+        }
+
+        if (entry == nullptr) {
+            garglk::winabort("unable to look up glyph " + std::to_string(c) + " for " + fontface_to_name(fontface));
+        }
 
         if (prev != -1) {
             x += f.charkern(prev, c);
         }
 
-        callback(x, entry.glyph);
+        callback(x, entry->glyph);
 
         if (spw >= 0 && c == ' ') {
             x += spw;
         } else {
-            x += entry.adv;
+            x += entry->adv;
         }
 
         prev = c;
