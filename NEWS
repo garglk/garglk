@@ -19,6 +19,7 @@
 • Window size and location can be saved and restored between sessions.
 • Monospace fonts are now properly used in the Agility interpreter.
 • Bleeps in the Z-machine are now supported.
+• Unifont is used to look up missing font glyphs.
 
 2022.1:
 • Gargoyle now implements Glk version 0.7.5.
