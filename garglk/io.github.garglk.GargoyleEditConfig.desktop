@@ -3,6 +3,6 @@ Version=1.0
 Type=Application
 Name=Gargoyle Config Editor
 Comment=Configuration file editor for the Gargoyle interactive fiction interpreter
-Icon=gargoyle-house
+Icon=io.github.garglk.Gargoyle
 Exec=gargoyle --edit-config
 Categories=Game;
