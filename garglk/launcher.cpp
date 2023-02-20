@@ -330,30 +330,34 @@ static bool runblorb(const std::string &game)
     }
 }
 
-static bool findterp(const std::string &file, const std::string &target, Interpreter &interpreter)
+static nonstd::optional<Interpreter> findterp(const std::string &file, const std::string &target)
 {
     std::vector<std::string> matches = {target};
+
+    nonstd::optional<Interpreter> interpreter;
 
     garglk::config_entries(file, false, matches, [&interpreter](const std::string &cmd, const std::string &arg) {
         if (cmd == "terp") {
             std::istringstream argstream(arg);
-            std::string opt;
+            std::string terp, opt, flags;
 
-            if (argstream >> interpreter.terp) {
+            if (argstream >> terp) {
                 if (argstream >> opt && opt[0] == '-') {
-                    interpreter.flags = opt;
+                    flags = opt;
                 } else {
-                    interpreter.flags = "";
+                    flags = "";
                 }
+
+                interpreter.emplace(terp, flags);
             }
         }
     });
 
-    return !interpreter.terp.empty();
+    return interpreter;
 }
 
 // Find a possible interpreter specified in the config file.
-static void configterp(const std::string &gamepath, Interpreter &interpreter)
+static nonstd::optional<Interpreter> configterp(const std::string &gamepath)
 {
     std::string story = gamepath;
 
@@ -373,24 +377,26 @@ static void configterp(const std::string &gamepath, Interpreter &interpreter)
 #endif
 
     if (story.empty()) {
-        return;
+        return nonstd::nullopt;
     }
 
     for (const auto &config : garglk::configs(gamepath)) {
-        if (findterp(config.path, story, interpreter)) {
-            return;
+        auto interpreter = findterp(config.path, story);
+        if (interpreter.has_value()) {
+            return interpreter;
         }
     }
+
+    return nonstd::nullopt;
 }
 
 bool garglk::rungame(const std::string &game)
 {
-    Interpreter interpreter("");
     std::array<char, 32> header;
 
-    configterp(game, interpreter);
-    if (!interpreter.terp.empty()) {
-        return call_winterp(interpreter, game);
+    auto interpreter = configterp(game);
+    if (interpreter.has_value()) {
+        return call_winterp(interpreter.value(), game);
     }
 
     std::ifstream f(game, std::ios::binary);
