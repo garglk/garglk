@@ -25,7 +25,7 @@
 #include "glk.h"
 #include "garglk.h"
 
-std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int newrows)
+std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, int newrows)
 {
     // pnmscale.c - read a portable anymap and scale it
     //

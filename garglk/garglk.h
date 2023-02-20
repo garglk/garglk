@@ -299,6 +299,20 @@ private:
 };
 
 template <std::size_t N>
+class ConstRow {
+public:
+    explicit ConstRow(const unsigned char *row) : m_row(row) {
+    }
+
+    const unsigned char *operator[](std::size_t x) {
+        return &m_row[x * N];
+    }
+
+private:
+    const unsigned char *m_row;
+};
+
+template <std::size_t N>
 class Canvas {
 public:
     void resize(int width, int height, bool keep) {
@@ -331,7 +345,7 @@ public:
         return m_height;
     }
 
-    int stride() {
+    int stride() const {
         return m_stride;
     }
 
@@ -347,6 +361,10 @@ public:
 
     Row<N> operator[](std::size_t y) {
         return Row<N>(&m_pixels[y * stride()]);
+    }
+
+    ConstRow<N> operator[](std::size_t y) const {
+        return ConstRow<N>(&m_pixels[y * stride()]);
     }
 
     unsigned char *data() {
@@ -1035,7 +1053,7 @@ void gli_draw_rect(int x, int y, int w, int h, const Color &rgb);
 int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb, const glui32 *text, int len, int spacewidth);
 int gli_string_width_uni(FontFace face, const glui32 *text, int len, int spacewidth);
 void gli_draw_caret(int x, int y);
-void gli_draw_picture(picture_t *pic, int x, int y, int x0, int y0, int x1, int y1);
+void gli_draw_picture(const picture_t *pic, int x, int y, int x0, int y0, int x1, int y1);
 
 void gli_startup(int argc, char *argv[]);
 
@@ -1061,7 +1079,7 @@ void giblorb_get_resource(glui32 usage, glui32 resnum, std::FILE **file, long *p
 std::shared_ptr<picture_t> gli_picture_load(unsigned long id);
 void gli_picture_store(const std::shared_ptr<picture_t> &pic);
 std::shared_ptr<picture_t> gli_picture_retrieve(unsigned long id, bool scaled);
-std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int newrows);
+std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, int newrows);
 void gli_piclist_increment();
 void gli_piclist_decrement();
 
