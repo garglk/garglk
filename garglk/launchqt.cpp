@@ -211,9 +211,9 @@ static QString parse_args(const QApplication &app)
         std::exit(0);
     } else if (parser.isSet("m")) {
         auto configs = garglk::configs("");
-        std::remove_if(configs.begin(), configs.end(), [](const auto &config) {
+        configs.erase(std::remove_if(configs.begin(), configs.end(), [](const auto &config) {
             return config.type != garglk::ConfigFile::Type::User;
-        });
+        }), configs.end());
 
         if (configs.empty()) {
             std::cerr << "Unable to determine configuration file locations.\n";
