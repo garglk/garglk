@@ -29,7 +29,7 @@ void win_pair_destroy(window_pair_t *dwin)
     delete dwin;
 }
 
-void win_pair_rearrange(window_t *win, rect_t *box)
+void win_pair_rearrange(window_t *win, const rect_t *box)
 {
     window_pair_t *dwin = win->window.pair;
     rect_t box1, box2;

@@ -270,7 +270,7 @@ static std::string font_path_fallback_local(const std::string &, const std::stri
     return fallback;
 }
 
-static std::string fontface_to_name(FontFace &fontface)
+static std::string fontface_to_name(FontFace fontface)
 {
     std::string type = fontface.monospace ? "Mono" : "Proportional";
     std::string style = (fontface.bold && fontface.italic) ? "Bold Italic" :
@@ -283,7 +283,6 @@ static std::string fontface_to_name(FontFace &fontface)
 
 static Font make_font(FontFace fontface, const std::string &fallback)
 {
-    std::string fontpath;
     std::vector<std::function<std::string(const std::string &path, const std::string &fallback)>> font_paths = {
         font_path_user,
         font_path_fallback_system,

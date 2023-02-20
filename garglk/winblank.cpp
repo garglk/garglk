@@ -30,7 +30,7 @@ void win_blank_destroy(window_blank_t *dwin)
     delete dwin;
 }
 
-void win_blank_rearrange(window_t *win, rect_t *box)
+void win_blank_rearrange(window_t *win, const rect_t *box)
 {
     win->window.blank->owner->bbox = *box;
 }

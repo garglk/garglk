@@ -949,12 +949,12 @@ extern void gli_exit(int status);
 
 extern window_blank_t *win_blank_create(window_t *win);
 extern void win_blank_destroy(window_blank_t *dwin);
-extern void win_blank_rearrange(window_t *win, rect_t *box);
+extern void win_blank_rearrange(window_t *win, const rect_t *box);
 extern void win_blank_redraw(window_t *win);
 
 extern window_pair_t *win_pair_create(window_t *win, glui32 method, window_t *key, glui32 size);
 extern void win_pair_destroy(window_pair_t *dwin);
-extern void win_pair_rearrange(window_t *win, rect_t *box);
+extern void win_pair_rearrange(window_t *win, const rect_t *box);
 extern void win_pair_redraw(window_t *win);
 extern void win_pair_click(window_pair_t *dwin, int x, int y);
 
