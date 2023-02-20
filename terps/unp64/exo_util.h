@@ -54,7 +54,6 @@ bool u32eq(const unsigned char *addr, uint32_t val);
 bool u16eq(const unsigned char *addr, uint16_t val);
 bool u16gteq(const unsigned char *addr, uint16_t val);
 bool u16lteq(const unsigned char *addr, uint16_t val);
-bool u16noteq(const unsigned char *addr, uint16_t val);
 bool u32eqmasked(const unsigned char *addr, uint32_t mask, uint32_t val);
 bool u32eqxored(const unsigned char *addr, uint32_t ormask, uint32_t val);
 bool u16eqmasked(const unsigned char *addr, uint16_t mask, uint16_t val);

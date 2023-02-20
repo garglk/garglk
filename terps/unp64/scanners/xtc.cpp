@@ -88,7 +88,7 @@ void scnXTC(UnpStr *unp) {
 		}
 		if (unp->_depAdr) {
 			unp->_retAdr = READ_LE_UINT16(&mem[q + 0x16]); // mem[q + 0x16] | mem[q + 0x17] << 8;
-			if (u16noteq(mem + p, 0x00a0))
+			if (!u16eq(mem + p, 0x00a0))
 				unp->_forced = p + 2; /* the ldy #$00 can be missing, skipped */
 			else
 				unp->_forced = p;
