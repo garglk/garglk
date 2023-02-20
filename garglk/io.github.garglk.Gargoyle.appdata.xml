@@ -45,6 +45,7 @@
     <url type="bugtracker">https://github.com/garglk/garglk/issues</url>
     <launchable type="desktop-id">io.github.garglk.Gargoyle.desktop</launchable>
     <releases>
+        <release version="2023.1" date="2023-02-20"/>
         <release version="2022.1" date="2022-01-30"/>
         <release version="2019.1.1" date="2019-11-19"/>
         <release version="2019.1" date="2019-11-03"/>
