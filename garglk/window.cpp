@@ -20,6 +20,8 @@
 #include <algorithm>
 #include <new>
 
+#include "optional.hpp"
+
 #include "glk.h"
 #include "garglk.h"
 
@@ -780,7 +782,7 @@ void gli_windows_size_change(int w, int h)
 void gli_window_redraw(window_t *win)
 {
     if (gli_force_redraw) {
-        Color color = gli_override_bg_set ? gli_window_color : win->bgcolor;
+        Color color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
         int y0 = win->yadj != 0 ? win->bbox.y0 - win->yadj : win->bbox.y0;
         gli_draw_rect(win->bbox.x0, y0,
                 win->bbox.x1 - win->bbox.x0,
@@ -1350,20 +1352,16 @@ void glk_window_set_background_color(winid_t win, glui32 color)
 
 void attr_t::set(glui32 style_)
 {
-    fgset = false;
-    bgset = false;
-    fgcolor = Color(0, 0, 0);
-    bgcolor = Color(0, 0, 0);
+    fgcolor.reset();
+    bgcolor.reset();
     reverse = false;
     style = style_;
 }
 
 void attr_t::clear()
 {
-    fgset = false;
-    bgset = false;
-    fgcolor = Color(0, 0, 0);
-    bgcolor = Color(0, 0, 0);
+    fgcolor.reset();
+    bgcolor.reset();
     reverse = false;
     hyper = 0;
     style = 0;
@@ -1375,8 +1373,8 @@ FontFace attr_t::font(const Styles &styles) const
 }
 
 static Color zcolor_LightGrey = Color(181, 181, 181);
-static Color zcolor_Foreground = Color(0, 0, 0);
-static Color zcolor_Background = Color(0, 0, 0);
+static nonstd::optional<Color> zcolor_Foreground = Color(0, 0, 0);
+static nonstd::optional<Color> zcolor_Background = Color(0, 0, 0);
 
 static Color rgbshift(const Color &rgb)
 {
@@ -1388,35 +1386,26 @@ static Color rgbshift(const Color &rgb)
 Color attr_t::bg(const Styles &styles) const
 {
     bool revset = reverse || (styles[style].reverse && !gli_override_reverse);
-    bool zfset = fgset || gli_override_fg_set;
-    bool zbset = bgset || gli_override_bg_set;
 
-    Color zfore(fgset ? fgcolor : gli_override_fg_val);
-    Color zback(bgset ? bgcolor : gli_override_bg_val);
+    zcolor_Foreground = fgcolor.has_value() ? fgcolor :
+                        gli_override_fg.has_value() ? gli_override_fg :
+                        nonstd::nullopt;
 
-    if (zfset) {
-        zcolor_Foreground = zfore;
-    }
-
-    if (zbset) {
-        zcolor_Background = zback;
-    }
+    zcolor_Background = bgcolor.has_value() ? bgcolor :
+                        gli_override_bg.has_value() ? gli_override_bg :
+                        nonstd::nullopt;
 
     if (!revset) {
-        if (zbset) {
-            return zcolor_Background;
-        } else {
-            return styles[style].bg;
-        }
+        return zcolor_Background.value_or(styles[style].bg);
     } else {
-        if (zfset) {
-            if (zfore == zback) {
-                return rgbshift(zcolor_Foreground);
+        if (zcolor_Foreground.has_value()) {
+            if (zcolor_Foreground == zcolor_Background) {
+                return rgbshift(zcolor_Foreground.value());
             } else {
-                return zcolor_Foreground;
+                return zcolor_Foreground.value();
             }
         } else {
-            if (zbset && styles[style].fg == zcolor_Background) {
+            if (styles[style].fg == zcolor_Background) {
                 return zcolor_LightGrey;
             } else {
                 return styles[style].fg;
@@ -1428,39 +1417,30 @@ Color attr_t::bg(const Styles &styles) const
 Color attr_t::fg(const Styles &styles) const
 {
     bool revset = reverse || (styles[style].reverse && !gli_override_reverse);
-    bool zfset = fgset || gli_override_fg_set;
-    bool zbset = bgset || gli_override_bg_set;
 
-    Color zfore(fgset ? fgcolor : gli_override_fg_val);
-    Color zback(bgset ? bgcolor : gli_override_bg_val);
+    zcolor_Foreground = fgcolor.has_value() ? fgcolor :
+                        gli_override_fg.has_value() ? gli_override_fg :
+                        nonstd::nullopt;
 
-    if (zfset) {
-        zcolor_Foreground = zfore;
-    }
-
-    if (zbset) {
-        zcolor_Background = zback;
-    }
+    zcolor_Background = bgcolor.has_value() ? bgcolor :
+                        gli_override_bg.has_value() ? gli_override_bg :
+                        nonstd::nullopt;
 
     if (!revset) {
-        if (zfset) {
-            if (zfore == zback) {
-                return rgbshift(zcolor_Foreground);
+        if (zcolor_Foreground.has_value()) {
+            if (zcolor_Foreground == zcolor_Background) {
+                return rgbshift(zcolor_Foreground.value());
             } else {
-                return zcolor_Foreground;
+                return zcolor_Foreground.value();
             }
         } else {
-            if (zbset && styles[style].fg == zcolor_Background) {
+            if (styles[style].fg == zcolor_Background) {
                 return zcolor_LightGrey;
             } else {
                 return styles[style].fg;
             }
         }
     } else {
-        if (zbset) {
-            return zcolor_Background;
-        } else {
-            return styles[style].bg;
-        }
+        return zcolor_Background.value_or(styles[style].bg);
     }
 }
