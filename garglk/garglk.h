@@ -315,6 +315,15 @@ private:
 template <std::size_t N>
 class Canvas {
 public:
+    Canvas() = default;
+
+    Canvas(int width, int height) :
+        m_width(width),
+        m_height(height)
+    {
+        resize(width, height, false);
+    }
+
     void resize(int width, int height, bool keep) {
         if (keep) {
             auto backup = m_pixels;
@@ -480,13 +489,18 @@ struct rect_t {
 };
 
 struct picture_t {
-    picture_t(unsigned int id_, int w_, int h_, bool scaled_) : w(w_), h(h_), id(id_), scaled(scaled_) {
-        rgba.resize(w, h, false);
+    picture_t(unsigned int id_, Canvas<4> rgba_, bool scaled_) :
+        id(id_),
+        rgba(std::move(rgba_)),
+        w(rgba.width()),
+        h(rgba.height()),
+        scaled(scaled_)
+    {
     }
 
-    int w, h;
-    Canvas<4> rgba;
     unsigned long id;
+    Canvas<4> rgba;
+    int w, h;
     bool scaled;
 };
 
