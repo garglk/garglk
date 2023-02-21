@@ -58,11 +58,9 @@
 #define T_MGSR      "magnetic"
 #define T_PLUS      "plus"
 #define T_SCOTT     "scott"
-#define T_TADS2     "tadsr"
-#define T_TADS3     "tadsr"
+#define T_TADS      "tadsr"
 #define T_TAYLOR    "taylor"
 #define T_ZCODE     "bocfel"
-#define T_ZSIX      "bocfel"
 
 #define ID_ZCOD (giblorb_make_id('Z', 'C', 'O', 'D'))
 #define ID_GLUL (giblorb_make_id('G', 'L', 'U', 'L'))
@@ -93,20 +91,17 @@ enum class Format {
     Magnetic,
     Plus,
     Scott,
-    TADS2,
-    TADS3,
+    TADS,
     Taylor,
     ZCode,
-    ZCode6,
 };
 
 static nonstd::optional<Format> probe(const std::array<char, 32> &header)
 {
     std::vector<std::pair<std::string, Format>> magic = {
-        {R"(^[\x01\x02\x03\x04\x05\x07\x08][\s\S]{17}\d{6})", Format::ZCode},
-        {R"(^\x06[\s\S]{17}\d{6})", Format::ZCode6},
-        {R"(^TADS2 bin\x0a\x0d\x1a)", Format::TADS2},
-        {R"(^T3-image\x0d\x0a\x1a(\x01|\x02)\x00)", Format::TADS3},
+        {R"(^[\x01-\x08][\s\S]{17}\d{6})", Format::ZCode},
+        {R"(^TADS2 bin\x0a\x0d\x1a)", Format::TADS},
+        {R"(^T3-image\x0d\x0a\x1a(\x01|\x02)\x00)", Format::TADS},
         {R"(^Glul)", Format::Glulx},
         {R"(^MaSc[\s\S]{4}\x00\x00\x00\x2a\x00[\x00\x01\x02\x03\x04])", Format::Magnetic},
         {R"(^\x3c\x42\x3f\xc9\x6a\x87\xc2\xcf[\x93\x94]\x45)", Format::Adrift},
@@ -144,8 +139,8 @@ static const std::unordered_map<std::string, Format> extensions = {
     {"mag", Format::Magnetic},
     {"plus", Format::Plus},
     {"saga", Format::Scott},
-    {"gam", Format::TADS2},
-    {"t3", Format::TADS3},
+    {"gam", Format::TADS},
+    {"t3", Format::TADS},
     {"tay", Format::Taylor},
     {"dat", Format::Scott},
     {"z1", Format::ZCode},
@@ -153,9 +148,9 @@ static const std::unordered_map<std::string, Format> extensions = {
     {"z3", Format::ZCode},
     {"z4", Format::ZCode},
     {"z5", Format::ZCode},
+    {"z6", Format::ZCode},
     {"z7", Format::ZCode},
     {"z8", Format::ZCode},
-    {"z6", Format::ZCode6},
 };
 
 // Map formats to default interpreters
@@ -172,11 +167,9 @@ static const std::unordered_map<Format, Interpreter> interpreters = {
     {Format::Magnetic, Interpreter(T_MGSR)},
     {Format::Plus, Interpreter(T_PLUS)},
     {Format::Scott, Interpreter(T_SCOTT)},
-    {Format::TADS2, Interpreter(T_TADS2)},
-    {Format::TADS3, Interpreter(T_TADS3)},
+    {Format::TADS, Interpreter(T_TADS)},
     {Format::Taylor, Interpreter(T_TAYLOR)},
     {Format::ZCode, Interpreter(T_ZCODE)},
-    {Format::ZCode6, Interpreter(T_ZSIX)},
 };
 
 static bool call_winterp(const Interpreter &interpreter, const std::string &game)
@@ -309,15 +302,7 @@ static bool runblorb(const std::string &game)
         }
 
         if (res.chunktype == ID_ZCOD) {
-            char zversion;
-
-            glk_stream_set_position(file.get(), res.data.startpos, 0);
-            if (glk_get_buffer_stream(file.get(), &zversion, 1) != 1) {
-                throw BlorbError("Unable to read story file (possibly corrupted Blorb file)");
-            }
-
-            Format format = zversion == 6 ? Format::ZCode6 : Format::ZCode;
-            return call_winterp(format, game);
+            return call_winterp(Format::ZCode, game);
         } else if (res.chunktype == ID_GLUL) {
             return call_winterp(Format::Glulx, game);
         }
