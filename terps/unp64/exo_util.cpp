@@ -194,17 +194,10 @@ bool u16eqmasked(const unsigned char *addr, uint16_t mask, uint16_t val)
     return (val1 & mask) == val;
 }
 
-
 bool u16eq(const unsigned char *addr, uint16_t val)
 {
     return addr[1] == (val >> 8) &&
     addr[0] == (val & 0xff);
-}
-
-bool u16noteq(const unsigned char *addr, uint16_t val)
-{
-    return addr[1] != (val >> 8) ||
-    addr[0] != (val & 0xff);
 }
 
 bool u16gteq(const unsigned char *addr, uint16_t val)
