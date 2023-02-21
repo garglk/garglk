@@ -43,6 +43,11 @@ using std::FILE;
 static std::shared_ptr<picture_t> load_image_png(std::FILE *fl, unsigned long id);
 static std::shared_ptr<picture_t> load_image_jpeg(std::FILE *fl, unsigned long id);
 
+struct LoadError : public std::runtime_error {
+    LoadError(const std::string &format, const std::string &msg) : std::runtime_error(msg + " [" + format + "]") {
+    }
+};
+
 struct PicturePair {
     std::shared_ptr<picture_t> picture;
     std::shared_ptr<picture_t> scaled;
@@ -159,6 +164,8 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
             gli_picture_store(pic);
             return pic;
         }
+    } catch (const LoadError &e) {
+        gli_strict_warning("unable to load image " + std::to_string(id) + ": " + e.what());
     } catch (const std::out_of_range &) {
     }
 
@@ -173,50 +180,48 @@ static std::shared_ptr<picture_t> load_image_jpeg(std::FILE *fl, unsigned long i
     int n, i;
 
     cinfo.err = jpeg_std_error(&jerr);
-    jerr.error_exit = [](j_common_ptr) {
-        throw std::exception();
+    jerr.error_exit = [](j_common_ptr cinfo) {
+        std::array<char, JMSG_LENGTH_MAX> msg;
+        cinfo->err->format_message(cinfo, msg.data());
+        throw LoadError("jpeg", msg.data());
     };
 
-    try {
-        jpeg_create_decompress(&cinfo);
-        auto jpeg_free = garglk::unique(&cinfo, jpeg_destroy_decompress);
+    jpeg_create_decompress(&cinfo);
+    auto jpeg_free = garglk::unique(&cinfo, jpeg_destroy_decompress);
 
-        jpeg_stdio_src(&cinfo, fl);
-        jpeg_read_header(&cinfo, TRUE);
-        jpeg_start_decompress(&cinfo);
+    jpeg_stdio_src(&cinfo, fl);
+    jpeg_read_header(&cinfo, TRUE);
+    jpeg_start_decompress(&cinfo);
 
-        n = cinfo.output_components;
+    n = cinfo.output_components;
 
-        // Currently Gargoyle only understands 1 or 3 components.
-        if (n != 1 && n != 3) {
-            return nullptr;
-        }
-
-        auto pic = std::make_shared<picture_t>(id, cinfo.output_width, cinfo.output_height, false);
-
-        std::vector<JSAMPLE> row(pic->w * n);
-        rowarray[0] = row.data();
-
-        while (cinfo.output_scanline < cinfo.output_height) {
-            JDIMENSION y = cinfo.output_scanline;
-            jpeg_read_scanlines(&cinfo, rowarray.data(), 1);
-            if (n == 1) {
-                for (i = 0; i < pic->w; i++) {
-                    pic->rgba[y][i] = Pixel<4>(row[i], row[i], row[i], 0xff);
-                }
-            } else if (n == 3) {
-                for (i = 0; i < pic->w; i++) {
-                    pic->rgba[y][i] = Pixel<4>(row[i * 3 + 0], row[i * 3 + 1], row[i * 3 + 2], 0xff);
-                }
-            }
-        }
-
-        jpeg_finish_decompress(&cinfo);
-
-        return pic;
-    } catch (const std::exception &) {
+    // Currently Gargoyle only understands 1 or 3 components.
+    if (n != 1 && n != 3) {
         return nullptr;
     }
+
+    auto pic = std::make_shared<picture_t>(id, cinfo.output_width, cinfo.output_height, false);
+
+    std::vector<JSAMPLE> row(pic->w * n);
+    rowarray[0] = row.data();
+
+    while (cinfo.output_scanline < cinfo.output_height) {
+        JDIMENSION y = cinfo.output_scanline;
+        jpeg_read_scanlines(&cinfo, rowarray.data(), 1);
+        if (n == 1) {
+            for (i = 0; i < pic->w; i++) {
+                pic->rgba[y][i] = Pixel<4>(row[i], row[i], row[i], 0xff);
+            }
+        } else if (n == 3) {
+            for (i = 0; i < pic->w; i++) {
+                pic->rgba[y][i] = Pixel<4>(row[i * 3 + 0], row[i * 3 + 1], row[i * 3 + 2], 0xff);
+            }
+        }
+    }
+
+    jpeg_finish_decompress(&cinfo);
+
+    return pic;
 }
 
 static std::shared_ptr<picture_t> load_image_png(std::FILE *fl, unsigned long id)
@@ -228,14 +233,14 @@ static std::shared_ptr<picture_t> load_image_png(std::FILE *fl, unsigned long id
     auto free_png = garglk::unique(&image, png_image_free);
 
     if (png_image_begin_read_from_stdio(&image, fl) == 0) {
-        return nullptr;
+        throw LoadError("png", image.message);
     }
 
     image.format = PNG_FORMAT_RGBA;
     auto pic = std::make_shared<picture_t>(id, image.width, image.height, false);
 
     if (png_image_finish_read(&image, nullptr, pic->rgba.data(), 0, nullptr) == 0) {
-        return nullptr;
+        throw LoadError("png", image.message);
     }
 
     return pic;
