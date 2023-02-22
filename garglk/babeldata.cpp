@@ -16,20 +16,21 @@
 // along with Gargoyle; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+#include <string>
+
+#include "glk.h"
+#include "garglk.h"
+
 #ifdef BABEL_HANDLER
 
 #include <cstdlib>
 #include <memory>
 #include <new>
-#include <string>
 #include <vector>
 
-#include "glk.h"
-#include "garglk.h"
-
-#include "treaty.h"
 #include "babel_handler.h"
 #include "ifiction.h"
+#include "treaty.h"
 
 void gli_initialize_babel()
 {
@@ -64,7 +65,7 @@ void gli_initialize_babel()
 
 #else
 
-void gli_initialize_babel()
+void gli_initialize_babel(const std::string &)
 {
 }
 
