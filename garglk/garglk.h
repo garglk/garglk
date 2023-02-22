@@ -25,7 +25,6 @@
 #ifndef GARGLK_GARGLK_H
 #define GARGLK_GARGLK_H
 
-#ifdef __cplusplus
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -1183,6 +1182,5 @@ void gli_edit_config();
             )) \
         )) \
     )
-#endif
 
 #endif

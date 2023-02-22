@@ -28,10 +28,6 @@
 #include "os.h"
 #include "glk.h"
 
-#ifdef GARGLK
-#include "garglk.h"                 /* for-size to-contents hack */
-#endif /* GARGLK */
-
 typedef struct os_banner_s *osbanid_t;
 typedef struct banner_contents_s *contentid_t;
 
