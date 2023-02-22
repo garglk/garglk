@@ -245,7 +245,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::stri
         std::string config;
 
         // game file .ini
-        config = gamepath.value();
+        config = *gamepath;
         auto dot = config.rfind('.');
         if (dot != std::string::npos) {
             config.replace(dot, std::string::npos, ".ini");
@@ -256,7 +256,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::stri
         configs.emplace_back(config, ConfigFile::Type::PerGame);
 
         // game directory .ini
-        config = gamepath.value();
+        config = *gamepath;
         auto slash = config.find_last_of("/\\");
         if (slash != std::string::npos) {
             config.replace(slash + 1, std::string::npos, "garglk.ini");
@@ -334,7 +334,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::stri
     // install directory
     auto exedir = garglk::winappdir();
     if (exedir.has_value()) {
-        configs.push_back(ConfigFile(exedir.value() + "/garglk.ini", ConfigFile::Type::System));
+        configs.push_back(ConfigFile(*exedir + "/garglk.ini", ConfigFile::Type::System));
     }
 #endif
 
@@ -855,6 +855,6 @@ void gli_startup(int argc, char *argv[])
     winopen();
 
     if (gli_workfile.has_value()) {
-        gli_initialize_babel(gli_workfile.value());
+        gli_initialize_babel(*gli_workfile);
     }
 }

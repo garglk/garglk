@@ -229,9 +229,9 @@ private:
         auto colors = make_array<style_NUMSTYLES>(ColorPair{white, black});
         std::vector<std::string> missing;
         for (const auto &s : stylemap) {
-            if (possible_colors[s.second].has_value()) {
+            try {
                 colors[s.second] = possible_colors[s.second].value();
-            } else {
+            } catch (const nonstd::bad_optional_access &) {
                 missing.push_back(s.first);
             }
         }

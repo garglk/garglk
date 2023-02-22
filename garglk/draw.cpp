@@ -305,7 +305,7 @@ static Font make_font(FontFace fontface, const std::string &fallback)
         auto fontpath = get_font_path(path, fallback);
         FT_Face face;
         if (fontpath.has_value() && FT_New_Face(ftlib, fontpath->c_str(), 0, &face) == 0) {
-            return {fontface, face, fontpath.value()};
+            return {fontface, face, *fontpath};
         }
     }
 

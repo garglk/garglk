@@ -277,7 +277,7 @@ static bool runblorb(const std::string &game)
 
     auto adrift_format = find_adrift_blorb_format(game);
     if (adrift_format.has_value()) {
-        return call_winterp(adrift_format.value(), game);
+        return call_winterp(*adrift_format, game);
     }
 
     try {
@@ -388,7 +388,7 @@ bool garglk::rungame(const std::string &game)
 
     auto interpreter = configterp(game);
     if (interpreter.has_value()) {
-        return call_winterp(interpreter.value(), game);
+        return call_winterp(*interpreter, game);
     }
 
     std::ifstream f(game, std::ios::binary);
@@ -405,7 +405,7 @@ bool garglk::rungame(const std::string &game)
 
         auto format = probe(header);
         if (format.has_value()) {
-            return call_winterp(format.value(), game);
+            return call_winterp(*format, game);
         }
     }
 

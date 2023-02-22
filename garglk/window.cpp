@@ -1400,9 +1400,9 @@ Color attr_t::bg(const Styles &styles) const
     } else {
         if (zcolor_Foreground.has_value()) {
             if (zcolor_Foreground == zcolor_Background) {
-                return rgbshift(zcolor_Foreground.value());
+                return rgbshift(*zcolor_Foreground);
             } else {
-                return zcolor_Foreground.value();
+                return *zcolor_Foreground;
             }
         } else {
             if (styles[style].fg == zcolor_Background) {
@@ -1429,9 +1429,9 @@ Color attr_t::fg(const Styles &styles) const
     if (!revset) {
         if (zcolor_Foreground.has_value()) {
             if (zcolor_Foreground == zcolor_Background) {
-                return rgbshift(zcolor_Foreground.value());
+                return rgbshift(*zcolor_Foreground);
             } else {
-                return zcolor_Foreground.value();
+                return *zcolor_Foreground;
             }
         } else {
             if (styles[style].fg == zcolor_Background) {

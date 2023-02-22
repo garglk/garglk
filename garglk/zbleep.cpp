@@ -117,12 +117,11 @@ void Bleeps::update(int number, const std::string &path)
 
 std::vector<std::uint8_t> &Bleeps::at(int number)
 {
-    auto &vec = m_bleeps.at(number);
-    if (!vec.has_value()) {
+    try {
+        return m_bleeps.at(number).value();
+    } catch (const nonstd::bad_optional_access &) {
         throw Empty();
     }
-
-    return vec.value();
 }
 
 Bleeps gli_bleeps;

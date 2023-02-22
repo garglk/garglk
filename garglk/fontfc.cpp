@@ -144,30 +144,30 @@ void garglk::fontreplace(const std::string &font, FontType type)
     // regular or roman
     sysfont = find_font_by_styles(font, regular_styles, regular_weights, roman_slants);
     if (sysfont.has_value()) {
-        *r = sysfont.value();
-        *b = sysfont.value();
-        *i = sysfont.value();
-        *z = sysfont.value();
+        *r = *sysfont;
+        *b = *sysfont;
+        *i = *sysfont;
+        *z = *sysfont;
     }
 
     // bold
     sysfont = find_font_by_styles(font, bold_styles, bold_weights, roman_slants);
     if (sysfont.has_value()) {
-        *b = sysfont.value();
-        *z = sysfont.value();
+        *b = *sysfont;
+        *z = *sysfont;
     }
 
     // italic or oblique
     sysfont = find_font_by_styles(font, italic_styles, regular_weights, italic_slants);
     if (sysfont.has_value()) {
-        *i = sysfont.value();
-        *z = sysfont.value();
+        *i = *sysfont;
+        *z = *sysfont;
     }
 
     // bold italic or bold oblique
     sysfont = find_font_by_styles(font, bold_italic_styles, bold_weights, italic_slants);
     if (sysfont.has_value()) {
-        *z = sysfont.value();
+        *z = *sysfont;
     }
 }
 

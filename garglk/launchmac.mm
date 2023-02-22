@@ -1051,7 +1051,7 @@ bool garglk::winterp(const std::string &exe, const nonstd::optional<std::string>
     std::vector<std::string> args;
 
     if (flags.has_value()) {
-        args.push_back(flags.value());
+        args.push_back(*flags);
         args.push_back(game);
     } else {
         args.push_back(game);
