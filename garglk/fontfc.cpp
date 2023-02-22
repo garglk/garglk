@@ -133,8 +133,8 @@ void garglk::fontreplace(const std::string &font, FontType type)
     // return weights that are not medium (100); explicitly listing the
     // weight value doesn't have this problem.
 
-    std::vector<int> regular_weights = {FC_WEIGHT_BOOK, FC_WEIGHT_REGULAR, FC_WEIGHT_MEDIUM};
-    std::vector<int> bold_weights = {FC_WEIGHT_DEMIBOLD, FC_WEIGHT_BOLD, FC_WEIGHT_EXTRABOLD, FC_WEIGHT_BLACK};
+    std::vector<int> regular_weights = {FC_WEIGHT_REGULAR, FC_WEIGHT_BOOK, FC_WEIGHT_MEDIUM};
+    std::vector<int> bold_weights = {FC_WEIGHT_BOLD, FC_WEIGHT_EXTRABOLD, FC_WEIGHT_DEMIBOLD, FC_WEIGHT_BLACK};
 
     std::vector<std::string> roman_slants = {"roman"};
     std::vector<std::string> italic_slants = {"italic", "oblique"};
