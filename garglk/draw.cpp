@@ -290,7 +290,7 @@ static Font make_font(FontFace fontface, const std::string &fallback)
         font_path_fallback_local,
     };
 
-    std::string path =
+    const std::string &path =
         fontface == FontFace::monor() ? gli_conf_mono.r :
         fontface == FontFace::monob() ? gli_conf_mono.b :
         fontface == FontFace::monoi() ? gli_conf_mono.i :
