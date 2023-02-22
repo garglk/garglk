@@ -31,14 +31,10 @@
 #include "babel_handler.h"
 #include "ifiction.h"
 
-void gli_initialize_babel()
+void gli_initialize_babel(const std::string &filename)
 {
-    if (gli_workfile.empty()) {
-        return;
-    }
-
     auto ctx = garglk::unique(get_babel_ctx(), release_babel_ctx);
-    if (babel_init_ctx(const_cast<char *>(gli_workfile.c_str()), ctx.get()) != nullptr) {
+    if (babel_init_ctx(const_cast<char *>(filename.c_str()), ctx.get()) != nullptr) {
         int metaSize = babel_treaty_ctx(GET_STORY_FILE_METADATA_EXTENT_SEL, nullptr, 0, ctx.get());
         if (metaSize > 0) {
             try {

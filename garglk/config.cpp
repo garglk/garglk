@@ -238,14 +238,14 @@ static void parsecolor(const std::string &str, Color &rgb)
 // 6. <directory containing gargoyle/interpreter executable>/garglk.ini (Windows only)
 //
 // gamepath is the path to the game file being run
-std::vector<garglk::ConfigFile> garglk::configs(const std::string &gamepath = "")
+std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::string> &gamepath = nonstd::nullopt)
 {
     std::vector<ConfigFile> configs;
-    if (!gamepath.empty()) {
+    if (gamepath.has_value()) {
         std::string config;
 
         // game file .ini
-        config = gamepath;
+        config = gamepath.value();
         auto dot = config.rfind('.');
         if (dot != std::string::npos) {
             config.replace(dot, std::string::npos, ".ini");
@@ -256,7 +256,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &gamepath = ""
         configs.emplace_back(config, ConfigFile::Type::PerGame);
 
         // game directory .ini
-        config = gamepath;
+        config = gamepath.value();
         auto slash = config.find_last_of("/\\");
         if (slash != std::string::npos) {
             config.replace(slash + 1, std::string::npos, "garglk.ini");
@@ -333,8 +333,8 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &gamepath = ""
 #ifdef _WIN32
     // install directory
     auto exedir = garglk::winappdir();
-    if (!exedir.empty()) {
-        configs.push_back(ConfigFile(exedir + "/garglk.ini", ConfigFile::Type::System));
+    if (exedir.has_value()) {
+        configs.push_back(ConfigFile(exedir.value() + "/garglk.ini", ConfigFile::Type::System));
     }
 #endif
 
@@ -853,5 +853,8 @@ void gli_startup(int argc, char *argv[])
     gli_initialize_sound();
 
     winopen();
-    gli_initialize_babel();
+
+    if (gli_workfile.has_value()) {
+        gli_initialize_babel(gli_workfile.value());
+    }
 }

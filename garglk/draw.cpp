@@ -230,7 +230,7 @@ FontEntry Font::getglyph(glui32 cid)
 // Look for a user-specified font. This will be either based on a font
 // family (propfont or monofont), or specific font files (e.g. propr,
 // monor, etc).
-static std::string font_path_user(const std::string &path, const std::string &)
+static nonstd::optional<std::string> font_path_user(const std::string &path, const std::string &)
 {
     return path;
 }
@@ -239,33 +239,33 @@ static std::string font_path_user(const std::string &path, const std::string &)
 // Unix this is generally somewhere like /usr/share/fonts/gargoyle
 // (although this can be changed at build time), and on Windows it's the
 // install directory (e.g. "C:\Program Files (x86)\Gargoyle").
-static std::string font_path_fallback_system(const std::string &, const std::string &fallback)
+static nonstd::optional<std::string> font_path_fallback_system(const std::string &, const std::string &fallback)
 {
 #ifdef _WIN32
     char directory[256];
     DWORD dsize = sizeof directory;
     if (RegGetValueA(HKEY_LOCAL_MACHINE, "Software\\Tor Andersson\\Gargoyle", "Directory", RRF_RT_REG_SZ, nullptr, directory, &dsize) != ERROR_SUCCESS) {
-        return "";
+        return nonstd::nullopt;
     }
 
     return std::string(directory) + "\\" + fallback;
 #elif defined(GARGLK_CONFIG_FONT_PATH)
     return std::string(GARGLK_CONFIG_FONT_PATH) + "/" + fallback;
 #else
-    return "";
+    return nonstd::nullopt;
 #endif
 }
 
 // Look in a platform-specific location for the fonts. This is typically
 // the same directory that the executable is in, but can be anything the
 // platform code deems appropriate.
-static std::string font_path_fallback_platform(const std::string &, const std::string &fallback)
+static nonstd::optional<std::string> font_path_fallback_platform(const std::string &, const std::string &fallback)
 {
     return garglk::winfontpath(fallback);
 }
 
 // As a last-ditch effort, look in the current directory for the fonts.
-static std::string font_path_fallback_local(const std::string &, const std::string &fallback)
+static nonstd::optional<std::string> font_path_fallback_local(const std::string &, const std::string &fallback)
 {
     return fallback;
 }
@@ -283,7 +283,7 @@ static std::string fontface_to_name(FontFace fontface)
 
 static Font make_font(FontFace fontface, const std::string &fallback)
 {
-    std::vector<std::function<std::string(const std::string &path, const std::string &fallback)>> font_paths = {
+    std::vector<std::function<nonstd::optional<std::string>(const std::string &path, const std::string &fallback)>> font_paths = {
         font_path_user,
         font_path_fallback_system,
         font_path_fallback_platform,
@@ -304,8 +304,8 @@ static Font make_font(FontFace fontface, const std::string &fallback)
     for (const auto &get_font_path : font_paths) {
         auto fontpath = get_font_path(path, fallback);
         FT_Face face;
-        if (!fontpath.empty() && FT_New_Face(ftlib, fontpath.c_str(), 0, &face) == 0) {
-            return {fontface, face, fontpath};
+        if (fontpath.has_value() && FT_New_Face(ftlib, fontpath->c_str(), 0, &face) == 0) {
+            return {fontface, face, fontpath.value()};
         }
     }
 

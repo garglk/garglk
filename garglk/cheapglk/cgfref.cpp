@@ -45,9 +45,11 @@
 #include "garglk.h"
 #include "glkstart.h"
 
+#include "optional.hpp"
+
 #ifdef GARGLK
 std::string gli_workdir = ".";
-std::string gli_workfile;
+nonstd::optional<std::string> gli_workfile;
 
 const char *garglk_fileref_get_name(fileref_t *fref)
 {

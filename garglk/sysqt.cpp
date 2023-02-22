@@ -76,6 +76,8 @@
 #include <utility>
 #include <vector>
 
+#include "optional.hpp"
+
 #include "sysqt.h"
 #include "moc_sysqt.cpp"
 
@@ -643,7 +645,7 @@ bool windark()
     return text_hsv_value > bg_hsv_value;
 }
 
-std::string garglk::winfontpath(const std::string &filename)
+nonstd::optional<std::string> garglk::winfontpath(const std::string &filename)
 {
     return QCoreApplication::applicationDirPath().toStdString() + "/" + filename;
 }
@@ -676,7 +678,7 @@ std::vector<std::string> garglk::winappdata()
     return paths;
 }
 
-std::string garglk::winappdir()
+nonstd::optional<std::string> garglk::winappdir()
 {
     return QCoreApplication::applicationDirPath().toStdString();
 }

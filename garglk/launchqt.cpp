@@ -112,7 +112,7 @@ static QString winbrowsefile()
     return QFileDialog::getOpenFileName(nullptr, AppName, "", filter_string, nullptr, options);
 }
 
-bool garglk::winterp(const std::string &exe, const std::string &flags, const std::string &game)
+bool garglk::winterp(const std::string &exe, const nonstd::optional<std::string> &flags, const std::string &game)
 {
     // Find the directory that contains the interpreters. By default
     // this is GARGLK_CONFIG_INTERPRETER_DIR but if that is not set, it
@@ -138,8 +138,8 @@ bool garglk::winterp(const std::string &exe, const std::string &flags, const std
 
     QStringList args;
 
-    if (flags.find('-') != std::string::npos) {
-        args = QStringList({flags.c_str(), game.c_str()});
+    if (flags.has_value()) {
+        args = QStringList({flags->c_str(), game.c_str()});
     } else {
         args = QStringList({game.c_str()});
     }

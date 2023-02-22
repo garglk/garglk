@@ -23,10 +23,12 @@
 
 #include <string>
 
+#include "optional.hpp"
+
 namespace garglk {
 
 void winmsg(const std::string &msg);
-bool winterp(const std::string &exe, const std::string &flags, const std::string &game);
+bool winterp(const std::string &exe, const nonstd::optional<std::string> &flags, const std::string &game);
 bool rungame(const std::string &game);
 
 }

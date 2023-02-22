@@ -23,38 +23,40 @@
 
 #include <fontconfig/fontconfig.h>
 
+#include "optional.hpp"
+
 #include "glk.h"
 #include "garglk.h"
 
 static bool initialized = false;
 
-static std::string findfont(const std::string &fontname)
+static nonstd::optional<std::string> findfont(const std::string &fontname)
 {
     FcChar8 *strval = nullptr;
 
     auto p = garglk::unique(FcNameParse(reinterpret_cast<const FcChar8 *>(fontname.c_str())), FcPatternDestroy);
     if (p == nullptr) {
-        return "";
+        return nonstd::nullopt;
     }
 
     auto os = garglk::unique(FcObjectSetBuild(FC_FILE, static_cast<char *>(nullptr)), FcObjectSetDestroy);
     if (os == nullptr) {
-        return "";
+        return nonstd::nullopt;
     }
 
     auto fs = garglk::unique(FcFontList(nullptr, p.get(), os.get()), FcFontSetDestroy);
     if (fs->nfont == 0) {
-        return "";
+        return nonstd::nullopt;
     }
 
     if (FcPatternGetString(fs->fonts[0], FC_FILE, 0, &strval) == FcResultTypeMismatch || strval == nullptr) {
-        return "";
+        return nonstd::nullopt;
     }
 
     return reinterpret_cast<char *>(strval);
 }
 
-static std::string find_font_by_styles(const std::string &basefont, const std::vector<std::string> &styles, const std::vector<std::string> &weights, const std::vector<std::string> &slants)
+static nonstd::optional<std::string> find_font_by_styles(const std::string &basefont, const std::vector<std::string> &styles, const std::vector<std::string> &weights, const std::vector<std::string> &slants)
 {
     // Prefer normal width fonts, but if there aren't any, allow whatever fontconfig finds.
     std::vector<std::string> widths = {":normal", ""};
@@ -64,11 +66,10 @@ static std::string find_font_by_styles(const std::string &basefont, const std::v
             for (const auto &weight : weights) {
                 for (const auto &slant : slants) {
                     std::ostringstream fontname;
-                    std::string fontpath;
-
                     fontname << basefont << ":style=" << style << ":weight=" << weight << ":" << slant << width;
-                    fontpath = findfont(fontname.str());
-                    if (!fontpath.empty()) {
+
+                    auto fontpath = findfont(fontname.str());
+                    if (fontpath.has_value()) {
                         return fontpath;
                     }
                 }
@@ -76,7 +77,7 @@ static std::string find_font_by_styles(const std::string &basefont, const std::v
         }
     }
 
-    return "";
+    return nonstd::nullopt;
 }
 
 void garglk::fontreplace(const std::string &font, FontType type)
@@ -85,7 +86,7 @@ void garglk::fontreplace(const std::string &font, FontType type)
         return;
     }
 
-    std::string sysfont;
+    nonstd::optional<std::string> sysfont;
     std::string *r, *b, *i, *z;
 
     if (type == FontType::Monospace) {
@@ -142,31 +143,31 @@ void garglk::fontreplace(const std::string &font, FontType type)
 
     // regular or roman
     sysfont = find_font_by_styles(font, regular_styles, regular_weights, roman_slants);
-    if (!sysfont.empty()) {
-        *r = sysfont;
-        *b = sysfont;
-        *i = sysfont;
-        *z = sysfont;
+    if (sysfont.has_value()) {
+        *r = sysfont.value();
+        *b = sysfont.value();
+        *i = sysfont.value();
+        *z = sysfont.value();
     }
 
     // bold
     sysfont = find_font_by_styles(font, bold_styles, bold_weights, roman_slants);
-    if (!sysfont.empty()) {
-        *b = sysfont;
-        *z = sysfont;
+    if (sysfont.has_value()) {
+        *b = sysfont.value();
+        *z = sysfont.value();
     }
 
     // italic or oblique
     sysfont = find_font_by_styles(font, italic_styles, regular_weights, italic_slants);
-    if (!sysfont.empty()) {
-        *i = sysfont;
-        *z = sysfont;
+    if (sysfont.has_value()) {
+        *i = sysfont.value();
+        *z = sysfont.value();
     }
 
     // bold italic or bold oblique
     sysfont = find_font_by_styles(font, bold_italic_styles, bold_weights, italic_slants);
-    if (!sysfont.empty()) {
-        *z = sysfont;
+    if (sysfont.has_value()) {
+        *z = sysfont.value();
     }
 }
 
