@@ -712,11 +712,7 @@ glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, gl
     }
 
     // load sound resource into memory
-    try {
-        type = load_resource(snd, chan->sdl_memory);
-    } catch (const Bleeps::Empty &) {
-        return 1;
-    }
+    type = load_resource(snd, chan->sdl_memory);
 
     chan->sdl_rwops = SDL_RWFromConstMem(chan->sdl_memory.data(), chan->sdl_memory.size());
     chan->notify = notify;
@@ -828,6 +824,9 @@ void garglk_zbleep(glui32 number)
     }
 
     if (gli_bleep_channel != nullptr) {
-        glk_schannel_play_ext_impl(gli_bleep_channel, number, 1, 0, load_bleep_resource);
+        try {
+            glk_schannel_play_ext_impl(gli_bleep_channel, number, 1, 0, load_bleep_resource);
+        } catch (const Bleeps::Empty &) {
+        }
     }
 }

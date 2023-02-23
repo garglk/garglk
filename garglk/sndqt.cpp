@@ -782,11 +782,7 @@ glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, gl
         int type;
         QByteArray data;
 
-        try {
-            std::tie(type, data) = load_resource(snd);
-        } catch (const Bleeps::Empty &) {
-            return 1;
-        }
+        std::tie(type, data) = load_resource(snd);
 
         try {
             switch (type) {
@@ -937,6 +933,9 @@ void garglk_zbleep(glui32 number)
     }
 
     if (gli_bleep_channel != nullptr) {
-        glk_schannel_play_ext_impl(gli_bleep_channel, number, 1, 0, load_bleep_resource);
+        try {
+            glk_schannel_play_ext_impl(gli_bleep_channel, number, 1, 0, load_bleep_resource);
+        } catch (const Bleeps::Empty &) {
+        }
     }
 }
