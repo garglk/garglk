@@ -25,9 +25,6 @@
 #include "glk.h"
 #include "garglk.h"
 
-#define LINES 24
-#define COLS 70
-
 // limit number of text rows/columns
 #define MAX_TEXT_COLUMNS 255
 #define MAX_TEXT_ROWS 255
