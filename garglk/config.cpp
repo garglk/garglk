@@ -29,6 +29,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #if __cplusplus >= 201703L
@@ -98,24 +99,18 @@ std::vector<garglk::ConfigFile> garglk::all_configs;
 
 static FontFace font2idx(const std::string &font)
 {
-    if (font == "monor") {
-        return FontFace::monor();
-    } else if (font == "monob") {
-        return FontFace::monob();
-    } else if (font == "monoi") {
-        return FontFace::monoi();
-    } else if (font == "monoz") {
-        return FontFace::monoz();
-    } else if (font == "propr") {
-        return FontFace::propr();
-    } else if (font == "propb") {
-        return FontFace::propb();
-    } else if (font == "propi") {
-        return FontFace::propi();
-    } else if (font == "propz") {
-        return FontFace::propz();
-    }
-    return FontFace::monor();
+    const static std::unordered_map<std::string, FontFace> facemap = {
+        {"monor", FontFace::monor()},
+        {"monob", FontFace::monob()},
+        {"monoi", FontFace::monoi()},
+        {"monoz", FontFace::monoz()},
+        {"propr", FontFace::propr()},
+        {"propb", FontFace::propb()},
+        {"propi", FontFace::propi()},
+        {"propz", FontFace::propz()},
+    };
+
+    return facemap.at(font);
 }
 
 float gli_conf_gamma = 1.0;
@@ -735,7 +730,9 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
 
         // For now just ignore failure; in the future, probably log it.
         } catch (const std::invalid_argument &) {
+            // From numeric conversion functions.
         } catch (const std::out_of_range &) {
+            // From font2idx.
         }
     });
 }

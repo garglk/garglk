@@ -56,7 +56,7 @@ static nonstd::optional<std::string> findfont(const std::string &fontname)
     return reinterpret_cast<char *>(strval);
 }
 
-static nonstd::optional<std::string> find_font_by_styles(const std::string &basefont, const std::vector<std::string> &styles, const std::vector<std::string> &weights, const std::vector<std::string> &slants)
+static nonstd::optional<std::string> find_font_by_styles(const std::string &basefont, const std::vector<std::string> &styles, const std::vector<int> &weights, const std::vector<std::string> &slants)
 {
     // Prefer normal width fonts, but if there aren't any, allow whatever fontconfig finds.
     std::vector<std::string> widths = {":normal", ""};
@@ -133,10 +133,8 @@ void garglk::fontreplace(const std::string &font, FontType type)
     // return weights that are not medium (100); explicitly listing the
     // weight value doesn't have this problem.
 
-    // Book, Regular, Medium
-    std::vector<std::string> regular_weights = {"75", "80", "100"};
-    // Demibold/Semibold, Bold, Extrabold, Black
-    std::vector<std::string> bold_weights = {"180", "200", "205", "210"};
+    std::vector<int> regular_weights = {FC_WEIGHT_REGULAR, FC_WEIGHT_BOOK, FC_WEIGHT_MEDIUM};
+    std::vector<int> bold_weights = {FC_WEIGHT_BOLD, FC_WEIGHT_EXTRABOLD, FC_WEIGHT_DEMIBOLD, FC_WEIGHT_BLACK};
 
     std::vector<std::string> roman_slants = {"roman"};
     std::vector<std::string> italic_slants = {"italic", "oblique"};
