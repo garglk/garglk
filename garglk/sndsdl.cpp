@@ -532,15 +532,24 @@ static glui32 load_sound_resource(glui32 snd, std::vector<unsigned char> &buf)
             return 0;
         }
 
-        std::fseek(file.get(), 0, SEEK_END);
+        if (std::fseek(file.get(), 0, SEEK_END) == -1) {
+            return 0;
+        }
 
         try {
-            buf.resize(std::ftell(file.get()));
+            long offset = std::ftell(file.get());
+            if (offset == -1) {
+                return 0;
+            }
+            buf.resize(offset);
         } catch (const std::bad_alloc &) {
             return 0;
         }
 
-        std::rewind(file.get());
+        if (std::fseek(file.get(), 0, SEEK_SET) == -1) {
+            return 0;
+        }
+
         if (std::fread(buf.data(), 1, buf.size(), file.get()) != buf.size() && !std::feof(file.get())) {
             return 0;
         }
@@ -562,7 +571,10 @@ static glui32 load_sound_resource(glui32 snd, std::vector<unsigned char> &buf)
             return 0;
         }
 
-        std::fseek(file, pos, SEEK_SET);
+        if (std::fseek(file, pos, SEEK_SET) == -1) {
+            return 0;
+        }
+
         if (std::fread(buf.data(), 1, buf.size(), file) != buf.size() && !std::feof(file)) {
             return 0;
         }
