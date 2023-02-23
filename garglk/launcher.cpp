@@ -207,48 +207,36 @@ static bool call_winterp(Format format, const std::string &game)
 static nonstd::optional<Format> find_adrift_blorb_format(const std::string &game)
 {
     std::ifstream f(game, std::ios::binary);
-    if (!f.is_open()) {
-        return nonstd::nullopt;
-    }
-
-    auto seek = [&f](std::streamoff offset, std::ios::seekdir dir) {
-        if (!f.seekg(offset, dir)) {
-            throw std::runtime_error("unable to seek");
-        }
-    };
-
-    auto be32 = [&f]() {
-        std::array<char, 4> bytes;
-        if (!f.read(bytes.data(), bytes.size())) {
-            throw std::runtime_error("short read");
-        }
-
-        return (static_cast<std::uint32_t>(bytes[0]) << 24) |
-               (static_cast<std::uint32_t>(bytes[1]) << 16) |
-               (static_cast<std::uint32_t>(bytes[2]) <<  8) |
-               (static_cast<std::uint32_t>(bytes[3]) <<  0);
-    };
-
     try {
+        f.exceptions(std::ifstream::badbit | std::ifstream::failbit | std::ifstream::eofbit);
+
+        auto be32 = [&f]() {
+            std::array<char, 4> bytes;
+            f.read(bytes.data(), bytes.size());
+
+            return (static_cast<std::uint32_t>(bytes[0]) << 24) |
+                   (static_cast<std::uint32_t>(bytes[1]) << 16) |
+                   (static_cast<std::uint32_t>(bytes[2]) <<  8) |
+                   (static_cast<std::uint32_t>(bytes[3]) <<  0);
+        };
+
         // Probing has already determined that this file starts with
         // FORM....IFRSRidx, so there's no need to validate that.
-        seek(20, std::ios::beg);
+        f.seekg(20, std::ios::beg);
 
         auto nresources = be32();
 
         for (std::uint32_t i = 0; i < nresources; i++) {
             if (be32() == giblorb_ID_Exec) {
-                seek(4, std::ios::cur);
-                seek(be32(), std::ios::beg);
+                f.seekg(4, std::ios::cur);
+                f.seekg(be32(), std::ios::beg);
                 if (be32() != ID_ADRI) {
                     return nonstd::nullopt;
                 }
 
-                seek(12, std::ios::cur);
+                f.seekg(12, std::ios::cur);
                 unsigned char version;
-                if (!f.read(reinterpret_cast<char *>(&version), 1)) {
-                    return nonstd::nullopt;
-                }
+                f.read(reinterpret_cast<char *>(&version), 1);
 
                 if (version == 0x92) {
                     return Format::Adrift5;
@@ -258,10 +246,10 @@ static nonstd::optional<Format> find_adrift_blorb_format(const std::string &game
                     return nonstd::nullopt;
                 }
             } else {
-                seek(8, std::ios::cur);
+                f.seekg(8, std::ios::cur);
             }
         }
-    } catch (const std::runtime_error &) {
+    } catch (const std::ifstream::failure &) {
     }
 
     return nonstd::nullopt;
