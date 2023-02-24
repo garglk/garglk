@@ -20,9 +20,13 @@
 #include <windows.h>
 
 #include <cstdio>
+#include <cstdlib>
+#include <memory>
+#include <string>
 
 #include "optional.hpp"
 
+#include "font.h"
 #include "glk.h"
 #include "garglk.h"
 
@@ -33,78 +37,28 @@ static bool find_font_file(const std::string &facename, std::string &filepath);
 
 static HDC hdc;
 
-struct Fonts {
-    nonstd::optional<std::string> r, b, i, z;
-} monofonts, propfonts;
+static std::unique_ptr<FontFiller> filler;
 
-static void fill_in_fonts(Fonts &fonts, std::string &r, std::string &b, std::string &i, std::string &z)
-{
-#define FILL(font) do { if (fonts.font.has_value()) font = *fonts.font; } while(0);
-    FILL(r);
-    FILL(b);
-    FILL(i);
-    FILL(z);
-#undef FILL
-}
-
-static int CALLBACK cb_handler(ENUMLOGFONTEX *lpelfe, Fonts *fonts)
+static int CALLBACK font_cb(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *, int, LPARAM)
 {
     std::string filepath;
     std::string style = reinterpret_cast<char *>(lpelfe->elfStyle);
-
-    *fonts = Fonts();
 
     if (!find_font_file(reinterpret_cast<char *>(lpelfe->elfFullName), filepath)) {
         return 1;
     }
 
-    if (!fonts->r.has_value() && (style == "Regular" || style == "Roman")) {
-        fonts->r = filepath;
-
-        if (!fonts->b.has_value()) {
-            fonts->b = filepath;
-        }
-
-        if (!fonts->i.has_value()) {
-            fonts->i = filepath;
-        }
-
-        if (!fonts->z.has_value() && !fonts->i.has_value() && !fonts->b.has_value()) {
-            fonts->z = filepath;
-        }
-    }
-
-    else if (!fonts->b.has_value() && style == "Bold") {
-        fonts->b = filepath;
-
-        if (!fonts->z.has_value() && !fonts->i.has_value()) {
-            fonts->z = filepath;
-        }
-    }
-
-    else if (!fonts->i.has_value() && (style == "Italic" || style == "Oblique")) {
-        fonts->i = filepath;
-
-        if (!fonts->z.has_value()) {
-            fonts->z = filepath;
-        }
-    }
-
-    else if (!fonts->z.has_value() && (style == "Bold Italic" || style == "Bold Oblique" || style == "BoldOblique" || style == "BoldItalic")) {
-        fonts->z = filepath;
+    if (style == "Regular" || style == "Roman") {
+        filler->add(FontFiller::Style::Regular, filepath);
+    } else if (style == "Bold") {
+        filler->add(FontFiller::Style::Bold, filepath);
+    } else if (style == "Italic" || style == "Oblique") {
+        filler->add(FontFiller::Style::Italic, filepath);
+    } else if (style == "Bold Italic" || style == "Bold Oblique" || style == "BoldItalic" || style == "BoldOblique") {
+        filler->add(FontFiller::Style::BoldItalic, filepath);
     }
 
     return 0;
-}
-
-static int CALLBACK monofont_cb(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *lpntme, int FontType, LPARAM lParam)
-{
-    return cb_handler(lpelfe, &monofonts);
-}
-
-static int CALLBACK propfont_cb(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *lpntme, int FontType, LPARAM lParam)
-{
-    return cb_handler(lpelfe, &propfonts);
 }
 
 static std::string make_font_filepath(const std::string &filename)
@@ -183,22 +137,13 @@ void garglk::fontreplace(const std::string &font, FontType type)
 
     hdc = GetDC(0);
 
-    switch (type) {
-    case FontType::Monospace:
-        std::snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", font.c_str());
-        EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)monofont_cb, 0, 0);
-        if (monofonts.r.has_value()) {
-            fill_in_fonts(monofonts, gli_conf_mono.r, gli_conf_mono.b, gli_conf_mono.i, gli_conf_mono.z);
-        }
-        break;
-    case FontType::Proportional:
-        std::snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", font.c_str());
-        EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)propfont_cb, 0, 0);
-        if (propfonts.r.has_value()) {
-            fill_in_fonts(propfonts, gli_conf_prop.r, gli_conf_prop.b, gli_conf_prop.i, gli_conf_prop.z);
-        }
-        break;
-    }
+    filler = std::make_unique<FontFiller>(type);
+
+    std::snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", font.c_str());
+    EnumFontFamiliesEx(hdc, &logfont, reinterpret_cast<FONTENUMPROC>(font_cb), 0, 0);
+
+    filler->fill();
+    filler.reset();
 
     ReleaseDC(0, hdc);
 }

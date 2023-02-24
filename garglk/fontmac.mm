@@ -19,9 +19,9 @@
 #import <Cocoa/Cocoa.h>
 
 #include <cstdlib>
+#include <string>
 
-#include "optional.hpp"
-
+#include "font.h"
 #include "glk.h"
 #include "garglk.h"
 
@@ -43,43 +43,9 @@ void garglk::fontreplace(const std::string &font, FontType type)
     NSArray *fontMatches =
         [fontFamilyDescriptor matchingFontDescriptorsWithMandatoryKeys: nil];
 
-    struct Fonts {
-        nonstd::optional<std::string> r, b, i, z;
-    } propfonts, monofonts, *fonts;
-
-    std::string *r, *b, *i, *z;
-
-    if (type == FontType::Monospace) {
-        fonts = &monofonts;
-        r = &gli_conf_mono.r;
-        b = &gli_conf_mono.b;
-        i = &gli_conf_mono.i;
-        z = &gli_conf_mono.z;
-    } else {
-        fonts = &propfonts;
-        r = &gli_conf_prop.r;
-        b = &gli_conf_prop.b;
-        i = &gli_conf_prop.i;
-        z = &gli_conf_prop.z;
-    }
+    FontFiller filler(type);
 
     for (NSFontDescriptor *sysfont in fontMatches) {
-        // find style for font
-        enum class FontStyle {
-            Roman,
-            Bold,
-            Italic,
-            BoldItalic
-        } style = FontStyle::Roman;
-
-        if (([sysfont symbolicTraits] & NSFontBoldTrait) && ([sysfont symbolicTraits] & NSFontItalicTrait)) {
-            style = FontStyle::BoldItalic;
-        } else if ([sysfont symbolicTraits] & NSFontBoldTrait) {
-            style = FontStyle::Bold;
-        } else if ([sysfont symbolicTraits] & NSFontItalicTrait) {
-            style = FontStyle::Italic;
-        }
-
         // find path for font
         CFURLRef urlRef = static_cast<CFURLRef>(CTFontDescriptorCopyAttribute((CTFontDescriptorRef)sysfont, kCTFontURLAttribute));
         if (!urlRef) {
@@ -93,15 +59,16 @@ void garglk::fontreplace(const std::string &font, FontType type)
             NSLog(@"fontPath: %@", fontPath);
 
             std::string file = [fontPath UTF8String];
+            auto traits = [sysfont symbolicTraits];
 
-            if (style == FontStyle::Roman && !fonts->r.has_value()) {
-                fonts->r = file;
-            } else if (style == FontStyle::Bold && !fonts->b.has_value()) {
-                fonts->b = file;
-            } else if (style == FontStyle::Italic && !fonts->i.has_value()) {
-                fonts->i = file;
-            } else if (style == FontStyle::BoldItalic && !fonts->z.has_value()) {
-                fonts->z = file;
+            if ((traits & NSFontBoldTrait) && (traits & NSFontItalicTrait)) {
+                filler.add(FontFiller::Style::BoldItalic, file);
+            } else if (traits & NSFontBoldTrait) {
+                filler.add(FontFiller::Style::Bold, file);
+            } else if (traits & NSFontItalicTrait) {
+                filler.add(FontFiller::Style::Italic, file);
+            } else {
+                filler.add(FontFiller::Style::Regular, file);
             }
 
             CFRelease(fontPathRef);
@@ -110,28 +77,7 @@ void garglk::fontreplace(const std::string &font, FontType type)
         CFRelease(urlRef);
     }
 
-    if (fonts->r.has_value()) {
-        *r = *fonts->r;
-        *b = *fonts->b;
-        *i = *fonts->i;
-        *z = *fonts->z;
-    } else {
-        return;
-    }
-
-    if (fonts->b.has_value()) {
-        *b = *fonts->b;
-        *z = *fonts->z;
-    }
-
-    if (fonts->i.has_value()) {
-        *i = *fonts->i;
-        *z = *fonts->z;
-    }
-
-    if (fonts->z.has_value()) {
-        *z = *fonts->z;
-    }
+    filler.fill();
 
     [pool drain];
 }
