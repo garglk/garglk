@@ -37,11 +37,13 @@ void Bleeps::update(int number, double duration, int frequency)
         return;
     }
 
+    number--;
+
     std::uint32_t samplerate = 22050;
     std::size_t frames = duration * samplerate;
 
     if (frames == 0) {
-        m_bleeps.at(number) = nonstd::nullopt;
+        m_bleeps[number] = nonstd::nullopt;
         return;
     }
 
@@ -96,7 +98,7 @@ void Bleeps::update(int number, double duration, int frequency)
         data.push_back(0);
     }
 
-    m_bleeps.at(number) = std::move(data);
+    m_bleeps[number] = std::move(data);
 }
 
 void Bleeps::update(int number, const std::string &path)
@@ -105,20 +107,22 @@ void Bleeps::update(int number, const std::string &path)
         return;
     }
 
+    number--;
+
     std::ifstream f(path, std::ios::binary);
 
     std::vector<std::uint8_t> data((std::istreambuf_iterator<char>(f)),
                                     std::istreambuf_iterator<char>());
 
     if (!f.fail()) {
-        m_bleeps.at(number) = std::move(data);
+        m_bleeps[number] = std::move(data);
     }
 }
 
 std::vector<std::uint8_t> &Bleeps::at(int number)
 {
     try {
-        return m_bleeps.at(number).value();
+        return m_bleeps.at(number - 1).value();
     } catch (const nonstd::bad_optional_access &) {
         throw Empty();
     }

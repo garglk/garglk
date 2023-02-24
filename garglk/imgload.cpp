@@ -139,7 +139,9 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
             return nullptr;
         }
 
-        std::rewind(fl.get());
+        if (std::fseek(fl.get(), 0, SEEK_SET) != 0) {
+            return nullptr;
+        }
     } else {
         long pos;
         FILE *blorb_fl;

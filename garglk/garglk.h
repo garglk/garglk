@@ -409,10 +409,7 @@ public:
     std::vector<std::uint8_t> &at(int number);
 
 private:
-    std::unordered_map<int, nonstd::optional<std::vector<std::uint8_t>>> m_bleeps = {
-        {1, nonstd::nullopt},
-        {2, nonstd::nullopt},
-    };
+    std::array<nonstd::optional<std::vector<std::uint8_t>>, 2> m_bleeps;
 };
 
 extern Bleeps gli_bleeps;
