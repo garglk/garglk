@@ -146,6 +146,14 @@ void garglk::fontreplace(const std::string &font, FontType type)
         *b = *sysfont;
         *i = *sysfont;
         *z = *sysfont;
+    } else {
+        // A regular font is required to exist, so bail if it doesn't
+        // (even if bold, italic, and/or bold italic are available).
+        // Without this, it'd be possible to get a setup where, for
+        // example, the bold font is one family and all other fonts are
+        // the fallback. Bold and italic variations can be created out
+        // of a regular font, so it's OK if those don't exist.
+        return;
     }
 
     // bold

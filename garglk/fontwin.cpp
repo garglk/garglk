@@ -21,6 +21,8 @@
 
 #include <cstdio>
 
+#include "optional.hpp"
+
 #include "glk.h"
 #include "garglk.h"
 
@@ -32,13 +34,12 @@ static bool find_font_file(const std::string &facename, std::string &filepath);
 static HDC hdc;
 
 struct Fonts {
-    bool rset = false, bset = false, iset = false, zset = false;
-    std::string r, b, i, z;
+    nonstd::optional<std::string> r, b, i, z;
 } monofonts, propfonts;
 
 static void fill_in_fonts(Fonts &fonts, std::string &r, std::string &b, std::string &i, std::string &z)
 {
-#define FILL(font) do { if (!fonts.font.empty()) font = fonts.font; } while(0);
+#define FILL(font) do { if (fonts.font.has_value()) font = *fonts.font; } while(0);
     FILL(r);
     FILL(b);
     FILL(i);
@@ -57,44 +58,40 @@ static int CALLBACK cb_handler(ENUMLOGFONTEX *lpelfe, Fonts *fonts)
         return 1;
     }
 
-    if (!fonts->rset && (style == "Regular" || style == "Roman")) {
+    if (!fonts->r.has_value() && (style == "Regular" || style == "Roman")) {
         fonts->r = filepath;
-        fonts->rset = true;
 
-        if (!fonts->bset) {
+        if (!fonts->b.has_value()) {
             fonts->b = filepath;
         }
 
-        if (!fonts->iset) {
+        if (!fonts->i.has_value()) {
             fonts->i = filepath;
         }
 
-        if (!fonts->zset && !fonts->iset && !fonts->bset) {
+        if (!fonts->z.has_value() && !fonts->i.has_value() && !fonts->b.has_value()) {
             fonts->z = filepath;
         }
     }
 
-    else if (!fonts->bset && style == "Bold") {
+    else if (!fonts->b.has_value() && style == "Bold") {
         fonts->b = filepath;
-        fonts->bset = true;
 
-        if (!fonts->zset && !fonts->iset) {
+        if (!fonts->z.has_value() && !fonts->i.has_value()) {
             fonts->z = filepath;
         }
     }
 
-    else if (!fonts->iset && (style == "Italic" || style == "Oblique")) {
+    else if (!fonts->i.has_value() && (style == "Italic" || style == "Oblique")) {
         fonts->i = filepath;
-        fonts->iset = true;
 
-        if (!fonts->zset) {
+        if (!fonts->z.has_value()) {
             fonts->z = filepath;
         }
     }
 
-    else if (!fonts->zset && (style == "Bold Italic" || style == "Bold Oblique" || style == "BoldOblique" || style == "BoldItalic")) {
+    else if (!fonts->z.has_value() && (style == "Bold Italic" || style == "Bold Oblique" || style == "BoldOblique" || style == "BoldItalic")) {
         fonts->z = filepath;
-        fonts->zset = true;
     }
 
     return 0;
@@ -190,12 +187,16 @@ void garglk::fontreplace(const std::string &font, FontType type)
     case FontType::Monospace:
         std::snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", font.c_str());
         EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)monofont_cb, 0, 0);
-        fill_in_fonts(monofonts, gli_conf_mono.r, gli_conf_mono.b, gli_conf_mono.i, gli_conf_mono.z);
+        if (monofonts.r.has_value()) {
+            fill_in_fonts(monofonts, gli_conf_mono.r, gli_conf_mono.b, gli_conf_mono.i, gli_conf_mono.z);
+        }
         break;
     case FontType::Proportional:
         std::snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", font.c_str());
         EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)propfont_cb, 0, 0);
-        fill_in_fonts(propfonts, gli_conf_prop.r, gli_conf_prop.b, gli_conf_prop.i, gli_conf_prop.z);
+        if (propfonts.r.has_value()) {
+            fill_in_fonts(propfonts, gli_conf_prop.r, gli_conf_prop.b, gli_conf_prop.i, gli_conf_prop.z);
+        }
         break;
     }
 
