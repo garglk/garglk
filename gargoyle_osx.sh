@@ -116,8 +116,6 @@ do
   find "${GARGDIST}" -type f -name '*.dylib' -exec install_name_tool -change "@executable_path/$(basename "{}")" "@executable_path/../Frameworks/$(basename "{}")" "${file_path}" \;
 done
 
-# exit
-
 echo "Copying additional support files..."
 /usr/bin/sed -E -e "s/INSERT_VERSION_HERE/$GARVERSION/" garglk/launcher.plist > $BUNDLE/Info.plist
 
