@@ -59,16 +59,15 @@ static nonstd::optional<std::string> findfont(const std::string &fontname)
 static nonstd::optional<std::string> find_font_by_styles(const std::string &basefont, const std::vector<std::string> &styles, const std::vector<int> &weights, const std::vector<std::string> &slants)
 {
     // Prefer normal width fonts, but if there aren't any, allow whatever fontconfig finds.
-    std::vector<std::string> widths = {":normal", ""};
+    std::vector<std::string> widths = {":width=100", ""};
 
     for (const auto &width : widths) {
         for (const auto &style : styles) {
             for (const auto &weight : weights) {
                 for (const auto &slant : slants) {
-                    std::ostringstream fontname;
-                    fontname << basefont << ":style=" << style << ":weight=" << weight << ":" << slant << width;
+                    auto fontname = basefont + ":style=" + style + ":weight=" + std::to_string(weight) + ":" + slant + width;
 
-                    auto fontpath = findfont(fontname.str());
+                    auto fontpath = findfont(fontname);
                     if (fontpath.has_value()) {
                         return fontpath;
                     }
