@@ -25,6 +25,7 @@
 
 #include "optional.hpp"
 
+#include "font.h"
 #include "glk.h"
 #include "garglk.h"
 
@@ -85,21 +86,6 @@ void garglk::fontreplace(const std::string &font, FontType type)
         return;
     }
 
-    nonstd::optional<std::string> sysfont;
-    std::string *r, *b, *i, *z;
-
-    if (type == FontType::Monospace) {
-        r = &gli_conf_mono.r;
-        b = &gli_conf_mono.b;
-        i = &gli_conf_mono.i;
-        z = &gli_conf_mono.z;
-    } else {
-        r = &gli_conf_prop.r;
-        b = &gli_conf_prop.b;
-        i = &gli_conf_prop.i;
-        z = &gli_conf_prop.z;
-    }
-
     // Although there are 4 "main" types of font (Regular, Italic, Bold, Bold
     // Italic), there are actually a whole lot more possibilities, and,
     // unfortunately, some fonts are inconsistent in what they report about
@@ -139,33 +125,32 @@ void garglk::fontreplace(const std::string &font, FontType type)
     std::vector<std::string> italic_slants = {"italic", "oblique"};
 
     // regular or roman
-    sysfont = find_font_by_styles(font, regular_styles, regular_weights, roman_slants);
-    if (sysfont.has_value()) {
-        *r = *sysfont;
-        *b = *sysfont;
-        *i = *sysfont;
-        *z = *sysfont;
+    auto sysfont = find_font_by_styles(font, regular_styles, regular_weights, roman_slants);
+
+    // A regular font is required to exist, so bail if it doesn't (even
+    // if bold, italic, and/or bold italic are available). Without this,
+    // it'd be possible to get a setup where, for example, the bold font
+    // is one family and all other fonts are the fallback. Bold and
+    // italic variations can be created out of a regular font, so it's
+    // OK if those don't exist.
+    if (!sysfont.has_value()) {
+        return;
     }
 
-    // bold
+    FontFiller filler(type);
+
+    filler.add(FontFiller::Style::Regular, sysfont);
+
     sysfont = find_font_by_styles(font, bold_styles, bold_weights, roman_slants);
-    if (sysfont.has_value()) {
-        *b = *sysfont;
-        *z = *sysfont;
-    }
+    filler.add(FontFiller::Style::Bold, sysfont);
 
-    // italic or oblique
     sysfont = find_font_by_styles(font, italic_styles, regular_weights, italic_slants);
-    if (sysfont.has_value()) {
-        *i = *sysfont;
-        *z = *sysfont;
-    }
+    filler.add(FontFiller::Style::Italic, sysfont);
 
-    // bold italic or bold oblique
     sysfont = find_font_by_styles(font, bold_italic_styles, bold_weights, italic_slants);
-    if (sysfont.has_value()) {
-        *z = *sysfont;
-    }
+    filler.add(FontFiller::Style::BoldItalic, sysfont);
+
+    filler.fill();
 }
 
 void fontload()
