@@ -12,7 +12,7 @@ jobs:
           - { cc: "gcc-7", cxx: "g++-7" }
           - { cc: "gcc-9", cxx: "g++-9" }
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container:
       image: amd64/ubuntu:20.04
       options: --privileged

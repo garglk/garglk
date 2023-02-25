@@ -10,14 +10,10 @@ jobs:
       matrix:
         feature: ["-DWITH_SDL=OFF", "-DWITH_TTS=OFF", "-DWITH_BABEL=OFF", "-DSOUND=QT", "-DWITH_KDE=ON"]
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container:
-      image: amd64/ubuntu:20.04
+      image: amd64/ubuntu:22.04
       options: --privileged
-
-    env:
-      CC: gcc-9
-      CXX: g++-9
 
     steps:
       - name: Checkout

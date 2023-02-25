@@ -6,15 +6,11 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container:
-      image: amd64/ubuntu:20.04
+      image: amd64/ubuntu:22.04
       # So that fuse works inside the container (needed to run AppImages.)
       options: --privileged
-
-    env:
-      CC: gcc-9
-      CXX: g++-9
 
     steps:
       - run: apt update
@@ -24,6 +20,7 @@ jobs:
           build-essential
           clang
           cmake
+          file
           fuse
           git
           grep

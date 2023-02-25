@@ -10,10 +10,10 @@ jobs:
     strategy:
       matrix:
         version:
-          - 18.04
           - 20.04
+          - 22.04
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container:
       image: amd64/ubuntu:${{ matrix.version }}
       options: --privileged

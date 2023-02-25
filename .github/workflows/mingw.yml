@@ -14,9 +14,9 @@ jobs:
           - aarch64
           - armv7
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container:
-      image: amd64/ubuntu:20.04
+      image: amd64/ubuntu:22.04
       options: --privileged
 
     steps:
@@ -47,8 +47,8 @@ jobs:
           bsdtar --strip-components 1 -x -v -f llvm-mingw-20220906-msvcrt-ubuntu-18.04-x86_64.tar.xz -C /usr/llvm-mingw
           rm /usr/llvm-mingw/${{ matrix.arch }}-w64-mingw32/include
           cp -a /usr/llvm-mingw/generic-w64-mingw32/include /usr/llvm-mingw/${{ matrix.arch }}-w64-mingw32
-          wget https://github.com/garglk/assets/raw/master/mingw-llvm/mingw-llvm-${{ matrix.arch }}.tar.xz
-          bsdtar xfv mingw-llvm-${{ matrix.arch }}.tar.xz -C /usr/llvm-mingw
+          wget https://github.com/garglk/assets/raw/master/mingw-llvm/mingw-llvm-${{ matrix.arch }}-22.04.tar.xz
+          bsdtar xfv mingw-llvm-${{ matrix.arch }}-22.04.tar.xz -C /usr/llvm-mingw
           wget -P /usr/llvm-mingw/bin https://github.com/garglk/assets/raw/master/mingw-llvm/${{ matrix.arch }}-w64-mingw32-pkg-config
           mkdir NSIS
           cd NSIS

@@ -10,11 +10,11 @@ jobs:
     strategy:
       matrix:
         version:
-          - 33
-          - 34
-          - 35
+          - 36
+          - 37
+          - 38
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container:
       image: fedora:${{ matrix.version}}
 
