@@ -1,3 +1,6 @@
+#ifndef GARGLK_FONT_H
+#define GARGLK_FONT_H
+
 #include <string>
 #include <unordered_map>
 
@@ -69,3 +72,5 @@ private:
     FontType m_type;
     std::unordered_map<Style, nonstd::optional<std::string>> m_fonts;
 };
+
+#endif
