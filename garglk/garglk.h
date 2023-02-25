@@ -1059,8 +1059,6 @@ int gli_string_width_uni(FontFace face, const glui32 *text, int len, int spacewi
 void gli_draw_caret(int x, int y);
 void gli_draw_picture(const picture_t *pic, int x, int y, int x0, int y0, int x1, int y1);
 
-void gli_startup(int argc, char *argv[]);
-
 extern void gli_select(event_t *event, bool polled);
 #ifdef GARGLK_CONFIG_TICK
 extern void gli_tick();

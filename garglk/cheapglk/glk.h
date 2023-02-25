@@ -481,6 +481,15 @@ extern strid_t glk_stream_open_resource_uni(glui32 filenum, glui32 rock);
 
 #define GARGLK 1
 
+// This function should only be used in circumstances where Gargoyle's
+// provided main() function cannot be used (e.g. when dynamically
+// loading libgarglk.so via dlopen()). It initializes everything
+// Gargoyle needs, and must be called before any other Glk functions.
+//
+// This function must only be called once, and again, should never be
+// called by "normal" Glk programs.
+extern void garglk_startup(int argc, char *argv[]);
+
 #ifdef __GNUC__
 __attribute__((__deprecated__("Use glkunix_fileref_get_filename instead")))
 #endif
