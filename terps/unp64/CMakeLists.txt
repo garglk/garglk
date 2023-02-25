@@ -8,5 +8,5 @@ add_library(unp64 STATIC 6502_emu.cpp exo_util.cpp globals.cpp unp64.cpp
 
 target_include_directories(unp64 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR} PRIVATE PARENT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-cxx_standard(unp64 17)
+cxx_standard(unp64 ${CXX_VERSION})
 warnings(unp64)
