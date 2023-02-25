@@ -91,7 +91,7 @@ template <typename Iterable, typename DType>
 std::string join(const Iterable &values, const DType &delim)
 {
     auto it = values.begin();
-    std::stringstream result;
+    std::ostringstream result;
 
     if (it != values.end()) {
         result << *it++;

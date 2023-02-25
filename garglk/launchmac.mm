@@ -473,7 +473,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
         auto path = get_qt_plist_path();
         if (path != nil) {
             NSMutableDictionary *config = [NSMutableDictionary dictionaryWithContentsOfFile: path];
-            std::stringstream size;
+            std::ostringstream size;
             int w = self.frame.size.width;
             int h = self.frame.size.height;
 
