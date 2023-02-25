@@ -804,8 +804,17 @@ strid_t glkunix_stream_open_pathname(char *pathname, glui32 textmode, glui32 roc
     return gli_stream_open_pathname(pathname, false, (textmode != 0), rock);
 }
 
-void gli_startup(int argc, char *argv[])
+void garglk_startup(int argc, char *argv[])
 {
+    static bool initialized = false;
+
+    if (initialized) {
+        gli_strict_warning("garglk_startup called multiple times");
+        return;
+    }
+
+    initialized = true;
+
     wininit(&argc, argv);
 
     if (argc > 1) {

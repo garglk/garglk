@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     startdata.argv = new char *[argc];
     std::memcpy(startdata.argv, argv, argc * sizeof(char *));
 
-    gli_startup(argc, argv);
+    garglk_startup(argc, argv);
 
     if (!glkunix_startup_code(&startdata)) {
         glk_exit();
