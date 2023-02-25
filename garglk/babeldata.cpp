@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "babel_handler.h"
+#include "format.h"
 #include "ifiction.h"
 #include "treaty.h"
 
@@ -48,7 +49,7 @@ void gli_initialize_babel(const std::string &filename)
                     auto story_author = get_metadata("author");
                     if (story_title != nullptr && story_author != nullptr) {
                         std::string title;
-                        title = std::string(story_title.get()) + " - " + story_author.get();
+                        title = Format("{} - {}", story_title.get(), story_author.get());
                         garglk_set_story_title(title.c_str());
                     }
                 }

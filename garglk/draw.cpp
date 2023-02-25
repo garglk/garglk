@@ -29,6 +29,7 @@
 #include <utility>
 #include <vector>
 
+#include "format.h"
 #include "optional.hpp"
 
 #include "glk.h"
@@ -146,9 +147,9 @@ static std::string convert_ft_error(FT_Error err, const std::string &basemsg)
 #endif
 
     if (errstr == nullptr) {
-        return basemsg + " (error code " + std::to_string(err) + ")";
+        return Format("{} (error code {})", basemsg, err);
     } else {
-        return basemsg + ": " + errstr;
+        return Format("{}: {}", basemsg, errstr);
     }
 }
 
@@ -180,7 +181,7 @@ FontEntry Font::getglyph(glui32 cid)
 
     gid = FT_Get_Char_Index(m_face, cid);
     if (gid == 0) {
-        throw std::out_of_range("no glyph for " + std::to_string(gid));
+        throw std::out_of_range(Format("no glyph for {}", gid));
     }
 
     for (x = 0; x < GLI_SUBPIX; x++) {
@@ -256,9 +257,9 @@ static nonstd::optional<std::string> font_path_fallback_system(const std::string
         return nonstd::nullopt;
     }
 
-    return std::string(directory) + "\\" + fallback;
+    return Format("{}\\{}", directory, fallback);
 #elif defined(GARGLK_CONFIG_FONT_PATH)
-    return std::string(GARGLK_CONFIG_FONT_PATH) + "/" + fallback;
+    return Format("{}/{}", GARGLK_CONFIG_FONT_PATH, fallback);
 #else
     return nonstd::nullopt;
 #endif
@@ -286,7 +287,7 @@ static std::string fontface_to_name(FontFace fontface)
                         (fontface.italic                 ) ? "Italic" :
                                                              "Regular";
 
-    return type + " " + style;
+    return Format("{} {}", type, style);
 }
 
 static Font make_font(FontFace fontface, const std::string &fallback)
@@ -317,7 +318,10 @@ static Font make_font(FontFace fontface, const std::string &fallback)
         }
     }
 
-    garglk::winabort("Unable to find font " + (fontface.monospace ? gli_conf_monofont : gli_conf_propfont) + " for " + fontface_to_name(fontface) + ", and fallback " + fallback + " not found");
+    garglk::winabort(Format("Unable to find font {} for {}, and fallback {} not found",
+                fontface.monospace ? gli_conf_monofont : gli_conf_propfont,
+                fontface_to_name(fontface),
+                fallback));
 }
 
 static std::vector<Font> make_substitution_fonts(FontFace fontface)
@@ -328,8 +332,8 @@ static std::vector<Font> make_substitution_fonts(FontFace fontface)
     auto files = gli_conf_glyph_substitution_files[fontface];
 
     for (const auto &datadir : garglk::winappdata()) {
-        files.push_back(datadir + "/unifont.otf");
-        files.push_back(datadir + "/unifont_upper.otf");
+        files.push_back(Format("{}/unifont.otf", datadir));
+        files.push_back(Format("{}/unifont_upper.otf", datadir));
     }
 
     files.emplace_back("./unifont.otf");
@@ -376,12 +380,12 @@ Font::Font(FontFace fontface, FT_Face face, const std::string &fontpath) :
 
     err = FT_Set_Char_Size(m_face, size * aspect * 64, size * 64, 72, 72);
     if (err != 0) {
-        throw FreetypeError(err, "Error in FT_Set_Char_Size for " + fontpath);
+        throw FreetypeError(err, Format("Error in FT_Set_Char_Size for {}", fontpath));
     }
 
     err = FT_Select_Charmap(m_face, ft_encoding_unicode);
     if (err != 0) {
-        throw FreetypeError(err, "Error in FT_Select_CharMap for " + fontpath);
+        throw FreetypeError(err, Format("Error in FT_Select_CharMap for {}", fontpath));
     }
 
     m_kerned = FT_HAS_KERNING(m_face);
@@ -700,7 +704,7 @@ static int gli_string_impl(int x, FontFace fontface, const glui32 *s, std::size_
         }
 
         if (entry == nullptr) {
-            garglk::winabort("unable to look up glyph " + std::to_string(c) + " for " + fontface_to_name(fontface));
+            garglk::winabort(Format("unable to look up glyph {} for {}", c, fontface_to_name(fontface)));
         }
 
         if (prev != -1) {

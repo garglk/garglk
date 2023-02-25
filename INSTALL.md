@@ -9,11 +9,18 @@ development environment (compiler, linker, etc.):
 - CMake
 - pkg-config (or compatible, such as pkgconf)
 - Qt (5 or 6)
+- fmt
 - Fontconfig
 - FreeType
 - libjpeg (8 or newer) or libjpeg-turbo (2.0 or newer)
 - libpng (1.6 or newer)
 - zlib
+
+fmt is technically not a requirement, as Gargoyle includes its own
+header-only copy, but using Gargoyle's copy will slow down the build and
+produce a larger binary. By default Gargoyle will use a system fmt if it
+finds one. This can be overridden with the `WITH_BUNDLED_FMT` configure
+option (see below).
 
 In addition, if you want sound support, there are two backends: SDL and
 Qt. For SDL, you will need SDL2 and SDL2\_mixer. For Qt, you will need
@@ -104,6 +111,9 @@ In addition, Gargoyle supports the following options:
   systems. To force libjpeg-turbo, set this value to `TURBO`. To force IJG
   libjpeg, set it to `IJG`. The default is `AUTO`, which first tries
   libjpeg-turbo, and if that fails, IJG libjpeg.
+
+- `WITH_BUNDLED_FMT`: If true, prefer Gargoyle's bundled fmt library to
+  the system library. Defaults to false.
 
 As with any standard CMake-based project, DESTDIR can be used to install to a
 staging area:

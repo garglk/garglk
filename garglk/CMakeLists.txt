@@ -4,6 +4,7 @@ configure_file("garversion.h.in" "${CMAKE_CURRENT_LIST_DIR}/garversion.h")
 
 option(WITH_LAUNCHER "Build the launcher (i.e. the gargoyle executable)" ON)
 option(BUILD_SHARED_LIBS "Build a shared libgarglk instead of a static library" ON)
+option(WITH_BUNDLED_FMT "Use Gargoyle's bundled fmt library instead of the system's fmt library" OFF)
 
 if(UNIX AND NOT APPLE)
     option(WITH_FREEDESKTOP "Install freedesktop.org application, icon, and MIME files" ON)
@@ -99,10 +100,44 @@ else()
     target_sources(garglk PRIVATE sysqt.cpp)
 endif()
 
+find_package(Freetype REQUIRED)
+find_package(PNG 1.6 REQUIRED)
+target_include_directories(garglk PUBLIC cheapglk PRIVATE ${FREETYPE_INCLUDE_DIRS} ${PNG_INCLUDE_DIRS})
+target_link_libraries(garglk PRIVATE ${FREETYPE_LIBRARIES} ${PNG_LIBRARIES})
+
+if(NOT WITH_BUNDLED_FMT)
+    find_package(fmt CONFIG)
+endif()
+
+function(add_fmt target)
+    if(TARGET fmt::fmt)
+        target_link_libraries(${target} PRIVATE fmt::fmt)
+    else()
+        target_compile_definitions(${target} PRIVATE GARGLK_CONFIG_BUNDLED_FMT)
+    endif()
+endfunction()
+
+add_fmt(garglk)
+
+find_library(MATH_LIBRARY m)
+if(MATH_LIBRARY)
+    target_link_libraries(garglk PRIVATE ${MATH_LIBRARY})
+endif()
+
+add_library(garglkmain STATIC main.cpp)
+cxx_standard(garglkmain ${CXX_VERSION})
+warnings(garglkmain)
+target_include_directories(garglkmain PRIVATE cheapglk)
+
+# If garglk is build with PIC, do the same for garglkmain.
+get_property(GARGLK_PIC TARGET garglk PROPERTY POSITION_INDEPENDENT_CODE)
+set_target_properties(garglkmain PROPERTIES POSITION_INDEPENDENT_CODE "${GARGLK_PIC}")
+
 if(WITH_LAUNCHER)
     add_executable(gargoyle WIN32 launcher.cpp)
     target_include_directories(gargoyle PRIVATE cheapglk)
     target_link_libraries(gargoyle PRIVATE garglk)
+    add_fmt(gargoyle)
     cxx_standard(gargoyle ${CXX_VERSION})
     warnings(gargoyle)
 
@@ -123,25 +158,6 @@ if(WITH_LAUNCHER)
             target_compile_definitions(gargoyle PRIVATE "GARGLK_CONFIG_INTERPRETER_DIR=\"${INTERPRETER_INSTALL_DIR}\"")
         endif()
     endif()
-endif()
-
-add_library(garglkmain STATIC main.cpp)
-cxx_standard(garglkmain ${CXX_VERSION})
-warnings(garglkmain)
-target_include_directories(garglkmain PRIVATE cheapglk)
-
-# If garglk is build with PIC, do the same for garglkmain.
-get_property(GARGLK_PIC TARGET garglk PROPERTY POSITION_INDEPENDENT_CODE)
-set_target_properties(garglkmain PROPERTIES POSITION_INDEPENDENT_CODE "${GARGLK_PIC}")
-
-find_package(Freetype REQUIRED)
-find_package(PNG 1.6 REQUIRED)
-target_include_directories(garglk PUBLIC cheapglk PRIVATE ${FREETYPE_INCLUDE_DIRS} ${PNG_INCLUDE_DIRS})
-target_link_libraries(garglk PRIVATE ${FREETYPE_LIBRARIES} ${PNG_LIBRARIES})
-
-find_library(MATH_LIBRARY m)
-if(MATH_LIBRARY)
-    target_link_libraries(garglk PRIVATE ${MATH_LIBRARY})
 endif()
 
 if(${INTERFACE} STREQUAL "COCOA")

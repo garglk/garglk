@@ -38,6 +38,7 @@
 #include <filesystem>
 #endif
 
+#include "format.h"
 #include "optional.hpp"
 
 #include "glk.h"
@@ -299,18 +300,16 @@ static bool runblorb(const std::string &game)
             return call_winterp(Format::Glulx, game);
         }
 
-        std::ostringstream msg;
         std::string name;
         auto val = [](unsigned char c) -> char {
             return std::isprint(c) ? c : '?';
         };
         auto ck = res.chunktype;
 
-        msg << "Unknown game type: 0x" << std::hex << std::setw(8) << std::setfill('0') << ck <<
-            " (" << val(ck >> 24) << val(ck >> 16) << val(ck >> 8) << val(ck) << ")";
-        throw BlorbError(msg.str());
+        auto msg = Format("Unknown game type: {:#08x} ({}{}{}{})", ck, val(ck >> 24), val(ck >> 16), val(ck >> 8), val(ck));
+        throw BlorbError(msg);
     } catch (const BlorbError &e) {
-        garglk::winmsg("Could not load Blorb file " + game + ":\n" + e.what());
+        garglk::winmsg(Format("Could not load Blorb file {}:\n{}", game, e.what()));
         return false;
     }
 }
@@ -385,7 +384,7 @@ bool garglk::rungame(const std::string &game)
 
     std::ifstream f(game, std::ios::binary);
     if (!f.is_open()) {
-        garglk::winmsg("Unable to open " + game);
+        garglk::winmsg(Format("Unable to open {}", game));
         return false;
     }
 

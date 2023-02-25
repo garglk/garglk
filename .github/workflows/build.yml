@@ -28,6 +28,7 @@ jobs:
           cmake
           extra-cmake-modules
           git
+          libfmt-dev
           libfontconfig1-dev
           libfreetype-dev
           libjpeg-turbo8-dev

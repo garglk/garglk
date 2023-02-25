@@ -24,6 +24,7 @@
 #include <memory>
 #include <string>
 
+#include "format.h"
 #include "optional.hpp"
 
 #include "font.h"
@@ -65,7 +66,7 @@ static std::string make_font_filepath(const std::string &filename)
 {
     // create the absolute path to the font file
     if (filename.find(':') == std::string::npos && std::getenv("SYSTEMROOT") != nullptr) {
-        return std::string(std::getenv("SYSTEMROOT")) + "\\Fonts\\" + filename;
+        return Format("{}\\Fonts\\{}", std::getenv("SYSTEMROOT"), filename);
     } else {
         return filename;
     }
@@ -84,7 +85,7 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
     }
 
     // check for a TrueType font
-    face = facename + " (TrueType)";
+    face = Format("{} (TrueType)", facename);
 
     size = sizeof(filename);
 
@@ -95,7 +96,7 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
     }
 
     // check for an OpenType font
-    face = facename + " (OpenType)";
+    face = Format("{} (OpenType)", facename);
 
     size = sizeof(filename);
 

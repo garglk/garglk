@@ -45,6 +45,7 @@
 #include "garglk.h"
 #include "glkstart.h"
 
+#include "format.h"
 #include "optional.hpp"
 
 #ifdef GARGLK
@@ -253,7 +254,7 @@ frefid_t glk_fileref_create_by_name(glui32 usage, char *name,
         buf = "null";
     }
 
-    buf = std::string(gli_workdir) + "/" + buf + gli_suffix_for_usage(usage);
+    buf = Format("{}/{}{}", gli_workdir, buf, gli_suffix_for_usage(usage));
 
     fref = gli_new_fileref(buf.c_str(), usage, rock);
 #else
