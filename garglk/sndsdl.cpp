@@ -690,7 +690,7 @@ static glui32 play_mod(schanid_t chan, long len)
     return 0;
 }
 
-glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify, std::function<glui32(glui32, std::vector<unsigned char> &)> load_resource)
+static glui32 gli_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify, std::function<glui32(glui32, std::vector<unsigned char> &)> load_resource)
 {
     glui32 type;
     glui32 result = 0;
@@ -747,7 +747,7 @@ glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, gl
 
 glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify)
 {
-    return glk_schannel_play_ext_impl(chan, snd, repeats, notify, load_sound_resource);
+    return gli_schannel_play_ext(chan, snd, repeats, notify, load_sound_resource);
 }
 
 void glk_schannel_pause(schanid_t chan)
@@ -825,7 +825,7 @@ void garglk_zbleep(glui32 number)
 
     if (gli_bleep_channel != nullptr) {
         try {
-            glk_schannel_play_ext_impl(gli_bleep_channel, number, 1, 0, load_bleep_resource);
+            gli_schannel_play_ext(gli_bleep_channel, number, 1, 0, load_bleep_resource);
         } catch (const Bleeps::Empty &) {
         }
     }
