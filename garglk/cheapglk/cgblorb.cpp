@@ -33,11 +33,9 @@
 #include "garglk.h"
 #include "gi_blorb.h"
 
-#ifndef GARGLK
 /* We'd like to be able to deal with game files in Blorb files, even
    if we never load a sound or image. We'd also like to be able to
    deal with Data chunks. So we're willing to set a map here. */
-#endif
 
 static giblorb_map_t *blorbmap = 0; /* NULL */
 
