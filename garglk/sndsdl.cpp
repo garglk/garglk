@@ -520,62 +520,20 @@ static int load_bleep_resource(glui32 snd, std::vector<unsigned char> &buf)
 
 static glui32 load_sound_resource(glui32 snd, std::vector<unsigned char> &buf)
 {
-    long len;
-
     if (giblorb_get_resource_map() == nullptr) {
         std::string name;
 
         name = gli_workdir + "/SND" + std::to_string(snd);
 
-        auto file = garglk::unique(std::fopen(name.c_str(), "rb"), fclose);
-        if (!file) {
-            return 0;
-        }
-
-        if (std::fseek(file.get(), 0, SEEK_END) == -1) {
-            return 0;
-        }
-
-        try {
-            long offset = std::ftell(file.get());
-            if (offset == -1) {
-                return 0;
-            }
-            buf.resize(offset);
-        } catch (const std::bad_alloc &) {
-            return 0;
-        }
-
-        if (std::fseek(file.get(), 0, SEEK_SET) == -1) {
-            return 0;
-        }
-
-        if (std::fread(buf.data(), 1, buf.size(), file.get()) != buf.size() && !std::feof(file.get())) {
+        if (!garglk::read_file(name, buf)) {
             return 0;
         }
 
         return detect_format(buf);
     } else {
-        std::FILE *file;
         glui32 type;
-        long pos;
 
-        giblorb_get_resource(giblorb_ID_Snd, snd, &file, &pos, &len, &type);
-        if (file == nullptr) {
-            return 0;
-        }
-
-        try {
-            buf.resize(len);
-        } catch (const std::bad_alloc &) {
-            return 0;
-        }
-
-        if (std::fseek(file, pos, SEEK_SET) == -1) {
-            return 0;
-        }
-
-        if (std::fread(buf.data(), 1, buf.size(), file) != buf.size() && !std::feof(file)) {
+        if (!giblorb_copy_resource(giblorb_ID_Snd, snd, type, buf)) {
             return 0;
         }
 

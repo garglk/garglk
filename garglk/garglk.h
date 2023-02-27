@@ -196,6 +196,7 @@ std::unique_ptr<T, Deleter> unique(T *p, Deleter deleter)
     return std::unique_ptr<T, Deleter>(p, deleter);
 }
 
+bool read_file(const std::string &filename, std::vector<unsigned char> &buf);
 }
 
 template <std::size_t N>
@@ -1077,7 +1078,7 @@ void winclipstore(const glui32 *text, int len);
 void fontload();
 void fontunload();
 
-void giblorb_get_resource(glui32 usage, glui32 resnum, std::FILE **file, long *pos, long *len, glui32 *type);
+bool giblorb_copy_resource(glui32 usage, glui32 resnum, glui32 &type, std::vector<unsigned char> &buf);
 
 std::shared_ptr<picture_t> gli_picture_load(unsigned long id);
 void gli_picture_store(const std::shared_ptr<picture_t> &pic);

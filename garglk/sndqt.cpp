@@ -20,7 +20,7 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstdio>
+#include <cstddef>
 #include <cstring>
 #include <functional>
 #include <memory>
@@ -40,8 +40,6 @@
 #endif
 
 #include <QAudioFormat>
-#include <QByteArray>
-#include <QFile>
 #include <QIODevice>
 #include <QTimer>
 
@@ -83,7 +81,7 @@ static bool mp3_initialized;
 
 class VFSAbstract {
 public:
-    explicit VFSAbstract(QByteArray buf) : m_buf(std::move(buf)) {
+    explicit VFSAbstract(std::vector<unsigned char> buf) : m_buf(std::move(buf)) {
     }
 
     qsizetype size() {
@@ -123,28 +121,28 @@ public:
     }
 
     std::size_t read(void *ptr, off_t count) {
-        if (m_offset >= m_buf.size()) {
+        if (m_offset >= static_cast<off_t>(m_buf.size())) {
             return 0;
         }
 
-        if (m_offset + count > m_buf.size()) {
+        if (m_offset + count > static_cast<off_t>(m_buf.size())) {
             count = m_buf.size() - m_offset;
         }
 
-        std::memcpy(ptr, &m_buf.data()[m_offset], count);
+        std::memcpy(ptr, &m_buf[m_offset], count);
         m_offset += count;
 
         return count;
     }
 
 private:
-    const QByteArray m_buf;
+    const std::vector<unsigned char> m_buf;
     off_t m_offset = 0;
 };
 
 class SoundError : public std::runtime_error {
 public:
-    explicit SoundError(const QString &msg) : std::runtime_error(msg.toStdString()) {
+    explicit SoundError(const std::string &msg) : std::runtime_error(msg) {
     }
 };
 
@@ -236,7 +234,7 @@ private:
 // C++17, use the C API.
 class OpenMPTSource : public SoundSource {
 public:
-    OpenMPTSource(const QByteArray &buf, int plays) :
+    OpenMPTSource(const std::vector<unsigned char> &buf, int plays) :
         SoundSource(plays),
         m_mod(openmpt_module_create_from_memory2(buf.data(), buf.size(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr), openmpt_module_destroy)
     {
@@ -262,7 +260,7 @@ private:
 
 class SndfileSource : public SoundSource {
 public:
-    SndfileSource(QByteArray buf, glui32 plays) :
+    SndfileSource(std::vector<unsigned char> buf, glui32 plays) :
         SoundSource(plays),
         m_vfs(std::move(buf))
     {
@@ -328,7 +326,7 @@ private:
 
 class Mpg123Source : public SoundSource {
 public:
-    Mpg123Source(QByteArray buf, glui32 plays) :
+    Mpg123Source(std::vector<unsigned char> buf, glui32 plays) :
         SoundSource(plays),
 #if MPG123_API_VERSION < 46
         m_handle(nullptr, mpg123_delete),
@@ -649,33 +647,35 @@ void glk_schannel_set_volume_ext(schanid_t chan, glui32 vol, glui32 duration, gl
     chan->last_volume_bump = std::chrono::steady_clock::now();
 }
 
-static int detect_format(const QByteArray &data)
+static int detect_format(const std::vector<unsigned char> &data)
 {
     struct Magic {
         virtual ~Magic() = default;
-        virtual bool matches(const QByteArray &data) const = 0;
+        virtual bool matches(const std::vector<unsigned char> &data) const = 0;
     };
 
     struct MagicString : public Magic {
-        MagicString(qint64 offset, QString string) :
+        MagicString(qint64 offset, std::string string) :
             m_offset(offset),
             m_string(std::move(string))
         {
         }
 
-        bool matches(const QByteArray &data) const override {
-            QByteArray subarray = data.mid(m_offset, m_string.size());
+        bool matches(const std::vector<unsigned char> &data) const override {
+            if (m_offset + m_string.size() > data.size()) {
+                return false;
+            }
 
-            return QString(subarray) == m_string;
+            return std::memcmp(&data[m_offset], m_string.data(), m_string.size()) == 0;
         }
 
     private:
         const qint64 m_offset;
-        const QString m_string;
+        const std::string m_string;
     };
 
     struct MagicMod : public Magic {
-        bool matches(const QByteArray &data) const override {
+        bool matches(const std::vector<unsigned char> &data) const override {
             std::size_t size = std::min(openmpt_probe_file_header_get_recommended_size(), static_cast<std::size_t>(data.size()));
 
             return openmpt_probe_file_header(OPENMPT_PROBE_FILE_HEADER_FLAGS_DEFAULT,
@@ -718,53 +718,40 @@ static int detect_format(const QByteArray &data)
     throw SoundError("no matching magic");
 }
 
-static std::pair<int, QByteArray> load_bleep_resource(glui32 snd)
+static std::pair<int, std::vector<unsigned char>> load_bleep_resource(glui32 snd)
 {
     if (snd != 1 && snd != 2) {
         throw SoundError("invalid bleep selected");
     }
 
-    const auto &bleep = gli_bleeps.at(snd);
-    QByteArray data(reinterpret_cast<const char *>(bleep.data()), bleep.size());
-
+    auto data = gli_bleeps.at(snd);
     return {detect_format(data), data};
 }
 
-static std::pair<int, QByteArray> load_sound_resource(glui32 snd)
+static std::pair<int, std::vector<unsigned char>> load_sound_resource(glui32 snd)
 {
-    if (giblorb_get_resource_map() == nullptr) {
-        QString name = QString("%1/SND%2").arg(QString::fromStdString(gli_workdir)).arg(snd);
+    std::vector<unsigned char> data;
 
-        QFile file(name);
-        if (!file.open(QIODevice::ReadOnly)) {
+    if (giblorb_get_resource_map() == nullptr) {
+        std::string filename = gli_workdir + "/SND" + std::to_string(snd);
+
+        if (!garglk::read_file(filename, data)) {
             throw SoundError("can't open SND file");
         }
 
-        QByteArray data = file.readAll();
-
         return {detect_format(data), data};
     } else {
-        std::FILE *file;
         glui32 type;
-        long pos, len;
 
-        giblorb_get_resource(giblorb_ID_Snd, snd, &file, &pos, &len, &type);
-        if (file == nullptr) {
+        if (!giblorb_copy_resource(giblorb_ID_Snd, snd, type, data)) {
             throw SoundError("can't get blorb resource");
-        }
-
-        QByteArray data(len, 0);
-
-        if (std::fseek(file, pos, SEEK_SET) == -1 ||
-            std::fread(data.data(), len, 1, file) != 1) {
-            throw SoundError("can't read from blorb file");
         }
 
         return std::make_pair(type, data);
     }
 }
 
-static glui32 gli_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify, const std::function<std::pair<int, QByteArray>(glui32)> &load_resource)
+static glui32 gli_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify, const std::function<std::pair<int, std::vector<unsigned char>>(glui32)> &load_resource)
 {
     if (chan == nullptr) {
         gli_strict_warning("schannel_play_ext: invalid id.");
@@ -780,7 +767,7 @@ static glui32 gli_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, 
     std::shared_ptr<SoundSource> source;
     try {
         int type;
-        QByteArray data;
+        std::vector<unsigned char> data;
 
         std::tie(type, data) = load_resource(snd);
 
