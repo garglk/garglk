@@ -19,6 +19,7 @@
 
 #include <array>
 #include <cstdio>
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -40,8 +41,8 @@ using std::FILE;
 #define giblorb_ID_JPEG      (giblorb_make_id('J', 'P', 'E', 'G'))
 #define giblorb_ID_PNG       (giblorb_make_id('P', 'N', 'G', ' '))
 
-static std::shared_ptr<picture_t> load_image_png(std::FILE *fl, unsigned long id);
-static std::shared_ptr<picture_t> load_image_jpeg(std::FILE *fl, unsigned long id);
+static std::shared_ptr<picture_t> load_image_png(const std::vector<unsigned char> &buf, unsigned long id);
+static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned char> &buf, unsigned long id);
 
 struct LoadError : public std::runtime_error {
     LoadError(const std::string &format, const std::string &msg) : std::runtime_error(msg + " [" + format + "]") {
@@ -108,7 +109,6 @@ std::shared_ptr<picture_t> gli_picture_retrieve(unsigned long id, bool scaled)
 
 std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
 {
-    std::unique_ptr<FILE, std::function<void(FILE *)>> fl;
     glui32 chunktype;
 
     auto pic = gli_picture_retrieve(id, false);
@@ -116,21 +116,16 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
         return pic;
     }
 
+    std::vector<unsigned char> buf;
+
     if (giblorb_get_resource_map() == nullptr) {
-        std::array<unsigned char, 8> buf;
         std::string filename = gli_workdir + "/PIC" + std::to_string(id);
 
-        fl = {std::fopen(filename.c_str(), "rb"), fclose};
-        if (!fl) {
+        if (!garglk::read_file(filename, buf) || buf.size() < 8) {
             return nullptr;
         }
 
-        if (std::fread(buf.data(), 1, buf.size(), fl.get()) != buf.size()) {
-            // Can't read the first few bytes. Forget it.
-            return nullptr;
-        }
-
-        if (png_sig_cmp(buf.data(), 0, buf.size()) == 0) {
+        if (png_sig_cmp(buf.data(), 0, 8) == 0) {
             chunktype = giblorb_ID_PNG;
         } else if (buf[0] == 0xFF && buf[1] == 0xD8 && buf[2] == 0xFF) {
             chunktype = giblorb_ID_JPEG;
@@ -138,30 +133,19 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
             // Not a readable file. Forget it.
             return nullptr;
         }
-
-        if (std::fseek(fl.get(), 0, SEEK_SET) != 0) {
-            return nullptr;
-        }
     } else {
-        long pos;
-        FILE *blorb_fl;
-        giblorb_get_resource(giblorb_ID_Pict, id, &blorb_fl, &pos, nullptr, &chunktype);
-        if (blorb_fl == nullptr) {
-            return nullptr;
-        }
-        fl = {blorb_fl, [](FILE *) { return 0; }};
-        if (std::fseek(fl.get(), pos, SEEK_SET) != 0) {
+        if (!giblorb_copy_resource(giblorb_ID_Pict, id, chunktype, buf)) {
             return nullptr;
         }
     }
 
-    const std::unordered_map<int, std::function<std::shared_ptr<picture_t>(FILE *, unsigned long)>> loaders = {
+    const std::unordered_map<int, std::function<std::shared_ptr<picture_t>(const std::vector<unsigned char> &, unsigned long)>> loaders = {
         {giblorb_ID_PNG, load_image_png},
         {giblorb_ID_JPEG, load_image_jpeg},
     };
 
     try {
-        pic = loaders.at(chunktype)(fl.get(), id);
+        pic = loaders.at(chunktype)(buf, id);
         if (pic != nullptr) {
             gli_picture_store(pic);
             return pic;
@@ -174,7 +158,7 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
     return nullptr;
 }
 
-static std::shared_ptr<picture_t> load_image_jpeg(std::FILE *fl, unsigned long id)
+static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned char> &buf, unsigned long id)
 {
     jpeg_decompress_struct cinfo;
     jpeg_error_mgr jerr;
@@ -191,7 +175,7 @@ static std::shared_ptr<picture_t> load_image_jpeg(std::FILE *fl, unsigned long i
     jpeg_create_decompress(&cinfo);
     auto jpeg_free = garglk::unique(&cinfo, jpeg_destroy_decompress);
 
-    jpeg_stdio_src(&cinfo, fl);
+    jpeg_mem_src(&cinfo, buf.data(), buf.size());
     jpeg_read_header(&cinfo, TRUE);
     jpeg_start_decompress(&cinfo);
 
@@ -226,7 +210,7 @@ static std::shared_ptr<picture_t> load_image_jpeg(std::FILE *fl, unsigned long i
     return std::make_shared<picture_t>(id, rgba, false);
 }
 
-static std::shared_ptr<picture_t> load_image_png(std::FILE *fl, unsigned long id)
+static std::shared_ptr<picture_t> load_image_png(const std::vector<unsigned char> &buf, unsigned long id)
 {
     png_image image;
 
@@ -234,7 +218,7 @@ static std::shared_ptr<picture_t> load_image_png(std::FILE *fl, unsigned long id
     image.opaque = nullptr;
     auto free_png = garglk::unique(&image, png_image_free);
 
-    if (png_image_begin_read_from_stdio(&image, fl) == 0) {
+    if (png_image_begin_read_from_memory(&image, buf.data(), buf.size()) == 0) {
         throw LoadError("png", image.message);
     }
 

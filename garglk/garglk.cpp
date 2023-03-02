@@ -60,3 +60,19 @@ void gli_exit(int status)
     gli_exiting = true;
     std::exit(status);
 }
+
+bool garglk::read_file(const std::string &filename, std::vector<unsigned char> &buf)
+{
+    std::ifstream f(filename);
+    if (!f.is_open()) {
+        return false;
+    }
+
+    try {
+        buf.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    } catch (const std::bad_alloc &) {
+        return false;
+    }
+
+    return !f.fail();
+}
