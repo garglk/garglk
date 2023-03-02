@@ -23,6 +23,17 @@
 #include "glk.h"
 #include "garglk.h"
 
+// SDL audio playback happens in a separate thread, including calling
+// the "sound finished" handler. The handler may need to post an event,
+// but since it's in a different thread, there's possible simultaneous
+// access of the gli_events list.
+//
+// The Qt sound backend does not have this issue.
+#ifdef GARGLK_CONFIG_SDL
+#include <mutex>
+static std::mutex event_mutex;
+#endif
+
 static std::list<event_t> gli_events;
 
 static void gli_input_guess_focus();
@@ -44,6 +55,10 @@ void gli_dispatch_event(event_t *event, bool polled)
         gli_force_redraw = true;
         gli_windows_redraw();
     }
+
+#ifdef GARGLK_CONFIG_SDL
+    std::lock_guard<std::mutex> guard(event_mutex);
+#endif
 
     if (!polled) {
         it = gli_events.begin();
@@ -74,6 +89,9 @@ void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2)
     store.val1 = val1;
     store.val2 = val2;
 
+#ifdef GARGLK_CONFIG_SDL
+    std::lock_guard<std::mutex> guard(event_mutex);
+#endif
     gli_events.push_back(store);
 }
 
