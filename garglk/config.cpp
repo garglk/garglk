@@ -449,13 +449,6 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
     }
 }
 
-// Replace with std::clamp when moving to C++17.
-template<typename T>
-constexpr const T clamp(const T &v, const T &lo, const T &hi)
-{
-    return (v < lo) ? lo : (hi < v) ? hi : v;
-}
-
 static void readoneconfig(const std::string &fname, const std::string &argv0, const std::string &gamefile)
 {
     std::vector<std::string> matches = {argv0, gamefile};
@@ -474,7 +467,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             } else if (cmd == "morefont") {
                 gli_more_font = font2idx(arg);
             } else if (cmd == "morealign") {
-                gli_more_align = clamp(std::stoi(arg), 0, 2);
+                gli_more_align = garglk::clamp(std::stoi(arg), 0, 2);
             } else if (cmd == "monoaspect") {
                 gli_conf_monoaspect = std::stof(arg);
             } else if (cmd == "propaspect") {
@@ -596,7 +589,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                     std::copy(weights.begin(), weights.end(), gli_conf_lcd_weights.begin());
                 }
             } else if (cmd == "caretshape") {
-                gli_caret_shape = clamp(std::stoi(arg), 0, 4);
+                gli_caret_shape = garglk::clamp(std::stoi(arg), 0, 4);
             } else if (cmd == "linkstyle") {
                 gli_underline_hyperlinks = asbool(arg);
             } else if (cmd == "scrollwidth") {
@@ -608,11 +601,11 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             } else if (cmd == "justify") {
                 gli_conf_justify = asbool(arg);
             } else if (cmd == "quotes") {
-                gli_conf_quotes = clamp(std::stoi(arg), 0, 2);
+                gli_conf_quotes = garglk::clamp(std::stoi(arg), 0, 2);
             } else if (cmd == "dashes") {
-                gli_conf_dashes = clamp(std::stoi(arg), 0, 2);
+                gli_conf_dashes = garglk::clamp(std::stoi(arg), 0, 2);
             } else if (cmd == "spaces") {
-                gli_conf_spaces = clamp(std::stoi(arg), 0, 2);
+                gli_conf_spaces = garglk::clamp(std::stoi(arg), 0, 2);
             } else if (cmd == "caps") {
                 gli_conf_caps = asbool(arg);
             } else if (cmd == "graphics") {

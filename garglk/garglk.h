@@ -164,7 +164,7 @@ extern std::vector<garglk::ConfigFile> all_configs;
 
 // C++17: std::clamp
 template <typename T>
-const T &clamp(const T &value, const T &min, const T &max)
+constexpr const T &clamp(const T &value, const T &min, const T &max)
 {
     return value < min ? min : value > max ? max : value;
 }
