@@ -13,6 +13,8 @@
 #include <QWheelEvent>
 #include <QWidget>
 
+namespace garglk {
+
 class View : public QWidget
 {
     Q_OBJECT
@@ -62,4 +64,6 @@ private:
     bool m_timed_out = false;
 };
 
+
+}
 #endif

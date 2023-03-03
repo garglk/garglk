@@ -100,7 +100,7 @@ static const std::unordered_map<FileFilter, std::pair<QString, QString>> filters
 };
 
 static QApplication *app;
-static Window *window;
+static garglk::Window *window;
 static QElapsedTimer last_tick;
 static constexpr long long TICK_PERIOD_MILLIS = 10;
 
@@ -206,7 +206,7 @@ static void winclipreceive(QClipboard::Mode mode)
     handle_input(text);
 }
 
-Window::Window() :
+garglk::Window::Window() :
     m_view(new View(this)),
     m_timer(new QTimer(this)),
     m_settings(new QSettings(GARGOYLE_ORGANIZATION, GARGOYLE_NAME, this))
@@ -216,12 +216,12 @@ Window::Window() :
     });
 }
 
-void Window::closeEvent(QCloseEvent *)
+void garglk::Window::closeEvent(QCloseEvent *)
 {
     gli_exit(0);
 }
 
-void Window::resizeEvent(QResizeEvent *event)
+void garglk::Window::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
 
@@ -245,7 +245,7 @@ void Window::resizeEvent(QResizeEvent *event)
     event->accept();
 }
 
-void Window::moveEvent(QMoveEvent *event)
+void garglk::Window::moveEvent(QMoveEvent *event)
 {
     if (gli_conf_save_window_location) {
         m_settings->setValue("window/position", event->pos());
@@ -254,7 +254,7 @@ void Window::moveEvent(QMoveEvent *event)
     event->accept();
 }
 
-QVariant View::inputMethodQuery(Qt::InputMethodQuery query) const
+QVariant garglk::View::inputMethodQuery(Qt::InputMethodQuery query) const
 {
     switch (query) {
     case Qt::ImEnabled:
@@ -266,7 +266,7 @@ QVariant View::inputMethodQuery(Qt::InputMethodQuery query) const
 
 // Handle compose key events (probably other input method events too).
 // See https://stackoverflow.com/questions/28793356/qt-and-dead-keys-in-a-custom-widget
-void View::inputMethodEvent(QInputMethodEvent *event)
+void garglk::View::inputMethodEvent(QInputMethodEvent *event)
 {
     if (!event->commitString().isEmpty()) {
         QKeyEvent key_event(QEvent::KeyPress, 0, Qt::NoModifier, event->commitString());
@@ -275,7 +275,7 @@ void View::inputMethodEvent(QInputMethodEvent *event)
     event->accept();
 }
 
-void View::refresh()
+void garglk::View::refresh()
 {
     if (!gli_drawselect) {
         gli_windows_redraw();
@@ -287,7 +287,7 @@ void View::refresh()
     refresh_needed = false;
 }
 
-void View::paintEvent(QPaintEvent *event)
+void garglk::View::paintEvent(QPaintEvent *event)
 {
     QImage image(gli_image_rgb.data(), gli_image_rgb.width(), gli_image_rgb.height(), gli_image_rgb.stride(), QImage::Format_RGB888);
     QPainter painter(this);
@@ -295,7 +295,7 @@ void View::paintEvent(QPaintEvent *event)
     event->accept();
 }
 
-void Window::start_timer(long ms)
+void garglk::Window::start_timer(long ms)
 {
     if (m_timer->isActive()) {
         m_timer->stop();
@@ -394,7 +394,7 @@ static void show_themes()
     box.exec();
 }
 
-void View::keyPressEvent(QKeyEvent *event)
+void garglk::View::keyPressEvent(QKeyEvent *event)
 {
     Qt::KeyboardModifiers modmasked = event->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier);
 
@@ -472,7 +472,7 @@ void View::keyPressEvent(QKeyEvent *event)
     handle_input(event->text());
 }
 
-void View::mouseMoveEvent(QMouseEvent *event)
+void garglk::View::mouseMoveEvent(QMouseEvent *event)
 {
     // hyperlinks and selection
     if (gli_copyselect) {
@@ -489,7 +489,7 @@ void View::mouseMoveEvent(QMouseEvent *event)
     event->accept();
 }
 
-void View::mousePressEvent(QMouseEvent *event)
+void garglk::View::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
         gli_input_handle_click(event->pos().x(), event->pos().y());
@@ -500,7 +500,7 @@ void View::mousePressEvent(QMouseEvent *event)
     event->accept();
 }
 
-void View::mouseReleaseEvent(QMouseEvent *event)
+void garglk::View::mouseReleaseEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
         gli_copyselect = false;
@@ -511,7 +511,7 @@ void View::mouseReleaseEvent(QMouseEvent *event)
     event->accept();
 }
 
-void View::wheelEvent(QWheelEvent *event)
+void garglk::View::wheelEvent(QWheelEvent *event)
 {
     QPoint pixels = event->pixelDelta();
     QPoint degrees = event->angleDelta() / 8;
@@ -568,7 +568,7 @@ void wininit(int *, char **)
 
 void winopen()
 {
-    window = new Window();
+    window = new garglk::Window();
 
     int defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
     int defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
