@@ -555,7 +555,12 @@ void glk_schannel_destroy(schanid_t chan)
     }
 
     glk_schannel_stop(chan);
-    gli_channellist.erase(chan);
+
+    // If this is running on exit, then it's possible for
+    // gli_channellist to be destroyed before this is called.
+    if (!gli_exiting) {
+        gli_channellist.erase(chan);
+    }
 
     delete chan;
 }
