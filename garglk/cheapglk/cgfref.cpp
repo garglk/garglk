@@ -249,8 +249,9 @@ frefid_t glk_fileref_create_by_name(glui32 usage, char *name,
                            [&to_remove](const char &c) { return to_remove.find(c) != std::string::npos; }),
             buf.end());
 
-    if (buf.empty())
+    if (buf.empty()) {
         buf = "null";
+    }
 
     buf = std::string(gli_workdir) + "/" + buf + gli_suffix_for_usage(usage);
 
@@ -333,21 +334,22 @@ frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode,
             break;
     }
 
-    if (fmode == filemode_Read)
+    if (fmode == filemode_Read) {
         buf = garglk::winopenfile(prompt, filter);
-    else
+    } else {
         buf = garglk::winsavefile(prompt, filter);
+    }
 
     if (buf.empty()) {
         /* The player just hit return. It would be nice to provide a
             default value, but this implementation is too cheap. */
-        return NULL;
+        return nullptr;
     }
 
     if (fmode == filemode_Read) {
         /* According to recent spec discussion, we must silently return NULL if no such file exists. */
-        if (access(buf.c_str(), R_OK)) {
-            return NULL;
+        if (access(buf.c_str(), R_OK) == -1) {
+            return nullptr;
         }
     }
 
@@ -515,13 +517,15 @@ void glkunix_set_base_file(char *filename)
 #ifdef GARGLK
     gli_workdir = filename;
     auto slash = gli_workdir.find_last_of('/');
-    if (slash == std::string::npos)
+    if (slash == std::string::npos) {
         slash = gli_workdir.find_last_of('\\');
+    }
 
-    if (slash != std::string::npos)
+    if (slash != std::string::npos) {
         gli_workdir.erase(slash);
-    else
+    } else {
         gli_workdir = ".";
+    }
 
     gli_workfile = filename;
 #else

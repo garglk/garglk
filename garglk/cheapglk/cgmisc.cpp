@@ -99,8 +99,9 @@ void glk_exit()
     gli_terminated = true;
 
     /* wait for gli_handle_input_key to exit() */
-    while (1)
+    while (true) {
         glk_select(&event);
+    }
 #else
     if (gli_debugger)
         gidebug_announce_cycle(gidebug_cycle_End);

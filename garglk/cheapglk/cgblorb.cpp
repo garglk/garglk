@@ -51,8 +51,9 @@ giblorb_err_t giblorb_set_resource_map(strid_t file)
   giblorb_err_t err;
   
 #ifdef GARGLK
-  if (file->type != strtype_File && file->type != strtype_Memory)
+  if (file->type != strtype_File && file->type != strtype_Memory) {
       return giblorb_err_NotAMap;
+  }
 
   if (file->type == strtype_Memory && file->unicode) {
       return giblorb_err_NotAMap;

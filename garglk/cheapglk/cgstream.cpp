@@ -112,11 +112,10 @@ void gli_delete_stream(stream_t *str)
     }
     
 #ifdef GARGLK
-    for (win = gli_window_iterate_treeorder(NULL);
-         win != NULL;
-         win = gli_window_iterate_treeorder(win)) {
-        if (win->echostr == str)
-            win->echostr = NULL;
+    for (win = gli_window_iterate_treeorder(nullptr); win != nullptr; win = gli_window_iterate_treeorder(win)) {
+        if (win->echostr == str) {
+            win->echostr = nullptr;
+        }
     }
 #else
     win = gli_window_get();
@@ -693,10 +692,9 @@ static void gli_put_char(stream_t *str, unsigned char ch)
 #ifdef GARGLK
             if (str->win->line_request || str->win->line_request_uni) {
                 if (gli_conf_safeclicks && gli_forceclick) {
-                    glk_cancel_line_event(str->win, NULL);
+                    glk_cancel_line_event(str->win, nullptr);
                     gli_forceclick = false;
-                }
-                else {
+                } else {
                     gli_strict_warning("put_char: window has pending line request");
                     break;
                 }
@@ -778,10 +776,9 @@ static void gli_put_char_uni(stream_t *str, glui32 ch)
 #ifdef GARGLK
             if (str->win->line_request || str->win->line_request_uni) {
                 if (gli_conf_safeclicks && gli_forceclick) {
-                    glk_cancel_line_event(str->win, NULL);
+                    glk_cancel_line_event(str->win, nullptr);
                     gli_forceclick = false;
-                }
-                else {
+                } else {
                     gli_strict_warning("put_char: window has pending line request");
                     break;
                 }
@@ -891,16 +888,16 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
 #ifdef GARGLK
             if (str->win->line_request || str->win->line_request_uni) {
                 if (gli_conf_safeclicks && gli_forceclick) {
-                    glk_cancel_line_event(str->win, NULL);
+                    glk_cancel_line_event(str->win, nullptr);
                     gli_forceclick = false;
-                }
-                else {
+                } else {
                     gli_strict_warning("put_buffer: window has pending line request");
                     break;
                 }
             }
-            for (lx=0; lx<len; lx++)
-                gli_window_put_char_uni(str->win, (unsigned char)buf[lx]);
+            for (lx = 0; lx < len; lx++) {
+                gli_window_put_char_uni(str->win, static_cast<unsigned char>(buf[lx]));
+            }
 #else
             if (str->win->line_request) {
                 gli_strict_warning("put_buffer: window has pending line request");
@@ -1754,8 +1751,9 @@ glui32 glk_get_buffer_stream(stream_t *str, char *buf, glui32 len)
 glui32 gli_strlen_uni(const glui32 *s)
 {
     glui32 length = 0;
-    while (*s++)
+    while (*s++ != 0) {
         length++;
+    }
     return length;
 }
 
@@ -1764,8 +1762,9 @@ stream_t *gli_stream_open_window(window_t *win)
     stream_t *str;
 
     str = gli_new_stream(strtype_Window, false, true, 0);
-    if (!str)
-        return NULL;
+    if (str == nullptr) {
+        return nullptr;
+    }
 
     str->win = win;
     str->unicode = true;
@@ -1775,16 +1774,15 @@ stream_t *gli_stream_open_window(window_t *win)
 
 static void gli_set_hyperlink(stream_t *str, glui32 linkval)
 {
-    if (!str || !str->writable)
+    if (str == nullptr || !str->writable) {
         return;
-
-    switch (str->type)
-    {
-        case strtype_Window:
-            str->win->attr.hyper = linkval;
-            break;
     }
 
+    switch (str->type) {
+    case strtype_Window:
+        str->win->attr.hyper = linkval;
+        break;
+    }
 }
 
 void glk_set_hyperlink(glui32 linkval)
@@ -1794,8 +1792,7 @@ void glk_set_hyperlink(glui32 linkval)
 
 void glk_set_hyperlink_stream(stream_t *str, glui32 linkval)
 {
-    if (!str)
-    {
+    if (str == nullptr) {
         gli_strict_warning("set_hyperlink_stream: invalid ref");
         return;
     }
@@ -1804,31 +1801,33 @@ void glk_set_hyperlink_stream(stream_t *str, glui32 linkval)
 
 static void gli_set_style(stream_t *str, glui32 val)
 {
-    if (!str || !str->writable)
+    if (str == nullptr || !str->writable) {
         return;
+    }
 
-    if (val >= style_NUMSTYLES)
+    if (val < 0 || val >= style_NUMSTYLES) {
         val = 0;
-    if (val < 0)
-        val = 0;
+    }
 
-    switch (str->type)
-    {
-        case strtype_Window:
-            str->win->attr.style = val;
-            if (str->win->echostr)
-                gli_set_style(str->win->echostr, val);
-            break;
+    switch (str->type) {
+    case strtype_Window:
+        str->win->attr.style = val;
+        if (str->win->echostr != nullptr) {
+            gli_set_style(str->win->echostr, val);
+        }
+        break;
     }
 }
 
 static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
 {
-    if (!str || !str->writable)
+    if (str == nullptr || !str->writable) {
         return;
+    }
 
-    if (!gli_conf_stylehint)
+    if (!gli_conf_stylehint) {
         return;
+    }
 
     Color fore((fg >> 16) & 0xff,
                (fg >> 8) & 0xff,
@@ -1838,55 +1837,44 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
                (bg >> 8) & 0xff,
                (bg) & 0xff);
 
-    switch (str->type)
-    {
-        case strtype_Window:
-            if (fg != zcolor_Transparent && fg != zcolor_Cursor)
-            {
-                if (fg == zcolor_Default)
-                {
-                    str->win->attr.fgcolor.reset();
-                    gli_override_fg.reset();
-                    gli_more_color = gli_more_save;
-                    gli_caret_color = gli_caret_save;
-                    gli_link_color = gli_link_save;
-                }
-                else if (fg != zcolor_Current)
-                {
-                    str->win->attr.fgcolor = fore;
-                    gli_override_fg = fore;
-                    gli_more_color = fore;
-                    gli_caret_color = fore;
-                    gli_link_color = fore;
-                }
+    switch (str->type) {
+    case strtype_Window:
+        if (fg != zcolor_Transparent && fg != zcolor_Cursor) {
+            if (fg == zcolor_Default) {
+                str->win->attr.fgcolor.reset();
+                gli_override_fg.reset();
+                gli_more_color = gli_more_save;
+                gli_caret_color = gli_caret_save;
+                gli_link_color = gli_link_save;
+            } else if (fg != zcolor_Current) {
+                str->win->attr.fgcolor = fore;
+                gli_override_fg = fore;
+                gli_more_color = fore;
+                gli_caret_color = fore;
+                gli_link_color = fore;
             }
+        }
 
-            if (bg != zcolor_Transparent && bg != zcolor_Cursor)
-            {
-                if (bg == zcolor_Default)
-                {
-                    str->win->attr.bgcolor.reset();
-                    gli_override_bg.reset();
-                    gli_window_color = gli_window_save;
-                    gli_border_color = gli_border_save;
-                }
-                else if (bg != zcolor_Current)
-                {
-                    str->win->attr.bgcolor = back;
-                    gli_override_bg = back;
-                    gli_window_color = back;
-                    gli_border_color = back;
-                }
+        if (bg != zcolor_Transparent && bg != zcolor_Cursor) {
+            if (bg == zcolor_Default) {
+                str->win->attr.bgcolor.reset();
+                gli_override_bg.reset();
+                gli_window_color = gli_window_save;
+                gli_border_color = gli_border_save;
+            } else if (bg != zcolor_Current) {
+                str->win->attr.bgcolor = back;
+                gli_override_bg = back;
+                gli_window_color = back;
+                gli_border_color = back;
             }
+        }
 
-            if (fg == zcolor_Default && bg == zcolor_Default)
-                gli_override_reverse = false;
-            else
-                gli_override_reverse = true;
+        gli_override_reverse = fg != zcolor_Default || bg != zcolor_Default;
 
-            if (str->win->echostr)
-                gli_set_zcolors(str->win->echostr, fg, bg);
-            break;
+        if (str->win->echostr != nullptr) {
+            gli_set_zcolors(str->win->echostr, fg, bg);
+        }
+        break;
     }
 
     gli_force_redraw = true;
@@ -1899,8 +1887,7 @@ void garglk_set_zcolors(glui32 fg, glui32 bg)
 
 void garglk_set_zcolors_stream(stream_t *str, glui32 fg, glui32 bg)
 {
-    if (!str)
-    {
+    if (str == nullptr) {
         gli_strict_warning("set_style_stream: invalid ref");
         return;
     }
@@ -1909,19 +1896,21 @@ void garglk_set_zcolors_stream(stream_t *str, glui32 fg, glui32 bg)
 
 static void gli_set_reversevideo(stream_t *str, glui32 reverse)
 {
-    if (!str || !str->writable)
+    if (str == nullptr || !str->writable) {
         return;
+    }
 
-    if (!gli_conf_stylehint)
+    if (!gli_conf_stylehint) {
         return;
+    }
 
-    switch (str->type)
-    {
-        case strtype_Window:
-            str->win->attr.reverse = (reverse != 0);
-            if (str->win->echostr)
-                gli_set_reversevideo(str->win->echostr, reverse);
-            break;
+    switch (str->type) {
+    case strtype_Window:
+        str->win->attr.reverse = (reverse != 0);
+        if (str->win->echostr != nullptr) {
+            gli_set_reversevideo(str->win->echostr, reverse);
+        }
+        break;
     }
     gli_force_redraw = true;
 }
@@ -1933,8 +1922,7 @@ void garglk_set_reversevideo(glui32 reverse)
 
 void garglk_set_reversevideo_stream(stream_t *str, glui32 reverse)
 {
-    if (!str)
-    {
+    if (str == nullptr) {
         gli_strict_warning("set_style_stream: invalid ref");
         return;
     }
@@ -1946,32 +1934,31 @@ static glui32 gli_unput_buffer_uni(stream_t *str, const glui32 *buf, glui32 len)
     glui32 lx;
     const glui32 *cx;
 
-    if (!str || !str->writable)
+    if (str == nullptr || !str->writable) {
         return 0;
+    }
 
-    if (str->type == strtype_Window)
-    {
-        if (str->win->line_request || str->win->line_request_uni)
-        {
-            if (gli_conf_safeclicks && gli_forceclick)
-            {
-                glk_cancel_line_event(str->win, NULL);
+    if (str->type == strtype_Window) {
+        if (str->win->line_request || str->win->line_request_uni) {
+            if (gli_conf_safeclicks && gli_forceclick) {
+                glk_cancel_line_event(str->win, nullptr);
                 gli_forceclick = false;
-            }
-            else
-            {
+            } else {
                 gli_strict_warning("unput_buffer: window has pending line request");
                 return 0;
             }
         }
-        for (lx = 0, cx = buf + len - 1; lx < len; lx++, cx--)
-        {
-            if (!gli_window_unput_char_uni(str->win, *cx))
+
+        for (lx = 0, cx = buf + len - 1; lx < len; lx++, cx--) {
+            if (!gli_window_unput_char_uni(str->win, *cx)) {
                 break;
+            }
             str->writecount--;
         }
-        if (str->win->echostr)
+
+        if (str->win->echostr != nullptr) {
             gli_unput_buffer_uni(str->win->echostr, buf, len);
+        }
 
         return lx;
     }
@@ -1981,16 +1968,18 @@ static glui32 gli_unput_buffer_uni(stream_t *str, const glui32 *buf, glui32 len)
 
 static glui32 gli_unput_buffer(stream_t *str, const char *buf, glui32 len)
 {
-    glui32 *unicode = static_cast<glui32 *>(malloc(len));
-    if (unicode == NULL)
+    std::vector<glui32> unicode;
+    try {
+        unicode.reserve(len);
+    } catch (const std::bad_alloc &) {
         return 0;
+    }
 
-    for (glui32 i = 0; i < len; i++)
-        unicode[i] = (unsigned char)buf[i];
+    for (glui32 i = 0; i < len; i++) {
+        unicode.push_back(static_cast<unsigned char>(buf[i]));
+    }
 
-    glui32 n = gli_unput_buffer_uni(str, &unicode[0], len);
-
-    free(unicode);
+    glui32 n = gli_unput_buffer_uni(str, unicode.data(), len);
 
     return n;
 }
