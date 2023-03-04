@@ -346,7 +346,7 @@ static void win_textgrid_init_impl(window_t *win, void *buf, int maxlen, int ini
             if (unicode) {
                 ln->chars[dwin->inorgx + ix] = (static_cast<glui32 *>(buf))[ix];
             } else {
-                ln->chars[dwin->inorgx + ix] = (static_cast<char *>(buf))[ix];
+                ln->chars[dwin->inorgx + ix] = (static_cast<unsigned char *>(buf))[ix];
             }
         }
 
