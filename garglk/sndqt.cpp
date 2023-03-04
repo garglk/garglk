@@ -458,16 +458,20 @@ struct glk_schannel_struct {
     // pointer on deletion of the sound channel.
     std::shared_ptr<SoundSource> source;
 
-    // Use a custom deleter here: Qt does a bunch of cleanup with atexit
-    // handlers, which includes destroying audio backends. This object
-    // holds an audio backend instance, which is deleted by Qt in an
-    // atexit handler, but it's possible for static destructors to run
-    // afterward, and if any of them cause this destructor to run (e.g.
-    // via glk_schannel_delete()), it will try to reference this deleted
-    // audio backend, resulting in undefined behavior. Gargoyle itself
-    // doesn't do this, but applications/interpreters are allowed to.
-    // The custom deleter will delete this instance unless Gargoyle is
-    // shutting down, as determined by the gli_exiting flag.
+    // It is possible for this object to be destroyed on shutdown, i.e.
+    // when static objects are being destroyed (e.g. if
+    // glk_schannel_delete() is called in a static object's destructor).
+    // Gargoyle itself doesn't do this, but applications/interpreters
+    // are allowed to. The problem is that at least some Qt audio
+    // backends (PulseAudio for one) are implemented as static objects.
+    // The order of destruction of static objects can't be controlled
+    // between different files, meaning it's possible for the backend to
+    // be destroyed before this audio object is destroyed; but the
+    // destruction of this audio object relies on the audio backend to
+    // exist. If it's destroyed first, the result is undefined behavior.
+    // To work around this, a custom deleter is used which will only
+    // delete this instance if Gargoyle is not shutting down, as
+    // determined by the gli_exiting flag.
 #ifdef HAS_QT6
     std::unique_ptr<QAudioSink, std::function<void(QAudioSink *)>> audio;
 #else
@@ -905,9 +909,9 @@ void glk_schannel_stop(schanid_t chan)
         return;
     }
 
-    // If Gargoyle is exiting, then Qt's atexit handlers have probably
-    // already run, meaning chan->audio holds a pointer to invalid data.
-    // Simply ignore this request in that case.
+    // If Gargoyle is exiting, then Qt's audio backend may have already
+    // been destroyed, meaning calling chan->audio functions can lead to
+    // undefined behavior. Simply ignore this request in that case.
     if (!gli_exiting) {
         chan->audio->stop();
         chan->timer.stop();
