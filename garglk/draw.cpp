@@ -53,6 +53,8 @@ using namespace std::literals;
 #define mulhigh(a, b) ((static_cast<int>(a) * (b) + (1 << (GAMMA_BITS - 1)) - 1) / GAMMA_MAX)
 #define grayscale(r, g, b) ((30 * (r) + 59 * (g) + 11 * (b)) / 100)
 
+namespace {
+
 struct Bitmap {
     int w, h, lsb, top, pitch;
     std::vector<unsigned char> data;
@@ -85,6 +87,8 @@ private:
     bool m_kerned = false;
     std::unordered_map<unsigned long long, int> m_kerncache;
 };
+
+}
 
 //
 // Globals
@@ -147,6 +151,8 @@ static std::string convert_ft_error(FT_Error err, const std::string &basemsg)
         return basemsg + ": " + errstr;
     }
 }
+
+namespace {
 
 class FreetypeError : public std::exception {
 public:
@@ -225,6 +231,8 @@ FontEntry Font::getglyph(glui32 cid)
     }
 
     return entry;
+}
+
 }
 
 // Look for a user-specified font. This will be either based on a font

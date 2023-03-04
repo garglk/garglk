@@ -66,6 +66,8 @@
 #define ID_GLUL (giblorb_make_id('G', 'L', 'U', 'L'))
 #define ID_ADRI (giblorb_make_id('A', 'D', 'R', 'I'))
 
+namespace {
+
 struct Interpreter {
     explicit Interpreter(std::string terp_, nonstd::optional<std::string> flags_ = nonstd::nullopt) :
         terp(std::move(terp_)),
@@ -76,6 +78,8 @@ struct Interpreter {
     std::string terp;
     nonstd::optional<std::string> flags;
 };
+
+}
 
 enum class Format {
     Adrift,

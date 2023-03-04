@@ -47,6 +47,8 @@
 
 static const char *AppName = GARGOYLE_NAME " " GARGOYLE_VERSION;
 
+namespace {
+
 class Filter {
 public:
     Filter(QString name, QStringList extensions) : m_name(std::move(name)), m_extensions(std::move(extensions)) {}
@@ -68,6 +70,8 @@ private:
     QString m_name;
     QStringList m_extensions;
 };
+
+}
 
 void garglk::winmsg(const std::string &msg)
 {

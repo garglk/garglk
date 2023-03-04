@@ -44,6 +44,8 @@ using std::FILE;
 static std::shared_ptr<picture_t> load_image_png(const std::vector<unsigned char> &buf, unsigned long id);
 static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned char> &buf, unsigned long id);
 
+namespace {
+
 struct LoadError : public std::runtime_error {
     LoadError(const std::string &format, const std::string &msg) : std::runtime_error(msg + " [" + format + "]") {
     }
@@ -53,6 +55,8 @@ struct PicturePair {
     std::shared_ptr<picture_t> picture;
     std::shared_ptr<picture_t> scaled;
 };
+
+}
 
 static std::unordered_map<unsigned long, PicturePair> picstore;
 

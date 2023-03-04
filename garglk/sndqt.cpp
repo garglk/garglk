@@ -79,6 +79,8 @@ static schanid_t gli_bleep_channel;
 static bool mp3_initialized;
 #endif
 
+namespace {
+
 class VFSAbstract {
 public:
     explicit VFSAbstract(std::vector<unsigned char> buf) : m_buf(std::move(buf)) {
@@ -423,6 +425,8 @@ private:
         return vfs(source).seek(offset, whence);
     }
 };
+
+}
 
 struct glk_schannel_struct {
     glk_schannel_struct(glui32 volume, glui32 rock_) :
