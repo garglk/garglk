@@ -856,4 +856,19 @@ void garglk_startup(int argc, char *argv[])
     if (gli_workfile.has_value()) {
         gli_initialize_babel(*gli_workfile);
     }
+
+    // atexit() handlers should run before static destructors (see C++14
+    // 3.6.3p3):
+    //
+    // "If the completion of the initialization of an object with static
+    // storage duration is sequenced before a call to std::atexit [...],
+    // the call to the function passed to std::atexit is sequenced
+    // before the call to the destructor for the object."
+    //
+    // In general, this ought to obviate the need for setting
+    // gli_exiting in gli_exit(), but it's possible for atexit() to
+    // fail, so do it in both places.
+    if (std::atexit([]() { gli_exiting = true; }) != 0) {
+        gli_strict_warning("garglk_startup: unable to register atexit handler");
+    }
 }
