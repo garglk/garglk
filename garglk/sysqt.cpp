@@ -58,7 +58,13 @@
 #define GARGLK_KDE_HAS_APPLICATION_LAUNCHER
 #include <KApplicationTrader>
 #include <KIO/ApplicationLauncherJob>
+#if KIO_VERSION >= ((5 << 16) | (98 << 8))
+#include <KIO/JobUiDelegateFactory>
+#define create_delegate(window) (KIO::createDefaultJobUiDelegate(KJobUiDelegate::AutoHandlingEnabled, window))
+#else
 #include <KIO/JobUiDelegate>
+#define create_delegate(window) (new KIO::JobUiDelegate(KJobUiDelegate::AutoHandlingEnabled, window))
+#endif
 #else
 #include <KRun>
 #endif
@@ -333,8 +339,8 @@ void gli_edit_config()
         QUrl url(QUrl::fromLocalFile(config.c_str()));
 #ifdef GARGLK_KDE_HAS_APPLICATION_LAUNCHER
         auto service = KApplicationTrader::preferredService("text/plain");
-        auto job = new KIO::ApplicationLauncherJob(service);
-        job->setUiDelegate(new KIO::JobUiDelegate(KJobUiDelegate::AutoHandlingEnabled, window));
+        auto *job = new KIO::ApplicationLauncherJob(service);
+        job->setUiDelegate(create_delegate(window));
         job->setUrls({url});
         job->start();
 #else
