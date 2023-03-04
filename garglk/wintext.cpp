@@ -553,8 +553,7 @@ void win_textbuffer_redraw(window_t *win)
 
         if (gli_more_align == 1) { // center
             x = x0 + SLOP + (x1 - x0 - w - SLOP * 2) / 2;
-        }
-        if (gli_more_align == 2) { // right
+        } else if (gli_more_align == 2) { // right
             x = x1 - SLOP - w;
         }
 
@@ -980,7 +979,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
         }
 
         // turn (per sp x) into (per sp sp x)
-        if (gli_conf_spaces == 2) {
+        else if (gli_conf_spaces == 2) {
             if (ch == '.') {
                 dwin->spaced = 1;
             } else if (ch == ' ' && dwin->spaced == 1) {
