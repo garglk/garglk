@@ -67,7 +67,6 @@ cp -v garglk.ini "%{buildroot}%{_sysconfdir}/"
 %files
 %{_sysconfdir}/garglk.ini
 %{_libdir}/libgarglk.so
-%{_libdir}/libgarglkmain.a
 %{_libexecdir}/gargoyle/advsys
 %{_libexecdir}/gargoyle/magnetic
 %{_libexecdir}/gargoyle/agility
@@ -85,10 +84,6 @@ cp -v garglk.ini "%{buildroot}%{_sysconfdir}/"
 %{_libexecdir}/gargoyle/tadsr
 %{_libexecdir}/gargoyle/level9
 %{_bindir}/gargoyle
-%{_includedir}/garglk/gi_blorb.h
-%{_includedir}/garglk/glk.h
-%{_includedir}/garglk/glkstart.h
-%{_libdir}/pkgconfig/garglk.pc
 %{_datarootdir}/applications/io.github.garglk.Gargoyle.desktop
 %{_datarootdir}/applications/io.github.garglk.GargoyleEditConfig.desktop
 %{_datarootdir}/fonts/gargoyle/Gargoyle-Mono-Bold-Italic.ttf
