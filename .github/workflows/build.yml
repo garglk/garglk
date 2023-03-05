@@ -30,7 +30,7 @@ jobs:
           git
           libfontconfig1-dev
           libfreetype-dev
-          libjpeg-dev
+          libjpeg-turbo8-dev
           libkf5kio-dev
           libkf5service-dev
           libmpg123-dev

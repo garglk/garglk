@@ -31,7 +31,12 @@
 using std::size_t;
 using std::FILE;
 
+#ifdef GARGLK_CONFIG_JPEG_TURBO
+#include <turbojpeg.h>
+#else
 #include <jpeglib.h>
+#endif
+
 #include <png.h>
 
 #include "glk.h"
@@ -164,6 +169,23 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
 
 static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned char> &buf, unsigned long id)
 {
+#ifdef GARGLK_CONFIG_JPEG_TURBO
+    auto tj = garglk::unique(tjInitDecompress(), tjDestroy);
+
+    int w, h, subsamp, colorspace;
+
+    if (tjDecompressHeader3(tj.get(), buf.data(), buf.size(), &w, &h, &subsamp, &colorspace) != 0) {
+        throw LoadError("jpg", tjGetErrorStr2(tj.get()));
+    }
+
+    Canvas<4> rgba(w, h);
+
+    if (tjDecompress2(tj.get(), buf.data(), buf.size(), rgba.data(), w, w * tjPixelSize[TJPF_RGBA], h, TJPF_RGBA, TJFLAG_ACCURATEDCT) != 0) {
+        throw LoadError("jpg", tjGetErrorStr2(tj.get()));
+    }
+
+    return std::make_shared<picture_t>(id, rgba, false);
+#else
     jpeg_decompress_struct cinfo;
     jpeg_error_mgr jerr;
     std::array<JSAMPROW, 1> rowarray;
@@ -212,6 +234,7 @@ static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned cha
     jpeg_finish_decompress(&cinfo);
 
     return std::make_shared<picture_t>(id, rgba, false);
+#endif
 }
 
 static std::shared_ptr<picture_t> load_image_png(const std::vector<unsigned char> &buf, unsigned long id)
