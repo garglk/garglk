@@ -82,10 +82,14 @@ static const Color black = Color(0x00, 0x00, 0x00);
 static const Color white = Color(0xff, 0xff, 0xff);
 static const Color gray = Color(0x60, 0x60, 0x60);
 
+namespace {
+
 struct ColorPair {
     Color fg;
     Color bg;
 };
+
+}
 
 template <typename Iterable, typename DType>
 std::string join(const Iterable &values, const DType &delim)
@@ -104,6 +108,8 @@ std::string join(const Iterable &values, const DType &delim)
 
     return result.str();
 }
+
+namespace {
 
 struct ThemeStyles {
     std::array<ColorPair, style_NUMSTYLES> colors;
@@ -243,6 +249,8 @@ private:
         return {colors};
     }
 };
+
+}
 
 static std::unordered_map<std::string, Theme> themes;
 

@@ -24,6 +24,8 @@
 #include "glk.h"
 #include "garglk.h"
 
+namespace {
+
 // storage for hyperlink and selection coordinates
 struct Mask {
     bool initialized = false;
@@ -32,6 +34,8 @@ struct Mask {
     std::vector<std::vector<glui32>> links;
     rect_t select;
 };
+
+}
 
 static Mask gli_mask;
 
