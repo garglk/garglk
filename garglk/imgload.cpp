@@ -180,8 +180,23 @@ static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned cha
 
     Canvas<4> rgba(w, h);
 
-    if (tjDecompress2(tj.get(), buf.data(), buf.size(), rgba.data(), w, w * tjPixelSize[TJPF_RGBA], h, TJPF_RGBA, TJFLAG_ACCURATEDCT) != 0) {
-        throw LoadError("jpg", tjGetErrorStr2(tj.get()));
+    if (colorspace == TJCS_CMYK || colorspace == TJCS_YCCK) {
+        if (tjDecompress2(tj.get(), buf.data(), buf.size(), rgba.data(), w, w * tjPixelSize[TJPF_CMYK], h, TJPF_CMYK, TJFLAG_ACCURATEDCT) != 0) {
+            throw LoadError("jpg", tjGetErrorStr2(tj.get()));
+        }
+
+        auto *p = rgba.data();
+        for (int i = 0; i < w * h; i++) {
+            double K = p[i * 4 + 3];
+            p[i * 4 + 0] = p[i * 4 + 0] * K / 255.0;
+            p[i * 4 + 1] = p[i * 4 + 1] * K / 255.0;
+            p[i * 4 + 2] = p[i * 4 + 2] * K / 255.0;
+            p[i * 4 + 3] = 0xff;
+        }
+    } else {
+        if (tjDecompress2(tj.get(), buf.data(), buf.size(), rgba.data(), w, w * tjPixelSize[TJPF_RGBA], h, TJPF_RGBA, TJFLAG_ACCURATEDCT) != 0) {
+            throw LoadError("jpg", tjGetErrorStr2(tj.get()));
+        }
     }
 
     return std::make_shared<picture_t>(id, rgba, false);
@@ -189,7 +204,6 @@ static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned cha
     jpeg_decompress_struct cinfo;
     jpeg_error_mgr jerr;
     std::array<JSAMPROW, 1> rowarray;
-    int n;
 
     cinfo.err = jpeg_std_error(&jerr);
     jerr.error_exit = [](j_common_ptr cinfo) {
@@ -205,28 +219,37 @@ static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned cha
     jpeg_read_header(&cinfo, TRUE);
     jpeg_start_decompress(&cinfo);
 
-    n = cinfo.output_components;
+    if (cinfo.out_color_space != JCS_GRAYSCALE &&
+        cinfo.out_color_space != JCS_RGB &&
+        cinfo.out_color_space != JCS_CMYK) {
 
-    // Currently Gargoyle only understands 1 or 3 components.
-    if (n != 1 && n != 3) {
         return nullptr;
     }
 
     Canvas<4> rgba(cinfo.output_width, cinfo.output_height);
 
-    std::vector<JSAMPLE> row(cinfo.output_width * n);
+    std::vector<JSAMPLE> row(cinfo.output_width * cinfo.output_components);
     rowarray[0] = row.data();
 
     while (cinfo.output_scanline < cinfo.output_height) {
         JDIMENSION y = cinfo.output_scanline;
         jpeg_read_scanlines(&cinfo, rowarray.data(), 1);
-        if (n == 1) {
+        if (cinfo.out_color_space == JCS_GRAYSCALE) {
             for (int i = 0; i < rgba.width(); i++) {
                 rgba[y][i] = Pixel<4>(row[i], row[i], row[i], 0xff);
             }
-        } else if (n == 3) {
+        } else if (cinfo.out_color_space == JCS_RGB) {
             for (int i = 0; i < rgba.width(); i++) {
                 rgba[y][i] = Pixel<4>(row[i * 3 + 0], row[i * 3 + 1], row[i * 3 + 2], 0xff);
+            }
+        } else if (cinfo.out_color_space == JCS_CMYK) {
+            for (int i = 0; i < rgba.width(); i++) {
+                double K = row[i * 4 + 3];
+                rgba[y][i] = Pixel<4>(
+                        row[i * 4 + 0] * K / 255.0,
+                        row[i * 4 + 1] * K / 255.0,
+                        row[i * 4 + 2] * K / 255.0,
+                        0xff);
             }
         }
     }
