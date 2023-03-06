@@ -37,7 +37,7 @@ jobs:
           grep
           libfontconfig1-dev
           libfreetype-dev
-          libjpeg-dev
+          libjpeg-turbo8-dev
           libmpg123-dev
           libopenmpt-dev
           libsndfile-dev

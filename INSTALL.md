@@ -11,7 +11,7 @@ development environment (compiler, linker, etc.):
 - Qt (5 or 6)
 - Fontconfig
 - FreeType
-- libjpeg (or compatible, such as libjpeg-turbo)
+- libjpeg (8 or newer) or libjpeg-turbo (1.4 or newer)
 - libpng (1.6 or newer)
 - zlib
 
@@ -96,6 +96,14 @@ In addition, Gargoyle supports the following options:
 - `SOUND`: Takes one of three values: "SDL", for SDL sound support,
   "QT", for Qt sound support, and "none" (or any other value), for no
   sound support.
+
+- `JPEGLIB`: Gargoyle can use either the original libjpeg from the Independent
+  JPEG Group (IJG), or libjpeg-turbo. There is no practical difference between
+  the two for Gargoye's purposes, but Gargoyle does make use of features
+  introduced in version 8 of IJG's library, which may not be available on all
+  systems. To force libjpeg-turbo, set this value to `TURBO`. To force IJG
+  libjpeg, set it to `IJG`. The default is `AUTO`, which first tries
+  libjpeg-turbo, and if that fails, IJG libjpeg.
 
 As with any standard CMake-based project, DESTDIR can be used to install to a
 staging area:

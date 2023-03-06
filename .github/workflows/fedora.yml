@@ -36,6 +36,7 @@ jobs:
           libpng-devel
           qt5-qtbase-devel
           rpm-build
+          turbojpeg-devel
 
       - name: Build Fedora package
         run: |

@@ -33,7 +33,7 @@ jobs:
           git
           libfontconfig1-dev
           libfreetype6-dev
-          libjpeg-dev
+          libjpeg-turbo8-dev
           libmpg123-dev
           libopenmpt-dev
           libsdl2-mixer-dev
