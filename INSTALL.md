@@ -11,7 +11,7 @@ development environment (compiler, linker, etc.):
 - Qt (5 or 6)
 - Fontconfig
 - FreeType
-- libjpeg (8 or newer) or libjpeg-turbo (1.4 or newer)
+- libjpeg (8 or newer) or libjpeg-turbo (2.0 or newer)
 - libpng (1.6 or newer)
 - zlib
 

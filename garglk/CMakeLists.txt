@@ -221,7 +221,7 @@ if(NOT JPEGLIB STREQUAL "AUTO")
 endif()
 
 if(JPEGLIB STREQUAL "AUTO" OR JPEGLIB STREQUAL "TURBO")
-    find_package(libjpeg-turbo 1.4 ${JPEG_REQUIRED} CONFIG)
+    find_package(libjpeg-turbo 2.0 ${JPEG_REQUIRED} CONFIG)
     if(TARGET libjpeg-turbo::turbojpeg)
         target_include_directories(garglk PRIVATE libjpeg-turbo::turbojpeg)
         target_link_libraries(garglk PRIVATE libjpeg-turbo::turbojpeg)
