@@ -27,13 +27,13 @@
 #include <unordered_map>
 #include <vector>
 
+#ifdef GARGLK_CONFIG_JPEG_TURBO
+#include <turbojpeg.h>
+#else
 // jpeglib.h requires these to be defined.
 using std::size_t;
 using std::FILE;
 
-#ifdef GARGLK_CONFIG_JPEG_TURBO
-#include <turbojpeg.h>
-#else
 #include <jpeglib.h>
 #endif
 
