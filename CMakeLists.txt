@@ -49,7 +49,7 @@ elseif(MINGW)
     set(DIST_INSTALL ON)
 endif()
 
-if(UNIX)
+if(UNIX AND NOT DIST_INSTALL)
     include(GNUInstallDirs)
     if(APPIMAGE)
         set(INTERPRETER_INSTALL_DIR "${CMAKE_INSTALL_FULL_BINDIR}")
