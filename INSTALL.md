@@ -165,7 +165,7 @@ For the MacPorts packages you'll need, type:
     sudo port install libsdl2
     sudo port install libsdl2_mixer
     sudo port install libpng
-    sudo port install jpeg
+    sudo port install libjpeg-turbo
     sudo port install freetype
     sudo port install pkgconfig
 
@@ -174,7 +174,7 @@ If you're using Homebrew, instead type:
     brew install sdl2
     brew install sdl2_mixer
     brew install libpng
-    brew install jpeg
+    brew install libjpeg-turbo
     brew install libvorbis
     brew install freetype
     brew install pkg-config
