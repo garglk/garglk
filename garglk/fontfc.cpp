@@ -17,13 +17,13 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include <fontconfig/fontconfig.h>
 
 #include "format.h"
-#include "optional.hpp"
 
 #include "font.h"
 #include "glk.h"
@@ -31,33 +31,33 @@
 
 static FcConfig *cfg;
 
-static nonstd::optional<std::string> findfont(const std::string &fontname)
+static std::optional<std::string> findfont(const std::string &fontname)
 {
     FcChar8 *strval = nullptr;
 
     auto p = garglk::unique(FcNameParse(reinterpret_cast<const FcChar8 *>(fontname.c_str())), FcPatternDestroy);
     if (p == nullptr) {
-        return nonstd::nullopt;
+        return std::nullopt;
     }
 
     auto os = garglk::unique(FcObjectSetBuild(FC_FILE, static_cast<char *>(nullptr)), FcObjectSetDestroy);
     if (os == nullptr) {
-        return nonstd::nullopt;
+        return std::nullopt;
     }
 
     auto fs = garglk::unique(FcFontList(cfg, p.get(), os.get()), FcFontSetDestroy);
     if (fs->nfont == 0) {
-        return nonstd::nullopt;
+        return std::nullopt;
     }
 
     if (FcPatternGetString(fs->fonts[0], FC_FILE, 0, &strval) == FcResultTypeMismatch || strval == nullptr) {
-        return nonstd::nullopt;
+        return std::nullopt;
     }
 
     return reinterpret_cast<char *>(strval);
 }
 
-static nonstd::optional<std::string> find_font_by_styles(const std::string &basefont, const std::vector<std::string> &styles, const std::vector<int> &weights, const std::vector<std::string> &slants)
+static std::optional<std::string> find_font_by_styles(const std::string &basefont, const std::vector<std::string> &styles, const std::vector<int> &weights, const std::vector<std::string> &slants)
 {
     // Prefer normal width fonts, but if there aren't any, allow whatever fontconfig finds.
     std::vector<std::string> widths = {":width=100", ""};
@@ -77,7 +77,7 @@ static nonstd::optional<std::string> find_font_by_styles(const std::string &base
         }
     }
 
-    return nonstd::nullopt;
+    return std::nullopt;
 }
 
 bool garglk::fontreplace(const std::string &font, FontType type)

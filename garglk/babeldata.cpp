@@ -16,8 +16,6 @@
 // along with Gargoyle; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-// NOTE: For C++17, switch from &x[0] to x.data()
-
 #include <string>
 
 #include "glk.h"
@@ -28,6 +26,7 @@
 #include <cstdlib>
 #include <memory>
 #include <new>
+#include <optional>
 #include <vector>
 
 #include "babel_handler.h"
@@ -62,13 +61,13 @@ static std::string xml_unescape(const std::string &s)
     return result;
 }
 
-static nonstd::optional<std::string> get_tag(std::string metadata, std::string key)
+static std::optional<std::string> get_tag(std::string metadata, std::string key)
 {
     auto value = garglk::unique(
         ifiction_get_tag(
-            &metadata[0],
+            metadata.data(),
             const_cast<char *>("bibliographic"),
-            &key[0],
+            key.data(),
             nullptr),
         [](void *p) { std::free(p); });
 
@@ -76,7 +75,7 @@ static nonstd::optional<std::string> get_tag(std::string metadata, std::string k
         return xml_unescape(std::string(value.get()));
     }
 
-    return nonstd::nullopt;
+    return std::nullopt;
 }
 
 // Collapse runs of whitespace to a single space and trim leading/trailing whitespace.
@@ -129,16 +128,16 @@ static std::vector<std::string> parse_description(const std::string &raw)
     return paragraphs;
 }
 
-static nonstd::optional<garglk::GameInfo> parse_ifiction(const std::string &metadata)
+static std::optional<garglk::GameInfo> parse_ifiction(const std::string &metadata)
 {
     if (metadata.empty()) {
-        return nonstd::nullopt;
+        return std::nullopt;
     }
 
     auto title = get_tag(metadata, "title");
     auto author = get_tag(metadata, "author");
     if (!title.has_value() || !author.has_value()) {
-        return nonstd::nullopt;
+        return std::nullopt;
     }
 
     garglk::GameInfo info;
@@ -154,15 +153,15 @@ static nonstd::optional<garglk::GameInfo> parse_ifiction(const std::string &meta
     return info;
 }
 
-nonstd::optional<garglk::GameInfo> garglk::get_game_info(std::string filename)
+std::optional<garglk::GameInfo> garglk::get_game_info(std::string filename)
 {
     auto ctx = garglk::unique(get_babel_ctx(), release_babel_ctx);
-    if (babel_init_ctx(&filename[0], ctx.get()) == nullptr) {
+    if (babel_init_ctx(filename.data(), ctx.get()) == nullptr) {
         babel_release_ctx(ctx.get());
-        return nonstd::nullopt;
+        return std::nullopt;
     }
 
-    nonstd::optional<garglk::GameInfo> info;
+    std::optional<garglk::GameInfo> info;
 
     // Extract and parse iFiction metadata.
     int meta_size = babel_treaty_ctx(GET_STORY_FILE_METADATA_EXTENT_SEL, nullptr, 0, ctx.get());
@@ -178,7 +177,7 @@ nonstd::optional<garglk::GameInfo> garglk::get_game_info(std::string filename)
 
     if (!info.has_value()) {
         babel_release_ctx(ctx.get());
-        return nonstd::nullopt;
+        return std::nullopt;
     }
 
     // Extract IFID.
@@ -206,7 +205,7 @@ nonstd::optional<garglk::GameInfo> garglk::get_game_info(std::string filename)
 void gli_initialize_babel(std::string filename)
 {
     auto ctx = garglk::unique(get_babel_ctx(), release_babel_ctx);
-    if (babel_init_ctx(&filename[0], ctx.get()) != nullptr) {
+    if (babel_init_ctx(filename.data(), ctx.get()) != nullptr) {
         int meta_size = babel_treaty_ctx(GET_STORY_FILE_METADATA_EXTENT_SEL, nullptr, 0, ctx.get());
         if (meta_size > 0) {
             try {
@@ -227,9 +226,9 @@ void gli_initialize_babel(std::string filename)
 
 #else
 
-nonstd::optional<garglk::GameInfo> garglk::get_game_info(std::string)
+std::optional<garglk::GameInfo> garglk::get_game_info(std::string)
 {
-    return nonstd::nullopt;
+    return std::nullopt;
 }
 
 void gli_initialize_babel(std::string)

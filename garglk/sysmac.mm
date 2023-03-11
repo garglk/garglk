@@ -21,6 +21,7 @@
 #include <fstream>
 #include <functional>
 #include <map>
+#include <optional>
 #include <regex>
 #include <stdexcept>
 #include <string>
@@ -36,7 +37,6 @@
 #include "garversion.h"
 
 #include "format.h"
-#include "optional.hpp"
 
 #import "Cocoa/Cocoa.h"
 #import "sysmac.h"
@@ -822,7 +822,7 @@ void winkey(NSEvent *evt)
     };
 
     try {
-        keys.at(std::make_pair(modmasked, [evt keyCode]))();
+        keys.at({modmasked, [evt keyCode]})();
         return;
     } catch (const std::out_of_range &) {
     }
@@ -984,7 +984,7 @@ void winpoll()
     } while (evt);
 }
 
-nonstd::optional<std::string> garglk::winfontpath(const std::string &filename)
+std::optional<std::string> garglk::winfontpath(const std::string &filename)
 {
     char *resources = std::getenv("GARGLK_RESOURCES");
 
@@ -992,7 +992,7 @@ nonstd::optional<std::string> garglk::winfontpath(const std::string &filename)
         return Format("{}/Fonts/{}", resources, filename);
     }
 
-    return nonstd::nullopt;
+    return std::nullopt;
 }
 
 std::string garglk::windatadir()
@@ -1025,14 +1025,14 @@ std::vector<std::string> garglk::winthemedirs()
     return paths;
 }
 
-nonstd::optional<std::string> garglk::winlegacythemedir() {
+std::optional<std::string> garglk::winlegacythemedir() {
     return [[NSHomeDirectory() stringByAppendingPathComponent: @"Library/Application Support/io.github.garglk/Gargoyle/themes"] UTF8String];
 }
 
-nonstd::optional<std::string> garglk::winappdir()
+std::optional<std::string> garglk::winappdir()
 {
     // This is only used on Windows.
-    return nonstd::nullopt;
+    return std::nullopt;
 }
 
 bool garglk::winisfullscreen()

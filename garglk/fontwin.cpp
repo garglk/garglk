@@ -25,7 +25,6 @@
 #include <string>
 
 #include "format.h"
-#include "optional.hpp"
 
 #include "font.h"
 #include "glk.h"

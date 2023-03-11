@@ -29,11 +29,9 @@
 */
 
 #include <algorithm>
-#include <string>
-
-#if __cplusplus >= 201703L
 #include <filesystem>
-#endif
+#include <optional>
+#include <string>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,11 +59,10 @@
 #include "glkstart.h"
 
 #include "format.h"
-#include "optional.hpp"
 
 #ifdef GARGLK
 std::string gli_workdir = ".";
-nonstd::optional<std::string> gli_workfile;
+std::optional<std::string> gli_workfile;
 
 const char *garglk_fileref_get_name(fileref_t *fref)
 {
@@ -536,26 +533,11 @@ void glk_fileref_delete_file(fileref_t *fref)
 void glkunix_set_base_file(char *filename)
 {
 #ifdef GARGLK
-#if __cplusplus >= 201703L
     auto parent = std::filesystem::path(filename).parent_path();
     if (parent.empty()) {
         parent = ".";
     }
-
     gli_workdir = parent.string();
-#else
-    gli_workdir = filename;
-    auto slash = gli_workdir.find_last_of('/');
-    if (slash == std::string::npos) {
-        slash = gli_workdir.find_last_of('\\');
-    }
-
-    if (slash != std::string::npos) {
-        gli_workdir.erase(slash);
-    } else {
-        gli_workdir = ".";
-    }
-#endif
 
     gli_workfile = filename;
 #else

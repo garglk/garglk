@@ -98,11 +98,7 @@ esac
 # Ensure a sane environment (mainly be certain GNU programs aren't visible).
 export PATH="${HOMEBREW_OR_MACPORTS_LOCATION}/bin:/usr/bin:/bin:/usr/sbin"
 
-if [[ "$(sw_vers -productVersion)" =~ ^10\.([0-9]+) && ${BASH_REMATCH[1]} -lt 15 ]]; then
-  MACOS_MIN_VER="10.13"
-else
-  MACOS_MIN_VER="10.15"
-fi
+MACOS_MIN_VER="10.15"
 
 echo "MACOS_MIN_VER $MACOS_MIN_VER"
 

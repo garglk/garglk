@@ -1129,8 +1129,11 @@ void CVmRun::run(VMG_ const uchar *start_pc)
      *   safely ignore the warning, and I'm keeping the code as it is because
      *   it causes better optimization on some platforms, and is harmless
      *   when it doesn't help with optimization.  
+     *
+     *   Gargoyle note: Gargoyle is C++17, and register no longer exists in
+     *   C++17, so it has been removed.
      */
-    register const uchar *p = start_pc;
+    const uchar *p = start_pc;
     vmrun_prop_eval propev;
     vm_val_t *valp;
     vm_val_t *valp2;

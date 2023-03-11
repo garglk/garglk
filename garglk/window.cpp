@@ -20,8 +20,7 @@
 #include <algorithm>
 #include <cmath>
 #include <new>
-
-#include "optional.hpp"
+#include <optional>
 
 #include "glk.h"
 #include "garglk.h"
@@ -53,8 +52,8 @@ void gli_initialize_windows()
 // a text buffer. If it's not, find the textbuffer with the longest
 // scrollback and assume that's the best scrollback buffer, returning
 // it. If there are no textbuffer windows at all, return nullopt.
-nonstd::optional<std::vector<char>> gli_get_scrollback() {
-    nonstd::optional<std::vector<char>> text;
+std::optional<std::vector<char>> gli_get_scrollback() {
+    std::optional<std::vector<char>> text;
 
     if (gli_focuswin != nullptr && gli_focuswin->type == wintype_TextBuffer) {
         return gli_get_text(gli_focuswin->winbuffer());
@@ -1376,8 +1375,8 @@ FontFace attr_t::font(const Styles &styles) const
 }
 
 static Color zcolor_LightGrey = Color(181, 181, 181);
-static nonstd::optional<Color> zcolor_Foreground = Color(0, 0, 0);
-static nonstd::optional<Color> zcolor_Background = Color(0, 0, 0);
+static std::optional<Color> zcolor_Foreground = Color(0, 0, 0);
+static std::optional<Color> zcolor_Background = Color(0, 0, 0);
 
 static Color rgbshift(const Color &rgb)
 {
@@ -1392,11 +1391,11 @@ Color attr_t::bg(const Styles &styles) const
 
     zcolor_Foreground = fgcolor.has_value() ? fgcolor :
                         gli_override_fg.has_value() ? gli_override_fg :
-                        nonstd::nullopt;
+                        std::nullopt;
 
     zcolor_Background = bgcolor.has_value() ? bgcolor :
                         gli_override_bg.has_value() ? gli_override_bg :
-                        nonstd::nullopt;
+                        std::nullopt;
 
     if (!revset) {
         return zcolor_Background.value_or(styles[style].bg);
@@ -1423,11 +1422,11 @@ Color attr_t::fg(const Styles &styles) const
 
     zcolor_Foreground = fgcolor.has_value() ? fgcolor :
                         gli_override_fg.has_value() ? gli_override_fg :
-                        nonstd::nullopt;
+                        std::nullopt;
 
     zcolor_Background = bgcolor.has_value() ? bgcolor :
                         gli_override_bg.has_value() ? gli_override_bg :
-                        nonstd::nullopt;
+                        std::nullopt;
 
     if (!revset) {
         if (zcolor_Foreground.has_value()) {

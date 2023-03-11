@@ -87,6 +87,7 @@
 #include <iostream>
 #include <limits>
 #include <map>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -95,7 +96,6 @@
 #include <vector>
 
 #include "format.h"
-#include "optional.hpp"
 
 #include "sysqt.h"
 #include "moc_sysqt.cpp"
@@ -113,9 +113,9 @@ static QString cliptext;
 
 // filters and extensions for file dialogs
 static const std::unordered_map<FileFilter, std::pair<QString, QString>> filters = {
-    {FileFilter::Save, std::make_pair("Saved game files (*.glksave *.sav)", "glksave")},
-    {FileFilter::Text, std::make_pair("Text files (*.txt)", "txt")},
-    {FileFilter::Data, std::make_pair("Data files (*.glkdata)", "glkdata")},
+    {FileFilter::Save, {"Saved game files (*.glksave *.sav)", "glksave"}},
+    {FileFilter::Text, {"Text files (*.txt)", "txt"}},
+    {FileFilter::Data, {"Data files (*.glkdata)", "glkdata"}},
 };
 
 static QApplication *app;
@@ -601,15 +601,15 @@ void garglk::View::keyPressEvent(QKeyEvent *event)
         }},
     };
 
-    for (const auto &pair : sequences) {
-        if (event->matches(pair.first)) {
-            pair.second();
+    for (const auto &[key, handler] : sequences) {
+        if (event->matches(key)) {
+            handler();
             return;
         }
     }
 
     try {
-        keys.at(std::make_pair(modmasked, event->key()))();
+        keys.at({modmasked, event->key()})();
         return;
     } catch (const std::out_of_range &) {
     }
@@ -814,7 +814,7 @@ bool windark()
     return text_hsv_value > bg_hsv_value;
 }
 
-nonstd::optional<std::string> garglk::winfontpath(const std::string &filename)
+std::optional<std::string> garglk::winfontpath(const std::string &filename)
 {
     return Format("{}/{}", QCoreApplication::applicationDirPath().toStdString(), filename);
 }
@@ -860,11 +860,11 @@ std::vector<std::string> garglk::winthemedirs()
     return paths;
 }
 
-nonstd::optional<std::string> garglk::winlegacythemedir() {
+std::optional<std::string> garglk::winlegacythemedir() {
 #ifdef _WIN32
     const char *appdata = std::getenv("APPDATA");
     if (appdata == nullptr) {
-        return nonstd::nullopt;
+        return std::nullopt;
     }
 
     return std::string(appdata) + "\\io.github.garglk\\Gargoyle\\themes";
@@ -875,7 +875,7 @@ nonstd::optional<std::string> garglk::winlegacythemedir() {
 #endif
 }
 
-nonstd::optional<std::string> garglk::winappdir()
+std::optional<std::string> garglk::winappdir()
 {
     return QCoreApplication::applicationDirPath().toStdString();
 }

@@ -15,26 +15,11 @@ if(POLICY CMP0069)
     check_ipo_supported(RESULT HAS_LTO)
 endif()
 
+# CMake claims C++17 support for g++7, but std::filesystem isn't available
+# there. In fact, proper std::filesystem support didn't land in gcc till
+# version 9 (see https://gcc.gnu.org/gcc-9/changes.html).
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9")
-    set(GARGLK_NO_CXX17 TRUE)
-endif()
-
-# Darwin 19.0 corresponds to MacOS 10.15.
-if(APPLE AND CMAKE_SYSTEM_VERSION VERSION_LESS 19.0)
-    set(GARGLK_NO_CXX17 TRUE)
-endif()
-
-# At the moment C++17 is optional, but it will likely be required in the
-# near future. MacOS introduced C++17 support in 10.15, so use C++14 for
-# any earlier versions.
-# In addition, CMake claims C++17 support for g++7, but std::filesystem
-# isn't available there. In fact, proper std::filesystem support didn't
-# land in gcc till version 9 (see https://gcc.gnu.org/gcc-9/changes.html),
-# so disable on gcc versions prior to 9.
-if("cxx_std_17" IN_LIST CMAKE_CXX_COMPILE_FEATURES AND NOT GARGLK_NO_CXX17)
-    set(CXX_VERSION 17)
-else()
-    set(CXX_VERSION 14)
+    message(FATAL_ERROR "Compiler too old (insufficient C++17 support)")
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/")
@@ -82,12 +67,9 @@ if(WITH_FRANKENDRIFT AND NOT BUILD_SHARED_LIBS)
     message(FATAL_ERROR "Frankendrift requires a shared libgarglk")
 endif()
 
-# xBRZ requires C++17.
-if(CXX_VERSION EQUAL 17)
-    add_subdirectory(support/xbrz)
-    add_subdirectory(support/xbrz-null)
-    add_subdirectory(support/hqx)
-endif()
+add_subdirectory(support/xbrz)
+add_subdirectory(support/xbrz-null)
+add_subdirectory(support/hqx)
 
 if(WITH_INTERPRETERS)
     add_subdirectory(terps)

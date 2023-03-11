@@ -59,12 +59,12 @@ class Filter {
 public:
     Filter(QString name, QStringList extensions) : m_name(std::move(name)), m_extensions(std::move(extensions)) {}
 
-    QString format() const {
+    [[nodiscard]] QString format() const {
         return QString("%1 Games (%2)")
             .arg(m_name, format_extensions().join(" "));
     }
 
-    QStringList format_extensions() const {
+    [[nodiscard]] QStringList format_extensions() const {
         QList<QString> mapped_extensions;
         std::transform(m_extensions.begin(), m_extensions.end(),
                 std::back_inserter(mapped_extensions),

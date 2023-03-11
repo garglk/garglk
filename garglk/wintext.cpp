@@ -151,8 +151,8 @@ static void reflow(window_t *win)
         }
 
         auto flow_break_pos = dwin->lines[k].flow_break_pos;
-        if (flow_break_pos >= 0) {
-            flowbreakbuf[f] = p + flow_break_pos;
+        if (flow_break_pos.has_value()) {
+            flowbreakbuf[f] = p + *flow_break_pos;
             f++;
         }
 
@@ -701,7 +701,7 @@ static void scrollresize(window_textbuffer_t *dwin)
         dwin->lines[i].lhyper = 0;
         dwin->lines[i].rhyper = 0;
         dwin->lines[i].len = 0;
-        dwin->lines[i].flow_break_pos = -1;
+        dwin->lines[i].flow_break_pos.reset();
         dwin->lines[i].newline = false;
         dwin->lines[i].chars.fill(' ');
         dwin->lines[i].attrs.fill(attr_t{});
@@ -784,7 +784,7 @@ static void scrolloneline(window_textbuffer_t *dwin, bool forced, bool flow_brea
     for (i = 0; i < lines_to_scroll; i++) {
         touch(dwin, i);
         dwin->lines[i].len = 0;
-        dwin->lines[i].flow_break_pos = -1;
+        dwin->lines[i].flow_break_pos.reset();
         dwin->lines[i].newline = false;
         dwin->lines[i].lm = dwin->ladjw;
         dwin->lines[i].rm = dwin->radjw;
@@ -1096,7 +1096,7 @@ void win_textbuffer_clear(window_t *win)
 
     for (i = 0; i < dwin->scrollback; i++) {
         dwin->lines[i].len = 0;
-        dwin->lines[i].flow_break_pos = -1;
+        dwin->lines[i].flow_break_pos.reset();
 
         dwin->lines[i].lpic.reset();
         dwin->lines[i].rpic.reset();
@@ -1616,7 +1616,7 @@ static bool put_picture(window_textbuffer_t *dwin, const std::shared_ptr<picture
         line.rpic = pic;
         line.rm = dwin->radjw;
         line.rhyper = linkval;
-        line.flow_break_pos = -1;
+        line.flow_break_pos.reset();
     }
 
     else {
@@ -1634,7 +1634,7 @@ static bool put_picture(window_textbuffer_t *dwin, const std::shared_ptr<picture
         line.lpic = pic;
         line.lm = dwin->ladjw;
         line.lhyper = linkval;
-        line.flow_break_pos = -1;
+        line.flow_break_pos.reset();
 
         if (align != imagealign_MarginLeft) {
             win_textbuffer_flow_break(dwin);
