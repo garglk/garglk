@@ -38,11 +38,11 @@ jobs:
           libfmt-dev
           libfontconfig1-dev
           libfreetype-dev
-          libjpeg-turbo8-dev
           libmpg123-dev
           libopenmpt-dev
           libsndfile-dev
           libspeechd-dev
+          libturbojpeg0-dev
           qtbase5-dev
           qtbase5-dev-tools
           qtmultimedia5-dev

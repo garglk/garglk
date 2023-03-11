@@ -30,6 +30,7 @@ jobs:
           libjpeg-turbo8-dev
           libsdl2-mixer-dev
           libspeechd-dev
+          libturbojpeg0-dev
           patchelf
           qtbase5-dev
           qtbase5-dev-tools
