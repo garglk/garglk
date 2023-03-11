@@ -55,6 +55,8 @@
 #include <mpg123.h>
 #include <sndfile.hh>
 
+#include "format.h"
+
 #include "glk.h"
 #include "garglk.h"
 
@@ -746,7 +748,7 @@ static std::pair<int, std::vector<unsigned char>> load_sound_resource(glui32 snd
     std::vector<unsigned char> data;
 
     if (giblorb_get_resource_map() == nullptr) {
-        std::string filename = gli_workdir + "/SND" + std::to_string(snd);
+        auto filename = Format("{}/SND{}", gli_workdir, snd);
 
         if (!garglk::read_file(filename, data)) {
             throw SoundError("can't open SND file");

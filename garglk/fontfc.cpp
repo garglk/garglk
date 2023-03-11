@@ -23,6 +23,7 @@
 
 #include <fontconfig/fontconfig.h>
 
+#include "format.h"
 #include "optional.hpp"
 
 #include "font.h"
@@ -66,7 +67,7 @@ static nonstd::optional<std::string> find_font_by_styles(const std::string &base
         for (const auto &style : styles) {
             for (const auto &weight : weights) {
                 for (const auto &slant : slants) {
-                    auto fontname = basefont + ":style=" + style + ":weight=" + std::to_string(weight) + ":" + slant + width;
+                    auto fontname = Format("{}:style={}:weight={}:{}{}", basefont, style, weight, slant, width);
 
                     auto fontpath = findfont(fontname);
                     if (fontpath.has_value()) {

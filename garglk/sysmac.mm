@@ -34,6 +34,7 @@
 #include "garglk.h"
 #include "garversion.h"
 
+#include "format.h"
 #include "optional.hpp"
 
 #import "Cocoa/Cocoa.h"
@@ -395,7 +396,7 @@ NSString *get_qt_plist_path()
     if (home != nullptr) {
         // Optimistically use the path that Qt uses with the hope/plan
         // of moving macOS to Qt one of these days.
-        auto path = std::string(home) + "/Library/Preferences/com.io-github-garglk.Gargoyle.plist";
+        auto path = Format("{}/Library/Preferences/com.io-github-garglk.Gargoyle.plist", home);
         return [NSString stringWithUTF8String: path.c_str()];
     }
 
@@ -757,7 +758,7 @@ nonstd::optional<std::string> garglk::winfontpath(const std::string &filename)
     char *resources = std::getenv("GARGLK_RESOURCES");
 
     if (resources != nullptr) {
-        return std::string(resources) + "/Fonts/" + filename;
+        return Format("{}/Fonts/{}", resources, filename);
     }
 
     return nonstd::nullopt;
@@ -776,7 +777,7 @@ std::vector<std::string> garglk::winappdata()
     // This is what Qt returns for AppDataLocation (though Qt adds a
     // few more directories that aren't particularly relevant).
     for (NSString *appdir_path in appdir_paths) {
-        paths.push_back(std::string([appdir_path UTF8String]) + "/" + GARGOYLE_ORGANIZATION + "/" + GARGOYLE_NAME);
+        paths.push_back(Format("{}/{}/{}", [appdir_path UTF8String], GARGOYLE_ORGANIZATION, GARGOYLE_NAME));
     }
 
     return paths;

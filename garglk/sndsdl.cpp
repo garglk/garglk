@@ -38,6 +38,8 @@
 #include <SDL.h>
 #include <SDL_mixer.h>
 
+#include "format.h"
+
 #include "glk.h"
 #include "garglk.h"
 
@@ -523,7 +525,7 @@ static glui32 load_sound_resource(glui32 snd, std::vector<unsigned char> &buf)
     if (giblorb_get_resource_map() == nullptr) {
         std::string name;
 
-        name = gli_workdir + "/SND" + std::to_string(snd);
+        name = Format("{}/SND{}", gli_workdir, snd);
 
         if (!garglk::read_file(name, buf)) {
             return 0;

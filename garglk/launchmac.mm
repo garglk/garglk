@@ -16,6 +16,8 @@
 // along with Gargoyle; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+#include "format.h"
+
 #include "garglk.h"
 #include "garversion.h"
 #include "launcher.h"
@@ -473,12 +475,8 @@ static BOOL isTextbufferEvent(NSEvent *evt)
         auto path = get_qt_plist_path();
         if (path != nil) {
             NSMutableDictionary *config = [NSMutableDictionary dictionaryWithContentsOfFile: path];
-            std::ostringstream size;
-            int w = self.frame.size.width;
-            int h = self.frame.size.height;
-
-            size << "@Size(" << w << " " << h << ")";
-            [config setObject: [NSString stringWithUTF8String: size.str().c_str()] forKey: @"window.size"];
+            auto size = Format("@Size({} {})", self.frame.size.width, self.frame.size.height);
+            [config setObject: [NSString stringWithUTF8String: size.c_str()] forKey: @"window.size"];
             [config writeToFile: path atomically: YES];
         }
     }
@@ -1045,8 +1043,7 @@ bool garglk::winterp(const std::string &exe, const nonstd::optional<std::string>
     // get dir of executable
     auto interpreter_dir = winpath();
 
-    std::ostringstream cmd;
-    cmd << interpreter_dir << "/" << exe;
+    auto cmd = Format("{}/{}", interpreter_dir, exe);
 
     std::vector<std::string> args;
 
@@ -1057,7 +1054,7 @@ bool garglk::winterp(const std::string &exe, const nonstd::optional<std::string>
         args.push_back(game);
     }
 
-    if (!winexec(cmd.str(), args)) {
+    if (!winexec(cmd, args)) {
         garglk::winmsg("Could not start 'terp.\nSorry.");
         return false;
     }

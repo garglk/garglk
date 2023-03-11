@@ -35,6 +35,7 @@ jobs:
           gcc-7
           git
           grep
+          libfmt-dev
           libfontconfig1-dev
           libfreetype-dev
           libjpeg-turbo8-dev

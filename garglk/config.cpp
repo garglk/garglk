@@ -46,6 +46,7 @@
 #include <FindDirectory.h>
 #endif
 
+#include "format.h"
 #include "optional.hpp"
 
 #include "glk.h"
@@ -265,14 +266,14 @@ std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::stri
 #if defined(__HAIKU__)
     char settings_dir[PATH_MAX + 1];
     if (find_directory(B_USER_SETTINGS_DIRECTORY, -1, false, settings_dir, sizeof settings_dir) == B_OK) {
-        configs.push_back(ConfigFile(std::string(settings_dir) + "/Gargoyle", ConfigFile::Type::User));
+        configs.push_back(ConfigFile(Format("{}/Gargoyle", settings_dir), ConfigFile::Type::User));
     }
 #elif defined(_WIN32)
     // $APPDATA/Gargoyle/garglk.ini (Windows only). This has a higher
     // priority than $PWD/garglk.ini since it's a more "proper" location.
     const char *appdata = std::getenv("APPDATA");
     if (appdata != nullptr) {
-        configs.push_back(ConfigFile(std::string(appdata) + "/Gargoyle/garglk.ini", ConfigFile::Type::User));
+        configs.push_back(ConfigFile(Format("{}/Gargoyle/garglk.ini", appdata), ConfigFile::Type::User));
     }
 
     // current directory .ini
@@ -288,7 +289,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::stri
     // $HOME/garglk.ini. At some point this probably should move to somewhere in
     // $HOME/Library, but for now, make sure this config file is used.
     if (home != nullptr) {
-        configs.push_back(ConfigFile(std::string(home) + "/garglk.ini", ConfigFile::Type::User));
+        configs.push_back(ConfigFile(Format("{}/garglk.ini", home), ConfigFile::Type::User));
     }
 #endif
 
@@ -298,16 +299,16 @@ std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::stri
     if (xdg != nullptr && xdg[0] == '/') {
         xdg_path = xdg;
     } else if (home != nullptr) {
-        xdg_path = std::string(home) + "/.config";
+        xdg_path = Format("{}/.config", home);
     }
 
     if (!xdg_path.empty()) {
-        configs.emplace_back(xdg_path + "/garglk.ini", ConfigFile::Type::User);
+        configs.emplace_back(Format("{}/garglk.ini", xdg_path), ConfigFile::Type::User);
     }
 
     // $HOME/.garglkrc
     if (home != nullptr) {
-        configs.emplace_back(std::string(home) + "/.garglkrc", ConfigFile::Type::User);
+        configs.emplace_back(Format("{}/.garglkrc", home), ConfigFile::Type::User);
     }
 #endif
 
@@ -316,7 +317,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::stri
     // default garglk.ini.
     const char *garglkini = std::getenv("GARGLK_RESOURCES");
     if (garglkini != nullptr) {
-        configs.emplace_back(std::string(garglkini) + "/garglk.ini", ConfigFile::Type::System);
+        configs.emplace_back(Format("{}/garglk.ini", garglkini), ConfigFile::Type::System);
     }
 #endif
 
@@ -329,7 +330,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::stri
     // install directory
     auto exedir = garglk::winappdir();
     if (exedir.has_value()) {
-        configs.push_back(ConfigFile(*exedir + "/garglk.ini", ConfigFile::Type::System));
+        configs.push_back(ConfigFile(Format("{}/garglk.ini", *exedir), ConfigFile::Type::System));
     }
 #endif
 
@@ -373,20 +374,20 @@ std::string garglk::user_config()
             std::filesystem::create_directories(fspath.parent_path());
         }
     } catch (const std::runtime_error &e) {
-        throw std::runtime_error("Unable to create parent directory for configuration file " + path + ": " + e.what());
+        throw std::runtime_error(Format("Unable to create parent directory for configuration file {}: {}", path, e.what()));
     }
 #endif
 
     std::ofstream f(path);
     if (!f.is_open()) {
-        throw std::runtime_error("Unable to open configuration file " + path + " for writing.");
+        throw std::runtime_error(Format("Unable to open configuration file {} for writing.", path));
     }
 
     f << garglkini;
 
     if (f.bad()) {
         std::remove(path.c_str());
-        throw std::runtime_error("Error writing to configuration file " + path + ".");
+        throw std::runtime_error(Format("Error writing to configuration file {}.", path));
     }
 
     return path;

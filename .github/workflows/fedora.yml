@@ -30,6 +30,7 @@ jobs:
           SDL2-devel
           SDL2_mixer-devel
           cmake
+          fmt-devel
           fontconfig-devel
           freetype-devel
           libjpeg-turbo-devel

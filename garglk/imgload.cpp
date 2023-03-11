@@ -39,6 +39,8 @@ using std::FILE;
 
 #include <png.h>
 
+#include "format.h"
+
 #include "glk.h"
 #include "garglk.h"
 #include "gi_blorb.h"
@@ -52,7 +54,7 @@ static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned cha
 namespace {
 
 struct LoadError : public std::runtime_error {
-    LoadError(const std::string &format, const std::string &msg) : std::runtime_error(msg + " [" + format + "]") {
+    LoadError(const std::string &format, const std::string &msg) : std::runtime_error(Format("{} [{}]", msg, format)) {
     }
 };
 
@@ -128,7 +130,7 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
     std::vector<unsigned char> buf;
 
     if (giblorb_get_resource_map() == nullptr) {
-        std::string filename = gli_workdir + "/PIC" + std::to_string(id);
+        auto filename = Format("{}/PIC{}", gli_workdir, id);
 
         if (!garglk::read_file(filename, buf) || buf.size() < 8) {
             return nullptr;
@@ -160,7 +162,7 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
             return pic;
         }
     } catch (const LoadError &e) {
-        gli_strict_warning("unable to load image " + std::to_string(id) + ": " + e.what());
+        gli_strict_warning(Format("unable to load image {}: {}", id, e.what()));
     } catch (const std::out_of_range &) {
     }
 

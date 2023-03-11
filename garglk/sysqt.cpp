@@ -82,6 +82,7 @@
 #include <utility>
 #include <vector>
 
+#include "format.h"
 #include "optional.hpp"
 
 #include "sysqt.h"
@@ -371,7 +372,7 @@ static void show_paths()
         auto path = canonicalize(config.path);
         auto type = QString::fromStdString(config.format_type());
 
-        text += path + " " + type + "\n";
+        text += QString("%1 %2\n").arg(path).arg(type);
     }
 
     text += "</pre><p>Theme paths:</p><pre>";
@@ -653,7 +654,7 @@ bool windark()
 
 nonstd::optional<std::string> garglk::winfontpath(const std::string &filename)
 {
-    return QCoreApplication::applicationDirPath().toStdString() + "/" + filename;
+    return Format("{}/{}", QCoreApplication::applicationDirPath().toStdString(), filename);
 }
 
 std::vector<std::string> garglk::winappdata()
@@ -672,8 +673,8 @@ std::vector<std::string> garglk::winappdata()
     // For AppImages, hard-code the "known" path to app data (in this
     // case that's <binary>/../share/io.github.garglk/Gargoyle).
 #if GARGLK_CONFIG_APPIMAGE
-    auto dir = QCoreApplication::applicationDirPath();
-    paths.push_back((dir + "/../share/" + GARGOYLE_ORGANIZATION + "/Gargoyle").toStdString());
+    auto dir = QCoreApplication::applicationDirPath().toStdString();
+    paths.push_back(Format("{}/../share/{}/Gargoyle", dir, GARGOYLE_ORGANIZATION));
 #endif
 
     // QStandardPaths returns higher priority directories first: reverse

@@ -37,6 +37,7 @@
 #include <sys/types.h>
 #endif
 
+#include "format.h"
 #define JSON_DIAGNOSTICS 1
 #include "json.hpp"
 #include "optional.hpp"
@@ -64,7 +65,7 @@ Color gli_parse_color(const std::string &str)
     std::string r, g, b;
 
     if (!std::regex_match(str, color_re)) {
-        throw std::runtime_error("invalid color: " + str);
+        throw std::runtime_error(Format("invalid color: {}", str));
     }
 
     int pos = str[0] == '#' ? 1 : 0;
@@ -228,7 +229,7 @@ private:
             try {
                 parse_colors(style.second, stylemap.at(style.first));
             } catch (const std::out_of_range &) {
-                throw std::runtime_error("invalid style in " + color + ": " + style.first);
+                throw std::runtime_error(Format("invalid style in {}: {}", color, style.first));
             }
         }
 
@@ -243,7 +244,7 @@ private:
         }
 
         if (!missing.empty()) {
-            throw std::runtime_error(color + " is missing the following styles: " + join(missing, ", "));
+            throw std::runtime_error(Format("{} is missing the following styles: {}", color, join(missing, ", ")));
         }
 
         return {colors};
@@ -259,7 +260,7 @@ std::vector<std::string> garglk::theme::paths()
     std::vector<std::string> theme_paths;
 
     for (const auto &path : garglk::winappdata()) {
-        theme_paths.push_back(path + "/themes");
+        theme_paths.push_back(Format("{}/themes", path));
     }
 
     return theme_paths;
@@ -290,7 +291,7 @@ static std::vector<std::string> directory_entries(const std::string &dir)
     std::vector<std::string> entries;
     dirent *de;
     while ((de = readdir(d.get())) != nullptr) {
-        entries.push_back(dir + "/" + de->d_name);
+        entries.push_back(Format("{}/{}", dir, de->d_name));
     }
 
     return entries;
@@ -362,7 +363,7 @@ std::vector<std::string> garglk::theme::names()
         theme_names.push_back(theme.first);
     }
 
-    theme_names.push_back(std::string("system (") + system_theme_name() + ")");
+    theme_names.push_back(Format("system ({})", system_theme_name()));
 
     std::sort(theme_names.begin(), theme_names.end());
 
