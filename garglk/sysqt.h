@@ -47,7 +47,7 @@ public:
     void refresh() { m_view->refresh(); }
 
     void start_timer(long);
-    bool timed_out() { return m_timed_out; }
+    bool timed_out() const { return m_timed_out; }
     void reset_timeout() { m_timed_out = false; }
 
     const QSettings *settings() { return m_settings; }
