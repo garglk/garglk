@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.3)
+cmake_minimum_required(VERSION 3.8)
 
 file(READ "VERSION" GARGOYLE_VERSION)
 string(STRIP "${GARGOYLE_VERSION}" GARGOYLE_VERSION)
