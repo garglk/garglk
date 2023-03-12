@@ -44,7 +44,7 @@ option(WITH_BABEL "Display Treaty of Babel-derived author and title if possible"
 option(APPIMAGE "Tweak some settings to aid in AppImage building" OFF)
 
 if(APPLE)
-    option(DIST_INSTALL "Install to ${PROJECT_SOURCE_DIR}/build/dist for packaging")
+    option(DIST_INSTALL "Install to ${PROJECT_SOURCE_DIR}/build/dist for packaging" OFF)
 elseif(MINGW)
     set(DIST_INSTALL ON)
 endif()
