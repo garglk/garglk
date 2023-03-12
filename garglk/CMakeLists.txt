@@ -129,7 +129,7 @@ cxx_standard(garglkmain ${CXX_VERSION})
 warnings(garglkmain)
 target_include_directories(garglkmain PRIVATE cheapglk)
 
-# If garglk is build with PIC, do the same for garglkmain.
+# If garglk is built with PIC, do the same for garglkmain.
 get_property(GARGLK_PIC TARGET garglk PROPERTY POSITION_INDEPENDENT_CODE)
 set_target_properties(garglkmain PROPERTIES POSITION_INDEPENDENT_CODE "${GARGLK_PIC}")
 
@@ -318,13 +318,17 @@ else()
 endif()
 
 if(DIST_INSTALL)
-    install(TARGETS gargoyle DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
+    if(WITH_LAUNCHER)
+        install(TARGETS gargoyle DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
+    endif()
+
     if(BUILD_SHARED_LIBS)
         install(TARGETS garglk DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
     endif()
 elseif(UNIX)
     if(WITH_LAUNCHER)
         install(TARGETS gargoyle DESTINATION "${CMAKE_INSTALL_BINDIR}")
+        install(FILES ../gargoyle.6 DESTINATION "${CMAKE_INSTALL_MANDIR}/man6")
     endif()
 
     if(INSTALL_DEV)

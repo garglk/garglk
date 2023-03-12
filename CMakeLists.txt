@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.3)
+cmake_minimum_required(VERSION 3.8)
 
 file(READ "VERSION" GARGOYLE_VERSION)
 string(STRIP "${GARGOYLE_VERSION}" GARGOYLE_VERSION)
@@ -44,7 +44,7 @@ option(WITH_BABEL "Display Treaty of Babel-derived author and title if possible"
 option(APPIMAGE "Tweak some settings to aid in AppImage building" OFF)
 
 if(APPLE)
-    option(DIST_INSTALL "Install to ${PROJECT_SOURCE_DIR}/build/dist for packaging")
+    option(DIST_INSTALL "Install to ${PROJECT_SOURCE_DIR}/build/dist for packaging" OFF)
 elseif(MINGW)
     set(DIST_INSTALL ON)
 endif()
@@ -56,7 +56,6 @@ if(UNIX AND NOT DIST_INSTALL)
     else()
         set(INTERPRETER_INSTALL_DIR "${CMAKE_INSTALL_FULL_LIBEXECDIR}/gargoyle")
     endif()
-    install(FILES gargoyle.6 DESTINATION "${CMAKE_INSTALL_MANDIR}/man6")
 endif()
 
 add_subdirectory(garglk)
