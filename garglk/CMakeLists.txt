@@ -129,7 +129,7 @@ cxx_standard(garglkmain ${CXX_VERSION})
 warnings(garglkmain)
 target_include_directories(garglkmain PRIVATE cheapglk)
 
-# If garglk is build with PIC, do the same for garglkmain.
+# If garglk is built with PIC, do the same for garglkmain.
 get_property(GARGLK_PIC TARGET garglk PROPERTY POSITION_INDEPENDENT_CODE)
 set_target_properties(garglkmain PROPERTIES POSITION_INDEPENDENT_CODE "${GARGLK_PIC}")
 
