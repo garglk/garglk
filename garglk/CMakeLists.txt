@@ -325,6 +325,7 @@ if(DIST_INSTALL)
 elseif(UNIX)
     if(WITH_LAUNCHER)
         install(TARGETS gargoyle DESTINATION "${CMAKE_INSTALL_BINDIR}")
+        install(FILES ../gargoyle.6 DESTINATION "${CMAKE_INSTALL_MANDIR}/man6")
     endif()
 
     if(INSTALL_DEV)

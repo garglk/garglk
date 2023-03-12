@@ -56,7 +56,6 @@ if(UNIX AND NOT DIST_INSTALL)
     else()
         set(INTERPRETER_INSTALL_DIR "${CMAKE_INSTALL_FULL_LIBEXECDIR}/gargoyle")
     endif()
-    install(FILES gargoyle.6 DESTINATION "${CMAKE_INSTALL_MANDIR}/man6")
 endif()
 
 add_subdirectory(garglk)
