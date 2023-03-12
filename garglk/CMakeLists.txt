@@ -318,7 +318,10 @@ else()
 endif()
 
 if(DIST_INSTALL)
-    install(TARGETS gargoyle DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
+    if(WITH_LAUNCHER)
+        install(TARGETS gargoyle DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
+    endif()
+
     if(BUILD_SHARED_LIBS)
         install(TARGETS garglk DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
     endif()
