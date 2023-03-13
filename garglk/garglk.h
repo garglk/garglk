@@ -347,11 +347,11 @@ public:
         m_stride = width * N;
     }
 
-    int width() {
+    int width() const {
         return m_width;
     }
 
-    int height() {
+    int height() const {
         return m_height;
     }
 
