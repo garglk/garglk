@@ -94,12 +94,12 @@ ExtraCommandResult PerformExtraCommand(int command, int nextcommand)
 {
     switch (command) {
     case COM_AGAIN:
-        CurVerb = LastVerb;
-        CurNoun = LastNoun;
-        CurPrep = LastPrep;
-        CurPartp = LastPartp;
-        CurNoun2 = LastNoun2;
-        CurAdverb = LastAdverb;
+        CurrentVerb = LastVerb;
+        CurrentNoun = LastNoun;
+        CurrentPrep = LastPrep;
+        CurrentPartp = LastPartp;
+        CurrentNoun2 = LastNoun2;
+        CurrentAdverb = LastAdverb;
         return RESULT_AGAIN;
     case COM_UNDO:
         RestoreUndo(1);

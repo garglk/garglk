@@ -28,7 +28,7 @@ DictWord *Nouns;
 DictWord *Adverbs;
 DictWord *Prepositions;
 
-int LastVerb = 0, LastNoun = 0, LastPrep = 0, LastPartp = 0, LastNoun2 = 0, LastAdverb = 0;
+int CurrentVerb = 0, CurrentNoun = 0, CurrentPrep = 0, CurrentPartp = 0, CurrentNoun2 = 0, CurrentAdverb = 0, LastVerb = 0, LastNoun = 0, LastPrep = 0, LastPartp = 0, LastNoun2 = 0, LastAdverb = 0;
 
 void FreeInputWords(void)
 {
@@ -459,13 +459,13 @@ int IsNextParticiple(int partp, int noun2)
         return 0;
     }
     if (TokenWords[WordIndex].Type == NOUN_TYPE && partp == 2 && (noun2 == 0 || TokenWords[WordIndex].Index == noun2)) {
-        CurPartp = 2;
-        CurNoun2 = TokenWords[WordIndex++].Index;
+        CurrentPartp = 2;
+        CurrentNoun2 = TokenWords[WordIndex++].Index;
         return 1;
     } else if (TokenWords[WordIndex].Type == PREPOSITION_TYPE && WordIndex < WordsInInput - 1 && (partp == 0 || TokenWords[WordIndex].Index == partp)) {
         if (TokenWords[WordIndex + 1].Type == NOUN_TYPE && (noun2 == 0 || TokenWords[WordIndex + 1].Index == noun2)) {
-            CurPartp = TokenWords[WordIndex++].Index;
-            CurNoun2 = TokenWords[WordIndex++].Index;
+            CurrentPartp = TokenWords[WordIndex++].Index;
+            CurrentNoun2 = TokenWords[WordIndex++].Index;
             return 1;
         }
     }
@@ -517,20 +517,20 @@ static int CommandFromTokens(int verb, int noun)
         }
     }
 
-    CurPartp = 0;
-    CurPrep = 0;
-    CurNoun2 = 0;
-    CurAdverb = 0;
+    CurrentPartp = 0;
+    CurrentPrep = 0;
+    CurrentNoun2 = 0;
+    CurrentAdverb = 0;
 
     if (TokenWords[WordIndex].Type == VERB_TYPE) {
         verb = TokenWords[WordIndex++].Index;
     }
 
     if (WordIndex < WordsInInput && TokenWords[WordIndex].Type == ADVERB_TYPE) {
-        CurAdverb = TokenWords[WordIndex++].Index;
+        CurrentAdverb = TokenWords[WordIndex++].Index;
         debug_print("Found adverb \"");
-        PrintDictWord(CurAdverb, Adverbs);
-        debug_print("\" (%d)\n", CurAdverb);
+        PrintDictWord(CurrentAdverb, Adverbs);
+        debug_print("\" (%d)\n", CurrentAdverb);
         if (WordIndex < WordsInInput && verb == 0 && TokenWords[WordIndex].Type == VERB_TYPE) {
             verb = TokenWords[WordIndex++].Index;
         }
@@ -549,8 +549,8 @@ static int CommandFromTokens(int verb, int noun)
     debug_print("\" (%d)\n", verb);
 
     if (WordIndex >= WordsInInput) {
-        CurVerb = verb;
-        CurNoun = noun;
+        CurrentVerb = verb;
+        CurrentNoun = noun;
         return 0;
     }
 
@@ -560,17 +560,17 @@ static int CommandFromTokens(int verb, int noun)
 
     if (noun == 0) {
         if (WordIndex < WordsInInput && TokenWords[WordIndex].Type == PREPOSITION_TYPE) {
-            CurPrep = TokenWords[WordIndex++].Index;
+            CurrentPrep = TokenWords[WordIndex++].Index;
             if (WordIndex < WordsInInput && TokenWords[WordIndex].Type == NOUN_TYPE) {
                 noun = TokenWords[WordIndex++].Index;
             }
         }
     }
 
-    if (CurPrep != 0) {
+    if (CurrentPrep != 0) {
         debug_print("Found preposition \"");
-        PrintDictWord(CurPrep, Prepositions);
-        debug_print("\" (%d)\n", CurPrep);
+        PrintDictWord(CurrentPrep, Prepositions);
+        debug_print("\" (%d)\n", CurrentPrep);
     }
 
     if (noun != 0) {
@@ -580,18 +580,18 @@ static int CommandFromTokens(int verb, int noun)
     }
 
     if (WordIndex < WordsInInput && TokenWords[WordIndex].Type == ADVERB_TYPE) {
-        CurAdverb = TokenWords[WordIndex++].Index;
-        if (CurAdverb > 0) {
+        CurrentAdverb = TokenWords[WordIndex++].Index;
+        if (CurrentAdverb > 0) {
             debug_print("Found adverb \"");
-            PrintDictWord(CurAdverb, Adverbs);
-            debug_print("\" (%d)\n", CurAdverb);
+            PrintDictWord(CurrentAdverb, Adverbs);
+            debug_print("\" (%d)\n", CurrentAdverb);
         }
     }
 
-    if (WordIndex < WordsInInput && CurPrep != 0) {
+    if (WordIndex < WordsInInput && CurrentPrep != 0) {
         if (TokenWords[WordIndex].Type == NOUN_TYPE) {
             if (noun != 0) {
-                CurNoun2 = TokenWords[WordIndex++].Index;
+                CurrentNoun2 = TokenWords[WordIndex++].Index;
             } else {
                 noun = TokenWords[WordIndex++].Index;
             }
@@ -599,28 +599,28 @@ static int CommandFromTokens(int verb, int noun)
     }
 
     if (WordIndex < WordsInInput && TokenWords[WordIndex].Type == PREPOSITION_TYPE) {
-        CurPartp = TokenWords[WordIndex++].Index;
+        CurrentPartp = TokenWords[WordIndex++].Index;
         if (WordIndex < WordsInInput && TokenWords[WordIndex].Type == NOUN_TYPE) {
-            if (CurNoun2 != 0)
+            if (CurrentNoun2 != 0)
                 debug_print("Found a third noun. This should never happen.\n");
-            CurNoun2 = TokenWords[WordIndex++].Index;
+            CurrentNoun2 = TokenWords[WordIndex++].Index;
         } else {
-            CurPartp = CurPrep;
-            CurPrep = 0;
+            CurrentPartp = CurrentPrep;
+            CurrentPrep = 0;
         }
     }
 
-    if (CurPartp != 0) {
+    if (CurrentPartp != 0) {
         debug_print("Found participle \"");
-        PrintDictWord(CurPartp, Prepositions);
-        debug_print("\" (%d)\n", CurPartp);
+        PrintDictWord(CurrentPartp, Prepositions);
+        debug_print("\" (%d)\n", CurrentPartp);
     }
 
-    if (CurNoun2 != 0) {
+    if (CurrentNoun2 != 0) {
         debug_print("Found second noun \"");
-        PrintDictWord(CurNoun2, Nouns);
-        debug_print("\" (%d)\n", CurNoun2);
-    } else if (CurPartp != 0) {
+        PrintDictWord(CurrentNoun2, Nouns);
+        debug_print("\" (%d)\n", CurrentNoun2);
+    } else if (CurrentPartp != 0) {
         debug_print("Found participle but no second noun. This should never happen.\n");
     }
 
@@ -634,8 +634,8 @@ static int CommandFromTokens(int verb, int noun)
     else
         debug_print("No remaining input words.\n");
 
-    CurVerb = verb;
-    CurNoun = noun;
+    CurrentVerb = verb;
+    CurrentNoun = noun;
 
     return 0;
 }
@@ -732,7 +732,7 @@ int GetInput(void)
 
         result = CommandFromTokens(0, 0);
     } else {
-        result = CommandFromTokens(CurVerb, 0);
+        result = CommandFromTokens(CurrentVerb, 0);
     }
 
     return result;

@@ -49,12 +49,12 @@
 #define CurrentCounter (Counters[47])
 
 #define MyLoc (Counters[32])
-#define CurVerb (Counters[48])
-#define CurNoun (Counters[49])
-#define CurPrep (Counters[50])
-#define CurAdverb (Counters[51])
-#define CurPartp (Counters[52])
-#define CurNoun2 (Counters[53])
+#define VerbCounter (Counters[48])
+#define NounCounter (Counters[49])
+#define PrepCounter (Counters[50])
+#define AdverbCounter (Counters[51])
+#define PartpCounter (Counters[52])
+#define Noun2Counter (Counters[53])
 
 #define CARRIED 255
 #define HELD_BY_OTHER_GUY 99

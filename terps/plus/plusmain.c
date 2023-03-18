@@ -776,7 +776,7 @@ static void PrintNoun(void)
 {
     DictWord *dict = Nouns;
     for (int i = 0; dict->Word != NULL; i++) {
-        if (dict->Group == CurNoun) {
+        if (dict->Group == CurrentNoun) {
             Display(Bottom, "%s%s", lastwasnewline ? "" : " ", dict->Word);
             lastwasnewline = 0;
             return;
@@ -1148,7 +1148,7 @@ static ActionResultType TestConditions(uint16_t *ptr)
             dv2 = ptr[cc++];
             debug_print("Is description of room %d (counter %d) (%d) == Message %d?\n", Counters[dv], dv, Rooms[Counters[dv]].Exits[6], dv2);
             if (Rooms[Counters[dv]].Exits[6] != dv2)
-                return ACT_FAILURE;
+                current_result = 0;
             break;
         case 8:
             debug_print("Is bitflag %d set?\n", dv);
@@ -1258,11 +1258,11 @@ static ActionResultType TestConditions(uint16_t *ptr)
             else
                 debug_print("Is dictword (%d) of item %d (%s) == dictword (%d) of item %d (%s)?\n", Items[dv].Dictword, dv, Items[dv].Text, Items[dv2].Dictword, dv2, Items[dv2].Text);
             if (originaldv == 999) {
-                if (CurNoun2 == dv2)
+                if (CurrentNoun2 == dv2)
                     break;
                 current_result = 0;
             } else if (originaldv == 998) {
-                if (CurNoun == dv2)
+                if (CurrentNoun == dv2)
                     break;
                 current_result = 0;
             } else if (originaldv == 997) {
@@ -1281,9 +1281,9 @@ static ActionResultType TestConditions(uint16_t *ptr)
             cc++;
             dv2 = ptr[cc++];
             if (dv2 == 998)
-                dv2 = CurNoun;
+                dv2 = CurrentNoun;
             else if (dv2 == 999)
-                dv2 = CurNoun2;
+                dv2 = CurrentNoun2;
             else if (dv2 == 997)
                 Fatal("With list unimplemented");
             debug_print("Is dictword of object %d (%s) %d? (%s)\n", dv, Nouns[GetDictWord(Items[NounObject].Dictword)].Word, dv2, Nouns[GetDictWord(dv2)].Word);
@@ -1396,6 +1396,15 @@ static void PrintFlagInfo(int arg)
     }
 }
 
+void SetCountersFromInput(void) {
+    VerbCounter = CurrentVerb;
+    NounCounter = CurrentNoun;
+    AdverbCounter = CurrentAdverb;
+    PartpCounter = CurrentPartp;
+    PrepCounter = CurrentPrep;
+    Noun2Counter = CurrentNoun2;
+}
+
 static ActionResultType PerformLine(int ct)
 {
     debug_print("\nPerforming line %d: ", ct);
@@ -1447,10 +1456,10 @@ static ActionResultType PerformLine(int ct)
                 plus_one_arg = 1;
             }
             if (arg1 == 998) {
-                arg1 = CurNoun;
+                arg1 = CurrentNoun;
                 object = NounObject;
             } else if (arg1 == 999) {
-                arg1 = CurNoun2;
+                arg1 = CurrentNoun2;
                 object = Noun2Object;
             } else if (arg1 == 997) {
                 Fatal("With list unimplemented");
@@ -1493,11 +1502,16 @@ static ActionResultType PerformLine(int ct)
                 debug_print(" ");
                 PrintDictWord(arg2, Nouns);
                 debug_print(".\n");
-                CurVerb = arg1;
-                CurNoun = arg2;
-                CurPartp = 0;
-                CurPrep = 0;
-                CurNoun2 = 0;
+
+                CurrentVerb = arg1;
+                CurrentNoun = arg2;
+                CurrentPartp = 0;
+                CurrentPrep = 0;
+                CurrentNoun2 = 0;
+                CurrentAdverb = 0;
+
+                SetCountersFromInput();
+
                 keep_going = 1;
                 done = 1;
                 found_match = 0;
@@ -1821,8 +1835,15 @@ static ActionResultType PerformLine(int ct)
                 break;
             case 120:
                 debug_print("counter 48: verb, counter 49: noun, counter 50: preposition, counter 51: adverb, counter 52: participle, counter 53: noun 2\n");
+                SetCountersFromInput();
             case 121:
                 debug_print("Set input words to counters 48 to 53\n");
+                CurrentVerb = VerbCounter;
+                CurrentNoun = NounCounter;
+                CurrentAdverb = AdverbCounter;
+                CurrentPartp = PartpCounter;
+                CurrentPrep = PrepCounter;
+                CurrentNoun2 = Noun2Counter;
                 keep_going = 1;
                 done = 1;
                 found_match = 0;
@@ -1850,13 +1871,13 @@ static ActionResultType PerformLine(int ct)
                 cc += 2;
                 break;
             case 126:
-                debug_print("Counter (Counter %d) = Counter %d\n", arg2, arg1);
-                Counters[ca2] = ca1;
+                debug_print("Counter %d = Counter (Counter %d (%d))\n", arg1, arg2, ca2);
+                Counters[arg1] = Counters[ca2];
                 cc += 2;
                 break;
             case 127:
-                debug_print("Counter %d = Counter (Counter %d)\n", arg2, arg1);
-                Counters[arg2] = Counters[ca1];
+                debug_print("Counter (Counter %d (%d)) = Counter %d\n", arg2, ca2, arg1);
+                Counters[ca2] = Counters[arg1];
                 cc += 2;
                 break;
             case 128:
@@ -1892,7 +1913,7 @@ static int IsExtraWordMatch(int ct)
 {
     /* If the action has no "extra words" the command must contain no participle */
     if (Actions[ct].NumWords == 0) {
-        return (CurPartp == 0);
+        return (CurrentPartp == 0);
     }
 
     int foundprep = 0;
@@ -1913,7 +1934,7 @@ static int IsExtraWordMatch(int ct)
         case 1: /* adverb */
             debug_print("(adverb)\n");
             foundadverb = 1;
-            if (wordval == CurAdverb || wordval == 0 || (wordval == 1 && CurAdverb == 0))
+            if (wordval == CurrentAdverb || wordval == 0 || (wordval == 1 && CurrentAdverb == 0))
                 matchedadverb = 1;
             debug_print("Matched adverb %d (%s)\n", wordval, Prepositions[GetAnyDictWord(wordval, Adverbs)].Word);
             break;
@@ -1922,12 +1943,12 @@ static int IsExtraWordMatch(int ct)
             i++;
             foundpartp = 1;
             uint8_t n2 = Actions[ct].Words[i];
-            if (CurPartp == 0 && wordval > 1 && !IsNextParticiple(wordval, n2)) {
+            if (CurrentPartp == 0 && wordval > 1 && !IsNextParticiple(wordval, n2)) {
                 break;
             }
-            if (wordval == CurPartp || wordval == 0 || (wordval == 1 && CurPartp == 0)) { /* 1 means NONE */
+            if (wordval == CurrentPartp || wordval == 0 || (wordval == 1 && CurrentPartp == 0)) { /* 1 means NONE */
                 debug_print("Matched participle %d (%s)\n", wordval, Prepositions[GetAnyDictWord(wordval, Prepositions)].Word);
-                if (n2 == CurNoun2 || n2 == 0) {
+                if (n2 == CurrentNoun2 || n2 == 0) {
                     debug_print("Matched object %d (%s)\n", n2, Nouns[GetDictWord(n2)].Word);
                     matchedpartp = 1;
                 }
@@ -1936,7 +1957,7 @@ static int IsExtraWordMatch(int ct)
         case 3: /* preposition */
             debug_print("(preposition)\n");
             foundprep = 1;
-            if (CurPrep == wordval || wordval == 0 || (wordval == 1 && CurPrep == 0)) {
+            if (CurrentPrep == wordval || wordval == 0 || (wordval == 1 && CurrentPrep == 0)) {
                 debug_print("Matched preposition %d (%s)\n", wordval, Prepositions[GetAnyDictWord(wordval, Prepositions)].Word);
                 matchedprep = 1;
             }
@@ -1975,7 +1996,7 @@ static int IsMatch(int ct, int doagain)
     int verbvalue = Actions[ct].Verb;
     int nounvalue = Actions[ct].NounOrChance;
 
-    if (verbvalue != CurVerb && !(doagain && verbvalue == 0))
+    if (verbvalue != CurrentVerb && !(doagain && verbvalue == 0))
         return 0;
 
     if (verbvalue == 0) {
@@ -1990,7 +2011,7 @@ static int IsMatch(int ct, int doagain)
         return 0;
     }
 
-    if (verbvalue == CurVerb && verbvalue != 0 && (nounvalue == CurNoun || nounvalue == 0)) {
+    if (verbvalue == CurrentVerb && verbvalue != 0 && (nounvalue == CurrentNoun || nounvalue == 0)) {
         found_match = 1;
         return 1;
     }
@@ -2079,8 +2100,8 @@ static CommandResultType PerformExplicit(void)
     loop_index = 0;
     found_match = 0;
     ResetBit(MATCHBIT);
-    NounObject = MatchUpItem(CurNoun, -1);
-    Noun2Object = MatchUpItem(CurNoun2, -1);
+    NounObject = MatchUpItem(CurrentNoun, -1);
+    Noun2Object = MatchUpItem(CurrentNoun2, -1);
 
     while (ct <= GameHeader.NumActions) {
         int verbvalue, nounvalue;
@@ -2132,7 +2153,7 @@ static CommandResultType PerformExplicit(void)
                     break;
                 }
             } else {
-                if (verbvalue == CurVerb && (nounvalue == CurNoun || nounvalue == 0))
+                if (verbvalue == CurrentVerb && (nounvalue == CurrentNoun || nounvalue == 0))
                     SetBit(MATCHBIT);
             }
         }
@@ -2355,12 +2376,14 @@ void glk_main(void)
         if (GetInput() == 1)
             continue;
 
-        LastVerb = CurVerb;
-        LastNoun = CurNoun;
-        LastPrep = CurPrep;
-        LastPartp = CurPartp;
-        LastNoun2 = CurNoun2;
-        LastAdverb = CurAdverb;
+        SetCountersFromInput();
+
+        LastVerb = CurrentVerb;
+        LastNoun = CurrentNoun;
+        LastPrep = CurrentPrep;
+        LastPartp = CurrentPartp;
+        LastNoun2 = CurrentNoun2;
+        LastAdverb = CurrentAdverb;
 
         ClearFrames();
 

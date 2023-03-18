@@ -54,13 +54,13 @@ static const imglist a2listFantastic[] = {
     { "B010", 0xe800 },
     { "B011", 0xe600 },
     { "B012", 0xe400 },
-    { "B014", 0xe300 },
-    { "B015", 0xc600 },
-    { "B016", 0xde00 },
-    { "B017", 0xda00 },
-    { "B018", 0xd800 },
-    { "B019", 0xd700 },
-    { "B013", 0xd000 },
+    { "B013", 0xe300 },
+    { "B014", 0xc600 },
+    { "B015", 0xde00 },
+    { "B016", 0xda00 },
+    { "B017", 0xd800 },
+    { "B018", 0xd700 },
+    { "B019", 0xd000 },
     { "B020", 0xcc00 },
     { "B021", 0xca00 },
     { "B022", 0xc900 },
@@ -427,5 +427,6 @@ void LookForApple2Images(void)
     }
 
     Images[created].Filename = NULL;
+
     free(new);
 }

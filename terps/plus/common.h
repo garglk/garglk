@@ -81,6 +81,7 @@ extern int LastImgIndex;
 extern strid_t Transcript;
 
 extern int LastVerb, LastNoun, LastPrep, LastPartp, LastNoun2, LastAdverb;
+extern int CurrentVerb, CurrentNoun, CurrentPrep, CurrentPartp, CurrentNoun2, CurrentAdverb;
 
 extern int showing_inventory;
 

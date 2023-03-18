@@ -139,8 +139,8 @@ static const struct Keyword CommandList[] =
     {"ADDCNT",      123, 2 },
     {"BREAK",       124, 0 },
     {"CPYFLAG",     125, 2 },
-    {"CPY2CNT",     126, 2 },
-    {"CNT2CPY",     127, 2 },
+    {"INDTOCNT",    126, 2 },
+    {"CNTTOIND",    127, 2 },
     {"PRINTMESS",   128, 1 },
     {"",             -1, 0 }
 };
