@@ -38,22 +38,26 @@ enum {
 
 const int kMaxSectors = 32;
 
+// clang-format off
+
 /* do we need a way to override these? */
 static const int kVTOCTrack = 17;
 static const int kVTOCSector = 0;
 static const int kCatalogEntryOffset = 0x0b;   // first entry in cat sect starts here
 static const int kCatalogEntrySize = 0x23;     // length in bytes of catalog entries
 static const int kCatalogEntriesPerSect = 7;   // #of entries per catalog sector
-static const int kEntryDeleted = 0xff;     // this is used for track# of deleted files
-static const int kEntryUnused = 0x00;      // this is track# in never-used entries
+static const int kEntryDeleted = 0xff;         // this is used for track# of deleted files
+static const int kEntryUnused = 0x00;          // this is track# in never-used entries
 static const int kMaxTSPairs = 0x7a;           // 122 entries for 256-byte sectors
 static const int kTSOffset = 0x0c;             // first T/S entry in a T/S list
+
+// clang-format on
 
 static const int kMaxTSIterations = 32;
 #define kMaxFileName 30
 #define kFileNameBufLen 31
 
-#define kMaxCatalogSectors 64    // two tracks on a 32-sector disk
+#define kMaxCatalogSectors 64 // two tracks on a 32-sector disk
 
 static size_t fLength = 143360;
 
@@ -61,10 +65,10 @@ static size_t fLength = 143360;
 #define kNumSectPerTrack 16 // Is this ever 13?
 #define kSectorSize 256
 
-#define kChunkSize62 86      // (0x56)
+#define kChunkSize62 86 // (0x56)
 
 #define kMaxNibbleTracks525 40 // max #of tracks on 5.25 nibble img
-#define kTrackAllocSize 6656   // max 5.25 nibble track len; for buffers
+#define kTrackAllocSize 6656 // max 5.25 nibble track len; for buffers
 
 /*
  * ==========================================================================
@@ -72,21 +76,21 @@ static size_t fLength = 143360;
  * ==========================================================================
  */
 
-
-
 /* a T/S pair */
 typedef struct TrackSector {
-    uint8_t    track;
-    uint8_t    sector;
+    uint8_t track;
+    uint8_t sector;
 } TrackSector;
 
 TrackSector fCatalogSectors[kMaxCatalogSectors];
+
+// clang-format off
 
 /*
  * Errors from the various disk image classes.
  */
 typedef enum DIError {
-    kDIErrNone                  = 0,
+    kDIErrNone = 0,
 
     /* I/O request errors (should renumber/rename to match GS/OS errors?) */
     kDIErrAccessDenied          = -10,
@@ -166,6 +170,8 @@ typedef enum DIError {
     kDIErrNufxLibInitFailed     = -110
 } DIError;
 
+// clang-format on
+
 struct ringbuf_t {
     uint8_t **buffer;
     size_t size; //of the buffer
@@ -175,7 +181,7 @@ struct ringbuf_t {
 // Opaque circular buffer structure
 typedef struct ringbuf_t ringbuf_t;
 // Handle type, the way users interact with the API
-typedef ringbuf_t* ringbuf_handle_t;
+typedef ringbuf_t *ringbuf_handle_t;
 
 /*
  * Nibble encode/decode description.  Use no pointers here, so we
@@ -185,31 +191,29 @@ typedef ringbuf_t* ringbuf_handle_t;
  * headers are standard or some wacky variant?
  */
 enum {
-    kNibbleAddrPrologLen = 3,       // d5 aa 96
-    kNibbleAddrEpilogLen = 3,       // de aa eb
-    kNibbleDataPrologLen = 3,       // d5 aa ad
-    kNibbleDataEpilogLen = 3        // de aa eb
+    kNibbleAddrPrologLen = 3, // d5 aa 96
+    kNibbleAddrEpilogLen = 3, // de aa eb
+    kNibbleDataPrologLen = 3, // d5 aa ad
+    kNibbleDataEpilogLen = 3 // de aa eb
 };
 
 typedef struct {
-    char            description[32];
-    short           numSectors;     // 13 or 16 (or 18?)
+    char description[32];
+    short numSectors; // 13 or 16 (or 18?)
 
-    uint8_t         addrProlog[kNibbleAddrPrologLen];
-    uint8_t         addrEpilog[kNibbleAddrEpilogLen];
-    uint8_t         addrChecksumSeed;
-    int             addrVerifyChecksum;
-    int             addrVerifyTrack;
-    int             addrEpilogVerifyCount;
+    uint8_t addrProlog[kNibbleAddrPrologLen];
+    uint8_t addrEpilog[kNibbleAddrEpilogLen];
+    uint8_t addrChecksumSeed;
+    int addrVerifyChecksum;
+    int addrVerifyTrack;
+    int addrEpilogVerifyCount;
 
-    uint8_t         dataProlog[kNibbleDataPrologLen];
-    uint8_t         dataEpilog[kNibbleDataEpilogLen];
-    uint8_t         dataChecksumSeed;
-    int             dataVerifyChecksum;
-    int             dataEpilogVerifyCount;
+    uint8_t dataProlog[kNibbleDataPrologLen];
+    uint8_t dataEpilog[kNibbleDataEpilogLen];
+    uint8_t dataChecksumSeed;
+    int dataVerifyChecksum;
+    int dataEpilogVerifyCount;
 } NibbleDescr;
-
-
 
 static const uint8_t kDiskBytes62[64] = {
     0x96, 0x97, 0x9a, 0x9b, 0x9d, 0x9e, 0x9f, 0xa6,
@@ -226,19 +230,18 @@ static const uint8_t kDiskBytes62[64] = {
 static uint8_t *kInvDiskBytes62 = NULL;
 #define kInvInvalidValue 0xff
 
-
-uint8_t *fNibbleTrackBuf = NULL;    // allocated on heap
+uint8_t *fNibbleTrackBuf = NULL; // allocated on heap
 
 int fNibbleTrackLoaded = -1; // track currently in buffer
 
 static uint8_t *rawdata = NULL;
 static size_t rawdatalen = 0;
 
-typedef enum {              // format of the image data stream
+typedef enum { // format of the image data stream
     kPhysicalFormatUnknown = 0,
     kPhysicalFormatSectors = 1, // sequential 256-byte sectors (13/16/32)
     kPhysicalFormatNib525_6656 = 2, // 5.25" disk ".nib" (6656 bytes/track)
-    kPhysicalFormatNib525_Var = 4,  // 5.25" disk (variable len, e.g. ".app")
+    kPhysicalFormatNib525_Var = 4, // 5.25" disk (variable len, e.g. ".app")
 } PhysicalFormat;
 
 const int kTrackLenNib525 = 6656;
@@ -258,9 +261,9 @@ struct A2FileDOS {
     int fCatTStrack;
     int fCatTSsector;
     int fCatEntryNum;
-    TrackSector* tsList;
+    TrackSector *tsList;
     int tsCount;
-    TrackSector* indexList;
+    TrackSector *indexList;
     int indexCount;
     int fOffset;
     int fOpenEOF;
@@ -287,12 +290,13 @@ static void *MemAlloc(size_t size)
     void *t = (void *)malloc(size);
     if (t == NULL) {
         fprintf(stderr, "Out of memory\n");
-        exit( 1 );
+        exit(1);
     }
     return (t);
 }
 
-static uint8_t access_ringbuf(ringbuf_handle_t ringbuf, int index) {
+static uint8_t access_ringbuf(ringbuf_handle_t ringbuf, int index)
+{
     if (ringbuf == NULL || ringbuf->initialized == 0 || ringbuf->buffer == NULL || *(ringbuf->buffer) == NULL) {
         debug_print("ERROR! Ringbuf not ready!\n");
         return -1;
@@ -328,7 +332,8 @@ static void CalcNibbleInvTables(void)
     }
 }
 
-static uint16_t ConvFrom44(uint8_t val1, uint8_t val2) {
+static uint16_t ConvFrom44(uint8_t val1, uint8_t val2)
+{
     return ((val1 << 1) | 0x01) & val2;
 }
 
@@ -336,14 +341,14 @@ static uint16_t ConvFrom44(uint8_t val1, uint8_t val2) {
  * Decode the values in the address field.
  */
 static void DecodeAddr(ringbuf_handle_t ringbuffer, int offset,
-                short* pVol, short* pTrack, short* pSector, short* pChksum)
+    short *pVol, short *pTrack, short *pSector, short *pChksum)
 {
     //unsigned int vol, track, sector, chksum;
 
-    *pVol = ConvFrom44(access_ringbuf(ringbuffer, offset), access_ringbuf(ringbuffer, offset+1));
-    *pTrack = ConvFrom44(access_ringbuf(ringbuffer, offset+2), access_ringbuf(ringbuffer, offset+3));
-    *pSector = ConvFrom44(access_ringbuf(ringbuffer, offset+4), access_ringbuf(ringbuffer, offset+5));
-    *pChksum = ConvFrom44(access_ringbuf(ringbuffer, offset+6), access_ringbuf(ringbuffer, offset+7));
+    *pVol = ConvFrom44(access_ringbuf(ringbuffer, offset), access_ringbuf(ringbuffer, offset + 1));
+    *pTrack = ConvFrom44(access_ringbuf(ringbuffer, offset + 2), access_ringbuf(ringbuffer, offset + 3));
+    *pSector = ConvFrom44(access_ringbuf(ringbuffer, offset + 4), access_ringbuf(ringbuffer, offset + 5));
+    *pChksum = ConvFrom44(access_ringbuf(ringbuffer, offset + 6), access_ringbuf(ringbuffer, offset + 7));
 }
 
 const NibbleDescr nibbleDescr = {
@@ -351,15 +356,15 @@ const NibbleDescr nibbleDescr = {
     16, // number of sectors
     { 0xd5, 0xaa, 0x96 }, // addrProlog
     { 0xde, 0xaa, 0xeb }, // addrEpilog
-    0x00,   // checksum seed
-    0,   // verify checksum
-    0,   // verify track
-    2,      // epilog verify count
+    0x00, // checksum seed
+    0, // verify checksum
+    0, // verify track
+    2, // epilog verify count
     { 0xd5, 0xaa, 0xad }, // dataProlog
     { 0xde, 0xaa, 0xeb }, // dataEpilog
-    0x00,   // checksum seed
-    0,   // verify checksum
-    2,      // epilog verify count
+    0x00, // checksum seed
+    0, // verify checksum
+    2, // epilog verify count
 };
 
 const NibbleDescr *pNibbleDescr = &nibbleDescr;
@@ -370,11 +375,11 @@ const NibbleDescr *pNibbleDescr = &nibbleDescr;
  * Returns the index start on success or -1 on failure.
  */
 static int FindNibbleSectorStart(ringbuf_handle_t ringbuffer, int track,
-                           int sector, int* pVol)
+    int sector, int *pVol)
 {
     //DIError dierr;
     long trackLen = ringbuffer->size;
-    const int kMaxDataReach = trackLen;       // fairly arbitrary
+    const int kMaxDataReach = trackLen; // fairly arbitrary
 
     assert(sector >= 0 && sector < 16);
 
@@ -383,21 +388,17 @@ static int FindNibbleSectorStart(ringbuf_handle_t ringbuffer, int track,
     for (i = 0; i < trackLen; i++) {
         int foundAddr = 0;
 
-        if (access_ringbuf(ringbuffer, i) == pNibbleDescr->addrProlog[0] &&
-            access_ringbuf(ringbuffer, i+1) == pNibbleDescr->addrProlog[1] &&
-            access_ringbuf(ringbuffer, i+2) == pNibbleDescr->addrProlog[2])
-        {
+        if (access_ringbuf(ringbuffer, i) == pNibbleDescr->addrProlog[0] && access_ringbuf(ringbuffer, i + 1) == pNibbleDescr->addrProlog[1] && access_ringbuf(ringbuffer, i + 2) == pNibbleDescr->addrProlog[2]) {
             foundAddr = 1;
         }
-
 
         if (foundAddr) {
             //i += 3;
 
             /* found the address header, decode the address */
             short hdrVol, hdrTrack, hdrSector, hdrChksum;
-            DecodeAddr(ringbuffer, i+3, &hdrVol, &hdrTrack, &hdrSector,
-                       &hdrChksum);
+            DecodeAddr(ringbuffer, i + 3, &hdrVol, &hdrTrack, &hdrSector,
+                &hdrChksum);
 
             if (pNibbleDescr->addrVerifyTrack && track != hdrTrack) {
                 debug_print("Track mismatch");
@@ -406,9 +407,7 @@ static int FindNibbleSectorStart(ringbuf_handle_t ringbuffer, int track,
             }
 
             if (pNibbleDescr->addrVerifyChecksum) {
-                if ((pNibbleDescr->addrChecksumSeed ^
-                     hdrVol ^ hdrTrack ^ hdrSector ^ hdrChksum) != 0)
-                {
+                if ((pNibbleDescr->addrChecksumSeed ^ hdrVol ^ hdrTrack ^ hdrSector ^ hdrChksum) != 0) {
                     debug_print("   Addr checksum mismatch (want T=%d,S=%d, got T=%d,S=%d)", track, sector, hdrTrack, hdrSector);
                     continue;
                 }
@@ -418,7 +417,7 @@ static int FindNibbleSectorStart(ringbuf_handle_t ringbuffer, int track,
 
             int j;
             for (j = 0; j < pNibbleDescr->addrEpilogVerifyCount; j++) {
-                if (access_ringbuf(ringbuffer, i+8+j) != pNibbleDescr->addrEpilog[j]) {
+                if (access_ringbuf(ringbuffer, i + 8 + j) != pNibbleDescr->addrEpilog[j]) {
                     //debug_print("   Bad epilog byte %d (%02x vs %02x)",
                     //    j, buffer[i+8+j], pNibbleDescr->addrEpilog[j]);
                     break;
@@ -429,7 +428,7 @@ static int FindNibbleSectorStart(ringbuf_handle_t ringbuffer, int track,
 
 #ifdef NIB_VERBOSE_DEBUG
             debug_print("    Good header, T=%d,S=%d (looking for T=%d,S=%d)",
-                        hdrTrack, hdrSector, track, sector);
+                hdrTrack, hdrSector, track, sector);
 #endif
 
             if (sector != hdrSector)
@@ -441,10 +440,7 @@ static int FindNibbleSectorStart(ringbuf_handle_t ringbuffer, int track,
              * field of the next sector.
              */
             for (j = 0; j < kMaxDataReach; j++) {
-                if (access_ringbuf(ringbuffer, i + j) == pNibbleDescr->dataProlog[0] &&
-                    access_ringbuf(ringbuffer, i + j + 1) == pNibbleDescr->dataProlog[1] &&
-                    access_ringbuf(ringbuffer, i + j + 2) == pNibbleDescr->dataProlog[2])
-                {
+                if (access_ringbuf(ringbuffer, i + j) == pNibbleDescr->dataProlog[0] && access_ringbuf(ringbuffer, i + j + 1) == pNibbleDescr->dataProlog[1] && access_ringbuf(ringbuffer, i + j + 2) == pNibbleDescr->dataProlog[2]) {
                     *pVol = hdrVol;
                     int idx = i + j + 3;
                     while (idx >= ringbuffer->size)
@@ -465,9 +461,9 @@ static int FindNibbleSectorStart(ringbuf_handle_t ringbuffer, int track,
  * Decode 6&2 encoding.
  */
 static DIError DecodeNibbleData(ringbuf_handle_t ringbuffer, int idx,
-                         uint8_t* sctBuf)
+    uint8_t *sctBuf)
 {
-    uint8_t twos[kChunkSize62 * 3];   // 258
+    uint8_t twos[kChunkSize62 * 3]; // 258
     int chksum = pNibbleDescr->dataChecksumSeed;
     uint8_t decodedVal;
     int i;
@@ -483,12 +479,9 @@ static DIError DecodeNibbleData(ringbuf_handle_t ringbuffer, int idx,
         assert(decodedVal < sizeof(kDiskBytes62));
 
         chksum ^= decodedVal;
-        twos[i] =
-        ((chksum & 0x01) << 1) | ((chksum & 0x02) >> 1);
-        twos[i + kChunkSize62] =
-        ((chksum & 0x04) >> 1) | ((chksum & 0x08) >> 3);
-        twos[i + kChunkSize62*2] =
-        ((chksum & 0x10) >> 3) | ((chksum & 0x20) >> 5);
+        twos[i] = ((chksum & 0x01) << 1) | ((chksum & 0x02) >> 1);
+        twos[i + kChunkSize62] = ((chksum & 0x04) >> 1) | ((chksum & 0x08) >> 3);
+        twos[i + kChunkSize62 * 2] = ((chksum & 0x10) >> 3) | ((chksum & 0x20) >> 5);
     }
 
     for (i = 0; i < 256; i++) {
@@ -519,7 +512,6 @@ static DIError DecodeNibbleData(ringbuf_handle_t ringbuffer, int idx,
     return kDIErrNone;
 }
 
-
 /*
  * Copy a chunk of bytes out of the disk image.
  *
@@ -527,8 +519,8 @@ static DIError DecodeNibbleData(ringbuf_handle_t ringbuffer, int idx,
  */
 static DIError CopyBytesOut(void *buf, size_t offset, int size)
 {
-//    if (offset + size > rawdatalen)
-//        return kDIErrDataUnderrun;
+    //    if (offset + size > rawdatalen)
+    //        return kDIErrDataUnderrun;
     memcpy(buf, rawdata + offset, size);
     return kDIErrNone;
 }
@@ -536,7 +528,7 @@ static DIError CopyBytesOut(void *buf, size_t offset, int size)
 /*
  * Handle sector order conversions.
  */
-static DIError CalcSectorAndOffset(long track, int sector, size_t* pOffset, int* pNewSector)
+static DIError CalcSectorAndOffset(long track, int sector, size_t *pOffset, int *pNewSector)
 {
     /*
      * Sector order conversions.  No table is needed for Copy ][+ format,
@@ -546,7 +538,6 @@ static DIError CalcSectorAndOffset(long track, int sector, size_t* pOffset, int*
     static const int dos2raw[16] = {
         0, 13, 11, 9, 7, 5, 3, 1, 14, 12, 10, 8, 6, 4, 2, 15
     };
-
 
     if (track < 0 || track >= kNumTracks) {
         debug_print(" DI read invalid track %ld", track);
@@ -588,7 +579,7 @@ static DIError CalcSectorAndOffset(long track, int sector, size_t* pOffset, int*
 /*
  * Load a nibble track into our track buffer.
  */
-static DIError LoadNibbleTrack(long track, long* pTrackLen)
+static DIError LoadNibbleTrack(long track, long *pTrackLen)
 {
     DIError dierr = kDIErrNone;
     long offset;
@@ -671,7 +662,7 @@ static DIError ReadNibbleSector(long track, int sector, uint8_t *buf)
     ringbuffer->initialized = 1;
 
     sectorIdx = FindNibbleSectorStart(ringbuffer, track, sector,
-                                      &vol);
+        &vol);
     if (sectorIdx < 0) {
         return kDIErrSectorUnreadable;
     }
@@ -681,7 +672,8 @@ static DIError ReadNibbleSector(long track, int sector, uint8_t *buf)
     return dierr;
 }
 
-void InitNibImage(uint8_t *data, size_t datasize) {
+void InitNibImage(uint8_t *data, size_t datasize)
+{
     if (kInvDiskBytes62 == NULL)
         CalcNibbleInvTables();
 
@@ -692,14 +684,16 @@ void InitNibImage(uint8_t *data, size_t datasize) {
     physical = kPhysicalFormatNib525_6656;
 }
 
-void InitDskImage(uint8_t *data, size_t datasize) {
+void InitDskImage(uint8_t *data, size_t datasize)
+{
     rawdata = data;
     rawdatalen = datasize;
 
     physical = kPhysicalFormatSectors;
 }
 
-void FreeDiskImage(void) {
+void FreeDiskImage(void)
+{
     rawdata = NULL;
     rawdatalen = 0;
     fNibbleTrackLoaded = -1;
@@ -719,8 +713,8 @@ void FreeDiskImage(void) {
     lastfile = NULL;
 }
 
-
-uint8_t *ReadImageFromNib(size_t offset, size_t size, uint8_t *data, size_t datasize) {
+uint8_t *ReadImageFromNib(size_t offset, size_t size, uint8_t *data, size_t datasize)
+{
     uint8_t *result = MemAlloc(size);
 
     rawdata = data;
@@ -777,7 +771,7 @@ static DIError ReadTrackSector(long track, int sector, void *buf)
         return kDIErrInvalidArg;
 
     dierr = CalcSectorAndOffset(track, sector,
-                                &offset, &newSector);
+        &offset, &newSector);
     if (dierr != kDIErrNone)
         return dierr;
 
@@ -791,7 +785,8 @@ static DIError ReadTrackSector(long track, int sector, void *buf)
     return dierr;
 }
 
-static void AddFileToList(A2FileDOS *file) {
+static void AddFileToList(A2FileDOS *file)
+{
     if (firstfile == NULL) {
         firstfile = file;
     } else if (lastfile == NULL) {
@@ -813,7 +808,8 @@ static void AddFileToList(A2FileDOS *file) {
  *
  * We modify the first "len" bytes of "buf" in place.
  */
-static void LowerASCII(uint8_t filename[kFileNameBufLen]) {
+static void LowerASCII(uint8_t filename[kFileNameBufLen])
+{
 
     int len = kMaxFileName;
     uint8_t *buf = filename;
@@ -835,7 +831,8 @@ static void LowerASCII(uint8_t filename[kFileNameBufLen]) {
  *
  * Assumes the filename has already been converted to low ASCII.
  */
-static void TrimTrailingSpaces(uint8_t filename[kFileNameBufLen]) {
+static void TrimTrailingSpaces(uint8_t filename[kFileNameBufLen])
+{
     uint8_t *lastspc = filename + strlen((char *)filename);
 
     assert(*lastspc == '\0');
@@ -845,9 +842,8 @@ static void TrimTrailingSpaces(uint8_t filename[kFileNameBufLen]) {
             break;
     }
 
-    *(lastspc+1) = '\0';
+    *(lastspc + 1) = '\0';
 }
-
 
 /*
  * "Fix" a DOS3.3 filename.  Convert DOS-ASCII to normal ASCII, and strip
@@ -877,34 +873,30 @@ static void FixFilename(uint8_t filename[kFileNameBufLen])
  * entries have been copied.  If it looks to be partially valid, only the
  * valid parts are copied out, with the rest zeroed.
  */
-static DIError ExtractTSPairs(A2FileDOS *DOSFile, const uint8_t* sctBuf, TrackSector* tsList,
-                                  int* pLastNonZero)
+static DIError ExtractTSPairs(A2FileDOS *DOSFile, const uint8_t *sctBuf, TrackSector *tsList,
+    int *pLastNonZero)
 {
     DIError dierr = kDIErrNone;
-//    const DiskImg* pDiskImg = fpDiskFS->GetDiskImg();
-    const uint8_t* ptr;
+    //    const DiskImg* pDiskImg = fpDiskFS->GetDiskImg();
+    const uint8_t *ptr;
     int i, track, sector;
 
     *pLastNonZero = -1;
     memset(tsList, 0, sizeof(TrackSector) * kMaxTSPairs);
 
-    ptr = &sctBuf[kTSOffset];       // offset of first T/S entry (0x0c)
+    ptr = &sctBuf[kTSOffset]; // offset of first T/S entry (0x0c)
 
     for (i = 0; i < kMaxTSPairs; i++) {
         track = *ptr++;
         sector = *ptr++;
 
-        if (dierr == kDIErrNone &&
-            (track >= kNumTracks ||
-             sector >= kNumSectPerTrack ||
-             (track == 0 && sector != 0)))
-        {
+        if (dierr == kDIErrNone && (track >= kNumTracks || sector >= kNumSectPerTrack || (track == 0 && sector != 0))) {
             debug_print(" DOS33 invalid T/S %d,%d in '%s'\n", track, sector,
-                    DOSFile->fFileName);
+                DOSFile->fFileName);
 
-            if (i > 0 && tsList[i-1].track == 0 && tsList[i-1].sector == 0) {
+            if (i > 0 && tsList[i - 1].track == 0 && tsList[i - 1].sector == 0) {
                 debug_print("  T/S list looks partially valid\n");
-                goto bail;  // quit immediately
+                goto bail; // quit immediately
             } else {
                 dierr = kDIErrBadFile;
                 // keep going, just so caller has the full set to stare at
@@ -921,7 +913,6 @@ static DIError ExtractTSPairs(A2FileDOS *DOSFile, const uint8_t* sctBuf, TrackSe
 bail:
     return dierr;
 }
-
 
 const int kDefaultTSAlloc = 2;
 const int kDefaultIndexAlloc = 8;
@@ -952,8 +943,8 @@ static DIError LoadTSList(A2FileDOS *DOSFile)
 {
     DIError dierr = kDIErrNone;
 
-    TrackSector* tsList = NULL;
-    TrackSector* indexList = NULL;
+    TrackSector *tsList = NULL;
+    TrackSector *indexList = NULL;
     int tsCount, tsAlloc;
     int indexCount, indexAlloc;
     uint8_t sctBuf[kSectorSize];
@@ -973,11 +964,9 @@ static DIError LoadTSList(A2FileDOS *DOSFile)
     /* get the first T/S sector for this file */
     track = DOSFile->fTSListTrack;
     sector = DOSFile->fTSListSector;
-    if (track >= kNumTracks ||
-        sector >= kNumSectPerTrack)
-    {
+    if (track >= kNumTracks || sector >= kNumSectPerTrack) {
         debug_print(" DOS33 invalid initial T/S %d,%d in '%s'\n", track, sector,
-                DOSFile->fFileName);
+            DOSFile->fFileName);
         dierr = kDIErrBadFile;
         goto bail;
     }
@@ -995,7 +984,7 @@ static DIError LoadTSList(A2FileDOS *DOSFile)
          */
         if (indexCount == indexAlloc) {
             debug_print("+++ expanding index list\n");
-            TrackSector* newList;
+            TrackSector *newList;
             indexAlloc += kDefaultIndexAlloc;
             newList = MemAlloc(indexAlloc * sizeof(TrackSector));
             memcpy(newList, indexList, indexCount * sizeof(TrackSector));
@@ -1013,21 +1002,19 @@ static DIError LoadTSList(A2FileDOS *DOSFile)
         /* grab next track/sector */
         track = sctBuf[0x01];
         sector = sctBuf[0x02];
-        sectorOffset = sctBuf[0x05] +  sctBuf[0x06] * 256;
+        sectorOffset = sctBuf[0x05] + sctBuf[0x06] * 256;
 
         /* if T/S link is bogus, whole sector is probably bad */
-        if (track >= kNumTracks ||
-            sector >= kNumSectPerTrack)
-        {
+        if (track >= kNumTracks || sector >= kNumSectPerTrack) {
             // bogus T/S, mark file as damaged and stop
             debug_print(" DOS33 invalid T/S link %d,%d in '%s'\n", track, sector,
-                 DOSFile->fFileName);
+                DOSFile->fFileName);
             dierr = kDIErrBadFile;
             goto bail;
         }
         if ((sectorOffset % kMaxTSPairs) != 0) {
             debug_print(" DOS33 invalid T/S header sector offset %u in '%s'\n",
-                 sectorOffset,  DOSFile->fFileName);
+                sectorOffset, DOSFile->fFileName);
             // not fatal, just weird
         }
 
@@ -1037,7 +1024,7 @@ static DIError LoadTSList(A2FileDOS *DOSFile)
          */
         if (tsCount + kMaxTSPairs > tsAlloc) {
             debug_print("+++ expanding ts list\n");
-            TrackSector* newList;
+            TrackSector *newList;
             tsAlloc += kMaxTSPairs * kDefaultTSAlloc;
             newList = MemAlloc(tsAlloc * sizeof(TrackSector));
             memcpy(newList, tsList, tsCount * sizeof(TrackSector));
@@ -1065,10 +1052,10 @@ static DIError LoadTSList(A2FileDOS *DOSFile)
                 //LOGI(" DOS33 odd -- last T/S sector of '%s' was empty",
                 //  GetPathName());
             }
-            tsCount += lastNonZero +1;
+            tsCount += lastNonZero + 1;
         }
 
-        iterations++;       // watch for infinite loops
+        iterations++; // watch for infinite loops
     } while (!(track == 0 && sector == 0) && iterations < kMaxTSIterations);
 
     if (iterations == kMaxTSIterations) {
@@ -1101,7 +1088,7 @@ bail:
 static DIError Read(A2FileDOS *pFile, uint8_t *buf, size_t len, size_t *pActual)
 {
     debug_print(" DOS reading %lu bytes from '%s' (offset=%ld)\n",
-         (unsigned long) len, pFile->fFileName, (long) pFile->fOffset);
+        (unsigned long)len, pFile->fFileName, (long)pFile->fOffset);
 
     /*
      * Don't allow them to read past the end of the file.  The length value
@@ -1111,7 +1098,7 @@ static DIError Read(A2FileDOS *pFile, uint8_t *buf, size_t len, size_t *pActual)
     if (pFile->fOffset + (long)len > pFile->fOpenEOF) {
         if (pActual == NULL)
             return kDIErrDataUnderrun;
-        len = (size_t) (pFile->fOpenEOF - pFile->fOffset);
+        len = (size_t)(pFile->fOpenEOF - pFile->fOffset);
     }
     if (pActual != NULL)
         *pActual = len;
@@ -1120,8 +1107,8 @@ static DIError Read(A2FileDOS *pFile, uint8_t *buf, size_t len, size_t *pActual)
     DIError dierr = kDIErrNone;
     uint8_t sctBuf[kSectorSize];
     size_t actualOffset = pFile->fOffset; //+ pFile->fDataOffset;   // adjust for embedded len
-    int tsIndex = (int) (actualOffset / kSectorSize);
-    int bufOffset = (int) (actualOffset % kSectorSize);        // (& 0xff)
+    int tsIndex = (int)(actualOffset / kSectorSize);
+    int bufOffset = (int)(actualOffset % kSectorSize); // (& 0xff)
     size_t thisCount;
 
     if (len == 0)
@@ -1134,7 +1121,7 @@ static DIError Read(A2FileDOS *pFile, uint8_t *buf, size_t len, size_t *pActual)
     while (len) {
         if (tsIndex >= pFile->tsCount) {
             /* should've caught this earlier */
-            debug_print(" DOS ran off the end (fTSCount=%d). len == %zu\n",  pFile->tsCount, len);
+            debug_print(" DOS ran off the end (fTSCount=%d). len == %zu\n", pFile->tsCount, len);
             return kDIErrDataUnderrun;
         }
 
@@ -1165,13 +1152,10 @@ static DIError Read(A2FileDOS *pFile, uint8_t *buf, size_t len, size_t *pActual)
     return dierr;
 }
 
-
-
-
 /*
  * Set up state for this file.
  */
-static DIError Open(A2FileDOS* pOpenFile)
+static DIError Open(A2FileDOS *pOpenFile)
 {
     DIError dierr = kDIErrNone;
 
@@ -1190,11 +1174,9 @@ static DIError Open(A2FileDOS* pOpenFile)
 //    pOpenFile = NULL;
 //
 bail:
-//    delete pOpenFile;
+    //    delete pOpenFile;
     return dierr;
 }
-
-
 
 /*
  * Process the list of files in one sector of the catalog.
@@ -1203,10 +1185,10 @@ bail:
  * (We only use "catTrack" and "catSect" to fill out some fields.)
  */
 static DIError ProcessCatalogSector(int catTrack, int catSect,
-                             const uint8_t* sctBuf)
+    const uint8_t *sctBuf)
 {
-    A2FileDOS* pFile;
-    const uint8_t* pEntry;
+    A2FileDOS *pFile;
+    const uint8_t *pEntry;
     int i;
 
     pEntry = &sctBuf[kCatalogEntryOffset];
@@ -1221,19 +1203,35 @@ static DIError ProcessCatalogSector(int catTrack, int catSect,
             pFile->fTSListSector = pEntry[0x01];
             pFile->fLocked = (pEntry[0x02] & 0x80) != 0;
             switch (pEntry[0x02] & 0x7f) {
-                case 0x00:  pFile->fFileType = FILETYPE_T;    break;
-                case 0x01:  pFile->fFileType = FILETYPE_I;    break;
-                case 0x02:  pFile->fFileType = FILETYPE_A;    break;
-                case 0x04:  pFile->fFileType = FILETYPE_B;    break;
-                case 0x08:  pFile->fFileType = FILETYPE_S;    break;
-                case 0x10:  pFile->fFileType = FILETYPE_R;    break;
-                case 0x20:  pFile->fFileType = FILETYPE_A;    break;
-                case 0x40:  pFile->fFileType = FILETYPE_B;    break;
-                default:
-                    /* some odd arrangement of bit flags? */
-                    debug_print(" DOS33 peculiar filetype byte 0x%02x\n", pEntry[0x02]);
-                    pFile->fFileType = FILETYPE_UNKNOWN;
-                    break;
+            case 0x00:
+                pFile->fFileType = FILETYPE_T;
+                break;
+            case 0x01:
+                pFile->fFileType = FILETYPE_I;
+                break;
+            case 0x02:
+                pFile->fFileType = FILETYPE_A;
+                break;
+            case 0x04:
+                pFile->fFileType = FILETYPE_B;
+                break;
+            case 0x08:
+                pFile->fFileType = FILETYPE_S;
+                break;
+            case 0x10:
+                pFile->fFileType = FILETYPE_R;
+                break;
+            case 0x20:
+                pFile->fFileType = FILETYPE_A;
+                break;
+            case 0x40:
+                pFile->fFileType = FILETYPE_B;
+                break;
+            default:
+                /* some odd arrangement of bit flags? */
+                debug_print(" DOS33 peculiar filetype byte 0x%02x\n", pEntry[0x02]);
+                pFile->fFileType = FILETYPE_UNKNOWN;
+                break;
             }
 
             memcpy(pFile->fRawFileName, &pEntry[0x03], kMaxFileName);
@@ -1246,7 +1244,7 @@ static DIError ProcessCatalogSector(int catTrack, int catSect,
             debug_print("File name: %s\n", pFile->fFileName);
 
             pFile->fLengthInSectors = pEntry[0x21];
-            pFile->fLengthInSectors |= (uint16_t) pEntry[0x22] << 8;
+            pFile->fLengthInSectors |= (uint16_t)pEntry[0x22] << 8;
 
             pFile->fCatTStrack = catTrack;
             pFile->fCatTSsector = catSect;
@@ -1293,11 +1291,11 @@ static DIError ReadVTOC(void)
 
     if (fVTOCNumTracks != kNumTracks) {
         debug_print(" DOS33 warning: VTOC numtracks %d vs %d\n",
-             fVTOCNumTracks, kNumTracks);
+            fVTOCNumTracks, kNumTracks);
     }
     if (fVTOCNumSectors != kNumSectPerTrack) {
         debug_print(" DOS33 warning: VTOC numsect %d vs %d\n",
-             fVTOCNumSectors, kNumSectPerTrack);
+            fVTOCNumSectors, kNumSectPerTrack);
     }
 
 bail:
@@ -1327,8 +1325,7 @@ static DIError ReadCatalog(void)
 
     memset(fCatalogSectors, 0, sizeof(fCatalogSectors));
 
-    while (catTrack != 0 && catSect != 0 && iterations < kMaxCatalogSectors)
-    {
+    while (catTrack != 0 && catSect != 0 && iterations < kMaxCatalogSectors) {
         dierr = ReadTrackSector(catTrack, catSect, sctBuf);
         if (dierr != kDIErrNone)
             goto bail;
@@ -1338,7 +1335,7 @@ static DIError ReadCatalog(void)
          */
         if (catTrack == sctBuf[0x01] && catSect == sctBuf[0x02]) {
             debug_print(" DOS detected self-reference on cat (%d,%d)\n",
-                 catTrack, catSect);
+                catTrack, catSect);
             break;
         }
 
@@ -1347,9 +1344,7 @@ static DIError ReadCatalog(void)
          * broken, there's a very good chance that this isn't really a
          * catalog sector, so we want to bail out now.
          */
-        if (sctBuf[0x01] >= kNumTracks ||
-            sctBuf[0x02] >= kNumSectPerTrack)
-        {
+        if (sctBuf[0x01] >= kNumTracks || sctBuf[0x02] >= kNumSectPerTrack) {
             debug_print(" DOS bailing out early on catalog read due to funky T/S\n");
             break;
         }
@@ -1364,8 +1359,7 @@ static DIError ReadCatalog(void)
         catTrack = sctBuf[0x01];
         catSect = sctBuf[0x02];
 
-        iterations++;       // watch for infinite loops
-
+        iterations++; // watch for infinite loops
     }
     if (iterations >= kMaxCatalogSectors) {
         dierr = kDIErrDirectoryLoop;
@@ -1376,7 +1370,8 @@ bail:
     return dierr;
 }
 
-static A2FileDOS *find_file_named(char *name) {
+static A2FileDOS *find_file_named(char *name)
+{
     debug_print("find_file_named: \"%s\"\n", name);
     A2FileDOS *file = firstfile;
     while (file != NULL) {
@@ -1388,7 +1383,8 @@ static A2FileDOS *find_file_named(char *name) {
     return file;
 }
 
-static A2FileDOS *find_SAGA_database(void) {
+static A2FileDOS *find_SAGA_database(void)
+{
     A2FileDOS *file = firstfile;
     while (file != NULL) {
         char *name = (char *)file->fFileName;
@@ -1399,8 +1395,7 @@ static A2FileDOS *find_SAGA_database(void) {
             break;
         if (strcmp("THE INCREDIBLE HULK", name) == 0)
             break;
-        if (name[0] == 'A' && name[2] == '.' &&
-            name[3] == 'D' && name[4] == 'A' && name[5] == 'T') {
+        if (name[0] == 'A' && name[2] == '.' && name[3] == 'D' && name[4] == 'A' && name[5] == 'T') {
             break; //A(adventure number).DAT
         }
         file = file->next;
@@ -1463,4 +1458,3 @@ uint8_t *ReadApple2DOSFile(uint8_t *data, size_t *len, uint8_t **invimg, size_t 
 
     return buf;
 }
-

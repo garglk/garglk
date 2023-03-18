@@ -8,6 +8,8 @@
 #ifndef line_drawing_h
 #define line_drawing_h
 
+#include <stdint.h>
+
 struct line_image {
     uint8_t *data;
     int bgcolour;

@@ -36,9 +36,9 @@
 */
 
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 
 /* Sizes of some of the arrays in the snap structure */
@@ -492,10 +492,8 @@ uint8_t *DecompressZ80(uint8_t *raw_data, size_t length)
     for (int i = 0; i < SNAPSHOT_RAM_PAGES; i++)
         if (snap->pages[i] != NULL)
             free(snap->pages[i]);
+
     free(snap);
-
-//    writeToFile("/Users/administrator/Desktop/Z80Decompressed", uncompressed, 0xC000);
-
     return uncompressed;
 }
 

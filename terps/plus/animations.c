@@ -7,10 +7,12 @@
 
 #include <stdlib.h>
 #include <string.h>
+
+#include "common.h"
 #include "definitions.h"
 #include "glk.h"
-#include "common.h"
 #include "graphics.h"
+
 #include "animations.h"
 
 #define ANIMATION_RATE 200
@@ -28,7 +30,6 @@ static int AnimationStage = 0;
 static int StopNext = 0;
 static int ImgTail = 0;
 static int FramesTail = 0;
-
 
 static char *AnimationFilenames[MAX_ANIM_FRAMES];
 static int AnimationFrames[MAX_ANIM_FRAMES];
@@ -50,7 +51,8 @@ static int CannonAnimationPause = 0;
 int STWebAnimation = 0;
 int STWebAnimationFinished = 1;
 
-void AddImageToBuffer(char *basename) {
+void AddImageToBuffer(char *basename)
+{
     if (ImgTail >= MAX_ANIM_FRAMES - 1)
         return;
     size_t len = strlen(basename) + 1;
@@ -62,7 +64,8 @@ void AddImageToBuffer(char *basename) {
     AnimationFilenames[ImgTail] = NULL;
 }
 
-void AddFrameToBuffer(int frameidx) {
+void AddFrameToBuffer(int frameidx)
+{
     if (FramesTail >= MAX_ANIM_FRAMES - 1)
         return;
     debug_print("AddFrameToBuffer: Setting AnimationFrames[%d] to %d\n", FramesTail, frameidx);
@@ -70,21 +73,24 @@ void AddFrameToBuffer(int frameidx) {
     AnimationFrames[FramesTail] = -1;
 }
 
-void AddRoomImage(int image) {
+void AddRoomImage(int image)
+{
     char *shortname = ShortNameFromType('R', image);
     AddImageToBuffer(shortname);
     free(shortname);
     STWebAnimation = 0;
 }
 
-void AddItemImage(int image) {
+void AddItemImage(int image)
+{
     char *shortname = ShortNameFromType('B', image);
     AddImageToBuffer(shortname);
     free(shortname);
     STWebAnimation = 0;
 }
 
-void AddSpecialImage(int image) {
+void AddSpecialImage(int image)
+{
 
     if (CurrentSys == SYS_ST && CurrentGame == SPIDERMAN) {
         if (image == 14) {
@@ -103,7 +109,8 @@ void AddSpecialImage(int image) {
     free(shortname);
 }
 
-void SetAnimationTimer(glui32 milliseconds) {
+void SetAnimationTimer(glui32 milliseconds)
+{
     debug_print("SetAnimationTimer %d\n", milliseconds);
     AnimTimerRate = milliseconds;
     if (milliseconds == 0 && ColorCyclingRunning)
@@ -114,7 +121,8 @@ void SetAnimationTimer(glui32 milliseconds) {
     }
 }
 
-void Animate(int frame) {
+void Animate(int frame)
+{
 
     if (Images[0].Filename == NULL)
         return;
@@ -149,7 +157,8 @@ void Animate(int frame) {
         PostCannonAnimationSeam = 1;
 }
 
-void ClearAnimationBuffer(void) {
+void ClearAnimationBuffer(void)
+{
 
     if (PostCannonAnimationSeam)
         return;
@@ -163,21 +172,24 @@ void ClearAnimationBuffer(void) {
     FramesTail = 0;
 }
 
-void ClearFrames(void) {
+void ClearFrames(void)
+{
     for (int i = 0; i < FramesTail; i++) {
         AnimationFrames[i] = -1;
     }
     FramesTail = 0;
 }
 
-void InitAnimationBuffer(void) {
+void InitAnimationBuffer(void)
+{
     for (int i = 0; i < MAX_ANIM_FRAMES; i++) {
         AnimationFilenames[i] = NULL;
         AnimationFrames[i] = -1;
     }
 }
 
-void StopAnimation(void) {
+void StopAnimation(void)
+{
     SetAnimationTimer(0);
     debug_print("StopAnimation: stopped timer\n");
     AnimationStage = 0;

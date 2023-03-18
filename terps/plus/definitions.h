@@ -13,8 +13,11 @@
 
 #define DEBUG_ACTIONS 0
 
-#define debug_print(fmt, ...) \
-do { if (DEBUG_ACTIONS) fprintf(stderr, fmt, ##__VA_ARGS__); } while (0)
+#define debug_print(fmt, ...)                    \
+    do {                                         \
+        if (DEBUG_ACTIONS)                       \
+            fprintf(stderr, fmt, ##__VA_ARGS__); \
+    } while (0)
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -35,35 +38,35 @@ do { if (DEBUG_ACTIONS) fprintf(stderr, fmt, ##__VA_ARGS__); } while (0)
 
 #define MAX_BUFFER 512
 
-#define YOUARE        1    /* You are not I am */
-#define DEBUGGING    4    /* Info from database load */
-#define NO_DELAYS 128     /* Skip all pauses */
-#define FORCE_INVENTORY 1024     /* Inventory in upper window always on */
-#define FORCE_INVENTORY_OFF 2048     /* Inventory in upper window always off */
+#define YOUARE 1 /* You are not I am */
+#define DEBUGGING 4 /* Info from database load */
+#define NO_DELAYS 128 /* Skip all pauses */
+#define FORCE_INVENTORY 1024 /* Inventory in upper window always on */
+#define FORCE_INVENTORY_OFF 2048 /* Inventory in upper window always off */
 
 #define NounObject (Counters[30])
 #define Noun2Object (Counters[31])
 #define CurrentCounter (Counters[47])
 
-#define MyLoc     (Counters[32])
-#define CurVerb   (Counters[48])
-#define CurNoun   (Counters[49])
-#define CurPrep   (Counters[50])
+#define MyLoc (Counters[32])
+#define CurVerb (Counters[48])
+#define CurNoun (Counters[49])
+#define CurPrep (Counters[50])
 #define CurAdverb (Counters[51])
-#define CurPartp  (Counters[52])
-#define CurNoun2  (Counters[53])
+#define CurPartp (Counters[52])
+#define CurNoun2 (Counters[53])
 
-#define CARRIED           255
+#define CARRIED 255
 #define HELD_BY_OTHER_GUY 99
-#define DESTROYED         0
-#define HIDDEN            50
+#define DESTROYED 0
+#define HIDDEN 50
 
-#define DARKBIT      15
-#define MATCHBIT     33
-#define DRAWBIT      34
-#define GRAPHICSBIT  35
-#define ALWAYSMATCH  60
-#define STOPTIMEBIT  63
+#define DARKBIT 15
+#define MATCHBIT 33
+#define DRAWBIT 34
+#define GRAPHICSBIT 35
+#define ALWAYSMATCH 60
+#define STOPTIMEBIT 63
 
 #define CurrentGame (Game->gameID)
 
@@ -271,7 +274,13 @@ typedef enum {
 
 #define MAX_SYSMESS LAST_SYSTEM_MESSAGE
 
-typedef enum { NO_PALETTE, ZX, ZXOPT, C64A, C64B, VGA } palette_type;
+typedef enum {
+    NO_PALETTE,
+    ZX,
+    ZXOPT,
+    C64A,
+    C64B,
+    VGA } palette_type;
 
 struct GameInfo {
     const char *title;

@@ -3,11 +3,10 @@
 //  Part of TaylorMade, an interpreter for Adventure Soft UK games
 //
 
-#include <stdlib.h>
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <ctype.h>
-
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
@@ -17,11 +16,11 @@
 #endif
 #include "glkstart.h"
 
+#include "animations.h"
+#include "layouttext.h"
+#include "sagadraw.h"
 #include "taylor.h"
 #include "utility.h"
-#include "sagadraw.h"
-#include "layouttext.h"
-#include "animations.h"
 
 #define GLK_BUFFER_ROCK 1
 #define GLK_STATUS_ROCK 1010
@@ -92,7 +91,7 @@ static int JustWroteNewline = 0;
 
 void PrintCharacter(unsigned char c)
 {
-    if(OutC == 0 &&  c == '\0')
+    if (OutC == 0 && c == '\0')
         return;
 
     if (c == '.' || c == '!') {
@@ -103,8 +102,8 @@ void PrintCharacter(unsigned char c)
         JustWrotePeriod = 0;
     }
 
-    if(CurrentWindow == Bottom) {
-        if(isspace(c)) {
+    if (CurrentWindow == Bottom) {
+        if (isspace(c)) {
             WordFlush(Bottom);
             if ((c == 10 || c == 13) && !JustWroteNewline) {
                 Display(Bottom, "\n");
@@ -117,21 +116,21 @@ void PrintCharacter(unsigned char c)
         JustWroteNewline = 0;
         OutWord[OutC] = c;
         OutC++;
-        if(OutC > 127)
+        if (OutC > 127)
             WordFlush(Bottom);
         return;
     } else {
-        if(isspace(c)) {
+        if (isspace(c)) {
             WordFlush(Top);
             WriteToRoomDescriptionStream(" ");
-            if(c == '\n') {
+            if (c == '\n') {
                 WriteToRoomDescriptionStream("\n");
             }
             return;
         }
         OutWord[OutC] = c;
         OutC++;
-        if(OutC == TopWidth)
+        if (OutC == TopWidth)
             WordFlush(Top);
     }
     return;
@@ -153,7 +152,7 @@ unsigned char WaitCharacter(void)
 static void WordFlush(winid_t win)
 {
     int i;
-    for(i = 0; i < OutC; i++) {
+    for (i = 0; i < OutC; i++) {
         if (win == Top)
             WriteToRoomDescriptionStream("%c", OutWord[i]);
         else
@@ -164,7 +163,6 @@ static void WordFlush(winid_t win)
 
 extern strid_t room_description_stream;
 extern char *roomdescbuf;
-
 
 void TopWindow(void)
 {
@@ -216,7 +214,7 @@ static void FlushRoomDescription(void)
     if (!(bottomheight < 3 && TopHeight < rows)) {
         glk_window_get_size(Top, &TopWidth, &TopHeight);
         glk_window_set_arrangement(o2, winmethod_Above | winmethod_Fixed, rows,
-                                   Top);
+            Top);
     } else {
         print_delimiter = 0;
     }
@@ -253,7 +251,7 @@ static void FlushRoomDescription(void)
     if (line < rows - 1) {
         glk_window_get_size(Top, &TopWidth, &TopHeight);
         glk_window_set_arrangement(o2, winmethod_Above | winmethod_Fixed,
-                                   MIN(rows - 1, TopHeight - 1), Top);
+            MIN(rows - 1, TopHeight - 1), Top);
     }
 
     free(text_with_breaks);
@@ -286,36 +284,36 @@ void Look(void);
 void OpenGraphicsWindow(void);
 void CloseGraphicsWindow(void);
 
-
-void UpdateSettings(void) {
+void UpdateSettings(void)
+{
 #ifdef SPATTERLIGHT
     if (gli_sa_delays)
         Options &= ~NO_DELAYS;
     else
         Options |= NO_DELAYS;
 
-    switch(gli_sa_inventory) {
-        case 0:
-            Options &= ~(FORCE_INVENTORY | FORCE_INVENTORY_OFF);
-            break;
-        case 1:
-            Options = (Options | FORCE_INVENTORY) & ~FORCE_INVENTORY_OFF;
-            break;
-        case 2:
-            Options = (Options | FORCE_INVENTORY_OFF) & ~FORCE_INVENTORY;
-            break;
+    switch (gli_sa_inventory) {
+    case 0:
+        Options &= ~(FORCE_INVENTORY | FORCE_INVENTORY_OFF);
+        break;
+    case 1:
+        Options = (Options | FORCE_INVENTORY) & ~FORCE_INVENTORY_OFF;
+        break;
+    case 2:
+        Options = (Options | FORCE_INVENTORY_OFF) & ~FORCE_INVENTORY;
+        break;
     }
 
-    switch(gli_sa_palette) {
-        case 0:
-            Options &= ~(FORCE_PALETTE_ZX | FORCE_PALETTE_C64);
-            break;
-        case 1:
-            Options = (Options | FORCE_PALETTE_ZX) & ~FORCE_PALETTE_C64;
-            break;
-        case 2:
-            Options = (Options | FORCE_PALETTE_C64) & ~FORCE_PALETTE_ZX;
-            break;
+    switch (gli_sa_palette) {
+    case 0:
+        Options &= ~(FORCE_PALETTE_ZX | FORCE_PALETTE_C64);
+        break;
+    case 1:
+        Options = (Options | FORCE_PALETTE_ZX) & ~FORCE_PALETTE_C64;
+        break;
+    case 2:
+        Options = (Options | FORCE_PALETTE_C64) & ~FORCE_PALETTE_ZX;
+        break;
     }
 #endif
     palette_type previous_pal = palchosen;
@@ -346,14 +344,14 @@ void Updates(event_t ev)
         Resizing = 0;
     } else if (ev.type == evtype_Timer) {
         switch (BaseGame) {
-            case REBEL_PLANET:
-                UpdateRebelAnimations();
-                break;
-            case KAYLETH:
-                UpdateKaylethAnimations();
-                break;
-            default:
-                break;
+        case REBEL_PLANET:
+            UpdateRebelAnimations();
+            break;
+        case KAYLETH:
+            UpdateKaylethAnimations();
+            break;
+        default:
+            break;
         }
     }
 }
@@ -405,7 +403,7 @@ void OpenGraphicsWindow(void)
         glk_window_get_size(Top, &TopWidth, &TopHeight);
         glk_window_close(Top, NULL);
         Graphics = glk_window_open(Bottom, winmethod_Above | winmethod_Proportional,
-                                   60, wintype_Graphics, GLK_GRAPHICS_ROCK);
+            60, wintype_Graphics, GLK_GRAPHICS_ROCK);
         glk_window_get_size(Graphics, &graphwidth, &graphheight);
         pixel_size = OptimalPictureSize(&optimal_width, &optimal_height);
         x_offset = ((int)graphwidth - (int)optimal_width) / 2;
@@ -413,7 +411,7 @@ void OpenGraphicsWindow(void)
         if (graphheight > optimal_height) {
             winid_t parent = glk_window_get_parent(Graphics);
             glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-                                       optimal_height, NULL);
+                optimal_height, NULL);
         }
 
         /* Set the graphics window background to match
@@ -422,24 +420,24 @@ void OpenGraphicsWindow(void)
          */
         glui32 background_color;
         if (glk_style_measure(Bottom, style_Normal, stylehint_BackColor,
-                              &background_color)) {
+                &background_color)) {
             glk_window_set_background_color(Graphics, background_color);
             glk_window_clear(Graphics);
         }
 
         Top = glk_window_open(Bottom, winmethod_Above | winmethod_Fixed, TopHeight,
-                              wintype_TextGrid, GLK_STATUS_ROCK);
+            wintype_TextGrid, GLK_STATUS_ROCK);
         glk_window_get_size(Top, &TopWidth, &TopHeight);
     } else {
         if (!Graphics)
             Graphics = glk_window_open(Bottom, winmethod_Above | winmethod_Proportional, 60,
-                                       wintype_Graphics, GLK_GRAPHICS_ROCK);
+                wintype_Graphics, GLK_GRAPHICS_ROCK);
         glk_window_get_size(Graphics, &graphwidth, &graphheight);
         pixel_size = OptimalPictureSize(&optimal_width, &optimal_height);
         x_offset = (graphwidth - optimal_width) / 2;
         winid_t parent = glk_window_get_parent(Graphics);
         glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-                                   optimal_height, NULL);
+            optimal_height, NULL);
     }
 }
 
@@ -448,7 +446,7 @@ void OpenTopWindow(void)
     Top = FindGlkWindowWithRock(GLK_STATUS_ROCK);
     if (Top == NULL) {
         Top = glk_window_open(Bottom, winmethod_Above | winmethod_Fixed,
-                              TopHeight, wintype_TextGrid, GLK_STATUS_ROCK);
+            TopHeight, wintype_TextGrid, GLK_STATUS_ROCK);
         if (Top == NULL) {
             Top = Bottom;
         } else {
@@ -460,10 +458,11 @@ void OpenTopWindow(void)
 void DrawBlack(void)
 {
     glk_window_fill_rect(Graphics, 0, x_offset, 0, 32 * 8 * pixel_size,
-                         12 * 8 * pixel_size);
+        12 * 8 * pixel_size);
 }
 
-void DrawRoomImage(void) {
+void DrawRoomImage(void)
+{
     if (MyLoc == 0 || (BaseGame == KAYLETH && MyLoc == 91) || NoGraphics) {
         return;
     }
@@ -473,7 +472,8 @@ void DrawRoomImage(void) {
     DrawSagaPictureFromBuffer();
 }
 
-void OpenBottomWindow(void) {
+void OpenBottomWindow(void)
+{
     Bottom = glk_window_open(0, 0, 0, wintype_TextBuffer, GLK_BUFFER_ROCK);
 }
 

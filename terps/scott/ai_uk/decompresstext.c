@@ -33,7 +33,7 @@ char *DecompressText(uint8_t *source, int stringindex)
         // Get eight characters squeezed into five bytes
         uint64_t fortybits = ((uint64_t)source[0] << 32) | ((uint64_t)source[1] << 24) | ((uint64_t)source[2] << 16) | ((uint64_t)source[3] << 8) | source[4];
         source += 5;
-        for (j = 35; j >= 0; j -=5) {
+        for (j = 35; j >= 0; j -= 5) {
             // Decompress one character:
             int next = (fortybits >> j) & 0x1f;
             c = alphabet[next];

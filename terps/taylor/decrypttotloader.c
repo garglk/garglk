@@ -12,18 +12,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "decrypttotloader.h"
-#include "loadtotpicture.h"
 #include "extracttape.h"
+#include "loadtotpicture.h"
 #include "utility.h"
 
-static void loop_with_delta(uint8_t *mem, uint16_t HL, uint16_t BC, int8_t delta) {
+#include "decrypttotloader.h"
+
+static void loop_with_delta(uint8_t *mem, uint16_t HL, uint16_t BC, int8_t delta)
+{
     for (int i = 0; i < BC; i++) {
         mem[HL++] += delta;
     }
 }
 
-static void loop_with_d(uint8_t *mem, uint8_t D, uint16_t HL, uint16_t BC, int direction) {
+static void loop_with_d(uint8_t *mem, uint8_t D, uint16_t HL, uint16_t BC, int direction)
+{
     for (int i = 0; i < BC; i++) {
         D = mem[HL] ^ D;
         mem[HL] = D;
@@ -31,7 +34,8 @@ static void loop_with_d(uint8_t *mem, uint8_t D, uint16_t HL, uint16_t BC, int d
     }
 }
 
-static void loop_with_r(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t BC) {
+static void loop_with_r(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t BC)
+{
     for (int i = 0; i < BC; i++) {
         mem[HL] = R ^ mem[HL];
         HL++;
@@ -40,7 +44,8 @@ static void loop_with_r(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t BC) {
     }
 }
 
-static void loop_with_xor_hl(uint8_t *mem, uint16_t HL, uint16_t BC) {
+static void loop_with_xor_hl(uint8_t *mem, uint16_t HL, uint16_t BC)
+{
     for (int i = 0; i < BC; i++) {
         mem[HL] = mem[HL] ^ (HL >> 8);
         mem[HL] = mem[HL] ^ (HL & 0xff);
@@ -48,30 +53,34 @@ static void loop_with_xor_hl(uint8_t *mem, uint16_t HL, uint16_t BC) {
     }
 }
 
-static void loop_with_neg(uint8_t *mem, uint16_t HL, uint16_t BC) {
+static void loop_with_neg(uint8_t *mem, uint16_t HL, uint16_t BC)
+{
     for (int i = 0; i < BC; i++) {
         mem[HL] = -mem[HL];
         HL++;
     }
 }
 
-static void loop_with_cpl(uint8_t *mem, uint16_t HL, uint16_t BC) {
+static void loop_with_cpl(uint8_t *mem, uint16_t HL, uint16_t BC)
+{
     for (int i = 0; i < BC; i++) {
         mem[HL] = mem[HL] ^ 0xff;
         HL++;
     }
 }
 
-static void loop_with_sub_or_add(uint8_t *mem, uint16_t HL, uint16_t BC, int8_t val, int sign, int direction) {
+static void loop_with_sub_or_add(uint8_t *mem, uint16_t HL, uint16_t BC, int8_t val, int sign, int direction)
+{
     int carry = 1;
     for (int i = 0; i < BC; i++) {
-        mem[HL] =  mem[HL] + val + carry * sign;
+        mem[HL] = mem[HL] + val + carry * sign;
         carry = 0;
         HL += direction;
     }
 }
 
-static void loop_with_rotate_left(uint8_t *mem, uint16_t HL, uint16_t BC) {
+static void loop_with_rotate_left(uint8_t *mem, uint16_t HL, uint16_t BC)
+{
     for (int i = 0; i < BC; i++) {
         int carry = rotate_left_with_carry(&mem[HL], 0);
         mem[HL] |= carry;
@@ -79,7 +88,8 @@ static void loop_with_rotate_left(uint8_t *mem, uint16_t HL, uint16_t BC) {
     }
 }
 
-static void loop_with_rotate_right(uint8_t *mem, uint16_t HL, uint16_t BC) {
+static void loop_with_rotate_right(uint8_t *mem, uint16_t HL, uint16_t BC)
+{
     for (int i = 0; i < BC; i++) {
         int carry = rotate_right_with_carry(&mem[HL], 0);
         mem[HL] |= (carry * 128);
@@ -87,7 +97,8 @@ static void loop_with_rotate_right(uint8_t *mem, uint16_t HL, uint16_t BC) {
     }
 }
 
-static void loop_with_r_and_de(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t BC) {
+static void loop_with_r_and_de(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t BC)
+{
     uint16_t DE = 0x61a8;
     for (uint16_t i = BC; i > 0; i--) {
         uint8_t A = R ^ mem[HL];
@@ -102,7 +113,8 @@ static void loop_with_r_and_de(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t BC
     }
 }
 
-static void loop_with_r_and_sp(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t SP, int dfirst) {
+static void loop_with_r_and_sp(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t SP, int dfirst)
+{
     uint8_t A, D, E;
     for (int i = 0; i < HL; i++) {
         D = mem[SP + 1];
@@ -124,7 +136,8 @@ static void loop_with_r_and_sp(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t SP
     }
 }
 
-static void loop_with_r_and_sp2(uint8_t *mem, uint8_t R, uint16_t HL) {
+static void loop_with_r_and_sp2(uint8_t *mem, uint8_t R, uint16_t HL)
+{
     uint16_t SP = 0xeeff;
     for (int i = 0; i < HL; i++) {
         uint8_t D = mem[SP] ^ R;
@@ -136,8 +149,8 @@ static void loop_with_r_and_sp2(uint8_t *mem, uint8_t R, uint16_t HL) {
     }
 }
 
-
-static void loop_with_exx(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t SP, uint16_t DE, uint16_t addr) {
+static void loop_with_exx(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t SP, uint16_t DE, uint16_t addr)
+{
     mem[SP] = addr & 0xff;
     mem[SP + 1] = addr >> 8;
     for (uint16_t i = DE; i > 0; i--) {
@@ -149,7 +162,8 @@ static void loop_with_exx(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t SP, uin
     }
 }
 
-static void loop_with_r_and_iy(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t BC, uint16_t IY) {
+static void loop_with_r_and_iy(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t BC, uint16_t IY)
+{
     for (int i = 0; i < BC; i++) {
         mem[HL] = R ^ mem[HL];
         mem[HL] = mem[HL] ^ mem[IY];
@@ -159,8 +173,9 @@ static void loop_with_r_and_iy(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t BC
     }
 }
 
-static void loop_with_r_and_iy2(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t BC, uint16_t IY) {
-    for (int i = 0; i < BC; i++)  {
+static void loop_with_r_and_iy2(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t BC, uint16_t IY)
+{
+    for (int i = 0; i < BC; i++) {
         mem[IY] = R ^ mem[IY];
         mem[IY] = mem[IY] ^ (HL >> 8);
         mem[IY] = mem[IY] ^ (HL & 0xff);
@@ -171,7 +186,8 @@ static void loop_with_r_and_iy2(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t B
     }
 }
 
-static void double_loop_with_r(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t DE, uint16_t BC) {
+static void double_loop_with_r(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t DE, uint16_t BC)
+{
     for (int i = 0; i < BC; i++) {
         for (int j = 0; j < 2; j++) {
             uint8_t A = R ^ (DE & 0xff);
@@ -319,7 +335,7 @@ static void DecryptToTLoader(uint8_t *mem)
     loop_with_r(mem, 0x13, 0xea5f, 0x04a2);
 }
 
-void XORAlkatraz(uint8_t *mem, uint16_t IX, uint16_t HL,  uint16_t DE, uint16_t BC)
+void XORAlkatraz(uint8_t *mem, uint16_t IX, uint16_t HL, uint16_t DE, uint16_t BC)
 {
     uint16_t initialHL = HL;
     do {
@@ -335,7 +351,8 @@ void XORAlkatraz(uint8_t *mem, uint16_t IX, uint16_t HL,  uint16_t DE, uint16_t 
     } while (BC > 0);
 }
 
-uint8_t *DecryptToTSideB(uint8_t *data, size_t *length) {
+uint8_t *DecryptToTSideB(uint8_t *data, size_t *length)
+{
     size_t length2 = *length;
     uint8_t *block3 = GetTZXBlock(3, data, &length2);
     if (block3 == NULL)

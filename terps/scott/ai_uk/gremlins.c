@@ -250,7 +250,8 @@ void LoadExtraGermanGremlinsData(void)
     FillInGermanSystemMessages();
 }
 
-void LoadCommonSpanishGremlinsData(void) {
+void LoadCommonSpanishGremlinsData(void)
+{
     sys[WHAT] = sys[HUH];
     sys[YES] = "s}";
     sys[NO] = "no";
@@ -287,7 +288,8 @@ void LoadCommonSpanishGremlinsData(void) {
         ExtraCommands[i] = SpanishExtraCommands[i];
 }
 
-void LoadExtraSpanishGremlinsData(void) {
+void LoadExtraSpanishGremlinsData(void)
+{
     for (int i = YOU_ARE; i <= HIT_ENTER; i++)
         sys[i] = system_messages[15 - YOU_ARE + i];
     for (int i = I_DONT_UNDERSTAND; i <= THATS_BEYOND_MY_POWER; i++)
@@ -302,7 +304,8 @@ void LoadExtraSpanishGremlinsData(void) {
     LoadCommonSpanishGremlinsData();
 }
 
-void LoadExtraSpanishGremlinsC64Data(void) {
+void LoadExtraSpanishGremlinsC64Data(void)
+{
     SysMessageType messagekey[] = {
         EXITS,
         YOU_SEE,

@@ -249,7 +249,7 @@ void UpdateRobinOfSherwoodAnimations(void)
 GameIDType LoadExtraSherwoodData(void)
 {
 
-// room images
+    // room images
 
     int offset = 0x3d99 + file_baseline_offset;
     uint8_t *ptr;
@@ -273,7 +273,7 @@ GameIDType LoadExtraSherwoodData(void)
         }
     }
 
-// rooms
+    // rooms
 
     ct = 0;
     rp = Rooms;
@@ -331,7 +331,7 @@ GameIDType LoadExtraSherwoodData(void)
 GameIDType LoadExtraSherwoodData64(void)
 {
 
-// room images
+    // room images
 
     int offset = 0x1ffd + file_baseline_offset;
     uint8_t *ptr;
@@ -356,7 +356,7 @@ GameIDType LoadExtraSherwoodData64(void)
         }
     }
 
-// rooms
+    // rooms
 
     ct = 0;
     rp = Rooms;

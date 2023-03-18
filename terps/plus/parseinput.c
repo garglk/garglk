@@ -5,17 +5,17 @@
 //  Created by Petter Sjölund on 2022-06-04.
 //
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
 #include "glk.h"
 
 #include "common.h"
 #include "definitions.h"
-#include "restorestate.h"
 #include "extracommands.h"
 #include "parseinput.h"
+#include "restorestate.h"
 
 char **InputWordStrings = NULL;
 int WordsInInput = 0;
@@ -30,7 +30,8 @@ DictWord *Prepositions;
 
 int LastVerb = 0, LastNoun = 0, LastPrep = 0, LastPartp = 0, LastNoun2 = 0, LastAdverb = 0;
 
-void FreeInputWords(void) {
+void FreeInputWords(void)
+{
     WordIndex = 0;
     if (InputWordStrings != NULL) {
         for (int i = 0; i < WordsInInput && InputWordStrings[i] != NULL; i++) {
@@ -43,7 +44,8 @@ void FreeInputWords(void) {
     WordsInInput = 0;
 }
 
-int CompareUpToHashSign(char *word1, char *word2) {
+int CompareUpToHashSign(char *word1, char *word2)
+{
     size_t len1 = strlen(word1);
     size_t len2 = strlen(word2);
     size_t longest = MAX(len1, len2);
@@ -58,7 +60,8 @@ int CompareUpToHashSign(char *word1, char *word2) {
     return 1;
 }
 
-int YesOrNo(void) {
+int YesOrNo(void)
+{
     glk_request_char_event(Bottom);
 
     event_t ev;
@@ -136,10 +139,11 @@ static int MatchingChars(const char *synonym, const char *original)
             return 0;
     }
 
-    return (i == strlen(synonym) && (original[i] == 0 || original[i] == ' ' || (i > 0 && original[i-1] == 0)));
+    return (i == strlen(synonym) && (original[i] == 0 || original[i] == ' ' || (i > 0 && original[i - 1] == 0)));
 }
 
-static int IsSynonymMatch(const char *synonym, const char *original) {
+static int IsSynonymMatch(const char *synonym, const char *original)
+{
     char c = synonym[0];
     if (c == 0)
         return -1;
@@ -154,13 +158,13 @@ static int IsSynonymMatch(const char *synonym, const char *original) {
     return -1;
 }
 
-static char *StripDoubleSpaces(char *result, int *len) {
+static char *StripDoubleSpaces(char *result, int *len)
+{
     int found = 0;
     do {
         found = 0;
         for (int i = 0; i < *len - 1; i++) {
-            if (isspace(result[i]) && isspace(result[i + 1]))
-            {
+            if (isspace(result[i]) && isspace(result[i + 1])) {
                 found = 1;
                 char new[512];
                 if (i > 0)
@@ -182,11 +186,11 @@ static char *StripDoubleSpaces(char *result, int *len) {
     return result;
 }
 
-static char *StripPunctuation(char *buf, int *len) {
+static char *StripPunctuation(char *buf, int *len)
+{
     for (int i = 0; i < *len; i++) {
         char c = buf[i];
-        if (c == '.' || c == ',' || c == ':' || c == ';' || c == '\'' || c == '\"' || c == '-' || c == '!')
-        {
+        if (c == '.' || c == ',' || c == ':' || c == ';' || c == '\'' || c == '\"' || c == '-' || c == '!') {
             buf[i] = ' ';
         }
     }
@@ -195,7 +199,6 @@ static char *StripPunctuation(char *buf, int *len) {
     memcpy(final, buf, *len + 1);
     return final;
 }
-
 
 static char *ConcatStrings(const char *head, int headlen, const char *mid, int midlen, const char *tail, int taillen)
 {
@@ -209,7 +212,6 @@ static char *ConcatStrings(const char *head, int headlen, const char *mid, int m
         result = StripDoubleSpaces(result, &totallen);
     return result;
 }
-
 
 static char *ReplaceString(char *source, const char *pattern, const char *replacement, int *startpos)
 {
@@ -241,7 +243,7 @@ static char *ReplaceString(char *source, const char *pattern, const char *replac
 static char *ReplaceSynonyms(char *buf, int *len)
 {
     char *result = MemAlloc(*len + 1);
-    for(int i = 0; i < *len; i++)
+    for (int i = 0; i < *len; i++)
         result[i] = toupper(buf[i]);
     result = StripDoubleSpaces(result, len);
     int finallen = (int)strlen(result);
@@ -314,7 +316,8 @@ static char **SplitIntoWords(const char *string, int length)
 
 WordToken *TokenWords = NULL;
 
-static int IntendedAsVerb(int i) {
+static int IntendedAsVerb(int i)
+{
     if (i == InitialIndex || i == 0)
         return 1;
     /* if the word before was an adverb and the one before that was not a verb */
@@ -323,7 +326,8 @@ static int IntendedAsVerb(int i) {
     return 0;
 }
 
-static void WordNotFoundError(int i) {
+static void WordNotFoundError(int i)
+{
     if (TokenWords[i].Type == ADVERB_TYPE)
         Display(Bottom, "%s do what?\n", InputWordStrings[i]);
     else if (IntendedAsVerb(i))
@@ -332,7 +336,8 @@ static void WordNotFoundError(int i) {
         Display(Bottom, "I don't know what %s means.\n", InputWordStrings[i]);
 }
 
-static int TokenizeInputWords(void) {
+static int TokenizeInputWords(void)
+{
     if (TokenWords != NULL)
         free(TokenWords);
     int word_not_found = -1;
@@ -445,20 +450,19 @@ static int TokenizeInputWords(void) {
     return 1;
 }
 
-int IsNextParticiple(int partp, int noun2) {
+int IsNextParticiple(int partp, int noun2)
+{
     if (WordIndex >= WordsInInput) {
         return 0;
     }
     if (partp == 1) { // None
         return 0;
     }
-    if (TokenWords[WordIndex].Type == NOUN_TYPE && partp == 2 &&
-        (noun2 == 0 || TokenWords[WordIndex].Index == noun2)) {
+    if (TokenWords[WordIndex].Type == NOUN_TYPE && partp == 2 && (noun2 == 0 || TokenWords[WordIndex].Index == noun2)) {
         CurPartp = 2;
         CurNoun2 = TokenWords[WordIndex++].Index;
         return 1;
-    } else if (TokenWords[WordIndex].Type == PREPOSITION_TYPE && WordIndex < WordsInInput - 1 &&
-        (partp == 0 || TokenWords[WordIndex].Index == partp)) {
+    } else if (TokenWords[WordIndex].Type == PREPOSITION_TYPE && WordIndex < WordsInInput - 1 && (partp == 0 || TokenWords[WordIndex].Index == partp)) {
         if (TokenWords[WordIndex + 1].Type == NOUN_TYPE && (noun2 == 0 || TokenWords[WordIndex + 1].Index == noun2)) {
             CurPartp = TokenWords[WordIndex++].Index;
             CurNoun2 = TokenWords[WordIndex++].Index;
@@ -684,7 +688,8 @@ static void LineInput(void)
     } while (WordsInInput == 0 || InputWordStrings == NULL);
 }
 
-static int RemainderContainsVerb(void) {
+static int RemainderContainsVerb(void)
+{
     debug_print("RemainderContainsVerb: WordIndex: %d WordsInInput: %d\n", WordIndex, WordsInInput);
     if (WordIndex < WordsInInput - 1) {
         for (int i = WordIndex; i < WordsInInput; i++)
@@ -694,7 +699,8 @@ static int RemainderContainsVerb(void) {
     return 0;
 }
 
-void StopProcessingCommand(void) {
+void StopProcessingCommand(void)
+{
     if (RemainderContainsVerb()) {
         Output("\nThe rest of your input was ignored. ");
     }

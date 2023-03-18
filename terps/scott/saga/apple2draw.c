@@ -21,7 +21,8 @@ uint8_t *descrambletable = NULL;
 static uint8_t *screenmem = NULL;
 static uint8_t lobyte = 0, hibyte = 0;
 
-void ClearApple2ScreenMem(void) {
+void ClearApple2ScreenMem(void)
+{
     if (!screenmem)
         return;
     memset(screenmem, 0, 0x2000);
@@ -55,7 +56,8 @@ static int PutByte(uint8_t work, uint8_t work2)
     return 1;
 }
 
-uint16_t CalcScreenAddress(uint8_t ypos) {
+uint16_t CalcScreenAddress(uint8_t ypos)
+{
     if (0xc0 + ypos >= 0x182)
         return 0;
     uint16_t result = descrambletable[ypos] + descrambletable[0xc0 + ypos] * 0x100 - 0x2000;
@@ -64,7 +66,8 @@ uint16_t CalcScreenAddress(uint8_t ypos) {
     return result;
 }
 
-int DrawScrambledApple2Image(uint8_t *ptr, size_t datasize) {
+int DrawScrambledApple2Image(uint8_t *ptr, size_t datasize)
+{
 
     if (screenmem == NULL) {
         screenmem = MemAlloc(0x2000);
@@ -141,7 +144,7 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
         return (result > 0);
     }
 
-    int work,work2;
+    int work, work2;
     int c;
     int i;
 
@@ -149,7 +152,8 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
 
     int countflag = (CurrentGame == COUNT_US);
 
-    x = 0; y = 0;
+    x = 0;
+    y = 0;
 
     if (!countflag) {
         // Get the offsets
@@ -162,7 +166,8 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
         xlen = *ptr++;
         ylen = *ptr++;
     } else {
-        xoff = 0; yoff = 0;
+        xoff = 0;
+        yoff = 0;
         xlen = 0;
         ylen = 0;
         while (xlen == 0 && ylen == 0) {
@@ -178,23 +183,19 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
 
     debug_print("xlen: %d ylen: %d\n", xlen, ylen);
 
-
-    while (ptr - origptr < datasize - 2)
-    {
+    while (ptr - origptr < datasize - 2) {
         // First get count
         c = *ptr++;
 
-        if ((c & 0x80) == 0x80 || countflag)
-        { // is a counter
+        if ((c & 0x80) == 0x80 || countflag) { // is a counter
             if (countflag) {
                 c -= 1;
             } else {
                 c &= 0x7f;
             }
-            work=*ptr++;
-            work2=*ptr++;
-            for (i = 0; i < c + 1 && ptr - origptr < datasize; i++)
-            {
+            work = *ptr++;
+            work2 = *ptr++;
+            for (i = 0; i < c + 1 && ptr - origptr < datasize; i++) {
                 if (PutByte(work, work2) == 0) {
                     debug_print("Reached end of screen memory at offset %lx\n", ptr - origptr);
                     return 1;
@@ -204,13 +205,10 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
                     return 1;
                 }
             }
-        }
-        else
-        {
+        } else {
             // Don't count on the next j characters
 
-            for (i = 0; i < c + 1 && ptr - origptr < datasize - 1; i++)
-            {
+            for (i = 0; i < c + 1 && ptr - origptr < datasize - 1; i++) {
                 work = *ptr++;
                 work2 = *ptr++;
                 if (PutByte(work, work2) == 0) {
@@ -227,11 +225,12 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
     return 1;
 }
 
-int DrawApple2Image(USImage *image) {
+int DrawApple2Image(USImage *image)
+{
     if (image->usage == IMG_ROOM)
         ClearApple2ScreenMem();
     DrawApple2ImageFromData(image->imagedata, image->datasize);
-    debug_print("Drawing image with index %d, usage %d\n",image->index, image->usage);
+    debug_print("Drawing image with index %d, usage %d\n", image->index, image->usage);
     return 1;
 }
 
@@ -244,27 +243,27 @@ static void PutApplePixel(glsi32 xpos, glsi32 ypos, glui32 color)
     ypos += y_offset;
 
     glk_window_fill_rect(Graphics, color, xpos,
-                         ypos, pixel_size, pixel_size);
+        ypos, pixel_size, pixel_size);
 }
 
 /* The code below is borrowed from the MAME Apple 2 driver */
 
-#define BLACK   0
-#define PURPLE  0xD53EF9
-#define BLUE    0x458ff7
-#define ORANGE  0xd7762c
-#define GREEN   0x64d440
-#define WHITE   0xffffff
+#define BLACK 0
+#define PURPLE 0xD53EF9
+#define BLUE 0x458ff7
+#define ORANGE 0xd7762c
+#define GREEN 0x64d440
+#define WHITE 0xffffff
 
-static const int32_t hires_artifact_color_table[] =
-{
-    BLACK,  PURPLE, GREEN,  WHITE,
-    BLACK,  BLUE,   ORANGE, WHITE
+static const int32_t hires_artifact_color_table[] = {
+    BLACK, PURPLE, GREEN, WHITE,
+    BLACK, BLUE, ORANGE, WHITE
 };
 
 static int32_t *m_hires_artifact_map = NULL;
 
-static void generate_artifact_map(void) {
+static void generate_artifact_map(void)
+{
     /* generate hi-res artifact data */
     int i, j;
     uint16_t c;
@@ -273,26 +272,21 @@ static void generate_artifact_map(void) {
     m_hires_artifact_map = MemAlloc(sizeof(int32_t) * 8 * 2 * 2);
 
     /* build hires artifact map */
-    for (i = 0; i < 8; i++)
-    {
-        for (j = 0; j < 2; j++)
-        {
-            if (i & 0x02)
-            {
+    for (i = 0; i < 8; i++) {
+        for (j = 0; j < 2; j++) {
+            if (i & 0x02) {
                 if ((i & 0x05) != 0)
                     c = 3;
                 else
                     c = j ? 2 : 1;
-            }
-            else
-            {
+            } else {
                 if ((i & 0x05) == 0x05)
                     c = j ? 1 : 2;
                 else
                     c = 0;
             }
-            m_hires_artifact_map[ 0 + j*8 + i] = hires_artifact_color_table[(c + 0) % 8];
-            m_hires_artifact_map[16 + j*8 + i] = hires_artifact_color_table[(c + 4) % 8];
+            m_hires_artifact_map[0 + j * 8 + i] = hires_artifact_color_table[(c + 0) % 8];
+            m_hires_artifact_map[16 + j * 8 + i] = hires_artifact_color_table[(c + 4) % 8];
         }
     }
 }
@@ -309,27 +303,23 @@ void DrawApple2ImageFromVideoMem(void)
     vram_row[0] = 0;
     vram_row[41] = 0;
 
-    for (int row = 0; row < ImageHeight; row++)
-    {
-        for (int col = 0; col < 40; col++)
-        {
-            int const offset = ((((row/8) & 0x07) << 7) | (((row/8) & 0x18) * 5 + col)) | ((row & 7) << 10);
-            vram_row[1+col] = vram[offset];
+    for (int row = 0; row < ImageHeight; row++) {
+        for (int col = 0; col < 40; col++) {
+            int const offset = ((((row / 8) & 0x07) << 7) | (((row / 8) & 0x18) * 5 + col)) | ((row & 7) << 10);
+            vram_row[1 + col] = vram[offset];
         }
 
         int pixpos = 0;
 
-        for (int col = 0; col < 40; col++)
-        {
-            uint32_t w =    (((uint32_t) vram_row[col+0] & 0x7f) <<  0)
-            |   (((uint32_t) vram_row[col+1] & 0x7f) <<  7)
-            |   (((uint32_t) vram_row[col+2] & 0x7f) << 14);
+        for (int col = 0; col < 40; col++) {
+            uint32_t w = (((uint32_t)vram_row[col + 0] & 0x7f) << 0)
+                | (((uint32_t)vram_row[col + 1] & 0x7f) << 7)
+                | (((uint32_t)vram_row[col + 2] & 0x7f) << 14);
 
             artifact_map_ptr = &m_hires_artifact_map[((vram_row[col + 1] & 0x80) >> 7) * 16];
 
-            for (int b = 0; b < 7; b++)
-            {
-                int32_t const v = artifact_map_ptr[((w >> (b + 7-1)) & 0x07) | (((b ^ col) & 0x01) << 3)];
+            for (int b = 0; b < 7; b++) {
+                int32_t const v = artifact_map_ptr[((w >> (b + 7 - 1)) & 0x07) | (((b ^ col) & 0x01) << 3)];
                 PutApplePixel(pixpos++, row, v);
             }
         }

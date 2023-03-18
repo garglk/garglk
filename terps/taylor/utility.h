@@ -9,6 +9,7 @@
 #define utility_h
 
 #include <stdio.h>
+
 #include "glk.h"
 
 void Display(winid_t w, const char *fmt, ...);

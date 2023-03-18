@@ -11,12 +11,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "definitions.h"
 #include "common.h"
+#include "definitions.h"
 #include "graphics.h"
 
 #include "stdetect.h"
 
+// clang-format off
 struct fat_boot_sector {
 //    uint8_t    ignored[3];     /* Boot strap short or near jump */
 //    uint8_t    system_id[8];   /* Name - can be used to special case
@@ -42,7 +43,7 @@ struct fat_boot_sector {
     uint16_t    backup_boot;    /* backup boot sector */
 };
 
-#define MSDOS_NAME      11
+#define MSDOS_NAME 11
 
 struct msdos_dir_entry {
     char    name[MSDOS_NAME];/* name and extension */
@@ -56,10 +57,12 @@ struct msdos_dir_entry {
     uint16_t  time,date,start;/* time, date and first cluster */
     uint32_t  size;           /* file size (in bytes) */
 };
+// clang-format on
 
 struct fat_boot_sector boot;
 
-uint16_t Read16LE(uint8_t **indata) {
+uint16_t Read16LE(uint8_t **indata)
+{
     uint8_t *ptr = *indata;
 
     uint16_t val = *ptr++;
@@ -120,7 +123,7 @@ uint8_t *DecodeMsaImageToRawImage(uint8_t *msa_image, size_t *newsize)
                 while (msa_pointer < end_pointer) {
                     msa_data = *msa_pointer++;
 
-                    if(msa_data != 0xe5) {
+                    if (msa_data != 0xe5) {
                         *raw_pointer++ = msa_data;
                     } else {
                         rle_data = *msa_pointer++;
@@ -128,14 +131,14 @@ uint8_t *DecodeMsaImageToRawImage(uint8_t *msa_image, size_t *newsize)
                         rle_count = (*msa_pointer++ & 0xff) << 8;
                         rle_count |= *msa_pointer++ & 0xff;
 
-                        while(rle_count) {
+                        while (rle_count) {
                             *raw_pointer++ = rle_data;
                             rle_count--;
                         }
                     }
                 }
             } else {
-                while(numbytes > 0) {
+                while (numbytes > 0) {
                     *raw_pointer++ = *msa_pointer++;
                     numbytes--;
                 }
@@ -146,7 +149,8 @@ uint8_t *DecodeMsaImageToRawImage(uint8_t *msa_image, size_t *newsize)
     return raw_image;
 }
 
-int ReadFAT12BootSector(uint8_t **sf, size_t *extent) {
+int ReadFAT12BootSector(uint8_t **sf, size_t *extent)
+{
     uint8_t *ptr = &(*sf)[11];
     boot.sector_size = Read16LE(&ptr);
     boot.sec_per_clus = *ptr++;
@@ -168,7 +172,8 @@ int ReadFAT12BootSector(uint8_t **sf, size_t *extent) {
     return 1;
 }
 
-struct msdos_dir_entry *ReadFAT12DirEntry(uint8_t **pointer) {
+struct msdos_dir_entry *ReadFAT12DirEntry(uint8_t **pointer)
+{
     uint8_t *ptr = *pointer;
     struct msdos_dir_entry *dir = MemAlloc(sizeof(struct msdos_dir_entry));
     memcpy(dir->name, ptr, MSDOS_NAME);
@@ -188,7 +193,8 @@ struct msdos_dir_entry *ReadFAT12DirEntry(uint8_t **pointer) {
     return dir;
 }
 
-uint8_t read_fat12(uint8_t **sf, size_t offset, size_t fat_offset) {
+uint8_t read_fat12(uint8_t **sf, size_t offset, size_t fat_offset)
+{
     return (*sf)[fat_offset + offset];
 }
 
@@ -198,23 +204,24 @@ uint8_t read_fat12(uint8_t **sf, size_t offset, size_t fat_offset) {
  *
  * For FAT12, two entries are stored in 3 bytes. if the bytes are uv, wx, yz then the entries are xuv and yzw
  */
-uint32_t get_next_cluster12(uint8_t *sf, uint32_t cluster) {
+uint32_t get_next_cluster12(uint8_t *sf, uint32_t cluster)
+{
     uint8_t fat_entry[2];
     uint32_t new_clust;
 
     int fat_offset = boot.reserved * boot.sector_size;
     // If the cluster number is odd, we're getting the last half of the three bytes.
     if (cluster & 1) {
-        memcpy(&fat_entry[0], &sf[fat_offset + ((cluster/2)*3)+1], 1);
-        memcpy(&fat_entry[1], &sf[fat_offset + ((cluster/2)*3)+2], 1);
+        memcpy(&fat_entry[0], &sf[fat_offset + ((cluster / 2) * 3) + 1], 1);
+        memcpy(&fat_entry[1], &sf[fat_offset + ((cluster / 2) * 3) + 2], 1);
         memcpy(&new_clust, &fat_entry[0], 2);
-        new_clust = new_clust>>4;
+        new_clust = new_clust >> 4;
     }
     // If it's even we're getting the first half.
     else {
-        memcpy(&fat_entry[0], &sf[fat_offset + ((cluster/2)*3)], 1);
-        memcpy(&fat_entry[1], &sf[fat_offset + ((cluster/2)*3)+1], 1);
-        fat_entry[1] = fat_entry[1]&0x0f;
+        memcpy(&fat_entry[0], &sf[fat_offset + ((cluster / 2) * 3)], 1);
+        memcpy(&fat_entry[1], &sf[fat_offset + ((cluster / 2) * 3) + 1], 1);
+        fat_entry[1] = fat_entry[1] & 0x0f;
         memcpy(&new_clust, &fat_entry[0], 2);
     }
     // for FAT12, the valid entries are between 0x2 and0xfef.
@@ -224,14 +231,15 @@ uint32_t get_next_cluster12(uint8_t *sf, uint32_t cluster) {
     return 0;
 }
 
-uint8_t *GetFile(uint8_t *sf, int cluster, struct msdos_dir_entry dir) {
+uint8_t *GetFile(uint8_t *sf, int cluster, struct msdos_dir_entry dir)
+{
 
     size_t datasection = boot.reserved + boot.fats * boot.fat_length + (boot.dir_entries * 32 / boot.sector_size);
     int bytespercluster = boot.sector_size * boot.sec_per_clus;
     uint8_t *result = MemAlloc(dir.size);
     size_t offset = 0;
     while (offset < dir.size && cluster) {
-        size_t bytestoread = MIN(bytespercluster,  dir.size - offset);
+        size_t bytestoread = MIN(bytespercluster, dir.size - offset);
         if (offset + bytestoread > dir.size) {
             bytestoread = dir.size - offset;
         }
@@ -247,7 +255,8 @@ uint8_t *GetFile(uint8_t *sf, int cluster, struct msdos_dir_entry dir) {
 
 int issagaimg(const char *name);
 
-uint8_t *ReadDirEntryRecursive(uint8_t *ptr, uint8_t **sf, int *imgidx, struct imgrec *imgs, int *found, uint8_t **database, size_t *databasesize) {
+uint8_t *ReadDirEntryRecursive(uint8_t *ptr, uint8_t **sf, int *imgidx, struct imgrec *imgs, int *found, uint8_t **database, size_t *databasesize)
+{
     struct msdos_dir_entry *dir = ReadFAT12DirEntry(&ptr);
     if (dir->name[0] == 0) {
         free(dir);
@@ -292,7 +301,8 @@ uint8_t *ReadDirEntryRecursive(uint8_t *ptr, uint8_t **sf, int *imgidx, struct i
     return ptr;
 }
 
-int DetectST(uint8_t **sf, size_t *extent) {
+int DetectST(uint8_t **sf, size_t *extent)
+{
     if (*extent > MAX_ST_LENGTH || *extent < MIN_ST_LENGTH)
         return 0;
 
@@ -313,7 +323,7 @@ int DetectST(uint8_t **sf, size_t *extent) {
 
     struct imgrec imgs[100];
     int imgidx = 0;
-    
+
     for (int i = 0; i < boot.dir_entries; i++) {
         ptr = ReadDirEntryRecursive(ptr, sf, &imgidx, imgs, &found, &database, &databasesize);
         if (ptr == NULL)

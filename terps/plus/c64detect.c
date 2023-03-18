@@ -10,18 +10,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "c64diskimage.h"
 #include "common.h"
 #include "gameinfo.h"
 #include "graphics.h"
 
 #include "c64detect.h"
-#include "c64diskimage.h"
 
 #define MAX_LENGTH 300000
 #define MIN_LENGTH 24
 
-
-int issagaimg(const char *name) {
+int issagaimg(const char *name)
+{
     if (name == NULL)
         return 0;
     size_t len = strlen(name);
@@ -29,7 +29,7 @@ int issagaimg(const char *name) {
         return 0;
     char c = name[0];
     if (c == 'R' || c == 'B' || c == 'S') {
-        for(int i = 1; i < 4; i++)
+        for (int i = 1; i < 4; i++)
             if (!isdigit(name[i]))
                 return 0;
         return 1;
@@ -38,7 +38,7 @@ int issagaimg(const char *name) {
 }
 
 static uint8_t *get_file_named(uint8_t *data, size_t length, size_t *newlength,
-                               const char *name)
+    const char *name)
 {
     uint8_t *file = NULL;
     *newlength = 0;

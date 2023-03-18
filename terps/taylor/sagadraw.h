@@ -21,7 +21,7 @@ typedef struct {
 } Image;
 
 uint8_t *DrawSagaPictureFromData(uint8_t *dataptr, int xsize, int ysize,
-                                     int xoff, int yoff, size_t datasize);
+    int xoff, int yoff, size_t datasize);
 
 void DrawSagaPictureNumber(int picture_number);
 void DrawSagaPictureFromBuffer(void);

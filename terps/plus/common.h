@@ -8,8 +8,8 @@
 #ifndef common_h
 #define common_h
 
-#include "glk.h"
 #include "definitions.h"
+#include "glk.h"
 
 void *MemAlloc(size_t size);
 void Fatal(const char *x);
@@ -20,9 +20,9 @@ void PrintDictWord(int idx, DictWord *dict);
 void Updates(event_t ev);
 void Display(winid_t w, const char *fmt, ...)
 #ifdef __GNUC__
-__attribute__((__format__(__printf__, 2, 3)))
+    __attribute__((__format__(__printf__, 2, 3)))
 #endif
-;
+    ;
 
 void SetBit(int bit);
 void ResetBit(int bit);

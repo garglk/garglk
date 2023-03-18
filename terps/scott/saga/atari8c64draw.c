@@ -7,12 +7,11 @@
 //
 //  Original code at https://github.com/tautology0/textadventuregraphics
 
-
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "scott.h"
 #include "sagagraphics.h"
+#include "scott.h"
 
 extern int x, y, count;
 extern int xlen, ylen;
@@ -23,37 +22,44 @@ typedef uint8_t RGB[3];
 
 static void DrawA8C64Pixels(int pattern, int pattern2)
 {
-    int pix1,pix2,pix3,pix4;
+    int pix1, pix2, pix3, pix4;
 
-    if (x>(xlen - 3)*8)
-      return;
+    if (x > (xlen - 3) * 8)
+        return;
 
-    pix1 = (pattern & 0xc0)>>6;
-    pix2 = (pattern & 0x30)>>4;
-    pix3 = (pattern & 0x0c)>>2;
+    pix1 = (pattern & 0xc0) >> 6;
+    pix2 = (pattern & 0x30) >> 4;
+    pix3 = (pattern & 0x0c) >> 2;
     pix4 = (pattern & 0x03);
 
-    PutDoublePixel(x,y, pix1); x += 2;
-    PutDoublePixel(x,y, pix2); x += 2;
-    PutDoublePixel(x,y, pix3); x += 2;
-    PutDoublePixel(x,y, pix4); x += 2;
-    y++;
-    x-=8;
-
-    pix1=(pattern2 & 0xc0)>>6;
-    pix2=(pattern2 & 0x30)>>4;
-    pix3=(pattern2 & 0x0c)>>2;
-    pix4=(pattern2 & 0x03);
-
-    PutDoublePixel(x,y, pix1); x += 2;
-    PutDoublePixel(x,y, pix2); x += 2;
-    PutDoublePixel(x,y, pix3); x += 2;
-    PutDoublePixel(x,y, pix4); x += 2;
+    PutDoublePixel(x, y, pix1);
+    x += 2;
+    PutDoublePixel(x, y, pix2);
+    x += 2;
+    PutDoublePixel(x, y, pix3);
+    x += 2;
+    PutDoublePixel(x, y, pix4);
+    x += 2;
     y++;
     x -= 8;
 
-    if (y > ylen)
-    {
+    pix1 = (pattern2 & 0xc0) >> 6;
+    pix2 = (pattern2 & 0x30) >> 4;
+    pix3 = (pattern2 & 0x0c) >> 2;
+    pix4 = (pattern2 & 0x03);
+
+    PutDoublePixel(x, y, pix1);
+    x += 2;
+    PutDoublePixel(x, y, pix2);
+    x += 2;
+    PutDoublePixel(x, y, pix3);
+    x += 2;
+    PutDoublePixel(x, y, pix4);
+    x += 2;
+    y++;
+    x -= 8;
+
+    if (y > ylen) {
         x += 8;
         y = yoff;
     }
@@ -74,11 +80,14 @@ static const RGB grey = { 167, 167, 167 };
 static const RGB lgreen = { 192, 255, 185 };
 static const RGB lblue = { 162, 143, 255 };
 
+// clang-format off
+
 /* Atari 8-bit colors */
 RGB colors[256] = {
     { 0x00, 0x00, 0x00 }, // 0
     { 0x0e, 0x0e, 0x0e }, // 1
     { 0x1d, 0x1d, 0x1d }, // 2
+
     { 0x2c, 0x2c, 0x2c }, // 3
     { 0x3b, 0x3b, 0x3b }, // 4
     { 0x4a, 0x4a, 0x4a }, // 5
@@ -347,13 +356,14 @@ RGB colors[256] = {
     { 0xee, 0xd1, 0x46 }, // 254
 //    { 0xee, 0xe0, 0x55 }, // 255
     { 0xba, 0x86, 0x00 }
-
 };
 
-static void TranslateAtariColorRGB(int index, uint8_t value) {
-    SetColor(index,&colors[value]);
-}
+// clang-format on
 
+static void TranslateAtariColorRGB(int index, uint8_t value)
+{
+    SetColor(index, &colors[value]);
+}
 
 /*
  The values below are determined by looking at the games
@@ -361,120 +371,121 @@ static void TranslateAtariColorRGB(int index, uint8_t value) {
  I have no idea how the original interpreter calculates
  them. I might have made some mistakes. */
 
-static void TranslateC64Color(int index, uint8_t value) {
+static void TranslateC64Color(int index, uint8_t value)
+{
     debug_print("Color %d: %d\n", index, value);
-    switch(value) {
-        case 2:
-        case 3:
-        case 4:
-        case 8:
-        case 9:
-        case 10:
-        case 12:
-        case 14:
-        case 15:
-        case 255:
-        case 137:
-        case 142:
-            SetColor(index,&white);
-            break;
-        case 35:
-        case 36:
-        case 38:
-        case 40:
-        case 244:
-        case 246:
-        case 248:
-            SetColor(index,&brown);
-            break;
-        case 24:
-        case 26:
-        case 30:
-        case 46:
-        case 16:
-        case 230:
-        case 237:
-        case 238:
-        case 252:
-            SetColor(index,&yellow);
-            break;
-        case 50:
-        case 51:
-        case 52:
-        case 53:
-        case 54:
-        case 56:
-        case 58:
-        case 59:
-        case 60:
-        case 66:
-        case 62:
-            SetColor(index,&orange);
-            break;
-        case 67:
-        case 68:
-        case 69:
-        case 70:
-        case 71:
-            SetColor(index,&red);
-            break;
-        case 0:
-        case 77:
-        case 81:
-        case 84:
-        case 85:
-        case 86:
-        case 87:
-        case 97:
-        case 101:
-        case 102:
-        case 103:
-        case 105:
-        case 224:
-            SetColor(index,&purple);
-            break;
-        case 89:
-            SetColor(index,&lred);
-            break;
-        case 1:
-        case 7:
-        case 116:
-        case 135:
-        case 148:
-        case 151:
-            SetColor(index,&blue);
-            break;
-        case 110:
-        case 157:
-            SetColor(index,&lblue);
-            break;
-        case 161:
-            SetColor(index,&grey);
-            break;
-        case 17:
-        case 20:
-        case 179:
-        case 182:
-        case 183:
-        case 194:
-        case 195:
-        case 196:
-        case 197:
-        case 198:
-        case 199:
-        case 200:
-        case 212:
-        case 214:
-        case 215:
-        case 216:
-            SetColor(index,&green);
-            break;
-        case 201:
-            SetColor(index,&lgreen);
-            break;
-        default:
-            fprintf(stderr, "Unknown color %d ", value);
-            break;
+    switch (value) {
+    case 2:
+    case 3:
+    case 4:
+    case 8:
+    case 9:
+    case 10:
+    case 12:
+    case 14:
+    case 15:
+    case 255:
+    case 137:
+    case 142:
+        SetColor(index, &white);
+        break;
+    case 35:
+    case 36:
+    case 38:
+    case 40:
+    case 244:
+    case 246:
+    case 248:
+        SetColor(index, &brown);
+        break;
+    case 24:
+    case 26:
+    case 30:
+    case 46:
+    case 16:
+    case 230:
+    case 237:
+    case 238:
+    case 252:
+        SetColor(index, &yellow);
+        break;
+    case 50:
+    case 51:
+    case 52:
+    case 53:
+    case 54:
+    case 56:
+    case 58:
+    case 59:
+    case 60:
+    case 66:
+    case 62:
+        SetColor(index, &orange);
+        break;
+    case 67:
+    case 68:
+    case 69:
+    case 70:
+    case 71:
+        SetColor(index, &red);
+        break;
+    case 0:
+    case 77:
+    case 81:
+    case 84:
+    case 85:
+    case 86:
+    case 87:
+    case 97:
+    case 101:
+    case 102:
+    case 103:
+    case 105:
+    case 224:
+        SetColor(index, &purple);
+        break;
+    case 89:
+        SetColor(index, &lred);
+        break;
+    case 1:
+    case 7:
+    case 116:
+    case 135:
+    case 148:
+    case 151:
+        SetColor(index, &blue);
+        break;
+    case 110:
+    case 157:
+        SetColor(index, &lblue);
+        break;
+    case 161:
+        SetColor(index, &grey);
+        break;
+    case 17:
+    case 20:
+    case 179:
+    case 182:
+    case 183:
+    case 194:
+    case 195:
+    case 196:
+    case 197:
+    case 198:
+    case 199:
+    case 200:
+    case 212:
+    case 214:
+    case 215:
+    case 216:
+        SetColor(index, &green);
+        break;
+    case 201:
+        SetColor(index, &lgreen);
+        break;
+    default:
+        fprintf(stderr, "Unknown color %d ", value);
+        break;
     }
 }
 
@@ -483,14 +494,15 @@ int DrawAtariC64Image(USImage *image)
     uint8_t *ptr = image->imagedata;
     size_t datasize = image->datasize;
 
-    int work,work2;
+    int work, work2;
     int c;
     int i;
     int countflag = (CurrentGame == COUNT_US || CurrentGame == VOODOO_CASTLE_US);
 
     uint8_t *origptr = ptr;
 
-    x = 0; y = 0;
+    x = 0;
+    y = 0;
 
     ptr += 2;
 
@@ -498,7 +510,6 @@ int DrawAtariC64Image(USImage *image)
     size = work + *ptr++ * 256;
     // Get the offset
     xoff = *ptr++ - 3;
-//    if (xoff < 0) xoff = 0;
     yoff = *ptr++;
     x = xoff * 8;
     y = yoff;
@@ -507,7 +518,8 @@ int DrawAtariC64Image(USImage *image)
     xlen = *ptr++;
 
     ylen = *ptr++;
-    if (countflag) ylen -= 2;
+    if (countflag)
+        ylen -= 2;
 
     glui32 curheight, curwidth;
     glk_window_get_size(Graphics, &curwidth, &curheight);
@@ -519,7 +531,7 @@ int DrawAtariC64Image(USImage *image)
         ImageWidth = xlen * 8 - 17 + left_margin;
         ImageHeight = ylen + 2;
 
-        if (image->index == 19 && image->systype == SYS_ATARI8 ) {
+        if (image->index == 19 && image->systype == SYS_ATARI8) {
             xlen++;
             ImageWidth = 308;
         }
@@ -538,15 +550,14 @@ int DrawAtariC64Image(USImage *image)
             winid_t parent = glk_window_get_parent(Graphics);
             if (parent)
                 glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-                                           optimal_height, NULL);
+                    optimal_height, NULL);
         }
     }
 
-    SetColor(0,&black);
+    SetColor(0, &black);
 
     // Get the palette
-    for (i = 1; i < 5; i++)
-    {
+    for (i = 1; i < 5; i++) {
         work = *ptr++;
         if (image->systype == SYS_C64)
             TranslateC64Color(i, work);
@@ -554,13 +565,11 @@ int DrawAtariC64Image(USImage *image)
             TranslateAtariColorRGB(i, work);
     }
 
-    while (ptr - origptr < datasize - 2)
-    {
+    while (ptr - origptr < datasize - 2) {
         // First get count
         c = *ptr++;
 
-        if (((c & 0x80) == 0x80) || countflag)
-        { // is a counter
+        if (((c & 0x80) == 0x80) || countflag) { // is a counter
             if (countflag) {
                 c -= 1;
             } else {
@@ -568,19 +577,15 @@ int DrawAtariC64Image(USImage *image)
             }
             work = *ptr++;
             work2 = *ptr++;
-            for (i = 0; i < c + 1; i++)
-            {
-                DrawA8C64Pixels(work,work2);
+            for (i = 0; i < c + 1; i++) {
+                DrawA8C64Pixels(work, work2);
             }
-        }
-        else
-        {
+        } else {
             // Don't count on the next c characters
-            for (i = 0; i < c + 1 && ptr - origptr < datasize - 1; i++)
-            {
-                work=*ptr++;
-                work2=*ptr++;
-                DrawA8C64Pixels(work,work2);
+            for (i = 0; i < c + 1 && ptr - origptr < datasize - 1; i++) {
+                work = *ptr++;
+                work2 = *ptr++;
+                DrawA8C64Pixels(work, work2);
             }
         }
     }

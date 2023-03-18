@@ -11,21 +11,18 @@
 #include <string.h>
 
 #include "common.h"
-#include "graphics.h"
-#include "definitions.h"
-#include "loaddatabase.h"
 #include "companionfile.h"
-
+#include "definitions.h"
 #include "gameinfo.h"
+#include "graphics.h"
+#include "loaddatabase.h"
 
 #include "atari8detect.h"
-
 
 typedef struct imglist {
     char *filename;
     size_t offset;
 } imglist;
-
 
 static const struct imglist listFantastic[] = {
     { "R001", 0x0297 },
@@ -93,7 +90,7 @@ static const struct imglist listFantastic[] = {
     { "S018", 0x12617 },
     { "S019", 0x1263a },
     { "S020", 0x126c1 },
-    { NULL, 0, }
+    { NULL, 0 }
 };
 
 static const struct imglist listSpidey[] = {
@@ -161,7 +158,7 @@ static const struct imglist listSpidey[] = {
     { "S021", 0x15687 },
     { "S022", 0x15b64 },
     { "S023", 0x16179 },
-//    { "S024", 0x16682 },
+//  { "S024", 0x16682 },
     { "S026", 0x16179 },
     { NULL, 0 }
 };
@@ -235,11 +232,12 @@ static const struct imglist listBanzai[] = {
     { "S015", 0x1176b },
     { "S016", 0x11841 },
     { "S017", 0x118e4 },
-    { NULL, 0, }
+
+    { NULL, 0 }
 };
 
-
-static int ExtractImagesFromAtariCompanionFile(uint8_t *data, size_t datasize, uint8_t *otherdisk, size_t othersize) {
+static int ExtractImagesFromAtariCompanionFile(uint8_t *data, size_t datasize, uint8_t *otherdisk, size_t othersize)
+{
     size_t size;
 
     const struct imglist *list = listSpidey;
@@ -256,8 +254,7 @@ static int ExtractImagesFromAtariCompanionFile(uint8_t *data, size_t datasize, u
     int outpic;
 
     // Now loop round for each image
-    for (outpic = 0; outpic < count; outpic++)
-    {
+    for (outpic = 0; outpic < count; outpic++) {
         uint8_t *ptr = data + list[outpic].offset;
 
         size = *ptr++;
@@ -279,7 +276,6 @@ static int ExtractImagesFromAtariCompanionFile(uint8_t *data, size_t datasize, u
         if (list[outpic].offset < 0xb390 && list[outpic].offset + Images[outpic].Size > 0xb390) {
             memcpy(Images[outpic].Data + 0xb390 - list[outpic].offset + 2, data + 0xb410, size - 0xb390 + list[outpic].offset - 2);
         }
-
     }
 
     Images[outpic].Filename = NULL;
@@ -294,8 +290,7 @@ static int ExtractImagesFromAtariCompanionFile(uint8_t *data, size_t datasize, u
     return 1;
 }
 
-
-static const uint8_t atrheader[6] = { 0x96 , 0x02, 0x80, 0x16, 0x80, 0x00 };
+static const uint8_t atrheader[6] = { 0x96, 0x02, 0x80, 0x16, 0x80, 0x00 };
 
 int DetectAtari8(uint8_t **sf, size_t *extent)
 {
@@ -318,11 +313,13 @@ int DetectAtari8(uint8_t **sf, size_t *extent)
 
     ImageWidth = 280;
     ImageHeight = 158;
-    mem = main_disk + data_start; memlen = main_size - data_start;
+    mem = main_disk + data_start;
+    memlen = main_size - data_start;
     result = LoadDatabaseBinary();
     if (!result && companionfile != NULL && companionsize > data_start) {
         debug_print("Could not find database in this file, trying the companion file\n");
-        mem = companionfile + data_start; memlen = companionsize - data_start;
+        mem = companionfile + data_start;
+        memlen = companionsize - data_start;
         result = LoadDatabaseBinary();
         if (result) {
             debug_print("Found database in companion file. Switching files.\n");
@@ -346,4 +343,3 @@ int DetectAtari8(uint8_t **sf, size_t *extent)
 
     return result;
 }
-

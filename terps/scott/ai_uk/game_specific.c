@@ -7,11 +7,11 @@
 
 #include <string.h>
 
-#include "game_specific.h"
-#include "sagadraw.h"
 #include "apple2draw.h"
-#include "scott.h"
+#include "game_specific.h"
 #include "saga.h"
+#include "sagadraw.h"
+#include "scott.h"
 
 void UpdateSecretAnimations(void)
 {
@@ -356,56 +356,55 @@ void Mysterious64Sysmess(void)
     sys[I_DONT_KNOW_HOW_TO] = "\"";
     sys[PLAY_AGAIN] = "The game is over, thanks for playing\nWant to play again ? ";
 
-
     char *dictword = NULL;
     size_t len = GameHeader.WordLength;
-    for (int i = 1 ; i <= 6; i++) {
+    for (int i = 1; i <= 6; i++) {
         dictword = MemAlloc(len + 1);
-        strncpy(dictword, sys[i-1], GameHeader.WordLength);
+        strncpy(dictword, sys[i - 1], GameHeader.WordLength);
         dictword[len] = '\0';
         Nouns[i] = dictword;
     }
 
     Nouns[0] = "ANY\0";
 
-    switch(CurrentGame) {
-        case BATON_C64:
-            Nouns[79] = "CAST\0";
-            Verbs[79] = ".\0";
-            GameHeader.NumWords = 79;
-            break;
-        case TIME_MACHINE_C64:
-            Verbs[86] = ".\0";
-            break;
-        case ARROW1_C64:
-            Nouns[82] = ".\0";
-            break;
-        case ARROW2_C64:
-            Verbs[80] = ".\0";
-            break;
-        case PULSAR7_C64:
-            Nouns[102] = ".\0";
-            break;
-        case CIRCUS_C64:
-            Nouns[96] = ".\0";
-            break;
-        case FEASIBILITY_C64:
-            Nouns[80] = ".\0";
-            break;
-        case PERSEUS_C64:
-            Nouns[82] = ".\0";
-            break;
-        default:
-            break;
+    switch (CurrentGame) {
+    case BATON_C64:
+        Nouns[79] = "CAST\0";
+        Verbs[79] = ".\0";
+        GameHeader.NumWords = 79;
+        break;
+    case TIME_MACHINE_C64:
+        Verbs[86] = ".\0";
+        break;
+    case ARROW1_C64:
+        Nouns[82] = ".\0";
+        break;
+    case ARROW2_C64:
+        Verbs[80] = ".\0";
+        break;
+    case PULSAR7_C64:
+        Nouns[102] = ".\0";
+        break;
+    case CIRCUS_C64:
+        Nouns[96] = ".\0";
+        break;
+    case FEASIBILITY_C64:
+        Nouns[80] = ".\0";
+        break;
+    case PERSEUS_C64:
+        Nouns[82] = ".\0";
+        break;
+    default:
+        break;
     }
 }
 
-void PerseusItalianSysmess(void) {
+void PerseusItalianSysmess(void)
+{
     sys[YOU_ARE] = "Sono in ";
     sys[YOU_SEE] = "\nQui posso vedere:\n";
     sys[INVENTORY] = "Ho raccolto: ";
 }
-
 
 void Supergran64Sysmess(void)
 {
@@ -501,50 +500,50 @@ void SecretMission64Sysmess(void)
     sys[I_DONT_KNOW_HOW_TO] = "I don't know how to \"";
 }
 
-
-void VoodooShowImageOnExamineUS(int noun) {
+void VoodooShowImageOnExamineUS(int noun)
+{
     int image = -1;
     switch (noun) {
-        case 8: // Count Cristo
-            if (Items[27].Location == MyLoc)
-                image = 11;
-            break;
-        case 13: // Broken sword
-            if (Items[33].Location == MyLoc || Items[33].Location == CARRIED)
-                image = 0;
-            break;
-        case 55: // Voodoo doll
-            if (Items[44].Location == MyLoc || Items[44].Location == CARRIED)
-                image = 1;
-            break;
-        case 63: // Voodoo book
-            if (Items[52].Location == MyLoc || Items[52].Location == CARRIED)
-                image = 2;
-            break;
-        case 32: // Ring
-            if (Items[25].Location == MyLoc || Items[25].Location == CARRIED)
-                image = 3;
-            break;
-        case 43: // Ju-ju man statue
-            if (Items[53].Location == MyLoc || Items[53].Location == CARRIED)
-                image = 4;
-            break;
-        case 9: // Glowing idol
-            if (Items[9].Location == MyLoc || Items[9].Location == CARRIED)
-                image = 5;
-            if (Items[43].Location == MyLoc || Items[43].Location == CARRIED)
-                image = 10;
-            break;
-        case 42: // Chemicals
-            if (Items[38].Location == MyLoc || Items[38].Location == CARRIED)
-                image = 6;
-            break;
-        case 7: // Bloody knife
-            if (Items[0].Location == MyLoc || Items[0].Location == CARRIED)
-                image = 7;
+    case 8: // Count Cristo
+        if (Items[27].Location == MyLoc)
+            image = 11;
+        break;
+    case 13: // Broken sword
+        if (Items[33].Location == MyLoc || Items[33].Location == CARRIED)
+            image = 0;
+        break;
+    case 55: // Voodoo doll
+        if (Items[44].Location == MyLoc || Items[44].Location == CARRIED)
+            image = 1;
+        break;
+    case 63: // Voodoo book
+        if (Items[52].Location == MyLoc || Items[52].Location == CARRIED)
+            image = 2;
+        break;
+    case 32: // Ring
+        if (Items[25].Location == MyLoc || Items[25].Location == CARRIED)
+            image = 3;
+        break;
+    case 43: // Ju-ju man statue
+        if (Items[53].Location == MyLoc || Items[53].Location == CARRIED)
+            image = 4;
+        break;
+    case 9: // Glowing idol
+        if (Items[9].Location == MyLoc || Items[9].Location == CARRIED)
+            image = 5;
+        if (Items[43].Location == MyLoc || Items[43].Location == CARRIED)
+            image = 10;
+        break;
+    case 42: // Chemicals
+        if (Items[38].Location == MyLoc || Items[38].Location == CARRIED)
+            image = 6;
+        break;
+    case 7: // Bloody knife
+        if (Items[0].Location == MyLoc || Items[0].Location == CARRIED)
+            image = 7;
 
-        default:
-            break;
+    default:
+        break;
     }
 
     if (image >= 0) {
@@ -560,19 +559,20 @@ void VoodooShowImageOnExamineUS(int noun) {
     }
 }
 
-void CountShowImageOnExamineUS(int noun) {
+void CountShowImageOnExamineUS(int noun)
+{
     int image = -1;
     switch (noun) {
-        case 21: // Package
-            if (Items[45].Location == MyLoc || Items[45].Location == CARRIED)
-                image = 0;
-            break;
-        case 50: // Crowd
-            if (Items[50].Location == MyLoc)
-                image = 1;
-            break;
-        default:
-            break;
+    case 21: // Package
+        if (Items[45].Location == MyLoc || Items[45].Location == CARRIED)
+            image = 0;
+        break;
+    case 50: // Crowd
+        if (Items[50].Location == MyLoc)
+            image = 1;
+        break;
+    default:
+        break;
     }
 
     if (image >= 0) {

@@ -9,6 +9,7 @@
 
 #include "glk.h"
 #include "taylor.h"
+
 #include "utility.h"
 
 strid_t Transcript = NULL;
@@ -48,9 +49,9 @@ uint8_t *SeekToPos(uint8_t *buf, size_t offset)
 void print_memory(int address, int length)
 {
     unsigned char *p = FileImage + address;
-    for (int i = address; i <= address + length ; i += 16){
+    for (int i = address; i <= address + length; i += 16) {
         fprintf(stderr, "\n%04X:  ", i);
-        for (int j = 0; j < 16; j++){
+        for (int j = 0; j < 16; j++) {
             fprintf(stderr, "%02X ", *p++);
         }
     }
@@ -59,7 +60,7 @@ void print_memory(int address, int length)
 uint8_t *readFile(const char *name, size_t *size)
 {
     FILE *f = fopen(name, "r");
-    if(f == NULL)
+    if (f == NULL)
         return NULL;
 
     fseek(f, 0, SEEK_END);

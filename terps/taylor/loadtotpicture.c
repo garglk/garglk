@@ -10,26 +10,29 @@
 
 #include <stdlib.h>
 
-#include "loadtotpicture.h"
 #include "extracttape.h"
+#include "loadtotpicture.h"
 #include "utility.h"
 
 static uint8_t *mem;
 
-static uint16_t push(uint16_t reg, uint16_t SP) {
+static uint16_t push(uint16_t reg, uint16_t SP)
+{
     SP -= 2;
     mem[SP] = reg & 0xff;
     mem[SP + 1] = reg >> 8;
     return SP;
 }
 
-static uint16_t pop(uint16_t *SP) {
+static uint16_t pop(uint16_t *SP)
+{
     uint16_t reg = mem[*SP] + mem[*SP + 1] * 256;
     *SP += 2;
     return reg;
 }
 
-static int parity(uint8_t x) {
+static int parity(uint8_t x)
+{
     int bitsset = 0;
     for (int i = 0; i < 8; i++)
         if (x & (1 << i))
@@ -44,12 +47,14 @@ static int AddressIndex = 0;
 /* to a screen adress pulled from the list we create here */
 
 /* Here we add another screen address to the address list array */
-static void addtoarray(uint16_t val) {
+static void addtoarray(uint16_t val)
+{
     DrawAdresses[AddressIndex++] = val;
 }
 
 /* Here we add another attribute address to the address list array */
-static void addcolour(uint16_t addr, uint8_t IYh) { // COLOUR_LOAD
+static void addcolour(uint16_t addr, uint8_t IYh)
+{ // COLOUR_LOAD
     uint8_t msb = addr >> 8;
     if (!parity(IYh))
         msb = msb ^ 0xff; // CPL
@@ -62,7 +67,8 @@ static void addcolour(uint16_t addr, uint8_t IYh) { // COLOUR_LOAD
 
 /* Here we get the address in screen memory representing one line down */
 /* or up from addr, depending on the parity of the IYh variable */
-static uint16_t nextlineaddr(uint16_t addr, uint8_t IYh) {
+static uint16_t nextlineaddr(uint16_t addr, uint8_t IYh)
+{
     uint8_t msb = addr >> 8;
     uint8_t lsb = addr & 0xff;
     // byte down
@@ -89,7 +95,8 @@ static uint16_t nextlineaddr(uint16_t addr, uint8_t IYh) {
 uint16_t globalIY, globalBC, globalDE, globalHL;
 uint8_t globalA;
 
-static void registers_on_stack(uint8_t ack, uint16_t IY, uint16_t BC, uint16_t DE, uint16_t HL, uint8_t D) {
+static void registers_on_stack(uint8_t ack, uint16_t IY, uint16_t BC, uint16_t DE, uint16_t HL, uint8_t D)
+{
     uint16_t SP = D * 11 + 0xee57;
     // D can be 1, 2 or 3, selecting a different "slot" at 0xee62, 0xee6d or 0xee78 respectively
     SP = push(IY, SP);
@@ -101,7 +108,8 @@ static void registers_on_stack(uint8_t ack, uint16_t IY, uint16_t BC, uint16_t D
 }
 
 /* Here we determine in which direction to go for the next screen byte */
-static uint8_t styler(uint8_t ack, uint16_t *IY, uint16_t *HL, uint16_t *DE, uint16_t *BC) { // DIRECTION_OF_LOAD
+static uint8_t styler(uint8_t ack, uint16_t *IY, uint16_t *HL, uint16_t *DE, uint16_t *BC)
+{ // DIRECTION_OF_LOAD
     uint16_t SP = ack * 11 + 0xee4d;
     // A can be 1, 2 or 3, selecting a different "slot" at 0xee58, 0xee63 or 0xee6e, respectively
     uint16_t AF = pop(&SP);
@@ -157,7 +165,8 @@ static uint8_t styler(uint8_t ack, uint16_t *IY, uint16_t *HL, uint16_t *DE, uin
     return 0xff;
 }
 
-static void address_table(void) {
+static void address_table(void)
+{
     uint16_t IY = 0x032d;
     uint16_t IX = 0xeeab;
     uint16_t DE2, BC2, HL2;
@@ -195,7 +204,8 @@ static void address_table(void) {
     } while (counter != 0);
 }
 
-uint8_t *LoadAlkatrazPicture(uint8_t *memimage, uint8_t *file) {
+uint8_t *LoadAlkatrazPicture(uint8_t *memimage, uint8_t *file)
+{
     mem = memimage;
     DrawAdresses = MemAlloc(6912 * sizeof(uint16_t));
     address_table();

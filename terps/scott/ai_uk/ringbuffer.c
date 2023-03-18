@@ -5,12 +5,12 @@
 //  Created by Petter Sjölund on 2022-03-04.
 //
 
-#include <assert.h>
 #include "ringbuffer.h"
+#include <assert.h>
 
 // The hidden definition of our circular buffer structure
 struct circular_buf_t {
-    uint8_t * buffer;
+    uint8_t *buffer;
     size_t head;
     size_t tail;
     size_t max; //of the buffer
@@ -18,7 +18,7 @@ struct circular_buf_t {
 };
 
 // Return a pointer to a struct instance
-cbuf_handle_t circular_buf_init(uint8_t* buffer, size_t size)
+cbuf_handle_t circular_buf_init(uint8_t *buffer, size_t size)
 {
     assert(buffer && size);
 
@@ -63,12 +63,11 @@ bool circular_buf_empty(cbuf_handle_t me)
     return (!me->full && (me->head == me->tail));
 }
 
-
 static void advance_pointer(cbuf_handle_t me)
 {
     assert(me);
 
-    if(me->full) {
+    if (me->full) {
         if (++(me->tail) == me->max) {
             me->tail = 0;
         }
@@ -96,10 +95,10 @@ int circular_buf_putXY(cbuf_handle_t me, uint8_t x, uint8_t y)
 
     assert(me && me->buffer);
 
-    if(!circular_buf_full(me)) {
+    if (!circular_buf_full(me)) {
         me->buffer[me->head] = x;
         advance_pointer(me);
-        if(!circular_buf_full(me)) {
+        if (!circular_buf_full(me)) {
             me->buffer[me->head] = y;
             advance_pointer(me);
             r = 0;
@@ -108,16 +107,16 @@ int circular_buf_putXY(cbuf_handle_t me, uint8_t x, uint8_t y)
     return r;
 }
 
-int circular_buf_getXY(cbuf_handle_t me, uint8_t *x,  uint8_t *y)
+int circular_buf_getXY(cbuf_handle_t me, uint8_t *x, uint8_t *y)
 {
     assert(me && x && y && me->buffer);
 
     int r = -1;
 
-    if(!circular_buf_empty(me)) {
+    if (!circular_buf_empty(me)) {
         *x = me->buffer[me->tail];
         retreat_pointer(me);
-        if(!circular_buf_empty(me)) {
+        if (!circular_buf_empty(me)) {
             *y = me->buffer[me->tail];
             retreat_pointer(me);
             r = 0;

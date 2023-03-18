@@ -3,13 +3,14 @@
 //
 //  This file is based on code from the Level9 interpreter by Simon Baldwin
 
-#include <string.h>
 #include <stdlib.h>
-#include "scott.h"
+#include <string.h>
+
+#include "line_drawing.h"
+#include "ringbuffer.h"
 #include "sagadraw.h"
 #include "sagagraphics.h"
-#include "ringbuffer.h"
-#include "line_drawing.h"
+#include "scott.h"
 
 struct line_image *LineImages;
 
@@ -45,7 +46,7 @@ int scott_graphics_height = 94;
  * it handles clipping.
  */
 static void
-scott_linegraphics_plot_clip (int x, int y, int colour)
+scott_linegraphics_plot_clip(int x, int y, int colour)
 {
     /*
      * Clip the plot if the value is outside the context.  Otherwise, plot the
@@ -61,11 +62,13 @@ scott_linegraphics_plot_clip (int x, int y, int colour)
     }
 }
 
-int DrawingVector(void) {
+int DrawingVector(void)
+{
     return (total_draw_instructions > current_draw_instruction);
 }
 
-void FreePixels(void) {
+void FreePixels(void)
+{
     for (int i = 0; i < total_draw_instructions; i++)
         if (pixels_to_draw[i] != NULL)
             free(pixels_to_draw[i]);
@@ -79,7 +82,8 @@ extern int gli_slowdraw;
 static int gli_slowdraw = 0;
 #endif
 
-void DrawSomeVectorPixels(int from_start) {
+void DrawSomeVectorPixels(int from_start)
+{
     VectorState = DRAWING_VECTOR_IMAGE;
     int i = current_draw_instruction;
     if (from_start)
@@ -100,7 +104,7 @@ void DrawSomeVectorPixels(int from_start) {
 
 static void
 scott_linegraphics_draw_line(int x1, int y1, int x2, int y2,
-                             int colour)
+    int colour)
 {
     int x, y, dx, dy, incx, incy, balance;
 
@@ -161,19 +165,19 @@ scott_linegraphics_draw_line(int x1, int y1, int x2, int y2,
     }
 }
 
-static int linegraphics_get_pixel(int x, int y) {
+static int linegraphics_get_pixel(int x, int y)
+{
     return picture_bitmap[y * 255 + x];
 }
 
-static void diamond_fill(uint8_t x, uint8_t y, int colour) {
+static void diamond_fill(uint8_t x, uint8_t y, int colour)
+{
     uint8_t buffer[2048];
     cbuf_handle_t ringbuf = circular_buf_init(buffer, 2048);
     circular_buf_putXY(ringbuf, x, y);
     while (!circular_buf_empty(ringbuf)) {
         circular_buf_getXY(ringbuf, &x, &y);
-        if (x >= 0 && x < scott_graphics_width && y >= 0 &&
-            y < scott_graphics_height &&
-            linegraphics_get_pixel(x, y) == bg_colour) {
+        if (x >= 0 && x < scott_graphics_width && y >= 0 && y < scott_graphics_height && linegraphics_get_pixel(x, y) == bg_colour) {
             scott_linegraphics_plot_clip(x, y, colour);
             circular_buf_putXY(ringbuf, x, y + 1);
             circular_buf_putXY(ringbuf, x, y - 1);
@@ -184,7 +188,8 @@ static void diamond_fill(uint8_t x, uint8_t y, int colour) {
     circular_buf_free(ringbuf);
 }
 
-void DrawVectorPicture(int image) {
+void DrawVectorPicture(int image)
+{
     if (image < 0) {
         return;
     }
@@ -227,29 +232,30 @@ void DrawVectorPicture(int image) {
     while (p - LineImages[image].data < LineImages[image].size && opcode != 0xff) {
         if (p > entire_file + file_length) {
             fprintf(stderr, "Out of range! Opcode: %x. Image: %d. LineImages[%d].size: %zu\n", opcode, image,
-                    image, LineImages[image].size);
+                image, LineImages[image].size);
             break;
         }
         opcode = *(p++);
-        switch(opcode) {
-            case 0xc0:
-                y = 190 - *(p++);
-                x = *(p++);
-                break;
-            case 0xc1:
-                arg1 = *(p++);
-                arg2 = *(p++);
-                arg3 = *(p++);
-                diamond_fill(arg3, 190 - arg2, arg1);
-                break;
-            case 0xff:
-                break;
-            default:
-                arg1 = *(p++);
-                y2 = 190 - opcode;
-                scott_linegraphics_draw_line(x, y, arg1, y2, line_colour);
-                x = arg1; y = y2;
-                break;
+        switch (opcode) {
+        case 0xc0:
+            y = 190 - *(p++);
+            x = *(p++);
+            break;
+        case 0xc1:
+            arg1 = *(p++);
+            arg2 = *(p++);
+            arg3 = *(p++);
+            diamond_fill(arg3, 190 - arg2, arg1);
+            break;
+        case 0xff:
+            break;
+        default:
+            arg1 = *(p++);
+            y2 = 190 - opcode;
+            scott_linegraphics_draw_line(x, y, arg1, y2, line_colour);
+            x = arg1;
+            y = y2;
+            break;
         }
     }
     if (picture_bitmap != NULL) {

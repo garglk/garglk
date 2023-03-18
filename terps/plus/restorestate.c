@@ -6,17 +6,16 @@
 //
 
 #include <inttypes.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include "glk.h"
-#include "common.h"
 #include "animations.h"
+#include "common.h"
+#include "glk.h"
 #include "graphics.h"
 #include "parseinput.h"
 #include "restorestate.h"
-
 
 #define MAX_UNDOS 100
 
@@ -184,7 +183,7 @@ void SaveGame(void)
     char buf[128];
 
     ref = glk_fileref_create_by_prompt(fileusage_TextMode | fileusage_SavedGame,
-                                       filemode_Write, 0);
+        filemode_Write, 0);
     if (ref == NULL)
         return;
 
@@ -218,7 +217,7 @@ int LoadGame(void)
     short lo;
 
     ref = glk_fileref_create_by_prompt(fileusage_TextMode | fileusage_SavedGame,
-                                       filemode_Read, 0);
+        filemode_Read, 0);
     if (ref == NULL)
         return 0;
 
@@ -241,8 +240,8 @@ int LoadGame(void)
     }
     glk_get_line_stream(file, buf, sizeof buf);
     int SavedImgTypeInt;
-    result = sscanf(buf, "%" SCNu64 " %d %d %d %d\n", &BitFlags,  &ProtagonistString,
-                    &dummy, &SavedImgTypeInt, &SavedImgIndex);
+    result = sscanf(buf, "%" SCNu64 " %d %d %d %d\n", &BitFlags, &ProtagonistString,
+        &dummy, &SavedImgTypeInt, &SavedImgIndex);
     SavedImgType = SavedImgTypeInt;
     debug_print("LoadGame: Result of sscanf: %d\n", result);
     if ((result < 3) || MyLoc > GameHeader.NumRooms || MyLoc < 1) {
@@ -254,10 +253,7 @@ int LoadGame(void)
         glk_get_line_stream(file, buf, sizeof buf);
         result = sscanf(buf, "%hd\n", &lo);
         Items[ct].Location = (unsigned char)lo;
-        if (result != 1 || (Items[ct].Location > GameHeader.NumRooms &&
-                            Items[ct].Location != CARRIED &&
-                            Items[ct].Location != HIDDEN &&
-                            Items[ct].Location != HELD_BY_OTHER_GUY)) {
+        if (result != 1 || (Items[ct].Location > GameHeader.NumRooms && Items[ct].Location != CARRIED && Items[ct].Location != HIDDEN && Items[ct].Location != HELD_BY_OTHER_GUY)) {
             fprintf(stderr, "LoadGame: Unexpected item location in save game file (Item %d, %s, is in room %d)\n", ct, Items[ct].Text, Items[ct].Location);
             RecoverFromBadRestore(state);
             return 0;

@@ -9,9 +9,9 @@
 #include <string.h>
 
 #include "common.h"
+#include "companionfile.h"
 #include "definitions.h"
 #include "graphics.h"
-#include "companionfile.h"
 
 #include "apple2detect.h"
 
@@ -23,7 +23,7 @@ typedef struct imglist {
 static const imglist a2listFantastic[] = {
     { "R001", 0x1e800 },
     { "R002", 0x1df00 },
-    { "R004", 0x1db00},
+    { "R004", 0x1db00 },
     { "R005", 0x1cb00 },
     { "R006", 0x1c200 },
     { "R007", 0x1bb00 },
@@ -102,7 +102,7 @@ static const imglist a2listSpidey[] = {
     { "R017", 0x16100 },
     { "R018", 0xce00 },
     { "R019", 0x13400 },
-    { "R022", 0x12400},
+    { "R022", 0x12400 },
     { "R024", 0x10000 },
     { "R025", 0x15700 },
     { "R034", 0x14f00 },
@@ -281,25 +281,26 @@ int DetectApple2(uint8_t **sf, size_t *extent)
     return 0;
 }
 
-void LookForApple2Images(void) {
+void LookForApple2Images(void)
+{
     if (new == NULL)
         return;
 
     const struct imglist *list = a2listSpidey;
 
-    switch(CurrentGame) {
-        case SPIDERMAN:
-            list = a2listSpidey;
-            break;
-        case BANZAI:
-            list = a2listBanzai;
-            break;
-        case FANTASTIC4:
-            list = a2listFantastic;
-            break;
-        default:
-            Fatal("Unknown game!");
-            break;
+    switch (CurrentGame) {
+    case SPIDERMAN:
+        list = a2listSpidey;
+        break;
+    case BANZAI:
+        list = a2listBanzai;
+        break;
+    case FANTASTIC4:
+        list = a2listFantastic;
+        break;
+    default:
+        Fatal("Unknown game!");
+        break;
     }
 
     int count = Game->no_of_room_images + Game->no_of_item_images + Game->no_of_special_images;
@@ -428,4 +429,3 @@ void LookForApple2Images(void) {
     Images[created].Filename = NULL;
     free(new);
 }
-

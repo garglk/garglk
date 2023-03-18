@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "utility.h"
+
 #include "layouttext.h"
 
 static int FindBreak(const char *buf, int pos, int columns)

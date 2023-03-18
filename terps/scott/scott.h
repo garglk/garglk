@@ -23,15 +23,18 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "scottdefines.h"
 #include "debugprint.h"
+#include "scottdefines.h"
 
+// clang-format off
 
 #define LIGHT_SOURCE 9         /* Always 9 how odd */
 #define CARRIED      255       /* Carried */
 #define DESTROYED    0         /* Destroyed */
 #define DARKBIT      15
 #define LIGHTOUTBIT  16        /* Light gone out */
+
+// clang-format on
 
 #define GLK_BUFFER_ROCK 1
 #define GLK_STATUS_ROCK 1010
@@ -53,9 +56,9 @@ typedef struct {
 } Header;
 
 typedef struct {
-	unsigned short Vocab;
-	unsigned short Condition[5];
-	unsigned short Subcommand[2];
+    unsigned short Vocab;
+    unsigned short Condition[5];
+    unsigned short Subcommand[2];
 } Action;
 
 typedef struct {
@@ -80,19 +83,23 @@ typedef struct {
     short Unknown;
 } Tail;
 
-#define YOUARE		1	/* You are not I am */
-#define SCOTTLIGHT	2	/* Authentic Scott Adams light messages */
-#define DEBUGGING	4	/* Info from database load */
-#define TRS80_STYLE	8	/* Display in style used on TRS-80 */
-#define PREHISTORIC_LAMP 16	/* Destroy the lamp (very old databases) */
-#define SPECTRUM_STYLE 32    /* Display in style used on ZX Spectrum */
-#define TI994A_STYLE 64     /* Display in style used on TI-99/4A */
-#define NO_DELAYS 128     /* Skip all pauses */
-#define FORCE_PALETTE_ZX 256     /* Force ZX Spectrum image palette */
-#define FORCE_PALETTE_C64 512     /* Force CBM 64 image palette */
-#define FORCE_INVENTORY 1024     /* Inventory in upper window always on */
+// clang-format off
+
+#define YOUARE                 1     /* You are not I am */
+#define SCOTTLIGHT             2     /* Authentic Scott Adams light messages */
+#define DEBUGGING              4     /* Info from database load */
+#define TRS80_STYLE            8     /* Display in style used on TRS-80 */
+#define PREHISTORIC_LAMP      16     /* Destroy the lamp (very old databases) */
+#define SPECTRUM_STYLE        32     /* Display in style used on ZX Spectrum */
+#define TI994A_STYLE          64     /* Display in style used on TI-99/4A */
+#define NO_DELAYS            128     /* Skip all pauses */
+#define FORCE_PALETTE_ZX     256     /* Force ZX Spectrum image palette */
+#define FORCE_PALETTE_C64    512     /* Force CBM 64 image palette */
+#define FORCE_INVENTORY     1024     /* Inventory in upper window always on */
 #define FORCE_INVENTORY_OFF 2048     /* Inventory in upper window always off */
-#define PC_STYLE 4096    /* Display in style used on IBM PC (MS-DOS) */
+#define PC_STYLE            4096     /* Display in style used on IBM PC (MS-DOS) */
+
+// clang-format on
 
 #define MAX_GAMEFILE_SIZE 250000
 
@@ -108,9 +115,9 @@ void Output(const char *a);
 void OutputNumber(int a);
 void Display(winid_t w, const char *fmt, ...)
 #ifdef __GNUC__
-__attribute__((__format__(__printf__, 2, 3)))
+    __attribute__((__format__(__printf__, 2, 3)))
 #endif
-;
+    ;
 void HitEnter(void);
 void Look(void);
 void DrawRoomImage(void);

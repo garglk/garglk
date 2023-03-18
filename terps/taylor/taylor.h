@@ -9,6 +9,7 @@
 #define taylor_h
 
 #include <stdlib.h>
+
 #include "glk.h"
 
 unsigned char WaitCharacter(void);
@@ -22,9 +23,9 @@ void Updates(event_t ev);
 void DrawBlack(void);
 void WriteToRoomDescriptionStream(const char *fmt, ...)
 #ifdef __GNUC__
-__attribute__((__format__(__printf__, 1, 2)))
+    __attribute__((__format__(__printf__, 1, 2)))
 #endif
-;
+    ;
 void CloseGraphicsWindow(void);
 void OpenGraphicsWindow(void);
 void OpenTopWindow(void);
@@ -40,15 +41,17 @@ void PrintFirstTenBytes(size_t offset);
 
 #define IsThing (Flag[31])
 
-#define debug_print(fmt, ...) \
-do { if (DEBUG_ACTIONS) fprintf(stderr, fmt, ##__VA_ARGS__); } while (0)
+#define debug_print(fmt, ...)                    \
+    do {                                         \
+        if (DEBUG_ACTIONS)                       \
+            fprintf(stderr, fmt, ##__VA_ARGS__); \
+    } while (0)
 
 #define MyLoc (Flag[0])
 
 #define CurrentGame (Game->gameID)
 #define Version (Game->type)
 #define BaseGame (Game->base_game)
-
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -224,15 +227,20 @@ typedef enum {
 } ActionType;
 
 typedef enum {
-    DEBUGGING = 1,    /* Info from database load */
-    NO_DELAYS = 2,     /* Skip all pauses */
-    FORCE_PALETTE_ZX = 4,     /* Force ZX Spectrum image palette */
-    FORCE_PALETTE_C64 = 8,     /* Force CBM 64 image palette */
-    FORCE_INVENTORY = 16,     /* Inventory in upper window always on */
-    FORCE_INVENTORY_OFF = 32     /* Inventory in upper window always off */
+    DEBUGGING = 1, /* Info from database load */
+    NO_DELAYS = 2, /* Skip all pauses */
+    FORCE_PALETTE_ZX = 4, /* Force ZX Spectrum image palette */
+    FORCE_PALETTE_C64 = 8, /* Force CBM 64 image palette */
+    FORCE_INVENTORY = 16, /* Inventory in upper window always on */
+    FORCE_INVENTORY_OFF = 32 /* Inventory in upper window always off */
 } OptionsType;
 
-typedef enum { NO_PALETTE, ZX, ZXOPT, C64A, C64B, VGA } palette_type;
+typedef enum { NO_PALETTE,
+    ZX,
+    ZXOPT,
+    C64A,
+    C64B,
+    VGA } palette_type;
 
 typedef enum {
     NO_TYPE,

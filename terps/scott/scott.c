@@ -43,25 +43,25 @@
 
 #include "glk.h"
 #include "glkstart.h"
-#include "sagagraphics.h"
 #include "saga.h"
+#include "sagagraphics.h"
 #include "titleimage.h"
 
 #include "detectgame.h"
 #include "layouttext.h"
+#include "line_drawing.h"
 #include "restorestate.h"
 #include "sagadraw.h"
-#include "line_drawing.h"
 
-#include "ti99_4a_terp.h"
 #include "parser.h"
+#include "ti99_4a_terp.h"
 
+#include "apple2draw.h"
 #include "game_specific.h"
 #include "gremlins.h"
 #include "hulk.h"
 #include "robinofsherwood.h"
 #include "seasofblood.h"
-#include "apple2draw.h"
 
 #include "bsd.h"
 #include "scott.h"
@@ -172,53 +172,54 @@ void Display(winid_t w, const char *fmt, ...)
     free(unistring);
 }
 
-void UpdateSettings(void) {
+void UpdateSettings(void)
+{
 #ifdef SPATTERLIGHT
-	if (gli_sa_delays)
-		Options &= ~NO_DELAYS;
-	else
-		Options |= NO_DELAYS;
+    if (gli_sa_delays)
+        Options &= ~NO_DELAYS;
+    else
+        Options |= NO_DELAYS;
 
-	switch(gli_sa_inventory) {
-		case 0:
-			Options &= ~(FORCE_INVENTORY | FORCE_INVENTORY_OFF);
-			break;
-		case 1:
-			Options = (Options | FORCE_INVENTORY) & ~FORCE_INVENTORY_OFF;
-			break;
-		case 2:
-			Options = (Options | FORCE_INVENTORY_OFF) & ~FORCE_INVENTORY;
-			break;
-	}
+    switch (gli_sa_inventory) {
+    case 0:
+        Options &= ~(FORCE_INVENTORY | FORCE_INVENTORY_OFF);
+        break;
+    case 1:
+        Options = (Options | FORCE_INVENTORY) & ~FORCE_INVENTORY_OFF;
+        break;
+    case 2:
+        Options = (Options | FORCE_INVENTORY_OFF) & ~FORCE_INVENTORY;
+        break;
+    }
 
-	switch(gli_sa_palette) {
-		case 0:
-			Options &= ~(FORCE_PALETTE_ZX | FORCE_PALETTE_C64);
-			break;
-		case 1:
-			Options = (Options | FORCE_PALETTE_ZX) & ~FORCE_PALETTE_C64;
-			break;
-		case 2:
-			Options = (Options | FORCE_PALETTE_C64) & ~FORCE_PALETTE_ZX;
-			break;
-	}
+    switch (gli_sa_palette) {
+    case 0:
+        Options &= ~(FORCE_PALETTE_ZX | FORCE_PALETTE_C64);
+        break;
+    case 1:
+        Options = (Options | FORCE_PALETTE_ZX) & ~FORCE_PALETTE_C64;
+        break;
+    case 2:
+        Options = (Options | FORCE_PALETTE_C64) & ~FORCE_PALETTE_ZX;
+        break;
+    }
 #endif
 
     if (DrawingVector())
-        glk_request_timer_events(20);        
+        glk_request_timer_events(20);
 
-	palette_type previous_pal = palchosen;
-	if (Options & FORCE_PALETTE_ZX)
-		palchosen = ZXOPT;
+    palette_type previous_pal = palchosen;
+    if (Options & FORCE_PALETTE_ZX)
+        palchosen = ZXOPT;
     else if (Options & FORCE_PALETTE_C64) {
         if (Game->picture_format_version == 99)
             palchosen = C64A;
         else
             palchosen = C64B;
     } else
-		palchosen = Game->palette;
+        palchosen = Game->palette;
     if (palchosen != previous_pal) {
-		DefinePalette();
+        DefinePalette();
         if (VectorState != NO_VECTOR_IMAGE)
             DrawSomeVectorPixels(1);
     }
@@ -266,7 +267,7 @@ static void FlushRoomDescription(char *buf)
         if (!(bottomheight < 3 && TopHeight < rows)) {
             glk_window_get_size(Top, &TopWidth, &TopHeight);
             glk_window_set_arrangement(o2, winmethod_Above | winmethod_Fixed, rows,
-                                       Top);
+                Top);
         } else {
             print_delimiter = 0;
         }
@@ -296,7 +297,7 @@ static void FlushRoomDescription(char *buf)
         if (line < rows - 1) {
             glk_window_get_size(Top, &TopWidth, &TopHeight);
             glk_window_set_arrangement(o2, winmethod_Above | winmethod_Fixed,
-                                       MIN(rows - 1, TopHeight - 1), Top);
+                MIN(rows - 1, TopHeight - 1), Top);
         }
 
         free(text_with_breaks);
@@ -319,7 +320,8 @@ static void FlushRoomDescription(char *buf)
     }
 }
 
-static void UpdateUSInventory(void) {
+static void UpdateUSInventory(void)
+{
     char *buf = MemAlloc(1000);
     buf = memset(buf, 0, 1000);
     room_description_stream = glk_stream_open_memory(buf, 1000, filemode_Write, 0);
@@ -330,15 +332,15 @@ static void UpdateUSInventory(void) {
 
 void Updates(event_t ev)
 {
-	if (ev.type == evtype_Arrange) {
-		UpdateSettings();
+    if (ev.type == evtype_Arrange) {
+        UpdateSettings();
 
         VectorState = NO_VECTOR_IMAGE;
 
         CloseGraphicsWindow();
-		OpenGraphicsWindow();
+        OpenGraphicsWindow();
 
-		if (split_screen) {
+        if (split_screen) {
             if (showing_inventory == 1) {
                 UpdateUSInventory();
             } else {
@@ -352,8 +354,8 @@ void Updates(event_t ev)
                         DrawImage(last_image_index);
                 }
             }
-		}
-	} else if (ev.type == evtype_Timer) {
+        }
+    } else if (ev.type == evtype_Timer) {
         switch (Game->type) {
         case SHERWOOD_VARIANT:
             UpdateRobinOfSherwoodAnimations();
@@ -460,8 +462,8 @@ glui32 OptimalPictureSize(glui32 *width, glui32 *height)
 void OpenGraphicsWindow(void)
 {
 #ifdef SPATTERLIGHT
-	if (!gli_enable_graphics)
-		return;
+    if (!gli_enable_graphics)
+        return;
 #endif
     glui32 graphwidth, graphheight, optimal_width, optimal_height;
 
@@ -482,16 +484,15 @@ void OpenGraphicsWindow(void)
             winid_t parent = glk_window_get_parent(Graphics);
             if (parent)
                 glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-                                           optimal_height, NULL);
+                    optimal_height, NULL);
         }
 
-	/* Set the graphics window background to match
+        /* Set the graphics window background to match
      * the main window background, best as we can,
      * and clear the window.
      */
         glui32 background_color;
-        if (Bottom && glk_style_measure(Bottom, style_Normal, stylehint_BackColor,
-                &background_color)) {
+        if (Bottom && glk_style_measure(Bottom, style_Normal, stylehint_BackColor, &background_color)) {
             glk_window_set_background_color(Graphics, background_color);
             glk_window_clear(Graphics);
         }
@@ -509,7 +510,7 @@ void OpenGraphicsWindow(void)
         winid_t parent = glk_window_get_parent(Graphics);
         if (parent)
             glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-                                       optimal_height, NULL);
+                optimal_height, NULL);
     }
     right_margin = optimal_width + x_offset;
 }
@@ -525,7 +526,8 @@ void CloseGraphicsWindow(void)
     }
 }
 
-static void CleanupAndExit(void) {
+static void CleanupAndExit(void)
+{
     if (Transcript)
         glk_stream_close(Transcript, NULL);
     if (DrawingVector()) {
@@ -638,19 +640,19 @@ static char *ReadString(FILE *f)
         if (c == '`')
             c = '"'; /* pdd */
 
-		/* Ensure a valid Glk newline is sent. */
-		if (c == '\n')
-			tmp[ct++] = 10;
-		/* Special case: assume CR is part of CRLF in a
+        /* Ensure a valid Glk newline is sent. */
+        if (c == '\n')
+            tmp[ct++] = 10;
+        /* Special case: assume CR is part of CRLF in a
 		 * DOS-formatted file, and ignore it.
 		 */
-		else if (c == 13)
-			;
-		/* Pass only ASCII to Glk; the other reasonable option
+        else if (c == 13)
+            ;
+        /* Pass only ASCII to Glk; the other reasonable option
 		 * would be to pass Latin-1, but it's probably safe to
 		 * assume that Scott Adams games are ASCII only.
 		 */
-		else if ((c >= 32 && c <= 126))
+        else if ((c >= 32 && c <= 126))
             tmp[ct++] = c;
         else
             tmp[ct++] = '?';
@@ -901,7 +903,7 @@ GameIDType LoadDatabase(FILE *f, int loud)
         debug_print("No extra value in file. This is not Hulk.\n");
     }
 
-	fclose(f);
+    fclose(f);
     if (ct == 703 && LoadDOSImages()) {
         CurrentSys = SYS_MSDOS;
         return HULK_US;
@@ -926,8 +928,8 @@ void DrawBlack(void)
 void DrawImage(int image)
 {
 #ifdef SPATTERLIGHT
-	if (!gli_enable_graphics)
-		return;
+    if (!gli_enable_graphics)
+        return;
 #endif
     OpenGraphicsWindow();
     if (Graphics == NULL) {
@@ -943,13 +945,12 @@ void DrawImage(int image)
 void DrawRoomImage(void)
 {
     if (CurrentGame == ADVENTURELAND || CurrentGame == ADVENTURELAND_C64) {
-		AdventurelandDarkness();
+        AdventurelandDarkness();
     }
 
     int dark = ((BitFlags & (1 << DARKBIT)) && Items[LIGHT_SOURCE].Location != CARRIED && Items[LIGHT_SOURCE].Location != MyLoc);
 
-    if (dark && Graphics != NULL &&
-        (Rooms[MyLoc].Image != 255 || Game->type == US_VARIANT)) {
+    if (dark && Graphics != NULL && (Rooms[MyLoc].Image != 255 || Game->type == US_VARIANT)) {
         vector_image_shown = -1;
         VectorState = NO_VECTOR_IMAGE;
         glk_request_timer_events(0);
@@ -969,20 +970,20 @@ void DrawRoomImage(void)
     }
 
     switch (CurrentGame) {
-        case SEAS_OF_BLOOD:
-        case SEAS_OF_BLOOD_C64:
-            SeasOfBloodRoomImage();
-            return;
-        case ROBIN_OF_SHERWOOD:
-        case ROBIN_OF_SHERWOOD_C64:
-            RobinOfSherwoodLook();
-            return;
-        case HULK:
-        case HULK_C64:
-            HulkLook();
-            return;
-        default:
-            break;
+    case SEAS_OF_BLOOD:
+    case SEAS_OF_BLOOD_C64:
+        SeasOfBloodRoomImage();
+        return;
+    case ROBIN_OF_SHERWOOD:
+    case ROBIN_OF_SHERWOOD_C64:
+        RobinOfSherwoodLook();
+        return;
+    case HULK:
+    case HULK_C64:
+        HulkLook();
+        return;
+    default:
+        break;
     }
 
     if (Rooms[MyLoc].Image == 255) {
@@ -1083,16 +1084,16 @@ static void ListExits(void)
 
 static int ItemEndsWithPeriod(int item)
 {
-	if (item < 0 || item > GameHeader.NumItems)
-		return 0;
-	const char *desc = Items[item].Text;
-	if (desc != NULL && desc[0] != 0) {
-		const char lastchar = desc[strlen(desc) - 1];
-		if (lastchar == '.' || lastchar == '!') {
-			return 1;
-		}
-	}
-	return 0;
+    if (item < 0 || item > GameHeader.NumItems)
+        return 0;
+    const char *desc = Items[item].Text;
+    if (desc != NULL && desc[0] != 0) {
+        const char lastchar = desc[strlen(desc) - 1];
+        if (lastchar == '.' || lastchar == '!') {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 void Look(void)
@@ -1119,7 +1120,7 @@ void Look(void)
     if ((BitFlags & (1 << DARKBIT)) && Items[LIGHT_SOURCE].Location != CARRIED && Items[LIGHT_SOURCE].Location != MyLoc) {
         WriteToRoomDescriptionStream("%s", sys[TOO_DARK_TO_SEE]);
         FlushRoomDescription(buf);
-		return;
+        return;
     }
 
     r = &Rooms[MyLoc];
@@ -1296,7 +1297,7 @@ static void RestartGame(void)
     StopTime = 0;
     glk_window_clear(Bottom);
     OpenTopWindow();
-	should_restart = 0;
+    should_restart = 0;
 }
 
 static void TranscriptOn(void)
@@ -1479,7 +1480,8 @@ void HitEnter(void)
     return;
 }
 
-static void WriteToLowerWindow(const char *fmt, ...) {
+static void WriteToLowerWindow(const char *fmt, ...)
+{
     va_list ap;
     char msg[2048];
 
@@ -1518,7 +1520,7 @@ void ListInventory(int upper)
             if (lastitem > -1 && (Options & (TRS80_STYLE | SPECTRUM_STYLE)) == 0) {
                 print_function("%s", sys[ITEM_DELIMITER]);
             }
-			lastitem = i;
+            lastitem = i;
             print_function("%s", Items[i].Text);
             if (Options & (TRS80_STYLE | SPECTRUM_STYLE)) {
                 print_function("%s", sys[ITEM_DELIMITER]);
@@ -1528,11 +1530,11 @@ void ListInventory(int upper)
     }
     if (lastitem == -1)
         print_function("%s", sys[NOTHING]);
-	else if (Options & TI994A_STYLE) {
-		if (!ItemEndsWithPeriod(lastitem))
+    else if (Options & TI994A_STYLE) {
+        if (!ItemEndsWithPeriod(lastitem))
             print_function(".");
         print_function(" ");
-	}
+    }
     if (upper) {
         WriteToRoomDescriptionStream("\n");
     } else if (Transcript) {
@@ -1545,7 +1547,7 @@ static void LookWithPause(void)
     char fc = Rooms[MyLoc].Text[0];
     if (Rooms[MyLoc].Text == NULL || MyLoc == 0 || fc == 0 || fc == '.' || fc == ' ')
         return;
-	should_look_in_transcript = 1;
+    should_look_in_transcript = 1;
     pause_next_room_description = 1;
     Look();
 }
@@ -1578,9 +1580,9 @@ int PrintScore(void)
     if (n == GameHeader.Treasures) {
         Output(sys[YOUVE_SOLVED_IT]);
         DoneIt();
-		return 1;
+        return 1;
     }
-	return 0;
+    return 0;
 }
 
 void PrintNoun(void)
@@ -1592,91 +1594,91 @@ void PrintNoun(void)
 
 void MoveItemAToLocOfItemB(int itemA, int itemB)
 {
-	Items[itemA].Location = Items[itemB].Location;
-	if (Items[itemB].Location == MyLoc)
-		should_look_in_transcript = 1;
+    Items[itemA].Location = Items[itemB].Location;
+    if (Items[itemB].Location == MyLoc)
+        should_look_in_transcript = 1;
 }
 
 void GoToStoredLoc(void)
 {
 #ifdef DEBUG_ACTIONS
-	debug_print("switch location to stored location (%d) (%s).\n",
-			SavedRoom, Rooms[SavedRoom].Text);
+    debug_print("switch location to stored location (%d) (%s).\n",
+        SavedRoom, Rooms[SavedRoom].Text);
 #endif
-	int t = MyLoc;
-	MyLoc = SavedRoom;
-	SavedRoom = t;
-	should_look_in_transcript = 1;
+    int t = MyLoc;
+    MyLoc = SavedRoom;
+    SavedRoom = t;
+    should_look_in_transcript = 1;
 }
 
 void SwapLocAndRoomflag(int index)
 {
 #ifdef DEBUG_ACTIONS
-	debug_print("swap location<->roomflag[%d]\n", index);
+    debug_print("swap location<->roomflag[%d]\n", index);
 #endif
-	int temp = MyLoc;
-	MyLoc = RoomSaved[index];
-	RoomSaved[index] = temp;
-	should_look_in_transcript = 1;
-	Look();
+    int temp = MyLoc;
+    MyLoc = RoomSaved[index];
+    RoomSaved[index] = temp;
+    should_look_in_transcript = 1;
+    Look();
 }
 
 void SwapItemLocations(int itemA, int itemB)
 {
-	int temp = Items[itemA].Location;
-	Items[itemA].Location = Items[itemB].Location;
-	Items[itemB].Location = temp;
-	if (Items[itemA].Location == MyLoc || Items[itemB].Location == MyLoc)
-		should_look_in_transcript = 1;
+    int temp = Items[itemA].Location;
+    Items[itemA].Location = Items[itemB].Location;
+    Items[itemB].Location = temp;
+    if (Items[itemA].Location == MyLoc || Items[itemB].Location == MyLoc)
+        should_look_in_transcript = 1;
 }
 
 void PutItemAInRoomB(int itemA, int roomB)
 {
 #ifdef DEBUG_ACTIONS
-	debug_print("Item %d (%s) is put in room %d (%s). MyLoc: %d (%s)\n",
-			itemA, Items[itemA].Text, roomB, Rooms[roomB].Text, MyLoc,
-			Rooms[MyLoc].Text);
+    debug_print("Item %d (%s) is put in room %d (%s). MyLoc: %d (%s)\n",
+        itemA, Items[itemA].Text, roomB, Rooms[roomB].Text, MyLoc,
+        Rooms[MyLoc].Text);
 #endif
     if (Items[itemA].Location == MyLoc)
         LookWithPause();
-	Items[itemA].Location = roomB;
+    Items[itemA].Location = roomB;
 }
 
 void SwapCounters(int index)
 {
 #ifdef DEBUG_ACTIONS
-	debug_print(
-			"Select a counter. Current counter is swapped with backup "
-			"counter %d\n",
-			index);
+    debug_print(
+        "Select a counter. Current counter is swapped with backup "
+        "counter %d\n",
+        index);
 #endif
-	if (index > 15) {
-		debug_print("ERROR! parameter out of range. Max 15, got %d\n", index);
-		index = 15;
-	}
-	int temp = CurrentCounter;
+    if (index > 15) {
+        debug_print("ERROR! parameter out of range. Max 15, got %d\n", index);
+        index = 15;
+    }
+    int temp = CurrentCounter;
 
-	CurrentCounter = Counters[index];
-	Counters[index] = temp;
+    CurrentCounter = Counters[index];
+    Counters[index] = temp;
 #ifdef DEBUG_ACTIONS
-	debug_print("Value of new selected counter is %d\n",
-			CurrentCounter);
+    debug_print("Value of new selected counter is %d\n",
+        CurrentCounter);
 #endif
 }
 
 void PrintMessage(int index)
 {
 #ifdef DEBUG_ACTIONS
-	debug_print("Print message %d: \"%s\"\n", index,
-			Messages[index]);
+    debug_print("Print message %d: \"%s\"\n", index,
+        Messages[index]);
 #endif
-	const char *message = Messages[index];
-	if (message != NULL && message[0] != 0) {
-		Output(message);
-		const char lastchar = message[strlen(message) - 1];
-		if (lastchar != 13 && lastchar != 10)
-			Output(sys[MESSAGE_DELIMITER]);
-	}
+    const char *message = Messages[index];
+    if (message != NULL && message[0] != 0) {
+        Output(message);
+        const char lastchar = message[strlen(message) - 1];
+        if (lastchar != 13 && lastchar != 10)
+            Output(sys[MESSAGE_DELIMITER]);
+    }
 }
 
 void PlayerIsDead(void)
@@ -1696,7 +1698,7 @@ static ActionResultType PerformLine(int ct)
 #endif
     int continuation = 0, dead = 0;
     int param[5], pptr = 0;
-	int p;
+    int p;
     int act[4];
     int cc = 0;
     while (cc < 5) {
@@ -1793,52 +1795,52 @@ static ActionResultType PerformLine(int ct)
             debug_print("Is %s neither carried nor in room?\n", Items[dv].Text);
 #endif
             if (Items[dv].Location == CARRIED || Items[dv].Location == MyLoc)
-				return ACT_FAILURE;
-				break;
+                return ACT_FAILURE;
+            break;
         case 13:
-                if (dv > GameHeader.NumItems + 1)
-                    Fatal("Broken database!");
+            if (dv > GameHeader.NumItems + 1)
+                Fatal("Broken database!");
 #ifdef DEBUG_ACTIONS
             debug_print("Is %s (%d) in play?\n", Items[dv].Text, dv);
 #endif
             if (Items[dv].Location == 0)
-				return ACT_FAILURE;
-				break;
+                return ACT_FAILURE;
+            break;
         case 14:
 #ifdef DEBUG_ACTIONS
             debug_print("Is %s NOT in play?\n", Items[dv].Text);
 #endif
             if (Items[dv].Location)
-				return ACT_FAILURE;
-				break;
+                return ACT_FAILURE;
+            break;
         case 15:
 #ifdef DEBUG_ACTIONS
             debug_print("Is CurrentCounter <= %d?\n", dv);
 #endif
             if (CurrentCounter > dv)
-				return ACT_FAILURE;
-				break;
+                return ACT_FAILURE;
+            break;
         case 16:
 #ifdef DEBUG_ACTIONS
             debug_print("Is CurrentCounter > %d?\n", dv);
 #endif
             if (CurrentCounter <= dv)
-				return ACT_FAILURE;
-				break;
+                return ACT_FAILURE;
+            break;
         case 17:
 #ifdef DEBUG_ACTIONS
             debug_print("Is %s still in initial room?\n", Items[dv].Text);
 #endif
             if (Items[dv].Location != Items[dv].InitialLoc)
-				return ACT_FAILURE;
-				break;
+                return ACT_FAILURE;
+            break;
         case 18:
 #ifdef DEBUG_ACTIONS
             debug_print("Has %s been moved?\n", Items[dv].Text);
 #endif
             if (Items[dv].Location == Items[dv].InitialLoc)
-               return ACT_FAILURE;
-				break;
+                return ACT_FAILURE;
+            break;
         case 19: /* Only seen in Brian Howarth games so far */
 #ifdef DEBUG_ACTIONS
             debug_print("Is current counter == %d?\n", dv);
@@ -1846,8 +1848,8 @@ static ActionResultType PerformLine(int ct)
                 debug_print("Nope, current counter is %d\n", CurrentCounter);
 #endif
             if (CurrentCounter != dv)
-				return ACT_FAILURE;
-				break;
+                return ACT_FAILURE;
+            break;
         }
 #ifdef DEBUG_ACTIONS
         debug_print("YES\n");
@@ -1872,9 +1874,9 @@ static ActionResultType PerformLine(int ct)
         debug_print("Performing action %d: ", act[cc]);
 #endif
         if (act[cc] >= 1 && act[cc] < 52) {
-			PrintMessage(act[cc]);
+            PrintMessage(act[cc]);
         } else if (act[cc] > 101) {
-			PrintMessage(act[cc] - 50);
+            PrintMessage(act[cc] - 50);
         } else
             switch (act[cc]) {
             case 0: /* NOP */
@@ -1892,7 +1894,7 @@ static ActionResultType PerformLine(int ct)
                     Items[param[pptr]].Text);
 #endif
                 Items[param[pptr++]].Location = MyLoc;
-				should_look_in_transcript = 1;
+                should_look_in_transcript = 1;
                 break;
             case 54:
 #ifdef DEBUG_ACTIONS
@@ -1900,7 +1902,7 @@ static ActionResultType PerformLine(int ct)
                     Rooms[param[pptr]].Text);
 #endif
                 MyLoc = param[pptr++];
-				should_look_in_transcript = 1;
+                should_look_in_transcript = 1;
                 Look();
                 break;
             case 55:
@@ -1941,30 +1943,30 @@ static ActionResultType PerformLine(int ct)
                 break;
             case 62:
                 p = param[pptr++];
-				PutItemAInRoomB(p, param[pptr++]);
+                PutItemAInRoomB(p, param[pptr++]);
                 break;
             case 63:
 #ifdef DEBUG_ACTIONS
                 debug_print("Game over.\n");
 #endif
                 DoneIt();
-				dead = 1;
+                dead = 1;
                 break;
             case 64:
                 break;
             case 65:
                 dead = PrintScore();
-				StopTime = 2;
+                StopTime = 2;
                 break;
             case 66:
-				if (Game->type == SEAS_OF_BLOOD_VARIANT)
-					AdventureSheet();
-				else
-					ListInventory(0);
-                    if (Game->type == US_VARIANT && has_graphics()) {
-                        UpdateUSInventory();
-                    }
-				StopTime = 2;
+                if (Game->type == SEAS_OF_BLOOD_VARIANT)
+                    AdventureSheet();
+                else
+                    ListInventory(0);
+                if (Game->type == US_VARIANT && has_graphics()) {
+                    UpdateUSInventory();
+                }
+                StopTime = 2;
                 break;
             case 67:
                 BitFlags |= (1 << 0);
@@ -1982,11 +1984,11 @@ static ActionResultType PerformLine(int ct)
                 break;
             case 71:
                 SaveGame();
-				StopTime = 2;
+                StopTime = 2;
                 break;
             case 72:
                 p = param[pptr++];
-				SwapItemLocations(p, param[pptr++]);
+                SwapItemLocations(p, param[pptr++]);
                 break;
             case 73:
 #ifdef DEBUG_ACTIONS
@@ -1998,8 +2000,8 @@ static ActionResultType PerformLine(int ct)
                 Items[param[pptr++]].Location = CARRIED;
                 break;
             case 75:
-				p = param[pptr++];
-				MoveItemAToLocOfItemB(p, param[pptr++]);
+                p = param[pptr++];
+                MoveItemAToLocOfItemB(p, param[pptr++]);
                 break;
             case 76: /* Looking at adventure .. */
 #ifdef DEBUG_ACTIONS
@@ -2007,7 +2009,7 @@ static ActionResultType PerformLine(int ct)
 #endif
                 if (split_screen)
                     Look();
-				should_look_in_transcript = 1;
+                should_look_in_transcript = 1;
                 break;
             case 77:
                 if (CurrentCounter >= 1)
@@ -2029,10 +2031,10 @@ static ActionResultType PerformLine(int ct)
                 CurrentCounter = param[pptr++];
                 break;
             case 80:
-				GoToStoredLoc();
+                GoToStoredLoc();
                 break;
             case 81:
-				SwapCounters(param[pptr++]);
+                SwapCounters(param[pptr++]);
                 break;
             case 82:
                 CurrentCounter += param[pptr++];
@@ -2056,7 +2058,7 @@ static ActionResultType PerformLine(int ct)
                     Output("\n");
                 break;
             case 87:
-				SwapLocAndRoomflag(param[pptr++]);
+                SwapLocAndRoomflag(param[pptr++]);
                 break;
             case 88:
 #ifdef DEBUG_ACTIONS
@@ -2068,7 +2070,7 @@ static ActionResultType PerformLine(int ct)
 #ifdef DEBUG_ACTIONS
                 debug_print("Action 89, parameter %d\n", param[pptr]);
 #endif
-				p = param[pptr++];
+                p = param[pptr++];
                 switch (CurrentGame) {
                 case SPIDERMAN:
                 case SPIDERMAN_C64:
@@ -2076,40 +2078,40 @@ static ActionResultType PerformLine(int ct)
                     break;
                 case SECRET_MISSION:
                 case SECRET_MISSION_C64:
-					SecretAction(p);
+                    SecretAction(p);
                     break;
                 case ADVENTURELAND:
                 case ADVENTURELAND_C64:
-					AdventurelandAction(p);
+                    AdventurelandAction(p);
                     break;
                 case SEAS_OF_BLOOD:
                 case SEAS_OF_BLOOD_C64:
-					BloodAction(p);
+                    BloodAction(p);
                     break;
                 case ROBIN_OF_SHERWOOD:
                 case ROBIN_OF_SHERWOOD_C64:
-					SherwoodAction(p);
+                    SherwoodAction(p);
                     break;
                 case GREMLINS:
                 case GREMLINS_SPANISH:
                 case GREMLINS_SPANISH_C64:
                 case GREMLINS_GERMAN:
                 case GREMLINS_GERMAN_C64:
-					GremlinsAction();
+                    GremlinsAction();
                     break;
                 default:
                     break;
                 }
                 break;
 
-			case 90:
+            case 90:
 #ifdef DEBUG_ACTIONS
                 debug_print("Draw Hulk image, parameter %d\n", param[pptr]);
 #endif
                 if (CurrentGame != HULK && CurrentGame != HULK_C64 && CurrentGame != HULK_US) {
                     pptr++;
                 } else if (!(BitFlags & (1 << DARKBIT)))
-					DrawHulkImage(param[pptr++]);
+                    DrawHulkImage(param[pptr++]);
                 break;
             default:
                 debug_print("Unknown action %d [Param begins %d %d]\n", act[cc],
@@ -2119,13 +2121,13 @@ static ActionResultType PerformLine(int ct)
         cc++;
     }
 
-	if (dead) {
-		return ACT_GAMEOVER;
-	} else if (continuation) {
+    if (dead) {
+        return ACT_GAMEOVER;
+    } else if (continuation) {
         return ACT_CONTINUE;
-	} else {
+    } else {
         return ACT_SUCCESS;
-	}
+    }
 }
 
 static void PrintTakenOrDropped(int index)
@@ -2136,17 +2138,16 @@ static void PrintTakenOrDropped(int index)
     if (last == 10 || last == 13)
         return;
     Output(" ");
-	if ((!(CurrentCommand->allflag & LASTALL))
-		|| split_screen == 0) {
-		Output("\n");
+    if ((!(CurrentCommand->allflag & LASTALL))
+        || split_screen == 0) {
+        Output("\n");
     }
 }
 
 static ExplicitResultType PerformActions(int vb, int no)
 {
     int dark = BitFlags & (1 << DARKBIT);
-    if (Items[LIGHT_SOURCE].Location == MyLoc ||
-        Items[LIGHT_SOURCE].Location == CARRIED)
+    if (Items[LIGHT_SOURCE].Location == MyLoc || Items[LIGHT_SOURCE].Location == CARRIED)
         dark = 0;
     int ct = 0;
     ExplicitResultType flag;
@@ -2171,7 +2172,7 @@ static ExplicitResultType PerformActions(int vb, int no)
             if (Options & (SPECTRUM_STYLE | TI994A_STYLE))
                 Output(sys[OK]);
             MyLoc = nl;
-			should_look_in_transcript = 1;
+            should_look_in_transcript = 1;
             if (CurrentCommand && CurrentCommand->next) {
                 LookWithPause();
             }
@@ -2231,8 +2232,8 @@ static ExplicitResultType PerformActions(int vb, int no)
                         flag = ER_SUCCESS;
                         if (flag2 == ACT_CONTINUE)
                             doagain = 1;
-						else if (flag2 == ACT_GAMEOVER)
-							return ER_SUCCESS;
+                        else if (flag2 == ACT_GAMEOVER)
+                            return ER_SUCCESS;
                         if (vb != 0 && doagain == 0)
                             return ER_SUCCESS;
                     }
@@ -2241,6 +2242,7 @@ static ExplicitResultType PerformActions(int vb, int no)
 
             ct++;
 
+            // clang-format off
       /* Previously this did not check ct against
        * GameHeader.NumActions and would read past the end of
        * Actions.  I don't know what should happen on the last
@@ -2248,12 +2250,14 @@ static ExplicitResultType PerformActions(int vb, int no)
        * past the end.
        * --Chris
        */
+            // clang-format on
+
             if (ct <= GameHeader.NumActions && Actions[ct].Vocab != 0)
                 doagain = 0;
         }
     } else {
         if (vb == 0) {
-			RunImplicitTI99Actions();
+            RunImplicitTI99Actions();
             return ER_NO_RESULT;
         } else {
             flag = RunExplicitTI99Actions(vb, no);
@@ -2458,7 +2462,7 @@ void glk_main(void)
     glk_stylehint_set(wintype_TextBuffer, style_User1, stylehint_Indentation, 20);
     glk_stylehint_set(wintype_TextBuffer, style_User1, stylehint_ParaIndentation,
         20);
-	glk_stylehint_set(wintype_TextBuffer, style_Preformatted, stylehint_Justification, stylehint_just_Centered);
+    glk_stylehint_set(wintype_TextBuffer, style_Preformatted, stylehint_Justification, stylehint_just_Centered);
 
     Bottom = glk_window_open(0, 0, 0, wintype_TextBuffer, GLK_BUFFER_ROCK);
     if (Bottom == NULL)
@@ -2485,7 +2489,7 @@ void glk_main(void)
     GameIDType game_type = DetectGame(game_file);
 
     if (game_type == UNKNOWN_GAME)
-		Fatal("Unsupported game!");
+        Fatal("Unsupported game!");
 
     if (game_type != SCOTTFREE && game_type != TI994A) {
         Options |= SPECTRUM_STYLE;
@@ -2515,7 +2519,7 @@ void glk_main(void)
         Display(Bottom, "In this adventure, you may abbreviate any word \
 by typing its first %d letters, and directions by typing \
 one letter.\n\nDo you want to restore previously saved game?\n",
-                GameHeader.WordLength);
+            GameHeader.WordLength);
         if (YesOrNo())
             LoadGame();
         ClearScreen();
@@ -2564,43 +2568,43 @@ Distributed under the GNU software license\n\n");
     OpenTopWindow();
 
 #ifdef SPATTERLIGHT
-	UpdateSettings();
+    UpdateSettings();
     if (gli_determinism)
         srand(1234);
     else
 #endif
         srand((unsigned int)time(NULL));
 
-	InitialState = SaveCurrentState();
+    InitialState = SaveCurrentState();
 
     while (1) {
         glk_tick();
 
-		if (should_restart)
-			RestartGame();
+        if (should_restart)
+            RestartGame();
 
         if (!StopTime)
             PerformActions(0, 0);
-		if (!(CurrentCommand && CurrentCommand->allflag && !(CurrentCommand->allflag & LASTALL))) {
-			print_look_to_transcript = should_look_in_transcript;
+        if (!(CurrentCommand && CurrentCommand->allflag && !(CurrentCommand->allflag & LASTALL))) {
+            print_look_to_transcript = should_look_in_transcript;
             Look();
-			print_look_to_transcript = should_look_in_transcript = 0;
-			if (!StopTime && !should_restart)
-				SaveUndo();
-		}
+            print_look_to_transcript = should_look_in_transcript = 0;
+            if (!StopTime && !should_restart)
+                SaveUndo();
+        }
 
-		if (should_restart)
-			continue;
+        if (should_restart)
+            continue;
 
-		if (GetInput(&vb, &no) == 1)
-			continue;
+        if (GetInput(&vb, &no) == 1)
+            continue;
 
         switch (PerformActions(vb, no)) {
         case ER_RAN_ALL_LINES_NO_MATCH:
-                if (!RecheckForExtraCommand()) {
-                    Output(sys[I_DONT_UNDERSTAND]);
-                    FreeCommands();
-                }
+            if (!RecheckForExtraCommand()) {
+                Output(sys[I_DONT_UNDERSTAND]);
+                FreeCommands();
+            }
             break;
         case ER_RAN_ALL_LINES:
             Output(sys[YOU_CANT_DO_THAT_YET]);
@@ -2623,7 +2627,7 @@ Distributed under the GNU software license\n\n");
             } else if (GameHeader.LightTime < 25) {
                 if (Items[LIGHT_SOURCE].Location == CARRIED || Items[LIGHT_SOURCE].Location == MyLoc) {
                     if ((Options & SCOTTLIGHT) || (Game->subtype & MYSTERIOUS)) {
-                        Display(Bottom, "%s %d %s\n",sys[LIGHT_RUNS_OUT_IN], GameHeader.LightTime, sys[TURNS]);
+                        Display(Bottom, "%s %d %s\n", sys[LIGHT_RUNS_OUT_IN], GameHeader.LightTime, sys[TURNS]);
                     } else {
                         if (GameHeader.LightTime % 5 == 0)
                             Output(sys[LIGHT_GROWING_DIM]);
@@ -2632,6 +2636,6 @@ Distributed under the GNU software license\n\n");
             }
         }
         if (StopTime)
-			StopTime--;
+            StopTime--;
     }
 }
