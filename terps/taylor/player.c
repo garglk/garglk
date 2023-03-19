@@ -584,7 +584,7 @@ static unsigned char *TokenText(unsigned char n)
 
 void Q3PrintChar(uint8_t c)
 { // Print character
-    if (c == 0x0d)
+    if (c < 0x20 && c != 0x0a)
         return;
 
     if (FirstAfterInput)
