@@ -5,12 +5,12 @@
 //  Created by Petter Sjölund on 2022-05-06.
 //
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include "glk.h"
@@ -19,6 +19,10 @@
 #endif
 #include "glkstart.h"
 
+#include "animations.h"
+#include "apple2detect.h"
+#include "atari8detect.h"
+#include "c64detect.h"
 #include "common.h"
 #include "definitions.h"
 #include "gameinfo.h"
@@ -26,13 +30,8 @@
 #include "layouttext.h"
 #include "loaddatabase.h"
 #include "parseinput.h"
-#include "animations.h"
 #include "restorestate.h"
-#include "apple2detect.h"
-#include "atari8detect.h"
-#include "c64detect.h"
 #include "stdetect.h"
-
 
 const char *game_file = NULL;
 char *DirPath = ".";
@@ -110,7 +109,6 @@ GLK_ATTRIBUTE_NORETURN void Fatal(const char *x)
     CleanupAndExit();
 }
 
-
 void *MemAlloc(size_t size)
 {
     void *t = (void *)malloc(size);
@@ -119,15 +117,18 @@ void *MemAlloc(size_t size)
     return (t);
 }
 
-void SetBit(int bit) {
+void SetBit(int bit)
+{
     BitFlags |= (uint64_t)1 << bit;
 }
 
-void ResetBit(int bit) {
+void ResetBit(int bit)
+{
     BitFlags &= ~((uint64_t)1 << bit);
 }
 
-int IsSet(int bit) {
+int IsSet(int bit)
+{
     return ((BitFlags & ((uint64_t)1 << bit)) != 0);
 }
 
@@ -137,13 +138,13 @@ void Display(winid_t w, const char *fmt, ...)
 {
     va_list ap;
     char msg[2048];
-    
+
     int size = sizeof msg;
-    
+
     va_start(ap, fmt);
     vsnprintf(msg, size, fmt, ap);
     va_end(ap);
-    
+
     glk_put_string_stream(glk_window_get_stream(w), msg);
     if (Transcript && w == Bottom)
         glk_put_string_stream(Transcript, msg);
@@ -162,13 +163,13 @@ static const glui32 OptimalPictureSize(glui32 *width, glui32 *height)
     multiplier = graphheight / h;
     if (w * multiplier > graphwidth)
         multiplier = graphwidth / w;
-    
+
     if (multiplier == 0)
         multiplier = 1;
-    
+
     *width = w * multiplier;
     *height = h * multiplier;
-    
+
     return multiplier;
 }
 
@@ -180,7 +181,7 @@ void OpenGraphicsWindow(void)
         return;
     glui32 graphwidth, graphheight, optimal_width, optimal_height;
     y_offset = 0;
-    
+
     if (Top == NULL)
         Top = FindGlkWindowWithRock(GLK_STATUS_ROCK);
     if (Graphics == NULL)
@@ -189,42 +190,42 @@ void OpenGraphicsWindow(void)
         glk_window_get_size(Top, &TopWidth, &TopHeight);
         glk_window_close(Top, NULL);
         Graphics = glk_window_open(Bottom, winmethod_Above | winmethod_Proportional,
-                                   60, wintype_Graphics, GLK_GRAPHICS_ROCK);
+            60, wintype_Graphics, GLK_GRAPHICS_ROCK);
         glk_window_get_size(Graphics, &graphwidth, &graphheight);
         pixel_size = OptimalPictureSize(&optimal_width, &optimal_height);
         x_offset = ((int)graphwidth - (int)optimal_width) / 2;
-        
+
         if (graphheight > optimal_height) {
             winid_t parent = glk_window_get_parent(Graphics);
             glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-                                       optimal_height, NULL);
+                optimal_height, NULL);
         }
-        
+
         /* Set the graphics window background to match
          * the main window background, best as we can,
          * and clear the window.
          */
         glui32 background_color;
         if (glk_style_measure(Bottom, style_Normal, stylehint_BackColor,
-                              &background_color)) {
+                &background_color)) {
             glk_window_set_background_color(Graphics, background_color);
             glk_window_clear(Graphics);
         }
-        
+
         Top = glk_window_open(Bottom, winmethod_Above | winmethod_Fixed, TopHeight,
-                              wintype_TextGrid, GLK_STATUS_ROCK);
+            wintype_TextGrid, GLK_STATUS_ROCK);
         glk_window_get_size(Top, &TopWidth, &TopHeight);
     } else {
         if (!Graphics)
             Graphics = glk_window_open(Bottom, winmethod_Above | winmethod_Proportional, 60,
-                                       wintype_Graphics, GLK_GRAPHICS_ROCK);
+                wintype_Graphics, GLK_GRAPHICS_ROCK);
         glk_window_get_size(Graphics, &graphwidth, &graphheight);
         pixel_size = OptimalPictureSize(&optimal_width, &optimal_height);
         x_offset = (graphwidth - optimal_width) / 2;
         winid_t parent = glk_window_get_parent(Graphics);
         if (parent)
             glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-                                   optimal_height, NULL);
+                optimal_height, NULL);
     }
 
     right_margin = optimal_width + x_offset;
@@ -241,28 +242,30 @@ void CloseGraphicsWindow(void)
     }
 }
 
-void SetTimer(glui32 milliseconds) {
+void SetTimer(glui32 milliseconds)
+{
     TimerRate = milliseconds;
     glk_request_timer_events(milliseconds);
 }
 
-void UpdateSettings(void) {
+void UpdateSettings(void)
+{
 #ifdef SPATTERLIGHT
     if (gli_sa_delays)
         Options &= ~NO_DELAYS;
     else
         Options |= NO_DELAYS;
 
-    switch(gli_sa_inventory) {
-        case 0:
-            Options &= ~(FORCE_INVENTORY | FORCE_INVENTORY_OFF);
-            break;
-        case 1:
-            Options = (Options | FORCE_INVENTORY) & ~FORCE_INVENTORY_OFF;
-            break;
-        case 2:
-            Options = (Options | FORCE_INVENTORY_OFF) & ~FORCE_INVENTORY;
-            break;
+    switch (gli_sa_inventory) {
+    case 0:
+        Options &= ~(FORCE_INVENTORY | FORCE_INVENTORY_OFF);
+        break;
+    case 1:
+        Options = (Options | FORCE_INVENTORY) & ~FORCE_INVENTORY_OFF;
+        break;
+    case 2:
+        Options = (Options | FORCE_INVENTORY_OFF) & ~FORCE_INVENTORY;
+        break;
     }
 
     if (gli_enable_graphics) {
@@ -273,10 +276,11 @@ void UpdateSettings(void) {
 #endif
 }
 
-static void FlushRoomDescription(char *buf,  int transcript);
+static void FlushRoomDescription(char *buf, int transcript);
 static void ListInventory(int upper);
 
-static void UpdateClaymorgueInventory(void) {
+static void UpdateClaymorgueInventory(void)
+{
     char *buf = MemAlloc(1000);
     buf = memset(buf, 0, 1000);
     room_description_stream = glk_stream_open_memory(buf, 1000, filemode_Write, 0);
@@ -342,7 +346,7 @@ void AnyKey(int timeout, int message)
     }
 
     glk_request_char_event(Bottom);
-    
+
     event_t ev;
     int result = 0;
 
@@ -397,7 +401,7 @@ static void PrintWindowDelimiter(void)
         glk_put_char(DelimiterChar);
 }
 
-static void FlushRoomDescription(char *buf,  int transcript)
+static void FlushRoomDescription(char *buf, int transcript)
 {
     glk_stream_close(room_description_stream, 0);
 
@@ -414,26 +418,26 @@ static void FlushRoomDescription(char *buf,  int transcript)
         free(roomtranscript);
         glk_put_string_stream(Transcript, " ");
     }
-    
+
     int print_delimiter = 1;
-    
+
     if (split_screen) {
         glk_window_clear(Top);
         glk_window_get_size(Top, &TopWidth, &TopHeight);
         int rows, length;
         char *text_with_breaks = LineBreakText(buf, TopWidth, &rows, &length);
-        
+
         glui32 bottomheight;
         glk_window_get_size(Bottom, NULL, &bottomheight);
         winid_t o2 = glk_window_get_parent(Top);
         if (!(bottomheight < 3 && TopHeight < rows)) {
             glk_window_get_size(Top, &TopWidth, &TopHeight);
             glk_window_set_arrangement(o2, winmethod_Above | winmethod_Fixed, rows,
-                                       Top);
+                Top);
         } else {
             print_delimiter = 0;
         }
-        
+
         int line = 0;
         int index = 0;
         int i;
@@ -455,34 +459,33 @@ static void FlushRoomDescription(char *buf,  int transcript)
             glk_window_move_cursor(Top, 0, line);
             Display(Top, "%s", string);
         }
-        
+
         if (line < rows - 1) {
             glk_window_get_size(Top, &TopWidth, &TopHeight);
             glk_window_set_arrangement(o2, winmethod_Above | winmethod_Fixed,
-                                       MIN(rows - 1, TopHeight - 1), Top);
+                MIN(rows - 1, TopHeight - 1), Top);
         }
-        
+
         free(text_with_breaks);
     } else {
         Display(Bottom, "%s", buf);
     }
-    
+
     if (print_delimiter) {
         PrintWindowDelimiter();
     }
-    
+
     if (buf != NULL) {
         free(buf);
         buf = NULL;
     }
 }
 
-
 static void WriteToRoomDescriptionStream(const char *fmt, ...)
 #ifdef __GNUC__
-__attribute__((__format__(__printf__, 1, 2)))
+    __attribute__((__format__(__printf__, 1, 2)))
 #endif
-;
+    ;
 
 static void WriteToRoomDescriptionStream(const char *fmt, ...)
 {
@@ -490,11 +493,11 @@ static void WriteToRoomDescriptionStream(const char *fmt, ...)
         return;
     va_list ap;
     char msg[2048];
-    
+
     va_start(ap, fmt);
     vsnprintf(msg, sizeof msg, fmt, ap);
     va_end(ap);
-    
+
     glk_put_string_stream(room_description_stream, msg);
 }
 
@@ -502,11 +505,11 @@ static void ListExits(void)
 {
     int ct = 0;
     int numexits = 0;
-    
+
     for (int i = 0; i < 6; i++)
         if (Rooms[MyLoc].Exits[i] != 0)
             numexits++;
-    
+
     if (numexits == 0) {
         WriteToRoomDescriptionStream("\n");
         return;
@@ -515,7 +518,7 @@ static void ListExits(void)
         WriteToRoomDescriptionStream(" I see exits ");
     else
         WriteToRoomDescriptionStream(" %s", sys[EXITS]);
-    
+
     for (int i = 0; i < 6; i++)
         if (Rooms[MyLoc].Exits[i] != 0) {
             if (ct) {
@@ -531,7 +534,8 @@ static void ListExits(void)
     WriteToRoomDescriptionStream(".\n");
 }
 
-static const char *IndefiniteArticle(const char *word) {
+static const char *IndefiniteArticle(const char *word)
+{
     char c = word[0];
     char vowels[6] = "aiouey";
     if (c == ' ')
@@ -542,18 +546,19 @@ static const char *IndefiniteArticle(const char *word) {
     return " a ";
 }
 
-void Look(int transcript) {
+void Look(int transcript)
+{
     showing_inventory = 0;
     found_match = 1;
     if (IsSet(DRAWBIT)) {
         ResetBit(DRAWBIT);
         DrawCurrentRoom();
     }
-    
+
     char *buf = MemAlloc(1000);
     buf = memset(buf, 0, 1000);
     room_description_stream = glk_stream_open_memory(buf, 1000, filemode_Write, 0);
-    
+
     Room *r;
     int ct;
 
@@ -570,9 +575,9 @@ void Look(int transcript) {
         FlushRoomDescription(buf, transcript);
         return;
     }
-    
+
     r = &Rooms[MyLoc];
-    
+
     if (!r->Text)
         return;
     /* An initial asterisk means the room description should not */
@@ -582,7 +587,7 @@ void Look(int transcript) {
     } else {
         WriteToRoomDescriptionStream("%s%s", sys[YOU_ARE], r->Text);
     }
-    
+
     ct = 0;
     int numobj = 0;
     for (int i = 0; i <= GameHeader.NumItems; i++)
@@ -601,9 +606,9 @@ void Look(int transcript) {
             ct++;
         }
     }
-    
+
     WriteToRoomDescriptionStream(".");
-    
+
     ListExits();
 
     if ((Options & FORCE_INVENTORY) && !(Options & FORCE_INVENTORY_OFF)) {
@@ -614,7 +619,6 @@ void Look(int transcript) {
     WriteToRoomDescriptionStream(" ");
     FlushRoomDescription(buf, transcript);
 }
-
 
 void Output(const char *string)
 {
@@ -647,7 +651,7 @@ void OpenTopWindow(void)
     if (Top == NULL) {
         if (split_screen) {
             Top = glk_window_open(Bottom, winmethod_Above | winmethod_Fixed,
-                                  TopHeight, wintype_TextGrid, GLK_STATUS_ROCK);
+                TopHeight, wintype_TextGrid, GLK_STATUS_ROCK);
             if (Top == NULL) {
                 split_screen = 0;
                 Top = Bottom;
@@ -667,7 +671,6 @@ static void DisplayInit(void)
     OpenGraphicsWindow();
 }
 
-
 static void OutputNumber(int a)
 {
     if (lastwasnewline) {
@@ -684,15 +687,15 @@ static void Delay(float seconds)
         return;
 
     event_t ev;
-    
+
     if (!glk_gestalt(gestalt_Timer, 0))
         return;
-    
+
     glk_request_char_event(Bottom);
     glk_cancel_char_event(Bottom);
-    
+
     SetTimer(1000 * seconds);
-    
+
     do {
         glk_select(&ev);
         Updates(ev);
@@ -731,9 +734,7 @@ static int CountItemsInRoom(int room)
 static int MatchUpItem(int noun, int loc)
 {
     for (int i = 0; i <= GameHeader.NumItems; i++)
-        if (Items[i].Dictword == noun &&
-            (Items[i].Location == loc || loc == -1) &&
-            (Items[i].Flag & 1))
+        if (Items[i].Dictword == noun && (Items[i].Location == loc || loc == -1) && (Items[i].Flag & 1))
             return i;
     return (0);
 }
@@ -776,7 +777,7 @@ static void PrintNoun(void)
     DictWord *dict = Nouns;
     for (int i = 0; dict->Word != NULL; i++) {
         if (dict->Group == CurNoun) {
-            Display(Bottom, "%s%s", lastwasnewline ? "": " ", dict->Word);
+            Display(Bottom, "%s%s", lastwasnewline ? "" : " ", dict->Word);
             lastwasnewline = 0;
             return;
         }
@@ -818,7 +819,8 @@ static void PlayerIsDead(void)
     Look(0);
 }
 
-void CheckForObjectImage(int obj) {
+void CheckForObjectImage(int obj)
+{
     for (int i = 0; i <= GameHeader.NumObjImg; i++)
         if (ObjectImages[i].Object == obj) {
             SetBit(DRAWBIT);
@@ -842,7 +844,7 @@ static void SwapCounters(int index)
         index = 63;
     }
     int temp = CurrentCounter;
-    
+
     CurrentCounter = Counters[index];
     Counters[index] = temp;
     debug_print("Value of new selected counter is %d\n", CurrentCounter);
@@ -873,7 +875,8 @@ static void DoneIt(void)
     }
 }
 
-static void WriteToLowerWindow(const char *fmt, ...) {
+static void WriteToLowerWindow(const char *fmt, ...)
+{
     va_list ap;
     char msg[2048];
 
@@ -892,7 +895,7 @@ static void ListInventory(int upper)
 {
     int i, ct = 0;
     int numcarried = 0;
-    
+
     for (i = 0; i <= GameHeader.NumItems; i++) {
         if (Items[i].Location == CARRIED && Items[i].Text[0] != 0)
             numcarried++;
@@ -909,7 +912,7 @@ static void ListInventory(int upper)
         print_function("%s", sys[INVENTORY]);
     else
         SystemMessage(INVENTORY);
-    
+
     for (i = 0; i <= GameHeader.NumItems; i++) {
         if (Items[i].Location == CARRIED) {
             if (Items[i].Text[0] == 0) {
@@ -917,14 +920,14 @@ static void ListInventory(int upper)
                 i++;
                 continue;
             }
-            
+
             if (ct) {
                 if (ct == numcarried - 1)
                     print_function(", and");
                 else
                     print_function("%s", sys[ITEM_DELIMITER]);
             }
-            
+
             print_function("%s%s", IndefiniteArticle(Items[i].Text), Items[i].Text);
             ct++;
         }
@@ -945,61 +948,62 @@ static void ClearScreen(void)
 
 void DrawApple2ImageFromVideoMem(void);
 
-static void SysCommand(int arg1, int arg2) {
+static void SysCommand(int arg1, int arg2)
+{
     switch (arg1) {
-        case 1:
-            SystemMessage(RESUME_A_SAVED_GAME);
-            if (YesOrNo())
-                LoadGame();
-            break;
-        case 2:
-            debug_print("Add special picture %d to animate buffer\n", Counters[arg2]);
-            AddSpecialImage(Counters[arg2]);
-            break;
-        case 3:
-            debug_print("Clear animate buffer\n");
-            ClearAnimationBuffer();
-            break;
-        case 4:
-            debug_print("Animate counter %d (%d)\n", arg2, Counters[arg2]);
-            Animate(Counters[arg2]);
-            break;
-        case 5:
-            debug_print("Unpack special picture %d (Set animation background)\n",arg2);
-            AnimationBackground = arg2;
-            break;
-        case 6:
-            debug_print("Beep and wait for key\n");
-            AnyKey(1, 1);
-            break;
-        case 7:
-            debug_print("DrawItemImage %d\n", Counters[arg2]);
-            DrawItemImage(Counters[arg2]);
-            if (CurrentSys == SYS_APPLE2)
-                DrawApple2ImageFromVideoMem();
-            break;
-        case 8:
-            debug_print("DrawRoomImage %d\n", Counters[arg2]);
-            DrawRoomImage(Counters[arg2]);
-            break;
-        case 9: {
-            debug_print("Swap item %d flags with counter 63\n", arg2);
-            int temp = Counters[63];
-            Counters[63] = Items[arg2].Flag;
-            Items[arg2].Flag = temp;
-            break;
-        }
-        case 10:
-            debug_print("Add item image %d to animate buffer\n", Counters[arg2]);
-            AddItemImage(Counters[arg2]);
-            break;
-        case 11:
-            debug_print("Add room image %d to animate buffer\n", Counters[arg2]);
-            AddRoomImage(Counters[arg2]);
-            break;
-        default:
-            debug_print("Unknown system command %d\n", arg1);
-            break;
+    case 1:
+        SystemMessage(RESUME_A_SAVED_GAME);
+        if (YesOrNo())
+            LoadGame();
+        break;
+    case 2:
+        debug_print("Add special picture %d to animate buffer\n", Counters[arg2]);
+        AddSpecialImage(Counters[arg2]);
+        break;
+    case 3:
+        debug_print("Clear animate buffer\n");
+        ClearAnimationBuffer();
+        break;
+    case 4:
+        debug_print("Animate counter %d (%d)\n", arg2, Counters[arg2]);
+        Animate(Counters[arg2]);
+        break;
+    case 5:
+        debug_print("Unpack special picture %d (Set animation background)\n", arg2);
+        AnimationBackground = arg2;
+        break;
+    case 6:
+        debug_print("Beep and wait for key\n");
+        AnyKey(1, 1);
+        break;
+    case 7:
+        debug_print("DrawItemImage %d\n", Counters[arg2]);
+        DrawItemImage(Counters[arg2]);
+        if (CurrentSys == SYS_APPLE2)
+            DrawApple2ImageFromVideoMem();
+        break;
+    case 8:
+        debug_print("DrawRoomImage %d\n", Counters[arg2]);
+        DrawRoomImage(Counters[arg2]);
+        break;
+    case 9: {
+        debug_print("Swap item %d flags with counter 63\n", arg2);
+        int temp = Counters[63];
+        Counters[63] = Items[arg2].Flag;
+        Items[arg2].Flag = temp;
+        break;
+    }
+    case 10:
+        debug_print("Add item image %d to animate buffer\n", Counters[arg2]);
+        AddItemImage(Counters[arg2]);
+        break;
+    case 11:
+        debug_print("Add room image %d to animate buffer\n", Counters[arg2]);
+        AddRoomImage(Counters[arg2]);
+        break;
+    default:
+        debug_print("Unknown system command %d\n", arg1);
+        break;
     }
 }
 
@@ -1009,59 +1013,61 @@ typedef enum {
     RIGHT_PAREN
 } ParenType;
 
-static ParenType SetLogicControlFlags(int mode, int *not_mode, int *not_continuous, int *or_mode, int *fuzzy_match) {
+static ParenType SetLogicControlFlags(int mode, int *not_mode, int *not_continuous, int *or_mode, int *fuzzy_match)
+{
     ParenType paren = NO_PAREN;
-debug_print("Mode %d, ", mode);
-    switch(mode) {
-        case 0:
-            *or_mode = 0;
-            break;
-        case 1:
-            debug_print("OR mode!\n");
-            *or_mode = 1;
-            break;
-        case 2:
-            Fatal("Unimplemented XOR mode");
-        case 3:
-            debug_print("Negate single!\n");
-            *not_mode = 1;
-            break;
-        case 4:
-            debug_print("Negate multiple!\n");
-            *not_continuous = 1;
-            *not_mode = 1;
-            break;
-        case 5:
-            debug_print("Cancel negate!\n");
-            *not_continuous = 0;
-            *not_mode = 0;
-            break;
-        case 6:
-            debug_print("Left paren!\n");
-            paren = LEFT_PAREN;
-            break;
-        case 7:
-            debug_print("Right paren!\n");
-            paren = RIGHT_PAREN;
-            break;
-        case 8:
-            debug_print("Keep going (Always true)!\n");
-            break;
-        case 9:
-            debug_print("Fuzzy match!\n");
-            *fuzzy_match = 1;
-            break;
-        case 10:
-            debug_print("Strict match!\n");
-            *fuzzy_match = 0;
-            break;
-        default:
-            debug_print("Unhandled logic control flag %d\n", mode);
+    debug_print("Mode %d, ", mode);
+    switch (mode) {
+    case 0:
+        *or_mode = 0;
+        break;
+    case 1:
+        debug_print("OR mode!\n");
+        *or_mode = 1;
+        break;
+    case 2:
+        Fatal("Unimplemented XOR mode");
+    case 3:
+        debug_print("Negate single!\n");
+        *not_mode = 1;
+        break;
+    case 4:
+        debug_print("Negate multiple!\n");
+        *not_continuous = 1;
+        *not_mode = 1;
+        break;
+    case 5:
+        debug_print("Cancel negate!\n");
+        *not_continuous = 0;
+        *not_mode = 0;
+        break;
+    case 6:
+        debug_print("Left paren!\n");
+        paren = LEFT_PAREN;
+        break;
+    case 7:
+        debug_print("Right paren!\n");
+        paren = RIGHT_PAREN;
+        break;
+    case 8:
+        debug_print("Keep going (Always true)!\n");
+        break;
+    case 9:
+        debug_print("Fuzzy match!\n");
+        *fuzzy_match = 1;
+        break;
+    case 10:
+        debug_print("Strict match!\n");
+        *fuzzy_match = 0;
+        break;
+    default:
+        debug_print("Unhandled logic control flag %d\n", mode);
     }
     return paren;
 }
 
-int CalculateConditionResult(int x, int y, int or_condition) {
+int CalculateConditionResult(int x, int y, int or_condition)
+{
     if (or_condition == 0) {
         return (x && y);
     }
@@ -1072,7 +1078,8 @@ int CalculateConditionResult(int x, int y, int or_condition) {
 int parens_depth = 0;
 int parens_stack[5];
 
-static ActionResultType TestConditions(uint16_t *ptr) {
+static ActionResultType TestConditions(uint16_t *ptr)
+{
     int negate_condition = 0;
     int negate_multiple = 0;
     int or_condition = 0;
@@ -1105,234 +1112,234 @@ static ActionResultType TestConditions(uint16_t *ptr) {
         current_result = 1;
 
         switch (cv) {
-            case 0:
-                break;
-            case 1:
-                debug_print("Does the player carry %s?\n", Items[dv].Text);
-                if (Items[dv].Location != CARRIED) {
-                    current_result = 0;
-                }
-                break;
-            case 2:
-                if (dv < 0 || dv > GameHeader.NumItems) {
-                    debug_print("Parameter out of range! (%d)\n", dv);
-                    current_result = 0;
-                    break;
-                }
-
-                debug_print("Is %s in location?\n", Items[dv].Text);
-                if (Items[dv].Location != MyLoc) {
-                    current_result = 0;
-                }
-                break;
-            case 3:
-                debug_print("Is %s held or in location?\n", Items[dv].Text);
-                if (Items[dv].Location != CARRIED && Items[dv].Location != MyLoc) {
-                    current_result = 0;
-                }
-                break;
-            case 4:
-                debug_print("Is location room %d, %s?\n", dv, Rooms[dv].Text);
-                if (MyLoc != dv)
-                    current_result = 0;
-                break;
-            case 5:
-                cc++;
-                dv2 = ptr[cc++];
-                debug_print("Is description of room %d (counter %d) (%d) == Message %d?\n", Counters[dv], dv, Rooms[Counters[dv]].Exits[6], dv2);
-                if (Rooms[Counters[dv]].Exits[6] != dv2)
-                    return ACT_FAILURE;
-                break;
-            case 8:
-                debug_print("Is bitflag %d set?\n", dv);
-                if (!IsSet(dv)) {
-                    current_result = 0;
-                }
-                break;
-            case 9:
-                debug_print("Is bitflag %d NOT set?\n", dv);
-                if (IsSet(dv)) {
-                    current_result = 0;
-                }
-                break;
-            case 10:
-                debug_print("Does the player carry anything?\n");
-                if (CountItemsInRoom(dv) == 0) {
-                    current_result = 0;
-                }
-                break;
-            case 13:
-                debug_print("Is %s (%d) in play?\n", Items[dv].Text, dv);
-                if (Items[dv].Location == 0) {
-                    current_result = 0;
-                }
-                break;
-            case 14:
-                debug_print("Is %s NOT in play?\n", Items[dv].Text);
-                if (Items[dv].Location) {
-                    current_result = 0;
-                }
-                break;
-            case 15:
-                debug_print("Is CurrentCounter <= %d?\n", dv);
-                if (CurrentCounter > dv) {
-                    current_result = 0;
-                }
-                break;
-            case 16:
-                debug_print("Is CurrentCounter > %d?\n", dv);
-                if (CurrentCounter <= dv) {
-                    current_result = 0;
-                }
-                break;
-            case 17:
-                cc++;
-                dv2 = ptr[cc++];
-                debug_print("Is Counter %d == Counter %d?\n", dv, dv2);
-
-                if (Counters[dv] != Counters[dv2]) {
-                    current_result = 0;
-                }
-                break;
-            case 18:
-                cc++;
-                dv2 = ptr[cc++];
-                debug_print("Is counter %d (%d) greater than counter %d (%d)?\n", dv, Counters[dv], dv2,  Counters[dv2]);
-                if (Counters[dv] <= Counters[dv2]) {
-                    current_result = 0;
-                }
-                break;
-            case 19:
-                debug_print("Is current counter == %d?\n", dv);
-                if (CurrentCounter != dv) {
-                    current_result = 0;
-                }
-                break;
-            case 20:
-                cc++;
-                dv2 = ptr[cc++];
-                debug_print("Is counter %d (%d) == %d?\n", dv, Counters[dv], dv2);
-                if (Counters[dv] != dv2)
-                    current_result = 0;
-                break;
-
-            case 21:
-                cc++;
-                dv2 = ptr[cc++];
-                debug_print("Is counter %d (%d) >= %d?\n", dv, Counters[dv], dv2);
-                if (Counters[dv] < dv2)
-                    current_result = 0;
-                break;
-            case 22:
-                debug_print("Is counter %d (%d) == 0?\n", dv, Counters[dv]);
-                if (Counters[dv] != 0)
-                    current_result = 0;
-                break;
-            case 23:
-                cc++;
-                dv2 = ptr[cc++];
-                debug_print("Is item %d (%s) in room (counter %d) %d?\n", dv, Items[dv].Text, dv2, Counters[dv2]);
-                if (Items[dv].Location != Counters[dv2])
-                    current_result = 0;
-                break;
-            case 26:
-                cc++;
-                dv2 = ptr[cc++];
-                debug_print("Is object %d in room %d?\n", dv, dv2);
-                if (Items[dv].Location != dv2)
-                    current_result = 0;
-
-                break;
-            case 28:
-                cc++;
-                dv2 = ptr[cc++];
-                if (dv < 1 || dv2 < 1 || dv > GameHeader.NumItems + 1 || dv2 > GameHeader.NumItems + 1)
-                    debug_print("Is dictword of item (dv) %d == dictword group (dv2) %d?\n", dv, dv2);
-                else
-                    debug_print("Is dictword (%d) of item %d (%s) == dictword (%d) of item %d (%s)?\n", Items[dv].Dictword, dv, Items[dv].Text, Items[dv2].Dictword, dv2, Items[dv2].Text);
-                if (originaldv == 999) {
-                    if (CurNoun2 == dv2)
-                        break;
-                    current_result = 0;
-                } else if (originaldv == 998) {
-                    if (CurNoun == dv2)
-                        break;
-                    current_result = 0;
-                } else if (originaldv == 997) {
-                    Fatal("With list unimplemented");
-                } else {
-                    if (Items[dv].Dictword == 0)
-                        break;
-                    if (dv > GameHeader.NumItems + 1 || dv2 > GameHeader.NumItems + 1 || Items[dv].Dictword != Items[dv2].Dictword) {
-                        current_result = 0;
-                        if (dv > GameHeader.NumItems + 1 || dv2 > GameHeader.NumItems + 1)
-                            debug_print("Error: Argument out of bounds\n!");
-                    }
-                }
-                break;
-            case 29:
-                cc++;
-                dv2 = ptr[cc++];
-                if (dv2 == 998)
-                    dv2 = CurNoun;
-                else if (dv2 == 999)
-                    dv2 = CurNoun2;
-                else if (dv2 == 997)
-                    Fatal("With list unimplemented");
-                debug_print("Is dictword of object %d (%s) %d? (%s)\n", dv, Nouns[GetDictWord(Items[NounObject].Dictword)].Word, dv2, Nouns[GetDictWord(dv2)].Word);
-                if (fuzzy_match) {
-                    debug_print("(Fuzzy match)\n");
-                    char *dictword1 = Nouns[GetDictWord(Items[NounObject].Dictword)].Word;
-                    char *dictword2 = Nouns[GetDictWord(dv2)].Word;
-                    if (!CompareUpToHashSign(dictword1, dictword2))
-                        current_result = 0;
-                } else {
-                    debug_print("(Exact match)\n");
-                    if (Items[NounObject].Dictword != dv2) {
-                        current_result = 0;
-                    }
-                }
-                break;
-            case 30:
-                cc++;
-                dv2 = ptr[cc++];
-                if (dv > GameHeader.NumItems)
-                    debug_print("Bug! dv Out of bounds! dv:%d GameHeader.NumItems:%d\n", dv, GameHeader.NumItems);
-                debug_print("Is Object flag %d & %d != 0\n", dv, dv2);
-                if ((Items[dv].Flag & dv2) == 0)
-                    current_result = 0;
-                break;
-            case 31: /* logics control flags */
-            {
-
-                if (dv == 1 && one_success == 0) {
-                    last_result = 0;
-                }
-
-                ParenType paren = SetLogicControlFlags(dv, &negate_condition, &negate_multiple, &or_condition, &fuzzy_match);
-
-                if (paren == LEFT_PAREN) {
-                    if (parens_depth >= 4)
-                        Fatal("Too many nested parentheses in conditions");
-                    parens_stack[parens_depth] = last_result;
-                    debug_print("left parent.n\nSet parens_stack[%d] to last result %d\n", parens_depth, last_result);
-                    last_result = (or_condition == 0);
-                    parens_depth++;
-                } else if (paren == RIGHT_PAREN) {
-                    if (parens_depth <= 0)
-                        Fatal("Mismatched parentheses");
-                    parens_depth--;
-                    debug_print("right parens.\n\nGetting pushed result %d from parens_stack[%d]\n", parens_stack[parens_depth], parens_depth);
-                    current_result = last_result;
-                    last_result = parens_stack[parens_depth];
-                    last_result = CalculateConditionResult(last_result, current_result, or_condition);
-                }
-                break;
+        case 0:
+            break;
+        case 1:
+            debug_print("Does the player carry %s?\n", Items[dv].Text);
+            if (Items[dv].Location != CARRIED) {
+                current_result = 0;
             }
-            default:
-                debug_print("Unknown condition %d, arg == %d\n", cv, dv);
+            break;
+        case 2:
+            if (dv < 0 || dv > GameHeader.NumItems) {
+                debug_print("Parameter out of range! (%d)\n", dv);
                 current_result = 0;
                 break;
+            }
+
+            debug_print("Is %s in location?\n", Items[dv].Text);
+            if (Items[dv].Location != MyLoc) {
+                current_result = 0;
+            }
+            break;
+        case 3:
+            debug_print("Is %s held or in location?\n", Items[dv].Text);
+            if (Items[dv].Location != CARRIED && Items[dv].Location != MyLoc) {
+                current_result = 0;
+            }
+            break;
+        case 4:
+            debug_print("Is location room %d, %s?\n", dv, Rooms[dv].Text);
+            if (MyLoc != dv)
+                current_result = 0;
+            break;
+        case 5:
+            cc++;
+            dv2 = ptr[cc++];
+            debug_print("Is description of room %d (counter %d) (%d) == Message %d?\n", Counters[dv], dv, Rooms[Counters[dv]].Exits[6], dv2);
+            if (Rooms[Counters[dv]].Exits[6] != dv2)
+                return ACT_FAILURE;
+            break;
+        case 8:
+            debug_print("Is bitflag %d set?\n", dv);
+            if (!IsSet(dv)) {
+                current_result = 0;
+            }
+            break;
+        case 9:
+            debug_print("Is bitflag %d NOT set?\n", dv);
+            if (IsSet(dv)) {
+                current_result = 0;
+            }
+            break;
+        case 10:
+            debug_print("Does the player carry anything?\n");
+            if (CountItemsInRoom(dv) == 0) {
+                current_result = 0;
+            }
+            break;
+        case 13:
+            debug_print("Is %s (%d) in play?\n", Items[dv].Text, dv);
+            if (Items[dv].Location == 0) {
+                current_result = 0;
+            }
+            break;
+        case 14:
+            debug_print("Is %s NOT in play?\n", Items[dv].Text);
+            if (Items[dv].Location) {
+                current_result = 0;
+            }
+            break;
+        case 15:
+            debug_print("Is CurrentCounter <= %d?\n", dv);
+            if (CurrentCounter > dv) {
+                current_result = 0;
+            }
+            break;
+        case 16:
+            debug_print("Is CurrentCounter > %d?\n", dv);
+            if (CurrentCounter <= dv) {
+                current_result = 0;
+            }
+            break;
+        case 17:
+            cc++;
+            dv2 = ptr[cc++];
+            debug_print("Is Counter %d == Counter %d?\n", dv, dv2);
+
+            if (Counters[dv] != Counters[dv2]) {
+                current_result = 0;
+            }
+            break;
+        case 18:
+            cc++;
+            dv2 = ptr[cc++];
+            debug_print("Is counter %d (%d) greater than counter %d (%d)?\n", dv, Counters[dv], dv2, Counters[dv2]);
+            if (Counters[dv] <= Counters[dv2]) {
+                current_result = 0;
+            }
+            break;
+        case 19:
+            debug_print("Is current counter == %d?\n", dv);
+            if (CurrentCounter != dv) {
+                current_result = 0;
+            }
+            break;
+        case 20:
+            cc++;
+            dv2 = ptr[cc++];
+            debug_print("Is counter %d (%d) == %d?\n", dv, Counters[dv], dv2);
+            if (Counters[dv] != dv2)
+                current_result = 0;
+            break;
+
+        case 21:
+            cc++;
+            dv2 = ptr[cc++];
+            debug_print("Is counter %d (%d) >= %d?\n", dv, Counters[dv], dv2);
+            if (Counters[dv] < dv2)
+                current_result = 0;
+            break;
+        case 22:
+            debug_print("Is counter %d (%d) == 0?\n", dv, Counters[dv]);
+            if (Counters[dv] != 0)
+                current_result = 0;
+            break;
+        case 23:
+            cc++;
+            dv2 = ptr[cc++];
+            debug_print("Is item %d (%s) in room (counter %d) %d?\n", dv, Items[dv].Text, dv2, Counters[dv2]);
+            if (Items[dv].Location != Counters[dv2])
+                current_result = 0;
+            break;
+        case 26:
+            cc++;
+            dv2 = ptr[cc++];
+            debug_print("Is object %d in room %d?\n", dv, dv2);
+            if (Items[dv].Location != dv2)
+                current_result = 0;
+
+            break;
+        case 28:
+            cc++;
+            dv2 = ptr[cc++];
+            if (dv < 1 || dv2 < 1 || dv > GameHeader.NumItems + 1 || dv2 > GameHeader.NumItems + 1)
+                debug_print("Is dictword of item (dv) %d == dictword group (dv2) %d?\n", dv, dv2);
+            else
+                debug_print("Is dictword (%d) of item %d (%s) == dictword (%d) of item %d (%s)?\n", Items[dv].Dictword, dv, Items[dv].Text, Items[dv2].Dictword, dv2, Items[dv2].Text);
+            if (originaldv == 999) {
+                if (CurNoun2 == dv2)
+                    break;
+                current_result = 0;
+            } else if (originaldv == 998) {
+                if (CurNoun == dv2)
+                    break;
+                current_result = 0;
+            } else if (originaldv == 997) {
+                Fatal("With list unimplemented");
+            } else {
+                if (Items[dv].Dictword == 0)
+                    break;
+                if (dv > GameHeader.NumItems + 1 || dv2 > GameHeader.NumItems + 1 || Items[dv].Dictword != Items[dv2].Dictword) {
+                    current_result = 0;
+                    if (dv > GameHeader.NumItems + 1 || dv2 > GameHeader.NumItems + 1)
+                        debug_print("Error: Argument out of bounds\n!");
+                }
+            }
+            break;
+        case 29:
+            cc++;
+            dv2 = ptr[cc++];
+            if (dv2 == 998)
+                dv2 = CurNoun;
+            else if (dv2 == 999)
+                dv2 = CurNoun2;
+            else if (dv2 == 997)
+                Fatal("With list unimplemented");
+            debug_print("Is dictword of object %d (%s) %d? (%s)\n", dv, Nouns[GetDictWord(Items[NounObject].Dictword)].Word, dv2, Nouns[GetDictWord(dv2)].Word);
+            if (fuzzy_match) {
+                debug_print("(Fuzzy match)\n");
+                char *dictword1 = Nouns[GetDictWord(Items[NounObject].Dictword)].Word;
+                char *dictword2 = Nouns[GetDictWord(dv2)].Word;
+                if (!CompareUpToHashSign(dictword1, dictword2))
+                    current_result = 0;
+            } else {
+                debug_print("(Exact match)\n");
+                if (Items[NounObject].Dictword != dv2) {
+                    current_result = 0;
+                }
+            }
+            break;
+        case 30:
+            cc++;
+            dv2 = ptr[cc++];
+            if (dv > GameHeader.NumItems)
+                debug_print("Bug! dv Out of bounds! dv:%d GameHeader.NumItems:%d\n", dv, GameHeader.NumItems);
+            debug_print("Is Object flag %d & %d != 0\n", dv, dv2);
+            if ((Items[dv].Flag & dv2) == 0)
+                current_result = 0;
+            break;
+        case 31: /* logics control flags */
+        {
+
+            if (dv == 1 && one_success == 0) {
+                last_result = 0;
+            }
+
+            ParenType paren = SetLogicControlFlags(dv, &negate_condition, &negate_multiple, &or_condition, &fuzzy_match);
+
+            if (paren == LEFT_PAREN) {
+                if (parens_depth >= 4)
+                    Fatal("Too many nested parentheses in conditions");
+                parens_stack[parens_depth] = last_result;
+                debug_print("left parent.n\nSet parens_stack[%d] to last result %d\n", parens_depth, last_result);
+                last_result = (or_condition == 0);
+                parens_depth++;
+            } else if (paren == RIGHT_PAREN) {
+                if (parens_depth <= 0)
+                    Fatal("Mismatched parentheses");
+                parens_depth--;
+                debug_print("right parens.\n\nGetting pushed result %d from parens_stack[%d]\n", parens_stack[parens_depth], parens_depth);
+                current_result = last_result;
+                last_result = parens_stack[parens_depth];
+                last_result = CalculateConditionResult(last_result, current_result, or_condition);
+            }
+            break;
+        }
+        default:
+            debug_print("Unknown condition %d, arg == %d\n", cv, dv);
+            current_result = 0;
+            break;
         }
 
         if (cv != 31) {
@@ -1363,31 +1370,38 @@ static ActionResultType TestConditions(uint16_t *ptr) {
         return ACT_FAILURE;
 }
 
-static void PrintFlagInfo(int arg) {
+static void PrintFlagInfo(int arg)
+{
     switch (arg) {
-        case 15: debug_print("15, darkbit\n");
-            break;
-        case 33: debug_print("33, a command matched on vocabulary, but its conditions failed\n");
-            break;
-        case 34: debug_print("34, room picture changed\n");
-            break;
-        case 35: debug_print("35, graphics on/off\n");
-            break;
-        case 60: debug_print("60, first action matches regardless of input\n");
-            break;
-        case 63: debug_print("63, skip automatics (stop time)\n");
-            break;
-        default:
-            break;
+    case 15:
+        debug_print("15, darkbit\n");
+        break;
+    case 33:
+        debug_print("33, a command matched on vocabulary, but its conditions failed\n");
+        break;
+    case 34:
+        debug_print("34, room picture changed\n");
+        break;
+    case 35:
+        debug_print("35, graphics on/off\n");
+        break;
+    case 60:
+        debug_print("60, first action matches regardless of input\n");
+        break;
+    case 63:
+        debug_print("63, skip automatics (stop time)\n");
+        break;
+    default:
+        break;
     }
 }
 
 static ActionResultType PerformLine(int ct)
 {
-debug_print("\nPerforming line %d: ", ct);
+    debug_print("\nPerforming line %d: ", ct);
     int continuation = 0, dead = 0, done = 0;
     int loop = 0;
-    
+
     int cc = 0;
 
     if (TestConditions(Actions[ct].Conditions) == ACT_FAILURE) {
@@ -1397,7 +1411,7 @@ debug_print("\nPerforming line %d: ", ct);
 #if defined(__clang__)
 #pragma mark Commands
 #endif
-    
+
     /* Commands */
     cc = 0;
     uint8_t *commands = Actions[ct].Commands;
@@ -1405,7 +1419,7 @@ debug_print("\nPerforming line %d: ", ct);
     while (cc <= length) {
         int cmd = commands[cc++];
         int16_t arg1 = 0, arg2 = 0, arg3 = 0,
-        ca1 = 0, ca2 = 0, ca3 = 0;
+                ca1 = 0, ca2 = 0, ca3 = 0;
 
         int object = 0;
         int plus_one_arg = 0;
@@ -1442,420 +1456,420 @@ debug_print("\nPerforming line %d: ", ct);
                 Fatal("With list unimplemented");
             }
         }
-        
+
         debug_print("\nPerforming command %d: ", cmd);
         if (cmd >= 1 && cmd < 52) {
             PrintMessage(cmd);
         } else
             switch (cmd) {
-                case 0: /* NOP */
-                    break;
-                case 52:
-                    if (CountItemsInRoom(0) >= GameHeader.MaxCarry) {
-                        SystemMessage(YOURE_CARRYING_TOO_MUCH);
-                        lastwasnewline = 1;
-                        return ACT_SUCCESS;
-                    }
-                    Items[object].Location = CARRIED;
-                    CheckForObjectImage(object);
-                    cc += 1 + plus_one_arg;
-                    break;
-                case 53:
-                    debug_print("Item %d (\"%s\") is now in location.\n", object,
-                            Items[object].Text);
-                    Items[object].Location = MyLoc;
-                    CheckForObjectImage(object);
-                    cc += 1 + plus_one_arg;
-                    break;
-                case 54:
-                    debug_print("Player location is now room %d (%s).\n", arg1,
-                            Rooms[arg1].Text);
-                    MyLoc = commands[cc++];
-                    SetBit(DRAWBIT);
-                    break;
-                case 55:
-                    debug_print("The command is changed to ");
-                    PrintDictWord(arg1, Verbs);
-                    debug_print(" ");
-                    PrintDictWord(arg2, Nouns);
-                    debug_print(".\n");
-                    CurVerb = arg1;
-                    CurNoun = arg2;
-                    CurPartp = 0;
-                    CurPrep = 0;
-                    CurNoun2 = 0;
-                    keep_going = 1;
-                    done = 1;
-                    found_match = 0;
-                    cc += 2;
-                    break;
-                case 56:
-                    SetBit(DARKBIT);
-                    break;
-                case 57:
-                    ResetBit(DARKBIT);
-                    break;
-                case 58:
-                    debug_print("Bitflag %d is set\n", arg1);
+            case 0: /* NOP */
+                break;
+            case 52:
+                if (CountItemsInRoom(0) >= GameHeader.MaxCarry) {
+                    SystemMessage(YOURE_CARRYING_TOO_MUCH);
+                    lastwasnewline = 1;
+                    return ACT_SUCCESS;
+                }
+                Items[object].Location = CARRIED;
+                CheckForObjectImage(object);
+                cc += 1 + plus_one_arg;
+                break;
+            case 53:
+                debug_print("Item %d (\"%s\") is now in location.\n", object,
+                    Items[object].Text);
+                Items[object].Location = MyLoc;
+                CheckForObjectImage(object);
+                cc += 1 + plus_one_arg;
+                break;
+            case 54:
+                debug_print("Player location is now room %d (%s).\n", arg1,
+                    Rooms[arg1].Text);
+                MyLoc = commands[cc++];
+                SetBit(DRAWBIT);
+                break;
+            case 55:
+                debug_print("The command is changed to ");
+                PrintDictWord(arg1, Verbs);
+                debug_print(" ");
+                PrintDictWord(arg2, Nouns);
+                debug_print(".\n");
+                CurVerb = arg1;
+                CurNoun = arg2;
+                CurPartp = 0;
+                CurPrep = 0;
+                CurNoun2 = 0;
+                keep_going = 1;
+                done = 1;
+                found_match = 0;
+                cc += 2;
+                break;
+            case 56:
+                SetBit(DARKBIT);
+                break;
+            case 57:
+                ResetBit(DARKBIT);
+                break;
+            case 58:
+                debug_print("Bitflag %d is set\n", arg1);
 #ifdef DEBUG_ACTIONS
-                    PrintFlagInfo(arg1);
+                PrintFlagInfo(arg1);
 #endif
-                    SetBit(commands[cc++]);
-                    break;
-                case 59:
-                    debug_print("Item %d (%s) is removed from play.\n", object,
-                            Items[object].Text);
-                    Items[object].Location = 0;
-                    CheckForObjectImage(object);
-                    cc += 1 + plus_one_arg;
-                    break;
-                case 60:
-                    debug_print("BitFlag %d is cleared\n", arg1);
-                    PrintFlagInfo(arg1);
-                    ResetBit(commands[cc++]);
-                    break;
-                case 61:
-                    PlayerIsDead();
-                    break;
-                case 62:
-                    cc += 1 + plus_one_arg;
-                    PutItemAInRoomB(object, commands[cc++]);
-                    break;
-                case 63:
-                    debug_print("Dead\n");
-                    DoneIt();
-                    dead = 1;
-                    break;
-                case 64:
-                    debug_print("Counter %d == %d\n", arg2, arg1);
-                    Counters[arg2] = arg1;
-                    cc += 2 + plus_one_arg;
-                    break;
-                case 65:
-                    debug_print("Multiply: Counter %d = Counter %d (%d) * Counter %d (%d) == %d\n", arg2, arg1, ca1, arg2, ca2, ca1 * ca2);
-                    Counters[arg2] = ca1 * ca2;
-                    cc += 2;
-                    break;
-                case 66:
-                    ListInventory(0);
-                    if (CurrentGame == CLAYMORGUE)
-                        UpdateClaymorgueInventory();
-                    break;
-                case 67:
-                    debug_print("Set bitflag 0\n");
-                    SetBit(0);
-                    break;
-                case 68:
-                    debug_print("Clear bitflag 0\n");
-                    ResetBit(0);
-                    break;
-                case 69:
-                    debug_print("Done (stop reading lines)\n");
-                    done = 1;
-                    break;
-                case 70:
-                    ClearScreen();
-                    break;
-                case 71:
-                    SaveGame();
-                    break;
-                case 72:
-                    cc += 1 + plus_one_arg;
-                    CheckForObjectImage(object);
-                    CheckForObjectImage(commands[cc]);
-                    SwapItemLocations(object, commands[cc++]);
-                    break;
-                case 73:
-                    debug_print("Continue with next line\n");
-                    continuation = 1;
-                    break;
-                case 74:
-                    Items[object].Location = CARRIED;
-                    CheckForObjectImage(object);
-                    cc += 1 + plus_one_arg;
-                    break;
-                case 75:
-                    cc += 1 + plus_one_arg;
-                    CheckForObjectImage(object);
-                    MoveItemAToLocOfItemB(object, commands[cc++]);
-                    break;
-                case 76:
-                    debug_print("LOOK\n");
-                    Look(1);
-                    break;
-                case 77:
-                    if (CurrentCounter >= 1)
-                        CurrentCounter--;
-                    debug_print("decrementing current counter. Current counter is now %d.\n",
-                            CurrentCounter);
-                    break;
-                case 78:
-                    OutputNumber(CurrentCounter);
-                    break;
-                case 79:
-                    debug_print("CurrentCounter is set to %d.\n", arg1);
-                    CurrentCounter = arg1;
-                    cc += 1 + plus_one_arg;
-                    break;
-                case 80:
-                    debug_print("Counter %d is set to location of object %d.\n", arg2, object);
-                    Counters[arg2] = Items[object].Location;
-                    cc += 2 + plus_one_arg;
-                    break;
-                case 81:
-                    SwapCounters(commands[cc++]);
-                    break;
-                case 82:
-                    debug_print("Add %d to current counter(%d)\n", arg1, CurrentCounter);
-                    CurrentCounter += arg1;
-                    cc += 1 + plus_one_arg;
-                    break;
-                case 83:
-                    CurrentCounter -= arg1;
-                    if (CurrentCounter < -1)
-                        CurrentCounter = -1;
-                    cc += 1 + plus_one_arg;
-                    break;
-                case 84:
-                    PrintNoun();
-                    break;
-                case 85:
-                    debug_print("Print name of item %d (%s)\n", object, Items[object].Text);
-                    Display(Bottom, " %s",  Items[object].Text);
-                    cc += 1 + plus_one_arg;
-                    break;
-                case 86:
-                    debug_print("Output dictword of item (%d) + space.\n", arg1);
-                    Display(Bottom, "%s ", Nouns[GetDictWord(Items[arg1].Dictword)].Word);
-                    cc++;
-                    break;
-                case 88:
-                    debug_print("Delay\n");
-                    Delay(1);
-                    break;
-                case 89:
-                    debug_print("Draw current room image\n");
-                    DrawCurrentRoom();
-                    ResetBit(DRAWBIT);
-                    break;
-                case 90:
-                    debug_print("Draw closeup image %d\n", arg1);
-                    DrawCloseup(commands[cc++]);
+                SetBit(commands[cc++]);
+                break;
+            case 59:
+                debug_print("Item %d (%s) is removed from play.\n", object,
+                    Items[object].Text);
+                Items[object].Location = 0;
+                CheckForObjectImage(object);
+                cc += 1 + plus_one_arg;
+                break;
+            case 60:
+                debug_print("BitFlag %d is cleared\n", arg1);
+                PrintFlagInfo(arg1);
+                ResetBit(commands[cc++]);
+                break;
+            case 61:
+                PlayerIsDead();
+                break;
+            case 62:
+                cc += 1 + plus_one_arg;
+                PutItemAInRoomB(object, commands[cc++]);
+                break;
+            case 63:
+                debug_print("Dead\n");
+                DoneIt();
+                dead = 1;
+                break;
+            case 64:
+                debug_print("Counter %d == %d\n", arg2, arg1);
+                Counters[arg2] = arg1;
+                cc += 2 + plus_one_arg;
+                break;
+            case 65:
+                debug_print("Multiply: Counter %d = Counter %d (%d) * Counter %d (%d) == %d\n", arg2, arg1, ca1, arg2, ca2, ca1 * ca2);
+                Counters[arg2] = ca1 * ca2;
+                cc += 2;
+                break;
+            case 66:
+                ListInventory(0);
+                if (CurrentGame == CLAYMORGUE)
+                    UpdateClaymorgueInventory();
+                break;
+            case 67:
+                debug_print("Set bitflag 0\n");
+                SetBit(0);
+                break;
+            case 68:
+                debug_print("Clear bitflag 0\n");
+                ResetBit(0);
+                break;
+            case 69:
+                debug_print("Done (stop reading lines)\n");
+                done = 1;
+                break;
+            case 70:
+                ClearScreen();
+                break;
+            case 71:
+                SaveGame();
+                break;
+            case 72:
+                cc += 1 + plus_one_arg;
+                CheckForObjectImage(object);
+                CheckForObjectImage(commands[cc]);
+                SwapItemLocations(object, commands[cc++]);
+                break;
+            case 73:
+                debug_print("Continue with next line\n");
+                continuation = 1;
+                break;
+            case 74:
+                Items[object].Location = CARRIED;
+                CheckForObjectImage(object);
+                cc += 1 + plus_one_arg;
+                break;
+            case 75:
+                cc += 1 + plus_one_arg;
+                CheckForObjectImage(object);
+                MoveItemAToLocOfItemB(object, commands[cc++]);
+                break;
+            case 76:
+                debug_print("LOOK\n");
+                Look(1);
+                break;
+            case 77:
+                if (CurrentCounter >= 1)
+                    CurrentCounter--;
+                debug_print("decrementing current counter. Current counter is now %d.\n",
+                    CurrentCounter);
+                break;
+            case 78:
+                OutputNumber(CurrentCounter);
+                break;
+            case 79:
+                debug_print("CurrentCounter is set to %d.\n", arg1);
+                CurrentCounter = arg1;
+                cc += 1 + plus_one_arg;
+                break;
+            case 80:
+                debug_print("Counter %d is set to location of object %d.\n", arg2, object);
+                Counters[arg2] = Items[object].Location;
+                cc += 2 + plus_one_arg;
+                break;
+            case 81:
+                SwapCounters(commands[cc++]);
+                break;
+            case 82:
+                debug_print("Add %d to current counter(%d)\n", arg1, CurrentCounter);
+                CurrentCounter += arg1;
+                cc += 1 + plus_one_arg;
+                break;
+            case 83:
+                CurrentCounter -= arg1;
+                if (CurrentCounter < -1)
+                    CurrentCounter = -1;
+                cc += 1 + plus_one_arg;
+                break;
+            case 84:
+                PrintNoun();
+                break;
+            case 85:
+                debug_print("Print name of item %d (%s)\n", object, Items[object].Text);
+                Display(Bottom, " %s", Items[object].Text);
+                cc += 1 + plus_one_arg;
+                break;
+            case 86:
+                debug_print("Output dictword of item (%d) + space.\n", arg1);
+                Display(Bottom, "%s ", Nouns[GetDictWord(Items[arg1].Dictword)].Word);
+                cc++;
+                break;
+            case 88:
+                debug_print("Delay\n");
+                Delay(1);
+                break;
+            case 89:
+                debug_print("Draw current room image\n");
+                DrawCurrentRoom();
+                ResetBit(DRAWBIT);
+                break;
+            case 90:
+                debug_print("Draw closeup image %d\n", arg1);
+                DrawCloseup(commands[cc++]);
+                SetBit(DRAWBIT);
+                AnyKey(0, 1);
+                break;
+            case 91:
+                debug_print("Divide: Counter %d = Counter %d (%d) / counter %d (%d), Counter %d = Counter %d (%d) / counter %d (%d)\n", arg2, arg2, ca2, arg1, ca1, arg3, arg2, ca2, arg1, ca1);
+                if (ca1) {
+                    Counters[arg3] = ca2 % ca1;
+                    Counters[arg2] = ca2 / ca1;
+                }
+                cc += 3;
+                break;
+            case 92:
+                debug_print("Domore reset\n");
+                keep_going = 0;
+                break;
+            case 93:
+                debug_print("Delay Counter %d (%d) * .25 seconds (%f)\n", arg1, Counters[arg1], Counters[arg1] * 0.25);
+                if (CurrentGame == CLAYMORGUE)
+                    Delay(Counters[arg1] * 0.125);
+                else
+                    Delay(Counters[arg1] * 0.25);
+                cc++;
+                break;
+            case 94:
+                debug_print("Counter %d = exit %d from room %d\n", arg1, ca3, ca2);
+                Counters[arg1] = Rooms[ca2].Exits[ca3];
+                cc += 3;
+                break;
+            case 95:
+                debug_print("Exit %d of room %d is set to %d\n", ca2, ca1, ca3);
+                Rooms[ca1].Exits[ca2] = ca3;
+                cc += 3;
+                break;
+            case 97:
+                debug_print("Swap counters %d %d \n", arg1, arg2);
+                /* Draw room image after jumping off Claymorgue crate */
+                if (arg1 == 32 && ca2 != MyLoc)
                     SetBit(DRAWBIT);
-                    AnyKey(0, 1);
-                    break;
-                case 91:
-                    debug_print("Divide: Counter %d = Counter %d (%d) / counter %d (%d), Counter %d = Counter %d (%d) / counter %d (%d)\n", arg2, arg2, ca2, arg1, ca1, arg3, arg2, ca2, arg1, ca1);
-                    if (ca1) {
-                        Counters[arg3] = ca2 % ca1;
-                        Counters[arg2] = ca2 / ca1;
-                    }
-                    cc += 3;
-                    break;
-                case 92:
-                    debug_print("Domore reset\n");
-                    keep_going = 0;
-                    break;
-                case 93:
-                    debug_print("Delay Counter %d (%d) * .25 seconds (%f)\n", arg1, Counters[arg1], Counters[arg1] * 0.25);
-                    if (CurrentGame == CLAYMORGUE)
-                        Delay(Counters[arg1] * 0.125);
-                    else
-                        Delay(Counters[arg1] * 0.25);
-                    cc++;
-                    break;
-                case 94:
-                    debug_print("Counter %d = exit %d from room %d\n", arg1, ca3, ca2);
-                    Counters[arg1] = Rooms[ca2].Exits[ca3];
-                    cc += 3;
-                    break;
-                case 95:
-                    debug_print("Exit %d of room %d is set to %d\n",  ca2, ca1, ca3);
-                    Rooms[ca1].Exits[ca2] = ca3;
-                    cc += 3;
-                    break;
-                case 97:
-                    debug_print("Swap counters %d %d \n", arg1, arg2);
-                    /* Draw room image after jumping off Claymorgue crate */
-                    if (arg1 == 32 && ca2 != MyLoc)
-                        SetBit(DRAWBIT);
-                    Counters[arg1] = ca2;
-                    Counters[arg2] = ca1;
-                    cc += 2;
-                    break;
-                case 98:
-                    debug_print("Counter %d = counter %d\n", arg2, arg1);
-                    Counters[arg2] = ca1;
-                    cc += 2;
-                    break;
-                case 99:
-                    debug_print("Counter %d is set to %d \n", arg2, arg1);
-                    Counters[arg2] = arg1;
-                    cc += 2 + plus_one_arg;
-                    break;
-                case 100:
-                    debug_print("Add %d to counter %d\n", arg1, arg2);
-                    Counters[arg2] += arg1;
-                    cc += 2 + plus_one_arg;
-                    break;
-                case 101:
-                    debug_print("Decrease counter %d by %d\n", arg2, arg1);
-                    Counters[arg2] -= arg1;
-                    cc += 2 + plus_one_arg;
-                    break;
-                case 102:
-                    debug_print("Print counter %d\n", arg1);
-                    OutputNumber(Counters[arg1]);
-                    cc++;
-                    break;
-                case 103:
-                    debug_print("ABS counter %d\n", arg1);
-                    if (ca1 < 0)
-                        Counters[arg1] = -ca1;
-                    cc++;
-                    break;
-                case 104:
-                    debug_print("NEG counter %d\n", arg1);
-                    Counters[arg1] = -Counters[arg1];
-                    cc++;
-                    break;
-                case 105:
-                    debug_print("AND counter %d with counter %d\n", arg2, arg1);
-                    Counters[arg2] = ca1 & ca2;
-                    cc += 2;
-                    break;
-                case 106:
-                    debug_print("OR counter %d with counter %d\n", arg2, arg1);
-                    Counters[arg2] = ca1 | ca2;
-                    cc += 2;
-                    break;
-                case 107:
-                    debug_print("XOR counter %d with counter %d\n", arg2, arg1);
-                    Counters[arg2] = ca1 ^ ca2;
-                    cc += 2;
-                    break;
-                case 108:
-                    debug_print("Put random number (1 to 100) in counter %d\n", arg1);
-                    uint64_t rv = (uint64_t)rand() << 6;
-                    rv &= 0xffffffff;
-                    rv %= 100 + 1;
-                    Counters[arg1] = rv;
-                    cc++;
-                    break;
-                case 109:
-                    debug_print("Clear counter %d\n", arg1);
-                    Counters[arg1] = 0;
-                    cc++;
-                    break;
-                case 110:
-                    debug_print("System command %d %d\n", arg1, arg2);
-                    SysCommand(arg1, arg2);
-                    cc += 2;
-                    break;
-                case 111:
-                    debug_print("Start over\n");
-                    keep_going = 1;
-                    done = 1;
-                    startover = 1;
-                    break;
-                case 112:
-                    debug_print("Start loop\n");
-                    loop = 1;
-                    break;
-                case 113:
-                    debug_print("Loop back\n");
-                    return ACT_LOOP;
-                case 114:
+                Counters[arg1] = ca2;
+                Counters[arg2] = ca1;
+                cc += 2;
+                break;
+            case 98:
+                debug_print("Counter %d = counter %d\n", arg2, arg1);
+                Counters[arg2] = ca1;
+                cc += 2;
+                break;
+            case 99:
+                debug_print("Counter %d is set to %d \n", arg2, arg1);
+                Counters[arg2] = arg1;
+                cc += 2 + plus_one_arg;
+                break;
+            case 100:
+                debug_print("Add %d to counter %d\n", arg1, arg2);
+                Counters[arg2] += arg1;
+                cc += 2 + plus_one_arg;
+                break;
+            case 101:
+                debug_print("Decrease counter %d by %d\n", arg2, arg1);
+                Counters[arg2] -= arg1;
+                cc += 2 + plus_one_arg;
+                break;
+            case 102:
+                debug_print("Print counter %d\n", arg1);
+                OutputNumber(Counters[arg1]);
+                cc++;
+                break;
+            case 103:
+                debug_print("ABS counter %d\n", arg1);
+                if (ca1 < 0)
+                    Counters[arg1] = -ca1;
+                cc++;
+                break;
+            case 104:
+                debug_print("NEG counter %d\n", arg1);
+                Counters[arg1] = -Counters[arg1];
+                cc++;
+                break;
+            case 105:
+                debug_print("AND counter %d with counter %d\n", arg2, arg1);
+                Counters[arg2] = ca1 & ca2;
+                cc += 2;
+                break;
+            case 106:
+                debug_print("OR counter %d with counter %d\n", arg2, arg1);
+                Counters[arg2] = ca1 | ca2;
+                cc += 2;
+                break;
+            case 107:
+                debug_print("XOR counter %d with counter %d\n", arg2, arg1);
+                Counters[arg2] = ca1 ^ ca2;
+                cc += 2;
+                break;
+            case 108:
+                debug_print("Put random number (1 to 100) in counter %d\n", arg1);
+                uint64_t rv = (uint64_t)rand() << 6;
+                rv &= 0xffffffff;
+                rv %= 100 + 1;
+                Counters[arg1] = rv;
+                cc++;
+                break;
+            case 109:
+                debug_print("Clear counter %d\n", arg1);
+                Counters[arg1] = 0;
+                cc++;
+                break;
+            case 110:
+                debug_print("System command %d %d\n", arg1, arg2);
+                SysCommand(arg1, arg2);
+                cc += 2;
+                break;
+            case 111:
+                debug_print("Start over\n");
+                keep_going = 1;
+                done = 1;
+                startover = 1;
+                break;
+            case 112:
+                debug_print("Start loop\n");
+                loop = 1;
+                break;
+            case 113:
+                debug_print("Loop back\n");
+                return ACT_LOOP;
+            case 114:
                 // 114 and 115 are now functionally the same, so at least one of them is wrong.
                 // 114 is supposed to be instant while 115 is supposed to
                 // do a 114 at the next loopback (113).
                 // Things seems to work fine this way, however, and I'm not even sure what
                 // the difference would be in practice.
-                    debug_print("Remove a loop from stack\n");
-                    loops[loop_index] = 0;
-                    if (loop_index > 0)
-                        loop_index--;
-                    break;
-                case 115:
-                    debug_print("Remove a loop from stack at next loopback\n");
-                    if (loop_index > 0)
-                        loop_index--;
-                    break;
-                case 116:
-                    debug_print("Continue looking for commands\n");
-                    debug_print("found_match = 0, domore = 1, done = 1\n");
-                    found_match = 0;
-                    keep_going = 1;
-                    done = 1;
-                    break;
-                case 117:
-                    debug_print("Set found_match to 1\n");
-                    found_match = 1;
-                    SetBit(MATCHBIT);
-                    break;
-                case 118:
-                    debug_print("Set done to 1\n");
-                    done = 1;
-                    break;
-                case 119:
-                    cc++;
-                    if (arg1 >= 128) {
-                        arg1 = commands[cc++] - 76;
-                    }
-                    debug_print("Set command prompt to string arg %d (%s)\n", arg1, Messages[arg1]);
-                    ProtagonistString = arg1;
-                    break;
-                case 120:
-                    debug_print("counter 48: verb, counter 49: noun, counter 50: preposition, counter 51: adverb, counter 52: participle, counter 53: noun 2\n");
-                case 121:
-                    debug_print("Set input words to counters 48 to 53\n");
-                    keep_going = 1;
-                    done = 1;
-                    found_match = 0;
-                    break;
-                case 122:
-                    debug_print("Print object %d with article\n", object);
-                    Display(Bottom, "%s%s", IndefiniteArticle(Items[object].Text),  Items[object].Text);
-                    cc += 1 + plus_one_arg;
-                    break;
-                case 123:
-                    debug_print("Add counter %d to counter %d.\n", arg1, arg2);
-                    Counters[arg2] += ca1;
-                    cc += 2;
-                    break;
-                case 124:
-                    debug_print("Reset all loops.\n");
-                    loop_index = 0;
-                    break;
-                case 125:
-                    debug_print("Flag %d = Flag %d.\n", arg2, arg1);
-                    if (IsSet(arg1))
-                        SetBit(arg2);
-                    else
-                        ResetBit(arg2);
-                    cc += 2;
-                    break;
-                case 126:
-                    debug_print("Counter (Counter %d) = Counter %d\n", arg2, arg1);
-                    Counters[ca2] = ca1;
-                    cc += 2;
-                    break;
-                case 127:
-                    debug_print("Counter %d = Counter (Counter %d)\n", arg2, arg1);
-                    Counters[arg2]  = Counters[ca1];
-                    cc += 2;
-                    break;
-                case 128:
-                    PrintMessage(commands[cc++] - 76);
-                    break;
-                default:
-                    if (cc < length - 1)
+                debug_print("Remove a loop from stack\n");
+                loops[loop_index] = 0;
+                if (loop_index > 0)
+                    loop_index--;
+                break;
+            case 115:
+                debug_print("Remove a loop from stack at next loopback\n");
+                if (loop_index > 0)
+                    loop_index--;
+                break;
+            case 116:
+                debug_print("Continue looking for commands\n");
+                debug_print("found_match = 0, domore = 1, done = 1\n");
+                found_match = 0;
+                keep_going = 1;
+                done = 1;
+                break;
+            case 117:
+                debug_print("Set found_match to 1\n");
+                found_match = 1;
+                SetBit(MATCHBIT);
+                break;
+            case 118:
+                debug_print("Set done to 1\n");
+                done = 1;
+                break;
+            case 119:
+                cc++;
+                if (arg1 >= 128) {
+                    arg1 = commands[cc++] - 76;
+                }
+                debug_print("Set command prompt to string arg %d (%s)\n", arg1, Messages[arg1]);
+                ProtagonistString = arg1;
+                break;
+            case 120:
+                debug_print("counter 48: verb, counter 49: noun, counter 50: preposition, counter 51: adverb, counter 52: participle, counter 53: noun 2\n");
+            case 121:
+                debug_print("Set input words to counters 48 to 53\n");
+                keep_going = 1;
+                done = 1;
+                found_match = 0;
+                break;
+            case 122:
+                debug_print("Print object %d with article\n", object);
+                Display(Bottom, "%s%s", IndefiniteArticle(Items[object].Text), Items[object].Text);
+                cc += 1 + plus_one_arg;
+                break;
+            case 123:
+                debug_print("Add counter %d to counter %d.\n", arg1, arg2);
+                Counters[arg2] += ca1;
+                cc += 2;
+                break;
+            case 124:
+                debug_print("Reset all loops.\n");
+                loop_index = 0;
+                break;
+            case 125:
+                debug_print("Flag %d = Flag %d.\n", arg2, arg1);
+                if (IsSet(arg1))
+                    SetBit(arg2);
+                else
+                    ResetBit(arg2);
+                cc += 2;
+                break;
+            case 126:
+                debug_print("Counter (Counter %d) = Counter %d\n", arg2, arg1);
+                Counters[ca2] = ca1;
+                cc += 2;
+                break;
+            case 127:
+                debug_print("Counter %d = Counter (Counter %d)\n", arg2, arg1);
+                Counters[arg2] = Counters[ca1];
+                cc += 2;
+                break;
+            case 128:
+                PrintMessage(commands[cc++] - 76);
+                break;
+            default:
+                if (cc < length - 1)
                     debug_print("Unknown action %d [Param begins %d %d]\n", cmd,
-                            commands[cc], commands[cc + 1]);
-                    break;
+                        commands[cc], commands[cc + 1]);
+                break;
             }
     }
-    
+
     if (dead) {
         debug_print("PerformLine: Returning ACT_GAMEOVER\n");
         return ACT_GAMEOVER;
@@ -1874,7 +1888,8 @@ debug_print("\nPerforming line %d: ", ct);
     }
 }
 
-static int IsExtraWordMatch(int ct) {
+static int IsExtraWordMatch(int ct)
+{
     /* If the action has no "extra words" the command must contain no participle */
     if (Actions[ct].NumWords == 0) {
         return (CurPartp == 0);
@@ -1891,51 +1906,49 @@ static int IsExtraWordMatch(int ct) {
     debug_print("Action %d has %d extra words\n", ct, Actions[ct].NumWords);
 
     for (int i = 0; i < Actions[ct].NumWords; i++) {
-        uint8_t word =  Actions[ct].Words[i];
+        uint8_t word = Actions[ct].Words[i];
         debug_print("Extra word %d: %d ", i, word);
         uint8_t wordval = word & 63;
         switch (word >> 6) {
-            case 1: /* adverb */
-                debug_print("(adverb)\n");
-                foundadverb = 1;
-                if (wordval == CurAdverb || wordval == 0 || (wordval == 1 && CurAdverb == 0))
-                    matchedadverb = 1;
-                debug_print("Matched adverb %d (%s)\n", wordval, Prepositions[GetAnyDictWord(wordval, Adverbs)].Word);
+        case 1: /* adverb */
+            debug_print("(adverb)\n");
+            foundadverb = 1;
+            if (wordval == CurAdverb || wordval == 0 || (wordval == 1 && CurAdverb == 0))
+                matchedadverb = 1;
+            debug_print("Matched adverb %d (%s)\n", wordval, Prepositions[GetAnyDictWord(wordval, Adverbs)].Word);
+            break;
+        case 2: /* participle */
+            debug_print("(participle)\n");
+            i++;
+            foundpartp = 1;
+            uint8_t n2 = Actions[ct].Words[i];
+            if (CurPartp == 0 && wordval > 1 && !IsNextParticiple(wordval, n2)) {
                 break;
-            case 2: /* participle */
-                debug_print("(participle)\n");
-                i++;
-                foundpartp = 1;
-                uint8_t n2 = Actions[ct].Words[i];
-                if (CurPartp == 0 && wordval > 1 && !IsNextParticiple(wordval, n2)) {
-                    break;
+            }
+            if (wordval == CurPartp || wordval == 0 || (wordval == 1 && CurPartp == 0)) { /* 1 means NONE */
+                debug_print("Matched participle %d (%s)\n", wordval, Prepositions[GetAnyDictWord(wordval, Prepositions)].Word);
+                if (n2 == CurNoun2 || n2 == 0) {
+                    debug_print("Matched object %d (%s)\n", n2, Nouns[GetDictWord(n2)].Word);
+                    matchedpartp = 1;
                 }
-                if (wordval == CurPartp || wordval == 0 || (wordval == 1 && CurPartp == 0)) { /* 1 means NONE */
-                    debug_print("Matched participle %d (%s)\n", wordval, Prepositions[GetAnyDictWord(wordval, Prepositions)].Word);
-                    if (n2 == CurNoun2 || n2 == 0) {
-                        debug_print("Matched object %d (%s)\n", n2, Nouns[GetDictWord(n2)].Word);
-                        matchedpartp = 1;
-                    }
-                }
-                break;
-            case 3: /* preposition */
-                debug_print("(preposition)\n");
-                foundprep = 1;
-                if (CurPrep == wordval || wordval == 0 || (wordval == 1 && CurPrep == 0)) {
-                    debug_print("Matched preposition %d (%s)\n", wordval, Prepositions[GetAnyDictWord(wordval, Prepositions)].Word);
-                    matchedprep = 1;
-                }
-                break;
-            default:
-                debug_print("(unknown type)\n");
-                debug_print("word >> 6: %d\n", word >> 6);
-                break;
+            }
+            break;
+        case 3: /* preposition */
+            debug_print("(preposition)\n");
+            foundprep = 1;
+            if (CurPrep == wordval || wordval == 0 || (wordval == 1 && CurPrep == 0)) {
+                debug_print("Matched preposition %d (%s)\n", wordval, Prepositions[GetAnyDictWord(wordval, Prepositions)].Word);
+                matchedprep = 1;
+            }
+            break;
+        default:
+            debug_print("(unknown type)\n");
+            debug_print("word >> 6: %d\n", word >> 6);
+            break;
         }
     }
 
-    if ((foundprep && !matchedprep) ||
-        (foundpartp && !matchedpartp) ||
-        (foundadverb && !matchedadverb)) {
+    if ((foundprep && !matchedprep) || (foundpartp && !matchedpartp) || (foundadverb && !matchedadverb)) {
         debug_print("IsExtraWordMatch failed\n");
         return 0;
     }
@@ -1943,26 +1956,28 @@ static int IsExtraWordMatch(int ct) {
     return 1;
 }
 
-static int IsImplicitMatch(int ct, int doagain) {
+static int IsImplicitMatch(int ct, int doagain)
+{
 
     if (RandomPercent(Actions[ct].NounOrChance)) {
         return 1;
     }
-    
+
     if (doagain)
         return 1;
-    
+
     return 0;
 }
 
-static int IsMatch(int ct, int doagain) {
+static int IsMatch(int ct, int doagain)
+{
 
     int verbvalue = Actions[ct].Verb;
     int nounvalue = Actions[ct].NounOrChance;
-    
+
     if (verbvalue != CurVerb && !(doagain && verbvalue == 0))
         return 0;
-    
+
     if (verbvalue == 0) {
         if (RandomPercent(nounvalue)) {
             return 1;
@@ -1970,7 +1985,7 @@ static int IsMatch(int ct, int doagain) {
             return 0;
         }
     }
-    
+
     if (!(doagain && verbvalue == 0) && !IsExtraWordMatch(ct)) {
         return 0;
     }
@@ -1996,52 +2011,52 @@ static CommandResultType PerformImplicit(void)
 
     while (ct <= GameHeader.NumActions) {
         int verbvalue = Actions[ct].Verb;
-        
+
         if (verbvalue != 0)
             break;
-        
+
         if (IsImplicitMatch(ct, chain_on)) {
             ActionResultType actresult = PerformLine(ct);
-            
+
             if (actresult != ACT_FAILURE) {
                 result = ER_SUCCESS;
                 switch (actresult) {
-                    case ACT_CONTINUE:
-                        chain_on = 1;
-                        break;
-                    case ACT_DONE:
-                        chain_on = 0;
-                        loops[loop_index] = 0;
-                        if (loop_index)
-                            loop_index--;
-                        break;
-                    case ACT_LOOP_BEGIN:
-                        loop_index++;
-                        if (loop_index >= MAX_LOOPS)
-                            Fatal("Loop stack overflow");
-                        loops[loop_index] = ct;
-                        chain_on = 1;
-                        break;
-                    case ACT_LOOP:
-                        if (loop_index) {
-                            ct = loops[loop_index];
-                        }
-                        break;
-                    case ACT_GAMEOVER:
-                        return ER_SUCCESS;
-                    default:
-                        break;
+                case ACT_CONTINUE:
+                    chain_on = 1;
+                    break;
+                case ACT_DONE:
+                    chain_on = 0;
+                    loops[loop_index] = 0;
+                    if (loop_index)
+                        loop_index--;
+                    break;
+                case ACT_LOOP_BEGIN:
+                    loop_index++;
+                    if (loop_index >= MAX_LOOPS)
+                        Fatal("Loop stack overflow");
+                    loops[loop_index] = ct;
+                    chain_on = 1;
+                    break;
+                case ACT_LOOP:
+                    if (loop_index) {
+                        ct = loops[loop_index];
+                    }
+                    break;
+                case ACT_GAMEOVER:
+                    return ER_SUCCESS;
+                default:
+                    break;
                 }
             }
         }
-        
+
         ct++;
 
         if (startover) {
             ct = 0;
             startover = 0;
         }
-        
+
         if (ct <= GameHeader.NumActions && (Actions[ct].Verb + Actions[ct].NounOrChance != 0))
             chain_on = 0;
 
@@ -2050,7 +2065,7 @@ static CommandResultType PerformImplicit(void)
             return result;
         }
     }
-    
+
     return result;
 }
 
@@ -2078,7 +2093,7 @@ static CommandResultType PerformExplicit(void)
 
         if (IsMatch(ct, chain_on)) {
             ActionResultType actresult = PerformLine(ct);
-            
+
             if (actresult != ACT_FAILURE) {
                 if (actresult != ACT_DONE)
                     ResetBit(MATCHBIT);
@@ -2088,33 +2103,33 @@ static CommandResultType PerformExplicit(void)
                 } else {
                     result = ER_RAN_ALL_LINES;
                 }
-                
+
                 switch (actresult) {
-                    case ACT_CONTINUE:
-                        chain_on = 1;
-                        break;
-                    case ACT_DONE:
-                        chain_on = 0;
-                        loops[loop_index] = 0;
-                        if (loop_index)
-                            loop_index--;
-                        break;
-                    case ACT_LOOP_BEGIN:
-                        loop_index++;
-                        if (loop_index >= MAX_LOOPS)
-                            Fatal("Loop stack overflow");
-                        loops[loop_index] = ct;
-                        chain_on = 1;
-                        break;
-                    case ACT_LOOP:
-                        if (loop_index) {
-                            ct = loops[loop_index];
-                        }
-                        break;
-                    case ACT_GAMEOVER:
-                        return ER_SUCCESS;
-                    default:
-                        break;
+                case ACT_CONTINUE:
+                    chain_on = 1;
+                    break;
+                case ACT_DONE:
+                    chain_on = 0;
+                    loops[loop_index] = 0;
+                    if (loop_index)
+                        loop_index--;
+                    break;
+                case ACT_LOOP_BEGIN:
+                    loop_index++;
+                    if (loop_index >= MAX_LOOPS)
+                        Fatal("Loop stack overflow");
+                    loops[loop_index] = ct;
+                    chain_on = 1;
+                    break;
+                case ACT_LOOP:
+                    if (loop_index) {
+                        ct = loops[loop_index];
+                    }
+                    break;
+                case ACT_GAMEOVER:
+                    return ER_SUCCESS;
+                default:
+                    break;
                 }
             } else {
                 if (verbvalue == CurVerb && (nounvalue == CurNoun || nounvalue == 0))
@@ -2128,7 +2143,7 @@ static CommandResultType PerformExplicit(void)
             ct = 0;
             startover = 0;
         }
-        
+
         if (ct <= GameHeader.NumActions && (Actions[ct].Verb != 0)) {
             chain_on = 0;
         }
@@ -2149,15 +2164,15 @@ int glkunix_startup_code(glkunix_startup_t *data)
 {
     int argc = data->argc;
     char **argv = data->argv;
-    
+
     if (argc < 1)
         return 0;
-    
+
 #ifdef GARGLK
     garglk_set_program_name("Plus 1.0");
     garglk_set_program_info("Plus 1.0 by Petter Sjölund");
 #endif
-    
+
     if (argc == 2) {
         game_file = argv[1];
 
@@ -2178,11 +2193,12 @@ int glkunix_startup_code(glkunix_startup_t *data)
             debug_print("Directory path: \"%s\"\n", DirPath);
         }
     }
-    
+
     return 1;
 }
 
-void ResizeTitleImage(void) {
+void ResizeTitleImage(void)
+{
     glui32 graphwidth, graphheight, optimal_width, optimal_height;
 #ifdef SPATTERLIGHT
     glk_window_set_background_color(Graphics, gbgcol);
@@ -2195,8 +2211,8 @@ void ResizeTitleImage(void) {
     y_offset = ((int)graphheight - (int)optimal_height) / 3;
 }
 
-
-void DrawTitleImage(void) {
+void DrawTitleImage(void)
+{
     DisplayInit();
 #ifdef SPATTERLIGHT
     if (!gli_enable_graphics)
@@ -2213,7 +2229,7 @@ void DrawTitleImage(void) {
         glk_request_char_event(Graphics);
     } else {
         Bottom = glk_window_open(Graphics, winmethod_Below | winmethod_Fixed,
-                                 2, wintype_TextBuffer, GLK_BUFFER_ROCK);
+            2, wintype_TextBuffer, GLK_BUFFER_ROCK);
         glk_request_char_event(Bottom);
     }
 
@@ -2249,7 +2265,8 @@ void DrawTitleImage(void) {
     DisplayInit();
 }
 
-void glk_main(void) {
+void glk_main(void)
+{
     if (game_file == NULL)
         Fatal("No game file");
 
@@ -2258,11 +2275,10 @@ void glk_main(void) {
         if (sysdict_i_am[i])
             sys[i] = sysdict_i_am[i];
     }
-    
+
     FILE *f = fopen(game_file, "r");
     if (f == NULL)
         Fatal("Cannot open game");
-
 
     if (LoadDatabasePlaintext(f, DEBUG_ACTIONS) == UNKNOWN_GAME) {
         fseek(f, 0, SEEK_END);
@@ -2357,7 +2373,7 @@ void glk_main(void) {
                 SystemMessage(YOU_CANT_DO_THAT_YET);
             StopProcessingCommand();
         }
-        
+
         JustStarted = 0;
     }
 }

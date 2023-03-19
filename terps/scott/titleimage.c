@@ -8,11 +8,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "glk.h"
-#include "scott.h"
-#include "sagagraphics.h"
 #include "apple2draw.h"
+#include "glk.h"
 #include "saga.h"
+#include "sagagraphics.h"
+#include "scott.h"
 
 #ifdef SPATTERLIGHT
 #include "glkimp.h"
@@ -22,7 +22,8 @@
 
 glui32 OptimalPictureSize(glui32 *width, glui32 *height);
 
-void ResizeTitleImage(void) {
+void ResizeTitleImage(void)
+{
     glui32 graphwidth, graphheight, optimal_width, optimal_height;
 #ifdef SPATTERLIGHT
     glk_window_set_background_color(Graphics, gbgcol);
@@ -35,8 +36,8 @@ void ResizeTitleImage(void) {
     y_offset = ((int)graphheight - (int)optimal_height) / 3;
 }
 
-
-void DrawTitleImage(void) {
+void DrawTitleImage(void)
+{
     int storedwidth = ImageWidth;
     int storedheight = ImageHeight;
 #ifdef SPATTERLIGHT
@@ -54,7 +55,7 @@ void DrawTitleImage(void) {
     Bottom = FindGlkWindowWithRock(GLK_BUFFER_ROCK);
     if (Bottom) {
         glk_style_measure(Bottom, style_Normal, stylehint_BackColor,
-                          &background_color);
+            &background_color);
         glk_window_close(Bottom, NULL);
     }
 
@@ -64,7 +65,7 @@ void DrawTitleImage(void) {
         glk_request_char_event(Graphics);
     } else {
         Bottom = glk_window_open(Graphics, winmethod_Below | winmethod_Fixed,
-                              2, wintype_TextBuffer, GLK_BUFFER_ROCK);
+            2, wintype_TextBuffer, GLK_BUFFER_ROCK);
         glk_request_char_event(Bottom);
     }
 
@@ -72,7 +73,7 @@ void DrawTitleImage(void) {
         glk_window_set_background_color(Graphics, background_color);
         glk_window_clear(Graphics);
     }
-    
+
     ResizeTitleImage();
 
     if (DrawUSRoom(99)) {
@@ -115,7 +116,8 @@ void DrawTitleImage(void) {
     CloseGraphicsWindow();
 }
 
-void PrintTitleScreenBuffer(void) {
+void PrintTitleScreenBuffer(void)
+{
     glk_stream_set_current(glk_window_get_stream(Bottom));
     glk_set_style(style_User1);
     glk_window_clear(Graphics);
@@ -126,14 +128,15 @@ void PrintTitleScreenBuffer(void) {
     glk_window_clear(Graphics);
 }
 
-void PrintTitleScreenGrid(void) {
+void PrintTitleScreenGrid(void)
+{
     int title_length = strlen(title_screen);
     int rows = 0;
     for (int i = 0; i < title_length; i++)
         if (title_screen[i] == '\n')
             rows++;
     winid_t titlewin = glk_window_open(Bottom, winmethod_Above | winmethod_Fixed, rows + 2,
-                                       wintype_TextGrid, 0);
+        wintype_TextGrid, 0);
     glui32 width, height;
     glk_window_get_size(titlewin, &width, &height);
     if (width < 40 || height < rows + 2) {

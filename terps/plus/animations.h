@@ -29,5 +29,4 @@ extern int ColorCyclingRunning;
 extern int AnimationBackground;
 extern int LastAnimationBackground;
 
-
 #endif /* animations_h */

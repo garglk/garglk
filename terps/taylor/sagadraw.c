@@ -8,12 +8,12 @@
 //  Original code at https://github.com/tautology0/textadventuregraphics
 //
 
-#include "glk.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
+#include "glk.h"
 #include "taylor.h"
 #include "utility.h"
 
@@ -441,8 +441,8 @@ static void transform(int32_t character, int32_t flip_mode, int32_t ptr)
 
 #ifdef DRAWDEBUG
     fprintf(stderr, "Plotting char: %d with flip: %02x (%s) at %d: %d,%d\n",
-            character, flip_mode, flipdescription[(flip_mode & 48) >> 4], ptr,
-            ptr % 0x20, ptr / 0x20);
+        character, flip_mode, flipdescription[(flip_mode & 48) >> 4], ptr,
+        ptr % 0x20, ptr / 0x20);
 #endif
 
     // first copy the character into work
@@ -488,11 +488,11 @@ void PutPixel(glsi32 x, glsi32 y, int32_t color)
     glui32 glk_color = ((pal[color][0] << 16)) | ((pal[color][1] << 8)) | (pal[color][2]);
 
     glk_window_fill_rect(Graphics, glk_color, x * pixel_size + x_offset,
-                         y * pixel_size + y_offset, pixel_size, pixel_size);
+        y * pixel_size + y_offset, pixel_size, pixel_size);
 }
 
 void RectFill(int32_t x, int32_t y, int32_t width, int32_t height,
-              int32_t color, int usebuffer)
+    int32_t color, int usebuffer)
 {
     glui32 y_offset = 0;
 
@@ -506,8 +506,8 @@ void RectFill(int32_t x, int32_t y, int32_t width, int32_t height,
     glui32 glk_color = ((pal[color][0] << 16)) | ((pal[color][1] << 8)) | (pal[color][2]);
 
     glk_window_fill_rect(Graphics, glk_color, x * pixel_size + x_offset,
-                         y * pixel_size + y_offset, width * pixel_size,
-                         height * pixel_size);
+        y * pixel_size + y_offset, width * pixel_size,
+        height * pixel_size);
 }
 
 void background(int32_t x, int32_t y, int32_t color)
@@ -517,7 +517,7 @@ void background(int32_t x, int32_t y, int32_t color)
 }
 
 void plotsprite(int32_t character, int32_t x, int32_t y, int32_t fg,
-                int32_t bg)
+    int32_t bg)
 {
     if (fg > 15)
         fg = 0;
@@ -539,7 +539,7 @@ static int isNthBitSet(unsigned const char c, int n)
 }
 
 uint8_t *DrawSagaPictureFromData(uint8_t *dataptr, int xsize, int ysize,
-                                 int xoff, int yoff, size_t datasize);
+    int xoff, int yoff, size_t datasize);
 
 struct image_patch {
     GameIDType id;
@@ -553,8 +553,8 @@ static const struct image_patch image_patches[] = {
     { UNKNOWN_GAME, 0, 0, 0, "" },
     { QUESTPROBE3, 55, 604, 3, "\xff\xff\x82" },
     { QUESTPROBE3, 56, 357, 46, "\x79\x81\x78\x79\x7b\x83\x47\x79\x82\x78\x79\x7b\x83\x47\x79\x83"
-        "\x78\x79\x7b\x81\x79\x47\x79\x84\x7b\x83\x47\x79\x84\x58\x83\x47\x7a\x84\x5f\x18\x81\x5f"
-        "\x47\x50\x84\x5f\x18\x81\x5f\x47" },
+                                "\x78\x79\x7b\x81\x79\x47\x79\x84\x7b\x83\x47\x79\x84\x58\x83\x47\x7a\x84\x5f\x18\x81\x5f"
+                                "\x47\x50\x84\x5f\x18\x81\x5f\x47" },
     { NUMGAMES, 0, 0, 0, "" },
 };
 
@@ -579,13 +579,15 @@ static void Patch(uint8_t *offset, int patch_number)
 
 void DrawTaylor(int loc);
 
-static void Q3Init(size_t *base, size_t *offsets, size_t *imgdata) {
+static void Q3Init(size_t *base, size_t *offsets, size_t *imgdata)
+{
     *base = FindCode("\x00\x01\x01\x02\x03\x04\x05\x06\x02\x02", 0, 10);
     *offsets = FindCode("\x00\x00\xa7\x02\xa7\x03\xb9\x08\xd7\x0b", 0, 10);
-    *imgdata =  FindCode("\x20\x0c\x00\x00\x8a\x01\x44\xa0\x17\x8a", *offsets, 10);
+    *imgdata = FindCode("\x20\x0c\x00\x00\x8a\x01\x44\xa0\x17\x8a", *offsets, 10);
 }
 
-static uint8_t *Q3Image(int imgnum, size_t base, size_t offsets, size_t imgdata) {
+static uint8_t *Q3Image(int imgnum, size_t base, size_t offsets, size_t imgdata)
+{
     uint16_t offset_addr = (FileImage[base + imgnum] & 0x7f) * 2 + offsets;
     uint16_t image_addr = imgdata + FileImage[offset_addr] + FileImage[offset_addr + 1] * 256;
     return &FileImage[image_addr];
@@ -593,7 +595,7 @@ static uint8_t *Q3Image(int imgnum, size_t base, size_t offsets, size_t imgdata)
 
 static void RepeatOpcode(int *number, uint8_t *instructions, uint8_t repeatcount)
 {
-	int i = *number - 1;
+    int i = *number - 1;
     instructions[i++] = 0x82;
     instructions[i++] = repeatcount;
     instructions[i++] = 0;
@@ -604,7 +606,7 @@ static size_t FindCharacterStart(void)
 {
     /* Look for the character data */
     size_t pos = FindCode("\x00\x00\x00\x00\x00\x00\x00\x00\x80\x80\x80\x80\x80\x80\x80\x80\x40\x40\x40\x40\x40\x40\x40\x40", 0, 24);
-    if(pos == -1) {
+    if (pos == -1) {
         fprintf(stderr, "Cannot find character data.\n");
         return 0;
     }
@@ -619,7 +621,7 @@ void SagaSetup(void)
     if (images != NULL)
         return;
 
-    if (Game->number_of_pictures == 0 ) {
+    if (Game->number_of_pictures == 0) {
         NoGraphics = 1;
         return;
     }
@@ -652,7 +654,7 @@ void SagaSetup(void)
 #ifdef DRAWDEBUG
     fprintf(stderr, "Grabbing Character details\n");
     fprintf(stderr, "Character Offset: %04lx\n",
-            CHAR_START - FileBaselineOffset);
+        CHAR_START - FileBaselineOffset);
 #endif
     for (i = 0; i < 246; i++) {
         for (y = 0; y < 8 && pos < EndOfGraphicsData; y++) {
@@ -717,11 +719,16 @@ void SagaSetup(void)
         img->height = (widthheight & 0x0f) + 1;
         if (CurrentGame == BLIZZARD_PASS) {
             switch (picture_number) {
-                case 13: case 15: case 17: case 34: case 85: case 111:
-                    img->width += 16;
-                    break;
-                default:
-                    break;
+            case 13:
+            case 15:
+            case 17:
+            case 34:
+            case 85:
+            case 111:
+                img->width += 16;
+                break;
+            default:
+                break;
             }
         }
         uint8_t instructions[2048];
@@ -733,44 +740,44 @@ void SagaSetup(void)
             uint8_t opcode = *pos;
             if (Version != HEMAN_TYPE) {
                 switch (opcode) {
-                    case 0xfb:
-                        number--;
-                        if (!copied_bytes || copied_bytes[0] == 0) {
-                            pos = stored_pointer;
-                            if (copied_bytes != NULL)
-                                free(copied_bytes);
-                            copied_bytes = NULL;
-                        } else {
-                            copied_bytes[0]--;
-                            pos = copied_bytes;
-                        }
-                        break;
-                     case 0xef:
-                         RepeatOpcode(&number, instructions, 1);
-                         break;
-                     case 0xee:
-                         RepeatOpcode(&number, instructions, 2);
-                         break;
-                     case 0xeb:
-                         RepeatOpcode(&number, instructions, 3);
-                         break;
-                     case 0xf3:
-                         pos++;
-                         RepeatOpcode(&number, instructions, *pos);
-                         break;
-                    case 0xfa:
-                        number--;
-                        pos++;
-                        int numbytes = *pos++;
-                        stored_pointer = pos;
+                case 0xfb:
+                    number--;
+                    if (!copied_bytes || copied_bytes[0] == 0) {
+                        pos = stored_pointer;
                         if (copied_bytes != NULL)
                             free(copied_bytes);
-                        copied_bytes = MemAlloc(numbytes + 1);
-                        memcpy(copied_bytes, pos, numbytes);
+                        copied_bytes = NULL;
+                    } else {
                         copied_bytes[0]--;
-                        copied_bytes[numbytes] = 0xfb;
                         pos = copied_bytes;
-                        break;
+                    }
+                    break;
+                case 0xef:
+                    RepeatOpcode(&number, instructions, 1);
+                    break;
+                case 0xee:
+                    RepeatOpcode(&number, instructions, 2);
+                    break;
+                case 0xeb:
+                    RepeatOpcode(&number, instructions, 3);
+                    break;
+                case 0xf3:
+                    pos++;
+                    RepeatOpcode(&number, instructions, *pos);
+                    break;
+                case 0xfa:
+                    number--;
+                    pos++;
+                    int numbytes = *pos++;
+                    stored_pointer = pos;
+                    if (copied_bytes != NULL)
+                        free(copied_bytes);
+                    copied_bytes = MemAlloc(numbytes + 1);
+                    memcpy(copied_bytes, pos, numbytes);
+                    copied_bytes[0]--;
+                    copied_bytes[numbytes] = 0xfb;
+                    pos = copied_bytes;
+                    break;
                 }
             } else if (Game->number_of_patterns) {
                 for (i = 0; i < Game->number_of_patterns; i++) {
@@ -805,9 +812,9 @@ void PrintImageContents(int index, uint8_t *data, size_t size)
 {
     fprintf(stderr, "/* image %d ", index);
     fprintf(stderr,
-            "width: %d height: %d xoff: %d yoff: %d size: %zu bytes*/\n{ ",
-            images[index].width, images[index].height, images[index].xoff,
-            images[index].yoff, size);
+        "width: %d height: %d xoff: %d yoff: %d size: %zu bytes*/\n{ ",
+        images[index].width, images[index].height, images[index].xoff,
+        images[index].yoff, size);
     for (int i = 0; i < size; i++) {
         fprintf(stderr, "0x%02x, ", data[i]);
         if (i % 8 == 7)
@@ -909,8 +916,9 @@ static void flip_image_vertically(void)
     memcpy(buffer, mirror, 384 * 9);
 }
 
-static void flip_area_vertically(uint8_t x1, uint8_t y1, uint8_t width, uint8_t y2) {
-//    fprintf(stderr, "flip_area_vertically x1: %d: y1: %d width: %d y2 %d\n", x1, y1, width, y2);
+static void flip_area_vertically(uint8_t x1, uint8_t y1, uint8_t width, uint8_t y2)
+{
+    //    fprintf(stderr, "flip_area_vertically x1: %d: y1: %d width: %d y2 %d\n", x1, y1, width, y2);
     uint8_t mirror[384][9];
 
     for (int line = 0; line <= y2; line++) {
@@ -929,7 +937,8 @@ static void flip_area_vertically(uint8_t x1, uint8_t y1, uint8_t width, uint8_t 
     }
 }
 
-static void mirror_area_vertically(uint8_t x1, uint8_t y1, uint8_t width, uint8_t y2) {
+static void mirror_area_vertically(uint8_t x1, uint8_t y1, uint8_t width, uint8_t y2)
+{
     for (int line = 0; line <= y2 / 2; line++) {
         for (int col = x1; col < x1 + width; col++) {
             buffer[(y2 - line) * 32 + col][8] = buffer[(y1 + line) * 32 + col][8];
@@ -939,8 +948,9 @@ static void mirror_area_vertically(uint8_t x1, uint8_t y1, uint8_t width, uint8_
     }
 }
 
-static void flip_area_horizontally(uint8_t x1, uint8_t y1, uint8_t width, uint8_t y2) {
-//    fprintf(stderr, "flip_area_horizontally x1: %d: y1: %d width: %d y2 %d\n", x1, y1, width, y2);
+static void flip_area_horizontally(uint8_t x1, uint8_t y1, uint8_t width, uint8_t y2)
+{
+    //    fprintf(stderr, "flip_area_horizontally x1: %d: y1: %d width: %d y2 %d\n", x1, y1, width, y2);
     uint8_t mirror[384][9];
 
     for (int line = y1; line < y2; line++) {
@@ -967,8 +977,7 @@ static void draw_colour_old(uint8_t x, uint8_t y, uint8_t colour, uint8_t length
     }
 }
 
-
-static void draw_colour( uint8_t colour, uint8_t x, uint8_t y, uint8_t width, uint8_t height)
+static void draw_colour(uint8_t colour, uint8_t x, uint8_t y, uint8_t width, uint8_t height)
 {
     for (int h = 0; h < height; h++) {
         for (int w = 0; w < width; w++) {
@@ -983,7 +992,6 @@ static void make_light(void)
         buffer[i][8] = buffer[i][8] | 0x40;
     }
 }
-
 
 static void replace_colour(uint8_t before, uint8_t after)
 {
@@ -1006,13 +1014,15 @@ static void replace_colour(uint8_t before, uint8_t after)
     }
 }
 
-static uint8_t ink2paper(uint8_t ink) {
+static uint8_t ink2paper(uint8_t ink)
+{
     uint8_t paper = (ink & 0x07) << 3; // 0000 0111 mask ink
     paper = paper & 0x38; // 0011 1000 mask paper
     return (ink & 0x40) | paper; // 0x40 = 0100 0000 preserve brightness bit from ink
 }
 
-static void replace(uint8_t before, uint8_t after, uint8_t mask) {
+static void replace(uint8_t before, uint8_t after, uint8_t mask)
+{
     for (int j = 0; j < 384; j++) {
         uint8_t col = buffer[j][8] & mask;
         if (col == before) {
@@ -1023,7 +1033,8 @@ static void replace(uint8_t before, uint8_t after, uint8_t mask) {
     }
 }
 
-static void replace_paper_and_ink(uint8_t before, uint8_t after) {
+static void replace_paper_and_ink(uint8_t before, uint8_t after)
+{
     uint8_t beforeink = before & 0x47; // 0100 0111 ink and brightness
     replace(beforeink, after, 0x47);
     uint8_t beforepaper = ink2paper(before);
@@ -1048,117 +1059,117 @@ void DrawTaylor(int loc)
     while (ptr < EndOfGraphicsData) {
         //        fprintf(stderr, "DrawTaylorRoomImage: Instruction %d: 0x%02x\n", instruction++, *ptr);
         switch (*ptr) {
-            case 0xff:
-                //                fprintf(stderr, "End of picture\n");
+        case 0xff:
+            //                fprintf(stderr, "End of picture\n");
+            return;
+        case 0xfe:
+            //                fprintf(stderr, "0xfe mirror_left_half\n");
+            mirror_area(0, 0, 32, 12);
+            break;
+        case 0xfd:
+            //                fprintf(stderr, "0xfd Replace colour %x with %x\n", *(ptr + 1), *(ptr + 2));
+            replace_colour(*(ptr + 1), *(ptr + 2));
+            ptr += 2;
+            break;
+        case 0xfc: // Draw colour: x, y, attribute, length 7808
+            if (Version != HEMAN_TYPE) {
+                // fprintf(stderr, "0xfc (7808) Draw attribute %x at %d,%d length %d\n", *(ptr + 3), *(ptr + 1), *(ptr + 2), *(ptr + 4));
+                draw_colour_old(*(ptr + 1), *(ptr + 2), *(ptr + 3), *(ptr + 4));
+                ptr = ptr + 4;
+            } else {
+                // fprintf(stderr, "0xfc (7808) Draw attribute %x at %d,%d height %d width %d\n", *(ptr + 4), *(ptr + 2), *(ptr + 1), *(ptr + 3), *(ptr + 5));
+                draw_colour(*(ptr + 4), *(ptr + 2), *(ptr + 1), *(ptr + 5), *(ptr + 3));
+                ptr = ptr + 5;
+            }
+            break;
+        case 0xfb: // Make all screen colours bright 713e
+            // fprintf(stderr, "Make colours in picture area bright\n");
+            make_light();
+            break;
+        case 0xfa: // Flip entire image horizontally 7646
+            // fprintf(stderr, "0xfa Flip entire image horizontally\n");
+            flip_image_horizontally();
+            break;
+        case 0xf9: //0xf9 Draw picture n recursively;
+            // fprintf(stderr, "Draw Room Image %d recursively\n", *(ptr + 1));
+            DrawTaylor(*(ptr + 1));
+            ptr++;
+            break;
+        case 0xf8:
+            // fprintf(stderr, "0xf8: Skip rest of picture if object %d is not present\n", *(ptr + 1));
+            ptr++;
+            if (CurrentGame == BLIZZARD_PASS || BaseGame == REBEL_PLANET) {
+                if (ObjectLoc[*ptr] == MyLoc) {
+                    DrawSagaPictureAtPos(*(ptr + 1), *(ptr + 2), *(ptr + 3));
+                }
+                ptr += 3;
+            } else {
+                if (ObjectLoc[*ptr] != MyLoc)
+                    return;
+            }
+            break;
+        case 0xf4: // End if object arg1 is present
+            // fprintf(stderr, "0xf4: Skip rest of picture if object %d IS present\n", *(ptr + 1));
+            if (ObjectLoc[*(ptr + 1)] == MyLoc)
                 return;
-            case 0xfe:
-                //                fprintf(stderr, "0xfe mirror_left_half\n");
-                mirror_area(0, 0, 32, 12);
-                break;
-            case 0xfd:
-                //                fprintf(stderr, "0xfd Replace colour %x with %x\n", *(ptr + 1), *(ptr + 2));
-                    replace_colour(*(ptr + 1), *(ptr + 2));
-                ptr += 2;
-                break;
-            case 0xfc: // Draw colour: x, y, attribute, length 7808
-                if (Version != HEMAN_TYPE) {
-                    // fprintf(stderr, "0xfc (7808) Draw attribute %x at %d,%d length %d\n", *(ptr + 3), *(ptr + 1), *(ptr + 2), *(ptr + 4));
-                    draw_colour_old(*(ptr + 1), *(ptr + 2), *(ptr + 3), *(ptr + 4));
-                    ptr = ptr + 4;
-                } else {
-                    // fprintf(stderr, "0xfc (7808) Draw attribute %x at %d,%d height %d width %d\n", *(ptr + 4), *(ptr + 2), *(ptr + 1), *(ptr + 3), *(ptr + 5));
-                    draw_colour(*(ptr + 4), *(ptr + 2), *(ptr + 1), *(ptr + 5), *(ptr + 3));
-                    ptr = ptr + 5;
-                }
-                break;
-            case 0xfb: // Make all screen colours bright 713e
-                // fprintf(stderr, "Make colours in picture area bright\n");
-                make_light();
-                break;
-            case 0xfa: // Flip entire image horizontally 7646
-                // fprintf(stderr, "0xfa Flip entire image horizontally\n");
-                flip_image_horizontally();
-                break;
-            case 0xf9: //0xf9 Draw picture n recursively;
-                // fprintf(stderr, "Draw Room Image %d recursively\n", *(ptr + 1));
-                DrawTaylor(*(ptr + 1));
-                ptr++;
-                break;
-            case 0xf8:
-                // fprintf(stderr, "0xf8: Skip rest of picture if object %d is not present\n", *(ptr + 1));
-                ptr++;
-                if (CurrentGame == BLIZZARD_PASS || BaseGame == REBEL_PLANET) {
-                    if (ObjectLoc[*ptr] == MyLoc) {
-                        DrawSagaPictureAtPos(*(ptr + 1), *(ptr + 2), *(ptr + 3));
-                    }
-                    ptr += 3;
-                } else {
-                    if (ObjectLoc[*ptr] != MyLoc)
-                        return;
-                }
-                break;
-            case 0xf4: // End if object arg1 is present
-                // fprintf(stderr, "0xf4: Skip rest of picture if object %d IS present\n", *(ptr + 1));
-                if (ObjectLoc[*(ptr + 1)] == MyLoc)
-                    return;
-                ptr++;
-                break;
-            case 0xf3:
-                // fprintf(stderr, "0xf3: goto 753d Mirror top half vertically\n");
-                mirror_top_half();
-                break;
-            case 0xf2: // arg1 arg2 arg3 arg4 Mirror horizontally
-                // fprintf(stderr, "0xf2: Mirror area x: %d y: %d width:%d y2:%d horizontally\n", *(ptr + 2), *(ptr + 1), *(ptr + 4),  *(ptr + 3));
-                mirror_area(*(ptr + 2), *(ptr + 1), *(ptr + 4),  *(ptr + 3));
-                ptr = ptr + 4;
-                break;
-            case 0xf1: // arg1 arg2 arg3 arg4 Mirror vertically
-                // fprintf(stderr, "0xf1: Mirror area x: %d y: %d width:%d y2:%d vertically\n", *(ptr + 2), *(ptr + 1), *(ptr + 4),  *(ptr + 3));
-                mirror_area_vertically(*(ptr + 1), *(ptr + 2), *(ptr + 4),  *(ptr + 3));
-                ptr = ptr + 4;
-                break;
-            case 0xee: // arg1 arg2 arg3 arg4  Flip area horizontally
-                // fprintf(stderr, "0xf1: Flip area x: %d y: %d width:%d y2:%d horizontally\n", *(ptr + 2), *(ptr + 1), *(ptr + 4),  *(ptr + 3));
-                flip_area_horizontally(*(ptr + 2), *(ptr + 1), *(ptr + 4),  *(ptr + 3));
-                ptr = ptr + 4;
-                break;
-            case 0xed:
-                // fprintf(stderr, "0xed: Flip entire image vertically\n");
-                flip_image_vertically();
-                break;
-            case 0xec: // Flip area vertically
-                // fprintf(stderr, "0xf1: Flip area x: %d y: %d width:%d y2:%d vertically\n", *(ptr + 2), *(ptr + 1), *(ptr + 4),  *(ptr + 3));
-                flip_area_vertically(*(ptr + 1), *(ptr + 2), *(ptr + 4), *(ptr + 3));
-                ptr = ptr + 4;
-                break;
-            case 0xe9:
-                // fprintf(stderr, "0xe9: (77ac) replace paper and ink %d for colour %d?\n",  *(ptr + 1), *(ptr + 2));
-                replace_paper_and_ink(*(ptr + 1), *(ptr + 2));
-                ptr = ptr + 2;
-                break;
-            case 0xe8:
-                // fprintf(stderr, "Clear graphics memory\n");
-                ClearGraphMem();
-                break;
-            case 0xf7: // set A to 0c and call 70b7, but A seems to not be used. Vestigial code?
-                if (BaseGame == REBEL_PLANET && MyLoc == 43 && ObjectLoc[131] == 252)
-                    return;
-            case 0xf6: // set A to 04 and call 70b7. See 0xf7 above.
-            case 0xf5: // set A to 08 and call 70b7. See 0xf7 above.
-                // fprintf(stderr, "0x%02x: set A to unused value and draw image block %d at %d, %d\n",  *ptr, *(ptr + 1), *(ptr + 2), *(ptr + 3));
-                ptr++; // Deliberate fallthrough
-            default: // else draw image *ptr at x, y
-                // fprintf(stderr, "Default: Draw image block %d at %d,%d\n", *ptr, *(ptr + 1), *(ptr + 2));
-                DrawSagaPictureAtPos(*ptr, *(ptr + 1), *(ptr + 2));
-                ptr = ptr + 2;
-                break;
+            ptr++;
+            break;
+        case 0xf3:
+            // fprintf(stderr, "0xf3: goto 753d Mirror top half vertically\n");
+            mirror_top_half();
+            break;
+        case 0xf2: // arg1 arg2 arg3 arg4 Mirror horizontally
+            // fprintf(stderr, "0xf2: Mirror area x: %d y: %d width:%d y2:%d horizontally\n", *(ptr + 2), *(ptr + 1), *(ptr + 4),  *(ptr + 3));
+            mirror_area(*(ptr + 2), *(ptr + 1), *(ptr + 4), *(ptr + 3));
+            ptr = ptr + 4;
+            break;
+        case 0xf1: // arg1 arg2 arg3 arg4 Mirror vertically
+            // fprintf(stderr, "0xf1: Mirror area x: %d y: %d width:%d y2:%d vertically\n", *(ptr + 2), *(ptr + 1), *(ptr + 4),  *(ptr + 3));
+            mirror_area_vertically(*(ptr + 1), *(ptr + 2), *(ptr + 4), *(ptr + 3));
+            ptr = ptr + 4;
+            break;
+        case 0xee: // arg1 arg2 arg3 arg4  Flip area horizontally
+            // fprintf(stderr, "0xf1: Flip area x: %d y: %d width:%d y2:%d horizontally\n", *(ptr + 2), *(ptr + 1), *(ptr + 4),  *(ptr + 3));
+            flip_area_horizontally(*(ptr + 2), *(ptr + 1), *(ptr + 4), *(ptr + 3));
+            ptr = ptr + 4;
+            break;
+        case 0xed:
+            // fprintf(stderr, "0xed: Flip entire image vertically\n");
+            flip_image_vertically();
+            break;
+        case 0xec: // Flip area vertically
+            // fprintf(stderr, "0xf1: Flip area x: %d y: %d width:%d y2:%d vertically\n", *(ptr + 2), *(ptr + 1), *(ptr + 4),  *(ptr + 3));
+            flip_area_vertically(*(ptr + 1), *(ptr + 2), *(ptr + 4), *(ptr + 3));
+            ptr = ptr + 4;
+            break;
+        case 0xe9:
+            // fprintf(stderr, "0xe9: (77ac) replace paper and ink %d for colour %d?\n",  *(ptr + 1), *(ptr + 2));
+            replace_paper_and_ink(*(ptr + 1), *(ptr + 2));
+            ptr = ptr + 2;
+            break;
+        case 0xe8:
+            // fprintf(stderr, "Clear graphics memory\n");
+            ClearGraphMem();
+            break;
+        case 0xf7: // set A to 0c and call 70b7, but A seems to not be used. Vestigial code?
+            if (BaseGame == REBEL_PLANET && MyLoc == 43 && ObjectLoc[131] == 252)
+                return;
+        case 0xf6: // set A to 04 and call 70b7. See 0xf7 above.
+        case 0xf5: // set A to 08 and call 70b7. See 0xf7 above.
+            // fprintf(stderr, "0x%02x: set A to unused value and draw image block %d at %d, %d\n",  *ptr, *(ptr + 1), *(ptr + 2), *(ptr + 3));
+            ptr++; // Deliberate fallthrough
+        default: // else draw image *ptr at x, y
+            // fprintf(stderr, "Default: Draw image block %d at %d,%d\n", *ptr, *(ptr + 1), *(ptr + 2));
+            DrawSagaPictureAtPos(*ptr, *(ptr + 1), *(ptr + 2));
+            ptr = ptr + 2;
+            break;
         }
         ptr++;
     }
 }
 
 uint8_t *DrawSagaPictureFromData(uint8_t *dataptr, int xsize, int ysize,
-                                 int xoff, int yoff, size_t datasize)
+    int xoff, int yoff, size_t datasize)
 {
     if (dataptr == NULL)
         return NULL;
@@ -1227,7 +1238,7 @@ uint8_t *DrawSagaPictureFromData(uint8_t *dataptr, int xsize, int ysize,
                             data2 += 128;
 #ifdef DRAWDEBUG
                         fprintf(stderr, "Plotting %d directly (overlay) at %d\n", data2,
-                                offset);
+                            offset);
 #endif
                         for (i = 0; i < count; i++)
                             transform(data2, old & 0x0c, offset + i);
@@ -1237,9 +1248,9 @@ uint8_t *DrawSagaPictureFromData(uint8_t *dataptr, int xsize, int ysize,
                             character += 128;
 #ifdef DRAWDEBUG
                         fprintf(stderr, "Plotting %d with flip %02x (%s) at %d %d\n",
-                                character, (data2 | mask_mode),
-                                flipdescription[((data2 | mask_mode) & 48) >> 4], offset,
-                                count);
+                            character, (data2 | mask_mode),
+                            flipdescription[((data2 | mask_mode) & 48) >> 4], offset,
+                            count);
 #endif
                         for (i = 0; i < count; i++)
                             transform(character, (data2 & 0xf3) | mask_mode, offset + i);
@@ -1270,11 +1281,11 @@ draw_attributes:
     while (y < ysize) {
         if (dataptr - origptr > datasize) {
             fprintf(stderr, "DrawSagaPictureFromData: data offset %zu out of range! Image size %zu. Bailing!\n", dataptr - origptr, datasize);
-                return dataptr;
+            return dataptr;
         }
         data = *dataptr++;
-//        fprintf(stderr, "%03ld: read attribute data byte %02x\n", dataptr -
-//                origptr - 1, data);
+        //        fprintf(stderr, "%03ld: read attribute data byte %02x\n", dataptr -
+        //                origptr - 1, data);
         if ((data & 0x80)) {
             count = (data & 0x7f) + 1;
             if (version >= 3) {
@@ -1341,7 +1352,7 @@ draw_attributes:
                     buffer[(y + yoff) * 32 + x + xoff2][i] = screenchars[offset][i];
             } else {
                 plotsprite(offset, x + xoff2, y + yoff, Remap(ink[x][y]),
-                           Remap(paper[x][y]));
+                    Remap(paper[x][y]));
             }
 
 #ifdef DRAWDEBUG
@@ -1355,8 +1366,8 @@ draw_attributes:
             ink = Remap(ink);
 
             fprintf(stderr, "(gfx#:plotting %d,%d:paper=%s,ink=%s)\n", x + xoff2,
-                    y + yoff, colortext(paper),
-                    colortext(ink));
+                y + yoff, colortext(paper),
+                colortext(ink));
 #endif
             offset++;
             if (offset > offsetlimit)
@@ -1369,12 +1380,12 @@ void DrawSagaPictureNumber(int picture_number)
 {
     if (Game->number_of_pictures == 0)
         return;
-//    int numgraphics = Game->number_of_pictures;
-//    if (picture_number >= numgraphics) {
-//        fprintf(stderr, "Invalid image number %d! Last image:%d\n", picture_number,
-//                numgraphics - 1);
-//        return;
-//    }
+    //    int numgraphics = Game->number_of_pictures;
+    //    if (picture_number >= numgraphics) {
+    //        fprintf(stderr, "Invalid image number %d! Last image:%d\n", picture_number,
+    //                numgraphics - 1);
+    //        return;
+    //    }
 
     Image img = images[picture_number];
 
@@ -1382,7 +1393,7 @@ void DrawSagaPictureNumber(int picture_number)
         return;
 
     DrawSagaPictureFromData(img.imagedata, img.width, img.height, img.xoff,
-                            img.yoff, img.datasize);
+        img.yoff, img.datasize);
 }
 
 void DrawSagaPictureAtPos(int picture_number, int x, int y)
@@ -1415,8 +1426,8 @@ void DrawSagaPictureFromBuffer(void)
                     glui32 glk_color = (glui32)((pal[ink][0] << 16) | (pal[ink][1] << 8) | pal[ink][2]);
 
                     glk_window_fill_rect(
-                                         Graphics, glk_color, (glsi32)(col * 8 * pixel_size + x_offset),
-                                         (glsi32)(line * 8 + i) * pixel_size, 8 * pixel_size, pixel_size);
+                        Graphics, glk_color, (glsi32)(col * 8 * pixel_size + x_offset),
+                        (glsi32)(line * 8 + i) * pixel_size, 8 * pixel_size, pixel_size);
                     continue;
                 }
                 for (int j = 0; j < 8; j++)

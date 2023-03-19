@@ -9,15 +9,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "common.h"
 #include "definitions.h"
 #include "glk.h"
 #include "graphics.h"
-#include "common.h"
 
 static uint8_t *screenmem = NULL;
 static uint8_t lobyte = 0, hibyte = 0;
 
-void ClearApple2ScreenMem(void) {
+void ClearApple2ScreenMem(void)
+{
     if (screenmem)
         memset(screenmem, 0, 0x2000);
 }
@@ -50,7 +51,7 @@ void DrawApple2ImageFromVideoMem(void);
 
 int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
 {
-    int work,work2;
+    int work, work2;
     int c;
     int i;
     size_t size;
@@ -62,7 +63,8 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
         ClearApple2ScreenMem();
     }
 
-    x = 0; y = 0;
+    x = 0;
+    y = 0;
 
     work = *ptr++;
     size = work + (*ptr++ * 256);
@@ -92,23 +94,19 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
         winid_t parent = glk_window_get_parent(Graphics);
         if (parent) {
             glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-                                   optimal_height, NULL);
+                optimal_height, NULL);
         }
     }
 
-
-    while (ptr - origptr < size)
-    {
+    while (ptr - origptr < size) {
         // First get count
         c = *ptr++;
 
-        if ((c & 0x80) == 0x80)
-        { // is a counter
+        if ((c & 0x80) == 0x80) { // is a counter
             c &= 0x7f;
-            work=*ptr++;
-            work2=*ptr++;
-            for (i = 0; i < c + 1 && ptr - origptr < size; i++)
-            {
+            work = *ptr++;
+            work2 = *ptr++;
+            for (i = 0; i < c + 1 && ptr - origptr < size; i++) {
                 if (hibyte * 0x100 + lobyte + x > 0x1fff)
                     return 0;
                 PutByte(work, work2);
@@ -116,15 +114,12 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
                     return 1;
                 }
             }
-        }
-        else
-        {
+        } else {
             // Don't count on the next j characters
 
-            for (i = 0; i < c + 1 && ptr - origptr < size; i++)
-            {
+            for (i = 0; i < c + 1 && ptr - origptr < size; i++) {
                 work = *ptr++;
-                work2=*ptr++;
+                work2 = *ptr++;
                 if (hibyte * 0x100 + lobyte + x > 0x1fff)
                     return 0;
                 PutByte(work, work2);
@@ -155,9 +150,10 @@ static void PutApplePixel(glsi32 xpos, glsi32 ypos, glui32 color)
     ypos += y_offset;
 
     glk_window_fill_rect(Graphics, color, xpos,
-                         ypos, pixel_size, pixel_size);
+        ypos, pixel_size, pixel_size);
 }
 
+// clang-format off
 #define BLACK   0
 #define PURPLE  0xd53ef9
 #define BLUE    0x458ff7
@@ -170,13 +166,15 @@ static const int32_t hires_artifact_color_table[] =
     BLACK,  PURPLE, GREEN,  WHITE,
     BLACK,  BLUE,   ORANGE, WHITE
 };
+// clang-format on
 
 static int32_t *m_hires_artifact_map = NULL;
 
 // This function and the one below are adapted from MAME
 
-static void generate_artifact_map(void) {
-// generate hi-res artifact data
+static void generate_artifact_map(void)
+{
+    // generate hi-res artifact data
     int i, j;
     uint16_t c;
 
@@ -184,26 +182,21 @@ static void generate_artifact_map(void) {
     m_hires_artifact_map = MemAlloc(sizeof(int32_t) * 8 * 2 * 2);
 
     /* build hires artifact map */
-    for (i = 0; i < 8; i++)
-    {
-        for (j = 0; j < 2; j++)
-        {
-            if (i & 0x02)
-            {
+    for (i = 0; i < 8; i++) {
+        for (j = 0; j < 2; j++) {
+            if (i & 0x02) {
                 if ((i & 0x05) != 0)
                     c = 3;
                 else
                     c = j ? 2 : 1;
-            }
-            else
-            {
+            } else {
                 if ((i & 0x05) == 0x05)
                     c = j ? 1 : 2;
                 else
                     c = 0;
             }
-            m_hires_artifact_map[ 0 + j*8 + i] = hires_artifact_color_table[(c + 0) % 8];
-            m_hires_artifact_map[16 + j*8 + i] = hires_artifact_color_table[(c + 4) % 8];
+            m_hires_artifact_map[0 + j * 8 + i] = hires_artifact_color_table[(c + 0) % 8];
+            m_hires_artifact_map[16 + j * 8 + i] = hires_artifact_color_table[(c + 4) % 8];
         }
     }
 }
@@ -220,30 +213,25 @@ void DrawApple2ImageFromVideoMem(void)
     vram_row[0] = 0;
     vram_row[41] = 0;
 
-    for (int row = 0; row < 192; row++)
-    {
-        for (int col = 0; col < 40; col++)
-        {
-            int const offset = ((((row/8) & 0x07) << 7) | (((row/8) & 0x18) * 5 + col)) | ((row & 7) << 10);
-            vram_row[1+col] = vram[offset];
+    for (int row = 0; row < 192; row++) {
+        for (int col = 0; col < 40; col++) {
+            int const offset = ((((row / 8) & 0x07) << 7) | (((row / 8) & 0x18) * 5 + col)) | ((row & 7) << 10);
+            vram_row[1 + col] = vram[offset];
         }
 
         int pixpos = 0;
 
-        for (int col = 0; col < 40; col++)
-        {
-            uint32_t w =    (((uint32_t) vram_row[col+0] & 0x7f) <<  0)
-            |   (((uint32_t) vram_row[col+1] & 0x7f) <<  7)
-            |   (((uint32_t) vram_row[col+2] & 0x7f) << 14);
+        for (int col = 0; col < 40; col++) {
+            uint32_t w = (((uint32_t)vram_row[col + 0] & 0x7f) << 0)
+                | (((uint32_t)vram_row[col + 1] & 0x7f) << 7)
+                | (((uint32_t)vram_row[col + 2] & 0x7f) << 14);
 
             artifact_map_ptr = &m_hires_artifact_map[((vram_row[col + 1] & 0x80) >> 7) * 16];
 
-            for (int b = 0; b < 7; b++)
-            {
-                int32_t const v = artifact_map_ptr[((w >> (b + 7-1)) & 0x07) | (((b ^ col) & 0x01) << 3)];
+            for (int b = 0; b < 7; b++) {
+                int32_t const v = artifact_map_ptr[((w >> (b + 7 - 1)) & 0x07) | (((b ^ col) & 0x01) << 3)];
                 PutApplePixel(pixpos++, row, v);
             }
         }
     }
 }
-

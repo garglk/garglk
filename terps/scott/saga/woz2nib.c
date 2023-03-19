@@ -108,19 +108,19 @@ static uint32_t crc32(uint32_t crc, const void *buf, size_t size)
 
 #define WOZ_BLOCK_SIZE 512
 
-static void FatalError( char *format, ... )
+static void FatalError(char *format, ...)
 {
     va_list argp;
 
-    fprintf( stderr, "\nFatal: " );
+    fprintf(stderr, "\nFatal: ");
 
-    va_start( argp, format );
-    vprintf( format, argp );
-    va_end( argp );
+    va_start(argp, format);
+    vprintf(format, argp);
+    va_end(argp);
 
-    fprintf( stderr, "\n" );
+    fprintf(stderr, "\n");
 
-    exit( 1 );
+    exit(1);
 }
 
 static void *MemAlloc(size_t size)
@@ -142,7 +142,8 @@ static int rotate_left_with_carry(uint8_t *byte, int last_carry)
 
 // This is a translation of $trk =~ s{^0*(1.{7})}{}o;
 // Extract first '1' + 7 characters ("bits").
-static uint8_t extract_nibble(uint8_t *bitstream, int bits, int *pos) {
+static uint8_t extract_nibble(uint8_t *bitstream, int bits, int *pos)
+{
     int bytes = bits / 8 + (bits % 8 != 0);
     // skip any initial '0'.
     while (*pos < bytes && bitstream[*pos] == 0) {
@@ -167,7 +168,8 @@ static uint8_t extract_nibble(uint8_t *bitstream, int bits, int *pos) {
     return nibble;
 }
 
-static uint8_t *swap_head_and_tail(uint8_t *bitstream, int headbits, int bits) {
+static uint8_t *swap_head_and_tail(uint8_t *bitstream, int headbits, int bits)
+{
 
     int bitspill = bits % 8;
     int anybitspill = (bitspill != 0);
@@ -221,12 +223,13 @@ static uint8_t *swap_head_and_tail(uint8_t *bitstream, int headbits, int bits) {
     return bitstream;
 }
 
-
 typedef enum {
     FOUND_NONE,
     FOUND16,
     FOUND13,
 } SearchResultType;
+
+// clang-format off
 
 static const uint8_t syncbytes16[7] = {
     0xff, //    11111111
@@ -237,6 +240,8 @@ static const uint8_t syncbytes16[7] = {
     0xff, //    11111111
     0x00  //    00
 };
+
+// clang-format on
 
 static const uint8_t syncbytes13[9] = {
     0xff, //    11111111
@@ -250,7 +255,6 @@ static const uint8_t syncbytes13[9] = {
     0xfe, //    11111110
 };
 
-
 // These two functions look for the two sync bytes sequences
 // in the bitstream array.
 // This is obviously not the quickest way to do it. It should be
@@ -261,7 +265,8 @@ static const uint8_t syncbytes13[9] = {
 
 // Look for any of the two sync byte sequences in the bitstream array
 // This function assumes that the bitstream array is at least 9 bytes long.
-static SearchResultType find_in_bytes(uint8_t *bitstream) {
+static SearchResultType find_in_bytes(uint8_t *bitstream)
+{
     int may_be_16 = 1;
     int may_be_13 = 1;
     for (int i = 1; i < 9; i++) {
@@ -288,7 +293,8 @@ static SearchResultType find_in_bytes(uint8_t *bitstream) {
     return FOUND_NONE;
 }
 
-static SearchResultType find_syncbytes(uint8_t *bitstream, int bitcount, int *pos) {
+static SearchResultType find_syncbytes(uint8_t *bitstream, int bitcount, int *pos)
+{
     int bytes = bitcount / 8;
     int repeats = bytes - 9;
     SearchResultType result = FOUND_NONE;
@@ -333,7 +339,8 @@ static SearchResultType find_syncbytes(uint8_t *bitstream, int bitcount, int *po
     return result;
 }
 
-uint8_t *woz2nib(uint8_t *ptr, size_t *len) {
+uint8_t *woz2nib(uint8_t *ptr, size_t *len)
+{
     uint8_t tempout[300000];
     int writepos = 0;
     SectorOrderType format = NIBBLE;
@@ -350,7 +357,7 @@ uint8_t *woz2nib(uint8_t *ptr, size_t *len) {
         crc += (uint64_t)woz_buffer[8 + i] << (8 * i);
     }
 
-    if (magic[0] != 'W' || magic[1] != 'O' || magic[2] != 'Z' || (magic[3] != '1' && magic[3] != '2' ))
+    if (magic[0] != 'W' || magic[1] != 'O' || magic[2] != 'Z' || (magic[3] != '1' && magic[3] != '2'))
         FatalError("WOZ header not found\n");
 
     if (fixed[0] != 0xff || fixed[1] != 0x0a || fixed[2] != 0x0d || fixed[3] != 0x0a)
@@ -393,118 +400,117 @@ uint8_t *woz2nib(uint8_t *ptr, size_t *len) {
         }
 
         switch (chunk_id) {
-            case INFO:
-                if (chunk_size != 60) {
-                    debug_print("INFO chunk size is not 60 but %d bytes\n", chunk_size);
-                    free(chunk_data);
-                    return NULL;
-                }
-                info_found = 1;
-                uint8_t version = chunk_data[0];
-                uint8_t disk_type = chunk_data[1];
-                if (disk_type != 1)
-                    FatalError("Only 5.25\" disks are supported\n");
-                //                uint8_t protected = chunk_data[2];
-                //                uint8_t synchronized = chunk_data[3];
-                //                uint8_t cleaned = chunk_data[4];
-                char creator[32];
-                memcpy(creator, chunk_data + 5, 32);
-                creator[31] = '\0';
-                if (version >= 2)  {
-                    uint8_t disk_sides = chunk_data[37];
-                    if (disk_sides != 1)
-                        FatalError("Only 1-sided images are supported\n");
-                    //                    uint8_t boot_sector_format = chunk_data[38];
-                    //                    uint8_t optimal_bit_timing = chunk_data[39];
-                    //                    uint16_t compatible_hardware = chunk_data[40] + chunk_data[41] * 256;
-                    //                    uint16_t required_ram = chunk_data[42] + chunk_data[43] * 256;
-                    //                    uint16_t largest_track = chunk_data[44] + chunk_data[45] * 256;
-                    //                    uint16_t flux_block = chunk_data[46] + chunk_data[47] * 256;
-                    //                    uint16_t largest_flux_track = chunk_data[48] + chunk_data[49] * 256;
-                }
-                debug_print("INFO: ver %d, type ", version);
-                switch (disk_type) {
-                    case 1:
-                        debug_print("5.25\"");
-                        break;
-                    case 2:
-                        debug_print("3.5\"");
-                        break;
-                    default:
-                        debug_print("unknown");
-                        break;
-                }
-                debug_print(", creator: %s\n", creator);
-                debug_print("WOZ file version %d\n", version);
+        case INFO:
+            if (chunk_size != 60) {
+                debug_print("INFO chunk size is not 60 but %d bytes\n", chunk_size);
+                free(chunk_data);
+                return NULL;
+            }
+            info_found = 1;
+            uint8_t version = chunk_data[0];
+            uint8_t disk_type = chunk_data[1];
+            if (disk_type != 1)
+                FatalError("Only 5.25\" disks are supported\n");
+            //                uint8_t protected = chunk_data[2];
+            //                uint8_t synchronized = chunk_data[3];
+            //                uint8_t cleaned = chunk_data[4];
+            char creator[32];
+            memcpy(creator, chunk_data + 5, 32);
+            creator[31] = '\0';
+            if (version >= 2) {
+                uint8_t disk_sides = chunk_data[37];
+                if (disk_sides != 1)
+                    FatalError("Only 1-sided images are supported\n");
+                //                    uint8_t boot_sector_format = chunk_data[38];
+                //                    uint8_t optimal_bit_timing = chunk_data[39];
+                //                    uint16_t compatible_hardware = chunk_data[40] + chunk_data[41] * 256;
+                //                    uint16_t required_ram = chunk_data[42] + chunk_data[43] * 256;
+                //                    uint16_t largest_track = chunk_data[44] + chunk_data[45] * 256;
+                //                    uint16_t flux_block = chunk_data[46] + chunk_data[47] * 256;
+                //                    uint16_t largest_flux_track = chunk_data[48] + chunk_data[49] * 256;
+            }
+            debug_print("INFO: ver %d, type ", version);
+            switch (disk_type) {
+            case 1:
+                debug_print("5.25\"");
                 break;
-            case TMAP:
-                tmap_found = 1;
-                if (chunk_size != 160) {
-                    debug_print("TMAP chunk size is not 160 but %d bytes\n", chunk_size);
-                    free(chunk_data);
-                    return NULL;
-                }
-                uint8_t tempmap[160];
-                memcpy(tempmap, chunk_data, 160);
-                debug_print("TMAP: ");
-                for (int i = 0; i < nr_tracks ; i++) {
-                    tmap[i] = tempmap[i * 4];
-                    if (i > 0)
-                        debug_print(",");
-                    debug_print("%d", tmap[i]);
-                }
-                debug_print("\n");
-                break;
-            case TRKS:
-                trks_found = 1;
-                debug_print("TRKS: %d bytes\n", chunk_size);
-                if (magic[3] == '2') {
-                    int cpos = 0;
-                    debug_print("  trks: ");
-                    for (int i = 0; i < 160; i++, cpos += 8) {
-                        trks[i].bitstream = NULL;
-                        trks[i].starting_block = chunk_data[cpos] + chunk_data[cpos + 1] * 256;
-                        trks[i].block_count = chunk_data[cpos + 2] + chunk_data[cpos + 3] * 256;
-                        trks[i].bit_count = chunk_data[cpos + 4] + (chunk_data[cpos + 5] << 8) + (chunk_data[cpos + 6] << 16) +
-                        (chunk_data[cpos + 7] << 24);
-//                        debug_print("%d,%d,%d/", trks[i].starting_block, trks[i].block_count, trks[i].bit_count);
-                    }
-//                    debug_print("\n");
-                } else {
-                    if (magic[3] != '1')
-                        FatalError("bug");
-                    int chunkdatalen = chunk_size;
-                    int idx = 0;
-                    while (chunkdatalen >= 6656 && idx < 160) {
-                        trks[idx].bytes_used = chunk_data[6646] + chunk_data[6647] * 256;
-                        trks[idx].bit_count = chunk_data[6648] + chunk_data[6649] * 256;
-                        trks[idx].bitstream = MemAlloc(6646);
-                        memcpy(trks[idx].bitstream, chunk_data, 6646);
-                        int newlen = chunkdatalen - 6656;
-                        if (newlen > 0) {
-                            uint8_t *tempdata = MemAlloc(newlen);
-                            memcpy(tempdata, chunk_data + 6656, newlen);
-                            memcpy(chunk_data, tempdata, newlen);
-                            free(tempdata);
-                        }
-                        chunkdatalen -= 6656;
-                        idx++;
-                    }
-                }
-                break;
-            case WRIT:
-                debug_print ("WRIT: %d bytes\n", chunk_size);
-                // ignore WRIT chunks
-                break;
-            case META:
-                debug_print ("META: %d bytes\n", chunk_size);
-                for (int i = 0; i < chunk_size; i++) {
-                    debug_print("%c", chunk_data[i]);
-                }
+            case 2:
+                debug_print("3.5\"");
                 break;
             default:
-                debug_print("ignoring unknown chunk: %s; size=%dbytes\n", chunkstring, chunk_size);
+                debug_print("unknown");
                 break;
+            }
+            debug_print(", creator: %s\n", creator);
+            debug_print("WOZ file version %d\n", version);
+            break;
+        case TMAP:
+            tmap_found = 1;
+            if (chunk_size != 160) {
+                debug_print("TMAP chunk size is not 160 but %d bytes\n", chunk_size);
+                free(chunk_data);
+                return NULL;
+            }
+            uint8_t tempmap[160];
+            memcpy(tempmap, chunk_data, 160);
+            debug_print("TMAP: ");
+            for (int i = 0; i < nr_tracks; i++) {
+                tmap[i] = tempmap[i * 4];
+                if (i > 0)
+                    debug_print(",");
+                debug_print("%d", tmap[i]);
+            }
+            debug_print("\n");
+            break;
+        case TRKS:
+            trks_found = 1;
+            debug_print("TRKS: %d bytes\n", chunk_size);
+            if (magic[3] == '2') {
+                int cpos = 0;
+                debug_print("  trks: ");
+                for (int i = 0; i < 160; i++, cpos += 8) {
+                    trks[i].bitstream = NULL;
+                    trks[i].starting_block = chunk_data[cpos] + chunk_data[cpos + 1] * 256;
+                    trks[i].block_count = chunk_data[cpos + 2] + chunk_data[cpos + 3] * 256;
+                    trks[i].bit_count = chunk_data[cpos + 4] + (chunk_data[cpos + 5] << 8) + (chunk_data[cpos + 6] << 16) + (chunk_data[cpos + 7] << 24);
+                    //                        debug_print("%d,%d,%d/", trks[i].starting_block, trks[i].block_count, trks[i].bit_count);
+                }
+                //                    debug_print("\n");
+            } else {
+                if (magic[3] != '1')
+                    FatalError("bug");
+                int chunkdatalen = chunk_size;
+                int idx = 0;
+                while (chunkdatalen >= 6656 && idx < 160) {
+                    trks[idx].bytes_used = chunk_data[6646] + chunk_data[6647] * 256;
+                    trks[idx].bit_count = chunk_data[6648] + chunk_data[6649] * 256;
+                    trks[idx].bitstream = MemAlloc(6646);
+                    memcpy(trks[idx].bitstream, chunk_data, 6646);
+                    int newlen = chunkdatalen - 6656;
+                    if (newlen > 0) {
+                        uint8_t *tempdata = MemAlloc(newlen);
+                        memcpy(tempdata, chunk_data + 6656, newlen);
+                        memcpy(chunk_data, tempdata, newlen);
+                        free(tempdata);
+                    }
+                    chunkdatalen -= 6656;
+                    idx++;
+                }
+            }
+            break;
+        case WRIT:
+            debug_print("WRIT: %d bytes\n", chunk_size);
+            // ignore WRIT chunks
+            break;
+        case META:
+            debug_print("META: %d bytes\n", chunk_size);
+            for (int i = 0; i < chunk_size; i++) {
+                debug_print("%c", chunk_data[i]);
+            }
+            break;
+        default:
+            debug_print("ignoring unknown chunk: %s; size=%dbytes\n", chunkstring, chunk_size);
+            break;
         }
         free(chunk_data);
     }
@@ -575,15 +581,15 @@ uint8_t *woz2nib(uint8_t *ptr, size_t *len) {
         }
 
         switch (result) {
-            case FOUND16:
-                bitstream = swap_head_and_tail(bitstream, foundbitpos + 50, bit_count);
-                break;
-            case FOUND13:
-                bitstream = swap_head_and_tail(bitstream, foundbitpos + 72, bit_count);
-                break;
-            default:
-                debug_print("Found no sync bytes in track %d bitstream\n", track);
-                break;
+        case FOUND16:
+            bitstream = swap_head_and_tail(bitstream, foundbitpos + 50, bit_count);
+            break;
+        case FOUND13:
+            bitstream = swap_head_and_tail(bitstream, foundbitpos + 72, bit_count);
+            break;
+        default:
+            debug_print("Found no sync bytes in track %d bitstream\n", track);
+            break;
         }
 
         int pos2 = 0;

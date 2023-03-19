@@ -15,8 +15,8 @@
 #include "scottgameinfo.h"
 
 #include "c64decrunch.h"
-#include "detectgame.h"
 #include "c64diskimage.h"
+#include "detectgame.h"
 #include "sagadraw.h"
 #include "sagagraphics.h"
 
@@ -46,6 +46,7 @@ struct c64rec {
     size_t imgoffset;
 };
 
+// clang-format off
 static const struct c64rec c64_registry[] = {
     { BATON_C64,        0x2ab00, 0xc3fc, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // Mysterious Adventures C64 dsk 1
     { TIME_MACHINE_C64, 0x2ab00, 0xc3fc, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 },
@@ -161,6 +162,7 @@ static const struct c64rec c64_registry[] = {
 
     { UNKNOWN_GAME, 0, 0, UNKNOWN_FILE_TYPE, 0, NULL, NULL, 0, 0, 0, 0, 0 }
 };
+// clang-format off
 
 uint16_t checksum(uint8_t *sf, uint32_t extent)
 {

@@ -9,6 +9,8 @@
 
 #include "scottdefines.h"
 
+// clang-format off
+
 const struct GameInfo games[] = {
     {
         "Pirate Adventure",
@@ -2598,10 +2600,10 @@ const struct GameInfo games[] = {
         91,  // Number of messages
     },
 
-    {
-        NULL
-    }
+    { NULL }
 };
+
+// clang-format on
 
 /* This is supposed to be the original ScottFree system
  messages in second person, as far as possible */

@@ -9,6 +9,7 @@
 #define graphics_h
 
 #include <stdio.h>
+
 #include "glk.h"
 
 typedef uint8_t RGB[3];

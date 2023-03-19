@@ -10,14 +10,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "scott.h"
 #include "load_ti99_4a.h"
+#include "scott.h"
 
 #include "detectgame.h"
 #include "scottgameinfo.h"
 
-
 #define PACKED __attribute__((__packed__))
+
+// clang-format off
 
 struct DATAHEADER {
     uint8_t    num_objects;                         /* number of objects */
@@ -46,6 +47,8 @@ struct DATAHEADER {
     uint16_t   p_explicit            PACKED;        /* pointer to explicit action table */
     uint16_t   p_implicit            PACKED;        /* pointer to implicit actions */
 };
+
+// clang-format on
 
 int max_messages;
 int max_item_descr;
@@ -344,23 +347,23 @@ static uint8_t *LoadTitleScreen(void)
             if (c & 0x80) /* if not 7-bit ascii */
                 c = '?';
             switch (c) {
-                case '\\':
-                    c = ' ';
-                    break;
-                case '(':
-                    parens = 1;
-                    break;
-                case ')':
-                    if (!parens)
-                        c = '@';
-                    parens = 0;
-                    break;
-                case '|':
-                    if (*p != ' ')
-                        c = 12;
-                    break;
-                default:
-                    break;
+            case '\\':
+                c = ' ';
+                break;
+            case '(':
+                parens = 1;
+                break;
+            case ')':
+                if (!parens)
+                    c = '@';
+                parens = 0;
+                break;
+            case '|':
+                if (*p != ' ')
+                    c = 12;
+                break;
+            default:
+                break;
             }
             buf[offset++] = c;
             if (offset >= 3072)

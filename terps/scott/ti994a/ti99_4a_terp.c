@@ -281,7 +281,7 @@ static ActionResultType PerformTI99Line(const uint8_t *action_line)
 #ifdef DEBUG_ACTIONS
             debug_print(
                 "Item %d (%s) is removed from the game (put in room 0).\n",
-                    *ptr, Items[*ptr].Text);
+                *ptr, Items[*ptr].Text);
 #endif
             Items[*(ptr++)].Location = 0;
             break;
@@ -371,7 +371,7 @@ static ActionResultType PerformTI99Line(const uint8_t *action_line)
 #ifdef DEBUG_ACTIONS
             fprintf(stderr,
                 "Player now carries item %d (%s).\n",
-                    *ptr, Items[*ptr].Text);
+                *ptr, Items[*ptr].Text);
 #endif
             Items[*(ptr++)].Location = CARRIED;
             break;
@@ -417,7 +417,7 @@ static ActionResultType PerformTI99Line(const uint8_t *action_line)
 #ifdef DEBUG_ACTIONS
             fprintf(stderr,
                 "%d is added to currentCounter. Result: %d\n",
-                    *ptr, CurrentCounter + *ptr);
+                *ptr, CurrentCounter + *ptr);
 #endif
             CurrentCounter += *(ptr++);
             break;

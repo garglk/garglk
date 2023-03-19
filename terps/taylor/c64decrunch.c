@@ -10,13 +10,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "utility.h"
+#include "c64diskimage.h"
 #include "taylor.h"
+#include "utility.h"
+#include "unp64_interface.h"
 
 #include "c64decrunch.h"
-#include "c64diskimage.h"
 
-#include "unp64_interface.h"
 
 #define MAX_LENGTH 300000
 #define MIN_LENGTH 24
@@ -24,7 +24,8 @@
 typedef enum {
     UNKNOWN_FILE_TYPE,
     TYPE_D64,
-    TYPE_T64 } file_type;
+    TYPE_T64
+} file_type;
 
 struct c64rec {
     GameIDType id;
@@ -37,9 +38,9 @@ struct c64rec {
 };
 
 static const struct c64rec c64_registry[] = {
-    { QUESTPROBE3_64,  0x69e3, 0x3b96, TYPE_T64, 1, NULL, 0 }, // Questprobe 3, PUCrunch
-    { QUESTPROBE3_64,  0x8298, 0xb93e, TYPE_T64, 1, NULL, 0 }, // Questprobe 3, PUCrunch
-    { QUESTPROBE3_64,  0x2ab00, 0x863d, TYPE_D64, 1, NULL, 0 }, // Questprobe 3, PUCrunch
+    { QUESTPROBE3_64, 0x69e3, 0x3b96, TYPE_T64, 1, NULL, 0 }, // Questprobe 3, PUCrunch
+    { QUESTPROBE3_64, 0x8298, 0xb93e, TYPE_T64, 1, NULL, 0 }, // Questprobe 3, PUCrunch
+    { QUESTPROBE3_64, 0x2ab00, 0x863d, TYPE_D64, 1, NULL, 0 }, // Questprobe 3, PUCrunch
     { REBEL_PLANET_64, 0xd541, 0x593a, TYPE_T64, 1, NULL, 0 }, // Rebel Planet C64 (T64) 1001 CardCruncher Old Packer
     { REBEL_PLANET_64, 0x2ab00, 0xa46f, TYPE_D64, 2, "-e0x0fe9", 2 }, // Rebel_Planet_1986_Adventure_International.d64
     { REBEL_PLANET_64, 0x2ab00, 0x932e, TYPE_D64, 1, NULL, 0 }, // Rebel_Planet_1986_Adventure_International_cr_TFF.d64
@@ -53,7 +54,7 @@ static const struct c64rec c64_registry[] = {
     { TEMPLE_OF_TERROR_64, 0x10baa, 0x3b37, TYPE_T64, 4, NULL, 0 }, // Temple of Terror C64 alt (T64) 1001 CardCruncher New Packer -> 1001 CardCruncher ACM -> Triad-01 -> Mr.Z Packer
     { TOT_TEXT_ONLY_64, 0x10baa, 0x3b37, TYPE_T64, 3, NULL, 0 }, // Temple of Terror C64 alt (T64) 1001 CardCruncher New Packer -> 1001 CardCruncher ACM -> Triad-01 -> Mr.Z Packer
     { TEMPLE_OF_TERROR_64, 0x2ab00, 0x5720, TYPE_D64, 4, "-e0xc1ef", 2 }, // Temple of Terror C64 (D64) ECA Compacker -> Super Compressor / Flexible -> Super Compressor / Equal sequences -> Super Compressor / Equal chars
-    { TEMPLE_OF_TERROR_64, 0x2ab00, 0xf3b4, TYPE_D64, 3, NULL, 0}, // Temple_of_Terror_1987_U.S._Gold_cr_FBR.d64
+    { TEMPLE_OF_TERROR_64, 0x2ab00, 0xf3b4, TYPE_D64, 3, NULL, 0 }, // Temple_of_Terror_1987_U.S._Gold_cr_FBR.d64
     { TEMPLE_OF_TERROR_64, 0x2ab00, 0x577e, TYPE_D64, 4, NULL, 0 }, // Temple_of_Terror_1987_U.S._Gold_cr_Triad.d64
     { TOT_TEXT_ONLY_64, 0x2ab00, 0x577e, TYPE_D64, 4, NULL, 0 }, // Temple_of_Terror_1987_U.S._Gold_cr_Triad.d64
     { TEMPLE_OF_TERROR_64, 0x2ab00, 0x7b2d, TYPE_D64, 0, NULL, 0 }, // Temple of Terror - Trianon.d64
@@ -108,7 +109,8 @@ static uint8_t *get_largest_file(uint8_t *data, size_t length, size_t *newlength
     return file;
 }
 
-static uint8_t *GetFileFromT64(int filenum, int number_of_records, uint8_t **sf, size_t *extent) {
+static uint8_t *GetFileFromT64(int filenum, int number_of_records, uint8_t **sf, size_t *extent)
+{
     uint8_t *file_records = *sf + 32 + 32 * filenum;
     int offset = file_records[8] + file_records[9] * 0x100;
     int start_addr = file_records[2] + file_records[3] * 0x100;
@@ -128,7 +130,7 @@ static uint8_t *GetFileFromT64(int filenum, int number_of_records, uint8_t **sf,
 }
 
 static uint8_t *get_file_named(uint8_t *data, size_t length, size_t *newlength,
-                               const char *name)
+    const char *name)
 {
     uint8_t *file = NULL;
     *newlength = 0;
@@ -191,8 +193,8 @@ static GameIDType terror_menu(uint8_t **sf, size_t *extent, int recindex)
             memcpy(file2 + 16, tempfile2, size2);
             size2 += 16;
         } else {
-            file1 = get_file_named(*sf, *extent,  &size1, "TEMPLE O.TERROR2");
-            file2 = get_file_named(*sf, *extent,  &size2, "TEMPLE O.TERROR1");
+            file1 = get_file_named(*sf, *extent, &size1, "TEMPLE O.TERROR2");
+            file2 = get_file_named(*sf, *extent, &size2, "TEMPLE O.TERROR1");
         }
     } else {
         file1 = GetFileFromT64(1, number_of_records, sf, &size1);
@@ -222,44 +224,43 @@ static GameIDType terror_menu(uint8_t **sf, size_t *extent, int recindex)
     glk_window_clear(Bottom);
 
     switch (result) {
-        case 2: {
-            uint8_t *temp = file1;
-            file1 = file2;
-            file2 = temp;
-            size1 = size2;
-            rec = c64_registry[recindex + 1];
-        }
-            // fallthrough
-        case 1:
-            free(file2);
-            *sf = file1;
-            *extent = size1;
-            return DecrunchC64(sf, extent, rec);
-        case 3:
-        {
-            DecrunchC64(&file1, &size1, rec);
-            DecrunchC64(&file2, &size2, c64_registry[recindex + 1]);
+    case 2: {
+        uint8_t *temp = file1;
+        file1 = file2;
+        file2 = temp;
+        size1 = size2;
+        rec = c64_registry[recindex + 1];
+    }
+        // fallthrough
+    case 1:
+        free(file2);
+        *sf = file1;
+        *extent = size1;
+        return DecrunchC64(sf, extent, rec);
+    case 3: {
+        DecrunchC64(&file1, &size1, rec);
+        DecrunchC64(&file2, &size2, c64_registry[recindex + 1]);
 
-            uint8_t *final = MemAlloc(size2 + 0x4124);
-            memcpy(final, file2, size2);
-            memcpy(final + 0x16ea, file1 + 0x4708, 0x1400);
-            memcpy(final + 0x8888, file1 + 0x8048, 0x4123);
-            free(file1);
-            free(file2);
-            *sf = final;
-            *extent = size2 + 0x4124;
+        uint8_t *final = MemAlloc(size2 + 0x4124);
+        memcpy(final, file2, size2);
+        memcpy(final + 0x16ea, file1 + 0x4708, 0x1400);
+        memcpy(final + 0x8888, file1 + 0x8048, 0x4123);
+        free(file1);
+        free(file2);
+        *sf = final;
+        *extent = size2 + 0x4124;
 
-            for (int i = 0; games[i].Title != NULL; i++) {
-                if (games[i].gameID == TOT_HYBRID_64) {
-                    Game = &games[i];
-                    break;
-                }
+        for (int i = 0; games[i].Title != NULL; i++) {
+            if (games[i].gameID == TOT_HYBRID_64) {
+                Game = &games[i];
+                break;
             }
-
-            return TOT_HYBRID_64;
         }
-        default:
-            fprintf(stderr, "TAYLOR: invalid switch case!\n");
+
+        return TOT_HYBRID_64;
+    }
+    default:
+        fprintf(stderr, "TAYLOR: invalid switch case!\n");
     }
     return UNKNOWN_GAME;
 }
@@ -343,20 +344,20 @@ static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record
     uint8_t temp[0x2e79];
 
     switch (record.chk) {
-        case 0xa46f:
-            memcpy(temp, *sf + 0x098a, 0x2e79);
-            memcpy(*sf + 0x198a, temp, 0x2e79);
-            break;
-        case 0x78ba:
-            memcpy(temp, *sf + 0xc802, 0x1400);
-            memcpy(*sf + 0x4808, temp, 0x1400);
-            break;
-        case 0xf3b4:
-            memcpy(temp, *sf + 0xd802, 0x1400);
-            memcpy(*sf + 0x4808, temp, 0x1400);
-            break;
-        default:
-            break;
+    case 0xa46f:
+        memcpy(temp, *sf + 0x098a, 0x2e79);
+        memcpy(*sf + 0x198a, temp, 0x2e79);
+        break;
+    case 0x78ba:
+        memcpy(temp, *sf + 0xc802, 0x1400);
+        memcpy(*sf + 0x4808, temp, 0x1400);
+        break;
+    case 0xf3b4:
+        memcpy(temp, *sf + 0xd802, 0x1400);
+        memcpy(*sf + 0x4808, temp, 0x1400);
+        break;
+    default:
+        break;
     }
 
     for (int i = 0; games[i].Title != NULL; i++) {

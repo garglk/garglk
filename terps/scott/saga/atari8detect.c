@@ -10,27 +10,27 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "scott.h"
+#include "hulk.h"
 #include "saga.h"
 #include "sagagraphics.h"
+#include "scott.h"
 #include "scottdefines.h"
-#include "hulk.h"
 
-#include "scottgameinfo.h"
 #include "atari8c64draw.h"
 #include "atari8detect.h"
+#include "scottgameinfo.h"
 
 static const pairrec a8companionlist[][2] = {
-    {{ 0x16810, 0xa972, "S.A.G.A. 01 - Adventureland v5.0-416 (1982)(Adventure International)(US)(Side A)[!].atr", 87}, { 0x16810, 0x8be3, "S.A.G.A. 01 - Adventureland v5.0-416 (1982)(Adventure International)(US)(Side B)[!][cr CSS].atr", 95 }},
-    {{ 0x16810, 0x65a1, "S.A.G.A. 02 - Pirate Adventure v5.0-408 (1982)(Adventure International)(US)(Side A)[f][m].atr", 93 }, { 0x16810, 0x5750, "S.A.G.A. 02 - Pirate Adventure v5.0-408 (1982)(Adventure International)(US)(Side B)[cr CSS].atr", 95 }},
-    {{ 0x16810, 0x3074, "S.A.G.A. 02 - Pirate Adventure v5.0-408 (1982)(Adventure International)(US)(Side A)[f][a].atr", 93 }, { 0x16810, 0x2429, "S.A.G.A. 02 - Pirate Adventure v5.0-408 (1982)(Adventure International)(US)(Side B)[a][cr CSS].atr", 98 }},
-    {{ 0x16810, 0x4389, "S.A.G.A. 04 - Voodoo Castle v5.1-119 (1983)(Adventure International)(US)(Disk 1 of 2)[!].atr", 92 }, { 0x16810, 0x234f, "S.A.G.A. 04 - Voodoo Castle v5.1-119 (1983)(Adventure International)(US)(Disk 2 of 2)[!][cr CSS].atr", 100 }},
-    {{ 0x16810, 0xc2f5, "S.A.G.A. 05 - The Count v5.1-115 (1983)(Adventure International)(US)(Side A)[!].atr", 83}, { 0x16810, 0x3ebb, "S.A.G.A. 05 - The Count v5.1-115 (1983)(Adventure International)(US)(Side B)[!][cr CSS].atr", 91 }},
-    {{ 0x16810, 0x6ee8, "S.A.G.A. 13 - The Sorcerer of Claymorgue Castle v5.1-125 (1983)(Adventure International)(US)(Disk 1 of 2)[!][cr CSS].atr", 120 }, { 0x16810, 0xac42, "S.A.G.A. 13 - The Sorcerer of Claymorgue Castle v5.1-125 (1983)(Adventure International)(US)(Disk 2 of 2)[f][!].atr", 115 }},
-    {{ 0x16810, 0x1de8, "S.A.G.A. 13 - The Sorcerer of Claymorgue Castle v5.1-125 (1983)(Adventure International)(US)(Disk 1 of 2)[a][cr CSS].atr", 120 }, { 0x16810, 0x7c32, "S.A.G.A. 13 - The Sorcerer of Claymorgue Castle v5.1-125 (1983)(Adventure International)(US)(Disk 2 of 2)[a].atr", 112 }},
-    {{ 0x16810, 0x1de8, "S.A.G.A. #13 - The Sorcerer of Claymorgue Castle v5.1-125 (1983)(Adventure International)(US)(Disk 1 of 2)[a][cr CSS].atr", 121 }, { 0x16810, 0x7c32, "S.A.G.A. #13 - The Sorcerer of Claymorgue Castle v5.1-125 (1983)(Adventure International)(US)(Disk 2 of 2)[a].atr", 113 }},
+    { { 0x16810, 0xa972, "S.A.G.A. 01 - Adventureland v5.0-416 (1982)(Adventure International)(US)(Side A)[!].atr", 87 }, { 0x16810, 0x8be3, "S.A.G.A. 01 - Adventureland v5.0-416 (1982)(Adventure International)(US)(Side B)[!][cr CSS].atr", 95 } },
+    { { 0x16810, 0x65a1, "S.A.G.A. 02 - Pirate Adventure v5.0-408 (1982)(Adventure International)(US)(Side A)[f][m].atr", 93 }, { 0x16810, 0x5750, "S.A.G.A. 02 - Pirate Adventure v5.0-408 (1982)(Adventure International)(US)(Side B)[cr CSS].atr", 95 } },
+    { { 0x16810, 0x3074, "S.A.G.A. 02 - Pirate Adventure v5.0-408 (1982)(Adventure International)(US)(Side A)[f][a].atr", 93 }, { 0x16810, 0x2429, "S.A.G.A. 02 - Pirate Adventure v5.0-408 (1982)(Adventure International)(US)(Side B)[a][cr CSS].atr", 98 } },
+    { { 0x16810, 0x4389, "S.A.G.A. 04 - Voodoo Castle v5.1-119 (1983)(Adventure International)(US)(Disk 1 of 2)[!].atr", 92 }, { 0x16810, 0x234f, "S.A.G.A. 04 - Voodoo Castle v5.1-119 (1983)(Adventure International)(US)(Disk 2 of 2)[!][cr CSS].atr", 100 } },
+    { { 0x16810, 0xc2f5, "S.A.G.A. 05 - The Count v5.1-115 (1983)(Adventure International)(US)(Side A)[!].atr", 83 }, { 0x16810, 0x3ebb, "S.A.G.A. 05 - The Count v5.1-115 (1983)(Adventure International)(US)(Side B)[!][cr CSS].atr", 91 } },
+    { { 0x16810, 0x6ee8, "S.A.G.A. 13 - The Sorcerer of Claymorgue Castle v5.1-125 (1983)(Adventure International)(US)(Disk 1 of 2)[!][cr CSS].atr", 120 }, { 0x16810, 0xac42, "S.A.G.A. 13 - The Sorcerer of Claymorgue Castle v5.1-125 (1983)(Adventure International)(US)(Disk 2 of 2)[f][!].atr", 115 } },
+    { { 0x16810, 0x1de8, "S.A.G.A. 13 - The Sorcerer of Claymorgue Castle v5.1-125 (1983)(Adventure International)(US)(Disk 1 of 2)[a][cr CSS].atr", 120 }, { 0x16810, 0x7c32, "S.A.G.A. 13 - The Sorcerer of Claymorgue Castle v5.1-125 (1983)(Adventure International)(US)(Disk 2 of 2)[a].atr", 112 } },
+    { { 0x16810, 0x1de8, "S.A.G.A. #13 - The Sorcerer of Claymorgue Castle v5.1-125 (1983)(Adventure International)(US)(Disk 1 of 2)[a][cr CSS].atr", 121 }, { 0x16810, 0x7c32, "S.A.G.A. #13 - The Sorcerer of Claymorgue Castle v5.1-125 (1983)(Adventure International)(US)(Disk 2 of 2)[a].atr", 113 } },
 
-    {{ 0,0, NULL }, { 0,0, NULL }}
+    { { 0, 0, NULL }, { 0, 0, NULL } }
 
 };
 
@@ -206,7 +206,7 @@ static const struct imglist listClaymorgue[] = {
     { IMG_ROOM, 30, 0x14c97 }, // (87) wizard's workshop
     { IMG_ROOM, 31, 0x158b3 }, // (88) vacant room
     { IMG_ROOM, 32, 0x15ccf }, // (89) real mess!
-    {0,0,0}
+    { 0, 0, 0 }
 };
 
 static const struct imglist listCount[] = {
@@ -283,7 +283,7 @@ static const struct imglist listCount[] = {
     { IMG_ROOM, 21, 0x136b3 }, // (70) workroom
     { IMG_ROOM, 22, 0x1400e }, // (71) LOT OF TROUBLE!
     { IMG_ROOM, 99, 0x14f97 }, // (72) Title
-    { IMG_ROOM_OBJ, 56, 0x16156 },  // 73
+    { IMG_ROOM_OBJ, 56, 0x16156 }, // 73
     { 0, 0, 0 }
 };
 
@@ -370,7 +370,6 @@ static const struct imglist listVoodoo[] = {
     { 0, 0, 0, }
 };
 
-
 static const CropList a8croplist[] = {
     { VOODOO_CASTLE_US, IMG_ROOM, 10, 8, 8 },
     { VOODOO_CASTLE_US, IMG_ROOM, 11, 8, 8 },
@@ -383,12 +382,12 @@ static const CropList a8croplist[] = {
     { 0, 0, 0, 0, 0 }
 };
 
-
-static int StripBrackets(char sideB[], size_t length) {
+static int StripBrackets(char sideB[], size_t length)
+{
     int left_bracket = 0;
     int right_bracket = 0;
     size_t ppos = length - 1;
-    while(sideB[ppos] != '.' && ppos > 0)
+    while (sideB[ppos] != '.' && ppos > 0)
         ppos--;
     size_t extlen = length - ppos;
     if (length > 4) {
@@ -421,37 +420,38 @@ static int StripBrackets(char sideB[], size_t length) {
     return 0;
 }
 
-static uint8_t *LookForAtari8CompanionFilename(int index, CompanionNameType type, size_t stringlen, size_t *filesize) {
+static uint8_t *LookForAtari8CompanionFilename(int index, CompanionNameType type, size_t stringlen, size_t *filesize)
+{
 
     char *sideB = MemAlloc(stringlen + 10);
     uint8_t *result = NULL;
 
     memcpy(sideB, game_file, stringlen + 1);
-    switch(type) {
-        case TYPE_A:
-            sideB[index] = 'A';
-            break;
-        case TYPE_B:
-            sideB[index] = 'B';
-            break;
-        case TYPE_1:
-            sideB[index] = '1';
-            break;
-        case TYPE_2:
-            sideB[index] = '2';
-            break;
-        case TYPE_ONE:
-            sideB[index] = 'o';
-            sideB[index + 1] = 'n';
-            sideB[index + 2] = 'e';
-            break;
-        case TYPE_TWO:
-            sideB[index] = 't';
-            sideB[index + 1] = 'w';
-            sideB[index + 2] = 'o';
-            break;
-        case TYPE_NONE:
-            break;
+    switch (type) {
+    case TYPE_A:
+        sideB[index] = 'A';
+        break;
+    case TYPE_B:
+        sideB[index] = 'B';
+        break;
+    case TYPE_1:
+        sideB[index] = '1';
+        break;
+    case TYPE_2:
+        sideB[index] = '2';
+        break;
+    case TYPE_ONE:
+        sideB[index] = 'o';
+        sideB[index + 1] = 'n';
+        sideB[index + 2] = 'e';
+        break;
+    case TYPE_TWO:
+        sideB[index] = 't';
+        sideB[index + 1] = 'w';
+        sideB[index + 2] = 'o';
+        break;
+    case TYPE_NONE:
+        break;
     }
 
     debug_print("looking for companion file \"%s\"\n", sideB);
@@ -465,7 +465,7 @@ static uint8_t *LookForAtari8CompanionFilename(int index, CompanionNameType type
         } else if (type == TYPE_A) {
             // First we look for the period before the file extension
             size_t ppos = stringlen - 1;
-            while(sideB[ppos] != '.' && ppos > 0)
+            while (sideB[ppos] != '.' && ppos > 0)
                 ppos--;
             if (ppos < 1) {
                 free(sideB);
@@ -491,7 +491,8 @@ static uint8_t *LookForAtari8CompanionFilename(int index, CompanionNameType type
     return result;
 }
 
-static uint8_t *GetAtari8CompanionFile(size_t *size) {
+static uint8_t *GetAtari8CompanionFile(size_t *size)
+{
 
     size_t gamefilelen = strlen(game_file);
     char *foundname = LookInDatabase(a8companionlist, gamefilelen);
@@ -506,36 +507,35 @@ static uint8_t *GetAtari8CompanionFile(size_t *size) {
     char c;
     for (int i = (int)gamefilelen - 1; i >= 0 && game_file[i] != '/' && game_file[i] != '\\'; i--) {
         c = tolower(game_file[i]);
-        if (i > 3 && ((c == 'e' && game_file[i - 1] == 'd' && game_file[i - 2] == 'i' && tolower(game_file[i - 3]) == 's') ||
-                      (c == 'k' && game_file[i - 1] == 's' && game_file[i - 2] == 'i' && tolower(game_file[i - 3]) == 'd'))) {
+        if (i > 3 && ((c == 'e' && game_file[i - 1] == 'd' && game_file[i - 2] == 'i' && tolower(game_file[i - 3]) == 's') || (c == 'k' && game_file[i - 1] == 's' && game_file[i - 2] == 'i' && tolower(game_file[i - 3]) == 'd'))) {
             if (gamefilelen > i + 2) {
                 c = game_file[i + 1];
                 if (c == ' ' || c == '_') {
                     c = tolower(game_file[i + 2]);
                     CompanionNameType type = TYPE_NONE;
                     switch (c) {
-                        case 'a':
-                            type = TYPE_B;
-                            break;
-                        case 'b':
-                            type = TYPE_A;
-                            break;
-                        case 't':
-                            if (gamefilelen > i + 4 && game_file[i + 3] == 'w' && game_file[i + 4] == 'o') {
-                                type =  TYPE_ONE;
-                            }
-                            break;
-                        case 'o':
-                            if (gamefilelen > i + 4 && game_file[i + 3] == 'n' && game_file[i + 4] == 'e') {
-                                type = TYPE_TWO;
-                            }
-                            break;
-                        case '2':
-                            type= TYPE_1;
-                            break;
-                        case '1':
-                            type = TYPE_2;
-                            break;
+                    case 'a':
+                        type = TYPE_B;
+                        break;
+                    case 'b':
+                        type = TYPE_A;
+                        break;
+                    case 't':
+                        if (gamefilelen > i + 4 && game_file[i + 3] == 'w' && game_file[i + 4] == 'o') {
+                            type = TYPE_ONE;
+                        }
+                        break;
+                    case 'o':
+                        if (gamefilelen > i + 4 && game_file[i + 3] == 'n' && game_file[i + 4] == 'e') {
+                            type = TYPE_TWO;
+                        }
+                        break;
+                    case '2':
+                        type = TYPE_1;
+                        break;
+                    case '1':
+                        type = TYPE_2;
+                        break;
                     }
                     if (type != TYPE_NONE)
                         result = LookForAtari8CompanionFilename(i + 2, type, gamefilelen, size);
@@ -548,36 +548,36 @@ static uint8_t *GetAtari8CompanionFile(size_t *size) {
     return NULL;
 }
 
-static int ExtractImagesFromAtariCompanionFile(uint8_t *data, size_t datasize, uint8_t *otherdisk, size_t othersize) {
+static int ExtractImagesFromAtariCompanionFile(uint8_t *data, size_t datasize, uint8_t *otherdisk, size_t othersize)
+{
     size_t size;
 
     int outpic;
 
     const struct imglist *list;
 
-    switch(CurrentGame) {
-        case CLAYMORGUE_US:
-            list = listClaymorgue;
-            break;
-        case COUNT_US:
-            list = listCount;
-            break;
-        case VOODOO_CASTLE_US:
-            list = listVoodoo;
-            break;
-        case HULK_US:
-            list = listHulk;
-            break;
-        default:
-            return 0;
+    switch (CurrentGame) {
+    case CLAYMORGUE_US:
+        list = listClaymorgue;
+        break;
+    case COUNT_US:
+        list = listCount;
+        break;
+    case VOODOO_CASTLE_US:
+        list = listVoodoo;
+        break;
+    case HULK_US:
+        list = listHulk;
+        break;
+    default:
+        return 0;
     }
 
     USImages = new_image();
     struct USImage *image = USImages;
 
     // Now loop round for each image
-    for (outpic = 0; list[outpic].offset != 0; outpic++)
-    {
+    for (outpic = 0; list[outpic].offset != 0; outpic++) {
         uint8_t *ptr = data + list[outpic].offset;
 
         size = *ptr++;
@@ -647,7 +647,6 @@ static int ExtractImagesFromAtariCompanionFile(uint8_t *data, size_t datasize, u
     return 1;
 }
 
-
 static const uint8_t atrheader[6] = { 0x96, 0x02, 0x80, 0x16, 0x80, 0x00 };
 
 GameIDType DetectAtari8(uint8_t **sf, size_t *extent)
@@ -683,7 +682,7 @@ GameIDType DetectAtari8(uint8_t **sf, size_t *extent)
             *extent = tempsize;
         }
     }
-    
+
     if (result != UNKNOWN_GAME) {
         CurrentSys = SYS_ATARI8;
         if (companionfile) {
@@ -695,4 +694,3 @@ GameIDType DetectAtari8(uint8_t **sf, size_t *extent)
 
     return result;
 }
-

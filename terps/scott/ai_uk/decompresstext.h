@@ -8,8 +8,8 @@
 #ifndef decompresstext_h
 #define decompresstext_h
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 char *DecompressText(uint8_t *source, int stringindex);
 

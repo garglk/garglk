@@ -13,9 +13,9 @@
 
 #include "decompresstext.h"
 #include "detectgame.h"
-#include "scottgameinfo.h"
-#include "sagadraw.h"
 #include "line_drawing.h"
+#include "sagadraw.h"
+#include "scottgameinfo.h"
 
 #include "game_specific.h"
 #include "gremlins.h"
@@ -23,11 +23,11 @@
 #include "robinofsherwood.h"
 #include "seasofblood.h"
 
+#include "apple2detect.h"
+#include "atari8detect.h"
 #include "c64decrunch.h"
 #include "decompressz80.h"
 #include "load_ti99_4a.h"
-#include "atari8detect.h"
-#include "apple2detect.h"
 
 #include "parser.h"
 
@@ -43,10 +43,12 @@ struct dictionaryKey {
 struct dictionaryKey dictKeys[] = {
     { FOUR_LETTER_UNCOMPRESSED, "AUTO\0GO\0", 8 },
     { THREE_LETTER_UNCOMPRESSED, "AUT\0GO\0", 7 },
-    { FIVE_LETTER_UNCOMPRESSED, "GO\0\0\0\0*CROSS*RUN\0", 17}, // Claymorgue
+    { FIVE_LETTER_UNCOMPRESSED, "GO\0\0\0\0*CROSS*RUN\0", 17 }, // Claymorgue
     { FOUR_LETTER_COMPRESSED, "aUTOgO\0", 7 },
     { GERMAN_C64, "gEHENSTEIGE", 11 }, // Gremlins German C64
-    { GERMAN, "\xc7" "EHENSTEIGE", 10 },
+    { GERMAN, "\xc7"
+              "EHENSTEIGE",
+        10 },
     { SPANISH, "\x81\0\0\0\xc9R\0\0ANDAENTR", 16 },
     { SPANISH_C64, "\x81\0\0\0iR\0\0ANDAENTR", 16 },
     { ITALIAN, "AUTO\0VAI\0\0*ENTR", 15 },
@@ -70,16 +72,16 @@ DictionaryType GetId(size_t *offset)
     for (int i = 0; dictKeys[i].dict != NOT_A_GAME; i++) {
         *offset = FindCode(dictKeys[i].signature, dictKeys[i].len);
         if (*offset != -1) {
-            switch(dictKeys[i].dict) {
-                case GERMAN_C64:
-                case GERMAN:
-                    *offset -= 5;
-                    break;
-                case FIVE_LETTER_UNCOMPRESSED:
-                    *offset -= 6;
-                    break;
-                default:
-                    break;
+            switch (dictKeys[i].dict) {
+            case GERMAN_C64:
+            case GERMAN:
+                *offset -= 5;
+                break;
+            case FIVE_LETTER_UNCOMPRESSED:
+                *offset -= 6;
+                break;
+            default:
+                break;
             }
             return dictKeys[i].dict;
         }
@@ -227,147 +229,147 @@ int ParseHeader(int *h, HeaderType type, int *ni, int *na, int *nw, int *nr,
     int *trm)
 {
     switch (type) {
-        case NO_HEADER:
-            return 0;
-        case EARLY:
-            *ni = h[1];
-            *na = h[2];
-            *nw = h[3];
-            *nr = h[4];
-            *mc = h[5];
-            *pr = h[6];
-            *tr = h[7];
-            *wl = h[8];
-            *lt = h[9];
-            *mn = h[10];
-            *trm = h[11];
-            break;
-        case LATE:
-            *ni = h[1];
-            *na = h[2];
-            *nw = h[3];
-            *nr = h[4];
-            *mc = h[5];
-            *wl = h[6];
-            *mn = h[7];
-            *pr = 1;
-            *tr = 0;
-            *lt = -1;
-            *trm = 0;
-            break;
-        case US_HEADER:
-            *ni = h[3];
-            *na = h[2];
-            *nw = h[1];
-            *nr = h[5];
-            *mc = h[6];
-            *pr = h[7];
-            *tr = h[8];
-            *wl = h[0];
-            *lt = h[9];
-            *mn = h[4];
-            *trm = h[10] >> 8;
-            break;
-        case ROBIN_C64_HEADER:
-            *ni = h[1];
-            *na = h[2];
-            *nw = h[6];
-            *nr = h[4];
-            *mc = h[5];
-            *pr = 1;
-            *tr = 0;
-            *wl = h[7];
-            *lt = -1;
-            *mn = h[3];
-            *trm = 0;
-            break;
-        case GREMLINS_C64_HEADER:
-            *ni = h[1];
-            *na = h[2];
-            *nw = h[5];
-            *nr = h[3];
-            *mc = h[6];
-            *pr = h[8];
-            *tr = 0;
-            *wl = h[7];
-            *lt = -1;
-            *mn = 98;
-            *trm = 0;
-            break;
-        case SUPERGRAN_C64_HEADER:
-            *ni = h[3];
-            *na = h[1];
-            *nw = h[2];
-            *nr = h[4];
-            *mc = h[8];
-            *pr = 1;
-            *tr = 0;
-            *wl = h[6];
-            *lt = -1;
-            *mn = h[5];
-            *trm = 0;
-            break;
-        case SEAS_OF_BLOOD_C64_HEADER:
-            *ni = h[0];
-            *na = h[1];
-            *nw = 134;
-            *nr = h[3];
-            *mc = h[4];
-            *pr = 1;
-            *tr = 0;
-            *wl = h[6];
-            *lt = -1;
-            *mn = h[2];
-            *trm = 0;
-            break;
-        case MYSTERIOUS_C64_HEADER:
-            *ni = h[1];
-            *na = h[2];
-            *nw = h[3];
-            *nr = h[4];
-            *mc = h[5] & 0xff;
-            *pr = h[5] >> 8;
-            *tr = h[6];
-            *wl = h[7];
-            *lt = h[8];
-            *mn = h[9];
-            *trm = 0;
-            break;
-        case ARROW_OF_DEATH_PT_2_C64_HEADER:
-            *ni = h[3];
-            *na = h[1];
-            *nw = h[2];
-            *nr = h[4];
-            *mc = h[5] & 0xff;
-            *pr = h[5] >> 8;
-            *tr = h[6];
-            *wl = h[7];
-            *lt = h[8];
-            *mn = h[9];
-            *trm = 0;
-            break;
-        case INDIANS_C64_HEADER:
-            *ni = h[1];
-            *na = h[2];
-            *nw = h[3];
-            *nr = h[4];
-            *mc = h[5] & 0xff;
-            *pr = h[5] >> 8;
-            *tr = h[6] & 0xff;
-            *wl = h[6] >> 8;
-            *lt = h[7] >> 8;
-            *mn = h[8] >> 8;
-            *trm = 0;
-            break;
-        default:
-            debug_print("Unhandled header type!\n");
-            return 0;
+    case NO_HEADER:
+        return 0;
+    case EARLY:
+        *ni = h[1];
+        *na = h[2];
+        *nw = h[3];
+        *nr = h[4];
+        *mc = h[5];
+        *pr = h[6];
+        *tr = h[7];
+        *wl = h[8];
+        *lt = h[9];
+        *mn = h[10];
+        *trm = h[11];
+        break;
+    case LATE:
+        *ni = h[1];
+        *na = h[2];
+        *nw = h[3];
+        *nr = h[4];
+        *mc = h[5];
+        *wl = h[6];
+        *mn = h[7];
+        *pr = 1;
+        *tr = 0;
+        *lt = -1;
+        *trm = 0;
+        break;
+    case US_HEADER:
+        *ni = h[3];
+        *na = h[2];
+        *nw = h[1];
+        *nr = h[5];
+        *mc = h[6];
+        *pr = h[7];
+        *tr = h[8];
+        *wl = h[0];
+        *lt = h[9];
+        *mn = h[4];
+        *trm = h[10] >> 8;
+        break;
+    case ROBIN_C64_HEADER:
+        *ni = h[1];
+        *na = h[2];
+        *nw = h[6];
+        *nr = h[4];
+        *mc = h[5];
+        *pr = 1;
+        *tr = 0;
+        *wl = h[7];
+        *lt = -1;
+        *mn = h[3];
+        *trm = 0;
+        break;
+    case GREMLINS_C64_HEADER:
+        *ni = h[1];
+        *na = h[2];
+        *nw = h[5];
+        *nr = h[3];
+        *mc = h[6];
+        *pr = h[8];
+        *tr = 0;
+        *wl = h[7];
+        *lt = -1;
+        *mn = 98;
+        *trm = 0;
+        break;
+    case SUPERGRAN_C64_HEADER:
+        *ni = h[3];
+        *na = h[1];
+        *nw = h[2];
+        *nr = h[4];
+        *mc = h[8];
+        *pr = 1;
+        *tr = 0;
+        *wl = h[6];
+        *lt = -1;
+        *mn = h[5];
+        *trm = 0;
+        break;
+    case SEAS_OF_BLOOD_C64_HEADER:
+        *ni = h[0];
+        *na = h[1];
+        *nw = 134;
+        *nr = h[3];
+        *mc = h[4];
+        *pr = 1;
+        *tr = 0;
+        *wl = h[6];
+        *lt = -1;
+        *mn = h[2];
+        *trm = 0;
+        break;
+    case MYSTERIOUS_C64_HEADER:
+        *ni = h[1];
+        *na = h[2];
+        *nw = h[3];
+        *nr = h[4];
+        *mc = h[5] & 0xff;
+        *pr = h[5] >> 8;
+        *tr = h[6];
+        *wl = h[7];
+        *lt = h[8];
+        *mn = h[9];
+        *trm = 0;
+        break;
+    case ARROW_OF_DEATH_PT_2_C64_HEADER:
+        *ni = h[3];
+        *na = h[1];
+        *nw = h[2];
+        *nr = h[4];
+        *mc = h[5] & 0xff;
+        *pr = h[5] >> 8;
+        *tr = h[6];
+        *wl = h[7];
+        *lt = h[8];
+        *mn = h[9];
+        *trm = 0;
+        break;
+    case INDIANS_C64_HEADER:
+        *ni = h[1];
+        *na = h[2];
+        *nw = h[3];
+        *nr = h[4];
+        *mc = h[5] & 0xff;
+        *pr = h[5] >> 8;
+        *tr = h[6] & 0xff;
+        *wl = h[6] >> 8;
+        *lt = h[7] >> 8;
+        *mn = h[8] >> 8;
+        *trm = 0;
+        break;
+    default:
+        debug_print("Unhandled header type!\n");
+        return 0;
     }
     return 1;
 }
 
 void PrintHeaderInfo(int *h, int ni, int na, int nw, int nr, int mc, int pr,
-                     int tr, int wl, int lt, int mn, int trm)
+    int tr, int wl, int lt, int mn, int trm)
 {
 #if (DEBUG_PRINT)
     uint16_t value;
@@ -397,7 +399,8 @@ typedef struct {
     size_t size;
 } LineImage;
 
-void LoadVectorData(struct GameInfo info, uint8_t *ptr) {
+void LoadVectorData(struct GameInfo info, uint8_t *ptr)
+{
     size_t offset;
 
     if (info.start_of_image_data == FOLLOWS)
@@ -666,7 +669,6 @@ GameIDType TryLoadingOld(struct GameInfo info, int dict_start)
         LoadVectorData(info, ptr);
     }
 
-
 #pragma mark System messages
 
     ct = 0;
@@ -853,8 +855,7 @@ GameIDType TryLoading(struct GameInfo info, int dict_start, int loud)
         }
         if (loud)
             debug_print("Offset after reading item images: %lx\n",
-                    ptr - entire_file - file_baseline_offset);
-
+                ptr - entire_file - file_baseline_offset);
     }
 
 #pragma mark actions
@@ -911,8 +912,7 @@ GameIDType TryLoading(struct GameInfo info, int dict_start, int loud)
     }
     if (loud)
         debug_print("Offset after reading actions: %lx\n",
-                ptr - entire_file - file_baseline_offset);
-
+            ptr - entire_file - file_baseline_offset);
 
 #pragma mark dictionary
 
@@ -1021,7 +1021,6 @@ GameIDType TryLoading(struct GameInfo info, int dict_start, int loud)
                 charindex++;
                 if (charindex > 255)
                     break;
-
             }
         }
     }
@@ -1190,13 +1189,7 @@ int IsMysterious(void)
 {
     for (int i = 0; games[i].Title != NULL; i++) {
         if (games[i].subtype & MYSTERIOUS) {
-            if (games[i].number_of_items == GameHeader.NumItems &&
-                games[i].number_of_actions == GameHeader.NumActions &&
-                games[i].number_of_words == GameHeader.NumWords &&
-                games[i].number_of_rooms == GameHeader.NumRooms &&
-                games[i].max_carried == GameHeader.MaxCarry &&
-                games[i].word_length == GameHeader.WordLength &&
-                games[i].number_of_messages == GameHeader.NumMessages)
+            if (games[i].number_of_items == GameHeader.NumItems && games[i].number_of_actions == GameHeader.NumActions && games[i].number_of_words == GameHeader.NumWords && games[i].number_of_rooms == GameHeader.NumRooms && games[i].max_carried == GameHeader.MaxCarry && games[i].word_length == GameHeader.WordLength && games[i].number_of_messages == GameHeader.NumMessages)
                 return 1;
         }
     }
@@ -1208,7 +1201,8 @@ int IsMysterious(void)
 // which use RLE compression: Pirate Adventure, Voodoo Castle, Strange Odyssey and Buckaroo Banzai.
 // This function decompresses them.
 
-uint8_t *DecompressParsec(uint8_t *start, uint8_t *end, uint8_t *dataptr) {
+uint8_t *DecompressParsec(uint8_t *start, uint8_t *end, uint8_t *dataptr)
+{
     if (dataptr - 3 < entire_file) {
         return NULL;
     }
@@ -1243,7 +1237,8 @@ uint8_t *DecompressParsec(uint8_t *start, uint8_t *end, uint8_t *dataptr) {
     return dataptr;
 }
 
-GameIDType DetectZXSpectrum(void) {
+GameIDType DetectZXSpectrum(void)
+{
     GameIDType detectedGame = UNKNOWN_GAME;
     int wasz80 = 0;
     uint8_t *uncompressed = DecompressZ80(entire_file, file_length);
@@ -1279,8 +1274,8 @@ GameIDType DetectZXSpectrum(void) {
         if (HL < file_length)
             result = DecompressParsec(&mem[0x0fff], &mem[0x07ff], &mem[HL]);
         if (result) {
-            uint16_t BC = mem[0x1b48] +  mem[0x1b49] * 0x100 - 0x4000;
-            uint16_t DE = mem[0x1b4b] +  mem[0x1b4c] * 0x100 - 0x4000;
+            uint16_t BC = mem[0x1b48] + mem[0x1b49] * 0x100 - 0x4000;
+            uint16_t DE = mem[0x1b4b] + mem[0x1b4c] * 0x100 - 0x4000;
             DecompressParsec(&mem[BC], &mem[DE], result);
             dict_type = GetId(&offset);
             if (dict_type == NOT_A_GAME)
@@ -1383,130 +1378,130 @@ GameIDType DetectGame(const char *file_name)
     }
 
     switch (detectedGame) {
-        case ROBIN_OF_SHERWOOD:
-            LoadExtraSherwoodData();
+    case ROBIN_OF_SHERWOOD:
+        LoadExtraSherwoodData();
+        break;
+    case ROBIN_OF_SHERWOOD_C64:
+        LoadExtraSherwoodData64();
+        break;
+    case SEAS_OF_BLOOD:
+        LoadExtraSeasOfBloodData();
+        break;
+    case SEAS_OF_BLOOD_C64:
+        LoadExtraSeasOfBlood64Data();
+        break;
+    case CLAYMORGUE:
+        for (int i = OK; i <= RESUME_A_SAVED_GAME; i++)
+            sys[i] = system_messages[6 - OK + i];
+        for (int i = PLAY_AGAIN; i <= ON_A_SCALE_THAT_RATES; i++)
+            sys[i] = system_messages[2 - PLAY_AGAIN + i];
+        break;
+    case SECRET_MISSION:
+    case SECRET_MISSION_C64:
+        Items[3].Image = 23;
+        Items[3].Flag = 128 | 2;
+        Rooms[2].Image = 0;
+        if (detectedGame == SECRET_MISSION_C64) {
+            SecretMission64Sysmess();
             break;
-        case ROBIN_OF_SHERWOOD_C64:
-            LoadExtraSherwoodData64();
-            break;
-        case SEAS_OF_BLOOD:
-            LoadExtraSeasOfBloodData();
-            break;
-        case SEAS_OF_BLOOD_C64:
-            LoadExtraSeasOfBlood64Data();
-            break;
-        case CLAYMORGUE:
-            for (int i = OK; i <= RESUME_A_SAVED_GAME; i++)
-                sys[i] = system_messages[6 - OK + i];
-            for (int i = PLAY_AGAIN; i <= ON_A_SCALE_THAT_RATES; i++)
-                sys[i] = system_messages[2 - PLAY_AGAIN + i];
-            break;
-        case SECRET_MISSION:
-        case SECRET_MISSION_C64:
-            Items[3].Image = 23;
-            Items[3].Flag = 128 | 2;
-            Rooms[2].Image = 0;
-            if (detectedGame == SECRET_MISSION_C64) {
-                SecretMission64Sysmess();
+        }
+    case ADVENTURELAND:
+        for (int i = PLAY_AGAIN; i <= ON_A_SCALE_THAT_RATES; i++)
+            sys[i] = system_messages[2 - PLAY_AGAIN + i];
+        for (int i = OK; i <= YOU_HAVENT_GOT_IT; i++)
+            sys[i] = system_messages[6 - OK + i];
+        for (int i = YOU_DONT_SEE_IT; i <= RESUME_A_SAVED_GAME; i++)
+            sys[i] = system_messages[13 - YOU_DONT_SEE_IT + i];
+        break;
+    case ADVENTURELAND_C64:
+        Adventureland64Sysmess();
+        break;
+    case CLAYMORGUE_C64:
+        Claymorgue64Sysmess();
+        break;
+    case GREMLINS_GERMAN_C64:
+        LoadExtraGermanGremlinsc64Data();
+        break;
+    case SPIDERMAN_C64:
+        Spiderman64Sysmess();
+        break;
+    case SUPERGRAN_C64:
+        Supergran64Sysmess();
+        break;
+    case SAVAGE_ISLAND_C64:
+        Items[20].Image = 13;
+        // fallthrough
+    case SAVAGE_ISLAND2_C64:
+        Supergran64Sysmess();
+        sys[IM_DEAD] = "I'm DEAD!! ";
+        if (detectedGame == SAVAGE_ISLAND2_C64)
+            Rooms[30].Image = 20;
+        break;
+    case SAVAGE_ISLAND:
+        Items[20].Image = 13;
+        // fallthrough
+    case SAVAGE_ISLAND2:
+        MyLoc = 30; /* Both parts of Savage Island begin in room 30 */
+        // fallthrough
+    case GREMLINS_GERMAN:
+    case GREMLINS:
+    case SUPERGRAN:
+        for (int i = DROPPED; i <= OK; i++)
+            sys[i] = system_messages[2 - DROPPED + i];
+        for (int i = I_DONT_UNDERSTAND; i <= THATS_BEYOND_MY_POWER; i++)
+            sys[i] = system_messages[6 - I_DONT_UNDERSTAND + i];
+        for (int i = YOU_ARE; i <= HIT_ENTER; i++)
+            sys[i] = system_messages[17 - YOU_ARE + i];
+        sys[PLAY_AGAIN] = system_messages[5];
+        sys[YOURE_CARRYING_TOO_MUCH] = system_messages[24];
+        sys[IM_DEAD] = system_messages[25];
+        sys[YOU_CANT_GO_THAT_WAY] = system_messages[14];
+        break;
+    case GREMLINS_SPANISH:
+        LoadExtraSpanishGremlinsData();
+        break;
+    case GREMLINS_SPANISH_C64:
+        LoadExtraSpanishGremlinsC64Data();
+        break;
+    case HULK_C64:
+    case HULK:
+        for (int i = 0; i < 6; i++) {
+            sys[i] = (char *)sysdict_zx[i];
+        }
+        break;
+    default:
+        if (!(Game->subtype & C64)) {
+            if (Game->subtype & MYSTERIOUS) {
+                for (int i = PLAY_AGAIN; i <= YOU_HAVENT_GOT_IT; i++)
+                    sys[i] = system_messages[2 - PLAY_AGAIN + i];
+                for (int i = YOU_DONT_SEE_IT; i <= WHAT_NOW; i++)
+                    sys[i] = system_messages[15 - YOU_DONT_SEE_IT + i];
+                for (int i = LIGHT_HAS_RUN_OUT; i <= RESUME_A_SAVED_GAME; i++)
+                    sys[i] = system_messages[31 - LIGHT_HAS_RUN_OUT + i];
+                sys[ITEM_DELIMITER] = " - ";
+                sys[MESSAGE_DELIMITER] = "\n";
+                sys[YOU_SEE] = "\nThings I can see:\n";
                 break;
+            } else {
+                for (int i = PLAY_AGAIN; i <= RESUME_A_SAVED_GAME; i++)
+                    sys[i] = system_messages[2 - PLAY_AGAIN + i];
             }
-        case ADVENTURELAND:
-            for (int i = PLAY_AGAIN; i <= ON_A_SCALE_THAT_RATES; i++)
-                sys[i] = system_messages[2 - PLAY_AGAIN + i];
-            for (int i = OK; i <= YOU_HAVENT_GOT_IT; i++)
-                sys[i] = system_messages[6 - OK + i];
-            for (int i = YOU_DONT_SEE_IT; i <= RESUME_A_SAVED_GAME; i++)
-                sys[i] = system_messages[13 - YOU_DONT_SEE_IT + i];
-            break;
-        case ADVENTURELAND_C64:
-            Adventureland64Sysmess();
-            break;
-        case CLAYMORGUE_C64:
-            Claymorgue64Sysmess();
-            break;
-        case GREMLINS_GERMAN_C64:
-            LoadExtraGermanGremlinsc64Data();
-            break;
-        case SPIDERMAN_C64:
-            Spiderman64Sysmess();
-            break;
-        case SUPERGRAN_C64:
-            Supergran64Sysmess();
-            break;
-        case SAVAGE_ISLAND_C64:
-            Items[20].Image = 13;
-            // fallthrough
-        case SAVAGE_ISLAND2_C64:
-            Supergran64Sysmess();
-            sys[IM_DEAD] = "I'm DEAD!! ";
-            if (detectedGame == SAVAGE_ISLAND2_C64)
-                Rooms[30].Image = 20;
-            break;
-        case SAVAGE_ISLAND:
-            Items[20].Image = 13;
-            // fallthrough
-        case SAVAGE_ISLAND2:
-            MyLoc = 30; /* Both parts of Savage Island begin in room 30 */
-            // fallthrough
-        case GREMLINS_GERMAN:
-        case GREMLINS:
-        case SUPERGRAN:
-            for (int i = DROPPED; i <= OK; i++)
-                sys[i] = system_messages[2 - DROPPED + i];
-            for (int i = I_DONT_UNDERSTAND; i <= THATS_BEYOND_MY_POWER; i++)
-                sys[i] = system_messages[6 - I_DONT_UNDERSTAND + i];
-            for (int i = YOU_ARE; i <= HIT_ENTER; i++)
-                sys[i] = system_messages[17 - YOU_ARE + i];
-            sys[PLAY_AGAIN] = system_messages[5];
-            sys[YOURE_CARRYING_TOO_MUCH] = system_messages[24];
-            sys[IM_DEAD] = system_messages[25];
-            sys[YOU_CANT_GO_THAT_WAY] = system_messages[14];
-            break;
-        case GREMLINS_SPANISH:
-            LoadExtraSpanishGremlinsData();
-            break;
-        case GREMLINS_SPANISH_C64:
-            LoadExtraSpanishGremlinsC64Data();
-            break;
-        case HULK_C64:
-        case HULK:
-            for (int i = 0; i < 6; i++) {
-                sys[i] = (char *)sysdict_zx[i];
-            }
-            break;
-        default:
-            if (!(Game->subtype & C64)) {
-                if (Game->subtype & MYSTERIOUS) {
-                    for (int i = PLAY_AGAIN; i <= YOU_HAVENT_GOT_IT; i++)
-                        sys[i] = system_messages[2 - PLAY_AGAIN + i];
-                    for (int i = YOU_DONT_SEE_IT; i <= WHAT_NOW; i++)
-                        sys[i] = system_messages[15 - YOU_DONT_SEE_IT + i];
-                    for (int i = LIGHT_HAS_RUN_OUT; i <= RESUME_A_SAVED_GAME; i++)
-                        sys[i] = system_messages[31 - LIGHT_HAS_RUN_OUT + i];
-                    sys[ITEM_DELIMITER] = " - ";
-                    sys[MESSAGE_DELIMITER] = "\n";
-                    sys[YOU_SEE] = "\nThings I can see:\n";
-                    break;
-                } else {
-                    for (int i = PLAY_AGAIN; i <= RESUME_A_SAVED_GAME; i++)
-                        sys[i] = system_messages[2 - PLAY_AGAIN + i];
-                }
-            }
-            break;
+        }
+        break;
     }
 
     switch (detectedGame) {
-        case GREMLINS_GERMAN:
-            LoadExtraGermanGremlinsData();
-            break;
-        case GREMLINS_GERMAN_C64:
-            LoadExtraGermanGremlinsc64Data();
-            break;
-        case PERSEUS_ITALIAN:
-            PerseusItalianSysmess();
-            break;
-        default:
-            break;
+    case GREMLINS_GERMAN:
+        LoadExtraGermanGremlinsData();
+        break;
+    case GREMLINS_GERMAN_C64:
+        LoadExtraGermanGremlinsc64Data();
+        break;
+    case PERSEUS_ITALIAN:
+        PerseusItalianSysmess();
+        break;
+    default:
+        break;
     }
 
     if ((Game->subtype & (MYSTERIOUS | C64)) == (MYSTERIOUS | C64))

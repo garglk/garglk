@@ -12,8 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "scott.h"
 #include "sagagraphics.h"
+#include "scott.h"
 
 int x = 0, y = 0, at_last_line = 0;
 
@@ -25,14 +25,15 @@ int skipy = 1;
 
 extern char *DirPath;
 
-uint8_t *FindImageFile(const char *shortname, size_t *datasize) {
+uint8_t *FindImageFile(const char *shortname, size_t *datasize)
+{
     *datasize = 0;
     uint8_t *data = NULL;
     size_t pathlen = strlen(DirPath) + strlen(shortname) + 5;
     char *filename = MemAlloc(pathlen);
     int n = snprintf(filename, pathlen, "%s%s.PAK", DirPath, shortname);
     if (n > 0) {
-        FILE *infile=fopen(filename,"rb");
+        FILE *infile = fopen(filename, "rb");
         if (infile) {
             fseek(infile, 0, SEEK_END);
             size_t length = ftell(infile);
@@ -53,35 +54,42 @@ uint8_t *FindImageFile(const char *shortname, size_t *datasize) {
 
 static void DrawDOSPixels(int pattern)
 {
-    int pix1,pix2,pix3,pix4;
+    int pix1, pix2, pix3, pix4;
     // Now get colors
-    pix1=(pattern & 0xc0)>>6;
-    pix2=(pattern & 0x30)>>4;
-    pix3=(pattern & 0x0c)>>2;
-    pix4=(pattern & 0x03);
+    pix1 = (pattern & 0xc0) >> 6;
+    pix2 = (pattern & 0x30) >> 4;
+    pix3 = (pattern & 0x0c) >> 2;
+    pix4 = (pattern & 0x03);
 
     if (!skipy) {
-        PutDoublePixel(x,y, pix1); x += 2;
-        PutDoublePixel(x,y, pix2); x += 2;
-        PutDoublePixel(x,y, pix3); x += 2;
-        PutDoublePixel(x,y, pix4); x += 2;
+        PutDoublePixel(x, y, pix1);
+        x += 2;
+        PutDoublePixel(x, y, pix2);
+        x += 2;
+        PutDoublePixel(x, y, pix3);
+        x += 2;
+        PutDoublePixel(x, y, pix4);
+        x += 2;
     } else {
-        PutPixel(x,y, pix1); x++;
-        PutPixel(x,y, pix2); x++;
-        PutPixel(x,y, pix3); x++;
-        PutPixel(x,y, pix4); x++;
+        PutPixel(x, y, pix1);
+        x++;
+        PutPixel(x, y, pix2);
+        x++;
+        PutPixel(x, y, pix3);
+        x++;
+        PutPixel(x, y, pix4);
+        x++;
     }
 
-    if (x>=xlen+xoff)
-    {
-        y+=2;
-        x=xoff;
+    if (x >= xlen + xoff) {
+        y += 2;
+        x = xoff;
         ycount++;
     }
-    if (ycount>ylen) {
-        y=yoff + 1;
+    if (ycount > ylen) {
+        y = yoff + 1;
         at_last_line++;
-        ycount=0;
+        ycount = 0;
     }
 }
 
@@ -94,31 +102,36 @@ int DrawDOSImage(USImage *image)
 
     debug_print("DrawDOSImage: usage:%d index:%d\n", image->usage, image->index);
 
-
-    x=0;
-    y=0;
+    x = 0;
+    y = 0;
     at_last_line = 0;
 
-    xlen=0;
-    ylen=0;
-    xoff=0; yoff=0;
-    ycount=0;
-    skipy=1;
+    xlen = 0;
+    ylen = 0;
+    xoff = 0;
+    yoff = 0;
+    ycount = 0;
+    skipy = 1;
 
     int work;
     int c;
     int i;
     int rawoffset;
+
+    // clang-format off
+
     RGB black =   { 0,0,0 };
     RGB magenta = { 255,0,255 };
     RGB cyan =    { 0,255,255 };
     RGB white =   { 255,255,255 };
 
+    // clang-format on
+
     /* set up the palette */
-    SetColor(0,&black);
-    SetColor(1,&cyan);
-    SetColor(2,&magenta);
-    SetColor(3,&white);
+    SetColor(0, &black);
+    SetColor(1, &cyan);
+    SetColor(2, &magenta);
+    SetColor(3, &white);
 
     uint8_t *ptr = image->imagedata;
     uint8_t *origptr = ptr;
@@ -131,17 +144,18 @@ int DrawDOSImage(USImage *image)
     // Get whether it is lined
     ptr = origptr + 0x0d;
     work = *ptr++;
-    if (work == 0xff) skipy=0;
+    if (work == 0xff)
+        skipy = 0;
 
     // Get the offset
     ptr = origptr + 0x0f;
     work = *ptr++;
     rawoffset = work + (*ptr * 256);
-    xoff=((rawoffset % 80)*4)-24;
-    yoff=rawoffset / 40;
+    xoff = ((rawoffset % 80) * 4) - 24;
+    yoff = rawoffset / 40;
     yoff -= (yoff & 1);
-    x=xoff;
-    y=yoff;
+    x = xoff;
+    y = yoff;
 
     // Get the y length
     ptr = origptr + 0x11;
@@ -155,30 +169,25 @@ int DrawDOSImage(USImage *image)
     xlen = *ptr * 4;
 
     ptr = origptr + 0x17;
-    while (ptr - origptr < size)
-    {
+    while (ptr - origptr < size) {
         // First get count
         c = *ptr++;
 
-        if ((c & 0x80) == 0x80)
-        { // is a counter
+        if ((c & 0x80) == 0x80) { // is a counter
             work = *ptr++;
             c &= 0x7f;
-            for (i=0;i<c+1;i++)
-            {
+            for (i = 0; i < c + 1; i++) {
                 DrawDOSPixels(work);
             }
-        }
-        else
-        {
+        } else {
             // Don't count on the next j characters
-            for (i=0;i<c+1;i++)
-            {
+            for (i = 0; i < c + 1; i++) {
                 work = *ptr++;
                 DrawDOSPixels(work);
             }
         }
-        if (at_last_line > 1) break;
+        if (at_last_line > 1)
+            break;
     }
     return 1;
 }

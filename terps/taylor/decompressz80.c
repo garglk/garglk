@@ -37,9 +37,9 @@
 
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 
 /* Sizes of some of the arrays in the snap structure */
@@ -330,7 +330,7 @@ static libspectrum_error get_machine_type(libspectrum_snap *snap, uint8_t type, 
 static libspectrum_error get_machine_type_v2(libspectrum_snap *snap,
     uint8_t type);
 static libspectrum_error get_machine_type_v3(libspectrum_snap *snap,
-                                             uint8_t type);
+    uint8_t type);
 static libspectrum_error get_machine_type_extension(libspectrum_snap *snap,
     uint8_t type);
 
@@ -505,9 +505,10 @@ uint8_t *DecompressZ80(uint8_t *raw_data, size_t *length)
                 memcpy(uncompressed + 0x8000, snap->pages[snap->out_128_memoryport], 0x4000);
                 offset += 0x4000;
             }
-            for(int i = 0; i < SNAPSHOT_RAM_PAGES && offset < 0x2001f - 0x4000; i++ ) {
+            for (int i = 0; i < SNAPSHOT_RAM_PAGES && offset < 0x2001f - 0x4000; i++) {
                 /* Already written pages 5, 2 and whatever's paged in */
-                if( i == 5 || i == 2 || i == snap->out_128_memoryport ) continue;
+                if (i == 5 || i == 2 || i == snap->out_128_memoryport)
+                    continue;
                 memcpy(uncompressed + offset, snap->pages[i], 0x4000);
                 offset += 0x4000;
             }
@@ -1074,73 +1075,73 @@ typedef enum libspectrum_id_t {
 
     /* These types present in all versions of libspectrum */
 
-    LIBSPECTRUM_ID_UNKNOWN = 0,        /* Unidentified file */
-    LIBSPECTRUM_ID_RECORDING_RZX,        /* RZX input recording */
-    LIBSPECTRUM_ID_SNAPSHOT_SNA,        /* .sna snapshot */
-    LIBSPECTRUM_ID_SNAPSHOT_Z80,        /* .z80 snapshot */
-    LIBSPECTRUM_ID_TAPE_TAP,        /* Z80-style .tap tape image */
-    LIBSPECTRUM_ID_TAPE_TZX,        /* TZX tape image */
+    LIBSPECTRUM_ID_UNKNOWN = 0, /* Unidentified file */
+    LIBSPECTRUM_ID_RECORDING_RZX, /* RZX input recording */
+    LIBSPECTRUM_ID_SNAPSHOT_SNA, /* .sna snapshot */
+    LIBSPECTRUM_ID_SNAPSHOT_Z80, /* .z80 snapshot */
+    LIBSPECTRUM_ID_TAPE_TAP, /* Z80-style .tap tape image */
+    LIBSPECTRUM_ID_TAPE_TZX, /* TZX tape image */
 
     /* Below here, present only in 0.1.1 and later */
 
     /* The next entry is deprecated in favour of the more specific
      LIBSPECTRUM_ID_DISK_CPC and LIBSPECTRUM_ID_DISK_ECPC */
-    LIBSPECTRUM_ID_DISK_DSK,        /* .dsk +3 disk image */
+    LIBSPECTRUM_ID_DISK_DSK, /* .dsk +3 disk image */
 
-    LIBSPECTRUM_ID_DISK_SCL,        /* .scl TR-DOS disk image */
-    LIBSPECTRUM_ID_DISK_TRD,        /* .trd TR-DOS disk image */
-    LIBSPECTRUM_ID_CARTRIDGE_DCK,        /* .dck Timex cartridge image */
+    LIBSPECTRUM_ID_DISK_SCL, /* .scl TR-DOS disk image */
+    LIBSPECTRUM_ID_DISK_TRD, /* .trd TR-DOS disk image */
+    LIBSPECTRUM_ID_CARTRIDGE_DCK, /* .dck Timex cartridge image */
 
     /* Below here, present only in 0.2.0 and later */
 
-    LIBSPECTRUM_ID_TAPE_WARAJEVO,        /* Warajevo-style .tap tape image */
+    LIBSPECTRUM_ID_TAPE_WARAJEVO, /* Warajevo-style .tap tape image */
 
-    LIBSPECTRUM_ID_SNAPSHOT_PLUSD,    /* DISCiPLE/+D snapshot */
-    LIBSPECTRUM_ID_SNAPSHOT_SP,        /* .sp snapshot */
-    LIBSPECTRUM_ID_SNAPSHOT_SNP,        /* .snp snapshot */
-    LIBSPECTRUM_ID_SNAPSHOT_ZXS,        /* .zxs snapshot (zx32) */
-    LIBSPECTRUM_ID_SNAPSHOT_SZX,        /* .szx snapshot (Spectaculator) */
+    LIBSPECTRUM_ID_SNAPSHOT_PLUSD, /* DISCiPLE/+D snapshot */
+    LIBSPECTRUM_ID_SNAPSHOT_SP, /* .sp snapshot */
+    LIBSPECTRUM_ID_SNAPSHOT_SNP, /* .snp snapshot */
+    LIBSPECTRUM_ID_SNAPSHOT_ZXS, /* .zxs snapshot (zx32) */
+    LIBSPECTRUM_ID_SNAPSHOT_SZX, /* .szx snapshot (Spectaculator) */
 
     /* Below here, present only in 0.2.1 and later */
 
-    LIBSPECTRUM_ID_COMPRESSED_BZ2,    /* bzip2 compressed file */
-    LIBSPECTRUM_ID_COMPRESSED_GZ,        /* gzip compressed file */
+    LIBSPECTRUM_ID_COMPRESSED_BZ2, /* bzip2 compressed file */
+    LIBSPECTRUM_ID_COMPRESSED_GZ, /* gzip compressed file */
 
     /* Below here, present only in 0.2.2 and later */
 
-    LIBSPECTRUM_ID_HARDDISK_HDF,        /* .hdf hard disk image */
-    LIBSPECTRUM_ID_CARTRIDGE_IF2,        /* .rom Interface 2 cartridge image */
+    LIBSPECTRUM_ID_HARDDISK_HDF, /* .hdf hard disk image */
+    LIBSPECTRUM_ID_CARTRIDGE_IF2, /* .rom Interface 2 cartridge image */
 
     /* Below here, present only in 0.3.0 and later */
 
-    LIBSPECTRUM_ID_MICRODRIVE_MDR,    /* .mdr microdrive cartridge */
-    LIBSPECTRUM_ID_TAPE_CSW,        /* .csw tape image */
-    LIBSPECTRUM_ID_TAPE_Z80EM,        /* Z80Em tape image */
+    LIBSPECTRUM_ID_MICRODRIVE_MDR, /* .mdr microdrive cartridge */
+    LIBSPECTRUM_ID_TAPE_CSW, /* .csw tape image */
+    LIBSPECTRUM_ID_TAPE_Z80EM, /* Z80Em tape image */
 
     /* Below here, present only in 0.4.0 and later */
 
-    LIBSPECTRUM_ID_TAPE_WAV,        /* .wav tape image */
-    LIBSPECTRUM_ID_TAPE_SPC,        /* SP-style .spc tape image */
-    LIBSPECTRUM_ID_TAPE_STA,        /* Speculator-style .sta tape image */
-    LIBSPECTRUM_ID_TAPE_LTP,        /* Nuclear ZX-style .ltp tape image */
-    LIBSPECTRUM_ID_COMPRESSED_XFD,    /* xfdmaster (Amiga) compressed file */
-    LIBSPECTRUM_ID_DISK_IMG,        /* .img DISCiPLE/+D disk image */
-    LIBSPECTRUM_ID_DISK_MGT,        /* .mgt DISCiPLE/+D disk image */
+    LIBSPECTRUM_ID_TAPE_WAV, /* .wav tape image */
+    LIBSPECTRUM_ID_TAPE_SPC, /* SP-style .spc tape image */
+    LIBSPECTRUM_ID_TAPE_STA, /* Speculator-style .sta tape image */
+    LIBSPECTRUM_ID_TAPE_LTP, /* Nuclear ZX-style .ltp tape image */
+    LIBSPECTRUM_ID_COMPRESSED_XFD, /* xfdmaster (Amiga) compressed file */
+    LIBSPECTRUM_ID_DISK_IMG, /* .img DISCiPLE/+D disk image */
+    LIBSPECTRUM_ID_DISK_MGT, /* .mgt DISCiPLE/+D disk image */
 
     /* Below here, present only in 0.5.0 and later */
 
-    LIBSPECTRUM_ID_DISK_UDI,        /* .udi generic disk image */
-    LIBSPECTRUM_ID_DISK_FDI,        /* .fdi generic disk image */
-    LIBSPECTRUM_ID_DISK_CPC,        /* .dsk plain CPC +3 disk image */
-    LIBSPECTRUM_ID_DISK_ECPC,        /* .dsk extended CPC +3 disk image */
-    LIBSPECTRUM_ID_DISK_SAD,        /* .sad generic disk image */
-    LIBSPECTRUM_ID_DISK_TD0,        /* .td0 generic disk image */
+    LIBSPECTRUM_ID_DISK_UDI, /* .udi generic disk image */
+    LIBSPECTRUM_ID_DISK_FDI, /* .fdi generic disk image */
+    LIBSPECTRUM_ID_DISK_CPC, /* .dsk plain CPC +3 disk image */
+    LIBSPECTRUM_ID_DISK_ECPC, /* .dsk extended CPC +3 disk image */
+    LIBSPECTRUM_ID_DISK_SAD, /* .sad generic disk image */
+    LIBSPECTRUM_ID_DISK_TD0, /* .td0 generic disk image */
 
-    LIBSPECTRUM_ID_DISK_OPD,        /* .opu/.opd Opus Discovery disk image */
+    LIBSPECTRUM_ID_DISK_OPD, /* .opu/.opd Opus Discovery disk image */
 
-    LIBSPECTRUM_ID_TAPE_PZX,        /* PZX tape image */
+    LIBSPECTRUM_ID_TAPE_PZX, /* PZX tape image */
 
-    LIBSPECTRUM_ID_AUX_POK,        /* POKE file */
+    LIBSPECTRUM_ID_AUX_POK, /* POKE file */
 
 } libspectrum_id_t;
 
@@ -1149,36 +1150,36 @@ typedef enum libspectrum_class_t {
 
     LIBSPECTRUM_CLASS_UNKNOWN,
 
-    LIBSPECTRUM_CLASS_CARTRIDGE_TIMEX,    /* Timex cartridges */
-    LIBSPECTRUM_CLASS_DISK_PLUS3,        /* +3 disk */
-    LIBSPECTRUM_CLASS_DISK_TRDOS,        /* TR-DOS disk */
-    LIBSPECTRUM_CLASS_DISK_OPUS,        /* Opus Discovery disk*/
-    LIBSPECTRUM_CLASS_RECORDING,        /* Input recording */
-    LIBSPECTRUM_CLASS_SNAPSHOT,        /* Snapshot */
-    LIBSPECTRUM_CLASS_TAPE,        /* Tape */
+    LIBSPECTRUM_CLASS_CARTRIDGE_TIMEX, /* Timex cartridges */
+    LIBSPECTRUM_CLASS_DISK_PLUS3, /* +3 disk */
+    LIBSPECTRUM_CLASS_DISK_TRDOS, /* TR-DOS disk */
+    LIBSPECTRUM_CLASS_DISK_OPUS, /* Opus Discovery disk*/
+    LIBSPECTRUM_CLASS_RECORDING, /* Input recording */
+    LIBSPECTRUM_CLASS_SNAPSHOT, /* Snapshot */
+    LIBSPECTRUM_CLASS_TAPE, /* Tape */
 
     /* Below here, present only in 0.2.1 and later */
 
-    LIBSPECTRUM_CLASS_COMPRESSED,        /* A compressed file */
+    LIBSPECTRUM_CLASS_COMPRESSED, /* A compressed file */
 
     /* Below here, present only in 0.2.2 and later */
 
-    LIBSPECTRUM_CLASS_HARDDISK,        /* A hard disk image */
-    LIBSPECTRUM_CLASS_CARTRIDGE_IF2,    /* Interface 2 cartridges */
+    LIBSPECTRUM_CLASS_HARDDISK, /* A hard disk image */
+    LIBSPECTRUM_CLASS_CARTRIDGE_IF2, /* Interface 2 cartridges */
 
     /* Below here, present only in 0.3.0 and later */
 
-    LIBSPECTRUM_CLASS_MICRODRIVE,        /* Microdrive cartridges */
+    LIBSPECTRUM_CLASS_MICRODRIVE, /* Microdrive cartridges */
 
     /* Below here, present only in 0.4.0 and later */
 
-    LIBSPECTRUM_CLASS_DISK_PLUSD,        /* DISCiPLE/+D disk image */
+    LIBSPECTRUM_CLASS_DISK_PLUSD, /* DISCiPLE/+D disk image */
 
     /* Below here, present only in 0.5.0 and later */
 
-    LIBSPECTRUM_CLASS_DISK_GENERIC,    /* generic disk image */
+    LIBSPECTRUM_CLASS_DISK_GENERIC, /* generic disk image */
 
-    LIBSPECTRUM_CLASS_AUXILIARY,            /* auxiliary supported file */
+    LIBSPECTRUM_CLASS_AUXILIARY, /* auxiliary supported file */
 
 } libspectrum_class_t;
 /* The various types of block available */
@@ -1236,96 +1237,97 @@ typedef struct libspectrum_tape_block libspectrum_tape_block;
 struct libspectrum_tape {
 
     /* All the blocks */
-    struct libspectrum_tape_block* blocks;
+    struct libspectrum_tape_block *blocks;
 
     /* The last block */
-    struct libspectrum_tape_block* last_block;
+    struct libspectrum_tape_block *last_block;
 };
 
 typedef struct libspectrum_tape libspectrum_tape;
 
-
 static libspectrum_error
 tzx_read_data(uint8_t **ptr, const uint8_t *end,
-              size_t *length, int bytes)
+    size_t *length, int bytes)
 {
-    int i; uint32_t multiplier = 0x01;
+    int i;
+    uint32_t multiplier = 0x01;
 
-    if( bytes < 0 ) {
+    if (bytes < 0) {
         bytes = -bytes;
     }
 
     (*length) = 0;
-    for( i=0; i<bytes; i++, multiplier *= 0x100 ) {
-        *length += **ptr * multiplier; (*ptr)++;
+    for (i = 0; i < bytes; i++, multiplier *= 0x100) {
+        *length += **ptr * multiplier;
+        (*ptr)++;
     }
 
     /* Have we got enough bytes left in buffer? */
-    if( ( end - (*ptr) ) < (ptrdiff_t)(*length) ) {
-        libspectrum_print_error( LIBSPECTRUM_ERROR_CORRUPT,
-                                "tzx_read_data: not enough data in buffer" );
+    if ((end - (*ptr)) < (ptrdiff_t)(*length)) {
+        libspectrum_print_error(LIBSPECTRUM_ERROR_CORRUPT,
+            "tzx_read_data: not enough data in buffer");
         return LIBSPECTRUM_ERROR_CORRUPT;
     }
     return LIBSPECTRUM_ERROR_NONE;
-
 }
 
 static libspectrum_error
 tzx_read_rom_block(uint8_t **ptr,
-                   const uint8_t *end, size_t *length)
+    const uint8_t *end, size_t *length)
 {
     /* Check there's enough left in the buffer for the pause and the
      data length */
-    if( end - (*ptr) < 4 ) {
-        libspectrum_print_error( LIBSPECTRUM_ERROR_CORRUPT,
-                                "tzx_read_rom_block: not enough data in buffer" );
+    if (end - (*ptr) < 4) {
+        libspectrum_print_error(LIBSPECTRUM_ERROR_CORRUPT,
+            "tzx_read_rom_block: not enough data in buffer");
         return LIBSPECTRUM_ERROR_CORRUPT;
     }
 
     (*ptr) += 2;
 
     /* And the data */
-    return tzx_read_data( ptr, end, length, 2);
+    return tzx_read_data(ptr, end, length, 2);
 }
 
 static libspectrum_error
 tzx_read_turbo_block(uint8_t **ptr,
-                     const uint8_t *end, size_t *length)
+    const uint8_t *end, size_t *length)
 {
     /* Check there's enough left in the buffer for all the metadata */
-    if(end - (*ptr) < 18 ) {
+    if (end - (*ptr) < 18) {
         libspectrum_print_error(
-                                LIBSPECTRUM_ERROR_CORRUPT,
-                                "tzx_read_turbo_block: not enough data in buffer"
-                                );
+            LIBSPECTRUM_ERROR_CORRUPT,
+            "tzx_read_turbo_block: not enough data in buffer");
         return LIBSPECTRUM_ERROR_CORRUPT;
     }
 
     (*ptr) += 15;
 
     /* Read the data in */
-    return tzx_read_data( ptr, end, length, 3);
+    return tzx_read_data(ptr, end, length, 3);
 }
 
 static libspectrum_error
-tzx_skip_data( uint8_t **ptr, const uint8_t *end,
-              int bytes)
+tzx_skip_data(uint8_t **ptr, const uint8_t *end,
+    int bytes)
 {
-    int i; uint32_t multiplier = 0x01;
+    int i;
+    uint32_t multiplier = 0x01;
     size_t length = 0;
 
-    if( bytes < 0 ) {
+    if (bytes < 0) {
         bytes = -bytes;
     }
 
-    for( i=0; i<bytes; i++, multiplier *= 0x100 ) {
-        length += **ptr * multiplier; (*ptr)++;
+    for (i = 0; i < bytes; i++, multiplier *= 0x100) {
+        length += **ptr * multiplier;
+        (*ptr)++;
     }
 
     /* Have we got enough bytes left in buffer? */
-    if( ( end - (*ptr) ) < (ptrdiff_t)length ) {
-        libspectrum_print_error( LIBSPECTRUM_ERROR_CORRUPT,
-                                "tzx_read_data: not enough data in buffer" );
+    if ((end - (*ptr)) < (ptrdiff_t)length) {
+        libspectrum_print_error(LIBSPECTRUM_ERROR_CORRUPT,
+            "tzx_read_data: not enough data in buffer");
         return LIBSPECTRUM_ERROR_CORRUPT;
     }
 
@@ -1340,9 +1342,9 @@ static libspectrum_error tzx_skip_rom_block(uint8_t **ptr, uint8_t *end)
 
     /* Check there's enough left in the buffer for the pause and the
      data length */
-    if( end - (*ptr) < 4 ) {
-        libspectrum_print_error( LIBSPECTRUM_ERROR_CORRUPT,
-                                "tzx_read_rom_block: not enough data in buffer" );
+    if (end - (*ptr) < 4) {
+        libspectrum_print_error(LIBSPECTRUM_ERROR_CORRUPT,
+            "tzx_read_rom_block: not enough data in buffer");
         return LIBSPECTRUM_ERROR_CORRUPT;
     }
 
@@ -1359,31 +1361,31 @@ static libspectrum_error tzx_skip_turbo_block(uint8_t **ptr, uint8_t *end)
     libspectrum_error error = LIBSPECTRUM_ERROR_NONE;
 
     /* Check there's enough left in the buffer for all the metadata */
-    if( end - (*ptr) < 18 ) {
+    if (end - (*ptr) < 18) {
         libspectrum_print_error(
-                                LIBSPECTRUM_ERROR_CORRUPT,
-                                "tzx_read_turbo_block: not enough data in buffer"
-                                );
+            LIBSPECTRUM_ERROR_CORRUPT,
+            "tzx_read_turbo_block: not enough data in buffer");
         return LIBSPECTRUM_ERROR_CORRUPT;
     }
 
     (*ptr) += 15;
 
     /* Read the data in */
-    error = tzx_skip_data( ptr, end, 3 );
+    error = tzx_skip_data(ptr, end, 3);
     return error;
 }
 
 static libspectrum_error tzx_skip_comment(uint8_t **ptr, uint8_t *end)
 {
     /* Check the length byte exists */
-    if( (*ptr) == end ) {
-        libspectrum_print_error( LIBSPECTRUM_ERROR_CORRUPT,
-                                "tzx_read_comment: not enough data in buffer" );
+    if ((*ptr) == end) {
+        libspectrum_print_error(LIBSPECTRUM_ERROR_CORRUPT,
+            "tzx_read_comment: not enough data in buffer");
         return LIBSPECTRUM_ERROR_CORRUPT;
     }
 
-    return tzx_skip_data( ptr, end, -1);;
+    return tzx_skip_data(ptr, end, -1);
+    ;
 }
 
 static libspectrum_error tzx_skip_archive_info(uint8_t **ptr, uint8_t *end)
@@ -1392,11 +1394,10 @@ static libspectrum_error tzx_skip_archive_info(uint8_t **ptr, uint8_t *end)
 
     /* Check there's enough left in the buffer for the length and the count
      byte */
-    if( end - (*ptr) < 3 ) {
+    if (end - (*ptr) < 3) {
         libspectrum_print_error(
-                                LIBSPECTRUM_ERROR_CORRUPT,
-                                "tzx_read_archive_info: not enough data in buffer"
-                                );
+            LIBSPECTRUM_ERROR_CORRUPT,
+            "tzx_read_archive_info: not enough data in buffer");
         return LIBSPECTRUM_ERROR_CORRUPT;
     }
 
@@ -1411,36 +1412,39 @@ static libspectrum_error tzx_skip_to_block(int blockno, uint8_t **ptr, uint8_t *
 
     int currentblock = 0;
 
-    while( *ptr < end && currentblock < blockno) {
+    while (*ptr < end && currentblock < blockno) {
 
         /* Get the ID of the next block */
         libspectrum_tape_type id = **ptr;
         *ptr = *ptr + 1;
 
-        switch( id ) {
-            case LIBSPECTRUM_TAPE_BLOCK_ROM:
-                error = tzx_skip_rom_block(ptr, end );
-                if( error ) return error;
-                break;
-            case LIBSPECTRUM_TAPE_BLOCK_TURBO:
-                error = tzx_skip_turbo_block(ptr, end );
-                if( error ) return error;
-                break;
+        switch (id) {
+        case LIBSPECTRUM_TAPE_BLOCK_ROM:
+            error = tzx_skip_rom_block(ptr, end);
+            if (error)
+                return error;
+            break;
+        case LIBSPECTRUM_TAPE_BLOCK_TURBO:
+            error = tzx_skip_turbo_block(ptr, end);
+            if (error)
+                return error;
+            break;
 
-            case LIBSPECTRUM_TAPE_BLOCK_COMMENT:
-                error = tzx_skip_comment(ptr, end );
-                if( error ) return error;
-                break;
-            case LIBSPECTRUM_TAPE_BLOCK_ARCHIVE_INFO:
-                error = tzx_skip_archive_info(ptr, end );
-                if( error ) return error;
-                break;
-            default:    /* For now, don't handle anything else */
-                libspectrum_print_error(
-                                        LIBSPECTRUM_ERROR_UNKNOWN,
-                                        "tzx_skip_to_block: unknown block type 0x%02x", id
-                                        );
-                return LIBSPECTRUM_ERROR_UNKNOWN;
+        case LIBSPECTRUM_TAPE_BLOCK_COMMENT:
+            error = tzx_skip_comment(ptr, end);
+            if (error)
+                return error;
+            break;
+        case LIBSPECTRUM_TAPE_BLOCK_ARCHIVE_INFO:
+            error = tzx_skip_archive_info(ptr, end);
+            if (error)
+                return error;
+            break;
+        default: /* For now, don't handle anything else */
+            libspectrum_print_error(
+                LIBSPECTRUM_ERROR_UNKNOWN,
+                "tzx_skip_to_block: unknown block type 0x%02x", id);
+            return LIBSPECTRUM_ERROR_UNKNOWN;
         }
         currentblock++;
     }
@@ -1448,34 +1452,34 @@ static libspectrum_error tzx_skip_to_block(int blockno, uint8_t **ptr, uint8_t *
 }
 
 /* The .tzx file signature (first 8 bytes) */
-const char * const libspectrum_tzx_signature = "ZXTape!\x1a";
+const char *const libspectrum_tzx_signature = "ZXTape!\x1a";
 
 static libspectrum_error
 find_tzx_block(int blockno, uint8_t *srcbuf, uint8_t **result,
-               size_t *length )
+    size_t *length)
 {
 
     libspectrum_error error;
 
     uint8_t *ptr, *end;
-    size_t signature_length = strlen( libspectrum_tzx_signature );
+    size_t signature_length = strlen(libspectrum_tzx_signature);
 
-    ptr = srcbuf; end = srcbuf + *length;
+    ptr = srcbuf;
+    end = srcbuf + *length;
 
     /* Must be at least as many bytes as the signature, and the major/minor
      version numbers */
-    if( *length < signature_length + 2 ) {
+    if (*length < signature_length + 2) {
         libspectrum_print_error(
-                                LIBSPECTRUM_ERROR_CORRUPT,
-                                "libspectrum_tzx_create: not enough data in buffer"
-                                );
+            LIBSPECTRUM_ERROR_CORRUPT,
+            "libspectrum_tzx_create: not enough data in buffer");
         return LIBSPECTRUM_ERROR_CORRUPT;
     }
 
     /* Now check the signature */
-    if( memcmp( ptr, libspectrum_tzx_signature, signature_length ) ) {
-        libspectrum_print_error( LIBSPECTRUM_ERROR_SIGNATURE,
-                                "libspectrum_tzx_create: wrong signature" );
+    if (memcmp(ptr, libspectrum_tzx_signature, signature_length)) {
+        libspectrum_print_error(LIBSPECTRUM_ERROR_SIGNATURE,
+            "libspectrum_tzx_create: wrong signature");
         return LIBSPECTRUM_ERROR_SIGNATURE;
     }
     ptr += signature_length;
@@ -1490,46 +1494,48 @@ find_tzx_block(int blockno, uint8_t *srcbuf, uint8_t **result,
     /* Get the ID of the next block */
     libspectrum_tape_type id = *ptr++;
 
-    switch( id ) {
-        case LIBSPECTRUM_TAPE_BLOCK_ROM:
-            error = tzx_read_rom_block(&ptr, end, length );
-            if( error ) return error;
-            break;
-        case LIBSPECTRUM_TAPE_BLOCK_TURBO:
-            error = tzx_read_turbo_block(&ptr, end, length );
-            if( error ) return error;
-            break;
-        default:    /* For now, don't handle anything else */
-            libspectrum_print_error(
-                                    LIBSPECTRUM_ERROR_UNKNOWN,
-                                    "libspectrum_tzx_create: unknown block type 0x%02x", id
-                                    );
-            return LIBSPECTRUM_ERROR_UNKNOWN;
+    switch (id) {
+    case LIBSPECTRUM_TAPE_BLOCK_ROM:
+        error = tzx_read_rom_block(&ptr, end, length);
+        if (error)
+            return error;
+        break;
+    case LIBSPECTRUM_TAPE_BLOCK_TURBO:
+        error = tzx_read_turbo_block(&ptr, end, length);
+        if (error)
+            return error;
+        break;
+    default: /* For now, don't handle anything else */
+        libspectrum_print_error(
+            LIBSPECTRUM_ERROR_UNKNOWN,
+            "libspectrum_tzx_create: unknown block type 0x%02x", id);
+        return LIBSPECTRUM_ERROR_UNKNOWN;
     }
     *result = ptr;
     return LIBSPECTRUM_ERROR_NONE;
 }
 
 uint8_t *find_tap_block(int wantedindex, const uint8_t *buffer,
-                        size_t *length)
+    size_t *length)
 {
-    size_t data_length, buf_length; uint8_t *data;
+    size_t data_length, buf_length;
+    uint8_t *data;
 
     int blockindex = 0;
 
     const uint8_t *ptr, *end;
 
-    ptr = buffer; end = buffer + *length;
+    ptr = buffer;
+    end = buffer + *length;
 
-    while( ptr < end ) {
+    while (ptr < end) {
 
         /* If we've got less than two bytes for the length, something's
          gone wrong, so go home */
-        if( ( end - ptr ) < 2 ) {
+        if ((end - ptr) < 2) {
             libspectrum_print_error(
-                                    LIBSPECTRUM_ERROR_CORRUPT,
-                                    "libspectrum_tap_read: not enough data in buffer"
-                                    );
+                LIBSPECTRUM_ERROR_CORRUPT,
+                "libspectrum_tap_read: not enough data in buffer");
             return NULL;
         }
 
@@ -1537,23 +1543,22 @@ uint8_t *find_tap_block(int wantedindex, const uint8_t *buffer,
         data_length = ptr[0] + ptr[1] * 0x100;
         ptr += 2;
 
-            buf_length = data_length;
+        buf_length = data_length;
 
         /* Have we got enough bytes left in buffer? */
-        if( end - ptr < (ptrdiff_t)buf_length ) {
+        if (end - ptr < (ptrdiff_t)buf_length) {
             libspectrum_print_error(
-                                    LIBSPECTRUM_ERROR_CORRUPT,
-                                    "libspectrum_tap_read: not enough data in buffer"
-                                    );
+                LIBSPECTRUM_ERROR_CORRUPT,
+                "libspectrum_tap_read: not enough data in buffer");
             return NULL;
         }
 
         if (blockindex == wantedindex) {
             /* Allocate memory for the data */
-            data = libspectrum_new( uint8_t, data_length );
+            data = libspectrum_new(uint8_t, data_length);
 
             /* Copy the block data across */
-            memcpy( data, ptr + 1, buf_length - 1 );
+            memcpy(data, ptr + 1, buf_length - 1);
 
             *length = data_length - 2;
             return data;
@@ -1563,22 +1568,19 @@ uint8_t *find_tap_block(int wantedindex, const uint8_t *buffer,
 
         /* Move along the buffer */
         ptr += buf_length;
-
     }
 
     libspectrum_print_error(
-                            LIBSPECTRUM_ERROR_CORRUPT,
-                            "find_tap_block: could not find block %d", wantedindex
-                            );
+        LIBSPECTRUM_ERROR_CORRUPT,
+        "find_tap_block: could not find block %d", wantedindex);
     return NULL;
 }
-
 
 uint8_t *GetTZXBlock(int blockno, uint8_t *srcbuf, size_t *length)
 {
     uint8_t *ptr;
     libspectrum_error error = find_tzx_block(blockno, srcbuf, &ptr,
-                                             length );
+        length);
     if (error) {
         libspectrum_print_error(error, "get_tzx_block: could not read block %d\n", blockno);
         return NULL;
@@ -1590,4 +1592,3 @@ uint8_t *GetTZXBlock(int blockno, uint8_t *srcbuf, size_t *length)
     memcpy(result, ptr, *length);
     return result;
 }
-

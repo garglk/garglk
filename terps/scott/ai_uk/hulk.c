@@ -5,56 +5,57 @@
 //  Created by Petter Sjölund on 2022-01-18.
 //
 
-#include "sagagraphics.h"
-#include "apple2draw.h"
-#include "scott.h"
 #include "hulk.h"
+#include "apple2draw.h"
 #include "saga.h"
+#include "sagagraphics.h"
+#include "scott.h"
 
-void HulkShowImageOnExamineUS(int noun) {
+void HulkShowImageOnExamineUS(int noun)
+{
     if (!Graphics)
         return;
     int image = -1;
     switch (noun) {
-        case 55:
-            if (Items[11].Location == MyLoc)
-                // Dome
-                image = 0;
-            break;
-        case 124: // Bio-Gem
-        case 41:
-            if (Items[18].Location == MyLoc || Items[18].Location == CARRIED)
-                image = 1;
-            break;
-        case 108:
-            if (Items[17].Location == MyLoc || Items[17].Location == CARRIED)
-                // Natter energy egg
-                image = 2;
-            break;
-        case 72:
-            if (Items[20].Location == MyLoc || Items[20].Location == CARRIED)
-                // Alien army ants
-                image = 3;
-            break;
-        case 21: // Killer Bees
-            if (Items[24].Location == MyLoc)
-                image = 4;
-            break;
-        case 83: // Iron ring
-            if (Items[33].Location == MyLoc)
-                image = 5;
-            break;
-        case 121: // Cage
-            if (Items[47].Location == MyLoc)
-                image = 6;
-            break;
-        case 26: // BASE
-        case 66: // HOLE
-            if (MyLoc == 14)
-                image = 7;
-            break;
-        default:
-            break;
+    case 55:
+        if (Items[11].Location == MyLoc)
+            // Dome
+            image = 0;
+        break;
+    case 124: // Bio-Gem
+    case 41:
+        if (Items[18].Location == MyLoc || Items[18].Location == CARRIED)
+            image = 1;
+        break;
+    case 108:
+        if (Items[17].Location == MyLoc || Items[17].Location == CARRIED)
+            // Natter energy egg
+            image = 2;
+        break;
+    case 72:
+        if (Items[20].Location == MyLoc || Items[20].Location == CARRIED)
+            // Alien army ants
+            image = 3;
+        break;
+    case 21: // Killer Bees
+        if (Items[24].Location == MyLoc)
+            image = 4;
+        break;
+    case 83: // Iron ring
+        if (Items[33].Location == MyLoc)
+            image = 5;
+        break;
+    case 121: // Cage
+        if (Items[47].Location == MyLoc)
+            image = 6;
+        break;
+    case 26: // BASE
+    case 66: // HOLE
+        if (MyLoc == 14)
+            image = 7;
+        break;
+    default:
+        break;
     }
 
     if (image >= 0) {
@@ -131,8 +132,6 @@ void HulkLook(void)
     }
 }
 
-
-
 void DrawHulkImage(int p)
 {
     if (CurrentGame == HULK_US) {
@@ -186,4 +185,3 @@ void DrawHulkImage(int p)
         HitEnter();
     }
 }
-

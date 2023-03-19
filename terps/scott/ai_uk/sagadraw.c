@@ -5,14 +5,14 @@
  */
 
 #include "glk.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
-#include "scottdefines.h"
-#include "scott.h"
 #include "sagagraphics.h"
+#include "scott.h"
+#include "scottdefines.h"
 #include "seasofblood.h"
 
 #include "sagadraw.h"
@@ -447,8 +447,6 @@ void transform(int32_t character, int32_t flip_mode, int32_t ptr)
     }
 }
 
-
-
 void RectFill(int32_t x, int32_t y, int32_t width, int32_t height,
     int32_t color)
 {
@@ -506,7 +504,7 @@ struct image_patch image_patches[] = {
     { CLAYMORGUE_C64, 16, 0, 12,
         "\x82\xfd\x00\x82\x81\x00\xff\x05\xff\x05\xff\x05" },
     { CLAYMORGUE, 14, 0, 12,
-      "\x82\xfd\x00\x82\x81\x00\xff\x05\xff\x05\xff\x05" },
+        "\x82\xfd\x00\x82\x81\x00\xff\x05\xff\x05\xff\x05" },
     { GREMLINS_C64, 21, 10, 5, "\x01\xa0\x03\x00\x01" },
     { GREMLINS_C64, 44, 304, 1, "\xb1" },
     { GREMLINS_C64, 81, 176, 1, "\xa0" },
@@ -538,7 +536,7 @@ void Patch(uint8_t *offset, int patch_number)
     struct image_patch *patch = &image_patches[patch_number];
     for (int i = 0; i < patch->number_of_bytes; i++) {
         uint8_t newval = patch->patch[i];
-//        debug_print("Patch: changing offset %d in image %d from %x to %x.\n", i + patch->offset, patch->picture_number, offset[i + patch->offset], newval);
+        //        debug_print("Patch: changing offset %d in image %d from %x to %x.\n", i + patch->offset, patch->picture_number, offset[i + patch->offset], newval);
         offset[i + patch->offset] = newval;
     }
 }
@@ -559,16 +557,16 @@ void PatchOutBrokenClaymorgueImagesC64(void)
 
 void PatchOutBrokenClaymorgueImagesZX(void)
 {
-   Output("[This copy of The Sorcerer of Claymorgue Castle has 26 broken or "
-          "missing pictures. These have been patched out.]\n\n");
-   for (int i = 9; i < 36; i++) {
-      if (i != 14)
-         for (int j = 0; j < GameHeader.NumRooms; j++) {
-            if (Rooms[j].Image == i) {
-               Rooms[j].Image = 255;
+    Output("[This copy of The Sorcerer of Claymorgue Castle has 26 broken or "
+           "missing pictures. These have been patched out.]\n\n");
+    for (int i = 9; i < 36; i++) {
+        if (i != 14)
+            for (int j = 0; j < GameHeader.NumRooms; j++) {
+                if (Rooms[j].Image == i) {
+                    Rooms[j].Image = 255;
+                }
             }
-         }
-   }
+    }
 }
 
 size_t hulk_coordinates = 0x26db;
@@ -576,7 +574,6 @@ size_t hulk_item_image_offsets = 0x2798;
 size_t hulk_look_image_offsets = 0x27bc;
 size_t hulk_special_image_offsets = 0x276e;
 size_t hulk_image_offset = 0x441b;
-
 
 void SagaSetup(size_t imgoffset)
 {

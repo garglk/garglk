@@ -15,7 +15,7 @@ static int FindBreak(const char *buf, int pos, int columns)
 {
     if (isspace((unsigned char)buf[pos]))
         return 0;
-    
+
     int diff = 0;
 
     while (diff < columns && !isspace((unsigned char)buf[pos])) {

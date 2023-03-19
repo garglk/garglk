@@ -9,7 +9,6 @@
 
 #include "definitions.h"
 
-
 const struct GameInfo games[] = {
     {
         "Buckaroo Banzai",
@@ -31,7 +30,6 @@ const struct GameInfo games[] = {
         6, // special images
     },
 
-
     {
         "Questprobe 2: Spider-Man",
         "SPIDER-MAN (tm)",
@@ -45,7 +43,7 @@ const struct GameInfo games[] = {
     {
         "Questprobe 3: Fantastic Four",
         "FF #1 ",
-        FANTASTIC4,                  // game ID
+        FANTASTIC4, // game ID
 
         21, // room images
         22, // item images
@@ -62,9 +60,7 @@ const struct GameInfo games[] = {
         0, // special images
     },
 
-    {
-        NULL
-    }
+    { NULL }
 };
 
 /* This is supposed to be the original ScottFree system

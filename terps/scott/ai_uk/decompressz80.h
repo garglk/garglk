@@ -8,8 +8,8 @@
 #ifndef decompressz80_h
 #define decompressz80_h
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 /* Will return NULL on error or 0xc000 (49152) bytes of uncompressed raw data on
  * success */

@@ -18,8 +18,9 @@
 // second copy of the image buffer.
 
 #include "sagadraw.h"
-#include "animations.h"
 #include "utility.h"
+
+#include "animations.h"
 
 #define UNFOLDING_SPACE 50
 #define STARS_ANIMATION_RATE 15
@@ -115,7 +116,8 @@ static void AnimateForcefield(void)
     }
 }
 
-static void FillCell(int cell, glui32 ink) {
+static void FillCell(int cell, glui32 ink)
+{
     int startx = (cell % 32) * 8;
     int starty = (cell / 32) * 8;
     for (int pixrow = 0; pixrow < 8; pixrow++) {
@@ -213,9 +215,9 @@ static int UpdateKaylethAnimationFrames(void) // Draw animation frame
         if (*ptr == 0xff)
             counter++;
         ptr++;
-    } while(counter < MyLoc);
+    } while (counter < MyLoc);
 
-    while(1) {
+    while (1) {
         if (*ptr == 0xff) {
             return 0;
         }
@@ -264,7 +266,8 @@ static int UpdateKaylethAnimationFrames(void) // Draw animation frame
     }
 }
 
-void UpdateKaylethAnimations(void) {
+void UpdateKaylethAnimations(void)
+{
     // This is an attempt to make the animation jerky like the original.
     ClickShelfStage++;
     if (ClickShelfStage == 9)
@@ -330,7 +333,8 @@ void UpdateRebelAnimations(void)
     }
 }
 
-void StartAnimations(void) {
+void StartAnimations(void)
+{
     if (BaseGame == REBEL_PLANET) {
         if (MyLoc == 1 && ObjectLoc[UNFOLDING_SPACE] == 1) {
             int rate = STARS_ANIMATION_RATE;
@@ -372,30 +376,30 @@ void StartAnimations(void) {
             else
                 speed = 13;
         }
-        switch(MyLoc) {
-            case 1:
-                speed = 14;
-                break;
-            case 2: // Conveyor belt
-                speed = 10;
-                break;
-            case 3: // Click shelves
-                if (CurrentGame == KAYLETH_64)
-                    speed = 80;
-                else
-                    speed = 40;
-                break;
-            case 53: // Twin peril forest
-                speed = 350;
-                break;
-            case 56: // Citadel of Zenron
+        switch (MyLoc) {
+        case 1:
+            speed = 14;
+            break;
+        case 2: // Conveyor belt
+            speed = 10;
+            break;
+        case 3: // Click shelves
+            if (CurrentGame == KAYLETH_64)
+                speed = 80;
+            else
                 speed = 40;
-                break;
-            case 36: // Guard dome
-                speed = 12;
-                break;
-            default:
-                break;
+            break;
+        case 53: // Twin peril forest
+            speed = 350;
+            break;
+        case 56: // Citadel of Zenron
+            speed = 40;
+            break;
+        case 36: // Guard dome
+            speed = 12;
+            break;
+        default:
+            break;
         }
         if (AnimationRunning != speed) {
             glk_request_timer_events(speed);
@@ -403,4 +407,3 @@ void StartAnimations(void) {
         }
     }
 }
-

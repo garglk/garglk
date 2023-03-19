@@ -15,11 +15,11 @@
 // Opaque circular buffer structure
 typedef struct circular_buf_t circular_buf_t;
 // Handle type, the way users interact with the API
-typedef circular_buf_t* cbuf_handle_t;
+typedef circular_buf_t *cbuf_handle_t;
 
 /// Pass in a storage buffer and size
 /// Returns a circular buffer handle
-cbuf_handle_t circular_buf_init(uint8_t* buffer, size_t size);
+cbuf_handle_t circular_buf_init(uint8_t *buffer, size_t size);
 
 /// Free a circular buffer structure.
 /// Does not free data buffer; owner is responsible for that
@@ -34,7 +34,7 @@ int circular_buf_putXY(cbuf_handle_t me, uint8_t x, uint8_t y);
 
 /// Retrieve a value from the buffer
 /// Returns 0 on success, -1 if the buffer is empty
-int circular_buf_getXY(cbuf_handle_t me, uint8_t *x,  uint8_t *y);
+int circular_buf_getXY(cbuf_handle_t me, uint8_t *x, uint8_t *y);
 
 /// Returns true if the buffer is empty
 bool circular_buf_empty(cbuf_handle_t me);

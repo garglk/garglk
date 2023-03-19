@@ -5,16 +5,16 @@
 //  Created by Petter Sjölund on 2022-06-04.
 //
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
 #include "glk.h"
 
-#include "taylor.h"
-#include "utility.h"
 #include "extracommands.h"
 #include "parseinput.h"
+#include "taylor.h"
+#include "utility.h"
 
 // Input separated into word strings
 char **InputWordStrings = NULL;
@@ -27,7 +27,8 @@ int WordsInInput = 0;
 // The index in InputWordStrings of the next command
 int WordIndex = 0;
 
-void FreeInputWords(void) {
+void FreeInputWords(void)
+{
     WordIndex = 0;
     if (InputWordStrings != NULL) {
         for (int i = 0; i < WordsInInput && InputWordStrings[i] != NULL; i++) {
@@ -171,32 +172,32 @@ int ParseWord(char *p)
     unsigned char *words = FileImage + VerbBase;
     int i;
 
-    if(len >= 4) {
+    if (len >= 4) {
         memcpy(buf, p, 4);
         buf[4] = 0;
     } else {
         memcpy(buf, p, len);
         memset(buf + len, ' ', 4 - len);
     }
-    for(i = 0; i < 4; i++) {
-        if(buf[i] == 0)
+    for (i = 0; i < 4; i++) {
+        if (buf[i] == 0)
             break;
-        if(islower(buf[i]))
+        if (islower(buf[i]))
             buf[i] = toupper(buf[i]);
     }
-    while(*words != 126) {
-        if(memcmp(words, buf, 4) == 0)
+    while (*words != 126) {
+        if (memcmp(words, buf, 4) == 0)
             return words[4];
-        words+=5;
+        words += 5;
     }
 
     words = FileImage + VerbBase;
     for (i = 0; Abbreviations[i] != NULL; i++) {
-        if(memcmp(Abbreviations[i], buf, 4) == 0) {
-            while(*words != 126) {
-                if(memcmp(words, AbbreviationValue[i], 4) == 0)
+        if (memcmp(Abbreviations[i], buf, 4) == 0) {
+            while (*words != 126) {
+                if (memcmp(words, AbbreviationValue[i], 4) == 0)
                     return words[4];
-                words+=5;
+                words += 5;
             }
         }
     }
@@ -205,7 +206,8 @@ int ParseWord(char *p)
 
 static const char *Delimiters[] = { ",", ".", ";", "AND", "THEN", NULL };
 
-static int IsDelimiterWord(char *word) {
+static int IsDelimiterWord(char *word)
+{
     size_t len1 = strlen(word);
     for (int i = 0; Delimiters[i] != NULL; i++) {
         size_t len2 = strlen(Delimiters[i]);
@@ -224,7 +226,8 @@ static int IsDelimiterWord(char *word) {
     return 0;
 }
 
-static int FindNextCommandDelimiter(void) {
+static int FindNextCommandDelimiter(void)
+{
     if (WordIndex >= WordsInInput - 1 || WordsInInput < 2)
         return 0;
     while (++WordIndex < WordsInInput) {
@@ -258,8 +261,7 @@ void Parser(void)
 
     int wn = 0;
 
-    for (i = 0; i < 5 && WordIndex + i < WordsInInput; i++)
-    {
+    for (i = 0; i < 5 && WordIndex + i < WordsInInput; i++) {
         Word[wn] = ParseWord(InputWordStrings[WordIndex + i]);
         /* Hack for Blizzard Pass verbs */
         if (CurrentGame == BLIZZARD_PASS && wn == 0) {
@@ -281,7 +283,7 @@ void Parser(void)
             if (Word[1] == 106 && ObjectLoc[46] == MyLoc)
                 Word[1] = 121;
         }
-        if(Word[wn]) {
+        if (Word[wn]) {
             debug_print("Word %d is %d\n", wn, Word[wn]);
             WordPositions[wn] = WordIndex + i;
             wn++;
@@ -291,7 +293,7 @@ void Parser(void)
             debug_print("Word at position %d, %s, was not recognized\n", WordIndex + i, InputWordStrings[WordIndex + i]);
         }
     }
-    for(i = wn; i < 5; i++) {
+    for (i = wn; i < 5; i++) {
         Word[i] = 0;
         WordPositions[i] = 0;
     }
