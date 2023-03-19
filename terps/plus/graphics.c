@@ -267,7 +267,7 @@ void DrawCurrentRoom(void)
         }
     }
 
-    if (Rooms[MyLoc].Image == 255) {
+    if (Rooms[MyLoc].Image == 255 || Images[0].Filename == NULL) {
         CloseGraphicsWindow();
         return;
     }

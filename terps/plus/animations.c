@@ -123,7 +123,6 @@ void SetAnimationTimer(glui32 milliseconds)
 
 void Animate(int frame)
 {
-
     if (Images[0].Filename == NULL)
         return;
 
