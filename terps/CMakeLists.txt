@@ -23,7 +23,7 @@ function(terp target)
     add_executable(${target} WIN32 ${TERP_SRCS})
     set_target_properties(${target} PROPERTIES OUTPUT_NAME "${GARGLKPRE}${target}")
     target_compile_definitions(${target} PRIVATE GARGLK ${TERP_MACROS})
-    target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}/garglk" ${TERP_INCLUDE_DIRS})
+    target_include_directories(${target} PRIVATE ${TERP_INCLUDE_DIRS})
     target_link_libraries(${target} PRIVATE garglkmain garglk ${TERP_LIBS})
 
     if(MINGW)
