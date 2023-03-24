@@ -114,7 +114,7 @@ case ${GARGOYLE_SOUND} in
         ;;
 esac
 
-for dll in Qt5Core Qt5Gui Qt5Widgets libfmt libfreetype-6 libjpeg-8 libpng16-16 zlib1 ${SOUND_DLLS}
+for dll in Qt5Core Qt5Gui Qt5Widgets libfmt libfreetype-6 libpng16-16 libturbojpeg zlib1 ${SOUND_DLLS}
 do
     cp "${mingw_location}/${target}/bin/${dll}.dll" "build/dist"
 done
