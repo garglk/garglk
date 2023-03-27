@@ -148,8 +148,11 @@ void sys(Aword fpos, Aword len)
     char *command;
 
     command = getStringFromFile(fpos, len);
+    // Gargoyle will not allow games to run arbitrary programs.
+#ifndef GARGLK
     if (system(command) == -1)
         /* Ignore errors */;
+#endif
     deallocate(command);
 }
 
