@@ -125,7 +125,11 @@ void sys(fpos, len)
 
   getstr(fpos, len);            /* Returns address to string on stack */
   command = (char *)pop();
+  // Gargoyle will not allow games to run arbitrary programs.
+#ifndef GARGLK
   int tmp = system(command);
+#endif
+  printf("Command was %s\n", command);
   free(command);
 }
 
