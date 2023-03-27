@@ -129,7 +129,6 @@ void sys(fpos, len)
 #ifndef GARGLK
   int tmp = system(command);
 #endif
-  printf("Command was %s\n", command);
   free(command);
 }
 
