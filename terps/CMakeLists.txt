@@ -68,6 +68,14 @@ if(WITH_SCOTT OR WITH_TAYLOR)
     add_subdirectory(unp64)
 endif()
 
+if(CMAKE_VERSION VERSION_LESS "3.20")
+    include(TestBigEndian)
+    test_big_endian(GARGLK_BIG_ENDIAN)
+else()
+    if(CMAKE_C_BYTE_ORDER STREQUAL "BIG_ENDIAN")
+        set(GARGLK_BIG_ENDIAN ON)
+    endif()
+endif()
 
 # ------------------------------------------------------------------------------
 #
@@ -113,12 +121,18 @@ endif()
 # Added glk file prompts for gargoyle using garglk_fileref_get_name.
 #
 if(WITH_ALAN2)
+    set(ALAN2_MACROS GLK)
+
+    if(NOT GARGLK_BIG_ENDIAN)
+        list(APPEND ALAN2_MACROS REVERSED)
+    endif()
+
     terp(alan2
         SRCS alan2/arun.c alan2/main.c alan2/debug.c alan2/args.c alan2/exe.c
         alan2/inter.c alan2/parse.c alan2/rules.c alan2/stack.c alan2/decode.c
         alan2/term.c alan2/reverse.c alan2/readline.c alan2/params.c
         alan2/sysdep.c alan2/glkstart.c alan2/glkio.c alan2/alan.version.c
-        MACROS GLK REVERSED
+        MACROS ${ALAN2_MACROS}
         POSIX)
 
     if(CMAKE_C_COMPILER_ID MATCHES "Clang$")
@@ -194,16 +208,8 @@ if(WITH_GIT)
         list(APPEND GIT_MACROS GIT_NEED_TICK)
     endif()
 
-    if(CMAKE_VERSION VERSION_LESS "3.20")
-        include(TestBigEndian)
-        test_big_endian(IS_BIG_ENDIAN)
-        if(IS_BIG_ENDIAN)
-            list(APPEND GIT_MACROS USE_BIG_ENDIAN)
-        endif()
-    else()
-        if(CMAKE_C_BYTE_ORDER STREQUAL "BIG_ENDIAN")
-            list(APPEND GIT_MACROS USE_BIG_ENDIAN)
-        endif()
+    if(GARGLK_BIG_ENDIAN)
+        list(APPEND GIT_MACROS USE_BIG_ENDIAN)
     endif()
 
     terp(git
