@@ -146,11 +146,11 @@ installer.
 
 # System-specific instructions
 
-## Building on Fedora GNU/Linux (29,30): (notes by Andreas Davour, December 2019)
+## Building on Fedora GNU/Linux (37, 38): (notes by Andreas Davour, December 2019; updated April 2023)
 
 To build cleanly with CMake, you first need to install the pre-requisite packages:
 
-    sudo dnf install cmake fontconfig-devel freetype-devel gcc-c++ libjpeg-turbo-devel qt5-qtbase-devel qt5-qtbase
+    sudo dnf install cmake fmt-devel fontconfig-devel freetype-devel gcc-c++ libpng-devel qt5-qtbase-devel qt5-qtbase turbojpeg-devel zlib-devel
 
 If you want to compile with SDL support, you also need to install the development packages for that:
 
