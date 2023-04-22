@@ -1059,7 +1059,7 @@ void gli_draw_rect(int x, int y, int w, int h, const Color &rgb);
 int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb, const glui32 *text, int len, int spacewidth);
 int gli_string_width_uni(FontFace face, const glui32 *text, int len, int spacewidth);
 void gli_draw_caret(int x, int y);
-void gli_draw_picture(const picture_t *pic, int x, int y, int x0, int y0, int x1, int y1);
+void gli_draw_picture(const picture_t *pic, int x0, int y0, int dx0, int dy0, int dx1, int dy1);
 
 extern void gli_select(event_t *event, bool polled);
 #ifdef GARGLK_CONFIG_TICK
