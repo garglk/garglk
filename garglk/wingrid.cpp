@@ -626,7 +626,7 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
 
     case keycode_Return:
         acceptline(win, arg);
-        break;
+        return;
 
     default:
         if (dwin->inlen >= dwin->inmax) {
