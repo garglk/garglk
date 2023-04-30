@@ -13,8 +13,7 @@
 
 void UpdateRobinOfSherwoodAnimations(void);
 void RobinOfSherwoodLook(void);
-GameIDType LoadExtraSherwoodData(void);
-GameIDType LoadExtraSherwoodData64(void);
+void LoadExtraSherwoodData(int c64);
 int IsForestLocation(void);
 void SherwoodAction(int p);
 

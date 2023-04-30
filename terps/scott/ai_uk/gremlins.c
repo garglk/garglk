@@ -186,7 +186,7 @@ void FillInGermanSystemMessages(void)
         ExtraNouns[i] = GermanExtraNouns[i];
 }
 
-void LoadExtraGermanGremlinsc64Data(void)
+void LoadExtraGermanGremlinsC64Data(void)
 {
     Verbs[0] = "AUTO\0";
     Nouns[0] = "ANY\0";

@@ -246,18 +246,16 @@ void UpdateRobinOfSherwoodAnimations(void)
     }
 }
 
-GameIDType LoadExtraSherwoodData(void)
+void LoadExtraSherwoodData(int c64)
 {
-
     // room images
 
-    int offset = 0x3d99 + file_baseline_offset;
-    uint8_t *ptr;
-    /* Load the room images */
+    int offset = file_baseline_offset + ((c64 == 1) ? 0x1ffd : 0x3d99);
 
-    ptr = SeekToPos(entire_file, offset);
+    uint8_t *ptr= SeekToPos(entire_file, offset);
+
     if (ptr == 0)
-        return 0;
+        return;
 
     int ct;
     Room *rp = Rooms;
@@ -278,46 +276,105 @@ GameIDType LoadExtraSherwoodData(void)
     ct = 0;
     rp = Rooms;
 
-    int actual_room_number = 0;
+    offset = file_baseline_offset + ((c64 == 1) ? 0x402e : 0x5b7e);
 
-    ptr = SeekToPos(entire_file, 0x5b7e + file_baseline_offset);
+    ptr = SeekToPos(entire_file, offset);
     if (ptr == 0)
-        return 0;
+        return;
 
     do {
         rp->Text = DecompressText(ptr, ct);
         *(rp->Text) = tolower(*(rp->Text));
         ct++;
-        actual_room_number++;
         if (ct == 11) {
             for (int i = 0; i < 61; i++) {
                 rp++;
                 rp->Text = "in Sherwood Forest";
-                actual_room_number++;
             }
         }
         rp++;
     } while (ct < 33);
 
-    for (int i = I_DONT_UNDERSTAND; i <= THATS_BEYOND_MY_POWER; i++)
-        sys[i] = system_messages[4 - I_DONT_UNDERSTAND + i];
+    if (c64 == 1) {
+        SysMessageType messagekey[] = {
+            NORTH,
+            SOUTH,
+            EAST,
+            WEST,
+            UP,
+            DOWN,
+            EXITS,
+            YOU_SEE,
+            YOU_ARE,
+            HIT_ENTER,
+            YOU_CANT_GO_THAT_WAY,
+            OK,
+            WHAT_NOW,
+            HUH,
+            YOU_HAVE_IT,
+            TAKEN,
+            DROPPED,
+            YOU_HAVENT_GOT_IT,
+            INVENTORY,
+            YOU_DONT_SEE_IT,
+            THATS_BEYOND_MY_POWER,
+            DIRECTION,
+            YOURE_CARRYING_TOO_MUCH,
+            PLAY_AGAIN,
+            RESUME_A_SAVED_GAME,
+            YOU_CANT_DO_THAT_YET,
+            I_DONT_UNDERSTAND,
+            NOTHING
+        };
 
-    for (int i = YOU_SEE; i <= HIT_ENTER; i++)
-        sys[i] = system_messages[15 - YOU_SEE + i];
+        for (int i = 0; i < 26; i++) {
+            sys[messagekey[i]] = system_messages[i];
+        }
 
-    sys[OK] = system_messages[2];
-    sys[TAKEN] = system_messages[2];
-    sys[DROPPED] = system_messages[2];
-    sys[PLAY_AGAIN] = system_messages[3];
-    sys[YOURE_CARRYING_TOO_MUCH] = system_messages[21];
-    sys[YOU_CANT_GO_THAT_WAY] = system_messages[12];
-    sys[YOU_ARE] = system_messages[13];
+        sys[HIT_ENTER] = system_messages[30];
+        sys[WHAT] = system_messages[13];
+
+    } else {
+        SysMessageType messagekey[] = {
+            BAD_DATA,
+            OK,
+            OK,
+            PLAY_AGAIN,
+            I_DONT_UNDERSTAND,
+            YOU_CANT_DO_THAT_YET,
+            HUH,
+            DIRECTION,
+            YOU_HAVENT_GOT_IT,
+            YOU_HAVE_IT,
+            YOU_DONT_SEE_IT,
+            THATS_BEYOND_MY_POWER,
+            YOU_CANT_GO_THAT_WAY,
+            YOU_ARE,
+            YOU_SEE,
+            YOU_SEE,
+            EXITS,
+            INVENTORY,
+            NOTHING,
+            WHAT_NOW,
+            HIT_ENTER,
+            YOURE_CARRYING_TOO_MUCH,
+            RESUME_A_SAVED_GAME
+        };
+
+        for (int i = 0; i < 23; i++) {
+            sys[messagekey[i]] = system_messages[i];
+        }
+
+        sys[WHAT] = sys[HUH];
+    }
     sys[EXITS_DELIMITER] = " ";
     sys[MESSAGE_DELIMITER] = ". ";
 
-    ptr = SeekToPos(entire_file, 0x3b6e + file_baseline_offset);
+    offset = file_baseline_offset + ((c64 == 1) ? 0x2300 : 0x3b6e);
+
+    ptr = SeekToPos(entire_file, offset);
     if (ptr == 0)
-        return 0;
+        return;
 
     int cells = 555;
     forest_images = MemAlloc(cells);
@@ -325,116 +382,4 @@ GameIDType LoadExtraSherwoodData(void)
     for (int i = 0; i < cells; i++)
         forest_images[i] = *(ptr++);
 
-    return ROBIN_OF_SHERWOOD;
-}
-
-GameIDType LoadExtraSherwoodData64(void)
-{
-
-    // room images
-
-    int offset = 0x1ffd + file_baseline_offset;
-    uint8_t *ptr;
-    /* Load the room images */
-
-    ptr = SeekToPos(entire_file, offset);
-    if (ptr == 0)
-        return 0;
-
-    int ct;
-    Room *rp = Rooms;
-
-    for (ct = 0; ct <= GameHeader.NumRooms; ct++) {
-        rp->Image = *(ptr++);
-        rp++;
-
-        if (ct == 10) {
-            for (int i = 0; i < 63; i++) {
-                rp++;
-                ct++;
-            }
-        }
-    }
-
-    // rooms
-
-    ct = 0;
-    rp = Rooms;
-
-    int actual_room_number = 0;
-
-    offset = 0x402e + file_baseline_offset;
-
-    ptr = SeekToPos(entire_file, offset);
-    if (ptr == 0)
-        return 0;
-
-    do {
-        rp->Text = DecompressText(ptr, ct);
-        *(rp->Text) = tolower(*(rp->Text));
-        ct++;
-        actual_room_number++;
-        if (ct == 11) {
-            for (int i = 0; i < 61; i++) {
-                rp++;
-                rp->Text = "in Sherwood Forest";
-                actual_room_number++;
-            }
-        }
-        rp++;
-    } while (ct < 33);
-
-    SysMessageType messagekey[] = { NORTH,
-        SOUTH,
-        EAST,
-        WEST,
-        UP,
-        DOWN,
-        EXITS,
-        YOU_SEE,
-        YOU_ARE,
-        HIT_ENTER,
-        YOU_CANT_GO_THAT_WAY,
-        OK,
-        WHAT_NOW,
-        HUH,
-        YOU_HAVE_IT,
-        TAKEN,
-        DROPPED,
-        YOU_HAVENT_GOT_IT,
-        INVENTORY,
-        YOU_DONT_SEE_IT,
-        THATS_BEYOND_MY_POWER,
-        DIRECTION,
-        YOURE_CARRYING_TOO_MUCH,
-        PLAY_AGAIN,
-        RESUME_A_SAVED_GAME,
-        YOU_CANT_DO_THAT_YET,
-        I_DONT_UNDERSTAND,
-        NOTHING };
-
-    for (int i = 0; i < 26; i++) {
-        sys[messagekey[i]] = system_messages[i];
-    }
-
-    sys[HIT_ENTER] = system_messages[30];
-    sys[WHAT] = system_messages[13];
-
-    sys[EXITS_DELIMITER] = " ";
-    sys[MESSAGE_DELIMITER] = ". ";
-
-    offset = 0x2300 + file_baseline_offset;
-
-    ptr = SeekToPos(entire_file, offset);
-    if (ptr == 0)
-        return 0;
-
-    int cells = 555;
-    forest_images = MemAlloc(cells);
-
-    for (int i = 0; i < cells; i++) {
-        forest_images[i] = *(ptr++);
-    }
-
-    return ROBIN_OF_SHERWOOD_C64;
 }

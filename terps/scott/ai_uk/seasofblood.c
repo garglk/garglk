@@ -371,7 +371,7 @@ static void setup_battle_screen(int boatflag)
         glk_window_clear(RightDiceWin);
     }
 
-    if (palchosen == C64B)
+    if (palchosen >= C64A)
         dice_colour = 0x5f48e9;
     else
         dice_colour = 0xff0000;
@@ -762,15 +762,13 @@ void swap_stamina_and_crew_strength(void)
 
 extern int draw_to_buffer;
 
-int LoadExtraSeasOfBloodData(void)
+void LoadExtraSeasOfBloodData(int c64)
 {
     draw_to_buffer = 1;
 
-    int offset;
-
 #pragma mark Enemy table
 
-    offset = 0x47b7 + file_baseline_offset;
+    int offset = file_baseline_offset + ((c64 == 1) ? 0x3fee: 0x47b7);
 
     uint8_t *ptr = SeekToPos(entire_file, offset);
 
@@ -784,63 +782,8 @@ int LoadExtraSeasOfBloodData(void)
 
 #pragma mark Battle messages
 
-    ptr = SeekToPos(entire_file, 0x71DA + file_baseline_offset);
+    offset = file_baseline_offset + ((c64 == 1) ? 0x82f6 : 0x71da);
 
-    for (int i = 0; i < 32; i++) {
-        battle_messages[i] = DecompressText(ptr, i);
-    }
-
-#pragma mark Extra image data
-
-    offset = 0x7af5 - 16357 + file_baseline_offset;
-
-    int data_length = 2010;
-
-    blood_image_data = MemAlloc(data_length);
-    ptr = SeekToPos(entire_file, offset);
-    for (int i = 0; i < data_length; i++)
-        blood_image_data[i] = *(ptr++);
-
-#pragma mark System messages
-
-    for (int i = I_DONT_UNDERSTAND; i <= THATS_BEYOND_MY_POWER; i++)
-        sys[i] = system_messages[4 - I_DONT_UNDERSTAND + i];
-
-    for (int i = YOU_ARE; i <= HIT_ENTER; i++)
-        sys[i] = system_messages[13 - YOU_ARE + i];
-
-    sys[OK] = system_messages[2];
-    sys[PLAY_AGAIN] = system_messages[3];
-    sys[YOURE_CARRYING_TOO_MUCH] = system_messages[27];
-
-    Items[125].Text = "A loose plank";
-    Items[125].AutoGet = "PLAN";
-
-    return 0;
-}
-
-int LoadExtraSeasOfBlood64Data(void)
-{
-    draw_to_buffer = 1;
-
-    int offset;
-
-#pragma mark Enemy table
-
-    offset = 0x3fee + file_baseline_offset;
-    uint8_t *ptr;
-
-    ptr = SeekToPos(entire_file, offset);
-
-    int ct;
-    for (ct = 0; ct < 124; ct++) {
-        enemy_table[ct] = *(ptr++);
-        if (enemy_table[ct] == 0xff)
-            break;
-    }
-#pragma mark Battle messages
-
-    offset = 0x82f6 + file_baseline_offset;
     ptr = SeekToPos(entire_file, offset);
 
     for (int i = 0; i < 32; i++) {
@@ -849,52 +792,64 @@ int LoadExtraSeasOfBlood64Data(void)
 
 #pragma mark Extra image data
 
-    offset = 0x5299 + file_baseline_offset;
+    offset = file_baseline_offset + ((c64 == 1) ? 0x5299: 0x3b10);
 
     int data_length = 2010;
 
     blood_image_data = MemAlloc(data_length);
 
     ptr = SeekToPos(entire_file, offset);
-    for (int i = 0; i < data_length; i++) {
-        blood_image_data[i] = *(ptr++);
-    }
+
+    memcpy(blood_image_data, ptr, data_length);
 
 #pragma mark System messages
 
-    SysMessageType messagekey[] = {
-        NORTH,
-        SOUTH,
-        EAST,
-        WEST,
-        UP,
-        DOWN,
-        EXITS,
-        YOU_SEE,
-        YOU_ARE,
-        YOU_CANT_GO_THAT_WAY,
-        OK,
-        WHAT_NOW,
-        HUH,
-        YOU_HAVE_IT,
-        YOU_HAVENT_GOT_IT,
-        DROPPED,
-        TAKEN,
-        INVENTORY,
-        YOU_DONT_SEE_IT,
-        THATS_BEYOND_MY_POWER,
-        DIRECTION,
-        YOURE_CARRYING_TOO_MUCH,
-        PLAY_AGAIN,
-        RESUME_A_SAVED_GAME,
-        YOU_CANT_DO_THAT_YET,
-        I_DONT_UNDERSTAND,
-        NOTHING
-    };
+    if (c64 == 1) {
+        SysMessageType messagekey[] = {
+            NORTH,
+            SOUTH,
+            EAST,
+            WEST,
+            UP,
+            DOWN,
+            EXITS,
+            YOU_SEE,
+            YOU_ARE,
+            YOU_CANT_GO_THAT_WAY,
+            OK,
+            WHAT_NOW,
+            HUH,
+            YOU_HAVE_IT,
+            YOU_HAVENT_GOT_IT,
+            DROPPED,
+            TAKEN,
+            INVENTORY,
+            YOU_DONT_SEE_IT,
+            THATS_BEYOND_MY_POWER,
+            DIRECTION,
+            YOURE_CARRYING_TOO_MUCH,
+            PLAY_AGAIN,
+            RESUME_A_SAVED_GAME,
+            YOU_CANT_DO_THAT_YET,
+            I_DONT_UNDERSTAND,
+            NOTHING
+        };
 
-    for (int i = 0; i < 27; i++) {
-        sys[messagekey[i]] = system_messages[i];
+        for (int i = 0; i < 27; i++) {
+            sys[messagekey[i]] = system_messages[i];
+        }
+    } else {
+        for (int i = I_DONT_UNDERSTAND; i <= THATS_BEYOND_MY_POWER; i++)
+            sys[i] = system_messages[4 - I_DONT_UNDERSTAND + i];
+
+        for (int i = YOU_ARE; i <= HIT_ENTER; i++)
+            sys[i] = system_messages[13 - YOU_ARE + i];
+
+        sys[OK] = system_messages[2];
+        sys[PLAY_AGAIN] = system_messages[3];
+        sys[YOURE_CARRYING_TOO_MUCH] = system_messages[27];
+
+        Items[125].Text = "A loose plank";
+        Items[125].AutoGet = "PLAN";
     }
-
-    return 0;
 }

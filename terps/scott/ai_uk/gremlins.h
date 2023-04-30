@@ -14,7 +14,7 @@ void UpdateGremlinsAnimations(void);
 void GremlinsLook(void);
 void GremlinsAction(void);
 void LoadExtraGermanGremlinsData(void);
-void LoadExtraGermanGremlinsc64Data(void);
+void LoadExtraGermanGremlinsC64Data(void);
 void LoadExtraSpanishGremlinsData(void);
 void LoadExtraSpanishGremlinsC64Data(void);
 

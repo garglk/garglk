@@ -1379,16 +1379,16 @@ GameIDType DetectGame(const char *file_name)
 
     switch (detectedGame) {
     case ROBIN_OF_SHERWOOD:
-        LoadExtraSherwoodData();
+        LoadExtraSherwoodData(0);
         break;
     case ROBIN_OF_SHERWOOD_C64:
-        LoadExtraSherwoodData64();
+        LoadExtraSherwoodData(1);
         break;
     case SEAS_OF_BLOOD:
-        LoadExtraSeasOfBloodData();
+        LoadExtraSeasOfBloodData(0);
         break;
     case SEAS_OF_BLOOD_C64:
-        LoadExtraSeasOfBlood64Data();
+        LoadExtraSeasOfBloodData(1);
         break;
     case CLAYMORGUE:
         for (int i = OK; i <= RESUME_A_SAVED_GAME; i++)
@@ -1420,7 +1420,7 @@ GameIDType DetectGame(const char *file_name)
         Claymorgue64Sysmess();
         break;
     case GREMLINS_GERMAN_C64:
-        LoadExtraGermanGremlinsc64Data();
+        LoadExtraGermanGremlinsC64Data();
         break;
     case SPIDERMAN_C64:
         Spiderman64Sysmess();
@@ -1495,7 +1495,7 @@ GameIDType DetectGame(const char *file_name)
         LoadExtraGermanGremlinsData();
         break;
     case GREMLINS_GERMAN_C64:
-        LoadExtraGermanGremlinsc64Data();
+        LoadExtraGermanGremlinsC64Data();
         break;
     case PERSEUS_ITALIAN:
         PerseusItalianSysmess();

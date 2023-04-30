@@ -27,8 +27,8 @@ const struct GameInfo games[] = {
         3,   // Word length
         99,  // Number of messages
 
-        80, // number_of_verbs
-        79, // number_of_nouns;
+        80,  // number_of_verbs
+        79,  // number_of_nouns
 
         0x2451, // header
         EARLY,  // header style
@@ -40,21 +40,21 @@ const struct GameInfo games[] = {
         0x3a50, // actions
         UNCOMPRESSED,
         0x469a,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x2539, // start_of_system_messages
-        0x28de, // start of directions
+        0x2539,  // start_of_system_messages
+        0x28de,  // start of directions
 
-        0, // start_of_characters;
-        0, // start_of_image_data;
+        0, // start_of_characters
+        0, // start_of_image_data
         0, // image_address_offset
-        0, // number_of_pictures;
+        0, // number_of_pictures
         0, // palette
-        0, // picture_format_version;
+        0, // picture_format_version
     },
 
     {
@@ -72,8 +72,8 @@ const struct GameInfo games[] = {
         3,   // Word length
         99,  // Number of messages
 
-        90, // number_of_verbs
-        89, // number_of_nouns;
+        90,  // number_of_verbs
+        89,  // number_of_nouns
 
         0x2451, // header
         EARLY,  // header style
@@ -85,21 +85,21 @@ const struct GameInfo games[] = {
         0x3a50, // actions
         UNCOMPRESSED,
         0x4752,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
         0x2539, // start_of_system_messages
         0x28de, // start of directions
 
-        0, // start_of_characters;
-        0, // start_of_image_data;
+        0, // start_of_characters
+        0, // start_of_image_data
         0, // image_address_offset
-        0, // number_of_pictures;
+        0, // number_of_pictures
         0, // palette
-        0, // picture_format_version;
+        0, // picture_format_version
     },
 
     {
@@ -117,8 +117,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         94,  // Number of messages
 
-        80, // number_of_verbs
-        79, // number_of_nouns;
+        80,  // number_of_verbs
+        79,  // number_of_nouns
 
         0x2451, // header
         EARLY,  // header style
@@ -130,21 +130,21 @@ const struct GameInfo games[] = {
         0x3a50, // actions
         UNCOMPRESSED,
         0x499a,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
         0x2539, // start_of_system_messages
         0x28de, // start of directions
 
-        0, // start_of_characters;
-        0, // start_of_image_data;
+        0, // start_of_characters
+        0, // start_of_image_data
         0, // image_address_offset
-        0, // number_of_pictures;
+        0, // number_of_pictures
         0, // palette
-        0, // picture_format_version;
+        0, // picture_format_version
     },
 
     {
@@ -163,7 +163,7 @@ const struct GameInfo games[] = {
         95,  // Number of messages
 
         111, // number_of_verbs
-        110, // number_of_nouns;
+        110, // number_of_nouns
 
         0x2451, // header
         EARLY,  // header style
@@ -175,21 +175,21 @@ const struct GameInfo games[] = {
         0x3a50, // actions
         UNCOMPRESSED,
         0x4c54,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
         0x2539, // start_of_system_messages
-        0x28de, // start of directions
+        0x28e1, // start of directions
 
-        0, // start_of_characters;
-        0, // start_of_image_data;
+        0, // start_of_characters
+        0, // start_of_image_data
         0, // image_address_offset
-        0, // number_of_pictures;
+        0, // number_of_pictures
         0, // palette
-        0, // picture_format_version;
+        0, // picture_format_version
     },
 
     {
@@ -207,8 +207,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         82,  // Number of messages
 
-        77, // number_of_verbs
-        76, // number_of_nouns;
+        77,  // number_of_verbs
+        76,  // number_of_nouns
 
         0x2349, // header
         EARLY,  // header style
@@ -220,21 +220,21 @@ const struct GameInfo games[] = {
         0x3b56, // actions
         UNCOMPRESSED,
         0x473a,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x2450, // start_of_system_messages
-        0x277e, // start of directions
+        0x2450,  // start_of_system_messages
+        0x277e,  // start of directions
 
-        0, // start_of_characters;
-        FOLLOWS, // start_of_image_data;
-        0, // image_address_offset
-        30, // number_of_pictures;
-        ZXOPT, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        FOLLOWS, // start_of_image_data
+        0,       // image_address_offset
+        30,      // number_of_pictures
+        ZXOPT,   // palette
+        99,      // picture_format_version
     },
 
     {
@@ -252,11 +252,11 @@ const struct GameInfo games[] = {
         4,   // Word length
         99,  // Number of messages
 
-        80, // number_of_verbs
-        79, // number_of_nouns;
+        80,  // number_of_verbs
+        79,  // number_of_nouns
 
         0x1dd9, // header
-        MYSTERIOUS_C64_HEADER,  // header style
+        MYSTERIOUS_C64_HEADER, // header style
 
         0, // no room images
         0, // no item flags
@@ -265,21 +265,21 @@ const struct GameInfo games[] = {
         0x1df1, // actions
         UNCOMPRESSED,
         0x2861,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x408, // start_of_system_messages
-        0x408, // start of directions
+        0x408,   // start_of_system_messages
+        0x408,   // start of directions
 
-        0, // start_of_characters;
-        0x38f1, // start_of_image_data;
-        0, // image_address_offset
-        30, // number_of_pictures;
-        C64A, // palette
-        99, // picture_format_version;
+        0,      // start_of_characters
+        0x38f1, // start_of_image_data
+        0,      // image_address_offset
+        30,     // number_of_pictures
+        C64A,   // palette
+        99,     // picture_format_version
     },
 
     {
@@ -297,8 +297,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         82,  // Number of messages
 
-        88, // number_of_verbs
-        87, // number_of_nouns;
+        88,  // number_of_verbs
+        87,  // number_of_nouns
 
         0x2351, // header
         EARLY,  // header style
@@ -310,21 +310,21 @@ const struct GameInfo games[] = {
         0x3b81, // actions
         UNCOMPRESSED,
         0x475f,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x24c0, // start_of_system_messages
-        0x2780, // start of directions
+        0x24c0,  // start_of_system_messages
+        0x2780,  // start of directions
 
-        0, // start_of_characters;
+        0,       // start_of_characters
         FOLLOWS,
-        0, // image_address_offset
-        43, // number_of_pictures;
-        ZXOPT, // palette
-        99, // picture_format_version;
+        0,       // image_address_offset
+        43,      // number_of_pictures
+        ZXOPT,   // palette
+        99,      // picture_format_version
     },
 
     {
@@ -342,8 +342,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         73,  // Number of messages
 
-        87, // number_of_verbs
-        85, // number_of_nouns;
+        87,  // number_of_verbs
+        85,  // number_of_nouns
 
         0x1dd9, // header
         MYSTERIOUS_C64_HEADER,  // header style
@@ -352,24 +352,24 @@ const struct GameInfo games[] = {
         0, // no item flags
         0, // no item images
 
-        0x1df1, // actions
+        0x1df1,  // actions
         UNCOMPRESSED,
         0x2811,  // dictionary
-        0x2b6d, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        0x2f0f, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        0x37ce, // start_of_item_locations;
+        0x2b6d,  // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        0x2f0f,  // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        0x37ce,  // start_of_item_locations
 
-        0x408, // start_of_system_messages
-        0x408, // start of directions
+        0x0408,  // start_of_system_messages
+        0x0408,  // start of directions
 
-        0, // start_of_characters;
-        0x3872, // start_of_image_data;
-        0, // image_address_offset
-        43, // number_of_pictures;
-        C64A, // palette
-        99, // picture_format_version;
+        0,      // start_of_characters
+        0x3872, // start_of_image_data
+        0,      // image_address_offset
+        43,     // number_of_pictures
+        C64A,   // palette
+        99,     // picture_format_version
     },
 
 
@@ -388,8 +388,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         82,  // Number of messages
 
-        91, // number_of_verbs
-        83, // number_of_nouns;
+        91,  // number_of_verbs
+        83,  // number_of_nouns
 
         0x2351, // header
         EARLY,  // header style
@@ -401,21 +401,21 @@ const struct GameInfo games[] = {
         0x3b81, // actions
         UNCOMPRESSED,
         0x46b3,  // dictionary
-        0x4a41,  // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        0x4a41,  // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x24c0, // start_of_system_messages
-        0x2780, // start of directions
+        0x24c0,  // start_of_system_messages
+        0x2780,  // start of directions
 
-        0, // start_of_characters;
-        FOLLOWS, // start_of_image_data;
-        0, // image_address_offset
-        51, // number_of_pictures;
-        ZXOPT, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        FOLLOWS, // start_of_image_data
+        0,       // image_address_offset
+        51,      // number_of_pictures
+        ZXOPT,   // palette
+        99,      // picture_format_version
     },
 
     {
@@ -433,8 +433,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         82,  // Number of messages
 
-        91, // number_of_verbs
-        82, // number_of_nouns;
+        91,  // number_of_verbs
+        82,  // number_of_nouns
 
         0x1dd9, // header
         MYSTERIOUS_C64_HEADER,  // header style
@@ -446,21 +446,21 @@ const struct GameInfo games[] = {
         0x1df1, // actions
         UNCOMPRESSED,
         0x2761,  // dictionary
-        FOLLOWS,  // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x0408, // start_of_system_messages
-        0x0408, // start of directions
+        0x0408,  // start_of_system_messages
+        0x0408,  // start of directions
 
-        0, // start_of_characters;
-        0x38e2, // start_of_image_data;
-        0, // image_address_offset
-        51, // number_of_pictures;
-        C64A, // palette
-        99, // picture_format_version;
+        0,      // start_of_characters
+        0x38e2, // start_of_image_data
+        0,      // image_address_offset
+        51,     // number_of_pictures
+        C64A,   // palette
+        99,     // picture_format_version
     },
 
     {
@@ -478,8 +478,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         82,  // Number of messages
 
-        84, // number_of_verbs
-        83, // number_of_nouns;
+        84,  // number_of_verbs
+        83,  // number_of_nouns
 
         0x2351, // header
         EARLY,  // header style
@@ -491,21 +491,21 @@ const struct GameInfo games[] = {
         0x3b81, // actions
         UNCOMPRESSED,
         0x49b7,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x24c0, // start_of_system_messages
-        0x2780, // start of directions
+        0x24c0,  // start_of_system_messages
+        0x2780,  // start of directions
 
-        0, // start_of_characters;
-        FOLLOWS, // start_of_image_data;
-        0, // image_address_offset
-        64, // number_of_pictures;
-        ZXOPT, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        FOLLOWS, // start_of_image_data
+        0,       // image_address_offset
+        64,      // number_of_pictures
+        ZXOPT,   // palette
+        99,      // picture_format_version
     },
 
     {
@@ -523,8 +523,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         82,  // Number of messages
 
-        81, // number_of_verbs
-        82, // number_of_nouns;
+        81,  // number_of_verbs
+        82,  // number_of_nouns
 
         0x1dd9, // header
         ARROW_OF_DEATH_PT_2_C64_HEADER,  // header style
@@ -536,21 +536,21 @@ const struct GameInfo games[] = {
         0x1df1, // actions
         UNCOMPRESSED,
         0x2901,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
         0x408, // start_of_system_messages
         0x408, // start of directions
 
-        0, // start_of_characters;
-        0x3cac, // start_of_image_data;
-        0, // image_address_offset
-        64, // number_of_pictures;
-        C64A, // palette
-        99, // picture_format_version;
+        0,      // start_of_characters
+        0x3cac, // start_of_image_data
+        0,      // image_address_offset
+        64,     // number_of_pictures
+        C64A,   // palette
+        99,     // picture_format_version
     },
 
     {
@@ -569,7 +569,7 @@ const struct GameInfo games[] = {
         82,  // Number of messages
 
         146, // number_of_verbs
-        145, // number_of_nouns;
+        145, // number_of_nouns
 
         0x2351, // header
         EARLY,  // header style
@@ -581,21 +581,21 @@ const struct GameInfo games[] = {
         0x3b81, // actions
         UNCOMPRESSED,
         0x4b1d,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x24c0, // start_of_system_messages
-        0x2780, // start of directions
+        0x24c0,  // start_of_system_messages
+        0x2780,  // start of directions
 
-        0, // start_of_characters;
-        FOLLOWS, // start_of_image_data;
-        0, // image_address_offset
-        44, // number_of_pictures;
-        ZXOPT, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        FOLLOWS, // start_of_image_data
+        0,       // image_address_offset
+        44,      // number_of_pictures
+        ZXOPT,   // palette
+        99,      // picture_format_version
     },
 
 
@@ -615,7 +615,7 @@ const struct GameInfo games[] = {
         82,  // Number of messages
 
         146, // number_of_verbs
-        102, // number_of_nouns;
+        102, // number_of_nouns
 
         0x1dd9, // header
         EARLY,  // header style
@@ -627,21 +627,21 @@ const struct GameInfo games[] = {
         0x1da3, // actions
         UNCOMPRESSED,
         0x29e3,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x408, // start_of_system_messages
-        0x408, // start of directions
+        0x0408,  // start_of_system_messages
+        0x0408,  // start of directions
 
-        0, // start_of_characters;
-        0x3bf4, // start_of_image_data;
-        0, // image_address_offset
-        44, // number_of_pictures;
-        C64A, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        0x3bf4,  // start_of_image_data
+        0,       // image_address_offset
+        44,      // number_of_pictures
+        C64A,    // palette
+        99,      // picture_format_version
     },
 
 
@@ -660,8 +660,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         82,  // Number of messages
 
-        98, // number_of_verbs
-        97, // number_of_nouns;
+        98,  // number_of_verbs
+        97,  // number_of_nouns
 
         0x2349, // header
         EARLY,  // header style
@@ -673,21 +673,21 @@ const struct GameInfo games[] = {
         0x3b56, // actions
         UNCOMPRESSED,
         0x471a,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x24c0, // start_of_system_messages
-        0x277E, // start of directions
+        0x24c0,  // start_of_system_messages
+        0x277e,  // start of directions
 
-        0, // start_of_characters;
-        FOLLOWS, // start_of_image_data;
-        0, // image_address_offset
-        35, // number_of_pictures;
-        ZXOPT, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        FOLLOWS, // start_of_image_data
+        0,       // image_address_offset
+        35,      // number_of_pictures
+        ZXOPT,   // palette
+        99,      // picture_format_version
     },
 
     {
@@ -705,8 +705,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         72,  // Number of messages
 
-        98, // number_of_verbs
-        96, // number_of_nouns;
+        98,  // number_of_verbs
+        96,  // number_of_nouns
 
         0x1dd9, // header
         MYSTERIOUS_C64_HEADER,  // header style
@@ -718,21 +718,21 @@ const struct GameInfo games[] = {
         0x1df1, // actions
         UNCOMPRESSED,
         0x2851,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x408, // start_of_system_messages
-        0x408, // start of directions
+        0x0408,  // start_of_system_messages
+        0x0408,  // start of directions
 
-        0, // start_of_characters;
-        0x3914, // start_of_image_data;
-        0, // image_address_offset
-        35, // number_of_pictures;
-        C64A, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        0x3914,  // start_of_image_data
+        0,       // image_address_offset
+        35,      // number_of_pictures
+        C64A,    // palette
+        99,      // picture_format_version
     },
 
     {
@@ -750,8 +750,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         82,  // Number of messages
 
-        83, // number_of_verbs
-        82, // number_of_nouns;
+        83,  // number_of_verbs
+        82,  // number_of_nouns
 
         0x2351, // header
         EARLY,  // header style
@@ -763,21 +763,21 @@ const struct GameInfo games[] = {
         0x3b81, // actions
         UNCOMPRESSED,
         0x47bf,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x24c0, // start_of_system_messages
-        0x2780, // start of directions
+        0x24c0,  // start_of_system_messages
+        0x2780,  // start of directions
 
-        0, // start_of_characters;
-        FOLLOWS, // start_of_image_data;
-        0, // image_address_offset
-        58, // number_of_pictures;
-        ZXOPT, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        FOLLOWS, // start_of_image_data
+        0,       // image_address_offset
+        58,      // number_of_pictures
+        ZXOPT,   // palette
+        99,      // picture_format_version
     },
 
     {
@@ -795,8 +795,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         82,  // Number of messages
 
-        56, // number_of_verbs
-        80, // number_of_nouns;
+        56,  // number_of_verbs
+        80,  // number_of_nouns
 
         0x1dd9, // header
         EARLY,  // header style
@@ -808,21 +808,21 @@ const struct GameInfo games[] = {
         0x1df3, // actions
         UNCOMPRESSED,
         0x27c3,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x408, // start_of_system_messages
-        0x408, // start of directions
+        0x0408,  // start_of_system_messages
+        0x0408,  // start of directions
 
-        0, // start_of_characters;
-        0x3876, // start_of_image_data;
-        0, // image_address_offset
-        58, // number_of_pictures;
-        C64A, // palette
-        99, // picture_format_version;
+        0,      // start_of_characters
+        0x3876, // start_of_image_data
+        0,      // image_address_offset
+        58,     // number_of_pictures
+        C64A,   // palette
+        99,     // picture_format_version
     },
 
     {
@@ -840,8 +840,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         82,  // Number of messages
 
-        86, // number_of_verbs
-        85, // number_of_nouns;
+        86,  // number_of_verbs
+        85,  // number_of_nouns
 
         0x2351, // header
         EARLY,  // header style
@@ -853,21 +853,21 @@ const struct GameInfo games[] = {
         0x3b81, // actions
         UNCOMPRESSED,
         0x497d,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x24c0, // start_of_system_messages
-        0x2780, // start of directions
+        0x24c0,  // start_of_system_messages
+        0x2780,  // start of directions
 
-        0, // start_of_characters;
-        FOLLOWS, // start_of_image_data;
-        0, // image_address_offset
-        39, // number_of_pictures;
-        ZXOPT, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        FOLLOWS, // start_of_image_data
+        0,       // image_address_offset
+        39,      // number_of_pictures
+        ZXOPT,   // palette
+        99,      // picture_format_version
     },
 
 
@@ -886,8 +886,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         82,  // Number of messages
 
-        67, // number_of_verbs
-        85, // number_of_nouns;
+        67,  // number_of_verbs
+        85,  // number_of_nouns
 
         0x1dd9, // header
         MYSTERIOUS_C64_HEADER,  // header style
@@ -899,21 +899,21 @@ const struct GameInfo games[] = {
         0x1df1, // actions
         UNCOMPRESSED,
         0x2a71,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x408, // start_of_system_messages
-        0x408, // start of directions
+        0x0408,  // start_of_system_messages
+        0x0408,  // start of directions
 
-        0, // start_of_characters;
-        0x3bce, // start_of_image_data;
-        0, // image_address_offset
-        39, // number_of_pictures;
-        C64A, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        0x3bce,  // start_of_image_data
+        0,       // image_address_offset
+        39,      // number_of_pictures
+        C64A,    // palette
+        99,      // picture_format_version
     },
 
     {
@@ -932,7 +932,7 @@ const struct GameInfo games[] = {
         82,  // Number of messages
 
         131, // number_of_verbs
-        130, // number_of_nouns;
+        130, // number_of_nouns
 
         0x2351, // header
         EARLY,  // header style
@@ -941,24 +941,24 @@ const struct GameInfo games[] = {
         0, // no item flags
         0, // no item images
 
-        0x3b81, // actions
+        0x3b81,  // actions
         UNCOMPRESSED,
         0x4823,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x24c0, // start_of_system_messages
-        0x2780, // start of directions
+        0x24c0,  // start_of_system_messages
+        0x2780,  // start of directions
 
-        0, // start_of_characters;
-        FOLLOWS, // start_of_image_data;
-        0, // image_address_offset
-        39, // number_of_pictures;
-        ZXOPT, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        FOLLOWS, // start_of_image_data
+        0,       // image_address_offset
+        39,      // number_of_pictures
+        ZXOPT,   // palette
+        99,      // picture_format_version
     },
 
     {
@@ -977,7 +977,7 @@ const struct GameInfo games[] = {
         82,  // Number of messages
 
         131, // number_of_verbs
-        82, // number_of_nouns;
+        82,  // number_of_nouns
 
         0x1dd9, // header
         EARLY,  // header style
@@ -989,29 +989,29 @@ const struct GameInfo games[] = {
         0x1df3, // actions
         UNCOMPRESSED,
         0x2853,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x408, // start_of_system_messages
-        0x408, // start of directions
+        0x0408,  // start_of_system_messages
+        0x0408,  // start of directions
 
-        0, // start_of_characters;
-        0x3d91, // start_of_image_data;
-        0, // image_address_offset
-        39, // number_of_pictures;
-        C64A, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        0x3d91,  // start_of_image_data
+        0,       // image_address_offset
+        39,      // number_of_pictures
+        C64A,    // palette
+        99,      // picture_format_version
     },
 
     {
         "Perseus and Andromeda Italian",
         PERSEUS_ITALIAN,
-        OLD_STYLE,                // type
+        OLD_STYLE,  // type
         MYSTERIOUS, // subtype
-        ITALIAN, // dictionary type
+        ITALIAN,    // dictionary type
 
         60,  // Number of items
         178, // Number of actions
@@ -1022,7 +1022,7 @@ const struct GameInfo games[] = {
         82,  // Number of messages
 
         131, // number_of_verbs
-        83, // number_of_nouns;
+        83,  // number_of_nouns
 
         0x045d, // header
         EARLY,  // header style
@@ -1034,21 +1034,21 @@ const struct GameInfo games[] = {
         0x1c8d, // actions
         UNCOMPRESSED,
         0x292f, // dictionary
-        0x2e4d, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        0x2e4d, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x5d5, // start_of_system_messages
-        0x892, // start of directions
+        0x05d5,  // start_of_system_messages
+        0x0892,  // start of directions
 
-        0, // start_of_characters;
-        0x3faa, // start_of_image_data;
-        0, // image_address_offset
-        40, // number_of_pictures;
-        ZXOPT, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        0x3faa,  // start_of_image_data
+        0,       // image_address_offset
+        40,      // number_of_pictures
+        ZXOPT,   // palette
+        99,      // picture_format_version
     },
 
     {
@@ -1067,7 +1067,7 @@ const struct GameInfo games[] = {
         82,  // Number of messages
 
         86, // number_of_verbs
-        85, // number_of_nouns;
+        85, // number_of_nouns
 
         0x2351, // header
         EARLY,  // header style
@@ -1076,32 +1076,32 @@ const struct GameInfo games[] = {
         0, // no item flags
         0, // no item images
 
-        0x3b81, // actions
+        0x3b81,  // actions
         UNCOMPRESSED,
         0x47b7,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x24c0, // start_of_system_messages
-        0x2780, // start of directions
+        0x24c0,  // start_of_system_messages
+        0x2780,  // start of directions
 
-        0, // start_of_characters;
-        FOLLOWS, // start_of_image_data;
-        0, // image_address_offset
-        62, // number_of_pictures;
-        ZXOPT, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        FOLLOWS, // start_of_image_data
+        0,       // image_address_offset
+        62,      // number_of_pictures
+        ZXOPT,   // palette
+        99,      // picture_format_version
     },
 
     {
         "Ten Little Indians C64",
         INDIANS_C64,
-        NO_TYPE,                // type
+        NO_TYPE,                    // type
         MYSTERIOUS | ENGLISH | C64, // subtype
-        FOUR_LETTER_UNCOMPRESSED, // dictionary type
+        FOUR_LETTER_UNCOMPRESSED,   // dictionary type
 
         73,  // Number of items
         161, // Number of actions
@@ -1112,7 +1112,7 @@ const struct GameInfo games[] = {
         82,  // Number of messages
 
         64, // number_of_verbs
-        82, // number_of_nouns;
+        82, // number_of_nouns
 
         0x1dd9, // header
         INDIANS_C64_HEADER,  // header style
@@ -1124,21 +1124,21 @@ const struct GameInfo games[] = {
         0x1df0, // actions
         UNCOMPRESSED,
         0x2810,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x408, // start_of_system_messages
-        0x408, // start of directions
+        0x0408,  // start_of_system_messages
+        0x0408,  // start of directions
 
-        0, // start_of_characters;
-        0x3a46, // start_of_image_data;
-        0, // image_address_offset
-        62, // number_of_pictures;
-        C64A, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        0x3a46,  // start_of_image_data
+        0,       // image_address_offset
+        62,      // number_of_pictures
+        C64A,    // palette
+        99,      // picture_format_version
     },
 
     {
@@ -1157,7 +1157,7 @@ const struct GameInfo games[] = {
         82,  // Number of messages
 
         107, // number_of_verbs
-        106, // number_of_nouns;
+        106, // number_of_nouns
 
         0x2351, // header
         EARLY,  // header style
@@ -1169,21 +1169,21 @@ const struct GameInfo games[] = {
         0x3b81, // actions
         UNCOMPRESSED,
         0x48d3,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
-        0x24c0, // start_of_system_messages
-        0x2780, // start of directions
+        0x24c0,  // start_of_system_messages
+        0x2780,  // start of directions
 
-        0, // start_of_characters;
-        FOLLOWS, // start_of_image_data;
-        0, // image_address_offset
-        40, // number_of_pictures;
-        ZXOPT, // palette
-        99, // picture_format_version;
+        0,       // start_of_characters
+        FOLLOWS, // start_of_image_data
+        0,       // image_address_offset
+        40,      // number_of_pictures
+        ZXOPT,   // palette
+        99,      // picture_format_version
     },
 
     {
@@ -1201,8 +1201,8 @@ const struct GameInfo games[] = {
         4,   // Word length
         82,  // Number of messages
 
-        91, // number_of_verbs
-        105, // number_of_nouns;
+        91,  // number_of_verbs
+        105, // number_of_nouns
 
         0x1dd9, // header
         EARLY,  // header style
@@ -1214,21 +1214,21 @@ const struct GameInfo games[] = {
         0x1df3, // actions
         UNCOMPRESSED,
         0x29d3,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
         0x408, // start_of_system_messages
         0x408, // start of directions
 
-        0, // start_of_characters;
-        0x3f31, // start_of_image_data;
-        0, // image_address_offset
-        40, // number_of_pictures;
-        C64A, // palette
-        99, // picture_format_version;
+        0,      // start_of_characters
+        0x3f31, // start_of_image_data
+        0,      // image_address_offset
+        40,     // number_of_pictures
+        C64A,   // palette
+        99,     // picture_format_version
     },
 
     {
@@ -1247,9 +1247,9 @@ const struct GameInfo games[] = {
         99,  // Number of messages
 
         128, // number_of_verbs
-        129, // number_of_nouns;
+        129, // number_of_nouns
 
-        0x4bf4,      // header
+        0x4bf4,    // header
         US_HEADER, // header style
 
         0x270c, // room images
@@ -1259,21 +1259,21 @@ const struct GameInfo games[] = {
         0x6087, // actions
         HULK_ACTIONS,
         0x4cc4,  // dictionary
-        0x51cd,  // start_of_room_descriptions;
-        0x7111,  // start_of_room_connections;
-        0x575e,  // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        0x5f3d,  // start_of_item_locations;
+        0x51cd,  // start_of_room_descriptions
+        0x7111,  // start_of_room_connections
+        0x575e,  // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        0x5f3d,  // start_of_item_locations
 
-        0x2553, // start_of_system_messages
-        0x28f7, // start of directions
+        0x2553,  // start_of_system_messages
+        0x28f7,  // start of directions
 
-        0x281b, // start_of_characters;
-        0x2782, // start_of_image_data
-        0,      // image_address_offset
-        43,     // number_of_pictures;
-        ZXOPT,  // palette
-        0,      // picture_format_version;
+        0x281b,  // start_of_characters
+        0x2782,  // start_of_image_data
+        0,       // image_address_offset
+        43,      // number_of_pictures
+        ZXOPT,   // palette
+        0        // picture_format_version
     },
 
     {
@@ -1291,9 +1291,9 @@ const struct GameInfo games[] = {
         99,  // Number of messages
 
         128, // number_of_verbs
-        129, // number_of_nouns;
+        129, // number_of_nouns
 
-        0x7867,      // header
+        0x7867,    // header
         US_HEADER, // header style
 
         0x2280, // room images
@@ -1303,22 +1303,22 @@ const struct GameInfo games[] = {
         0x8c47, // actions
         HULK_ACTIONS,
         0x7884,  // dictionary
-        0x7d8d,  // start_of_room_descriptions;
-        0x9CD1,  // start_of_room_connections;
-        0x831E,  // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        0x8AFD,  // start_of_item_locations;
+        0x7d8d,  // start_of_room_descriptions
+        0x9CD1,  // start_of_room_connections
+        0x831E,  // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        0x8AFD,  // start_of_item_locations
 
         // These are spread out all over the code
         0,      // start_of_system_messages
         0xae25, // start of directions
 
-        0x0d01, // start_of_characters;
+        0x0d01, // start_of_characters
         0x2701, // start_of_image_data
         0,      // image_address_offset
-        43,     // number_of_pictures;
+        43,     // number_of_pictures
         C64B,   // palette
-        0,      // picture_format_version;
+        0       // picture_format_version
     },
 
     {
@@ -1337,7 +1337,7 @@ const struct GameInfo games[] = {
         75,  // Number of messages
 
         70, // number_of_verbs
-        69, // number_of_nouns;
+        69, // number_of_nouns
 
         0x2473, // header
         EARLY,  // header style
@@ -1348,21 +1348,21 @@ const struct GameInfo games[] = {
         0x3f5e,  // actions
         UNCOMPRESSED,
         0x4c10,  // dictionary
-        0x4e40,  // start_of_room_descriptions;
-        0x4abe,  // start_of_room_connections;
-        0x52c3,  // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        0x4b8a,  // start_of_item_locations;
+        0x4e40,  // start_of_room_descriptions
+        0x4abe,  // start_of_room_connections
+        0x52c3,  // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        0x4b8a,  // start_of_item_locations
 
-        0x24eb, // start_of_system_messages
-        0x285e, // start of directions
+        0x24eb,  // start_of_system_messages
+        0x285e,  // start of directions
 
-        0x631e,  // start_of_characters;
+        0x631e,  // start_of_characters
         FOLLOWS, // start_of_image_data
         -0x3fe5, // image_address_offset
-        41,      // number_of_pictures;
+        41,      // number_of_pictures
         ZXOPT,   // palette
-        1,       // picture_format_version;
+        1        // picture_format_version
     },
 
     {
@@ -1381,7 +1381,7 @@ const struct GameInfo games[] = {
         75,  // Number of messages
 
         70, // number_of_verbs
-        69, // number_of_nouns;
+        69, // number_of_nouns
 
         0x4146, // header
         EARLY,  // header style
@@ -1392,21 +1392,21 @@ const struct GameInfo games[] = {
         0x4160, // actions
         UNCOMPRESSED,
         0x4c10,  // dictionary
-        0x4e40,  // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        0x6404,  // start_of_item_locations;
+        0x4e40,  // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        0x6404,  // start_of_item_locations
 
-        0x188, // start_of_system_messages
-        0x188, // start of directions
+        0x0188,  // start_of_system_messages
+        0x0188,  // start of directions
 
-        0x6482,  // start_of_characters;
+        0x6482,  // start_of_characters
         0x6c82,  // start_of_image_data
         -0x1102, // image_address_offset
-        41,      // number_of_pictures;
+        41,      // number_of_pictures
         C64B,    // palette
-        1,       // picture_format_version;
+        1        // picture_format_version
     },
 
     {
@@ -1425,7 +1425,7 @@ const struct GameInfo games[] = {
         81,  // Number of messages
 
         65, // number_of_verbs
-        65, // number_of_nouns;
+        65, // number_of_nouns
 
         0x2473,  // header
         EARLY,   // header style
@@ -1435,21 +1435,21 @@ const struct GameInfo games[] = {
         0x3fa2,  // actions
         UNCOMPRESSED,
         0x4af0,  // dictionary
-        0x4cf8,  // start_of_room_descriptions;
-        0x49f2,  // start_of_room_connections;
-        0x4edf,  // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        0x4a82,  // start_of_item_locations;
+        0x4cf8,  // start_of_room_descriptions
+        0x49f2,  // start_of_room_connections
+        0x4edf,  // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        0x4a82,  // start_of_item_locations
 
-        0x24eb, // start_of_system_messages
-        0x285e, // start of directions
+        0x24eb,  // start_of_system_messages
+        0x285e,  // start of directions
 
-        0x625d,  // start_of_characters;
+        0x625d,  // start_of_characters
         FOLLOWS, // start_of_image_data
         -0x3fe5, // image_address_offset
-        44,      // number_of_pictures;
+        44,      // number_of_pictures
         ZXOPT,   // palette
-        1,       // picture_format_version;
+        1        // picture_format_version
     },
 
     {
@@ -1467,8 +1467,8 @@ const struct GameInfo games[] = {
         3,   // Word length
         81,  // Number of messages
 
-        60, // number_of_verbs
-        62, // number_of_nouns;
+        60,  // number_of_verbs
+        62,  // number_of_nouns
 
         0x4572,  // header
         EARLY,   // header style
@@ -1478,21 +1478,21 @@ const struct GameInfo games[] = {
         0x45a4,  // actions
         UNCOMPRESSED,
         0x4f54,  // dictionary
-        0x5140,  // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        0x6785,  // start_of_item_locations;
+        0x5140,  // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        0x6785,  // start_of_item_locations
 
-        0x2502, // start_of_system_messages
-        0x2502, // start of directions
+        0x2502,  // start_of_system_messages
+        0x2502,  // start of directions
 
-        0x681b,  // start_of_characters;
+        0x681b,  // start_of_characters
         0x701b,  // start_of_image_data
         -0x1CD0, // image_address_offset
-        44,      // number_of_pictures;
+        44,      // number_of_pictures
         C64B,    // palette
-        1,       // picture_format_version;
+        1        // picture_format_version
     },
 
     {
@@ -1511,7 +1511,7 @@ const struct GameInfo games[] = {
         79,  // Number of messages
 
         110, // number_of_verbs
-        108, // number_of_nouns;
+        108, // number_of_nouns
 
         0x246c, // header
         EARLY,  // header style
@@ -1522,21 +1522,21 @@ const struct GameInfo games[] = {
         FOLLOWS, // actions
         UNCOMPRESSED,
         0x4ecf,  // dictionary
-        0x53f7,  // start_of_room_descriptions;
-        0x4d6f,  // start_of_room_connections;
-        0x5605,  // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        0x4e35,  // start_of_item_locations;
+        0x53f7,  // start_of_room_descriptions
+        0x4d6f,  // start_of_room_connections
+        0x5605,  // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        0x4e35,  // start_of_item_locations
 
-        0x24e2, // start_of_system_messages
-        0x2877, // start of directions
+        0x24e2,  // start_of_system_messages
+        0x2877,  // start of directions
 
-        0x6007,  // start_of_characters;
+        0x6007,  // start_of_characters
         0x6807,  // start_of_image_data
         -0x3fe5, // image_address_offset
-        37,      // number_of_pictures;
+        37,      // number_of_pictures
         ZXOPT,   // palette
-        1,       // picture_format_version;
+        1        // picture_format_version
     },
 
     {
@@ -1555,7 +1555,7 @@ const struct GameInfo games[] = {
         79,  // Number of messages
 
         110, // number_of_verbs
-        108, // number_of_nouns;
+        108, // number_of_nouns
 
         0x47d6, // header
         EARLY,  // header style
@@ -1566,21 +1566,21 @@ const struct GameInfo games[] = {
         0x47f0,  // actions
         UNCOMPRESSED,
         0x5890,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
         0xa2c, // start_of_system_messages
         0xa2c, // start of directions
 
-        0x6b1a, // start_of_characters;
+        0x6b1a, // start_of_characters
         0x731a, // start_of_image_data
         0x6b1a, // image_address_offset
-        44,     // number_of_pictures;
+        44,     // number_of_pictures
         C64B,   // palette
-        1,      // picture_format_version;
+        1       // picture_format_version
     },
 
     {
@@ -1599,7 +1599,7 @@ const struct GameInfo games[] = {
         99,  // Number of messages
 
         125, // number_of_verbs
-        125, // number_of_nouns;
+        125, // number_of_nouns
 
         0x246b, // header
         EARLY,  // header style
@@ -1611,21 +1611,21 @@ const struct GameInfo games[] = {
         FOLLOWS, // actions
         UNCOMPRESSED,
         0x5036,  // dictionary
-        0x5518,  // start_of_room_descriptions;
-        0x4eac,  // start_of_room_connections;
-        0x575e,  // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        0x4fa2,  // start_of_item_locations;
+        0x5518,  // start_of_room_descriptions
+        0x4eac,  // start_of_room_connections
+        0x575e,  // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        0x4fa2,  // start_of_item_locations
 
         0x2553, // start_of_system_messages
         0x28f7, // start of directions
 
-        0x6296,  // start_of_characters;
+        0x6296,  // start_of_characters
         0x6a96,  // start_of_image_data
         -0x3fe5, // image_address_offset
-        41,      // number_of_pictures;
+        41,      // number_of_pictures
         ZXOPT,   // palette
-        2,       // picture_format_version;
+        2        // picture_format_version
     },
 
     {
@@ -1644,7 +1644,7 @@ const struct GameInfo games[] = {
         98,  // Number of messages
 
         118, // number_of_verbs
-        124, // number_of_nouns;
+        124, // number_of_nouns
 
         0x4baf, // header
         EARLY,  // header style
@@ -1656,21 +1656,21 @@ const struct GameInfo games[] = {
         0x4bf2, // actions
         UNCOMPRESSED,
         0x5b52,  // dictionary
-        0x600c,  // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        0x6b9b,  // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        0x600c,  // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        0x6b9b,  // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
         0x0a7b, // start_of_system_messages
         0x0a7b, // start of directions
 
-        0x716c, // start_of_characters;
+        0x716c, // start_of_characters
         0x796c, // start_of_image_data
         0x716c, // image_address_offset
-        41,     // number_of_pictures;
+        41,     // number_of_pictures
         C64C,   // palette
-        2,      // picture_format_version;
+        2       // picture_format_version
     },
 
     {
@@ -1689,7 +1689,7 @@ const struct GameInfo games[] = {
         99,  // Number of messages
 
         82, // number_of_verbs
-        84, // number_of_nouns;
+        84, // number_of_nouns
 
         0x236d,  // header
         LATE,    // header style
@@ -1699,21 +1699,21 @@ const struct GameInfo games[] = {
         0x39a6,  // actions
         COMPRESSED,
         0x4484,  // dictionary
-        0x47c7,  // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        0x4b91,  // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        0x47c7,  // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        0x4b91,  // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
         0x2423, // start_of_system_messages
         0x25f3, // start of directions
 
-        0x570f,  // start_of_characters;
+        0x570f,  // start_of_characters
         FOLLOWS, // start_of_image_data
         0x600f,  // image_address_offset
-        37,      // number_of_pictures;
+        37,      // number_of_pictures
         ZXOPT,   // palette
-        3,       // picture_format_version;
+        3        // picture_format_version
     },
 
     {
@@ -1732,7 +1732,7 @@ const struct GameInfo games[] = {
         99,  // Number of messages
 
         85, // number_of_verbs
-        84, // number_of_nouns;
+        84, // number_of_nouns
 
         0x46dc,                   // header
         EARLY, // header style
@@ -1742,22 +1742,22 @@ const struct GameInfo games[] = {
         0x46f6,                   // actions
         COMPRESSED,
         0x51d6,  // dictionary
-        0x5528,  // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-                 //        0x58f6, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        0x5528,  // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+                 //        0x58f6, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
         0x0a5f, // start_of_system_messages
         0x0a5f, // start of directions
 
-        0x6A02, // start_of_characters;
+        0x6A02, // start_of_characters
         0x7202, // start_of_image_data
         0x7302, // image_address_offset
-        37,     // number_of_pictures;
+        37,     // number_of_pictures
         C64B,   // palette
-        3,      // picture_format_version;
+        3       // picture_format_version
     },
 
     {
@@ -1776,7 +1776,7 @@ const struct GameInfo games[] = {
         95,  // Number of messages
 
         74, // number_of_verbs
-        79, // number_of_nouns;
+        79, // number_of_nouns
 
         0x236d,  // header
         LATE,    // header style
@@ -1786,27 +1786,27 @@ const struct GameInfo games[] = {
         0x398e,  // actions
         COMPRESSED,
         0x43f0,  // dictionary
-        0x46ed,  // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        0x46ed,  // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
         0x2423, // start_of_system_messages
         0x25f3, // start of directions
 
-        0x57d0,  // start_of_characters;
+        0x57d0,  // start_of_characters
         FOLLOWS, // start_of_image_data
         0x60d0,  // image_address_offset
-        21,      // number_of_pictures;
+        21,      // number_of_pictures
         ZXOPT,   // palette
-        3,       // picture_format_version;
+        3        // picture_format_version
     },
 
     {
         "Savage Island part II (C64)",
         SAVAGE_ISLAND2_C64,
-        NO_TYPE,    // type
+        NO_TYPE,                  // type
         ENGLISH | C64,            // subtype
         FOUR_LETTER_UNCOMPRESSED, // dictionary type
 
@@ -1819,7 +1819,7 @@ const struct GameInfo games[] = {
         94,  // Number of messages
 
         79, // number_of_verbs
-        79, // number_of_nouns;
+        79, // number_of_nouns
 
         0x4654,                   // header
         EARLY, // header style
@@ -1829,21 +1829,21 @@ const struct GameInfo games[] = {
         0x466e,                   // actions
         COMPRESSED,
         0x50d2,  // dictionary
-        0x53e8,  // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        0x53e8,  // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
         0x0a50, // start_of_system_messages
         0x0a50, // start of directions
 
-        0x6A02, // start_of_characters;
+        0x6A02, // start_of_characters
         0x7202, // start_of_image_data
         0x7302, // image_address_offset
-        21,     // number_of_pictures;
+        21,     // number_of_pictures
         C64B,   // palette
-        3,      // picture_format_version;
+        3       // picture_format_version
     },
 
     {
@@ -1862,7 +1862,7 @@ const struct GameInfo games[] = {
         98,  // Number of messages
 
         115, // number_of_verbs
-        126, // number_of_nouns;
+        126, // number_of_nouns
 
         0x2370, // header
         LATE,   // header style
@@ -1874,20 +1874,20 @@ const struct GameInfo games[] = {
         0x3afe,     // actions
         COMPRESSED, // actions_style;
         0x45e5,     // dictionary
-        FOLLOWS,    // start_of_room_descriptions;
-        FOLLOWS,    // start_of_room_connections;
-        FOLLOWS,    // start_of_messages;
-        FOLLOWS,    // start_of_item_descriptions;
-        FOLLOWS,    // start_of_item_locations;
+        FOLLOWS,    // start_of_room_descriptions
+        FOLLOWS,    // start_of_room_connections
+        FOLLOWS,    // start_of_messages
+        FOLLOWS,    // start_of_item_descriptions
+        FOLLOWS,    // start_of_item_locations
         0x2426,     // start_of_system_messages
         0x25f6,     // start of directions
 
-        0x5be1, // start_of_characters;
+        0x5be1, // start_of_characters
         0x63e1, // start_of_image_data
         0x64e1, // image_address_offset
-        78,     // number_of_pictures;
+        78,     // number_of_pictures
         ZXOPT,  // palette
-        3,      // picture_format_version;
+        3       // picture_format_version
     },
 
     {
@@ -1906,7 +1906,7 @@ const struct GameInfo games[] = {
         98,  // Number of messages
 
         115, // number_of_verbs
-        126, // number_of_nouns;
+        126, // number_of_nouns
 
         0x2378, // header
         LATE,   // header style
@@ -1918,20 +1918,20 @@ const struct GameInfo games[] = {
         0x3b02,     // actions
         COMPRESSED, // actions_style;
         0x45e5,     // dictionary
-        FOLLOWS,    // start_of_room_descriptions;
-        FOLLOWS,    // start_of_room_connections;
-        FOLLOWS,    // start_of_messages;
-        FOLLOWS,    // start_of_item_descriptions;
-        FOLLOWS,    // start_of_item_locations;
+        FOLLOWS,    // start_of_room_descriptions
+        FOLLOWS,    // start_of_room_connections
+        FOLLOWS,    // start_of_messages
+        FOLLOWS,    // start_of_item_descriptions
+        FOLLOWS,    // start_of_item_locations
         0x242e,     // start_of_system_messages
         0x25FE,     // start of directions
 
-        0x5bdd, // start_of_characters;
+        0x5bdd, // start_of_characters
         0x63dd, // start_of_image_data
         0x64dd, // image_address_offset
-        78,     // number_of_pictures;
+        78,     // number_of_pictures
         ZXOPT,  // palette
-        3,      // picture_format_version;
+        3       // picture_format_version
     },
 
     {
@@ -1962,11 +1962,11 @@ const struct GameInfo games[] = {
         0x3afc, // actions
         COMPRESSED,
         0x45d9,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
         0x23de, // start_of_system_messages
         0x2623, // start of directions
@@ -1974,9 +1974,9 @@ const struct GameInfo games[] = {
         0x643e, // start_of_characters
         0x6c3e, // start_of_image_data
         0x6d3e, // image_address_offset
-        72,     // number_of_pictures;
+        72,     // number_of_pictures
         ZX,     // palette
-        3,      // picture_format_version;
+        3       // picture_format_version
     },
 
     {
@@ -1995,7 +1995,7 @@ const struct GameInfo games[] = {
         99,  // Number of messages
 
         115, // number_of_verbs
-        126, // number_of_nouns;
+        126, // number_of_nouns
 
         0x4584,              // header
         GREMLINS_C64_HEADER, // header style
@@ -2007,20 +2007,20 @@ const struct GameInfo games[] = {
         0x4751,     // actions
         COMPRESSED, // actions_style;
         0x527f,     // dictionary
-        FOLLOWS,    // start_of_room_descriptions;
-        FOLLOWS,    // start_of_room_connections;
-        FOLLOWS,    // start_of_messages;
-        FOLLOWS,    // start_of_item_descriptions;
-        0x4596,     // start_of_item_locations;
+        FOLLOWS,    // start_of_room_descriptions
+        FOLLOWS,    // start_of_room_connections
+        FOLLOWS,    // start_of_messages
+        FOLLOWS,    // start_of_item_descriptions
+        0x4596,     // start_of_item_locations
         0x0a5e,     // start_of_system_messages
         0x0a5e,     // start of directions
 
-        0x6a01, // start_of_characters;
+        0x6a01, // start_of_characters
         0x7201, // start_of_image_data
         0x7301, // image_address_offset
-        91,     // number_of_pictures;
+        91,     // number_of_pictures
         C64B,   // palette
-        3,      // picture_format_version;
+        3       // picture_format_version
     },
 
     {
@@ -2051,11 +2051,11 @@ const struct GameInfo games[] = {
         0x4d81, // actions
         COMPRESSED,
         0x585e,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        0x4bc4,  // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        0x4bc4,  // start_of_item_locations
 
         0x1325, // start_of_system_messages
         0x1325, // start of directions
@@ -2063,9 +2063,9 @@ const struct GameInfo games[] = {
         0x76c5, // start_of_characters
         0x7cfd, // start_of_image_data
         0x7db3, // image_address_offset
-        91,     // number_of_pictures;
+        91,     // number_of_pictures
         C64B,   // palette
-        3,      // picture_format_version;
+        3       // picture_format_version
     },
 
     {
@@ -2096,11 +2096,11 @@ const struct GameInfo games[] = {
         0x3a88, // actions
         COMPRESSED,
         0x455f,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
         0x2426, // start_of_system_messages
         0x25c4, // start of directions
@@ -2108,9 +2108,9 @@ const struct GameInfo games[] = {
         0x6171, // start_of_characters
         0x6971, // start_of_image_data
         0x6A71, // image_address_offset
-        74,     // number_of_pictures;
+        74,     // number_of_pictures
         ZXOPT,  // palette
-        3,      // picture_format_version;
+        3       // picture_format_version
     },
 
     {
@@ -2141,11 +2141,11 @@ const struct GameInfo games[] = {
         0x3cbd, // actions
         COMPRESSED,
         0x4793,  // dictionary
-        FOLLOWS, // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        0x3b01, // start_of_item_locations;
+        FOLLOWS, // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        0x3b01, // start_of_item_locations
 
         0x0255, // start_of_system_messages
         0x0255, // start of directions
@@ -2153,9 +2153,9 @@ const struct GameInfo games[] = {
         0x6302, // start_of_characters
         0x6b02, // start_of_image_data
         0x6c02, // image_address_offset
-        91,     // number_of_pictures;
+        91,     // number_of_pictures
         C64B,  // palette
-        3,      // picture_format_version;
+        3       // picture_format_version
     },
 
     {
@@ -2174,7 +2174,7 @@ const struct GameInfo games[] = {
         99,  // Number of messages
 
         101, // number_of_verbs
-        106, // number_of_nouns;
+        106, // number_of_nouns
 
         0x236d,  // header
         LATE,    // header style
@@ -2184,21 +2184,21 @@ const struct GameInfo games[] = {
         0x399e,  // actions
         COMPRESSED,
         0x42fd,  // dictionary
-        0x4708,  // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        FOLLOWS, // start_of_item_locations;
+        0x4708,  // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        FOLLOWS, // start_of_item_locations
 
         0x2423, // start_of_system_messages
         0x25f3, // start of directions
 
-        0x5a4e,  // start_of_characters;
+        0x5a4e,  // start_of_characters
         FOLLOWS, // start_of_image_data
         0x634e,  // image_address_offset
-        47,      // number_of_pictures;
+        47,      // number_of_pictures
         ZXOPT,   // palette
-        3,       // picture_format_version;
+        3        // picture_format_version
     },
 
     {
@@ -2217,7 +2217,7 @@ const struct GameInfo games[] = {
         99,  // Number of messages
 
         101, // number_of_verbs
-        105, // number_of_nouns;
+        105, // number_of_nouns
 
         0x4624,               // header
         SUPERGRAN_C64_HEADER, // header style
@@ -2227,21 +2227,21 @@ const struct GameInfo games[] = {
         0x47b5,               // actions
         COMPRESSED,
         0x5119,  // dictionary
-        0x5524,  // start_of_room_descriptions;
-        FOLLOWS, // start_of_room_connections;
-        FOLLOWS, // start_of_messages;
-        FOLLOWS, // start_of_item_descriptions;
-        0x470a,  // start_of_item_locations;
+        0x5524,  // start_of_room_descriptions
+        FOLLOWS, // start_of_room_connections
+        FOLLOWS, // start_of_messages
+        FOLLOWS, // start_of_item_descriptions
+        0x470a,  // start_of_item_locations
 
         0x0a53, // start_of_system_messages
         0x0a53, // start of directions
 
-        0x6a02,  // start_of_characters;
+        0x6a02,  // start_of_characters
         FOLLOWS, // start_of_image_data
         0x7302,  // image_address_offset
-        49,      // number_of_pictures;
+        49,      // number_of_pictures
         C64B,    // palette
-        3,       // picture_format_version;
+        3        // picture_format_version
     },
 
     {
@@ -2260,7 +2260,7 @@ const struct GameInfo games[] = {
         98,  // Number of messages
 
         115, // number_of_verbs
-        109, // number_of_nouns;
+        109, // number_of_nouns
 
         0x3b5a, // header
         LATE,   // header style
@@ -2286,7 +2286,7 @@ const struct GameInfo games[] = {
         0x6765, // image_address_offset
         83,     // number_of_pictures
         ZXOPT,  // palette
-        4,      // picture_format_version
+        4       // picture_format_version
     },
 
     {
@@ -2305,7 +2305,7 @@ const struct GameInfo games[] = {
         98,  // Number of messages
 
         115, // number_of_verbs
-        109, // number_of_nouns;
+        109, // number_of_nouns
 
         0x1f85,           // header
         ROBIN_C64_HEADER, // header style
@@ -2317,7 +2317,7 @@ const struct GameInfo games[] = {
         0x252b, // actions
         COMPRESSED,
         0x320a, // dictionary
-        0, // 0x9b53 start_of_room_descriptions, zero because of custom handling
+        0,      // 0x9b53 start_of_room_descriptions, zero because of custom handling
         0x20cc, // start_of_room_connections
         0x358e, // start_of_messages
         0x4215, // start_of_item_descriptions
@@ -2331,7 +2331,7 @@ const struct GameInfo games[] = {
         0x4c23, // image_address_offset
         90,     // number_of_pictures
         C64B,   // palette
-        4,      // picture_format_version
+        4       // picture_format_version
     },
 
     {
@@ -2350,7 +2350,7 @@ const struct GameInfo games[] = {
         99,  // Number of messages
 
         69,  // number_of_verbs
-        134, // number_of_nouns;
+        134, // number_of_nouns
 
         0x494d, // header
         LATE,   // header style
@@ -2362,21 +2362,21 @@ const struct GameInfo games[] = {
         FOLLOWS, // actions
         COMPRESSED,
         0x591b, // dictionary
-        0x67cb, // start_of_room_descriptions;
-        0x5c4b, // start_of_room_connections;
-        0x5ebb, // start_of_messages;
-        0x6ce0, // start_of_item_descriptions;
-        0x5e3d, // start_of_item_locations;
+        0x67cb, // start_of_room_descriptions
+        0x5c4b, // start_of_room_connections
+        0x5ebb, // start_of_messages
+        0x6ce0, // start_of_item_descriptions
+        0x5e3d, // start_of_item_locations
 
         0x24ed, // start_of_system_messages
         0x26fc, // start of directions
 
-        0x7389, // start_of_characters;
-        0x7a89, // start_of_image_data;
+        0x7389, // start_of_characters
+        0x7a89, // start_of_image_data
         0x7b9f, // image_address_offset
-        139,    // number_of_pictures;
+        139,    // number_of_pictures
         ZXOPT,  // palette
-        4,      // picture_format_version;
+        4       // picture_format_version
     },
 
     {
@@ -2395,7 +2395,7 @@ const struct GameInfo games[] = {
         99,  // Number of messages
 
         69,  // number_of_verbs
-        134, // number_of_nouns;
+        134, // number_of_nouns
 
         0x527d,                   // header
         SEAS_OF_BLOOD_C64_HEADER, // header style
@@ -2407,21 +2407,21 @@ const struct GameInfo games[] = {
         0x5b69, // actions
         COMPRESSED,
         0x6a2d, // dictionary
-        0x78dd, // start_of_room_descriptions;
-        0x6d5d, // start_of_room_connections;
-        0x6fcd, // start_of_messages;
-        0x7df2, // start_of_item_descriptions;
-        0x6f4f, // start_of_item_locations;
+        0x78dd, // start_of_room_descriptions
+        0x6d5d, // start_of_room_connections
+        0x6fcd, // start_of_messages
+        0x7df2, // start_of_item_descriptions
+        0x6f4f, // start_of_item_locations
 
         0x0b9d, // start_of_system_messages
         0x0b9d, // start of directions
 
-        0x84a5, // start_of_characters;
-        0x8ba5, // start_of_image_data;
+        0x84a5, // start_of_characters
+        0x8ba5, // start_of_image_data
         0x8CBB, // image_address_offset
-        139,    // number_of_pictures;
-        C64B,   // palette
-        4,      // picture_format_version;
+        139,    // number_of_pictures
+        C64D,   // palette
+        4       // picture_format_version
     },
 
     {
@@ -2453,7 +2453,7 @@ const struct GameInfo games[] = {
         44,  // Number of rooms
         6,   // Max carried items
         4,   // Word length
-        73,  // Number of messages
+        73   // Number of messages
     },
 
     {
@@ -2469,7 +2469,7 @@ const struct GameInfo games[] = {
         52,  // Number of rooms
         5,   // Max carried items
         4,   // Word length
-        82,  // Number of messages
+        82   // Number of messages
     },
 
     {
@@ -2485,7 +2485,7 @@ const struct GameInfo games[] = {
         65,  // Number of rooms
         9,   // Max carried items
         4,   // Word length
-        87,  // Number of messages
+        87   // Number of messages
     },
 
     {
@@ -2497,11 +2497,11 @@ const struct GameInfo games[] = {
 
         90,  // Number of items
         220, // Number of actions
-        145,  // Number of words
+        145, // Number of words
         45,  // Number of rooms
         6,   // Max carried items
         4,   // Word length
-        75,  // Number of messages
+        75   // Number of messages
     },
 
     {
@@ -2517,7 +2517,7 @@ const struct GameInfo games[] = {
         36,  // Number of rooms
         6,   // Max carried items
         4,   // Word length
-        72,  // Number of messages
+        72   // Number of messages
     },
 
     {
@@ -2533,7 +2533,7 @@ const struct GameInfo games[] = {
         59,  // Number of rooms
         6,   // Max carried items
         4,   // Word length
-        65,  // Number of messages
+        65   // Number of messages
     },
 
     {
@@ -2549,7 +2549,7 @@ const struct GameInfo games[] = {
         40,  // Number of rooms
         6,   // Max carried items
         4,   // Word length
-        99,  // Number of messages
+        99   // Number of messages
     },
 
     {
@@ -2565,7 +2565,7 @@ const struct GameInfo games[] = {
         40,  // Number of rooms
         6,   // Max carried items
         4,   // Word length
-        96,  // Number of messages
+        96   // Number of messages
     },
 
     {
@@ -2581,7 +2581,7 @@ const struct GameInfo games[] = {
         63,  // Number of rooms
         5,   // Max carried items
         4,   // Word length
-        67,  // Number of messages
+        67   // Number of messages
     },
 
     {
@@ -2597,7 +2597,7 @@ const struct GameInfo games[] = {
         41,  // Number of rooms
         6,   // Max carried items
         4,   // Word length
-        91,  // Number of messages
+        91   // Number of messages
     },
 
     { NULL }

@@ -249,6 +249,7 @@ typedef enum {
     C64A,
     C64B,
     C64C,
+    C64D,
     VGA
 } palette_type;
 
