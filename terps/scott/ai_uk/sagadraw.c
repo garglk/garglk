@@ -315,7 +315,7 @@ int32_t Remap(int32_t color)
         };
         mapcol = (((color >= 0) && (color <= 15)) ? c64remap[color] : INVALIDCOLOR);
     } else if (palchosen == C64C) {
-        /* remap B determined from Spiderman (16col) */
+        /* remap C determined from Spiderman C64 */
         int32_t c64remap[] = {
             0,
             6,
@@ -325,6 +325,27 @@ int32_t Remap(int32_t color)
             14,
             8,
             12,
+            0,
+            6,
+            2,
+            4,
+            5,
+            3,
+            7,
+            1,
+        };
+        mapcol = (((color >= 0) && (color <= 15)) ? c64remap[color] : INVALIDCOLOR);
+    } else if (palchosen == C64D) {
+        /* remap D determined from Seas of Blood C64 */
+        int32_t c64remap[] = {
+            0,
+            6,
+            2,
+            4,
+            5,
+            3,
+            8,
+            1,
             0,
             6,
             2,

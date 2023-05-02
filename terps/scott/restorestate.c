@@ -79,7 +79,8 @@ void RestoreState(struct SavedState *state)
         Items[ct].Location = state->ItemLocations[ct];
     }
 
-    StopTime = 1;
+    if (StopTime == 0)
+        StopTime = 1;
 }
 
 void SaveUndo(void)

@@ -10,8 +10,7 @@
 
 #include <stdio.h>
 
-int LoadExtraSeasOfBloodData(void);
-int LoadExtraSeasOfBlood64Data(void);
+void LoadExtraSeasOfBloodData(int c64);
 void SeasOfBloodRoomImage(void);
 void AdventureSheet(void);
 void BloodAction(int p);
