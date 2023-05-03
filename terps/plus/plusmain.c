@@ -1834,6 +1834,7 @@ static ActionResultType PerformLine(int ct)
             case 120:
                 debug_print("counter 48: verb, counter 49: noun, counter 50: preposition, counter 51: adverb, counter 52: participle, counter 53: noun 2\n");
                 SetCountersFromInput();
+                break;
             case 121:
                 debug_print("Set input words to counters 48 to 53\n");
                 CurrentVerb = VerbCounter;
