@@ -662,11 +662,6 @@ static void LineInput(void)
         int length = ev.val1;
         buf[length] = 0;
 
-        if (Transcript) {
-            glk_put_string_stream(Transcript, buf);
-            glk_put_string_stream(Transcript, "\n");
-        }
-
         char *result = StripPunctuation(buf, &length);
         debug_print("After stripping punctuation: \"%s\"\n", result);
         result = ReplaceSynonyms(result, &length);
