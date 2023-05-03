@@ -87,8 +87,10 @@ void SaveUndo(void)
     }
 }
 
-void RestoreUndo(int game)
+void RestoreUndo(int from_player)
 {
+    just_undid = 1;
+
     if (JustStarted) {
         Display(Bottom, "You can't undo on first turn\n");
         return;
@@ -102,11 +104,13 @@ void RestoreUndo(int game)
     if (last_undo->previousState == NULL)
         oldest_undo = last_undo;
     RestoreState(last_undo);
-    if (game)
+    if (from_player) {
         Display(Bottom, "Move undone.\n");
+    } else {
+        just_undid = 0;
+    }
     free(current);
     number_of_undos--;
-    just_undid = 1;
 }
 
 void RamSave(int game)

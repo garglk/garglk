@@ -88,28 +88,30 @@ rules.
 Drawing Codes:
 
 0xFF		End
-0xFE		733C
-0xFD		6FF5 arg 0-7, arg 0-7
-0xFC		76D4 arg1 arg2 arg3 arg4
+0xFE		733C mirror area x0 y0 width y1
+0xFD		6FF5 arg 0-7, arg 0-7 replace colour arg1 with arg2
+0xFC		76D4 arg1 arg2 arg3 arg4 draw color, args y, x, height, colour, width
+		(in early games x, y, colour, length)
 		Seems to be
-		setattributes (arg1,arg2, height, attribute, width)
+		set attributes (arg1, arg2, height, attribute, width)
 		where arg1=y arg2=x in chars 0,0 top left
 0xFB		700D
 		Make picture attribute area bright
-0xFA		7512
+0xFA		7512 Flip image horizontally
 0xF9		DrawPicture n	(following byte)
-0xF8		729D
-0xF7		743A arg1 }
+0xF8		729D Skip rest of picture if object arg1 is not present
+		Early games: Draw picture arg1 at x y
+0xF7		743A arg1 } Rebel Planet: Stop drawing if alcove is unlocked
 0xF6		744E arg1 } set A to 0 4 or 8 and call same method
 0xF5		7444 arg1 }
 0xF4		7458 arg1
-	End of object arg1 is not present
-0xF3		7409
-0xF2		7331 arg1 arg2 arg3 arg4
-0xF1		73FE
-0xEE		7507
-0xED		7654
-0xEC		7649
+	End if object arg1 is not present
+0xF3		7409 Mirror top half vertically
+0xF2		7331 arg1 arg2 arg3 arg4 Mirror area horizontally
+0xF1		73FE Mirror area vertically
+0xEE		7507 Flip area horizontally
+0xED		7654 Flip image vertically
+0xEC		7649 Flip area vertically
 0xEB		CRASH
 0xEA		CRASH
 0xE9		7678 arg1 arg2 ..

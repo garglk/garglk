@@ -39,6 +39,8 @@ void DrawTaylor(int loc);
 void ClearGraphMem(void);
 int32_t Remap(int32_t color);
 
+void PatchAndDrawQP3Cannon(void);
+
 extern palette_type palchosen;
 
 extern int white_colour;

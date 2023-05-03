@@ -39,15 +39,11 @@ void PrintFirstTenBytes(size_t offset);
 
 #define DEBUG_ACTIONS 0
 
-#define IsThing (Flag[31])
-
 #define debug_print(fmt, ...)                    \
     do {                                         \
         if (DEBUG_ACTIONS)                       \
             fprintf(stderr, fmt, ##__VA_ARGS__); \
     } while (0)
-
-#define MyLoc (Flag[0])
 
 #define CurrentGame (Game->gameID)
 #define Version (Game->type)
@@ -55,6 +51,25 @@ void PrintFirstTenBytes(size_t offset);
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+#ifdef SPATTERLIGHT
+#define TAYLOR_GRAPHICS_ENABLED gli_enable_graphics
+#else
+#define TAYLOR_GRAPHICS_ENABLED glk_gestalt(gestalt_Graphics, 0)
+#endif
+
+#define MyLoc (Flag[0])
+#define OtherGuyLoc (Flag[1])
+#define OtherGuyInv (Flag[3])
+#define MaxCarried (Flag[4])
+#define ItemsCarried (Flag[5])
+#define TurnsLow (Flag[26])
+#define TurnsHigh (Flag[27])
+#define IsThing (Flag[31])
+#define ThingAsphyx (Flag[47])
+#define TorchAsphyx (Flag[48])
+#define DrawImages (Flag[52])
+#define Q3SwitchedWatch (Flag[126])
 
 typedef enum {
     QUESTPROBE3,

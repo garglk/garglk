@@ -11,5 +11,8 @@
 #include <stdio.h>
 
 int TryExtraCommand(void);
+int ParseExtraCommand(char *p);
+
+#define EXTRA_COMMAND 0xffff
 
 #endif /* extracommands_h */

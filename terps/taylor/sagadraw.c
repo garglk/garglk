@@ -23,7 +23,7 @@ int draw_to_buffer = 1;
 
 uint8_t sprite[256][8];
 uint8_t screenchars[768][8];
-uint8_t buffer[768][9];
+uint8_t screenbuf[768][9];
 
 static Image *images = NULL;
 
@@ -46,8 +46,6 @@ int blue_colour = 9;
 int32_t errorcount = 0;
 
 palette_type palchosen = NO_PALETTE;
-
-#define STRIDE 765 /* 255 pixels * 3 (r, g, b) */
 
 #define INVALIDCOLOR 16
 
@@ -500,7 +498,7 @@ void RectFill(int32_t x, int32_t y, int32_t width, int32_t height,
         int bufferpos = (y / 8) * 32 + (x / 8);
         if (bufferpos >= 0xD80)
             return;
-        buffer[bufferpos][8] = (uint8_t)(buffer[bufferpos][8] | (color << 3));
+        screenbuf[bufferpos][8] = (uint8_t)(screenbuf[bufferpos][8] | (color << 3));
     }
 
     glui32 glk_color = ((pal[color][0] << 16)) | ((pal[color][1] << 8)) | (pal[color][2]);
@@ -866,10 +864,10 @@ static void mirror_area(int x1, int y1, int width, int y2)
         int source = line * 32 + x1;
         int target = source + width - 1;
         for (int col = 0; col < width / 2; col++) {
-            buffer[target][8] = buffer[source][8];
+            screenbuf[target][8] = screenbuf[source][8];
             for (int pixrow = 0; pixrow < 8; pixrow++)
-                buffer[target][pixrow] = buffer[source][pixrow];
-            Flip(buffer[target]);
+                screenbuf[target][pixrow] = screenbuf[source][pixrow];
+            Flip(screenbuf[target]);
             source++;
             target--;
         }
@@ -880,9 +878,9 @@ static void mirror_top_half(void)
 {
     for (int line = 0; line < 6; line++) {
         for (int col = 0; col < 32; col++) {
-            buffer[(11 - line) * 32 + col][8] = buffer[line * 32 + col][8];
+            screenbuf[(11 - line) * 32 + col][8] = screenbuf[line * 32 + col][8];
             for (int pixrow = 0; pixrow < 8; pixrow++)
-                buffer[(11 - line) * 32 + col][7 - pixrow] = buffer[line * 32 + col][pixrow];
+                screenbuf[(11 - line) * 32 + col][7 - pixrow] = screenbuf[line * 32 + col][pixrow];
         }
     }
 }
@@ -894,12 +892,12 @@ static void flip_image_horizontally(void)
     for (int line = 0; line < 12; line++) {
         for (int col = 32; col > 0; col--) {
             for (int pixrow = 0; pixrow < 9; pixrow++)
-                mirror[line * 32 + col - 1][pixrow] = buffer[line * 32 + (32 - col)][pixrow];
+                mirror[line * 32 + col - 1][pixrow] = screenbuf[line * 32 + (32 - col)][pixrow];
             Flip(mirror[line * 32 + col - 1]);
         }
     }
 
-    memcpy(buffer, mirror, 384 * 9);
+    memcpy(screenbuf, mirror, 384 * 9);
 }
 
 static void flip_image_vertically(void)
@@ -909,11 +907,11 @@ static void flip_image_vertically(void)
     for (int line = 0; line < 12; line++) {
         for (int col = 0; col < 32; col++) {
             for (int pixrow = 0; pixrow < 8; pixrow++)
-                mirror[(11 - line) * 32 + col][7 - pixrow] = buffer[line * 32 + col][pixrow];
-            mirror[(11 - line) * 32 + col][8] = buffer[line * 32 + col][8];
+                mirror[(11 - line) * 32 + col][7 - pixrow] = screenbuf[line * 32 + col][pixrow];
+            mirror[(11 - line) * 32 + col][8] = screenbuf[line * 32 + col][8];
         }
     }
-    memcpy(buffer, mirror, 384 * 9);
+    memcpy(screenbuf, mirror, 384 * 9);
 }
 
 static void flip_area_vertically(uint8_t x1, uint8_t y1, uint8_t width, uint8_t y2)
@@ -924,15 +922,15 @@ static void flip_area_vertically(uint8_t x1, uint8_t y1, uint8_t width, uint8_t 
     for (int line = 0; line <= y2; line++) {
         for (int col = x1; col < x1 + width; col++) {
             for (int pixrow = 0; pixrow < 8; pixrow++)
-                mirror[(y2 - line) * 32 + col][7 - pixrow] = buffer[(y1 + line) * 32 + col][pixrow];
-            mirror[(y2 - line) * 32 + col][8] = buffer[(y1 + line) * 32 + col][8];
+                mirror[(y2 - line) * 32 + col][7 - pixrow] = screenbuf[(y1 + line) * 32 + col][pixrow];
+            mirror[(y2 - line) * 32 + col][8] = screenbuf[(y1 + line) * 32 + col][8];
         }
     }
     for (int line = y1; line <= y2; line++) {
         for (int col = x1; col < x1 + width; col++) {
             for (int pixrow = 0; pixrow < 8; pixrow++)
-                buffer[line * 32 + col][pixrow] = mirror[line * 32 + col][pixrow];
-            buffer[line * 32 + col][8] = mirror[line * 32 + col][8];
+                screenbuf[line * 32 + col][pixrow] = mirror[line * 32 + col][pixrow];
+            screenbuf[line * 32 + col][8] = mirror[line * 32 + col][8];
         }
     }
 }
@@ -941,9 +939,9 @@ static void mirror_area_vertically(uint8_t x1, uint8_t y1, uint8_t width, uint8_
 {
     for (int line = 0; line <= y2 / 2; line++) {
         for (int col = x1; col < x1 + width; col++) {
-            buffer[(y2 - line) * 32 + col][8] = buffer[(y1 + line) * 32 + col][8];
+            screenbuf[(y2 - line) * 32 + col][8] = screenbuf[(y1 + line) * 32 + col][8];
             for (int pixrow = 0; pixrow < 8; pixrow++)
-                buffer[(y2 - line) * 32 + col][7 - pixrow] = buffer[(y1 + line) * 32 + col][pixrow];
+                screenbuf[(y2 - line) * 32 + col][7 - pixrow] = screenbuf[(y1 + line) * 32 + col][pixrow];
         }
     }
 }
@@ -956,7 +954,7 @@ static void flip_area_horizontally(uint8_t x1, uint8_t y1, uint8_t width, uint8_
     for (int line = y1; line < y2; line++) {
         for (int col = 0; col < width; col++) {
             for (int pixrow = 0; pixrow < 9; pixrow++)
-                mirror[line * 32 + x1 + col][pixrow] = buffer[line * 32 + (x1 + width - 1) - col][pixrow];
+                mirror[line * 32 + x1 + col][pixrow] = screenbuf[line * 32 + (x1 + width - 1) - col][pixrow];
             Flip(mirror[line * 32 + x1 + col]);
         }
     }
@@ -964,8 +962,8 @@ static void flip_area_horizontally(uint8_t x1, uint8_t y1, uint8_t width, uint8_
     for (int line = y1; line < y2; line++) {
         for (int col = x1; col < x1 + width; col++) {
             for (int pixrow = 0; pixrow < 8; pixrow++)
-                buffer[line * 32 + col][pixrow] = mirror[line * 32 + col][pixrow];
-            buffer[line * 32 + col][8] = mirror[line * 32 + col][8];
+                screenbuf[line * 32 + col][pixrow] = mirror[line * 32 + col][pixrow];
+            screenbuf[line * 32 + col][8] = mirror[line * 32 + col][8];
         }
     }
 }
@@ -973,7 +971,7 @@ static void flip_area_horizontally(uint8_t x1, uint8_t y1, uint8_t width, uint8_
 static void draw_colour_old(uint8_t x, uint8_t y, uint8_t colour, uint8_t length)
 {
     for (int i = 0; i < length; i++) {
-        buffer[y * 32 + x + i][8] = colour;
+        screenbuf[y * 32 + x + i][8] = colour;
     }
 }
 
@@ -981,7 +979,7 @@ static void draw_colour(uint8_t colour, uint8_t x, uint8_t y, uint8_t width, uin
 {
     for (int h = 0; h < height; h++) {
         for (int w = 0; w < width; w++) {
-            buffer[(y + h) * 32 + x + w][8] = colour;
+            screenbuf[(y + h) * 32 + x + w][8] = colour;
         }
     }
 }
@@ -989,7 +987,7 @@ static void draw_colour(uint8_t colour, uint8_t x, uint8_t y, uint8_t width, uin
 static void make_light(void)
 {
     for (int i = 0; i < 384; i++) {
-        buffer[i][8] = buffer[i][8] | 0x40;
+        screenbuf[i][8] = screenbuf[i][8] | 0x40;
     }
 }
 
@@ -1004,12 +1002,12 @@ static void replace_colour(uint8_t before, uint8_t after)
     uint8_t papermask = 0x38; // 0011 1000
 
     for (int j = 0; j < 384; j++) {
-        if ((buffer[j][8] & inkmask) == beforeink) {
-            buffer[j][8] = (buffer[j][8] & ~inkmask) | afterink;
+        if ((screenbuf[j][8] & inkmask) == beforeink) {
+            screenbuf[j][8] = (screenbuf[j][8] & ~inkmask) | afterink;
         }
 
-        if ((buffer[j][8] & papermask) == beforepaper) {
-            buffer[j][8] = (buffer[j][8] & ~papermask) | afterpaper;
+        if ((screenbuf[j][8] & papermask) == beforepaper) {
+            screenbuf[j][8] = (screenbuf[j][8] & ~papermask) | afterpaper;
         }
     }
 }
@@ -1024,11 +1022,11 @@ static uint8_t ink2paper(uint8_t ink)
 static void replace(uint8_t before, uint8_t after, uint8_t mask)
 {
     for (int j = 0; j < 384; j++) {
-        uint8_t col = buffer[j][8] & mask;
+        uint8_t col = screenbuf[j][8] & mask;
         if (col == before) {
-            uint8_t newcol = buffer[j][8] | mask;
+            uint8_t newcol = screenbuf[j][8] | mask;
             newcol = newcol ^ mask;
-            buffer[j][8] = newcol | after;
+            screenbuf[j][8] = newcol | after;
         }
     }
 }
@@ -1044,7 +1042,7 @@ static void replace_paper_and_ink(uint8_t before, uint8_t after)
 
 void ClearGraphMem(void)
 {
-    memset(buffer, 0, 384 * 9);
+    memset(screenbuf, 0, 384 * 9);
 }
 
 void DrawTaylor(int loc)
@@ -1142,6 +1140,10 @@ void DrawTaylor(int loc)
             flip_area_vertically(*(ptr + 1), *(ptr + 2), *(ptr + 4), *(ptr + 3));
             ptr = ptr + 4;
             break;
+        case 0xeb:
+        case 0xea:
+                fprintf(stderr, "Unimplemented draw instruction 0x%02x!\n", *ptr);
+                break;
         case 0xe9:
             // fprintf(stderr, "0xe9: (77ac) replace paper and ink %d for colour %d?\n",  *(ptr + 1), *(ptr + 2));
             replace_paper_and_ink(*(ptr + 1), *(ptr + 2));
@@ -1303,7 +1305,7 @@ draw_attributes:
             // For version 3+
 
             if (draw_to_buffer)
-                buffer[(yoff + y) * 32 + (xoff + x)][8] = colour;
+                screenbuf[(yoff + y) * 32 + (xoff + x)][8] = colour;
             else {
                 if (version > 2) {
                     if (x > 33)
@@ -1349,14 +1351,14 @@ draw_attributes:
 
             if (draw_to_buffer) {
                 for (i = 0; i < 8; i++)
-                    buffer[(y + yoff) * 32 + x + xoff2][i] = screenchars[offset][i];
+                    screenbuf[(y + yoff) * 32 + x + xoff2][i] = screenchars[offset][i];
             } else {
                 plotsprite(offset, x + xoff2, y + yoff, Remap(ink[x][y]),
                     Remap(paper[x][y]));
             }
 
 #ifdef DRAWDEBUG
-            uint8_t colour = buffer[(yoff + y) * 32 + (xoff + x)][8];
+            uint8_t colour = screenbuf[(yoff + y) * 32 + (xoff + x)][8];
 
             int paper = (colour >> 3) & 0x7;
             paper += 8 * ((colour & 0x40) == 0x40);
@@ -1408,7 +1410,7 @@ void DrawSagaPictureFromBuffer(void)
     for (int line = 0; line < 12; line++) {
         for (int col = 0; col < 32; col++) {
 
-            uint8_t colour = buffer[col + line * 32][8];
+            uint8_t colour = screenbuf[col + line * 32][8];
 
             int paper = (colour >> 3) & 0x7;
             paper += 8 * ((colour & 0x40) == 0x40);
@@ -1420,9 +1422,9 @@ void DrawSagaPictureFromBuffer(void)
             background(col, line, paper);
 
             for (int i = 0; i < 8; i++) {
-                if (buffer[col + line * 32][i] == 0)
+                if (screenbuf[col + line * 32][i] == 0)
                     continue;
-                if (buffer[col + line * 32][i] == 255) {
+                if (screenbuf[col + line * 32][i] == 255) {
                     glui32 glk_color = (glui32)((pal[ink][0] << 16) | (pal[ink][1] << 8) | pal[ink][2]);
 
                     glk_window_fill_rect(
@@ -1431,11 +1433,20 @@ void DrawSagaPictureFromBuffer(void)
                     continue;
                 }
                 for (int j = 0; j < 8; j++)
-                    if ((buffer[col + line * 32][i] & (1 << j)) != 0) {
+                    if ((screenbuf[col + line * 32][i] & (1 << j)) != 0) {
                         int ypos = line * 8 + i;
                         PutPixel(col * 8 + j, ypos, ink);
                     }
             }
         }
     }
+}
+
+void PatchAndDrawQP3Cannon(void) {
+    DrawSagaPictureNumber(46);
+    screenbuf[32 * 8 + 25][8] &= 191;
+    screenbuf[32 * 9 + 25][8] &= 191;
+    screenbuf[32 * 9 + 26][8] &= 191;
+    screenbuf[32 * 9 + 27][8] &= 191;
+    DrawSagaPictureFromBuffer();
 }

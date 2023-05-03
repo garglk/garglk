@@ -35,7 +35,7 @@ static int KaylethAnimationIndex = 0;
 static int AnimationStage = 0;
 static int ClickShelfStage = 0;
 
-extern uint8_t buffer[384][9];
+extern uint8_t screenbuf[768][9];
 extern Image *images;
 extern int draw_to_buffer;
 
@@ -53,35 +53,35 @@ static void AnimateStars(void)
             /* because the bytes are flipped in our implementation */
             /* for some reason */
             for (int col = 15; col > 5; col--) {
-                uint8_t attribute = buffer[col + line * 32][8];
+                uint8_t attribute = screenbuf[col + line * 32][8];
                 glui32 ink = attribute & 7;
                 ink += 8 * ((attribute & 64) == 64);
                 ink = Remap(ink);
                 for (int bit = 0; bit < 8; bit++) {
-                    if ((buffer[col + line * 32][pixrow] & (1 << bit)) != 0) {
+                    if ((screenbuf[col + line * 32][pixrow] & (1 << bit)) != 0) {
                         PutPixel(col * 8 + bit, line * 8 + pixrow, ink);
                     }
                 }
-                carry = rotate_right_with_carry(&(buffer[col + line * 32][pixrow]), carry);
+                carry = rotate_right_with_carry(&(screenbuf[col + line * 32][pixrow]), carry);
             }
             if (carry) {
-                buffer[line * 32 + 15][pixrow] = buffer[line * 32 + 15][pixrow] | 128;
+                screenbuf[line * 32 + 15][pixrow] = screenbuf[line * 32 + 15][pixrow] | 128;
             }
             carry = 0;
             /* Then the right half */
             for (int col = 16; col < 26; col++) {
-                uint8_t attribute = buffer[col + line * 32][8];
+                uint8_t attribute = screenbuf[col + line * 32][8];
                 glui32 ink = attribute & 7;
                 ink += 8 * ((attribute & 64) == 64);
                 ink = Remap(ink);
                 for (int pix = 0; pix < 8; pix++) {
-                    if ((buffer[col + line * 32][pixrow] & (1 << pix)) != 0) {
+                    if ((screenbuf[col + line * 32][pixrow] & (1 << pix)) != 0) {
                         PutPixel(col * 8 + pix, line * 8 + pixrow, ink);
                     }
                 }
-                carry = rotate_left_with_carry(&(buffer[col + line * 32][pixrow]), carry);
+                carry = rotate_left_with_carry(&(screenbuf[col + line * 32][pixrow]), carry);
             }
-            buffer[line * 32 + 16][pixrow] = buffer[line * 32 + 16][pixrow] | carry;
+            screenbuf[line * 32 + 16][pixrow] = screenbuf[line * 32 + 16][pixrow] | carry;
         }
     }
 }
@@ -93,7 +93,7 @@ static void AnimateForcefield(void)
     RectFill(104, 16, 48, 39, 0, 0);
     /* We go line by line and pixel row by pixel row */
 
-    uint8_t colour = buffer[2 * 32 + 13][8];
+    uint8_t colour = screenbuf[2 * 32 + 13][8];
     glui32 ink = Remap(colour & 0x7);
 
     for (int line = 2; line < 7; line++) {
@@ -101,7 +101,7 @@ static void AnimateForcefield(void)
             carry = 0;
             for (int col = 13; col < 19; col++) {
                 for (int pix = 0; pix < 8; pix++) {
-                    if ((buffer[col + line * 32][pixrow] & (1 << pix)) != 0) {
+                    if ((screenbuf[col + line * 32][pixrow] & (1 << pix)) != 0) {
                         PutPixel(col * 8 + pix, line * 8 + pixrow, ink);
                     }
                 }
@@ -109,9 +109,9 @@ static void AnimateForcefield(void)
                 /* byte by byte, but we actually rotate to the left */
                 /* because the bytes are flipped in our implementation */
                 /* for some reason */
-                carry = rotate_left_with_carry(&(buffer[col + line * 32][pixrow]), carry);
+                carry = rotate_left_with_carry(&(screenbuf[col + line * 32][pixrow]), carry);
             }
-            buffer[line * 32 + 13][pixrow] = buffer[line * 32 + 13][pixrow] | carry;
+            screenbuf[line * 32 + 13][pixrow] = screenbuf[line * 32 + 13][pixrow] | carry;
         }
     }
 }
@@ -122,7 +122,7 @@ static void FillCell(int cell, glui32 ink)
     int starty = (cell / 32) * 8;
     for (int pixrow = 0; pixrow < 8; pixrow++) {
         for (int pix = 0; pix < 8; pix++) {
-            if ((buffer[cell][pixrow] & (1 << pix)) == 0) {
+            if ((screenbuf[cell][pixrow] & (1 << pix)) == 0) {
                 PutPixel(startx + pix, starty + pixrow, ink);
             }
         }
@@ -178,21 +178,21 @@ static void AnimateKaylethClickShelves(int stage)
                 int ypos = line * 8 + i + stage;
                 if (ypos > 79)
                     ypos = ypos - 80;
-                uint8_t attribute = buffer[col + (ypos / 8) * 32][8];
+                uint8_t attribute = screenbuf[col + (ypos / 8) * 32][8];
                 glui32 ink = attribute & 7;
                 ink += 8 * ((attribute & 64) == 64);
-                attribute = buffer[col + ((79 - ypos) / 8) * 32][8];
+                attribute = screenbuf[col + ((79 - ypos) / 8) * 32][8];
                 glui32 ink2 = attribute & 7;
                 ink2 += 8 * ((attribute & 64) == 64);
                 ink = Remap(ink);
                 ink2 = Remap(ink2);
                 for (int j = 0; j < 8; j++)
                     if (col > 15) {
-                        if ((buffer[col + line * 32][i] & (1 << j)) != 0) {
+                        if ((screenbuf[col + line * 32][i] & (1 << j)) != 0) {
                             PutPixel(col * 8 + j, ypos, ink);
                         }
                     } else {
-                        if ((buffer[col + (9 - line) * 32][7 - i] & (1 << j)) != 0) {
+                        if ((screenbuf[col + (9 - line) * 32][7 - i] & (1 << j)) != 0) {
                             PutPixel(col * 8 + j, 79 - ypos, ink2);
                         }
                     }
@@ -201,69 +201,118 @@ static void AnimateKaylethClickShelves(int stage)
     }
 }
 
+struct KaylethAnimationFrame {
+    int counter_to_draw_at;
+    int counter;
+    int image;
+};
+
+struct KaylethAnimation {
+    int start_frame;
+    int required_object;
+    int number_of_frames;
+    int current_frame;
+    struct KaylethAnimationFrame *frames;
+};
+
+struct KaylethAnimation **KaylethAnimations = NULL;
+
+// This is really the number of rooms. We use NULL for rooms without animation.
+#define NUMBER_OF_KAYLETH_ANIMATIONS 92
+
+void LoadKaylethAnimationData(void)
+{
+    KaylethAnimations = MemAlloc(sizeof(struct KaylethAnimation *) * NUMBER_OF_KAYLETH_ANIMATIONS);
+    KaylethAnimations[0] = NULL;
+    uint8_t *ptr = &FileImage[AnimationData];
+    int counter = 0;
+    while (counter < NUMBER_OF_KAYLETH_ANIMATIONS) {
+        while (*ptr == 0xff) {
+            // No animation for this room
+            KaylethAnimations[counter] = NULL;
+            counter++;
+            ptr++;
+        }
+        if (counter < NUMBER_OF_KAYLETH_ANIMATIONS) {
+            struct KaylethAnimation *anim = MemAlloc(sizeof(struct KaylethAnimation));
+            anim->start_frame = *ptr / 3;
+            ptr++;
+            anim->current_frame = 0;
+            anim->required_object = *ptr;
+            ptr += 2; // Skipping skip byte, always zero initially
+            anim->number_of_frames = 0;
+            for (int i = 0; ptr[i] != 0xff; i += 3) {
+                anim->number_of_frames++;
+            }
+            anim->frames = MemAlloc(anim->number_of_frames * sizeof(struct KaylethAnimationFrame));
+            for (int i = 0; i < anim->number_of_frames; i++) {
+                anim->frames[i].counter_to_draw_at = *ptr;
+                anim->frames[i].counter = 0;
+                ptr += 2; // Skipping counter byte, always zero initially
+                anim->frames[i].image = *ptr++;
+            }
+
+            // Hack Azap chamber animations to look more like the original
+            if (anim->frames[0].image == 118) {
+                anim->frames[1].counter_to_draw_at = 5;
+                anim->frames[3].counter_to_draw_at = 5;
+                anim->frames[4].counter_to_draw_at = 8;
+            }
+
+            KaylethAnimations[counter++] = anim;
+
+            ptr++;
+        }
+    }
+
+    // Hack assembly line animation 2 to look more like the original
+    KaylethAnimations[2]->frames[0].counter_to_draw_at = 10;
+    KaylethAnimations[2]->frames[1].counter_to_draw_at = 20;
+    KaylethAnimations[2]->frames[2].counter_to_draw_at = 20;
+}
+
 static int UpdateKaylethAnimationFrames(void) // Draw animation frame
 {
-    if (MyLoc == 0) {
+    if (KaylethAnimations[MyLoc] == NULL) {
         return 0;
     }
 
-    uint8_t *ptr = &FileImage[AnimationData];
-    int counter = 0;
-    // Jump to animation index equal to location index
-    // Animations are delimited by 0xff
-    do {
-        if (*ptr == 0xff)
-            counter++;
-        ptr++;
-    } while (counter < MyLoc);
+    // Temporarily set object 0 to this location
+    int obj0loc = ObjectLoc[0];
+    ObjectLoc[0] = MyLoc;
+    // And object 122 if the destroyer droid has caught us
+    if (Flag[10] > 1)
+        ObjectLoc[122] = MyLoc;
 
-    while (1) {
-        if (*ptr == 0xff) {
-            return 0;
-        }
-        int Stage = *ptr;
-        ptr++;
-        uint8_t *LastInstruction = ptr;
-        if (ObjectLoc[*ptr] != MyLoc && *ptr != 0 && *ptr != 122) {
-            //Returning because location of object *ptr is not current location
-            return 0;
-        }
-        ptr++;
-        // Reset animation if we are in a new room
-        if (KaylethAnimationIndex != MyLoc) {
-            KaylethAnimationIndex = MyLoc;
-            *ptr = 0;
-        }
+    struct KaylethAnimation *anim = KaylethAnimations[MyLoc];
 
-        ptr += *ptr + 1;
-        int AnimationRate = *ptr;
+    // Reset animation if we are in a new room
+    if (KaylethAnimationIndex != MyLoc) {
+        KaylethAnimationIndex = MyLoc;
+        anim->current_frame = 0;
+    }
 
-        // This is needed to make conveyor belt animation 2 smooth
-        // (the one you see after getting up)
-        // No idea why, this code is still largely a mystery
-        if (KaylethAnimationIndex == 2 && AnimationRate == 50)
-            AnimationRate = 10;
+    if (ObjectLoc[anim->required_object] == MyLoc) {
 
-        if (AnimationRate != 0xff) {
-            ptr++;
-            (*ptr)++;
-            if (AnimationRate == *ptr) {
-                *ptr = 0;
-                // Draw "room image" *(ptr + 1) (Actually an animation frame)
-                int result = *(ptr + 1);
-                DrawTaylor(result);
-                DrawSagaPictureFromBuffer();
-                ptr = LastInstruction + 1;
-                (*ptr) += 3;
-                return result;
+        struct KaylethAnimationFrame *frame = &anim->frames[anim->current_frame];
+
+        if (frame->counter >= frame->counter_to_draw_at) {
+            DrawTaylor(frame->image);
+            DrawSagaPictureFromBuffer();
+            anim->current_frame++;
+            frame->counter = 0;
+            if (anim->current_frame >= anim->number_of_frames) {
+                anim->current_frame = anim->start_frame;
             }
-            return 1;
         } else {
-            ptr = LastInstruction + 1;
-            *ptr = Stage;
-            ptr -= 2;
+            frame->counter++;
         }
     }
+
+    // Reset the temporarily moved objects
+    ObjectLoc[0] = obj0loc;
+    ObjectLoc[122] = DESTROYED;
+    return 1;
 }
 
 void UpdateKaylethAnimations(void)
@@ -370,11 +419,8 @@ void StartAnimations(void)
             speed = 20;
             KaylethAnimationIndex = 0;
         }
-        if (ObjectLoc[0] == MyLoc) { // Azap chamber
-            if (CurrentGame == KAYLETH_64)
-                speed = 30;
-            else
-                speed = 13;
+        if (ObjectLoc[0] == MyLoc && CurrentGame == KAYLETH_64) { // Azap chamber
+            speed = 30;
         }
         switch (MyLoc) {
         case 1:
@@ -389,14 +435,21 @@ void StartAnimations(void)
             else
                 speed = 40;
             break;
-        case 53: // Twin peril forest
-            speed = 350;
-            break;
-        case 56: // Citadel of Zenron
-            speed = 40;
+        case 32: // Videodrome
+            speed = 50;
             break;
         case 36: // Guard dome
             speed = 12;
+            break;
+        case 52:
+        case 53: // Twin peril forest
+            if (ObjectLoc[30] == MyLoc) {
+                speed = 150;
+                UpdateKaylethAnimationFrames();
+            }
+            break;
+        case 56: // Citadel of Zenron
+            speed = 40;
             break;
         default:
             break;
