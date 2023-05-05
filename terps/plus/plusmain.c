@@ -146,8 +146,6 @@ void Display(winid_t w, const char *fmt, ...)
     va_end(ap);
 
     glk_put_string_stream(glk_window_get_stream(w), msg);
-    if (Transcript && w == Bottom)
-        glk_put_string_stream(Transcript, msg);
 }
 
 static const glui32 OptimalPictureSize(glui32 *width, glui32 *height)
@@ -1407,7 +1405,12 @@ void SetCountersFromInput(void) {
 
 static ActionResultType PerformLine(int ct)
 {
-    debug_print("\nPerforming line %d: ", ct);
+    debug_print("\nPerforming line %d: (", ct);
+    if (Actions[ct].Verb) {
+        debug_print("%s %s) ", Verbs[GetAnyDictWord(Actions[ct].Verb, Verbs)].Word, Nouns[GetAnyDictWord(Actions[ct].NounOrChance, Nouns)].Word);
+    } else {
+        debug_print("0, %d) ", Actions[ct].NounOrChance);
+    }
     int continuation = 0, dead = 0, done = 0;
     int loop = 0;
 
@@ -1836,6 +1839,7 @@ static ActionResultType PerformLine(int ct)
             case 120:
                 debug_print("counter 48: verb, counter 49: noun, counter 50: preposition, counter 51: adverb, counter 52: participle, counter 53: noun 2\n");
                 SetCountersFromInput();
+                break;
             case 121:
                 debug_print("Set input words to counters 48 to 53\n");
                 CurrentVerb = VerbCounter;
@@ -1924,7 +1928,7 @@ static int IsExtraWordMatch(int ct)
     int matchedpartp = 0;
     int matchedadverb = 0;
 
-    debug_print("Action %d has %d extra words\n", ct, Actions[ct].NumWords);
+    debug_print("Action %d (%s %s) has %d extra words\n", ct, Verbs[GetAnyDictWord(Actions[ct].Verb, Verbs)].Word, Nouns[GetAnyDictWord(Actions[ct].NounOrChance, Nouns)].Word, Actions[ct].NumWords);
 
     for (int i = 0; i < Actions[ct].NumWords; i++) {
         uint8_t word = Actions[ct].Words[i];
@@ -1932,22 +1936,23 @@ static int IsExtraWordMatch(int ct)
         uint8_t wordval = word & 63;
         switch (word >> 6) {
         case 1: /* adverb */
-            debug_print("(adverb)\n");
+            debug_print("(adverb \"%s\")\n", Adverbs[GetAnyDictWord(wordval, Adverbs)].Word);
             foundadverb = 1;
             if (wordval == CurrentAdverb || wordval == 0 || (wordval == 1 && CurrentAdverb == 0))
                 matchedadverb = 1;
-            debug_print("Matched adverb %d (%s)\n", wordval, Prepositions[GetAnyDictWord(wordval, Adverbs)].Word);
+            debug_print("Matched adverb %d\n", wordval);
             break;
         case 2: /* participle */
-            debug_print("(participle)\n");
+            debug_print("(participle \"%s\")\n", Prepositions[GetAnyDictWord(wordval, Prepositions)].Word);
             i++;
             foundpartp = 1;
             uint8_t n2 = Actions[ct].Words[i];
+                debug_print("(object (word %d) \"%s\")\n", i, Nouns[GetAnyDictWord(n2, Nouns)].Word);
             if (CurrentPartp == 0 && wordval > 1 && !IsNextParticiple(wordval, n2)) {
                 break;
             }
             if (wordval == CurrentPartp || wordval == 0 || (wordval == 1 && CurrentPartp == 0)) { /* 1 means NONE */
-                debug_print("Matched participle %d (%s)\n", wordval, Prepositions[GetAnyDictWord(wordval, Prepositions)].Word);
+                debug_print("Matched participle %d\n", wordval);
                 if (n2 == CurrentNoun2 || n2 == 0) {
                     debug_print("Matched object %d (%s)\n", n2, Nouns[GetDictWord(n2)].Word);
                     matchedpartp = 1;
@@ -1955,10 +1960,10 @@ static int IsExtraWordMatch(int ct)
             }
             break;
         case 3: /* preposition */
-            debug_print("(preposition)\n");
+            debug_print("(preposition \"%s\")\n", Prepositions[GetAnyDictWord(wordval, Prepositions)].Word);
             foundprep = 1;
             if (CurrentPrep == wordval || wordval == 0 || (wordval == 1 && CurrentPrep == 0)) {
-                debug_print("Matched preposition %d (%s)\n", wordval, Prepositions[GetAnyDictWord(wordval, Prepositions)].Word);
+                debug_print("Matched preposition %d\n", wordval);
                 matchedprep = 1;
             }
             break;

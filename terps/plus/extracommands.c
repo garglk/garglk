@@ -73,6 +73,8 @@ static void TranscriptOn(void)
     glk_put_string_stream(glk_window_get_stream(Bottom),
         (char *)sys[TRANSCRIPT_ON]);
 
+    glk_window_set_echo_stream(Bottom, Transcript);
+
     Look(1);
 }
 
@@ -84,6 +86,8 @@ static void TranscriptOff(void)
     }
 
     glk_put_string_stream(Transcript, (char *)sys[TRANSCRIPT_END]);
+
+    glk_window_set_echo_stream(Bottom, NULL);
 
     glk_stream_close(Transcript, NULL);
     Transcript = NULL;
