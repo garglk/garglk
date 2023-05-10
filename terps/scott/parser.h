@@ -38,7 +38,8 @@ typedef enum {
     COMMAND,
     ALL,
     IT,
-    EXCEPT
+    EXCEPT,
+    FLICKER
 } extra_command;
 
 int GetInput(int *vb, int *no);
@@ -70,7 +71,7 @@ extern const char *EnglishDelimiterList[];
 extern const char *GermanDelimiterList[];
 extern const char *DelimiterList[];
 
-#define NUMBER_OF_EXTRA_COMMANDS 32
+#define NUMBER_OF_EXTRA_COMMANDS 34
 extern const char *GermanExtraCommands[];
 extern const char *SpanishExtraCommands[];
 extern const char *ExtraCommands[];

@@ -141,7 +141,7 @@ static int rotate_left_with_carry(uint8_t *byte, int last_carry)
 }
 
 // This is a translation of $trk =~ s{^0*(1.{7})}{}o;
-// Extract first '1' + 7 characters ("bits").
+// Extract first set bit + 7 following bits.
 static uint8_t extract_nibble(uint8_t *bitstream, int bits, int *pos)
 {
     int bytes = bits / 8 + (bits % 8 != 0);
@@ -320,9 +320,9 @@ static SearchResultType find_syncbytes(uint8_t *bitstream, int bitcount, int *po
         // or the next byte has the leftmost bit unset
         if ((b & 0x01) != 0 && (bitstream[i + 1] & 0x80) != 0) {
             for (int j = 1; j < 8; j++) {
-                // Check if this bit and the next left shifted j places become 0xff
+                // Check if this bit and the next one left-shifted j places become 0xff
                 if (((bitstream[i] << j) | (bitstream[i + 1] >> (8 - j))) == 0xff) {
-                    // If so, copy the following 8 bytes to a buffer left shifted j positions,
+                    // If so, copy the following 8 bytes to a buffer left-shifted j positions,
                     // and compare them to the sync byte sequences.
                     for (int k = 8; k > 0; k--) {
                         temp[k] = ((bitstream[i + k] << j) | (bitstream[i + k + 1] >> (8 - j)));

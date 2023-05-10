@@ -268,13 +268,7 @@ static ActionResultType PerformTI99Line(const uint8_t *action_line)
             break;
 
         case 221: /* go to room */
-#ifdef DEBUG_ACTIONS
-            debug_print("player location is now room %d (%s).\n", *ptr,
-                Rooms[*ptr].Text);
-#endif
-            MyLoc = *(ptr++);
-            should_look_in_transcript = 1;
-            Look();
+            GoTo(*(ptr++));
             break;
 
         case 222: /* move item p to room 0 */
@@ -287,39 +281,26 @@ static ActionResultType PerformTI99Line(const uint8_t *action_line)
             break;
 
         case 223: /* darkness */
-            BitFlags |= 1 << DARKBIT;
+            SetDark();
             break;
 
         case 224: /* light */
-            BitFlags &= ~(1 << DARKBIT);
+            SetLight();
             break;
 
         case 225: /* set flag p */
-#ifdef DEBUG_ACTIONS
-            debug_print("Bitflag %d is set\n", dv);
-#endif
-            BitFlags |= (1 << *(ptr++));
+            SetBitFlag(*(ptr++));
             break;
 
         case 226: /* clear flag p */
-#ifdef DEBUG_ACTIONS
-            debug_print("Bitflag %d is cleared\n", dv);
-#endif
-            BitFlags &= ~(1 << *(ptr++));
+            ClearBitFlag(*(ptr++));
             break;
-
         case 227: /* set flag 0 */
-#ifdef DEBUG_ACTIONS
-            debug_print("Bitflag 0 is set\n");
-#endif
-            BitFlags |= (1 << 0);
+            SetBitFlag(0);
             break;
 
         case 228: /* clear flag 0 */
-#ifdef DEBUG_ACTIONS
-            debug_print("Bitflag 0 is cleared\n");
-#endif
-            BitFlags &= ~(1 << 0);
+            ClearBitFlag(0);
             break;
 
         case 229: /* die */
@@ -354,7 +335,7 @@ static ActionResultType PerformTI99Line(const uint8_t *action_line)
         case 234: /* refill lightsource */
             GameHeader.LightTime = LightRefill;
             Items[LIGHT_SOURCE].Location = CARRIED;
-            BitFlags &= ~(1 << LIGHTOUTBIT);
+            ClearBitFlag(LIGHTOUTBIT);
             break;
 
         case 235: /* save */
