@@ -53,19 +53,8 @@ size_t AnimationData = 0;
 int NumLowObjects;
 
 static int ActionsExecuted;
-static int FoundMatch;
-static int PrintedOK;
+int PrintedOK;
 int Redraw = 0;
-
-#define Location (Flag[0])
-#define OtherGuyLoc (Flag[1])
-#define OtherGuyInv (Flag[3])
-#define TurnsLow (Flag[26])
-#define TurnsHigh (Flag[27])
-#define ThingAsphyx (Flag[47])
-#define TorchAsphyx (Flag[48])
-#define DrawImages (Flag[52])
-#define Q3SwitchedWatch (Flag[126])
 
 int FirstAfterInput = 0;
 
@@ -90,6 +79,9 @@ static int LastNoun = 0;
 int LastVerb = 0;
 static int GoVerb = 0;
 
+static int FoundVerb = 0;
+static int FoundNoun = 0;
+
 struct GameInfo *Game = NULL;
 extern struct GameInfo games[];
 
@@ -97,7 +89,8 @@ strid_t room_description_stream = NULL;
 
 extern int AnimationRunning;
 
-int DeferredGoto = 0;
+static int DeferredGoto = 0;
+int InKaylethPreview = 0;
 
 #ifdef DEBUG
 
@@ -757,7 +750,11 @@ static void PrintNumber(unsigned char n)
 {
     char buf[4];
     char *p = buf;
-    snprintf(buf, sizeof buf, "%d", (int)n);
+    if (n == 0)
+        snprintf(buf, sizeof buf, "00");
+    else
+        snprintf(buf, sizeof buf, "%d", (int)n);
+
     while (*p)
         OutChar(*p++);
 }
@@ -783,6 +780,10 @@ static unsigned char NumObjects()
 {
     if (Version == QUESTPROBE3_TYPE)
         return 49;
+
+    /* This removes one weird empty "You notice." in Kayleth */
+    if (BaseGame == KAYLETH)
+        return 120;
     return Flag[6];
 }
 
@@ -801,10 +802,10 @@ static int CarryItem(void)
     if (Version == QUESTPROBE3_TYPE)
         return 1;
     /* Flag 5: items carried, flag 4: max carried */
-    if (Flag[5] == Flag[4] && CurrentGame != BLIZZARD_PASS)
+    if (ItemsCarried == MaxCarried && CurrentGame != BLIZZARD_PASS)
         return 0;
-    if (Flag[5] < 255)
-        Flag[5]++;
+    if (ItemsCarried < 255)
+        ItemsCarried++;
     return 1;
 }
 
@@ -817,8 +818,8 @@ static int DarkFlag(void)
 
 static void DropItem(void)
 {
-    if (Version != QUESTPROBE3_TYPE && Flag[5] > 0)
-        Flag[5]--;
+    if (Version != QUESTPROBE3_TYPE && ItemsCarried > 0)
+        ItemsCarried--;
 }
 
 static void Put(unsigned char obj, unsigned char loc)
@@ -864,7 +865,7 @@ static void NewGame(void)
         Flag[2] = 254;
         Flag[3] = 253;
     }
-    Location = 0;
+    MyLoc = 0;
     memcpy(ObjectLoc, FileImage + ObjLocBase, NumObjects());
     if (WaitFlag() != -1)
         Flag[WaitFlag()] = 0;
@@ -934,6 +935,7 @@ int LoadGame(void)
         glk_window_clear(Bottom);
         Look();
         free(state);
+        InKaylethPreview = 0;
     }
     glk_stream_close(stream, NULL);
     glk_fileref_destroy(fileref);
@@ -950,7 +952,7 @@ static int LoadPrompt(void)
     if (!YesOrNo()) {
         glk_window_clear(Bottom);
         if (DeferredGoto == 1) {
-            Location = 1;
+            MyLoc = 1;
             DeferredGoto = 0;
         }
         return 0;
@@ -963,7 +965,6 @@ static int RecursionGuard = 0;
 
 static void QuitGame(void)
 {
-    SaveUndo();
     if (LastChar == '\n')
         OutReplace(' ');
     OutFlush();
@@ -1109,7 +1110,7 @@ static void DropAll(int loud)
     if (loud & !found) {
         OutString("You have nothing to drop. ");
     }
-    Flag[5] = 0;
+    ItemsCarried = 0;
 }
 
 static int GetObject(unsigned char obj)
@@ -1180,8 +1181,7 @@ static void ListExits(int caps)
 }
 
 static void RunStatusTable(void);
-static void DrawExtraQP3Images(void);
-extern uint8_t buffer[768][9];
+static void QP3DrawExtraImages(void);
 
 void Look(void)
 {
@@ -1277,7 +1277,7 @@ void Look(void)
 
     BottomWindow();
 
-    if (MyLoc != 0 && !NoGraphics) {
+    if (MyLoc != 0 && !NoGraphics && TAYLOR_GRAPHICS_ENABLED && Graphics) {
         if (Resizing) {
             DrawSagaPictureFromBuffer();
             return;
@@ -1287,7 +1287,7 @@ void Look(void)
             StopTime = 0;
             DrawImages = 255;
             RunStatusTable();
-            DrawExtraQP3Images();
+            QP3DrawExtraImages();
             StopTime = tempstop;
         } else {
             glk_window_clear(Graphics);
@@ -1300,10 +1300,10 @@ static void Goto(unsigned char loc)
 {
     if (BaseGame == QUESTPROBE3 && !PrintedOK)
         Okay();
-    if (BaseGame == HEMAN && Location == 0 && loc == 1) {
+    if (BaseGame == HEMAN && MyLoc == 0 && loc == 1) {
         DeferredGoto = 1;
     } else {
-        Location = loc;
+        MyLoc = loc;
         Redraw = 1;
     }
 }
@@ -1745,8 +1745,8 @@ static void ExecuteLineCode(unsigned char *p, int *done)
         case GOTO:
             /*
                  He-Man moves the the player to a special "By the power of Grayskull" room
-                 and then issues an undo to return to the previous room
-                 */
+                 and then issues an undo to return to the previous room.
+            */
             if (BaseGame == HEMAN && arg1 == 83)
                 SaveUndo();
             Goto(arg1);
@@ -1901,7 +1901,7 @@ static void ExecuteLineCode(unsigned char *p, int *done)
         }
         case SWITCHCHARACTER:
             /* Go to the location of the other guy */
-            Location = ObjectLoc[arg1];
+            MyLoc = ObjectLoc[arg1];
             /* Pick him up, so that you don't see yourself */
             GetObject(arg1);
             Redraw = 1;
@@ -1910,6 +1910,8 @@ static void ExecuteLineCode(unsigned char *p, int *done)
             *done = 1;
             break;
         case IMAGE:
+            if (!TAYLOR_GRAPHICS_ENABLED)
+                break;
             if (MyLoc == 3 || Flag[DarkFlag()]) {
                 DrawBlack();
                 break;
@@ -1955,16 +1957,15 @@ static unsigned char *NextLine(unsigned char *p)
     return p;
 }
 
-static void DrawExtraQP3Images(void)
+/* Draw two images that are unused in the original game */
+static void QP3DrawExtraImages(void)
 {
+    if (!TAYLOR_GRAPHICS_ENABLED)
+        return;
     if (MyLoc == 34 && ObjectLoc[29] == 34) {
-        DrawSagaPictureNumber(46);
-        buffer[32 * 8 + 25][8] &= 191;
-        buffer[32 * 9 + 25][8] &= 191;
-        buffer[32 * 9 + 26][8] &= 191;
-        buffer[32 * 9 + 27][8] &= 191;
-        DrawSagaPictureFromBuffer();
+        PatchAndDrawQP3Cannon();
     } else if (MyLoc == 2 && ObjectLoc[17] == 2 && Flag[26] > 16 && Flag[26] < 20) {
+        /* Draw close-up of Thing */
         DrawSagaPictureNumber(53);
         DrawSagaPictureFromBuffer();
     }
@@ -2005,19 +2006,24 @@ static void RunCommandTable(void)
 
     int done = 0;
     ActionsExecuted = 0;
-    FoundMatch = 0;
+    FoundVerb = 0;
+    FoundNoun = 0;
 
     while (*p != 0x7F) {
+
+        if (p[0] == Word[0] || p[0] == Word[1])
+            FoundVerb = 1;
+        if (p[1] == Word[0] || p[1] == Word[1])
+            FoundNoun = 1;
+
         /* Match input to table entry as VERB NOUN or NOUN VERB */
         /* 126 is wildcard that matches any word */
-        if (((*p == 126 || *p == Word[0]) && (p[1] == 126 || p[1] == Word[1])) || (*p == Word[1] && p[1] == Word[0]) || (BaseGame != QUESTPROBE3 && (*p == 126 || *p == Word[1]) && (p[1] == 126 || p[1] == Word[0]))) {
+        if (((*p == 126 || *p == Word[0]) && (p[1] == 126 || p[1] == Word[1])) ||
+            ((*p == 126 || *p == Word[1]) && (p[1] == 126 || p[1] == Word[0]))) {
 #ifdef DEBUG
             PrintWord(p[0]);
             PrintWord(p[1]);
 #endif
-            if (p[0] != 126) {
-                FoundMatch = 1;
-            }
             /* Work around a Questprobe 3 bug */
             if (Version == QUESTPROBE3_TYPE) {
                 /* In great room, Xandu present */
@@ -2067,9 +2073,19 @@ static int IsDir(unsigned char word)
         return (word <= 10);
 }
 
+extern int FoundExtraCommand;
+
 static void RunOneInput(void)
 {
     PrintedOK = 0;
+
+    if (FoundExtraCommand) {
+        if (TryExtraCommand()) {
+            if (Redraw)
+                Look();
+            return;
+        }
+    }
     if (Word[0] == 0 && Word[1] == 0) {
         if (TryExtraCommand() == 0) {
             OutCaps();
@@ -2112,33 +2128,45 @@ static void RunOneInput(void)
                 RunCommandTable();
             }
             if (ActionsExecuted == 0) {
-                if (IsDir(OriginalVerb) || (Word[0] == GoVerb && IsDir(Word[1])))
+                if (IsDir(OriginalVerb) || (Word[0] == GoVerb && IsDir(Word[1]))) {
                     SysMessage(YOU_CANT_GO_THAT_WAY);
-                else if (FoundMatch)
+                } else if (FoundVerb) {
                     SysMessage(THATS_BEYOND_MY_POWER);
-                else
+                } else if (FoundNoun == 1)  {
+                    SysMessage(I_DONT_UNDERSTAND_THAT_VERB);
+                } else {
                     SysMessage(I_DONT_UNDERSTAND);
+                }
                 OutFlush();
                 StopTime = 1;
                 return;
             }
-        } else
+        } else {
+            if (Redraw)
+                Look();
             return;
+        }
     }
 
     if (Word[0] != 0)
         LastVerb = Word[0];
 
-    if (Redraw && !(BaseGame == REBEL_PLANET && MyLoc == 250)) {
+    if (Redraw && !((BaseGame == REBEL_PLANET && MyLoc == 250) || (BaseGame == KAYLETH && MyLoc == 15))) {
         Look();
     }
 
     Redraw = 0;
 
-    if (Version == QUESTPROBE3_TYPE && Flag[WaitFlag()] > 1)
+    if (WaitFlag() != -1 && Flag[WaitFlag()] > 1)
         Flag[WaitFlag()]++;
 
     do {
+        if (WaitFlag() != -1 && Flag[WaitFlag()]) {
+            Flag[WaitFlag()]--;
+            if (LastChar != '\n')
+                OutChar('\n');
+        }
+
         if (Version == QUESTPROBE3_TYPE) {
             DrawImages = 0;
             RunStatusTable();
@@ -2146,7 +2174,7 @@ static void RunOneInput(void)
             int tempstop = StopTime;
             StopTime = 0;
             RunStatusTable();
-            DrawExtraQP3Images();
+            QP3DrawExtraImages();
             StopTime = tempstop;
         } else {
             RunStatusTable();
@@ -2156,11 +2184,7 @@ static void RunOneInput(void)
             Look();
         }
         Redraw = 0;
-        if (WaitFlag() != -1 && Flag[WaitFlag()]) {
-            Flag[WaitFlag()]--;
-            if (LastChar != '\n')
-                OutChar('\n');
-        }
+
     } while (WaitFlag() != -1 && Flag[WaitFlag()] > 0);
     if (AnimationRunning)
         glk_request_timer_events(AnimationRunning);
@@ -2495,6 +2519,8 @@ static void LookForSecondTOTGame(void)
     EndOfData = FileImage + FileImageLen;
 }
 
+void LoadKaylethAnimationData(void);
+
 void glk_main(void)
 {
     if (DetectC64(&FileImage, &FileImageLen) != UNKNOWN_GAME) {
@@ -2560,17 +2586,29 @@ void glk_main(void)
         OutFlush();
         Look();
     }
+
+    if (BaseGame == KAYLETH) {
+        LoadKaylethAnimationData();
+        InKaylethPreview = 1;
+    }
+
     while (1) {
         if (ShouldRestart) {
             RestartGame();
-        } else if (!StopTime)
+            if (BaseGame != KAYLETH)
+                SaveUndo();
+        } else if (!StopTime && !InKaylethPreview)
             SaveUndo();
         Parser();
         FirstAfterInput = 1;
         RunOneInput();
-        if (StopTime)
+        if (StopTime) {
             StopTime--;
-        else
+        } else if (!InKaylethPreview) {
             JustStarted = 0;
+        }
+        if (MyLoc == 1) {
+            InKaylethPreview = 0;
+        }
     }
 }

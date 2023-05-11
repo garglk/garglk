@@ -1,3 +1,21 @@
+Forker's note
+
+This is a fork of the original TaylorMade interpreter by Alan Cox. I've
+ported it to the Glk api and added support for "Questprobe featuring The
+Human Torch and The Thing", graphics and animations, and a couple of beeps
+in "Rebel Planet".
+
+The following "extra commands" are added to all games, though some games
+already had some of them:
+
+#RESTART, #RESTORE, #TRANSCRIPT ON, #TRANSCRIPT OFF, #QUICKSAVE, #QUICKLOAD,
+and UNDO.
+
+-- Petter Sjölund, May 2023
+
+
+Original README:
+
 
 	TaylorMade v0.4		(c) 2004 - 2016 Alan Cox
 				All Rights Reserved

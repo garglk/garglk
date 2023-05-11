@@ -27,6 +27,8 @@ int WordsInInput = 0;
 // The index in InputWordStrings of the next command
 int WordIndex = 0;
 
+int FoundExtraCommand = 0;
+
 void FreeInputWords(void)
 {
     WordIndex = 0;
@@ -139,11 +141,6 @@ void LineInput(void)
         int length = ev.val1;
         buf[length] = 0;
 
-        if (Transcript) {
-            glk_put_string_stream(Transcript, buf);
-            glk_put_string_stream(Transcript, "\n");
-        }
-
         SplitIntoWords(buf, length);
 
         if (WordsInInput >= MAX_WORDS) {
@@ -201,6 +198,10 @@ int ParseWord(char *p)
             }
         }
     }
+
+    if (ParseExtraCommand(p)) {
+        FoundExtraCommand = 1;
+    }
     return 0;
 }
 
@@ -248,6 +249,8 @@ static int FindNextCommandDelimiter(void)
 void Parser(void)
 {
     int i;
+
+    FoundExtraCommand = 0;
 
     /* Is there input remaining to be analyzed? */
     if (!FindNextCommandDelimiter()) {

@@ -61,8 +61,6 @@ void Display(winid_t w, const char *fmt, ...)
     va_end(ap);
 
     glk_put_string_stream(glk_window_get_stream(w), msg);
-    if (Transcript && w == Bottom)
-        glk_put_string_stream(Transcript, msg);
 }
 
 void HitEnter(void)
@@ -162,7 +160,7 @@ static void WordFlush(winid_t win)
 }
 
 extern strid_t room_description_stream;
-extern char *roomdescbuf;
+char *roomdescbuf = NULL;
 
 void TopWindow(void)
 {
@@ -266,10 +264,6 @@ static void FlushRoomDescription(void)
     }
 }
 
-char *roomdescbuf = NULL;
-
-extern int PendSpace;
-
 void BottomWindow(void)
 {
     WordFlush(Top);
@@ -342,7 +336,7 @@ void Updates(event_t ev)
         CloseGraphicsWindow();
         Look();
         Resizing = 0;
-    } else if (ev.type == evtype_Timer) {
+    } else if (ev.type == evtype_Timer && TAYLOR_GRAPHICS_ENABLED) {
         switch (BaseGame) {
         case REBEL_PLANET:
             UpdateRebelAnimations();
