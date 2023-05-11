@@ -167,8 +167,6 @@ void Display(winid_t w, const char *fmt, ...)
     if (w != Bottom)
         lastwasnewline = oldlastwasnewline;
     glk_put_string_stream_uni(glk_window_get_stream(w), unistring);
-    if (Transcript && w == Bottom)
-        glk_put_string_stream_uni(Transcript, unistring);
     free(unistring);
 }
 
@@ -231,11 +229,11 @@ static void PrintWindowDelimiter(void)
     glk_window_move_cursor(Top, 0, TopHeight - 1);
     glk_stream_set_current(glk_window_get_stream(Top));
     if (Options & SPECTRUM_STYLE)
-        for (int i = 0; i < TopWidth; i++)
+        for (unsigned i = 0; i < TopWidth; i++)
             glk_put_char('*');
     else {
         glk_put_char('<');
-        for (int i = 0; i < TopWidth - 2; i++)
+        for (unsigned i = 0; i < TopWidth - 2; i++)
             glk_put_char('-');
         glk_put_char('>');
     }
@@ -919,10 +917,15 @@ void OutputNumber(int a) { Display(Bottom, "%d", a); }
 #pragma mark Room description
 #endif
 
+static int ItIsDark(void)
+{
+    return ((BitFlags & (1 << DARKBIT)) && Items[LIGHT_SOURCE].Location != CARRIED && Items[LIGHT_SOURCE].Location != MyLoc);
+}
+
 void DrawBlack(void)
 {
-    glk_window_fill_rect(Graphics, 0, x_offset, 0, 32 * 8 * pixel_size,
-        12 * 8 * pixel_size);
+    glk_window_fill_rect(Graphics, 0, x_offset, 0, 32 * 8 * (glui32)pixel_size,
+        12 * 8 * (glui32)pixel_size);
 }
 
 void DrawImage(int image)
@@ -948,7 +951,7 @@ void DrawRoomImage(void)
         AdventurelandDarkness();
     }
 
-    int dark = ((BitFlags & (1 << DARKBIT)) && Items[LIGHT_SOURCE].Location != CARRIED && Items[LIGHT_SOURCE].Location != MyLoc);
+    int dark = ItIsDark();
 
     if (dark && Graphics != NULL && (Rooms[MyLoc].Image != 255 || Game->type == US_VARIANT)) {
         vector_image_shown = -1;
@@ -1117,7 +1120,7 @@ void Look(void)
         glk_put_char_stream_uni(Transcript, 10);
     }
 
-    if ((BitFlags & (1 << DARKBIT)) && Items[LIGHT_SOURCE].Location != CARRIED && Items[LIGHT_SOURCE].Location != MyLoc) {
+    if (ItIsDark()) {
         WriteToRoomDescriptionStream("%s", sys[TOO_DARK_TO_SEE]);
         FlushRoomDescription(buf);
         return;
@@ -1264,7 +1267,7 @@ static void LoadGame(void)
 
     /* Backward compatibility */
     if (DarkFlag)
-        BitFlags |= (1 << 15);
+        SetBitFlag(15);
     for (ct = 0; ct <= GameHeader.NumItems; ct++) {
         glk_get_line_stream(file, buf, sizeof buf);
         result = sscanf(buf, "%hd\n", &lo);
@@ -1286,6 +1289,7 @@ static void LoadGame(void)
     SaveUndo();
     JustStarted = 0;
     StopTime = 1;
+    should_look_in_transcript = 1;
 }
 
 static void RestartGame(void)
@@ -1295,6 +1299,7 @@ static void RestartGame(void)
     RestoreState(InitialState);
     JustStarted = 0;
     StopTime = 0;
+    Display(Bottom, "\n\n");
     glk_window_clear(Bottom);
     OpenTopWindow();
     should_restart = 0;
@@ -1315,6 +1320,7 @@ static void TranscriptOn(void)
         return;
 
     Transcript = glk_stream_open_file_uni(ref, filemode_Write, 0);
+
     glk_fileref_destroy(ref);
 
     if (Transcript == NULL) {
@@ -1325,8 +1331,13 @@ static void TranscriptOn(void)
     glui32 *start_of_transcript = ToUnicode(sys[TRANSCRIPT_START]);
     glk_put_string_stream_uni(Transcript, start_of_transcript);
     free(start_of_transcript);
+
+    print_look_to_transcript = 1;
+    Look();
+
     glk_put_string_stream(glk_window_get_stream(Bottom),
         (char *)sys[TRANSCRIPT_ON]);
+    glk_window_set_echo_stream(Bottom, Transcript);
 }
 
 static void TranscriptOff(void)
@@ -1336,6 +1347,8 @@ static void TranscriptOff(void)
         return;
     }
 
+    glk_window_set_echo_stream(Bottom, NULL);
+
     glui32 *end_of_transcript = ToUnicode(sys[TRANSCRIPT_END]);
     glk_put_string_stream_uni(Transcript, end_of_transcript);
     free(end_of_transcript);
@@ -1343,6 +1356,30 @@ static void TranscriptOff(void)
     glk_stream_close(Transcript, NULL);
     Transcript = NULL;
     Output(sys[TRANSCRIPT_OFF]);
+}
+
+static void FlickerOn(void)
+{
+    if (Options & FLICKER_ON) {
+        Output("Flicker is already on");
+    } else {
+        Output("Flicker is now on");
+    }
+    if (Options & NO_DELAYS)
+        Output(" (but delays are off, so it won't have any effect.)");
+    else Output(".");
+    Output("\n");
+    Options |= FLICKER_ON;
+}
+
+static void FlickerOff(void)
+{
+    if (Options & FLICKER_ON) {
+        Output("Flicker is now off.");
+    } else {
+        Output("Flicker is already off.");
+    }
+    Options &= ~FLICKER_ON;
 }
 
 int PerformExtraCommand(int extra_stop_time)
@@ -1425,6 +1462,15 @@ int PerformExtraCommand(int extra_stop_time)
         break;
     case EXCEPT:
         FreeCommands();
+    case FLICKER:
+        if (noun == ON || noun == 0) {
+            FlickerOn();
+            return 1;
+        } else if (noun == OFF) {
+            FlickerOff();
+            return 1;
+        }
+        break;
     }
 
     StopTime = 0;
@@ -1443,7 +1489,8 @@ static int YesOrNo(void)
     do {
         glk_select(&ev);
         if (ev.type == evtype_CharInput) {
-            const char reply = tolower(ev.val1);
+            glk_put_char_stream(glk_window_get_stream(Bottom), ev.val1);
+            const char reply = tolower((char)ev.val1);
             if (reply == y) {
                 result = 1;
             } else if (reply == n) {
@@ -1493,8 +1540,6 @@ static void WriteToLowerWindow(const char *fmt, ...)
 
     glui32 *unistring = ToUnicode(msg);
     glk_put_string_stream_uni(glk_window_get_stream(Bottom), unistring);
-    if (Transcript)
-        glk_put_string_stream_uni(Transcript, unistring);
     free(unistring);
 }
 
@@ -1599,6 +1644,20 @@ void MoveItemAToLocOfItemB(int itemA, int itemB)
         should_look_in_transcript = 1;
 }
 
+void GoTo(int loc)
+{
+#ifdef DEBUG_ACTIONS
+    debug_print("player location is now room %d (%s).\n", loc,
+                Rooms[loc].Text);
+#endif
+    int oldloc = MyLoc;
+    MyLoc = loc;
+    should_look_in_transcript = 1;
+    Look();
+    if (oldloc != MyLoc && (Options & FLICKER_ON))
+        Delay(0.2);
+}
+
 void GoToStoredLoc(void)
 {
 #ifdef DEBUG_ACTIONS
@@ -1609,6 +1668,39 @@ void GoToStoredLoc(void)
     MyLoc = SavedRoom;
     SavedRoom = t;
     should_look_in_transcript = 1;
+}
+
+void SetBitFlag(int bit) {
+#ifdef DEBUG_ACTIONS
+    debug_print("Bitflag %d is set\n", bit);
+#endif
+    BitFlags |= 1 << bit;
+}
+
+void ClearBitFlag(int bit) {
+#ifdef DEBUG_ACTIONS
+    debug_print("Bitflag %d is cleared\n", bit);
+#endif
+    BitFlags &= ~(1 << bit);
+}
+
+static void ChangeDarkness(int dark) {
+    int was_dark = ItIsDark();
+    if (dark) {
+        SetBitFlag(DARKBIT);
+        should_look_in_transcript = (should_look_in_transcript == 1 || was_dark == 0);
+    } else {
+        ClearBitFlag(DARKBIT);
+        should_look_in_transcript = (should_look_in_transcript == 1 || was_dark == 1);
+    }
+}
+
+void SetDark(void) {
+    ChangeDarkness(1);
+}
+
+void SetLight(void) {
+    ChangeDarkness(0);
 }
 
 void SwapLocAndRoomflag(int index)
@@ -1687,7 +1779,7 @@ void PlayerIsDead(void)
     debug_print("Player is dead\n");
 #endif
     Output(sys[IM_DEAD]);
-    BitFlags &= ~(1 << DARKBIT);
+    SetLight();
     MyLoc = GameHeader.NumRooms; /* It seems to be what the code says! */
 }
 
@@ -1897,13 +1989,7 @@ static ActionResultType PerformLine(int ct)
                 should_look_in_transcript = 1;
                 break;
             case 54:
-#ifdef DEBUG_ACTIONS
-                debug_print("player location is now room %d (%s).\n", param[pptr],
-                    Rooms[param[pptr]].Text);
-#endif
-                MyLoc = param[pptr++];
-                should_look_in_transcript = 1;
-                Look();
+                GoTo(param[pptr++]);
                 break;
             case 55:
 #ifdef DEBUG_ACTIONS
@@ -1914,16 +2000,13 @@ static ActionResultType PerformLine(int ct)
                 Items[param[pptr++]].Location = 0;
                 break;
             case 56:
-                BitFlags |= 1 << DARKBIT;
+                SetDark();
                 break;
             case 57:
-                BitFlags &= ~(1 << DARKBIT);
+                SetLight();
                 break;
             case 58:
-#ifdef DEBUG_ACTIONS
-                debug_print("Bitflag %d is set\n", param[pptr]);
-#endif
-                BitFlags |= (1 << param[pptr++]);
+                SetBitFlag(param[pptr++]);
                 break;
             case 59:
 #ifdef DEBUG_ACTIONS
@@ -1933,10 +2016,7 @@ static ActionResultType PerformLine(int ct)
                 Items[param[pptr++]].Location = 0;
                 break;
             case 60:
-#ifdef DEBUG_ACTIONS
-                debug_print("BitFlag %d is cleared\n", param[pptr]);
-#endif
-                BitFlags &= ~(1 << param[pptr++]);
+                ClearBitFlag(param[pptr++]);
                 break;
             case 61:
                 PlayerIsDead();
@@ -1969,15 +2049,15 @@ static ActionResultType PerformLine(int ct)
                 StopTime = 2;
                 break;
             case 67:
-                BitFlags |= (1 << 0);
+                SetBitFlag(0);
                 break;
             case 68:
-                BitFlags &= ~(1 << 0);
+                ClearBitFlag(0);
                 break;
             case 69:
                 GameHeader.LightTime = LightRefill;
                 Items[LIGHT_SOURCE].Location = CARRIED;
-                BitFlags &= ~(1 << LIGHTOUTBIT);
+                ClearBitFlag(LIGHTOUTBIT);
                 break;
             case 70:
                 ClearScreen(); /* pdd. */
@@ -2007,9 +2087,11 @@ static ActionResultType PerformLine(int ct)
 #ifdef DEBUG_ACTIONS
                 debug_print("LOOK\n");
 #endif
+                print_look_to_transcript = 1;
                 if (split_screen)
                     Look();
-                should_look_in_transcript = 1;
+                print_look_to_transcript =
+                should_look_in_transcript = 0;
                 break;
             case 77:
                 if (CurrentCounter >= 1)
@@ -2110,7 +2192,7 @@ static ActionResultType PerformLine(int ct)
 #endif
                 if (CurrentGame != HULK && CurrentGame != HULK_C64 && CurrentGame != HULK_US) {
                     pptr++;
-                } else if (!(BitFlags & (1 << DARKBIT)))
+                } else if (!ItIsDark())
                     DrawHulkImage(param[pptr++]);
                 break;
             default:
@@ -2146,9 +2228,7 @@ static void PrintTakenOrDropped(int index)
 
 static ExplicitResultType PerformActions(int vb, int no)
 {
-    int dark = BitFlags & (1 << DARKBIT);
-    if (Items[LIGHT_SOURCE].Location == MyLoc || Items[LIGHT_SOURCE].Location == CARRIED)
-        dark = 0;
+    int dark = ItIsDark();
     int ct = 0;
     ExplicitResultType flag;
     int doagain = 0;
@@ -2179,11 +2259,9 @@ static ExplicitResultType PerformActions(int vb, int no)
             return ER_SUCCESS;
         }
         if (dark) {
-            BitFlags &= ~(1 << DARKBIT);
+            SetLight();
             MyLoc = GameHeader.NumRooms; /* It seems to be what the code says! */
             Output(sys[YOU_FELL_AND_BROKE_YOUR_NECK]);
-            BitFlags &= ~(1 << DARKBIT);
-            MyLoc = GameHeader.NumRooms; /* It seems to be what the code says! */
             return ER_SUCCESS;
         }
         Output(sys[YOU_CANT_GO_THAT_WAY]);
@@ -2211,7 +2289,7 @@ static ExplicitResultType PerformActions(int vb, int no)
         while (ct <= GameHeader.NumActions) {
             int verbvalue, nounvalue;
             verbvalue = Actions[ct].Vocab;
-            /* Think this is now right. If a line we run has an action73
+            /* Think this is now right. If a line we run has an action 73
            run all following lines with vocab of 0,0 */
             if (vb != 0 && (doagain && verbvalue != 0))
                 break;
@@ -2409,6 +2487,9 @@ int glkunix_startup_code(glkunix_startup_t *data)
                 break;
             case 'n':
                 Options |= NO_DELAYS;
+                break;
+            case 'f':
+                Options |= FLICKER_ON;
                 break;
             }
             argv++;
@@ -2618,7 +2699,7 @@ Distributed under the GNU software license\n\n");
         if (Items[LIGHT_SOURCE].Location != DESTROYED && GameHeader.LightTime != -1 && !StopTime) {
             GameHeader.LightTime--;
             if (GameHeader.LightTime < 1) {
-                BitFlags |= (1 << LIGHTOUTBIT);
+                SetBitFlag(LIGHTOUTBIT);
                 if (Items[LIGHT_SOURCE].Location == CARRIED || Items[LIGHT_SOURCE].Location == MyLoc) {
                     Output(sys[LIGHT_HAS_RUN_OUT]);
                 }

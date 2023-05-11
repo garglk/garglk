@@ -85,19 +85,20 @@ typedef struct {
 
 // clang-format off
 
-#define YOUARE                 1     /* You are not I am */
-#define SCOTTLIGHT             2     /* Authentic Scott Adams light messages */
-#define DEBUGGING              4     /* Info from database load */
-#define TRS80_STYLE            8     /* Display in style used on TRS-80 */
-#define PREHISTORIC_LAMP      16     /* Destroy the lamp (very old databases) */
-#define SPECTRUM_STYLE        32     /* Display in style used on ZX Spectrum */
-#define TI994A_STYLE          64     /* Display in style used on TI-99/4A */
-#define NO_DELAYS            128     /* Skip all pauses */
-#define FORCE_PALETTE_ZX     256     /* Force ZX Spectrum image palette */
-#define FORCE_PALETTE_C64    512     /* Force CBM 64 image palette */
-#define FORCE_INVENTORY     1024     /* Inventory in upper window always on */
-#define FORCE_INVENTORY_OFF 2048     /* Inventory in upper window always off */
-#define PC_STYLE            4096     /* Display in style used on IBM PC (MS-DOS) */
+#define YOUARE                 0x1     /* You are not I am */
+#define SCOTTLIGHT             0x2     /* Authentic Scott Adams light messages */
+#define DEBUGGING              0x4     /* Info from database load */
+#define TRS80_STYLE            0x8     /* Display in style used on TRS-80 */
+#define PREHISTORIC_LAMP      0x10     /* Destroy the lamp (very old databases) */
+#define SPECTRUM_STYLE        0x20     /* Display in style used on ZX Spectrum */
+#define TI994A_STYLE          0x40     /* Display in style used on TI-99/4A */
+#define NO_DELAYS             0x80     /* Skip all pauses */
+#define FORCE_PALETTE_ZX     0x100     /* Force ZX Spectrum image palette */
+#define FORCE_PALETTE_C64    0x200     /* Force CBM 64 image palette */
+#define FORCE_INVENTORY      0x400     /* Inventory in upper window always on */
+#define FORCE_INVENTORY_OFF  0x800     /* Inventory in upper window always off */
+#define PC_STYLE            0x1000     /* Display in style used on IBM PC (MS-DOS) */
+#define FLICKER_ON          0x2000     /* Flicker room description like some original games */
 
 // clang-format on
 
@@ -142,6 +143,7 @@ void SaveGame(void);
 void PrintNoun(void);
 int PrintScore(void);
 void MoveItemAToLocOfItemB(int itemA, int itemB);
+void GoTo(int loc);
 void GoToStoredLoc(void);
 void SwapLocAndRoomflag(int index);
 void SwapItemLocations(int itemA, int itemB);
@@ -152,6 +154,10 @@ void PlayerIsDead(void);
 void UpdateSettings(void);
 winid_t FindGlkWindowWithRock(glui32 rock);
 void OpenTopWindow(void);
+void SetDark(void);
+void SetLight(void);
+void SetBitFlag(int bit);
+void ClearBitFlag(int bit);
 
 extern struct GameInfo *Game;
 extern Header GameHeader;

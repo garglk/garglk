@@ -19,7 +19,6 @@
 #define MAX_WORDS 128
 #define MAX_BUFFER 128
 
-extern strid_t Transcript;
 extern struct Command *CurrentCommand;
 
 glui32 **UnicodeWords = NULL;
@@ -55,6 +54,7 @@ const char *ExtraCommands[NUMBER_OF_EXTRA_COMMANDS] = {
     "load",
     "#restore",
     "transcript",
+    "#transcript",
     "script",
     "#script",
     "oops",
@@ -73,6 +73,7 @@ const char *ExtraCommands[NUMBER_OF_EXTRA_COMMANDS] = {
     "#qsave",
     "except",
     "but",
+    "#flicker",
     "", "", "", "", ""
 };
 
@@ -86,6 +87,7 @@ const char *GermanExtraCommands[NUMBER_OF_EXTRA_COMMANDS] = {
     "load",
     "#restore",
     "transcript",
+    "#transcript",
     "script",
     "#script",
     "oops",
@@ -104,6 +106,7 @@ const char *GermanExtraCommands[NUMBER_OF_EXTRA_COMMANDS] = {
     "#qsave",
     "ausser",
     "bis",
+    "#flicker",
     "laden",
     "wiederherstellen",
     "transkript",
@@ -121,6 +124,7 @@ const char *SpanishExtraCommands[NUMBER_OF_EXTRA_COMMANDS] = {
     "load",
     "#restore",
     "transcript",
+    "#transcript",
     "script",
     "#script",
     "oops",
@@ -139,6 +143,7 @@ const char *SpanishExtraCommands[NUMBER_OF_EXTRA_COMMANDS] = {
     "#qsave",
     "excepto",
     "menos",
+    "#flicker",
     "reanuda",
     "cargar",
     "transcripcion",
@@ -148,9 +153,9 @@ const char *SpanishExtraCommands[NUMBER_OF_EXTRA_COMMANDS] = {
 
 extra_command ExtraCommandsKey[NUMBER_OF_EXTRA_COMMANDS] = {
     NO_COMMAND, RESTART, RESTART, SAVE, SAVE, RESTORE, RESTORE,
-    RESTORE, SCRIPT, SCRIPT, SCRIPT, UNDO, UNDO, UNDO, UNDO,
+    RESTORE, SCRIPT, SCRIPT, SCRIPT, SCRIPT, UNDO, UNDO, UNDO, UNDO,
     RAM, RAMLOAD, RAMLOAD, RAMLOAD, RAMLOAD, RAMLOAD, RAMSAVE,
-    RAMSAVE, RAMSAVE, RAMSAVE, EXCEPT, EXCEPT,
+    RAMSAVE, RAMSAVE, RAMSAVE, EXCEPT, EXCEPT, FLICKER,
     RESTORE, RESTORE, SCRIPT, UNDO, RESTART
 };
 
@@ -581,11 +586,6 @@ void LineInput(void)
         }
 
         unibuf[ev.val1] = 0;
-
-        if (Transcript) {
-            glk_put_string_stream_uni(Transcript, unibuf);
-            glk_put_char_stream_uni(Transcript, 10);
-        }
 
         lastwasnewline = 1;
 
