@@ -55,7 +55,7 @@ void gli_tts_flush()
 {
     if (voice != nullptr) {
         txtbuf[txtlen] = 0;
-        voice->Speak(txtbuf.data(), SPF_ASYNC, nullptr);
+        voice->Speak(txtbuf.data(), SPF_ASYNC | SPF_IS_NOT_XML, nullptr);
     }
 
     txtlen = 0;
