@@ -86,3 +86,32 @@ bool garglk::read_file(const std::string &filename, std::vector<unsigned char> &
 
     return !f.fail();
 }
+
+void garglk_window_get_size_pixels(window_t *win, glui32 *width, glui32 *height)
+{
+    glui32 wid;
+    glui32 hgt;
+
+    // glk_window_get_size() already does what we need for blank, pair,
+    // and graphics windows.
+    glk_window_get_size(win, &wid, &hgt);
+
+    // For text windows, the size should be reported in pixels, and
+    // since glk_window_get_size() does integer division, this can't
+    // just multiply by gli_cellw/gli_cellh; calculate directly.
+    if (win->type == wintype_TextGrid) {
+        wid = win->bbox.x1 - win->bbox.x0;
+        hgt = win->bbox.y1 - win->bbox.y0;
+    } else if (win->type == wintype_TextBuffer) {
+        wid = win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2;
+        hgt = win->bbox.y1 - win->bbox.y0 - gli_tmarginy * 2;
+    }
+
+    if (width != nullptr) {
+        *width = wid;
+    }
+
+    if (height != nullptr) {
+        *height = hgt;
+    }
+}
