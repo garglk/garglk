@@ -26,7 +26,7 @@
 #include "glk.h"
 #include "garglk.h"
 
-static bool initialized = false;
+static FcConfig *cfg;
 
 static std::string findfont(const std::string &fontname)
 {
@@ -42,7 +42,7 @@ static std::string findfont(const std::string &fontname)
         return "";
     }
 
-    auto fs = garglk::unique(FcFontList(nullptr, p.get(), os.get()), FcFontSetDestroy);
+    auto fs = garglk::unique(FcFontList(cfg, p.get(), os.get()), FcFontSetDestroy);
     if (fs->nfont == 0) {
         return "";
     }
@@ -81,7 +81,7 @@ static std::string find_font_by_styles(const std::string &basefont, const std::v
 
 void garglk::fontreplace(const std::string &font, FontType type)
 {
-    if (!initialized || font.empty()) {
+    if (cfg == nullptr || font.empty()) {
         return;
     }
 
@@ -172,12 +172,12 @@ void garglk::fontreplace(const std::string &font, FontType type)
 
 void fontload()
 {
-    initialized = FcInit() != 0;
+    cfg = FcInitLoadConfigAndFonts();
 }
 
 void fontunload()
 {
-    if (initialized) {
-        FcFini();
+    if (cfg != nullptr) {
+        FcConfigDestroy(cfg);
     }
 }
