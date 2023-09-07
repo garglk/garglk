@@ -439,6 +439,7 @@ struct glk_schannel_struct {
                 gli_register_obj(this, gidisp_Class_Schannel) :
                 (gidispatch_rock_t){ .ptr = nullptr })
     {
+        timer.setTimerType(Qt::TimerType::PreciseTimer);
     }
 
     glk_schannel_struct(const glk_schannel_struct &) = delete;

@@ -218,6 +218,7 @@ garglk::Window::Window() :
     m_timer(new QTimer(this)),
     m_settings(new QSettings(GARGOYLE_ORGANIZATION, GARGOYLE_NAME, this))
 {
+    m_timer->setTimerType(Qt::TimerType::PreciseTimer);
     connect(m_timer, &QTimer::timeout, this, [&]() {
         m_timed_out = true;
     });
