@@ -210,8 +210,15 @@ class PixelView;
 template <std::size_t N>
 class Pixel {
 public:
+    // Unfortunately, at the moment a default constructor is required so
+    // that pixels can be placed in a vector.
+    Pixel() {
+        m_pixel.fill(0);
+    }
+
     template <typename... Args>
     explicit Pixel(Args... args) : m_pixel{static_cast<unsigned char>(args)...} {
+        static_assert(sizeof...(Args) == N, "Incorrect argument count for Pixel");
     }
 
     // This is intentionally _not_ explicit so that PixelViews can be
