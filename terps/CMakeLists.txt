@@ -229,7 +229,7 @@ if(WITH_GLULXE)
     if(UNIX)
         list(APPEND GLULXE_MACROS OS_UNIX)
     elseif(MINGW)
-        list(APPEND GLULXE_MACROS WIN32)
+        list(APPEND GLULXE_MACROS OS_WINDOWS)
     endif()
 
     terp(glulxe
