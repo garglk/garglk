@@ -222,14 +222,14 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Glulxe 0.6.0
+# Glulxe 0.6.1
 #
 if(WITH_GLULXE)
     set(GLULXE_MACROS FLOAT_COMPILE_SAFER_POWF)
     if(UNIX)
         list(APPEND GLULXE_MACROS OS_UNIX)
     elseif(MINGW)
-        list(APPEND GLULXE_MACROS WIN32)
+        list(APPEND GLULXE_MACROS OS_WINDOWS)
     endif()
 
     terp(glulxe

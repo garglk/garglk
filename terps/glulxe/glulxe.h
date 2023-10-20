@@ -81,10 +81,10 @@ typedef int16_t glsi16;
 /* Some macros to read and write integers to memory, always in big-endian
    format. */
 #define Read4(ptr)    \
-  ( (glui32)(((unsigned char *)(ptr))[0] << 24)  \
-  | (glui32)(((unsigned char *)(ptr))[1] << 16)  \
-  | (glui32)(((unsigned char *)(ptr))[2] << 8)   \
-  | (glui32)(((unsigned char *)(ptr))[3]))
+  ( (glui32)((glui32)((unsigned char *)(ptr))[0] << 24)  \
+  | (glui32)((glui32)((unsigned char *)(ptr))[1] << 16)  \
+  | (glui32)((glui32)((unsigned char *)(ptr))[2] << 8)   \
+  | (glui32)((glui32)((unsigned char *)(ptr))[3]))
 #define Read2(ptr)    \
   ( (glui16)(((unsigned char *)(ptr))[0] << 8)  \
   | (glui16)(((unsigned char *)(ptr))[1]))
@@ -195,6 +195,7 @@ extern void (*stream_char_handler)(unsigned char ch);
 extern void (*stream_unichar_handler)(glui32 ch);
 
 /* main.c */
+extern glui32 init_rng_seed;
 extern void set_library_start_hook(void (*)(void));
 extern void set_library_autorestore_hook(void (*)(void));
 extern void fatal_error_handler(char *str, char *arg, int useval, glsi32 val) GLK_ATTRIBUTE_NORETURN;
@@ -383,11 +384,6 @@ extern int init_float(void);
 extern glui32 encode_float(gfloat32 val);
 extern gfloat32 decode_float(glui32 val);
 
-/* Uncomment this definition if your powf() function does not support
-   all the corner cases specified by C99. If you uncomment this,
-   osdepend.c will provide a safer implementation of glulx_powf(). */
-/* #define FLOAT_COMPILE_SAFER_POWF (1) */
-
 extern gfloat32 glulx_powf(gfloat32 val1, gfloat32 val2);
 
 #ifdef DOUBLE_SUPPORT
@@ -398,6 +394,8 @@ typedef double gfloat64;
 
 extern void encode_double(gfloat64 val, glui32 *reshi, glui32 *reslo);
 extern gfloat64 decode_double(glui32 valhi, glui32 vallo);
+
+extern gfloat64 glulx_pow(gfloat64 val1, gfloat64 val2);
 
 #endif /* DOUBLE_SUPPORT */
 
