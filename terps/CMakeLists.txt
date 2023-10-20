@@ -222,7 +222,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Glulxe 0.6.0
+# Glulxe 0.6.1
 #
 if(WITH_GLULXE)
     set(GLULXE_MACROS FLOAT_COMPILE_SAFER_POWF)
