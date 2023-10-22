@@ -32,9 +32,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include <sys/time.h>
 #include "glk.h"
 #include "garglk.h"
+
+#ifndef _WIN32
+#include <sys/time.h>
+#endif
 
 #ifdef GARGLK
 #ifdef _WIN32
@@ -76,12 +79,12 @@ static struct tm *localtime_r(const time_t *timer, struct tm *result);
 /* These functions are POSIX but aren't supplied by MinGW. */
 static int setenv(const char *name, const char *value, int overwrite)
 {
-    SetEnvironmentVariable(name, value);
+    SetEnvironmentVariableA(name, value);
     return 0;
 }
 static int unsetenv(const char *name)
 {
-    SetEnvironmentVariable(name, NULL);
+    SetEnvironmentVariableA(name, NULL);
     return 0;
 }
 #endif
@@ -176,32 +179,47 @@ static glsi32 gli_simplify_time(time_t timestamp, glui32 factor)
 
 void glk_current_time(glktimeval_t *time)
 {
+#ifndef WIN32
     struct timeval tv;
-
     if (gettimeofday(&tv, NULL)) {
         gli_timestamp_to_time(0, 0, time);
         gli_strict_warning("current_time: gettimeofday() failed.");
         return;
     }
-
     gli_timestamp_to_time(tv.tv_sec, tv.tv_usec, time);
+#else
+    struct timespec ts;
+    if (!timespec_get(&ts, TIME_UTC)) {
+        gli_timestamp_to_time(0, 0, time);
+        gli_strict_warning("current_time: timespec_get() failed.");
+        return;
+    }
+    gli_timestamp_to_time(ts.tv_sec, ts.tv_nsec / 1000, time);
+#endif
 }
 
 glsi32 glk_current_simple_time(glui32 factor)
 {
-    struct timeval tv;
-
     if (factor == 0) {
         gli_strict_warning("current_simple_time: factor cannot be zero.");
         return 0;
     }
 
+#ifndef WIN32
+    struct timeval tv;
     if (gettimeofday(&tv, NULL)) {
         gli_strict_warning("current_simple_time: gettimeofday() failed.");
         return 0;
     }
-
     return gli_simplify_time(tv.tv_sec, factor);
+#else
+    struct timespec ts;
+    if (!timespec_get(&ts, TIME_UTC)) {
+        gli_strict_warning("current_simple_time: timespec_get() failed.");
+        return 0;
+    }
+    return gli_simplify_time(ts.tv_sec, factor);
+#endif
 }
 
 void glk_time_to_date_utc(glktimeval_t *time, glkdate_t *date)

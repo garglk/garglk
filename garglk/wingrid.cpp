@@ -77,8 +77,13 @@ void win_textgrid_rearrange(window_t *win, rect_t *box)
 
     for (k = 0; k < dwin->height; k++) {
         touch(dwin, k);
-        std::fill(&dwin->lines[k].chars[dwin->width], dwin->lines[k].chars.end(), ' ');
-        for (auto *attr = dwin->lines[k].attrs.begin() + dwin->width; attr != dwin->lines[k].attrs.end(); ++attr) {
+        // std::fill(&dwin->lines[k].chars[dwin->width], dwin->lines[k].chars.end(), ' ');
+        auto *end = (&dwin->lines[k].chars[0]) + dwin->lines[k].chars.size();
+        for (auto *x = &dwin->lines[k].chars[dwin->width]; x < end; x++) {
+            *x = ' ';
+        }
+        auto *attr_end = (&dwin->lines[k].attrs[0]) + dwin->lines[k].attrs.size();
+        for (auto *attr = &dwin->lines[k].attrs[dwin->width]; attr < attr_end; ++attr) {
             attr->clear();
         }
     }

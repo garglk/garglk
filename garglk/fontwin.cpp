@@ -80,7 +80,7 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
     char filename[256];
 
     // open the Fonts registry key
-    if (RegOpenKeyEx(key, subkey, 0, KEY_QUERY_VALUE, &hkey) != ERROR_SUCCESS) {
+    if (RegOpenKeyExA(key, subkey, 0, KEY_QUERY_VALUE, &hkey) != ERROR_SUCCESS) {
         return false;
     }
 
@@ -89,7 +89,7 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
 
     size = sizeof(filename);
 
-    if (RegQueryValueEx(hkey, face.c_str(), NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS) {
+    if (RegQueryValueExA(hkey, face.c_str(), NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS) {
         filepath = make_font_filepath(filename);
         RegCloseKey(hkey);
         return true;
@@ -100,7 +100,7 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
 
     size = sizeof(filename);
 
-    if (RegQueryValueEx(hkey, face.c_str(), NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS) {
+    if (RegQueryValueExA(hkey, face.c_str(), NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS) {
         filepath = make_font_filepath(filename);
         RegCloseKey(hkey);
         return true;
@@ -130,7 +130,7 @@ void garglk::fontreplace(const std::string &font, FontType type)
         return;
     }
 
-    LOGFONT logfont;
+    LOGFONTA logfont;
 
     ZeroMemory(&logfont, sizeof logfont);
     logfont.lfCharSet = DEFAULT_CHARSET;
@@ -141,7 +141,7 @@ void garglk::fontreplace(const std::string &font, FontType type)
     filler = std::make_unique<FontFiller>(type);
 
     std::snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", font.c_str());
-    EnumFontFamiliesEx(hdc, &logfont, reinterpret_cast<FONTENUMPROC>(font_cb), 0, 0);
+    EnumFontFamiliesExA(hdc, &logfont, reinterpret_cast<FONTENUMPROCA>(font_cb), 0, 0);
 
     filler->fill();
     filler.reset();
