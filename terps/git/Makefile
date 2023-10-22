@@ -38,7 +38,7 @@ INSTALLDIR = /usr/local/bin
 
 MAJOR = 1
 MINOR = 3
-PATCH = 6
+PATCH = 8
 
 include $(GLKINCLUDEDIR)/$(GLKMAKEFILE)
 

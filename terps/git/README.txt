@@ -185,7 +185,10 @@ also to Eliuk Blau for tracking down bugs in the memory management opcodes.
 
 * Version History
 
-1.3.7 ####-##-##  Added new undo and double precision math related opcodes
+1.3.8 2023-10-12  Use either a native random number generator, or the
+                  xoshiro128** algorithm, taken from Glulxe.
+
+1.3.7 2022-07-12  Added new undo and double precision math related opcodes
                   (VM spec 3.1.3), contributed by Andrew Plotkin.
 
 1.3.6 2021-05-25  Direct threading now works for 64 bit builds.
