@@ -19,6 +19,9 @@
 // Define this if we can use the "inline" keyword.
 // #define USE_INLINE
 
+// Define this to use a function native_random() to get random numbers.
+// #define USE_NATIVE_RANDOM
+
 // Define this to memory-map the game file to speed up loading. (Unix-specific)
 // #define USE_MMAP
 

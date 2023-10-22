@@ -104,3 +104,12 @@ void glk_main ()
 }
 
 #endif // USE_MMAP
+
+#ifdef USE_NATIVE_RANDOM
+
+glui32 native_random()
+{
+    return arc4random();
+}
+
+#endif // USE_NATIVE_RANDOM
