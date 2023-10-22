@@ -340,10 +340,10 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# SCARE 1.3.10 for Adrift games
+# SCARE 1.3.10 for Adrift 4 games
 #
 if(WITH_SCARE)
-    if(UNIX OR MINGW)
+    if(UNIX OR MINGW OR MSVC)
         find_package(ZLIB REQUIRED)
         set(SCARE_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
         set(SCARE_LIBS ${ZLIB_LIBRARIES})
