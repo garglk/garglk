@@ -197,7 +197,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Git 1.3.7
+# Git 1.3.8
 #
 # Reworked startup code to redirect errors to Glk windows.
 #

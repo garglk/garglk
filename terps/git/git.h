@@ -120,8 +120,7 @@ extern git_sint32* gStackPointer;
 
 extern enum IOMode gIoMode;
 
-extern glui32 lo_random ();
-extern void lo_seed_random (glui32 seed);
+extern glui32 native_random ();
 
 extern void startProgram (size_t cacheSize);
 

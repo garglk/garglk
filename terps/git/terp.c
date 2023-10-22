@@ -35,36 +35,83 @@ enum IOMode gIoMode = IO_NULL;
 // -------------------------------------------------------------
 // Random number generator, from Glulxe
 
-static glui32 rand_table[55]; /* State for the RNG. */
-static int rand_index1, rand_index2;
+static glui32 xo_random(void);
+static void xo_seed_random(glui32 seed);
 
-glui32 lo_random()
+static int rand_use_native = 1;
+
+/* Set the random-number seed, and also select which RNG to use.
+*/
+void git_seed_random(glui32 seed)
 {
-  rand_index1 = (rand_index1 + 1) % 55;
-  rand_index2 = (rand_index2 + 1) % 55;
-  rand_table[rand_index1] = rand_table[rand_index1] - rand_table[rand_index2];
-  return rand_table[rand_index1];
+  if (seed == 0)
+  {
+    rand_use_native = 1;
+    xo_seed_random(time(NULL));
+  }
+  else
+  {
+    rand_use_native = 0;
+    xo_seed_random(seed);
+  }
 }
 
-void lo_seed_random(glui32 seed)
+/* Return a random number in the range 0 to 2^32-1. */
+glui32 git_random()
 {
-  glui32 k = 1;
-  int i, loop;
+#ifdef USE_NATIVE_RANDOM
+  if (rand_use_native)
+    return native_random();
+#endif
+  return xo_random();
+}
 
-  rand_table[54] = seed;
-  rand_index1 = 0;
-  rand_index2 = 31;
+/* This is the "xoshiro128**" random-number generator and seed function.
+Adapted from: https://prng.di.unimi.it/xoshiro128starstar.c
+About this algorithm: https://prng.di.unimi.it/
+*/
+static uint32_t xo_table[4];
 
-  for (i = 0; i < 55; i++) {
-    int ii = (21 * i) % 55;
-    rand_table[ii] = k;
-    k = seed - k;
-    seed = rand_table[ii];
+static void xo_seed_random(glui32 seed)
+{
+  int ix;
+  /* Set up the 128-bit state from a single 32-bit integer. We rely
+  on a different RNG, SplitMix32. This isn't high-quality, but we
+  just need to get a bunch of bits into xo_table. */
+  for (ix=0; ix<4; ix++) {
+    seed += 0x9E3779B9;
+    glui32 s = seed;
+    s ^= s >> 15;
+    s *= 0x85EBCA6B;
+    s ^= s >> 13;
+    s *= 0xC2B2AE35;
+    s ^= s >> 16;
+    xo_table[ix] = s;
   }
-  for (loop = 0; loop < 4; loop++) {
-    for (i = 0; i < 55; i++)
-      rand_table[i] = rand_table[i] - rand_table[ (1 + i + 30) % 55];
-  }
+}
+
+static glui32 xo_random(void)
+{
+  /* I've inlined the utility function:
+  rotl(x, k) => (x << k) | (x >> (32 - k))
+  */
+
+  const uint32_t t1x5 = xo_table[1] * 5;
+  const uint32_t result = ((t1x5 << 7) | (t1x5 >> (32-7))) * 9;
+
+  const uint32_t t1s9 = xo_table[1] << 9;
+
+  xo_table[2] ^= xo_table[0];
+  xo_table[3] ^= xo_table[1];
+  xo_table[1] ^= xo_table[2];
+  xo_table[0] ^= xo_table[3];
+
+  xo_table[2] ^= t1s9;
+
+  const uint32_t t3 = xo_table[3];
+  xo_table[3] =  ((t3 << 11) | (t3 >> (32-11)));
+
+  return result;
 }
 
 // -------------------------------------------------------------
@@ -135,6 +182,18 @@ static int doubleCompare(git_sint32 L1, git_sint32 L2, git_sint32 L3, git_sint32
   return ((D1 <= D2) && (D1 >= -D2));
 }
 
+static void testDouble()
+{
+  glui32 PI_hi = 0x400921FB;
+  glui32 PI_lo = 0x54442D18;
+  git_double pi = DECODE_DOUBLE(PI_hi, PI_lo);
+  if (!(pi > 3.1415 && pi < 3.1416)) {
+    // If this fails, on a big-endian system, check that USE_BIG_ENDIAN
+    // or USE_BIG_ENDIAN_UNALIGNED have been defined in config.h
+    fatalError("Test decode of double precision value failed");
+  }
+}
+
 // -------------------------------------------------------------
 // Functions
 
@@ -186,10 +245,11 @@ void startProgram (size_t cacheSize)
 # endif
 #endif    
 
+    testDouble ();
     initCompiler (cacheSize);
 
     // Initialise the random number generator.
-    lo_seed_random (time(NULL));
+    git_seed_random (0);
 
     // Set up the stack.
 
@@ -1262,17 +1322,17 @@ do_tailcall:
 
     do_random:
         if (L1 > 0)
-            S1 = lo_random () % L1;
+            S1 = git_random () % L1;
         else if (L1 < 0)
-            S1 = -(lo_random () % -L1);
+            S1 = -(git_random () % -L1);
         else
         {
-            S1 = lo_random ();
+            S1 = git_random ();
         }
         NEXT;
 
     do_setrandom:
-        lo_seed_random (L1 ? L1 : time(NULL));
+        git_seed_random (L1);
         NEXT;
 
     do_glk:

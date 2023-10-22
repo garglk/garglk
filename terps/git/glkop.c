@@ -100,7 +100,6 @@
 
 #define glulx_malloc malloc
 #define glulx_free free
-#define glulx_random lo_random
 
 #ifndef TRUE
 #define TRUE 1
@@ -109,6 +108,7 @@
 #define FALSE 0
 #endif
 
+#include <time.h>
 #include "glk.h"
 #include "git.h"
 #include "gi_dispa.h"
@@ -270,7 +270,8 @@ static maybe_unused char *get_game_id(void);
 int git_init_dispatch()
 {
   int ix;
-  
+  int randish;
+
   /* What with one thing and another, this *could* be called more than
      once. We only need to allocate the tables once. */
   if (git_classes)
@@ -289,8 +290,9 @@ int git_init_dispatch()
   if (!git_classes)
     return FALSE;
     
+  randish = time(NULL) % 101;
   for (ix=0; ix<num_classes; ix++) {
-    git_classes[ix] = new_classtable((glulx_random() % (glui32)(101)) + 1);
+    git_classes[ix] = new_classtable(1+120*ix+randish);
     if (!git_classes[ix])
       return FALSE;
   }
