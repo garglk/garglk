@@ -16,6 +16,7 @@
 #include "treaty_builder.h"
 #include <ctype.h>
 #include <stdio.h>
+#include <strings.h>
 
 /* Searches case-insensitively for the string str in the story file.
    The string must be null-terminated. The story file can have nulls
