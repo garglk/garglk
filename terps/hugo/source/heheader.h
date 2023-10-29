@@ -358,7 +358,7 @@ void heglk_printfatalerror(char *err);
 #undef SEEK_END
 #define SEEK_END	seekmode_End
 
-#if defined (_WINDOWS)
+#if defined (_WINDOWS) && !defined(GARGLK)
 #define SETTITLE_SUPPORTED
 #define PRINTFATALERROR_SUPPLIED
 #endif
