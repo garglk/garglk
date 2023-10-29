@@ -42,6 +42,12 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
     int argc;
     char **argv;
 
+    char *myName = new char[MAX_PATH + 1];
+    if (GetModuleFileNameA(0, myName, MAX_PATH + 1) == 0) {
+        MessageBoxA(NULL, "Unable to determine who I am. Aborting.", "Gargoyle Existential Crisis", MB_ICONERROR);
+        return EXIT_FAILURE;
+    }
+
     // adapted from: https://stackoverflow.com/a/74999569
 
     wchar_t **wargv = CommandLineToArgvW(lpCmdLine, &argc);
@@ -52,12 +58,14 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
     for (int i = 0; i < argc; i++)
         argv_strSize += WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, NULL, 0, NULL, NULL) + 1;
 
-    argv = new char *[argc + 1];
+    argc += 1;  // argv[0] needs to be our executable name, which CommandLineToArgvW does not account for.
+    argv = new char *[argc+1];
+    argv[0] = myName;
     char *arg = new char[argv_strSize];
     int used = 0;
-    for (int i = 0; i < argc; i++) {
+    for (int i = 1; i < argc; i++) {
         argv[i] = arg + used;
-        used += WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, arg, argv_strSize - used, NULL, NULL)+1;
+        used += WideCharToMultiByte(CP_UTF8, 0, wargv[i-1], -1, arg, argv_strSize - used, NULL, NULL)+1;
     }
     argv[argc] = NULL;
 
