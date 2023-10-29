@@ -26,8 +26,8 @@ function(terp target)
     target_include_directories(${target} PRIVATE ${TERP_INCLUDE_DIRS})
     target_link_libraries(${target} PRIVATE garglkmain garglk ${TERP_LIBS})
 
-    if(MINGW)
-        target_sources(${target} PRIVATE "${PROJECT_SOURCE_DIR}/garglk/icons.rc")
+    if(MINGW OR MSVC)
+        target_sources(${target} PRIVATE "${PROJECT_SOURCE_DIR}/garglk/icons.rc" "${PROJECT_SOURCE_DIR}/terps/garglk.manifest")
     endif()
 
     if(NOT TERP_CXXSTD)
