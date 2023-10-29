@@ -48,11 +48,14 @@
 #include "osextra.h"
 #include "charmap.h"
 #include <time.h>
+#ifndef _WIN32
 #include <dirent.h>
+#endif
 #include <limits.h>
 
 #if defined(_WIN32)
 #include <windows.h>
+#define PATH_MAX MAX_PATH
 #define MKDIR_TAKES_ONE_ARG 1
 #define lstat stat
 #elif defined(__APPLE__)
@@ -923,13 +926,51 @@ os_paramfile( char* )
  */
 int os_open_dir(const char *dirname, osdirhdl_t *hdl)
 {
+#ifdef _WIN32
+    auto attrs = GetFileAttributesA(dirname);
+    if (attrs == INVALID_FILE_ATTRIBUTES || (attrs & FILE_ATTRIBUTE_DIRECTORY) == 0)
+        return false;
+
+    // a directory, proceed
+    Win32Dir *dirp = (Win32Dir *) malloc(sizeof(Win32Dir));
+    if (!dirp) return false;
+    size_t dirlen = strlen(dirname);
+    dirp->dirname = (char *) malloc(dirlen + 4);
+    if (!dirp->dirname) return false;
+    // Adjust dirname for Windows FindFile conventions
+    if (dirp->dirname[dirlen - 1] == '\\' || dirp->dirname[dirlen - 1] == '/') {
+        dirp->dirname[dirlen] = '*';
+        dirp->dirname[dirlen + 1] = 0;
+    } else {
+        dirp->dirname[dirlen] = '\\';
+        dirp->dirname[dirlen + 1] = '*';
+        dirp->dirname[dirlen + 2] = 0;
+    }
+    *hdl = dirp;
+    return true;
+#else
     return (*hdl = opendir(dirname)) != NULL;
+#endif
 }
 
 /* Read the next result in a directory search.
  */
 int os_read_dir(osdirhdl_t hdl, char *buf, size_t buflen)
 {
+#ifdef _WIN32
+    struct Win32Dir *dirp = (struct Win32Dir *) hdl;
+    if (dirp->hFindFile == NULL) {  // first call, begin enumeration
+        dirp->hFindFile = FindFirstFileA(dirp->dirname, &(dirp->findFileData));
+        if (dirp->hFindFile == INVALID_HANDLE_VALUE)  // nothing found, return failure
+            return false;
+    } else {  // continue
+        // if we've exhausted the search, return failure
+        if (FindNextFileA(dirp->hFindFile, &(dirp->findFileData)) == 0)
+            return false;
+    }
+    safe_strcpy(buf, buflen, dirp->findFileData.cFileName);
+    return true;
+#else
     // Read the next directory entry - if we've exhausted the search,
     // return failure.
     struct dirent *d = readdir(hdl);
@@ -939,13 +980,21 @@ int os_read_dir(osdirhdl_t hdl, char *buf, size_t buflen)
     // return this entry
     safe_strcpy(buf, buflen, d->d_name);
     return true;
+#endif
 }
 
 /* Close a directory search.
  */
 void os_close_dir(osdirhdl_t hdl)
 {
+#ifdef _WIN32
+    if (hdl->hFindFile)
+        FindClose(hdl->hFindFile);
+    free(hdl->dirname);
+    free(hdl);
+#else
     closedir(hdl);
+#endif
 }
 
 
@@ -961,8 +1010,8 @@ os_is_special_file( const char* fname )
     // "..".  (We use OSPATHCHAR instead of '/' though.)
     const char selfWithSep[3] = {'.', OSPATHCHAR, '\0'};
     const char parentWithSep[4] = {'.', '.', OSPATHCHAR, '\0'};
-    if ((strcmp(fname, ".") == 0) or (strcmp(fname, selfWithSep) == 0)) return OS_SPECFILE_SELF;
-    if ((strcmp(fname, "..") == 0) or (strcmp(fname, parentWithSep) == 0)) return OS_SPECFILE_PARENT;
+    if ((strcmp(fname, ".") == 0) || (strcmp(fname, selfWithSep) == 0)) return OS_SPECFILE_SELF;
+    if ((strcmp(fname, "..") == 0) || (strcmp(fname, parentWithSep) == 0)) return OS_SPECFILE_PARENT;
     return OS_SPECFILE_NONE;
 }
 #endif
@@ -1153,13 +1202,13 @@ os_is_file_in_dir( const char* filename, const char* path,
     size_t flen, plen;
 
     // Absolute-ize the filename, if necessary.
-    if (not os_is_file_absolute(filename)) {
+    if (!os_is_file_absolute(filename)) {
         os_get_abs_filename(filename_buf, sizeof(filename_buf), filename);
         filename = filename_buf;
     }
 
     // Absolute-ize the path, if necessary.
-    if (not os_is_file_absolute(path)) {
+    if (!os_is_file_absolute(path)) {
         os_get_abs_filename(path_buf, sizeof(path_buf), path);
         path = path_buf;
     }
@@ -1183,7 +1232,7 @@ os_is_file_in_dir( const char* filename, const char* path,
     plen = strlen(path);
 
     // If the path ends in a separator character, ignore that.
-    if (plen > 0 and path[plen-1] == OSPATHCHAR)
+    if (plen > 0 && path[plen-1] == OSPATHCHAR)
         --plen;
 
     // if the names match, return true if and only if we're matching the
@@ -1196,7 +1245,7 @@ os_is_file_in_dir( const char* filename, const char* path,
     // case.  Note that we need the filename to be at least two characters
     // longer than the path: it must have a path separator after the path
     // name, and at least one character for a filename past that.
-    if (flen < plen + 2 or memcmp(filename, path, plen) != 0)
+    if (flen < plen + 2 || memcmp(filename, path, plen) != 0)
         return false;
 
     // Okay, 'path' is the leading substring of 'filename'; next make sure
@@ -1229,7 +1278,7 @@ os_is_file_in_dir( const char* filename, const char* path,
     // itself, so it's not a match.  If we don't find any separators,
     // we have a file directly in 'path', so it's a match.
     const char* p;
-    for (p = filename; *p != '\0' and *p != OSPATHCHAR ; ++p)
+    for (p = filename; *p != '\0' && *p != OSPATHCHAR ; ++p)
         ;
 
     // If we reached the end of the string without finding a path
@@ -1319,21 +1368,21 @@ os_get_special_path( char* buf, size_t buflen, const char* argv0, int id )
     switch (id) {
       case OS_GSP_T3_RES:
         res = getenv("T3_RESDIR");
-        if (res == 0 or res[0] == '\0') {
+        if (res == 0 || res[0] == '\0') {
             res = T3_RES_DIR;
         }
         break;
 
       case OS_GSP_T3_INC:
         res = getenv("T3_INCDIR");
-        if (res == 0 or res[0] == '\0') {
+        if (res == 0 || res[0] == '\0') {
             res = T3_INC_DIR;
         }
         break;
 
       case OS_GSP_T3_LIB:
         res = getenv("T3_LIBDIR");
-        if (res == 0 or res[0] == '\0') {
+        if (res == 0 || res[0] == '\0') {
             res = T3_LIB_DIR;
         }
         break;
@@ -1345,7 +1394,7 @@ os_get_special_path( char* buf, size_t buflen, const char* argv0, int id )
 
       case OS_GSP_T3_SYSCONFIG:
         res = getenv("T3_CONFIG");
-        if (res == 0 and argv0 != 0) {
+        if (res == 0 && argv0 != 0) {
             os_get_path_name(buf, buflen, argv0);
             return;
         }
@@ -1353,7 +1402,7 @@ os_get_special_path( char* buf, size_t buflen, const char* argv0, int id )
 
       case OS_GSP_LOGFILE:
         res = getenv("T3_LOGDIR");
-        if (res == 0 or res[0] == '\0') {
+        if (res == 0 || res[0] == '\0') {
             res = T3_LOG_FILE;
         }
         break;
@@ -1369,7 +1418,7 @@ os_get_special_path( char* buf, size_t buflen, const char* argv0, int id )
         // directory.
         struct stat inf;
         int statRet = stat(res, &inf);
-        if (statRet == 0 and (inf.st_mode & S_IFMT) == S_IFDIR) {
+        if (statRet == 0 && (inf.st_mode & S_IFMT) == S_IFDIR) {
             strncpy(buf, res, buflen - 1);
             return;
         }
