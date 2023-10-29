@@ -709,10 +709,25 @@ bool streq(char a[], char b[])
     return eq;
 }
 
+#if defined(HAVE_GLK) && defined(GLK_MODULE_DATETIME)
+static void createLogfileName(char *createdFileName, const char extension[]) {
+    if (glk_gestalt(gestalt_DateTime, 0) != 0 && !regressionTestOption) {
+        glktimeval_t tv;
+        glkdate_t date;
+        glk_current_time(&tv);
+        glk_time_to_date_local(&tv, &date);
 
-
+        sprintf(createdFileName, "%s%d%02d%02d%02d%02d%02d%04d%s",
+                adventureName, date.year, date.month,
+                date.day, date.hour, date.minute, date.second,
+                date.microsec,
+                extension);
+    } else {
+        sprintf(createdFileName, "%s%s", adventureName, extension);
+    }
+}
+#else
 #include <sys/time.h>
-
 
 static void createLogfileName(char *createdFileName, const char extension[]) {
     time_t tick;
@@ -733,7 +748,7 @@ static void createLogfileName(char *createdFileName, const char extension[]) {
     else
         sprintf(createdFileName, "%s%s", adventureName, extension);
 }
-
+#endif
 
 /*======================================================================*/
 void startTranscript(void) {
