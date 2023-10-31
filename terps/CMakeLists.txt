@@ -121,7 +121,7 @@ endif()
 # Added glk file prompts for gargoyle using garglk_fileref_get_name.
 #
 if(WITH_ALAN2)
-    set(ALAN2_MACROS GLK _PROTOTYPES_)
+    set(ALAN2_MACROS GLK)
 
     if(NOT GARGLK_BIG_ENDIAN)
         list(APPEND ALAN2_MACROS REVERSED)

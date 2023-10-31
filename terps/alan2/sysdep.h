@@ -106,6 +106,13 @@
 #include <string.h>
 #endif
 
+#ifdef _MSC_VER
+/* Neither does MSVC, for annoying POSIX function renaming reasons. */
+#define _PROTOTYPES_
+#include <stdlib.h>
+#include <string.h>
+#endif
+
 
 #ifdef __mac__
 #define _PROTOTYPES_
