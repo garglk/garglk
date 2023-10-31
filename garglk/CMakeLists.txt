@@ -30,14 +30,23 @@ if(INTERFACE STREQUAL "QT")
     option(WITH_NATIVE_FILE_DIALOGS "Use native dialogs instead of Qt dialogs" ON)
 endif()
 
-vtk_encode_string(
-    INPUT garglk.ini
-    NAME garglkini
-    HEADER_OUTPUT GARGLKINI_H
-    SOURCE_OUTPUT GARGLKINI_CXX
-    EXPORT_SYMBOL "GARGLK_API"
-    EXPORT_HEADER "garglk_importexport.h"
-)
+if(MSVC)
+    vtk_encode_string(
+        INPUT garglk.ini
+        NAME garglkini
+        HEADER_OUTPUT GARGLKINI_H
+        SOURCE_OUTPUT GARGLKINI_CXX
+        EXPORT_SYMBOL "GARGLK_API"
+        EXPORT_HEADER "garglk_importexport.h"
+    )
+else()
+    vtk_encode_string(
+        INPUT garglk.ini
+        NAME garglkini
+        HEADER_OUTPUT GARGLKINI_H
+        SOURCE_OUTPUT GARGLKINI_CXX
+    )
+endif()
 
 set_property(SOURCE config.cpp launchqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLKINI_H="${GARGLKINI_H}")
 

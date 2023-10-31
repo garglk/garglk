@@ -35,7 +35,7 @@
 #include "glk.h"
 #include "garglk.h"
 
-#ifndef _WIN32
+#ifndef _MSC_VER
 #include <sys/time.h>
 #endif
 
@@ -179,7 +179,7 @@ static glsi32 gli_simplify_time(time_t timestamp, glui32 factor)
 
 void glk_current_time(glktimeval_t *time)
 {
-#ifndef WIN32
+#ifndef _MSC_VER
     struct timeval tv;
     if (gettimeofday(&tv, NULL)) {
         gli_timestamp_to_time(0, 0, time);
@@ -205,7 +205,7 @@ glsi32 glk_current_simple_time(glui32 factor)
         return 0;
     }
 
-#ifndef WIN32
+#ifndef _MSC_VER
     struct timeval tv;
     if (gettimeofday(&tv, NULL)) {
         gli_strict_warning("current_simple_time: gettimeofday() failed.");
@@ -369,7 +369,7 @@ time_t timegm(struct tm *tm)
 #endif /* NO_TIMEGM_AVAIL */
 
 
-#ifdef WIN32
+#ifdef _WIN32
 /* Windows needs wrappers for time functions to handle pre-epoch dates */
 
 /* 31,557,600 seconds per year */

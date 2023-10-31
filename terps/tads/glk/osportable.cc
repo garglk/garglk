@@ -55,7 +55,9 @@
 
 #if defined(_WIN32)
 #include <windows.h>
+#ifndef PATH_MAX
 #define PATH_MAX MAX_PATH
+#endif
 #define MKDIR_TAKES_ONE_ARG 1
 #define lstat stat
 #elif defined(__APPLE__)

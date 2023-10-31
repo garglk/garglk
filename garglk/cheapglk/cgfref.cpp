@@ -39,7 +39,6 @@
 
 #ifdef _WIN32
 #define _CRT_INTERNAL_NONSTDC_NAMES 1
-#define R_OK 02
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
