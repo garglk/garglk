@@ -51,6 +51,16 @@ void garglk_set_story_title(const char *title)
     wintitle();
 }
 
+int garglk_tads_os_banner_size(winid_t win)
+{
+    window_textbuffer_t *dwin = win->window.textbuffer;
+    int size = dwin->scrollmax;
+    if (dwin->numchars != 0) {
+        size++;
+    }
+    return size;
+}
+
 // All normal program termination should go through here instead of
 // directly calling std::exit() to ensure that gli_exiting is properly
 // set. Some code in destructors needs to be careful what it's doing
