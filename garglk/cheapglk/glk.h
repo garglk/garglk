@@ -521,6 +521,8 @@ extern void garglk_set_reversevideo_stream(strid_t str, glui32 reverse);
 
 extern void garglk_zbleep(glui32 number);
 
+extern int garglk_tads_os_banner_size(winid_t win);
+
 /* non standard keycodes */
 #define keycode_Erase               (0xffffef7f)
 #define keycode_MouseWheelUp        (0xffffeffe)
