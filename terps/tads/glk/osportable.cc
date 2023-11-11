@@ -1012,8 +1012,8 @@ os_is_special_file( const char* fname )
     // "..".  (We use OSPATHCHAR instead of '/' though.)
     const char selfWithSep[3] = {'.', OSPATHCHAR, '\0'};
     const char parentWithSep[4] = {'.', '.', OSPATHCHAR, '\0'};
-    if ((strcmp(fname, ".") == 0) || (strcmp(fname, selfWithSep) == 0)) return OS_SPECFILE_SELF;
-    if ((strcmp(fname, "..") == 0) || (strcmp(fname, parentWithSep) == 0)) return OS_SPECFILE_PARENT;
+    if ((strcmp(fname, ".") == 0) or (strcmp(fname, selfWithSep) == 0)) return OS_SPECFILE_SELF;
+    if ((strcmp(fname, "..") == 0) or (strcmp(fname, parentWithSep) == 0)) return OS_SPECFILE_PARENT;
     return OS_SPECFILE_NONE;
 }
 #endif
@@ -1204,13 +1204,13 @@ os_is_file_in_dir( const char* filename, const char* path,
     size_t flen, plen;
 
     // Absolute-ize the filename, if necessary.
-    if (!os_is_file_absolute(filename)) {
+    if (not os_is_file_absolute(filename)) {
         os_get_abs_filename(filename_buf, sizeof(filename_buf), filename);
         filename = filename_buf;
     }
 
     // Absolute-ize the path, if necessary.
-    if (!os_is_file_absolute(path)) {
+    if (not os_is_file_absolute(path)) {
         os_get_abs_filename(path_buf, sizeof(path_buf), path);
         path = path_buf;
     }
@@ -1234,7 +1234,7 @@ os_is_file_in_dir( const char* filename, const char* path,
     plen = strlen(path);
 
     // If the path ends in a separator character, ignore that.
-    if (plen > 0 && path[plen-1] == OSPATHCHAR)
+    if (plen > 0 and path[plen-1] == OSPATHCHAR)
         --plen;
 
     // if the names match, return true if and only if we're matching the
@@ -1247,7 +1247,7 @@ os_is_file_in_dir( const char* filename, const char* path,
     // case.  Note that we need the filename to be at least two characters
     // longer than the path: it must have a path separator after the path
     // name, and at least one character for a filename past that.
-    if (flen < plen + 2 || memcmp(filename, path, plen) != 0)
+    if (flen < plen + 2 or memcmp(filename, path, plen) != 0)
         return false;
 
     // Okay, 'path' is the leading substring of 'filename'; next make sure
@@ -1280,7 +1280,7 @@ os_is_file_in_dir( const char* filename, const char* path,
     // itself, so it's not a match.  If we don't find any separators,
     // we have a file directly in 'path', so it's a match.
     const char* p;
-    for (p = filename; *p != '\0' && *p != OSPATHCHAR ; ++p)
+    for (p = filename; *p != '\0' and *p != OSPATHCHAR ; ++p)
         ;
 
     // If we reached the end of the string without finding a path
@@ -1370,21 +1370,21 @@ os_get_special_path( char* buf, size_t buflen, const char* argv0, int id )
     switch (id) {
       case OS_GSP_T3_RES:
         res = getenv("T3_RESDIR");
-        if (res == 0 || res[0] == '\0') {
+        if (res == 0 or res[0] == '\0') {
             res = T3_RES_DIR;
         }
         break;
 
       case OS_GSP_T3_INC:
         res = getenv("T3_INCDIR");
-        if (res == 0 || res[0] == '\0') {
+        if (res == 0 or res[0] == '\0') {
             res = T3_INC_DIR;
         }
         break;
 
       case OS_GSP_T3_LIB:
         res = getenv("T3_LIBDIR");
-        if (res == 0 || res[0] == '\0') {
+        if (res == 0 or res[0] == '\0') {
             res = T3_LIB_DIR;
         }
         break;
@@ -1396,7 +1396,7 @@ os_get_special_path( char* buf, size_t buflen, const char* argv0, int id )
 
       case OS_GSP_T3_SYSCONFIG:
         res = getenv("T3_CONFIG");
-        if (res == 0 && argv0 != 0) {
+        if (res == 0 and argv0 != 0) {
             os_get_path_name(buf, buflen, argv0);
             return;
         }
@@ -1404,7 +1404,7 @@ os_get_special_path( char* buf, size_t buflen, const char* argv0, int id )
 
       case OS_GSP_LOGFILE:
         res = getenv("T3_LOGDIR");
-        if (res == 0 || res[0] == '\0') {
+        if (res == 0 or res[0] == '\0') {
             res = T3_LOG_FILE;
         }
         break;
@@ -1420,7 +1420,7 @@ os_get_special_path( char* buf, size_t buflen, const char* argv0, int id )
         // directory.
         struct stat inf;
         int statRet = stat(res, &inf);
-        if (statRet == 0 && (inf.st_mode & S_IFMT) == S_IFDIR) {
+        if (statRet == 0 and (inf.st_mode & S_IFMT) == S_IFDIR) {
             strncpy(buf, res, buflen - 1);
             return;
         }
