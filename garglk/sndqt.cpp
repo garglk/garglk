@@ -81,6 +81,10 @@ static schanid_t gli_bleep_channel;
 static bool mp3_initialized;
 #endif
 
+#ifdef _MSC_VER
+using ssize_t = std::make_signed_t<size_t>;
+#endif
+
 namespace {
 
 class VFSAbstract {

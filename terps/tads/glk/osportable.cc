@@ -48,11 +48,16 @@
 #include "osextra.h"
 #include "charmap.h"
 #include <time.h>
+#ifndef _WIN32
 #include <dirent.h>
+#endif
 #include <limits.h>
 
 #if defined(_WIN32)
 #include <windows.h>
+#ifndef PATH_MAX
+#define PATH_MAX MAX_PATH
+#endif
 #define MKDIR_TAKES_ONE_ARG 1
 #define lstat stat
 #elif defined(__APPLE__)
@@ -923,13 +928,51 @@ os_paramfile( char* )
  */
 int os_open_dir(const char *dirname, osdirhdl_t *hdl)
 {
+#ifdef _WIN32
+    auto attrs = GetFileAttributesA(dirname);
+    if (attrs == INVALID_FILE_ATTRIBUTES || (attrs & FILE_ATTRIBUTE_DIRECTORY) == 0)
+        return false;
+
+    // a directory, proceed
+    Win32Dir *dirp = (Win32Dir *) malloc(sizeof(Win32Dir));
+    if (!dirp) return false;
+    size_t dirlen = strlen(dirname);
+    dirp->dirname = (char *) malloc(dirlen + 4);
+    if (!dirp->dirname) return false;
+    // Adjust dirname for Windows FindFile conventions
+    if (dirp->dirname[dirlen - 1] == '\\' || dirp->dirname[dirlen - 1] == '/') {
+        dirp->dirname[dirlen] = '*';
+        dirp->dirname[dirlen + 1] = 0;
+    } else {
+        dirp->dirname[dirlen] = '\\';
+        dirp->dirname[dirlen + 1] = '*';
+        dirp->dirname[dirlen + 2] = 0;
+    }
+    *hdl = dirp;
+    return true;
+#else
     return (*hdl = opendir(dirname)) != NULL;
+#endif
 }
 
 /* Read the next result in a directory search.
  */
 int os_read_dir(osdirhdl_t hdl, char *buf, size_t buflen)
 {
+#ifdef _WIN32
+    struct Win32Dir *dirp = (struct Win32Dir *) hdl;
+    if (dirp->hFindFile == NULL) {  // first call, begin enumeration
+        dirp->hFindFile = FindFirstFileA(dirp->dirname, &(dirp->findFileData));
+        if (dirp->hFindFile == INVALID_HANDLE_VALUE)  // nothing found, return failure
+            return false;
+    } else {  // continue
+        // if we've exhausted the search, return failure
+        if (FindNextFileA(dirp->hFindFile, &(dirp->findFileData)) == 0)
+            return false;
+    }
+    safe_strcpy(buf, buflen, dirp->findFileData.cFileName);
+    return true;
+#else
     // Read the next directory entry - if we've exhausted the search,
     // return failure.
     struct dirent *d = readdir(hdl);
@@ -939,13 +982,21 @@ int os_read_dir(osdirhdl_t hdl, char *buf, size_t buflen)
     // return this entry
     safe_strcpy(buf, buflen, d->d_name);
     return true;
+#endif
 }
 
 /* Close a directory search.
  */
 void os_close_dir(osdirhdl_t hdl)
 {
+#ifdef _WIN32
+    if (hdl->hFindFile)
+        FindClose(hdl->hFindFile);
+    free(hdl->dirname);
+    free(hdl);
+#else
     closedir(hdl);
+#endif
 }
 
 

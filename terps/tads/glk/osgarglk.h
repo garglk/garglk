@@ -32,8 +32,10 @@
 #include <stdint.h>
 #include <stdarg.h>
 
+#ifndef _MSC_VER
 /* For strcasecmp() */
 #include <strings.h>
+#endif
 
 #define TRUE 1
 #define FALSE 0
@@ -46,9 +48,11 @@ extern "C" {
 
 #define TADS_OEM_NAME   "Mr Oizo"
 
+#ifndef _MSC_VER
 /* Replace stricmp with strcasecmp */
 #define strnicmp strncasecmp
 #define stricmp strcasecmp
+#endif
 
 #define memicmp os_memicmp
 

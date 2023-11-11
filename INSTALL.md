@@ -346,6 +346,8 @@ Finally, re-run the command to create the DMG file:
 
 ## Building for Windows
 
+### MinGW
+
 The only supported method for building a Windows version of Gargoyle is
 to cross compile with MinGW on Linux. In this way, Windows builds are
 treated essentially as though they're Unix builds. As such, MinGW
@@ -361,6 +363,30 @@ Releases are created with the `windows.sh` script, which builds Gargoyle
 with MinGW and then creates an installer via the `install.nsi` file.
 This uses the Nullsoft Scriptable Install System, which is available for
 Linux.
+
+### Clang on Windows
+
+Support for building Gargoyle on Windows using Clang for Windows is currently
+experimental. Some interpreters to be added in the future may only be supported
+under this configuration. This assumes that the Clang-for-Windows executables
+are in PATH, that you want to use Qt6, that you'll use Qt for sound, and that
+the relevant Windows SDKs are also installed (if in doubt, install Visual Studio
+with C++ workloads).
+
+We recommend installing Qt via the official Qt installer, and using [vcpkg](https://vcpkg.io)
+for the remaining dependencies (adjust triplet as needed):
+
+```
+vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo --triplet x64-windows
+```
+
+Invoke cmake as follows (adjust Qt and vcpkg paths accordingly):
+
+```
+cmake -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link -DINTERFACE=QT -DWITH_QT6=ON -DCMAKE_PREFIX_PATH=D:/Qt/6.5.2/msvc2019_64 -DCMAKE_TOOLCHAIN_FILE=D:/vcpkg/scripts/buildsystems/vcpkg.cmake -DSOUND=QT ..
+```
+
+Building an installer from this configuration is not yet supported.
 
 ## Building on Haiku
 

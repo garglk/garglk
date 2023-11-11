@@ -30,12 +30,23 @@ if(INTERFACE STREQUAL "QT")
     option(WITH_NATIVE_FILE_DIALOGS "Use native dialogs instead of Qt dialogs" ON)
 endif()
 
-vtk_encode_string(
-    INPUT garglk.ini
-    NAME garglkini
-    HEADER_OUTPUT GARGLKINI_H
-    SOURCE_OUTPUT GARGLKINI_CXX
-)
+if(MSVC)
+    vtk_encode_string(
+        INPUT garglk.ini
+        NAME garglkini
+        HEADER_OUTPUT GARGLKINI_H
+        SOURCE_OUTPUT GARGLKINI_CXX
+        EXPORT_SYMBOL "GARGLK_API"
+        EXPORT_HEADER "garglk_importexport.h"
+    )
+else()
+    vtk_encode_string(
+        INPUT garglk.ini
+        NAME garglkini
+        HEADER_OUTPUT GARGLKINI_H
+        SOURCE_OUTPUT GARGLKINI_CXX
+    )
+endif()
 
 set_property(SOURCE config.cpp launchqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLKINI_H="${GARGLKINI_H}")
 
@@ -164,7 +175,7 @@ if(${INTERFACE} STREQUAL "COCOA")
     find_library(COCOA_LIBRARY Cocoa REQUIRED)
     find_package(OpenGL REQUIRED)
     target_link_libraries(garglk PUBLIC ${COCOA_LIBRARY} ${OPENGL_LIBRARIES})
-elseif(UNIX OR MINGW)
+elseif(UNIX OR MINGW OR MSVC)
     option(WITH_QT6 "Build against Qt6 instead of Qt5" OFF)
     if(WITH_QT6)
         set(QT_VERSION "6")
@@ -292,7 +303,7 @@ if(WITH_TTS)
         else()
             target_sources(garglk PRIVATE ttsnull.cpp)
         endif()
-    elseif(MINGW)
+    elseif(MINGW OR MSVC)
         target_sources(garglk PRIVATE ttswin.cpp)
         target_link_libraries(garglk PRIVATE sapi ole32)
     else()
@@ -310,7 +321,7 @@ elseif(UNIX)
     pkg_check_modules(FONTCONFIG REQUIRED IMPORTED_TARGET fontconfig)
     target_sources(garglk PRIVATE fontfc.cpp)
     target_link_libraries(garglk PRIVATE PkgConfig::FONTCONFIG)
-elseif(MINGW)
+elseif(MINGW OR MSVC)
     target_sources(garglk PRIVATE fontwin.cpp)
     target_link_libraries(garglk PRIVATE winmm shlwapi)
     target_sources(gargoyle PRIVATE icons.rc)

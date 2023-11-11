@@ -26,8 +26,8 @@ function(terp target)
     target_include_directories(${target} PRIVATE ${TERP_INCLUDE_DIRS})
     target_link_libraries(${target} PRIVATE garglkmain garglk ${TERP_LIBS})
 
-    if(MINGW)
-        target_sources(${target} PRIVATE "${PROJECT_SOURCE_DIR}/garglk/icons.rc")
+    if(MINGW OR MSVC)
+        target_sources(${target} PRIVATE "${PROJECT_SOURCE_DIR}/garglk/icons.rc" "${PROJECT_SOURCE_DIR}/terps/garglk.manifest")
     endif()
 
     if(NOT TERP_CXXSTD)
@@ -43,7 +43,7 @@ function(terp target)
     if(TERP_LTO)
         lto(${target})
     endif()
-    if(TERP_MATH)
+    if(TERP_MATH AND NOT MSVC)
         target_link_libraries(${target} PRIVATE m)
     endif()
     if(TERP_WARNINGS)
@@ -228,7 +228,7 @@ if(WITH_GLULXE)
     set(GLULXE_MACROS FLOAT_COMPILE_SAFER_POWF)
     if(UNIX)
         list(APPEND GLULXE_MACROS OS_UNIX)
-    elseif(MINGW)
+    elseif(MINGW OR MSVC)
         list(APPEND GLULXE_MACROS OS_WINDOWS)
     endif()
 
@@ -340,10 +340,10 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# SCARE 1.3.10 for Adrift games
+# SCARE 1.3.10 for Adrift 4 games
 #
 if(WITH_SCARE)
-    if(UNIX OR MINGW)
+    if(UNIX OR MINGW OR MSVC)
         find_package(ZLIB REQUIRED)
         set(SCARE_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
         set(SCARE_LIBS ${ZLIB_LIBRARIES})

@@ -17,12 +17,16 @@
 #include <strings.h>
 
 #ifdef _WIN32
+/* porter's note: i find it hilarious that someone found it easier to include these definitions
+   and the supplying a no-op fcntl function instead of ifdef'ing out the relevant segments below.
+   Windows is technically capable of implementing most of flock via LockFileEx and UnlockFileEx
+   but I'm too lazy to attempt that right now.  -- AW 2023*/
 struct flock {
 	short l_type;
 	short l_whence;
 	off_t l_start;
 	off_t l_len;
-	pid_t l_pid;
+	/* pid_t l_pid; */  /* don't actually need this at all. */
 };
 
 #define F_DUPFD  0

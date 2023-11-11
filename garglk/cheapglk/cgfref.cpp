@@ -38,7 +38,15 @@
 #include <sys/stat.h> /* for stat() */
 
 #ifdef _WIN32
+#define _CRT_INTERNAL_NONSTDC_NAMES 1
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#endif
+#if !defined(S_ISREG) && defined(S_IFMT) && defined(S_IFREG)
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#endif
+#if !defined(S_ISDIR) && defined(S_IFMT) && defined(S_IFDIR)
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #endif
 
 #include "glk.h"
@@ -172,9 +180,9 @@ frefid_t glk_fileref_create_temp(glui32 usage, glui32 rock)
 #ifdef _WIN32
     char tempdir[MAX_PATH];
     char filename[MAX_PATH];
-    GetTempPath(MAX_PATH, tempdir);
-    if(GetTempPath(MAX_PATH, tempdir) == 0 ||
-       GetTempFileName(tempdir, "glk", 0, filename) == 0)
+    GetTempPathA(MAX_PATH, tempdir);
+    if(GetTempPathA(MAX_PATH, tempdir) == 0 ||
+       GetTempFileNameA(tempdir, "glk", 0, filename) == 0)
     {
         gli_strict_warning("fileref_create_temp: unable to create temporary file");
         return NULL;

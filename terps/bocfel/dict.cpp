@@ -105,7 +105,7 @@ static std::array<uint8_t, 6> encode_string(const uint8_t *s, size_t len)
     }
 
     std::array<uint8_t, 6> encoded;
-    auto *p = encoded.begin();
+    auto p = encoded.begin();
 
     // §3.2:
     // --first byte-------   --second byte---
