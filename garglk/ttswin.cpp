@@ -18,6 +18,7 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 
 #include <array>
 #include <cstddef>
