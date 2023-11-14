@@ -90,7 +90,7 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
 
     size = sizeof(filename);
 
-    if (RegQueryValueExA(hkey, face.c_str(), NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS) {
+    if (RegQueryValueExA(hkey, face.c_str(), nullptr, nullptr, (PBYTE)filename, &size) == ERROR_SUCCESS) {
         filepath = make_font_filepath(filename);
         RegCloseKey(hkey);
         return true;
@@ -101,7 +101,7 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
 
     size = sizeof(filename);
 
-    if (RegQueryValueExA(hkey, face.c_str(), NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS) {
+    if (RegQueryValueExA(hkey, face.c_str(), nullptr, nullptr, (PBYTE)filename, &size) == ERROR_SUCCESS) {
         filepath = make_font_filepath(filename);
         RegCloseKey(hkey);
         return true;

@@ -44,7 +44,7 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 
     char *myName = new char[MAX_PATH + 1];
     if (GetModuleFileNameA(0, myName, MAX_PATH + 1) == 0) {
-        MessageBoxA(NULL, "Unable to determine who I am. Aborting.", "Gargoyle Existential Crisis", MB_ICONERROR);
+        MessageBoxA(nullptr, "Unable to determine who I am. Aborting.", "Gargoyle Existential Crisis", MB_ICONERROR);
         return EXIT_FAILURE;
     }
 
@@ -56,7 +56,7 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
     // Count the number of bytes necessary to store the UTF-8 versions of those strings
     int argv_strSize = 0;
     for (int i = 0; i < argc; i++)
-        argv_strSize += WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, NULL, 0, NULL, NULL) + 1;
+        argv_strSize += WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, nullptr, 0, nullptr, nullptr) + 1;
 
     argc += 1;  // argv[0] needs to be our executable name, which CommandLineToArgvW does not account for.
     argv = new char *[argc+1];
@@ -65,9 +65,9 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
     int used = 0;
     for (int i = 1; i < argc; i++) {
         argv[i] = arg + used;
-        used += WideCharToMultiByte(CP_UTF8, 0, wargv[i-1], -1, arg, argv_strSize - used, NULL, NULL)+1;
+        used += WideCharToMultiByte(CP_UTF8, 0, wargv[i-1], -1, arg, argv_strSize - used, nullptr, nullptr)+1;
     }
-    argv[argc] = NULL;
+    argv[argc] = nullptr;
 
     LocalFree(wargv);
     return main(argc, argv);
@@ -78,7 +78,7 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 int main(int argc, char *argv[])
 {
     if (argc == 0) {
-        std::cerr << "argv[0] is NULL, aborting\n";
+        std::cerr << "argv[0] is null, aborting\n";
         std::exit(EXIT_FAILURE);
     }
 

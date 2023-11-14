@@ -95,14 +95,14 @@ struct ColorPair {
 template <typename Iterable, typename DType>
 std::string join(const Iterable &values, const DType &delim)
 {
-    auto it = values.begin();
+    auto it = std::begin(values);
     std::ostringstream result;
 
-    if (it != values.end()) {
+    if (it != std::end(values)) {
         result << *it++;
     }
 
-    for (; it != values.end(); ++it) {
+    for (; it != std::end(values); ++it) {
         result << delim;
         result << *it;
     }

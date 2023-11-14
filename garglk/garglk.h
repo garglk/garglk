@@ -312,7 +312,7 @@ public:
     explicit ConstRow(const unsigned char *row) : m_row(row) {
     }
 
-    const unsigned char *operator[](std::size_t x) {
+    const unsigned char *operator[](std::size_t x) const {
         return &m_row[x * N];
     }
 

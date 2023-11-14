@@ -268,20 +268,20 @@ std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::stri
 #if defined(__HAIKU__)
     char settings_dir[PATH_MAX + 1];
     if (find_directory(B_USER_SETTINGS_DIRECTORY, -1, false, settings_dir, sizeof settings_dir) == B_OK) {
-        configs.push_back(ConfigFile(Format("{}/Gargoyle", settings_dir), ConfigFile::Type::User));
+        configs.emplace_back(Format("{}/Gargoyle", settings_dir), ConfigFile::Type::User);
     }
 #elif defined(_WIN32)
     // $APPDATA/Gargoyle/garglk.ini (Windows only). This has a higher
     // priority than $PWD/garglk.ini since it's a more "proper" location.
     const char *appdata = std::getenv("APPDATA");
     if (appdata != nullptr) {
-        configs.push_back(ConfigFile(Format("{}/Gargoyle/garglk.ini", appdata), ConfigFile::Type::User));
+        configs.emplace_back(Format("{}/Gargoyle/garglk.ini", appdata), ConfigFile::Type::User);
     }
 
     // current directory .ini
     // Historically this has been the location of garglk.ini on Windows,
     // so treat it as a user config there.
-    configs.push_back(ConfigFile("garglk.ini", ConfigFile::Type::User));
+    configs.emplace_back("garglk.ini", ConfigFile::Type::User);
 #else
 
     const char *home = std::getenv("HOME");
@@ -291,7 +291,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::stri
     // $HOME/garglk.ini. At some point this probably should move to somewhere in
     // $HOME/Library, but for now, make sure this config file is used.
     if (home != nullptr) {
-        configs.push_back(ConfigFile(Format("{}/garglk.ini", home), ConfigFile::Type::User));
+        configs.emplace_back(Format("{}/garglk.ini", home), ConfigFile::Type::User);
     }
 #endif
 
@@ -332,7 +332,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::stri
     // install directory
     auto exedir = garglk::winappdir();
     if (exedir.has_value()) {
-        configs.push_back(ConfigFile(Format("{}/garglk.ini", *exedir), ConfigFile::Type::System));
+        configs.emplace_back(Format("{}/garglk.ini", *exedir), ConfigFile::Type::System);
     }
 #endif
 

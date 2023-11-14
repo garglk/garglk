@@ -175,7 +175,6 @@ FontEntry Font::getglyph(glui32 cid)
     FT_Vector v;
     int err;
     glui32 gid;
-    int x;
     FontEntry entry;
     std::size_t datasize;
 
@@ -184,7 +183,7 @@ FontEntry Font::getglyph(glui32 cid)
         throw std::out_of_range(Format("no glyph for {}", gid));
     }
 
-    for (x = 0; x < GLI_SUBPIX; x++) {
+    for (int x = 0; x < GLI_SUBPIX; x++) {
         v.x = (x * 64) / GLI_SUBPIX;
         v.y = 0;
 
@@ -551,10 +550,9 @@ static void draw_pixel_lcd_gamma(int x, int y, const unsigned char *alpha, const
 
 static void draw_bitmap_gamma(const Bitmap &b, int x, int y, const Color &rgb)
 {
-    int i, k, c;
-    for (k = 0; k < b.h; k++) {
-        for (i = 0; i < b.w; i++) {
-            c = b.data[k * b.pitch + i];
+    for (int k = 0; k < b.h; k++) {
+        for (int i = 0; i < b.w; i++) {
+            auto c = b.data[k * b.pitch + i];
             draw_pixel_gamma(x + b.lsb + i, y - b.top + k, c, rgb);
         }
     }
@@ -562,9 +560,8 @@ static void draw_bitmap_gamma(const Bitmap &b, int x, int y, const Color &rgb)
 
 static void draw_bitmap_lcd_gamma(const Bitmap &b, int x, int y, const Color &rgb)
 {
-    int i, j, k;
-    for (k = 0; k < b.h; k++) {
-        for (i = 0, j = 0; i < b.w; i += 3, j++) {
+    for (int k = 0; k < b.h; k++) {
+        for (int i = 0, j = 0; i < b.w; i += 3, j++) {
             draw_pixel_lcd_gamma(x + b.lsb + j, y - b.top + k, b.data.data() + k * b.pitch + i, rgb);
         }
     }

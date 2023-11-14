@@ -88,10 +88,8 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
         // First scale Y from src->rgba into tempxelrow.
         {
             while (fracrowleft < fracrowtofill) {
-                if (needtoreadrow) {
-                    if (rowsread < rows) {
-                        ++rowsread;
-                    }
+                if (needtoreadrow && rowsread < rows) {
+                    ++rowsread;
                 }
 
                 for (col = 0; col < cols; ++col) {
@@ -108,11 +106,9 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
             }
 
             // Now fracrowleft is >= fracrowtofill, so we can produce a row.
-            if (needtoreadrow) {
-                if (rowsread < rows) {
-                    ++rowsread;
-                    needtoreadrow = false;
-                }
+            if (needtoreadrow && rowsread < rows) {
+                ++rowsread;
+                needtoreadrow = false;
             }
 
             for (col = 0; col < cols; ++col) {
