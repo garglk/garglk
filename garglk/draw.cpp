@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstddef>
 #include <functional>
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -46,6 +47,8 @@
 #endif
 
 using namespace std::literals;
+
+#define UNICODE_QUESTION_MARK 63
 
 #define GAMMA_BITS 11
 #define GAMMA_MAX ((1 << GAMMA_BITS) - 1)
@@ -665,55 +668,55 @@ static int gli_string_impl(int x, FontFace fontface, const glui32 *s, std::size_
             n--;
         }
 
-        auto glyph = [&f, &fontface](glui32 c) -> std::shared_ptr<const FontEntry> {
-            // Cache all glyphs. If a glyph is not found, return null.
-            static std::unordered_map<std::pair<FontFace, glui32>, std::shared_ptr<FontEntry>> fallback_cache;
+        // Return a FontEntry corresponding to the specific glyph. If
+        // that glyph is unavailable, log a warning and select a
+        // question mark instead. If a question mark can't be loaded,
+        // abort with an error message. Lookups are cached.
+        auto glyph = [&f, &fontface](glui32 c) -> const FontEntry & {
+            static std::unordered_map<std::pair<FontFace, glui32>, FontEntry> fallback_cache;
 
             auto key = std::make_pair(fontface, c);
 
             auto it = fallback_cache.find(key);
             if (it == fallback_cache.end()) {
-                std::shared_ptr<FontEntry> entry;
-
                 try {
-                    entry = std::make_shared<FontEntry>(f.getglyph(c));
+                    it = fallback_cache.emplace(key, f.getglyph(c)).first;
                 } catch (const std::out_of_range &) {
                     for (auto &font : glyph_substitution_fonts[fontface]) {
                         try {
-                            entry = std::make_shared<FontEntry>(font.getglyph(c));
+                            it = fallback_cache.emplace(key, font.getglyph(c)).first;
                             break;
                         } catch (const std::out_of_range &) {
                         }
                     }
                 }
 
-                it = fallback_cache.emplace(key, entry).first;
+                if (it == fallback_cache.end()) {
+                    auto msg = Format("Unable to look up glyph {} for {}", c, fontface_to_name(fontface));
+                    std::cerr << msg << std::endl;
+                    try {
+                        it = fallback_cache.emplace(key, f.getglyph(UNICODE_QUESTION_MARK)).first;
+                    } catch (const std::out_of_range &) {
+                        garglk::winabort(Format("{}, and substituting '?' failed", msg));
+                    }
+                }
             }
 
             return it->second;
         };
 
-        std::shared_ptr<const FontEntry> entry;
-        try {
-            entry = glyph(c);
-        } catch (const std::out_of_range &) {
-            entry = glyph('?');
-        }
-
-        if (entry == nullptr) {
-            garglk::winabort(Format("unable to look up glyph {} for {}", c, fontface_to_name(fontface)));
-        }
-
         if (prev != -1) {
             x += f.charkern(prev, c);
         }
 
-        callback(x, entry->glyph);
+        const auto &entry = glyph(c);
+
+        callback(x, entry.glyph);
 
         if (spw >= 0 && c == ' ') {
             x += spw;
         } else {
-            x += entry->adv;
+            x += entry.adv;
         }
 
         prev = c;
