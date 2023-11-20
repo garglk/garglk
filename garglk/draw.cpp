@@ -180,7 +180,7 @@ FontEntry Font::getglyph(glui32 cid)
 
     gid = FT_Get_Char_Index(m_face, cid);
     if (gid == 0) {
-        throw std::out_of_range(Format("no glyph for {}", gid));
+        throw std::out_of_range(Format("no glyph for {}", cid));
     }
 
     for (int x = 0; x < GLI_SUBPIX; x++) {
