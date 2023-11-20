@@ -382,7 +382,7 @@ Font::Font(FontFace fontface, FT_Face face, const std::string &fontpath) :
         throw FreetypeError(err, Format("Error in FT_Set_Char_Size for {}", fontpath));
     }
 
-    err = FT_Select_Charmap(m_face, ft_encoding_unicode);
+    err = FT_Select_Charmap(m_face, FT_ENCODING_UNICODE);
     if (err != 0) {
         throw FreetypeError(err, Format("Error in FT_Select_CharMap for {}", fontpath));
     }
