@@ -17,6 +17,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       
+      - name: Cache VCPKG
+        uses: actions/cache@v3
+        with:
+          path: |
+            C:\vcpkg\packages
+            C:\vcpkg\installed
+          key: vcpkg-${{ matrix.arch }}
+      
       - name: Install Qt (x64)
         if: ${{ matrix.arch == 'x86-64' }}
         uses: jurplel/install-qt-action@v3
@@ -61,7 +69,6 @@ jobs:
       
       - name: Assemble results
         run: |
-          ls
           mkdir gargoyle-staging
           cp cmake-build\garglk\gargoyle.exe gargoyle-staging
           cp cmake-build\garglk\*.dll gargoyle-staging
