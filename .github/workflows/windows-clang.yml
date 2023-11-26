@@ -10,6 +10,7 @@ jobs:
       matrix:
         arch:
           - x86-64
+          - arm64
 
     runs-on: windows-2022
 
@@ -25,46 +26,37 @@ jobs:
             C:\vcpkg\installed
           key: vcpkg-${{ matrix.arch }}
       
-      - name: Install Qt (x64)
-        if: ${{ matrix.arch == 'x86-64' }}
+      - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
           version: '6.5.*'
-          arch: 'win64_msvc2019_64'
+          arch: win64_msvc2019_${{ fromJSON('{"x86-64":"64","arm64":"arm64"}')[matrix.arch] || matrix.arch }}
           modules: 'qtmultimedia'
-      
-      # - name: Install Qt (arm64)
-      #   if: ${{ matrix.arch == 'arm64' }}
-      #   uses: jurplel/install-qt-action@v3
-      #   with:
-      #     version: '6.5.*'
-      #     arch: 'win64_msvc2019_arm64'
 
-      - name: Install other packages (x64)
-        if: ${{ matrix.arch == 'x86-64' }}
-        run: vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo --triplet x64-windows
+      - name: Install other packages
+        run: vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo --triplet ${{ fromJSON('{"x86-64":"x64","arm64":"arm64"}')[matrix.arch] || matrix.arch }}-windows
       
-      # - name: Install other packages (arm64)
-      #   if: ${{ matrix.arch == 'arm64' }}
-      #   run: vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo --triplet arm64-windows
-      
-      - name: Set up Visual Studio environment (x64)
-        if: ${{ matrix.arch == 'x86-64' }}
+      - name: Set up Visual Studio environment
         uses: seanmiddleditch/gha-setup-vsdevenv@v4
         with:
-          arch: 'amd64'
-      
-      # - name: Set up Visual Studio environment (arm64)
-      #   if: ${{ matrix.arch == 'arm64' }}
-      #   uses: seanmiddleditch/gha-setup-vsdevenv@v4
-      #   with:
-      #     arch: 'arm64'
+          arch: ${{ fromJSON('{"x86-64":"amd64","arm64":"arm64"}')[matrix.arch] || matrix.arch }}
+          host_arch: 'amd64'
 
-      - name: Build
+      - name: Build (x64)
+        if: ${{ matrix.arch == 'x86-64' }}
         run: |
           mkdir cmake-build
           cd cmake-build
           cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link -DINTERFACE=QT -DWITH_QT6=ON -DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DSOUND=QT ..
+          ninja
+      
+      - name: Build (arm64)
+        if: ${{ matrix.arch == 'arm64' }}
+        # yes. this is terrible.
+        run: |
+          mkdir cmake-build
+          cd cmake-build
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link -DINTERFACE=QT -DWITH_QT6=ON -DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DSOUND=QT -DCMAKE_C_COMPILER_TARGET=arm64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=arm64-pc-windows-msvc -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY -DCMAKE_CROSSCOMPILING=ON -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=arm64 -DCMAKE_STATIC_LINKER_FLAGS="/machine:arm64 " -DCMAKE_EXE_LINKER_FLAGS="/machine:arm64 " ..
           ninja
       
       - name: Assemble results
@@ -90,4 +82,3 @@ jobs:
         with:
           name: gargoyle-win-clang-${{ matrix.arch }}.zip
           path: gargoyle-*.zip
-
