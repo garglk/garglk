@@ -17,28 +17,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       
-      - name: Install Qt
+      - name: Install Qt (x64)
         if: ${{ matrix.arch == 'x86-64' }}
         uses: jurplel/install-qt-action@v3
         with:
           version: '6.5.*'
           arch: 'win64_msvc2019_64'
       
-      - name: Install Qt
+      - name: Install Qt (arm64)
         if: ${{ matrix.arch == 'arm64' }}
         uses: jurplel/install-qt-action@v3
         with:
           version: '6.5.*'
           arch: 'win64_msvc2019_arm64'
 
-      - name: Install other packages
+      - name: Install other packages (x64)
         if: ${{ matrix.arch == 'x86-64' }}
         run: vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo --triplet x64-windows
       
-      - name: Install other packages
+      - name: Install other packages (arm64)
         if: ${{ matrix.arch == 'arm64' }}
         run: vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo --triplet arm64-windows
       
+      - name: Set up Visual Studio environment (x64)
+        if: ${{ matrix.arch == 'x86-64' }}
+        uses: seanmiddleditch/gha-setup-vsdevenv@v4
+        with:
+          arch: 'amd64'
+      
+      - name: Set up Visual Studio environment (arm64)
+        if: ${{ matrix.arch == 'arm64' }}
+        uses: seanmiddleditch/gha-setup-vsdevenv@v4
+        with:
+          arch: 'arm64'
+
       - name: Build
         run: |
           mkdir cmake-build
@@ -70,58 +82,3 @@ jobs:
           name: gargoyle-win-clang-${{ matrix.arch }}.zip
           path: gargoyle-*.zip
 
-      # - name: Update packages
-      #   run: apt update
-
-      # - name: Install packages
-      #   run: DEBIAN_FRONTEND=noninteractive apt install -y
-      #     build-essential
-      #     cmake
-      #     dos2unix
-      #     git
-      #     libarchive-tools
-      #     pkg-config
-      #     nsis
-      #     p7zip-full
-      #     unzip
-      #     wget
-      #     zip
-
-      # - name: Set up MinGW environment
-      #   run: |
-      #     mkdir /usr/llvm-mingw
-      #     wget https://github.com/mstorsjo/llvm-mingw/releases/download/20220906/llvm-mingw-20220906-msvcrt-ubuntu-18.04-x86_64.tar.xz
-      #     bsdtar --strip-components 1 -x -v -f llvm-mingw-20220906-msvcrt-ubuntu-18.04-x86_64.tar.xz -C /usr/llvm-mingw
-      #     rm /usr/llvm-mingw/${{ matrix.arch }}-w64-mingw32/include
-      #     cp -a /usr/llvm-mingw/generic-w64-mingw32/include /usr/llvm-mingw/${{ matrix.arch }}-w64-mingw32
-      #     wget https://github.com/garglk/assets/raw/master/mingw-llvm/mingw-llvm-${{ matrix.arch }}-22.04.tar.xz
-      #     bsdtar xfv mingw-llvm-${{ matrix.arch }}-22.04.tar.xz -C /usr/llvm-mingw
-      #     wget -P /usr/llvm-mingw/bin https://github.com/garglk/assets/raw/master/mingw-llvm/${{ matrix.arch }}-w64-mingw32-pkg-config
-      #     mkdir NSIS
-      #     cd NSIS
-      #     wget https://nsis.sourceforge.io/mediawiki/images/7/78/FontName-0.7.zip
-      #     unzip FontName-0.7.zip
-      #     7z x -bb3 FontName-0.7.exe
-      #     mkdir -p /usr/share/nsis/Include
-      #     mkdir -p /usr/share/nsis/Plugins/x86-ansi
-      #     for inc in Include/*; do iconv -f CP1251 -t UTF8 ${inc} -o /usr/share/nsis/Include/$(basename ${inc}); done
-      #     cp Plugins/FontName.dll /usr/share/nsis/Plugins/x86-ansi
-      #     cd ..
-
-      # - name: Build
-      #   run: |
-      #     echo $(date +"%Y%m%d").$(echo $GITHUB_SHA | cut -b 1-7) > VERSION
-      #     ./windows.sh -a ${{ matrix.arch }}
-
-      # - name: Upload installer
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: Gargoyle-installer-${{ matrix.arch }}
-      #     path: gargoyle-*.exe
-      #   if: ${{ matrix.arch == 'i686' || matrix.arch == 'x86_64' }}
-
-      # - name: Upload standalone
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: Gargoyle-standalone-${{ matrix.arch }}
-      #     path: gargoyle-*.zip
