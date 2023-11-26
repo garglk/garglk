@@ -25,20 +25,20 @@ jobs:
           arch: 'win64_msvc2019_64'
           modules: 'qtmultimedia'
       
-      - name: Install Qt (arm64)
-        if: ${{ matrix.arch == 'arm64' }}
-        uses: jurplel/install-qt-action@v3
-        with:
-          version: '6.5.*'
-          arch: 'win64_msvc2019_arm64'
+      # - name: Install Qt (arm64)
+      #   if: ${{ matrix.arch == 'arm64' }}
+      #   uses: jurplel/install-qt-action@v3
+      #   with:
+      #     version: '6.5.*'
+      #     arch: 'win64_msvc2019_arm64'
 
       - name: Install other packages (x64)
         if: ${{ matrix.arch == 'x86-64' }}
         run: vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo --triplet x64-windows
       
-      - name: Install other packages (arm64)
-        if: ${{ matrix.arch == 'arm64' }}
-        run: vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo --triplet arm64-windows
+      # - name: Install other packages (arm64)
+      #   if: ${{ matrix.arch == 'arm64' }}
+      #   run: vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo --triplet arm64-windows
       
       - name: Set up Visual Studio environment (x64)
         if: ${{ matrix.arch == 'x86-64' }}
@@ -46,11 +46,11 @@ jobs:
         with:
           arch: 'amd64'
       
-      - name: Set up Visual Studio environment (arm64)
-        if: ${{ matrix.arch == 'arm64' }}
-        uses: seanmiddleditch/gha-setup-vsdevenv@v4
-        with:
-          arch: 'arm64'
+      # - name: Set up Visual Studio environment (arm64)
+      #   if: ${{ matrix.arch == 'arm64' }}
+      #   uses: seanmiddleditch/gha-setup-vsdevenv@v4
+      #   with:
+      #     arch: 'arm64'
 
       - name: Build
         run: |
@@ -61,21 +61,22 @@ jobs:
       
       - name: Assemble results
         run: |
-          mkdir ..\gargoyle-staging
-          cp garglk\gargoyle.exe ..\gargoyle-staging
-          cp garglk\*.dll ..\gargoyle-staging
-          cp *.ttf ..\gargoyle-staging
-          cp *.otf ..\gargoyle-staging
-          cp terps\*.exe ..\gargoyle-staging
-          cp terps\tads\tadsr.exe ..\gargoyle-staging
+          ls
+          mkdir gargoyle-staging
+          cp cmake-build\garglk\gargoyle.exe gargoyle-staging
+          cp cmake-build\garglk\*.dll gargoyle-staging
+          cp cmake-build\*.ttf gargoyle-staging
+          cp cmake-build\*.otf gargoyle-staging
+          cp cmake-build\terps\*.exe gargoyle-staging
+          cp cmake-build\terps\tads\tadsr.exe gargoyle-staging
       
       - name: Deploy Qt files
         run: |
-          cd ..\gargoyle-staging
+          cd gargoyle-staging
           windeployqt --no-quick-import --no-compiler-runtime garglk.dll
       
       - name: Compress
-        run: Compress-Archive -Path . -DestinationPath gargoyle-win-clang-${{ matrix.arch }}.zip
+        run: Compress-Archive -Path gargoyle-staging -DestinationPath gargoyle-win-clang-${{ matrix.arch }}.zip
 
       - name: Upload archive
         uses: actions/upload-artifact@v3
