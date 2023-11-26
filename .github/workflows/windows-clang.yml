@@ -23,6 +23,7 @@ jobs:
         with:
           version: '6.5.*'
           arch: 'win64_msvc2019_64'
+          modules: 'qtmultimedia'
       
       - name: Install Qt (arm64)
         if: ${{ matrix.arch == 'arm64' }}
