@@ -107,7 +107,7 @@ fi
 
 case ${GARGOYLE_SOUND} in
     QT)
-        SOUND_DLLS="Qt5Multimedia Qt5Network libFLAC-12 libmodplug-1 libmpg123-0 libogg-0 libopenmpt-0 libsndfile libvorbis-0 libvorbisenc-2 libvorbisfile-3"
+        SOUND_DLLS="Qt5Multimedia Qt5Network libmpg123-0 libogg-0 libopenmpt-0 libsndfile libvorbis-0 libvorbisenc-2 libvorbisfile-3"
         ;;
     SDL)
         SOUND_DLLS="SDL2 SDL2_mixer libmodplug-1 libmpg123-0 libogg-0 libopenmpt-0 libvorbis-0 libvorbisfile-3"
