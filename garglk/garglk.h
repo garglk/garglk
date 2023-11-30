@@ -120,24 +120,7 @@ struct ConfigFile {
     ConfigFile(std::string path_, Type type_) : path(std::move(path_)), type(type_) {
     }
 
-    std::string format_type() const {
-        std::string status = "";
-        std::ifstream f(path);
-        if (!f.is_open()) {
-            status = ", non-existent";
-        }
-
-        switch (type) {
-        case Type::System:
-            return "[system" + status + "]";
-        case Type::User:
-            return "[user" + status + "]";
-        case Type::PerGame:
-            return "[game specific" + status + "]";
-        default:
-            return "";
-        }
-    }
+    std::string format_type() const;
 
     // The path to the file itself.
     std::string path;

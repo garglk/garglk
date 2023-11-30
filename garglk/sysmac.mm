@@ -494,14 +494,14 @@ static void show_paths()
 {
     std::string text = "Configuration file paths:\n\n";
     for (const auto &config : garglk::all_configs) {
-        text += "• " + config.path + " " + config.format_type() + "\n";
+        text += Format("• {} {}\n", config.path, config.format_type());
     }
 
     text += "\nTheme paths:\n\n";
     auto theme_paths = garglk::theme::paths();
     std::reverse(theme_paths.begin(), theme_paths.end());
     for (const auto &path : theme_paths) {
-        text += "• " + path + "\n";
+        text += Format("• {}\n", path);
     }
 
     show_info(@"Paths", text);
@@ -514,7 +514,7 @@ static void show_themes()
 
     std::sort(theme_names.begin(), theme_names.end());
     for (const auto &theme_name : theme_names) {
-        text += "• " + theme_name + "\n";
+        text += Format("• {}\n", theme_name);
     }
 
     show_info(@"Themes", text);

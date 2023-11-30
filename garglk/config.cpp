@@ -57,6 +57,25 @@
 
 #include GARGLKINI_H
 
+std::string garglk::ConfigFile::format_type() const {
+    std::string status = "";
+    std::ifstream f(path);
+    if (!f.is_open()) {
+        status = ", non-existent";
+    }
+
+    switch (type) {
+    case Type::System:
+        return Format("[system{}]", status);
+    case Type::User:
+        return Format("[user{}]", status);
+    case Type::PerGame:
+        return Format("[game specific{}]", status);
+    default:
+        return "";
+    }
+}
+
 float gli_backingscalefactor = 1.0f;
 float gli_zoom = 1.0f;
 
