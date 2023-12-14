@@ -254,6 +254,16 @@ long zterp_os_filesize(std::FILE *fp)
 }
 #define have_zterp_os_filesize
 
+static std::unique_ptr<std::string> env(const std::string &name)
+{
+    const char *val = std::getenv(name.c_str());
+    if (val == nullptr) {
+        return nullptr;
+    }
+
+    return std::make_unique<std::string>(val);
+}
+
 std::unique_ptr<std::string> zterp_os_rcfile(bool create_parent)
 {
     std::unique_ptr<std::string> config_file;
@@ -266,23 +276,20 @@ std::unique_ptr<std::string> zterp_os_rcfile(bool create_parent)
 
     config_file = std::make_unique<std::string>(std::string(settings_dir) + "/bocfel/bocfelrc");
 #else
-    const char *home;
-    const char *config_home;
-
-    home = std::getenv("HOME");
+    auto home = env("HOME");
     if (home != nullptr) {
         // This is the legacy location of the config file.
-        auto s = std::string(home) + "/.bocfelrc";
+        auto s = *home + "/.bocfelrc";
         if (access(s.c_str(), R_OK) == 0) {
             return std::make_unique<std::string>(s);
         }
     }
 
-    config_home = std::getenv("XDG_CONFIG_HOME");
-    if (config_home != nullptr && config_home[0] == '/') {
-        config_file = std::make_unique<std::string>(std::string(config_home) + "/bocfel/bocfelrc");
+    auto config_home = env("XDG_CONFIG_HOME");
+    if (config_home != nullptr && config_home->find_first_of('/') == 0) {
+        config_file = std::make_unique<std::string>(*config_home + "/bocfel/bocfelrc");
     } else if (home != nullptr) {
-        config_file = std::make_unique<std::string>(std::string(home) + "/.config/bocfel/bocfelrc");
+        config_file = std::make_unique<std::string>(*home + "/.config/bocfel/bocfelrc");
     } else {
         return nullptr;
     }

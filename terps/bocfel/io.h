@@ -105,7 +105,7 @@ private:
 #endif
     };
 
-    using StdioType = std::unique_ptr<std::FILE, std::function<int(std::FILE *)>>;
+    using StdioType = std::unique_ptr<std::FILE, std::function<void(std::FILE *)>>;
 
 #ifdef ZTERP_GLK
     using GlkType = std::unique_ptr<std::remove_pointer<strid_t>::type, std::function<void(strid_t)>>;
@@ -120,7 +120,7 @@ private:
 
         File() = default;
 
-        File(std::FILE *fp, bool close) : stdio(StdioType(fp, close ? std::fclose : [](std::FILE *) { return 0; })) {
+        File(std::FILE *fp, bool close) : stdio(StdioType(fp, [close](std::FILE *fp_) { if (close) { std::fclose(fp_); } })) {
         }
 
         explicit File(std::vector<uint8_t> buf) : backing(std::move(buf)) {
