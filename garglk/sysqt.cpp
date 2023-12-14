@@ -568,9 +568,9 @@ void wininit(int *, char **)
     static int argc = 1;
     static char *argv[] = {const_cast<char *>("gargoyle"), nullptr};
     app = new QApplication(argc, argv);
-    app->setOrganizationName(GARGOYLE_ORGANIZATION);
-    app->setApplicationName(GARGOYLE_NAME);
-    app->setApplicationVersion(GARGOYLE_VERSION);
+    QApplication::setOrganizationName(GARGOYLE_ORGANIZATION);
+    QApplication::setApplicationName(GARGOYLE_NAME);
+    QApplication::setApplicationVersion(GARGOYLE_VERSION);
     last_tick.start();
 }
 

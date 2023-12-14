@@ -294,9 +294,9 @@ int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
 
-    app.setOrganizationName(GARGOYLE_ORGANIZATION);
-    app.setApplicationName(GARGOYLE_NAME);
-    app.setApplicationVersion(GARGOYLE_VERSION);
+    QApplication::setOrganizationName(GARGOYLE_ORGANIZATION);
+    QApplication::setApplicationName(GARGOYLE_NAME);
+    QApplication::setApplicationVersion(GARGOYLE_VERSION);
 
     auto story = parse_args(app);
 
