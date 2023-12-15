@@ -98,6 +98,10 @@ static std::vector<Patch> patches = {
     // (e.g. “U” and “D” for up and down arrows, and “+” for all
     // box-drawing corners), the Apple patches convert to appropriate
     // font 3 values.
+    //
+    // Beyond Zork, like Trinity, uses a routine called CARRIAGE-RETURNS
+    // which dumps newlines in an attempt to force a [MORE] prompt; see
+    // the Trinity section for more information.
     {
         "Beyond Zork", &"870915", 47, 0x3ff4,
         {
@@ -131,6 +135,15 @@ static std::vector<Patch> patches = {
             { 0x3b253, 1, {0x4a}, {0x5d} },
             { 0x3b34f, 1, {0x48}, {0x21} },
             { 0x3b38e, 1, {0x55}, {0x22} },
+
+#ifdef ZTERP_GLK
+            // CARRIAGE-RETURNS
+            {
+                0x3cafb, 11,
+                {0x8f, 0x42, 0xdf, 0xed, 0x3f, 0xff, 0xff, 0x7b, 0x13, 0x83, 0xbb},
+                {0xf6, 0x7f, 0x01, 0x00, 0xed, 0x3f, 0xff, 0xff, 0x7b, 0x13, 0x83},
+            },
+#endif
         },
     },
 
@@ -167,6 +180,15 @@ static std::vector<Patch> patches = {
             { 0x3b223, 1, {0x4a}, {0x5d} },
             { 0x3b31f, 1, {0x48}, {0x21} },
             { 0x3b35e, 1, {0x55}, {0x22} },
+
+#ifdef ZTERP_GLK
+            // CARRIAGE-RETURNS
+            {
+                0x3cac7, 11,
+                {0x8f, 0x42, 0xbd, 0xed, 0x3f, 0xff, 0xff, 0x7b, 0x13, 0x83, 0xbb},
+                {0xf6, 0x7f, 0x01, 0x00, 0xed, 0x3f, 0xff, 0xff, 0x7b, 0x13, 0x83},
+            },
+#endif
         },
     },
 
@@ -203,6 +225,15 @@ static std::vector<Patch> patches = {
             { 0x3b0cf, 1, {0x4a}, {0x5d} },
             { 0x3b1cb, 1, {0x48}, {0x21} },
             { 0x3b20a, 1, {0x55}, {0x22} },
+
+#ifdef ZTERP_GLK
+            // CARRIAGE-RETURNS
+            {
+                0x3c967, 11,
+                {0x8f, 0x42, 0xb7, 0xed, 0x3f, 0xff, 0xff, 0x7b, 0x13, 0x83, 0xbb},
+                {0xf6, 0x7f, 0x01, 0x00, 0xed, 0x3f, 0xff, 0xff, 0x7b, 0x13, 0x83},
+            },
+#endif
         },
     },
 
@@ -239,6 +270,15 @@ static std::vector<Patch> patches = {
             { 0x3b21f, 1, {0x4a}, {0x5d} },
             { 0x3b31b, 1, {0x48}, {0x21} },
             { 0x3b35a, 1, {0x55}, {0x22} },
+
+#ifdef ZTERP_GLK
+            // CARRIAGE-RETURNS
+            {
+                0x3ca37, 11,
+                {0x8f, 0x44, 0x55, 0xed, 0x3f, 0xff, 0xff, 0x7b, 0x13, 0x83, 0xbb},
+                {0xf6, 0x7f, 0x01, 0x00, 0xed, 0x3f, 0xff, 0xff, 0x7b, 0x13, 0x83},
+            },
+#endif
         },
     },
 
@@ -275,6 +315,15 @@ static std::vector<Patch> patches = {
             { 0x3b1ab, 1, {0x4a}, {0x5d} },
             { 0x3b2a7, 1, {0x48}, {0x21} },
             { 0x3b2e6, 1, {0x55}, {0x22} },
+
+#ifdef ZTERP_GLK
+            // CARRIAGE-RETURNS
+            {
+                0x3c9c3, 11,
+                {0x8f, 0x44, 0x2b, 0xed, 0x3f, 0xff, 0xff, 0x7b, 0x13, 0x83, 0xbb},
+                {0xf6, 0x7f, 0x01, 0x00, 0xed, 0x3f, 0xff, 0xff, 0x7b, 0x13, 0x83},
+            },
+#endif
         },
     },
 
@@ -358,6 +407,50 @@ static std::vector<Patch> patches = {
         "Stationfall", &"870430", 107, 0x2871,
         {{ 0xe3fe, 3, {0x31, 0x0c, 0x77}, {0x51, 0x77, 0x0c} }},
     },
+
+    // Trinity does the following after the prologue:
+    //
+    // <CARRIAGE-RETURNS>
+    // <CLEAR -1>
+    //
+    // Where CARRIAGE-RETURNS prints 23 newlines, trying to get a [MORE]
+    // prompt to be displayed; this assumes specific interpreter
+    // behavior as well as screen size. It doesn’t work with Glk, as the
+    // screen is cleared without a [MORE] prompt, preventing the text
+    // from being seen. As a workaround, replace the call to
+    // CARRIAGE-RETURNS with “@read_char 1 -> sp”, which will force the
+    // screen to pause before clearing.
+    //
+    // This isn’t ideal since the user isn’t given an indication that a
+    // keypress is needed, but it won’t take much time to figure it out.
+    //
+    // It also assumes a specific behavior from Glk (immediately
+    // clearing the screen without printing [MORE]), although most major
+    // Glk implementations have this behavior:
+    // garglk, Spatterlight, glkterm, winglk, xglk, dosglk
+    //
+    // In addition, even if a Glk implementation does work “properly” in
+    // this case, the fact that 23 newlines are used means that it’ll
+    // only work if the user’s screen is not too tall. This obviously
+    // was done with the expectation that it’d be running on an 80x25
+    // screen.
+    //
+    // In the end, the slight inconvenience of a “silent” @read_char is
+    // worth it for the benefit of not losing game text.
+#ifdef ZTERP_GLK
+    {
+        "Trinity", &"860509", 11, 0xfaae,
+        {{ 0x2d453, 4, {0x88, 0x44, 0x33, 0x00}, {0xf6, 0x7f, 0x01, 0x00}}},
+    },
+    {
+        "Trinity", &"860926", 12, 0x16ab,
+        {{ 0x2d487, 4, {0x88, 0x44, 0x30, 0x00}, {0xf6, 0x7f, 0x01, 0x00}}},
+    },
+    {
+        "Trinity", &"870628", 15, 0xf112,
+        {{ 0x2d25f, 4, {0x88, 0x44, 0x12, 0x00}, {0xf6, 0x7f, 0x01, 0x00}}},
+    },
+#endif
 
     // The Solid Gold (V5) version of Wishbringer calls @show_status, but
     // that is an illegal instruction outside of V3. Convert it to @nop.

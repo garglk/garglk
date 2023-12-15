@@ -1043,7 +1043,7 @@ void get_screen_size(unsigned int &width, unsigned int &height)
 
 #ifdef ZTERP_GLK
 #ifdef GLK_MODULE_LINE_TERMINATORS
-std::vector<uint32_t> term_keys;
+std::vector<glui32> term_keys;
 #endif
 static bool term_mouse = false;
 
