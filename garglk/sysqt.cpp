@@ -24,7 +24,6 @@
 #include <QCursor>
 #include <QDesktopServices>
 #include <QDir>
-#include <QElapsedTimer>
 #include <QFileDialog>
 #include <QGraphicsView>
 #include <QLabel>
@@ -82,6 +81,12 @@
 #include <utility>
 #include <vector>
 
+#ifdef GARGLK_CONFIG_TICK
+#include <atomic>
+#include <chrono>
+#include <thread>
+#endif
+
 #include "format.h"
 #include "optional.hpp"
 
@@ -108,10 +113,13 @@ static const std::unordered_map<FileFilter, std::pair<QString, QString>> filters
 
 static QApplication *app;
 static garglk::Window *window;
-static QElapsedTimer last_tick;
-static constexpr long long TICK_PERIOD_MILLIS = 10;
 
 static bool refresh_needed = true;
+
+#ifdef GARGLK_CONFIG_TICK
+static constexpr int TICK_PERIOD_MILLIS = 10;
+static std::atomic<bool> process_events(false);
+#endif
 
 static void handle_input(const QString &input)
 {
@@ -571,7 +579,16 @@ void wininit(int *, char **)
     QApplication::setOrganizationName(GARGOYLE_ORGANIZATION);
     QApplication::setApplicationName(GARGOYLE_NAME);
     QApplication::setApplicationVersion(GARGOYLE_VERSION);
-    last_tick.start();
+
+#ifdef GARGLK_CONFIG_TICK
+    std::thread([]() {
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(TICK_PERIOD_MILLIS));
+            process_events.store(true, std::memory_order_relaxed);
+        }
+    })
+    .detach();
+#endif
 }
 
 void winopen()
@@ -693,10 +710,21 @@ nonstd::optional<std::string> garglk::winappdir()
 
 void gli_tick()
 {
-    if (last_tick.elapsed() > TICK_PERIOD_MILLIS) {
+#ifdef GARGLK_CONFIG_TICK
+    // When the Qt sound backed is being used, glk_tick() needs to
+    // process events periodically, unlike the SDL backend, which uses a
+    // separate thread. Processing Qt events is expensive, so should not
+    // be done each tick (which generally happens each VM instruction).
+    // Originally this waited at least 10ms between calls, but the mere
+    // act of checking a timer each iteration was too expensive. Now a
+    // separate thread sits and atomically updates "process_events"
+    // every 10ms, since checking this atomic variable is much faster
+    // than checking a timer.
+    if (process_events.load(std::memory_order_relaxed)) {
         app->processEvents(QEventLoop::ExcludeUserInputEvents);
-        last_tick.start();
+        process_events.store(false, std::memory_order_relaxed);
     }
+#endif
 }
 
 void gli_select(event_t *event, bool polled)
@@ -727,4 +755,8 @@ void gli_select(event_t *event, bool polled)
         gli_dispatch_event(event, polled);
         window->reset_timeout();
     }
+
+#ifdef GARGLK_CONFIG_TICK
+    process_events.store(false, std::memory_order_relaxed);
+#endif
 }
