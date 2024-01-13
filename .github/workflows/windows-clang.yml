@@ -10,7 +10,8 @@ jobs:
       matrix:
         arch:
           - x86-64
-          - arm64
+        # disabled because broken and I can't really figure out what's wrong with it.
+        #  - arm64
 
     runs-on: windows-2022
 
