@@ -320,7 +320,7 @@ static nonstd::optional<Interpreter> findterp(const std::string &file, const std
 
     nonstd::optional<Interpreter> interpreter;
 
-    garglk::config_entries(file, false, matches, [&interpreter](const std::string &cmd, const std::string &arg) {
+    garglk::config_entries(file, false, matches, [&interpreter](const std::string &cmd, const std::string &arg, int) {
         if (cmd == "terp") {
             std::istringstream argstream(arg);
             std::string terp, opt;

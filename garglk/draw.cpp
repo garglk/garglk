@@ -117,7 +117,7 @@ static FT_Matrix ftmat;
 static bool use_freetype_preset_filter = false;
 static FT_LcdFilter freetype_preset_filter = FT_LCD_FILTER_DEFAULT;
 
-void garglk::set_lcdfilter(const std::string &filter)
+bool garglk::set_lcdfilter(const std::string &filter)
 {
     use_freetype_preset_filter = true;
 
@@ -129,9 +129,14 @@ void garglk::set_lcdfilter(const std::string &filter)
         freetype_preset_filter = FT_LCD_FILTER_LIGHT;
     } else if (filter == "legacy") {
         freetype_preset_filter = FT_LCD_FILTER_LEGACY;
+    } else if (filter == "custom") {
+        use_freetype_preset_filter = false;
     } else {
         use_freetype_preset_filter = false;
+        return false;
     }
+
+    return true;
 }
 
 //
@@ -358,7 +363,7 @@ Font::Font(FontFace fontface, FT_Face face, const std::string &fontpath) :
     m_face(face)
 {
     int err = 0;
-    float aspect, size;
+    double aspect, size;
 
     if (m_fontface.monospace) {
         aspect = gli_conf_monoaspect;
@@ -405,7 +410,7 @@ void gli_initialize_fonts()
     }
 
     for (int i = 0; i <= GAMMA_MAX; i++) {
-        gammainv[i] = std::round(std::pow(i / static_cast<float>(GAMMA_MAX), 1.0 / gli_conf_gamma) * 255.0);
+        gammainv[i] = std::round(std::pow(i / static_cast<double>(GAMMA_MAX), 1.0 / gli_conf_gamma) * 255.0);
     }
 
     err = FT_Init_FreeType(&ftlib);

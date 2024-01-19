@@ -159,16 +159,16 @@ void winabort(const std::string &msg);
 std::string downcase(const std::string &string);
 void fontreplace(const std::string &font, FontType type);
 std::vector<ConfigFile> configs(const nonstd::optional<std::string> &gamepath);
-void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, const std::function<void(const std::string &cmd, const std::string &arg)> &callback);
+void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, const std::function<void(const std::string &cmd, const std::string &arg, int lineno)> &callback);
 std::string user_config();
-void set_lcdfilter(const std::string &filter);
+bool set_lcdfilter(const std::string &filter);
 nonstd::optional<std::string> winfontpath(const std::string &filename);
 std::vector<std::string> winappdata();
 nonstd::optional<std::string> winappdir();
 
 namespace theme {
 void init();
-void set(std::string name);
+bool set(std::string name);
 std::vector<std::string> paths();
 std::vector<std::string> names();
 }
@@ -557,8 +557,8 @@ extern int gli_wpaddingy;
 extern int gli_tmarginx;
 extern int gli_tmarginy;
 
-extern float gli_backingscalefactor;
-extern float gli_zoom;
+extern double gli_backingscalefactor;
+extern double gli_zoom;
 
 extern bool gli_conf_lcd;
 extern std::array<unsigned char, 5> gli_conf_lcd_weights;
@@ -606,11 +606,11 @@ extern FontFiles gli_conf_prop, gli_conf_prop_override;
 extern std::string gli_conf_monofont;
 extern FontFiles gli_conf_mono, gli_conf_mono_override;
 
-extern float gli_conf_gamma;
-extern float gli_conf_propsize;
-extern float gli_conf_monosize;
-extern float gli_conf_propaspect;
-extern float gli_conf_monoaspect;
+extern double gli_conf_gamma;
+extern double gli_conf_propsize;
+extern double gli_conf_monosize;
+extern double gli_conf_propaspect;
+extern double gli_conf_monoaspect;
 
 extern std::vector<glui32> gli_more_prompt;
 extern glui32 gli_more_prompt_len;
