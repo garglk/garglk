@@ -342,7 +342,7 @@ static std::string system_theme_name()
     return windark() ? "dark" : "light";
 }
 
-void garglk::theme::set(std::string name)
+bool garglk::theme::set(std::string name)
 {
     if (name == "system") {
         name = system_theme_name();
@@ -350,8 +350,9 @@ void garglk::theme::set(std::string name)
 
     try {
         themes.at(name).apply();
+        return true;
     } catch (const std::out_of_range &) {
-        std::cerr << "garglk: unknown theme: " << name << std::endl;
+        return false;
     }
 }
 

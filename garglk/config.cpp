@@ -57,6 +57,13 @@
 
 #include GARGLKINI_H
 
+struct ConfigError : public std::exception {
+    explicit ConfigError(std::string message_) : message(std::move(message_)) {
+    }
+
+    std::string message;
+};
+
 std::string garglk::ConfigFile::format_type() const {
     std::string status = "";
     std::ifstream f(path);
@@ -76,15 +83,15 @@ std::string garglk::ConfigFile::format_type() const {
     }
 }
 
-float gli_backingscalefactor = 1.0f;
-float gli_zoom = 1.0f;
+double gli_backingscalefactor = 1.0;
+double gli_zoom = 1.0;
 
 FontFiles gli_conf_prop, gli_conf_mono, gli_conf_prop_override, gli_conf_mono_override;
 
 std::string gli_conf_monofont = "Gargoyle Mono";
 std::string gli_conf_propfont = "Gargoyle Serif";
-float gli_conf_monosize = 12.6; // good size for Gargoyle Mono
-float gli_conf_propsize = 14.7; // good size for Gargoyle Serif
+double gli_conf_monosize = 12.6; // good size for Gargoyle Mono
+double gli_conf_propsize = 14.7; // good size for Gargoyle Serif
 
 Styles gli_tstyles{{
     {FontFace::propr(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, // Normal
@@ -132,10 +139,14 @@ static FontFace font2idx(const std::string &font)
         {"propz", FontFace::propz()},
     };
 
-    return facemap.at(font);
+    try {
+        return facemap.at(font);
+    } catch (const std::out_of_range &) {
+        throw ConfigError(Format("invalid font: {}", font));
+    }
 }
 
-float gli_conf_gamma = 1.0;
+double gli_conf_gamma = 1.0;
 
 Color gli_window_color(0xff, 0xff, 0xff);
 Color gli_caret_color(0x00, 0x00, 0x00);
@@ -190,8 +201,8 @@ bool gli_conf_lockrows = false;
 bool gli_conf_save_window_size = false;
 bool gli_conf_save_window_location = false;
 
-float gli_conf_propaspect = 1.0;
-float gli_conf_monoaspect = 1.0;
+double gli_conf_propaspect = 1.0;
+double gli_conf_monoaspect = 1.0;
 
 int gli_baseline = 15;
 int gli_leading = 20;
@@ -231,6 +242,7 @@ static void parsecolor(const std::string &str, Color &rgb)
     try {
         rgb = gli_parse_color(str);
     } catch (const std::runtime_error &) {
+        throw ConfigError(Format("invalid color: {}", str));
     }
 }
 
@@ -414,7 +426,7 @@ std::string garglk::user_config()
     return path;
 }
 
-void garglk::config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, const std::function<void(const std::string &cmd, const std::string &arg)> &callback)
+void garglk::config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, const std::function<void(const std::string &cmd, const std::string &arg, int lineno)> &callback)
 {
     std::string line;
     bool accept = accept_bare;
@@ -424,7 +436,15 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
         return;
     }
 
-    while (std::getline(f >> std::ws, line)) {
+    int lineno = 0;
+    while (std::getline(f, line)) {
+        lineno++;
+
+        // Strip leading whitespace
+        line.erase(line.begin(), std::find_if(line.begin(), line.end(), [](unsigned char c) {
+            return !std::isspace(c);
+        }));
+
         auto comment = line.find('#');
         if (comment != std::string::npos) {
             line.erase(comment);
@@ -465,19 +485,79 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
             std::getline(linestream >> std::ws, arg);
 
             if (linestream) {
-                callback(cmd, arg);
+                callback(cmd, arg, lineno);
             }
         }
     }
+}
+
+template <typename T>
+T parse_number(const std::string &s, std::function<T(const std::string &, std::size_t *)> parser)
+{
+    try {
+        std::size_t pos;
+        auto val = parser(s, &pos);
+        if (pos != s.size()) {
+            throw std::invalid_argument(s);
+        }
+        return val;
+    } catch (const std::out_of_range &) {
+        throw ConfigError(Format("out of range: {}", s));
+    } catch (const std::invalid_argument &) {
+        throw ConfigError(Format("invalid number: {}", s));
+    }
+}
+
+double parse_double(const std::string &s)
+{
+    return parse_number<double>(s, [](const std::string &str, std::size_t *idx) {
+        if (str.find('e') != std::string::npos || str.find('E') != std::string::npos) {
+            throw std::invalid_argument(str);
+        }
+        return std::stod(str, idx);
+    });
+}
+
+int parse_int(const std::string &s)
+{
+    return parse_number<int>(s, [](const std::string &str, std::size_t *idx) { return std::stoi(str, idx); });
+}
+
+template <typename T>
+const T &config_range(const T &value, const T &min, const T &max)
+{
+    if (value < min || value > max) {
+        throw ConfigError(Format("invalid value: {} (must be in the range {}-{})", value, min, max));
+    }
+
+    return value;
+}
+
+template <typename T>
+constexpr const T &config_atleast(const T &value, const T &min)
+{
+    if (value < min) {
+        throw ConfigError(Format("invalid value: {} (must be at least {})", value, min));
+    }
+
+    return value;
 }
 
 static void readoneconfig(const std::string &fname, const std::string &argv0, const std::string &gamefile)
 {
     std::vector<std::string> matches = {argv0, gamefile};
 
-    garglk::config_entries(fname, true, matches, [](const std::string &cmd, const std::string &arg) {
+    garglk::config_entries(fname, true, matches, [&fname](const std::string &cmd, const std::string &arg, int lineno) {
         auto asbool = [](const std::string &arg) {
-            return std::stoi(arg) != 0;
+            if (arg == "0" || arg == "1") {
+                return arg == "1";
+            }
+
+            throw ConfigError(Format("invalid value: {} (must be 0 or 1)", arg));
+        };
+
+        auto warn = [&fname, &lineno](const std::string &msg) {
+            std::cerr << Format("{}:{}: {}", fname, lineno, msg) << std::endl;
         };
 
         try {
@@ -489,13 +569,13 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             } else if (cmd == "morefont") {
                 gli_more_font = font2idx(arg);
             } else if (cmd == "morealign") {
-                gli_more_align = garglk::clamp(std::stoi(arg), 0, 2);
+                gli_more_align = config_range(parse_int(arg), 0, 2);
             } else if (cmd == "monoaspect") {
-                gli_conf_monoaspect = std::stof(arg);
+                gli_conf_monoaspect = parse_double(arg);
             } else if (cmd == "propaspect") {
-                gli_conf_propaspect = std::stof(arg);
+                gli_conf_propaspect = parse_double(arg);
             } else if (cmd == "monosize") {
-                gli_conf_monosize = std::stof(arg);
+                gli_conf_monosize = parse_double(arg);
             } else if (cmd == "monor") {
                 gli_conf_mono_override.r = arg;
             } else if (cmd == "monob") {
@@ -507,7 +587,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             } else if (cmd == "monofont") {
                 gli_conf_monofont = arg;
             } else if (cmd == "propsize") {
-                gli_conf_propsize = std::stof(arg);
+                gli_conf_propsize = parse_double(arg);
             } else if (cmd == "propr") {
                 gli_conf_prop_override.r = arg;
             } else if (cmd == "propb") {
@@ -519,30 +599,30 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             } else if (cmd == "propfont") {
                 gli_conf_propfont = arg;
             } else if (cmd == "leading") {
-                gli_leading = std::max(1, std::stoi(arg));
+                gli_leading = config_atleast(parse_int(arg), 1);
             } else if (cmd == "baseline") {
-                gli_baseline = std::max(0, std::stoi(arg));
+                gli_baseline = config_atleast(parse_int(arg), 0);
             } else if (cmd == "rows") {
-                gli_rows = std::max(1, std::stoi(arg));
+                gli_rows = config_atleast(parse_int(arg), 1);
             } else if (cmd == "cols") {
-                gli_cols = std::max(1, std::stoi(arg));
+                gli_cols = config_atleast(parse_int(arg), 1);
             } else if (cmd == "minrows") {
-                int r = std::max(0, std::stoi(arg));
+                int r = config_atleast(parse_int(arg), 0);
                 if (gli_rows < r) {
                     gli_rows = r;
                 }
             } else if (cmd == "maxrows") {
-                int r = std::max(0, std::stoi(arg));
+                int r = config_atleast(parse_int(arg), 0);
                 if (gli_rows > r) {
                     gli_rows = r;
                 }
             } else if (cmd == "mincols") {
-                int r = std::max(0, std::stoi(arg));
+                int r = config_atleast(parse_int(arg), 0);
                 if (gli_cols < r) {
                     gli_cols = r;
                 }
             } else if (cmd == "maxcols") {
-                int r = std::max(0, std::stoi(arg));
+                int r = config_atleast(parse_int(arg), 0);
                 if (gli_cols > r) {
                     gli_cols = r;
                 }
@@ -560,28 +640,30 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                         gli_conf_save_window_size = true;
                     } else if (entry == "location") {
                         gli_conf_save_window_location = true;
+                    } else {
+                        throw ConfigError(Format("invalid value: {}", entry));
                     }
                 }
             } else if (cmd == "wmarginx") {
-                gli_wmarginx = std::max(0, std::stoi(arg));
+                gli_wmarginx = config_atleast(parse_int(arg), 0);
                 gli_wmarginx_save = gli_wmarginx;
             } else if (cmd == "wmarginy") {
-                gli_wmarginy = std::max(0, std::stoi(arg));
+                gli_wmarginy = config_atleast(parse_int(arg), 0);
                 gli_wmarginy_save = gli_wmarginy;
             } else if (cmd == "wpaddingx") {
-                gli_wpaddingx = std::max(0, std::stoi(arg));
+                gli_wpaddingx = config_atleast(parse_int(arg), 0);
             } else if (cmd == "wpaddingy") {
-                gli_wpaddingy = std::max(0, std::stoi(arg));
+                gli_wpaddingy = config_atleast(parse_int(arg), 0);
             } else if (cmd == "wborderx") {
-                gli_wborderx = std::max(0, std::stoi(arg));
+                gli_wborderx = config_atleast(parse_int(arg), 0);
             } else if (cmd == "wbordery") {
-                gli_wbordery = std::max(0, std::stoi(arg));
+                gli_wbordery = config_atleast(parse_int(arg), 0);
             } else if (cmd == "tmarginx") {
-                gli_tmarginx = std::max(0, std::stoi(arg));
+                gli_tmarginx = config_atleast(parse_int(arg), 0);
             } else if (cmd == "tmarginy") {
-                gli_tmarginy = std::max(0, std::stoi(arg));
+                gli_tmarginy = config_atleast(parse_int(arg), 0);
             } else if (cmd == "gamma") {
-                gli_conf_gamma = std::max(0.0f, std::stof(arg));
+                gli_conf_gamma = config_atleast(parse_double(arg), 0.0);
             } else if (cmd == "caretcolor") {
                 parsecolor(arg, gli_caret_color);
                 parsecolor(arg, gli_caret_save);
@@ -597,25 +679,29 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             } else if (cmd == "lcd") {
                 gli_conf_lcd = asbool(arg);
             } else if (cmd == "lcdfilter") {
-                garglk::set_lcdfilter(arg);
+                if (!garglk::set_lcdfilter(arg)) {
+                    throw ConfigError(Format("invalid value: {}", arg));
+                }
             } else if (cmd == "lcdweights") {
                 std::istringstream argstream(arg);
-                int weight;
+                std::string weight;
                 std::vector<unsigned char> weights;
 
                 while (argstream >> weight) {
-                    weights.push_back(weight);
+                    weights.push_back(config_range(parse_int(weight), 0, 255));
                 }
 
                 if (weights.size() == gli_conf_lcd_weights.size()) {
                     std::copy(weights.begin(), weights.end(), gli_conf_lcd_weights.begin());
+                } else {
+                    throw ConfigError(Format("invalid value: {} (must be 5 bytes)", arg));
                 }
             } else if (cmd == "caretshape") {
-                gli_caret_shape = garglk::clamp(std::stoi(arg), 0, 4);
+                gli_caret_shape = config_range(parse_int(arg), 0, 4);
             } else if (cmd == "linkstyle") {
                 gli_underline_hyperlinks = asbool(arg);
             } else if (cmd == "scrollwidth") {
-                gli_scroll_width = std::max(0, std::stoi(arg));
+                gli_scroll_width = config_atleast(parse_int(arg), 0);
             } else if (cmd == "scrollbg") {
                 parsecolor(arg, gli_scroll_bg);
             } else if (cmd == "scrollfg") {
@@ -623,11 +709,11 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             } else if (cmd == "justify") {
                 gli_conf_justify = asbool(arg);
             } else if (cmd == "quotes") {
-                gli_conf_quotes = garglk::clamp(std::stoi(arg), 0, 2);
+                gli_conf_quotes = config_range(parse_int(arg), 0, 2);
             } else if (cmd == "dashes") {
-                gli_conf_dashes = garglk::clamp(std::stoi(arg), 0, 2);
+                gli_conf_dashes = config_range(parse_int(arg), 0, 2);
             } else if (cmd == "spaces") {
-                gli_conf_spaces = garglk::clamp(std::stoi(arg), 0, 2);
+                gli_conf_spaces = config_range(parse_int(arg), 0, 2);
             } else if (cmd == "caps") {
                 gli_conf_caps = asbool(arg);
             } else if (cmd == "graphics") {
@@ -636,24 +722,25 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 gli_conf_sound = asbool(arg);
             } else if (cmd == "zbleep") {
                 std::istringstream argstream(arg);
-                int number, frequency;
-                double duration;
+                std::string number, frequency, duration;
 
                 if (argstream >> number >> duration >> frequency) {
-                    gli_bleeps.update(number, duration, frequency);
+                    gli_bleeps.update(
+                            config_range(parse_int(number), 1, 2),
+                            parse_double(duration),
+                            parse_int(frequency));
                 }
             } else if (cmd == "zbleep_file") {
                 std::istringstream argstream(arg);
-                int number;
-                std::string path;
+                std::string number, path;
 
                 if (argstream >> number >> path) {
-                    gli_bleeps.update(number, path);
+                    gli_bleeps.update(config_range(parse_int(number), 1, 2), path);
                 }
             } else if (cmd == "fullscreen") {
                 gli_conf_fullscreen = asbool(arg);
             } else if (cmd == "zoom") {
-                gli_zoom = std::max(0.1f, std::stof(arg));
+                gli_zoom = config_atleast(parse_double(arg), 0.1);
             } else if (cmd == "speak") {
                 gli_conf_speak = asbool(arg);
             } else if (cmd == "speak_input") {
@@ -665,7 +752,9 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             } else if (cmd == "safeclicks") {
                 gli_conf_safeclicks = asbool(arg);
             } else if (cmd == "theme") {
-                garglk::theme::set(arg);
+                if (!garglk::theme::set(arg)) {
+                    throw ConfigError(Format("unknown theme: {}", arg));
+                }
             } else if (cmd == "tcolor" || cmd == "gcolor") {
                 std::istringstream argstream(arg);
                 std::string style, fg, bg;
@@ -679,7 +768,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                             parsecolor(bg, styles[i].bg);
                         }
                     } else {
-                        int i = std::stoi(style);
+                        int i = parse_int(style);
 
                         if (i >= 0 && i < style_NUMSTYLES) {
                             parsecolor(fg, styles[i].fg);
@@ -692,7 +781,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 std::string style, font;
 
                 if (argstream >> style >> font) {
-                    int i = std::stoi(style);
+                    int i = config_range(parse_int(style), 0, style_NUMSTYLES - 1);
 
                     if (i >= 0 && i < style_NUMSTYLES) {
                         if (cmd[0] == 't') {
@@ -738,16 +827,15 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                                 gli_conf_glyph_substitution_files[fontface].push_back(file);
                             }
                         } catch (const std::out_of_range &) {
+                            throw ConfigError(Format("unknown font style: {}", style));
                         }
                     }
                 }
+            } else {
+                warn(Format("unknown configuration option: {}", cmd));
             }
-
-        // For now just ignore failure; in the future, probably log it.
-        } catch (const std::invalid_argument &) {
-            // From numeric conversion functions.
-        } catch (const std::out_of_range &) {
-            // From font2idx.
+        } catch (const ConfigError &e) {
+            warn(Format("{}: {}", cmd, e.message));
         }
     });
 }

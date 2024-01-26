@@ -56,7 +56,7 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
     int cols = src->w;
     int rows = src->h;
 
-    float xscale, yscale;
+    double xscale, yscale;
     long sxscale, syscale;
 
     long fracrowtofill, fracrowleft;
@@ -73,8 +73,8 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
 
     // Compute all sizes and scales.
 
-    xscale = static_cast<float>(newcols) / static_cast<float>(cols);
-    yscale = static_cast<float>(newrows) / static_cast<float>(rows);
+    xscale = static_cast<double>(newcols) / static_cast<double>(cols);
+    yscale = static_cast<double>(newrows) / static_cast<double>(rows);
     sxscale = xscale * SCALE;
     syscale = yscale * SCALE;
 
