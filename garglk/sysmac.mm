@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <fstream>
 #include <functional>
 #include <map>
 #include <regex>
@@ -479,15 +480,30 @@ void winrefresh()
     gli_refresh_needed = !refreshed;
 }
 
-static void show_info(NSString *title, const std::string &text)
+static void show_alert(NSAlertStyle style, NSString *title, const std::string &text)
 {
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.alertStyle = NSAlertStyleInformational;
+    alert.alertStyle = style;
     alert.messageText = title;
     alert.informativeText = [NSString stringWithUTF8String: text.c_str()];
     alert.window.level = NSModalPanelWindowLevel;
     [alert runModal];
     [alert release];
+}
+
+static void show_info(NSString *title, const std::string &text)
+{
+    show_alert(NSAlertStyleInformational, title, text);
+}
+
+static void show_warning(NSString *title, const std::string &text)
+{
+    show_alert(NSAlertStyleWarning, title, text);
+}
+
+static void show_error(NSString *title, const std::string &text)
+{
+    show_alert(NSAlertStyleCritical, title, text);
 }
 
 static void show_paths()
@@ -588,6 +604,36 @@ void winkey(NSEvent *evt)
         {{0, NSKEY_F10},  []{ gli_input_handle_key(keycode_Func10); }},
         {{0, NSKEY_F11},  []{ gli_input_handle_key(keycode_Func11); }},
         {{0, NSKEY_F12},  []{ gli_input_handle_key(keycode_Func12); }},
+
+        // save transcript
+        {{NSEventModifierFlagShift | NSEventModifierFlagCommand, NSKEY_S},
+        []{
+            auto text = gli_get_scrollback();
+            if (text.has_value()) {
+                NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+                NSString *fileref = [gargoyle saveWindowDialog: processID
+                                                        prompt: @"Save transcript"
+                                                        filter: FileFilter::Text];
+
+                if (fileref != nullptr) {
+                    std::string filename = [fileref UTF8String];
+
+                    std::ofstream file(filename, std::ios::binary);
+                    if (file.is_open()) {
+                        if (!file.write(text->data(), text->size())) {
+                            show_error(@"Error", "Error writing entire transcript.");
+                        }
+                    } else {
+                        show_error(@"Error", "Unable to open file for writing.");
+                    }
+                }
+
+                [pool drain];
+            } else {
+                show_warning(@"Warning", "Could not find appropriate window for scrollback.");
+            }
+        }},
     };
 
     try {

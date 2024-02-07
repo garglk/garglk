@@ -1111,6 +1111,7 @@ using gli_decomp_block_t = glui32[2];
 // If the count is zero, there is no decomposition.
 
 void gli_putchar_utf8(glui32 val, std::FILE *fl);
+extern int gli_encode_utf8(glui32 val, char *buf, int len);
 glui32 gli_getchar_utf8(std::FILE *fl);
 glui32 gli_parse_utf8(const unsigned char *buf, glui32 buflen, glui32 *out, glui32 outlen);
 
@@ -1128,6 +1129,9 @@ void gli_move_selection(int x, int y);
 void gli_notification_waiting();
 
 void gli_edit_config();
+
+nonstd::optional<std::vector<char>> gli_get_scrollback();
+std::vector<char> gli_get_text(window_textbuffer_t *dwin);
 
 // A macro which reads and decodes one character of UTF-8. Needs no
 // explanation, I'm sure.

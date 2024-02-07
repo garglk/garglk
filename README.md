@@ -167,6 +167,8 @@ interpreter. However, there are a few shortcuts available (on Mac, use
   on color themes).
 * `Ctrl`+`Shift`+`t`: Display a list of all available color themes (see
   THEMES.md for more information on color themes).
+* `Ctrl`+`Shift`+`s`: Save the scrollback buffer to a file, effectively
+  creating an ad hoc transcript.
 
 In addition, Gargoyle supports many readline/Emacs-style line-editor bindings:
 

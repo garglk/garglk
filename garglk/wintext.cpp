@@ -78,6 +78,26 @@ void win_textbuffer_destroy(window_textbuffer_t *dwin)
     delete dwin;
 }
 
+std::vector<char> gli_get_text(window_textbuffer_t *dwin)
+{
+    int s = dwin->scrollmax < SCROLLBACK ? dwin->scrollmax : SCROLLBACK - 1;
+
+    std::vector<char> text;
+    for (int lineidx = s; lineidx >= 0; lineidx--) {
+        auto line = dwin->lines[lineidx];
+        for (int charidx = 0; charidx < line.len; charidx++) {
+            std::array<char, 4> buf;
+            auto n = gli_encode_utf8(line.chars[charidx], buf.data(), 4);
+            for (int i = 0; i < n; i++) {
+                text.push_back(buf[i]);
+            }
+        }
+        text.push_back(0x0a); // Unicode linefeed
+    }
+
+    return text;
+}
+
 static void reflow(window_t *win)
 {
     window_textbuffer_t *dwin = win->window.textbuffer;
