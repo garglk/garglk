@@ -7,6 +7,10 @@
     Written by Niclas Karlsson and David Kinder.
 */
 
+<<<<<<< HEAD
+=======
+#include <ctype.h>
+>>>>>>> upstream-magnetic
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

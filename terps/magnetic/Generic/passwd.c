@@ -2,21 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <limits.h>
 
-#if UCHAR_MAX==0xff
-typedef unsigned char type8;
-#else
-#error "Can't find an 8-bit integer type"
-#endif
-
-#if INT_MAX==0x7fffffff
-typedef unsigned int type32;
-#elif LONG_MAX==0x7fffffff
-typedef unsigned long type32;
-#else
-#error "Can't find a 32-bit integer type"
-#endif
+typedef unsigned char  type8;
+typedef unsigned long   type32;
 
 type8 obfuscate(type8 c) {
 	static type8 state;

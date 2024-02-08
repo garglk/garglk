@@ -3,7 +3,7 @@
 * Magnetic - Magnetic Scrolls Interpreter.
 *
 * Written by Niclas Karlsson <nkarlsso@abo.fi>,
-*            David Kinder <davidk.kinder@virgin.net>,
+*            David Kinder <davidk@davidkinder.co.uk>,
 *            Stefan Meier <Stefan.Meier@if-legends.org> and
 *            Paul David Doherty <pdd@if-legends.org>
 *
@@ -21,7 +21,7 @@
 *
 *     You should have received a copy of the GNU General Public License
 *     along with this program; if not, write to the Free Software
-*     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+*     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111, USA.
 *
 \****************************************************************************/
 
@@ -34,6 +34,15 @@
 * Note: When running into trouble please ensure that these types have the 
 *       correct number of bits on your system !!!
 \*****************************************************************************/
+
+#if 0
+typedef unsigned char  type8;
+typedef signed   char  type8s;
+typedef unsigned short type16;
+typedef signed   short type16s;
+typedef unsigned long  type32;
+typedef signed   long  type32s;
+#endif
 
 #include <stdint.h>
 
@@ -341,7 +350,7 @@ struct ms_hint
 {
   type16  elcount;
   type16  nodetype;
-  type8s * content;
+  type8 * content;
   type16  links[MAX_HITEMS];
   type16  parent;
 };

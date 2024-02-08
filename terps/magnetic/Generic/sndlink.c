@@ -7,6 +7,7 @@
 
 	v1.1 added option for tempo patching
 	v1.2 fixed tempo patching
+	v1.3 remove garbage bytes at end of original data
 */
 
 #include <stdio.h>
@@ -38,6 +39,7 @@ FILE* InputFile = NULL;
 FILE* OutputFile = NULL;
 unsigned long OutOffset = 0;
 int tempopatch=0;
+int garbagefix=0;
 
 void WriteLong(unsigned char* p, unsigned long v)
 {
@@ -202,7 +204,7 @@ void WriteSndHeader1(void)
 
 void WriteSndFile(int Index)
 {
-	unsigned long offset, length;
+	unsigned long offset, length, j = 0;
 	unsigned short tsize;
 	int game = -1;
 
@@ -211,6 +213,21 @@ void WriteSndFile(int Index)
 			if (length > BUFFER_SIZE)
 				length = BUFFER_SIZE;
 			ReadFile(Buffer1,&offset,length);
+
+			// Remove garbage bytes if present
+			if (garbagefix)
+			{
+				while ((j <= length-1) && !(Buffer1[j]==0xFF && Buffer1[j+1]==0x2F && Buffer1[j+2]==0x00))
+				{
+					j++;
+				}
+				if (j+3 != length)
+				{
+					SndFiles[Index].Length = j+3;
+					length=j+3;
+				}
+			}
+
 
 			// Tempo patching
 			if (tempopatch)
@@ -339,14 +356,25 @@ void WriteSndHeader2(void)
 
 int main(int argc, char** argv)
 {
-	if (argc == 2 || (argc == 3 && strcmp(argv[1],"-p")==0))
+	if (argc == 2 || 
+		((argc == 3 && ((strcmp(argv[1],"-p")==0) || strcmp(argv[1],"-r")==0))) ||
+		((argc == 4 && ((strcmp(argv[1],"-p")==0) && strcmp(argv[2],"-r")==0))))
 	{
 		if (argc==2)
 		   OpenFile(argv[1]);
+		else if (argc==2)
+		{
+			if (strcmp(argv[1],"-p")==0)
+				tempopatch = 1;
+			if (strcmp(argv[1],"-r")==0)
+				garbagefix = 1;
+			OpenFile(argv[2]);
+		}
 		else
 		{
 			tempopatch = 1;
-			OpenFile(argv[2]);
+			garbagefix = 1;
+			OpenFile(argv[3]);
 		}
 		FindResourceNames();
 		WriteSndHeader1();
@@ -357,17 +385,18 @@ int main(int argc, char** argv)
 	}
 	else
 	{
-		printf("SndLink v1.2 by Stefan Meier.\n\n"
+		printf("SndLink v1.3 by Stefan Meier.\n\n"
 		       "Extractor for the music scores in Magnetic Scrolls' Wonderland\n"
 		       "Amiga, Atari ST, PC versions.\n\n"
-			   "Usage: SndLink [-p] all.rsc\n\n"
+			   "Usage: SndLink [-p] [-r] all.rsc\n\n"
 		       "\"all.rsc\" is taken from an installed game. Depending on your\n"
 			   "game version, the resource file might be split into several files\n"
 			   "named e.g. all.1, all.2,... or TWO,THREE,FOUR...\n"
 		       "Before running the extractor, you need to merge these parts into\n"
 			   "one file, e.g. with the DOS command copy /B ONE+TWO+THREE+... all.rsc\n"
 		       "If the extraction is successfull, the file wonder.snd is created\n\n"
-			   "The optional -p switch adds tempo data to the music score");
+			   "The optional -p switch adds tempo data to the music score\n"
+			   "The optional -r switch removes garbage bytes from the PC versions");
 	}
 	return 0;
 }
