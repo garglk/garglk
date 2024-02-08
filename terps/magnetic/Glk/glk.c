@@ -5579,7 +5579,11 @@ ms_save_file (type8s * name, type8 * ptr, type16 size)
         }
 
       /* Write game state. */
+#ifdef GARGLK
+      glk_put_buffer_stream (stream, (char *)ptr, size);
+#else
       glk_put_buffer_stream (stream, ptr, size);
+#endif
 
       glk_stream_close (stream, NULL);
       glk_fileref_destroy (fileref);
@@ -5662,7 +5666,11 @@ ms_load_file (type8s * name, type8 * ptr, type16 size)
         }
 
       /* Restore saved game data. */
+#ifdef GARGLK
+      glk_get_buffer_stream (stream, (char *)ptr, size);
+#else
       glk_get_buffer_stream (stream, ptr, size);
+#endif
 
       glk_stream_close (stream, NULL);
       glk_fileref_destroy (fileref);

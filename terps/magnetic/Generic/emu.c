@@ -344,7 +344,11 @@ type8 anim_repeat = 0;
 #define MAX_HINTS 260
 #define MAX_HCONTENTS 30000
 struct ms_hint* hints = 0;
+#ifdef GARGLK
+type8s* hint_contents = 0;
+#else
 type8* hint_contents = 0;
+#endif
 const type8s no_hints[] = "[Hints are not available.]\n";
 const type8s not_supported[] = "[This function is not supported.]\n";
 
@@ -2685,7 +2689,11 @@ void output_number(type16 number)
 	ms_putchar('0'+number);
 }
 
+#ifdef GARGLK
+type16 output_text(const type8s* text)
+#else
 type16 output_text(const type8* text)
+#endif
 {
 	type16 i;
 
@@ -2930,7 +2938,11 @@ void do_line_a(void)
 					{
 						type32 length = 0;
 						type16 tempo = 0;
+#ifdef GARGLK
+						type8* midi = sound_extract((type8s *)code + a1reg + 3,&length,&tempo);
+#else
 						type8* midi = sound_extract(code + a1reg + 3,&length,&tempo);
+#endif
 						if (midi != NULL)
 							ms_playmusic(midi,length,tempo);
 					}

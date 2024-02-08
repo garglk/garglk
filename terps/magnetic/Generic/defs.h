@@ -35,15 +35,7 @@
 *       correct number of bits on your system !!!
 \*****************************************************************************/
 
-#if 0
-typedef unsigned char  type8;
-typedef signed   char  type8s;
-typedef unsigned short type16;
-typedef signed   short type16s;
-typedef unsigned long  type32;
-typedef signed   long  type32s;
-#endif
-
+#ifdef GARGLK
 #include <stdint.h>
 
 typedef uint8_t type8;
@@ -62,6 +54,14 @@ typedef int16_t type16s;
 
 typedef uint32_t type32;
 typedef int32_t type32s;
+#else
+typedef unsigned char  type8;
+typedef signed   char  type8s;
+typedef unsigned short type16;
+typedef signed   short type16s;
+typedef unsigned long  type32;
+typedef signed   long  type32s;
+#endif
 
 /****************************************************************************\
 * Compile time switches 
@@ -350,7 +350,11 @@ struct ms_hint
 {
   type16  elcount;
   type16  nodetype;
+#ifdef GARGLK
+  type8s * content;
+#else
   type8 * content;
+#endif
   type16  links[MAX_HITEMS];
   type16  parent;
 };
