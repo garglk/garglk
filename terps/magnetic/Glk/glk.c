@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
  * USA
  */
 
@@ -1001,8 +1001,8 @@ static int
 gms_graphics_compare_luminance (const void *void_first,
                                 const void *void_second)
 {
-  long first = *(long *) void_first;
-  long second = *(long *) void_second;
+  int first = *(int *) void_first;
+  int second = *(int *) void_second;
 
   return first > second ? 1 : second > first ? -1 : 0;
 }
@@ -1827,6 +1827,7 @@ break_y_max:
     }
 }
 
+#ifdef GARGLK
 static void
 gms_graphics_paint_everything (winid_t glk_window,
 			glui32 palette[],
@@ -1850,6 +1851,7 @@ gms_graphics_paint_everything (winid_t glk_window,
 	    }
 	}
 }
+#endif
 
 /*
  * gms_graphics_timeout()
@@ -2544,7 +2546,6 @@ static void
 gms_status_update (void)
 {
   glui32 width, height;
-  int index;
   assert (gms_status_window);
 
   glk_window_get_size (gms_status_window, &width, &height);
@@ -2554,10 +2555,13 @@ gms_status_update (void)
       glk_window_move_cursor (gms_status_window, 0, 0);
       glk_set_window (gms_status_window);
 
+#ifdef GARGLK
       glk_set_style(style_User1);
-      for (index = 0; index < width; index++)
+      for (glui32 index = 0; index < width; index++) {
         glk_put_char (' ');
+      }
       glk_window_move_cursor (gms_status_window, 1, 0);
+#endif
 
       if (gms_status_length > 0)
         {
@@ -4631,9 +4635,13 @@ gms_command_print_version_number (glui32 version)
   char buffer[64];
 
   sprintf (buffer, "%lu.%lu.%lu",
+#ifdef GARGLK
           (unsigned long) version >> 16,
           (unsigned long) (version >> 8) & 0xff,
           (unsigned long) version & 0xff);
+#else
+           version >> 16, (version >> 8) & 0xff, version & 0xff);
+#endif
   gms_normal_string (buffer);
 }
 
@@ -4721,8 +4729,8 @@ gms_command_license (const char *argument)
 
   gms_normal_string ("You should have received a copy of the GNU General"
                       " Public License along with this program; if not, write"
-                      " to the Free Software Foundation, Inc., 51 Franklin"
-                      " Street, Fifth Floor, Boston, MA 02110-1301 USA\n\n");
+                      " to the Free Software Foundation, Inc., 59 Temple"
+                      " Place, Suite 330, Boston, MA  02111-1307 USA\n\n");
 
   gms_normal_string ("Please report any bugs, omissions, or misfeatures to ");
   gms_standout_string ("simon_baldwin@yahoo.com");
@@ -5213,7 +5221,7 @@ gms_expand_abbreviations (char *buffer, int size)
       memmove (command + strlen (expansion) - 1, command, strlen (command) + 1);
       memcpy (command, expansion, strlen (expansion));
 
-#if 0
+#ifndef GARGLK
       gms_standout_string ("[");
       gms_standout_char (abbreviation);
       gms_standout_string (" -> ");
@@ -5571,7 +5579,11 @@ ms_save_file (type8s * name, type8 * ptr, type16 size)
         }
 
       /* Write game state. */
+#ifdef GARGLK
       glk_put_buffer_stream (stream, (char *)ptr, size);
+#else
+      glk_put_buffer_stream (stream, ptr, size);
+#endif
 
       glk_stream_close (stream, NULL);
       glk_fileref_destroy (fileref);
@@ -5654,7 +5666,11 @@ ms_load_file (type8s * name, type8 * ptr, type16 size)
         }
 
       /* Restore saved game data. */
+#ifdef GARGLK
       glk_get_buffer_stream (stream, (char *)ptr, size);
+#else
+      glk_get_buffer_stream (stream, ptr, size);
+#endif
 
       glk_stream_close (stream, NULL);
       glk_fileref_destroy (fileref);
@@ -6032,7 +6048,9 @@ gms_main (void)
     gms_graphics_enabled = FALSE;
 
   /* Try to create a one-line status window.  We can live without it. */
+#ifdef GARGLK
   glk_stylehint_set (wintype_TextGrid, style_User1, stylehint_ReverseColor, 1);
+#endif
   gms_status_window = glk_window_open (gms_main_window,
                                        winmethod_Above | winmethod_Fixed,
                                        1, wintype_TextGrid, 0);
@@ -6180,7 +6198,7 @@ glk_main (void)
 /*---------------------------------------------------------------------*/
 /*  Glk linkage relevant only to the UNIX platform                     */
 /*---------------------------------------------------------------------*/
-#ifdef TRUE
+#ifdef GARGLK
 
 #include "glkstart.h"
 

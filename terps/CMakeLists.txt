@@ -307,7 +307,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Magnetic 2.3
+# Magnetic 2.3.1
 #
 # Disable layered drawing, because that is slower than drawing
 # all the pixels with fill_rect -- the opposite of Xglk.

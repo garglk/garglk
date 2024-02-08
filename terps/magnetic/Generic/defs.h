@@ -3,7 +3,7 @@
 * Magnetic - Magnetic Scrolls Interpreter.
 *
 * Written by Niclas Karlsson <nkarlsso@abo.fi>,
-*            David Kinder <davidk.kinder@virgin.net>,
+*            David Kinder <davidk@davidkinder.co.uk>,
 *            Stefan Meier <Stefan.Meier@if-legends.org> and
 *            Paul David Doherty <pdd@if-legends.org>
 *
@@ -21,7 +21,7 @@
 *
 *     You should have received a copy of the GNU General Public License
 *     along with this program; if not, write to the Free Software
-*     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+*     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111, USA.
 *
 \****************************************************************************/
 
@@ -35,6 +35,7 @@
 *       correct number of bits on your system !!!
 \*****************************************************************************/
 
+#ifdef GARGLK
 #include <stdint.h>
 
 typedef uint8_t type8;
@@ -53,6 +54,14 @@ typedef int16_t type16s;
 
 typedef uint32_t type32;
 typedef int32_t type32s;
+#else
+typedef unsigned char  type8;
+typedef signed   char  type8s;
+typedef unsigned short type16;
+typedef signed   short type16s;
+typedef unsigned long  type32;
+typedef signed   long  type32s;
+#endif
 
 /****************************************************************************\
 * Compile time switches 
@@ -341,7 +350,11 @@ struct ms_hint
 {
   type16  elcount;
   type16  nodetype;
+#ifdef GARGLK
   type8s * content;
+#else
+  type8 * content;
+#endif
   type16  links[MAX_HITEMS];
   type16  parent;
 };

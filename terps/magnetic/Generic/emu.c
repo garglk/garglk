@@ -3,11 +3,11 @@
 * Magnetic - Magnetic Scrolls Interpreter.
 *
 * Written by Niclas Karlsson <nkarlsso@abo.fi>,
-*            David Kinder <davidk.kinder@virgin.net>,
+*            David Kinder <davidk@davidkinder.co.uk>,
 *            Stefan Meier <Stefan.Meier@if-legends.org> and
 *            Paul David Doherty <pdd@if-legends.org>
 *
-* Copyright (C) 1997-2008  Niclas Karlsson
+* Copyright (C) 1997-2023  Niclas Karlsson
 *
 *     This program is free software; you can redistribute it and/or modify
 *     it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 *
 *     You should have received a copy of the GNU General Public License
 *     along with this program; if not, write to the Free Software
-*     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+*     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111, USA.
 *
 * History:
 *
@@ -256,6 +256,8 @@
 * 2.3  080812 : [DK] Changed prototype for ms_playmusic and removed the
 *               need for ms_sndextract as an externally visible function.
 *
+* 2.3.1 181223 : [DK] Fixed a buffer over-run problem.
+*
 \****************************************************************************/
 
 #include <ctype.h>
@@ -344,7 +346,11 @@ type8 anim_repeat = 0;
 #define MAX_HINTS 260
 #define MAX_HCONTENTS 30000
 struct ms_hint* hints = 0;
+#ifdef GARGLK
 type8s* hint_contents = 0;
+#else
+type8* hint_contents = 0;
+#endif
 const type8s no_hints[] = "[Hints are not available.]\n";
 const type8s not_supported[] = "[This function is not supported.]\n";
 
@@ -673,7 +679,7 @@ type8 ms_init(type8s * name, type8s * gfxname, type8s * hntname, type8s * sndnam
 	else
 	{
 		undo_stat[0] = undo_stat[1] = 0;
-		ms_seed(time(0));
+		ms_seed((type32)time(0));
 		if (!(fp = fopen(name, "rb")))
 			return 0;
 		if ((fread(header, 1, 42, fp) != 42) || (read_l(header) != 0x4d615363))
@@ -824,7 +830,7 @@ type8 ms_init(type8s * name, type8s * gfxname, type8s * hntname, type8s * sndnam
 				if ((hints != 0) && (hint_contents != 0))
 				{
 					/* Read number of blocks */
-					if (fread(&buf, 1, 2, hnt_fp) != 2 && !feof(hnt_fp)) return 0;
+					fread(&buf, 1, 2, hnt_fp);
 					blkcnt = read_w2(buf);
 #ifdef LOGHNT
 					out2("Blocks: %d\n",blkcnt);
@@ -836,7 +842,7 @@ type8 ms_init(type8s * name, type8s * gfxname, type8s * hntname, type8s * sndnam
 						out2("\nBlock No. %d\n",i);
 #endif
 						/* Read number of elements */
-						if (fread(&buf, 1, 2, hnt_fp) != 2 && !feof(hnt_fp)) return 0;
+						fread(&buf, 1, 2, hnt_fp);
 						elcnt = read_w2(buf);
 #ifdef LOGHNT
 						out2("Elements: %d\n",elcnt);
@@ -844,7 +850,7 @@ type8 ms_init(type8s * name, type8s * gfxname, type8s * hntname, type8s * sndnam
 						hints[i].elcount = elcnt;
 
 						/* Read node type */
-						if (fread(&buf, 1, 2, hnt_fp) != 2 && !feof(hnt_fp)) return 0;
+						fread(&buf, 1, 2, hnt_fp);
 						ntype = read_w2(buf);
 #ifdef LOGHNT
 						if (ntype == 1)
@@ -859,9 +865,9 @@ type8 ms_init(type8s * name, type8s * gfxname, type8s * hntname, type8s * sndnam
 #endif
 						for (j = 0; j < elcnt; j++)
 						{
-							if (fread(&buf, 1, 2, hnt_fp) != 2 && !feof(hnt_fp)) return 0;
+							fread(&buf, 1, 2, hnt_fp);
 							elsize = read_w2(buf);
-							if (fread(hint_contents+conidx, 1, elsize, hnt_fp) != elsize && !feof(hnt_fp)) return 0;
+							fread(hint_contents+conidx, 1, elsize, hnt_fp);
 							hint_contents[conidx+elsize-1] = '\0';
 #ifdef LOGHNT
 							out2("%s\n",hint_contents+conidx);
@@ -877,7 +883,7 @@ type8 ms_init(type8s * name, type8s * gfxname, type8s * hntname, type8s * sndnam
 #endif
 							for (j = 0; j < elcnt; j++)
 							{
-								if (fread(&buf, 1, 2, hnt_fp) != 2 && !feof(hnt_fp)) return 0;
+								fread(&buf, 1, 2, hnt_fp);
 								hints[i].links[j] = read_w2(buf);
 #ifdef LOGHNT
 								out2("%d\n",hints[i].links[j]);
@@ -886,7 +892,7 @@ type8 ms_init(type8s * name, type8s * gfxname, type8s * hntname, type8s * sndnam
 						}
 
 						/* Read the parent block */
-						if (fread(&buf, 1, 2, hnt_fp) != 2 && !feof(hnt_fp)) return 0;
+						fread(&buf, 1, 2, hnt_fp);
 						hints[i].parent = read_w2(buf);
 #ifdef LOGHNT
 						out2("Parent: %d\n",hints[i].parent);
@@ -2195,9 +2201,13 @@ void do_cmp(void)
 
 	tmp = arg1;
 	tmparg[0] = arg1[0];
-	tmparg[1] = arg1[1];
-	tmparg[2] = arg1[2];
-	tmparg[3] = arg1[3];
+	if (opsize != 0)
+		tmparg[1] = arg1[1];
+	if (opsize == 2)
+	{
+		tmparg[2] = arg1[2];
+		tmparg[3] = arg1[3];
+	}
 	arg1 = tmparg;
 	quick_flag = 0;
 	do_sub(0);
@@ -2685,7 +2695,11 @@ void output_number(type16 number)
 	ms_putchar('0'+number);
 }
 
+#ifdef GARGLK
 type16 output_text(const type8s* text)
+#else
+type16 output_text(const type8* text)
+#endif
 {
 	type16 i;
 
@@ -2930,7 +2944,11 @@ void do_line_a(void)
 					{
 						type32 length = 0;
 						type16 tempo = 0;
+#ifdef GARGLK
 						type8* midi = sound_extract((type8s *)code + a1reg + 3,&length,&tempo);
+#else
+						type8* midi = sound_extract(code + a1reg + 3,&length,&tempo);
+#endif
 						if (midi != NULL)
 							ms_playmusic(midi,length,tempo);
 					}
