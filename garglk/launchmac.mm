@@ -1038,21 +1038,16 @@ static int winexec(const std::string &cmd, const std::vector<std::string> &args)
     return [proc isRunning];
 }
 
-bool garglk::winterp(const std::string &exe, const nonstd::optional<std::string> &flags, const std::string &game)
+bool garglk::winterp(const std::string &exe, const std::vector<std::string> &flags, const std::string &game)
 {
     // get dir of executable
     auto interpreter_dir = winpath();
 
     auto cmd = Format("{}/{}", interpreter_dir, exe);
 
-    std::vector<std::string> args;
+    auto args = flags;
 
-    if (flags.has_value()) {
-        args.push_back(*flags);
-        args.push_back(game);
-    } else {
-        args.push_back(game);
-    }
+    args.push_back(game);
 
     if (!winexec(cmd, args)) {
         garglk::winmsg("Could not start 'terp.\nSorry.");

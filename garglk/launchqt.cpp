@@ -116,7 +116,7 @@ static QString winbrowsefile()
     return QFileDialog::getOpenFileName(nullptr, AppName, "", filter_string, nullptr, options);
 }
 
-bool garglk::winterp(const std::string &exe, const nonstd::optional<std::string> &flags, const std::string &game)
+bool garglk::winterp(const std::string &exe, const std::vector<std::string> &flags, const std::string &game)
 {
     // Find the directory that contains the interpreters. By default
     // this is GARGLK_CONFIG_INTERPRETER_DIR but if that is not set, it
@@ -141,12 +141,10 @@ bool garglk::winterp(const std::string &exe, const nonstd::optional<std::string>
     QString argv0 = QDir(interpreter_dir).absoluteFilePath(exe.c_str());
 
     QStringList args;
-
-    if (flags.has_value()) {
-        args = QStringList({flags->c_str(), game.c_str()});
-    } else {
-        args = QStringList({game.c_str()});
+    for (const auto &flag : flags) {
+        args.push_back(QString::fromStdString(flag));
     }
+    args.push_back(QString::fromStdString(game));
 
     QProcess proc;
     proc.setProcessChannelMode(QProcess::ForwardedChannels);

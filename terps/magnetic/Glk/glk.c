@@ -640,7 +640,11 @@ static const int GMS_GRAPHICS_ANIMATION_WAIT = 2,
                  GMS_GRAPHICS_REPAINT_WAIT = 10;
 
 /* Pixel size multiplier for image size scaling. */
+#ifdef GARGLK
+static int GMS_GRAPHICS_PIXEL = 2;
+#else
 static const int GMS_GRAPHICS_PIXEL = 2;
+#endif
 
 /* Proportion of the display to use for graphics. */
 static const glui32 GMS_GRAPHICS_PROPORTION = 60;
@@ -5926,6 +5930,18 @@ gms_startup_code (int argc, char *argv[])
           gms_prompt_enabled = FALSE;
           continue;
         }
+#ifdef GARGLK
+      if (strcmp (argv[argv_index], "-sc") == 0)
+        {
+          char *endptr;
+          long scale = strtol(argv[++argv_index], &endptr, 10);
+          if (scale >= 1 && scale <= 8 && *endptr == 0)
+            {
+              GMS_GRAPHICS_PIXEL = scale;
+            }
+          continue;
+        }
+#endif
       return FALSE;
     }
 
@@ -6218,6 +6234,10 @@ glkunix_argumentlist_t glkunix_arguments[] = {
    (char *) "-nx        Turn off picture animations"},
   {(char *) "-ne", glkunix_arg_NoValue,
    (char *) "-ne        Turn off additional interpreter prompt"},
+#ifdef GARGLK
+  {(char *) "-sc", glkunix_arg_ValueFollows,
+   (char *) "-sc        Scale pictures by integer value (1-8)"},
+#endif
   {(char *) "", glkunix_arg_ValueCanFollow,
    (char *) "filename   game to run"},
   {NULL, glkunix_arg_End, NULL}
