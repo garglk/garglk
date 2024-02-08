@@ -1,0 +1,409 @@
+#seed
+12345
+restart
+y
+#seed
+12345
+Inventory
+Examine The Keyring
+Examine The Bus Ticket
+Wait
+Show Inspector Ticket
+Read Sign
+Examine The Button
+Push Button
+Z, Z, Z, Z
+Exit
+Take The Ring
+Z
+Z
+Read Document
+Drop Ticket, Document
+Open Gate
+N
+Examine The Chair
+Unlock Door With Iron Key
+Open Door
+N, Nw
+Open Cello Case
+Look Inside It
+Take Case
+Open Wardrobe And Look Inside It
+Wear Shoes
+Look Under The Bed
+Take Sock And Put It In The Case
+Ne
+Examine The Book
+Read It
+Examine The Basin
+Examine The Dragon
+Take It And Put It In The Case
+Sw, N
+Examine The Table
+Take Opener And Put It In The Case
+Open Fridge
+Look Inside It
+Take Bottle And Put It In The Case
+Close Fridge
+E, S
+Answer The Phone
+Dial 999
+Examine The Shelves
+N
+Examine The Table
+Examine The Chair
+Examine The Tablecloth
+Take It
+Unlock The Back Door With The Iron Key
+Open It
+N
+Examine The Secateurs
+Examine The Gloves
+Take All
+Take The Gloves
+Put Secateurs In Case
+Put Gloves In Case
+N
+Examine The Mailbox
+Unlock It With Plastic Key
+L In It
+Open It
+L In It
+Close It
+E
+Wave Tablecloth
+Drop It
+Se, E
+Examine The Old Bottle
+Examine The Fluid
+Take Plastic Bottle And Put It In The Case
+W, Nw, W, S, S, W
+Open Fridge
+Put Plastic Bottle In Fridge
+Close Fridge
+E, N, N, E, Se, Se, S
+Take The Mouse Trap
+Take The Can Of Worms
+Look Inside The Boat
+Take The Bung
+N, Nw, S
+Examine The Path
+Examine The Door
+Unlock It With Rusty Key
+Open It
+Sw, W
+Examine The Table
+Take The Candle And Match Box
+S
+Examine The Table
+Sw, S
+Listen To Magpie
+N, Ne, N, E
+Open Trapdoor
+D
+Wear Spectacles
+Take The Cheese
+Up
+Put Cheese On Mouse Trap
+Set Trap
+Drop It
+Ne
+Look Inside Mailbox
+Take Note And Read It
+Sw, W, S
+Dial 300
+N, E
+Wait
+Ne
+Unlock Box With Plastic Key
+Unlock Mailbox With Plastic Key
+Sw
+Open Matchbox
+Take Match And Close Matchbox
+Light Match
+Light Candle With Match
+Heat The Plastic Key With The Candle
+Heat The Plastic Key With The Candle
+Ne
+Unlock Mailbox With Plastic Key
+Look Inside Mailbox
+Take The Parcel And Open It
+Look In It
+Examine The Charm
+Read Letter
+Z, Z, Z, Z, Z
+Z, Z, Z, Z, Z
+Z, Z, Z, Z, Z
+Sw
+Examine The Trap
+Take The Mouse
+Ne, N, Nw, W, S, S, W
+Drink Milk
+Open Can Of Worms With Tin Opener
+Put Worms In Milk Bottle
+Open Fridge And L Inside It
+Take The Oil
+Close Fridge
+E, N, N, E, Se, Se, S
+Examine The Door
+Put Oil On The Door
+Open Door
+S
+Examine The Sack
+Take The Amethyst Charm
+Examine It
+Examine The Canoe
+Put Bung In Sock Then Put Sock In Hole Then Put Canoe In Water
+Enter Canoe
+Take The Paddle
+S, S
+Get Out
+D
+Dig In The Dirt
+Empty The Milk Bottle On The Dirt
+Dig In The Dirt
+E, E
+Drop Shoes, Shirt, Trousers
+Drop All
+Wear Aqualung, Mask, Flippers, Suit
+W, W, U, N, D, N, E, E, E, D
+Search Ruins
+Take The Cylinder
+U, W, W, W, W, N
+Open Hatch
+D
+Close Hatch
+Examine The Panel
+Examine The Buttons
+Push Left Button
+Examine The Door
+Turn Wheel
+Open Door
+E, D
+Examine The Desk
+Examine The Notecase
+Take The Coin
+Open Red Door
+E
+Examine The Chandelier
+W, U, W
+Push Right Button
+E, D, E
+Wait, Wait
+Look
+U
+Examine The Chandelier
+Take The Charm And L It
+D, W
+Fix Cylinder To Aqualung
+U, W
+Open Hatch
+U, S, Se, U, S, D, E, E
+Remove Aqualung
+Drop Aqualung, Mask, Flippers, Suit
+Wear Shoes, Shirt, Trousers, Gloves
+Take The Case, Paddle, Match Box, Candle, Mouse
+Take The Charms
+W, W, U
+Enter Canoe
+N, Sw
+Drop Paddle
+Get Out
+S, Nw
+Read Notice
+Ask Baker For Job
+D, E
+Examine The Flour Sack
+Open It
+Take Sieve
+Sieve Flour With Sieve
+Examine The Sieve
+Take The Pelican Charm
+W
+Examine The Table
+Examine The Tin
+Put Pelican Charm In Tin
+Open Oven
+Put Tin In Oven
+Close Oven
+Examine The Oven
+Examine The Panel
+Push Green Button Twice
+Push Green Button
+Push Green Button
+Open Oven
+Take The Tin
+Examine The Tin
+Show Bread To The Baker
+U
+Show Bread To The Baker
+Take The Bread And Eat It
+Examine The Pelican Charm
+Se
+Examine The Bar
+Watchercallit Coin
+Buy Beer With Coin
+Watchercallit Glass
+Examine The Hearth
+Oojimy Fire
+Take The Ash
+N
+Examine The Well
+D
+Take The Coin
+U, S, Nw, Sw
+Doofer Unicorn
+Take The Saddle
+Ne
+Open Door
+Ne
+Mail Saddle To Station
+Give Two-ferg Coin To Postmistress
+Wait
+Show Mouse To Postmistress
+Examine The Safe
+Examine The Handles
+Turn Bottom Right Handle
+Turn Top Right Handle
+Turn Bottom Right Handle
+Turn Bottom Right Handle
+Turn Top Left Handle
+Open Safe
+Look In It
+Take The Dragon Charm
+Examine It
+Open Door
+Sw, Sw
+Examine The Door
+Read Notice
+Examine The Shop
+L Inside The Window
+Knock On The Door
+Throw Tin At Oil Lamp
+Sw, E
+Drop All But Walrus Charm
+W, Ne
+Examine The Fire Engine
+Put Ladder On Shop
+Take The Ladder
+Examine It
+Sw
+Oojimy Stool
+Take The Stool
+E
+Drop Stool
+Put Ladder On Girder
+Take All But Ladder And Stool
+Climb On The Stool
+Climb Ladder
+Jump North
+Thingy
+Examine Rain Weatherman
+Get Hat
+Climb On The Beam
+Take All From Case
+Drop Case
+Doodah
+Get On The Cloud
+Doofer The Cloud
+Examine The Sign
+E, E, N, N
+Open The Door
+W
+Take The Saddle
+E, S, S, W
+Put The Coin In The Hat
+Drop The Hat
+Doofer The Shoes
+Play The Harmonica
+Take The Hat And Look Inside It
+Buy The Ticket With The One Ferg Coin
+E
+Wait
+W
+Buy The Ticket With The One Ferg Coin
+E
+Take The Ticket
+N
+Take The Ticket
+N
+Take The Ticket
+N
+Take The Ticket
+Run After The Train
+Run After The Train
+Show The Ticket To The Guard
+Wait
+W
+Put The Saddle On The Unicorn
+Mount Unicorn
+Doofer The Unicorn
+Dismount
+D
+E
+N
+E
+Remove The Shoes
+D
+Open The Door
+N
+Look At Xam
+Wake Him
+Tie The Rope To The Manacle
+Take The Match Then Light It
+Open Matchbox
+Take The Match Then Light It
+Light The Candle With The Match
+Put The Candle In The Glass
+Put The Glass Under The Rope
+N
+Wait
+N
+U
+Ne
+Open The Door
+E
+E
+Examine The Dome
+Examine The Blocks
+Slide 5
+Slide 8
+Slide 1
+Slide 6
+Slide 7
+Slide 2
+Slide 9
+Slide 5
+Slide 3
+Slide 4
+Take The Bracelet
+Put The Charms On The Bracelet
+W
+W
+Sw
+Nw
+U
+U
+Open The Left Door
+N
+Examine The Table
+Take The Ball
+S
+D
+D
+Se
+Examine The Fireplace
+Examine The Hearth
+U
+Examine Ball
+Examine Ball
+Examine Ball
+Examine Ball
+Doofer Ball
+Drop The Ash
+Wait
+Wait
+Wait
+Put The Bracelet On Claw
+I
+Look
