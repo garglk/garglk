@@ -7,7 +7,7 @@
 *            Stefan Meier <Stefan.Meier@if-legends.org> and
 *            Paul David Doherty <pdd@if-legends.org>
 *
-* Copyright (C) 1997-2008  Niclas Karlsson
+* Copyright (C) 1997-2023  Niclas Karlsson
 *
 *     This program is free software; you can redistribute it and/or modify
 *     it under the terms of the GNU General Public License as published by
@@ -255,6 +255,8 @@
 *
 * 2.3  080812 : [DK] Changed prototype for ms_playmusic and removed the
 *               need for ms_sndextract as an externally visible function.
+*
+* 2.3.1 181223 : [DK] Fixed a buffer over-run problem.
 *
 \****************************************************************************/
 
@@ -2195,9 +2197,13 @@ void do_cmp(void)
 
 	tmp = arg1;
 	tmparg[0] = arg1[0];
-	tmparg[1] = arg1[1];
-	tmparg[2] = arg1[2];
-	tmparg[3] = arg1[3];
+	if (opsize != 0)
+		tmparg[1] = arg1[1];
+	if (opsize == 2)
+	{
+		tmparg[2] = arg1[2];
+		tmparg[3] = arg1[3];
+	}
 	arg1 = tmparg;
 	quick_flag = 0;
 	do_sub(0);

@@ -1001,8 +1001,8 @@ static int
 gms_graphics_compare_luminance (const void *void_first,
                                 const void *void_second)
 {
-  long first = *(long *) void_first;
-  long second = *(long *) void_second;
+  int first = *(int *) void_first;
+  int second = *(int *) void_second;
 
   return first > second ? 1 : second > first ? -1 : 0;
 }
