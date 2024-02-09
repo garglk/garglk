@@ -44,6 +44,7 @@
 #define NSKEY_H         0x04
 #define NSKEY_N         0x2d
 #define NSKEY_P         0x23
+#define NSKEY_S         0x01
 #define NSKEY_T         0x11
 #define NSKEY_U         0x20
 #define NSKEY_V         0x09

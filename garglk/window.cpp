@@ -48,6 +48,29 @@ void gli_initialize_windows()
     gli_focuswin = nullptr;
 }
 
+// Return the scrollback buffer of the focused window, if that window is
+// a text buffer. If it's not, find the textbuffer with the longest
+// scrollback and assume that's the best scrollback buffer, returning
+// it. If there are no textbuffer windows at all, return nullopt.
+nonstd::optional<std::vector<char>> gli_get_scrollback() {
+    nonstd::optional<std::vector<char>> text;
+
+    if (gli_focuswin != nullptr && gli_focuswin->type == wintype_TextBuffer) {
+        return gli_get_text(gli_focuswin->window.textbuffer);
+    }
+
+    for (auto *win = glk_window_iterate(nullptr, nullptr); win != nullptr; win = glk_window_iterate(win, nullptr)) {
+        if (win->type == wintype_TextBuffer) {
+            auto new_text = gli_get_text(win->window.textbuffer);
+            if (!text.has_value() || new_text.size() > text->size()) {
+                text = new_text;
+            }
+        }
+    }
+
+    return text;
+}
+
 static void gli_windows_rearrange()
 {
     if (gli_rootwin != nullptr) {
