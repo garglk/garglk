@@ -511,7 +511,7 @@ T parse_number(const std::string &s, std::function<T(const std::string &, std::s
 double parse_double(const std::string &s)
 {
     return parse_number<double>(s, [](const std::string &str, std::size_t *idx) {
-        if (str.find('e') != std::string::npos || str.find('E') != std::string::npos) {
+        if (str.find_first_of("eE") != std::string::npos) {
             throw std::invalid_argument(str);
         }
         return std::stod(str, idx);
