@@ -70,14 +70,14 @@
 namespace {
 
 struct Interpreter {
-    explicit Interpreter(std::string terp_, nonstd::optional<std::string> flags_ = nonstd::nullopt) :
+    explicit Interpreter(std::string terp_, std::vector<std::string> flags_ = {}) :
         terp(std::move(terp_)),
         flags(std::move(flags_))
     {
     }
 
     std::string terp;
-    nonstd::optional<std::string> flags;
+    std::vector<std::string> flags;
 };
 
 }
@@ -162,7 +162,7 @@ static const std::unordered_map<std::string, Format> extensions = {
 static const std::unordered_map<Format, Interpreter> interpreters = {
     {Format::Adrift, Interpreter(T_ADRIFT)},
     {Format::AdvSys, Interpreter(T_ADVSYS)},
-    {Format::AGT, Interpreter(T_AGT, "-gl")},
+    {Format::AGT, Interpreter(T_AGT, {"-gl"})},
     {Format::Alan2, Interpreter(T_ALAN2)},
     {Format::Alan3, Interpreter(T_ALAN3)},
     {Format::Glulx, Interpreter(T_GLULX)},
@@ -323,12 +323,12 @@ static nonstd::optional<Interpreter> findterp(const std::string &file, const std
     garglk::config_entries(file, false, matches, [&interpreter](const std::string &cmd, const std::string &arg, int) {
         if (cmd == "terp") {
             std::istringstream argstream(arg);
-            std::string terp, opt;
-            nonstd::optional<std::string> flags;
+            std::string terp, flag;
+            std::vector<std::string> flags;
 
             if (argstream >> terp) {
-                if (argstream >> opt && opt[0] == '-') {
-                    flags = opt;
+                while (argstream >> flag) {
+                    flags.push_back(flag);
                 }
 
                 interpreter.emplace(terp, flags);
