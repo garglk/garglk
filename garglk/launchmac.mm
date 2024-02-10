@@ -475,6 +475,10 @@ static BOOL isTextbufferEvent(NSEvent *evt)
         auto path = get_qt_plist_path();
         if (path != nil) {
             NSMutableDictionary *config = [NSMutableDictionary dictionaryWithContentsOfFile: path];
+            if (config == nil) {
+                config = [NSMutableDictionary dictionary];
+            }
+
             auto size = Format("@Size({} {})", self.frame.size.width, self.frame.size.height);
             [config setObject: [NSString stringWithUTF8String: size.c_str()] forKey: @"window.size"];
             [config writeToFile: path atomically: YES];
