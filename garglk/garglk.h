@@ -1096,6 +1096,8 @@ void win_textbuffer_flow_break(window_textbuffer_t *win);
 
 void gli_calc_padding(window_t *win, int *x, int *y);
 
+void gli_read_config(int argc, char **argv, bool quiet);
+
 // unicode case mapping
 
 using gli_case_block_t = glui32[2];

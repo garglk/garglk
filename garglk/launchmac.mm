@@ -1067,5 +1067,9 @@ int main(int argc, char **argv)
     [NSApplication sharedApplication];
     [NSApp setDelegate:[[GargoyleApp alloc] init]];
     [pool drain];
+
+    // Read the config file here so that the "save_window" settings are available.
+    gli_read_config(argc, argv, true);
+
     return NSApplicationMain(argc, const_cast<const char **>(argv));
 }
