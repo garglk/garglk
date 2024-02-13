@@ -257,14 +257,17 @@ void winclipreceive()
                     case '\0':
                         return;
 
-                    case '\r':
-                    case '\n':
                     case '\b':
                     case '\t':
                         break;
 
+                    case '\r':
+                    case '\n':
+                        gli_input_handle_key_paste(keycode_Return);
+                        break;
+
                     default:
-                        gli_input_handle_key(ch);
+                        gli_input_handle_key_paste(ch);
                     }
                 }
             }

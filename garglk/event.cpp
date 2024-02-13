@@ -18,6 +18,7 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm>
+#include <deque>
 #include <list>
 
 #include "glk.h"
@@ -95,27 +96,6 @@ void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2)
     gli_events.push_back(store);
 }
 
-static void gli_select_or_poll(event_t *event, bool polled)
-{
-    static bool first_event = false;
-    if (!first_event) {
-        gli_input_guess_focus();
-        first_event = true;
-    }
-
-    gli_select(event, polled);
-}
-
-void glk_select(event_t *event)
-{
-    gli_select_or_poll(event, false);
-}
-
-void glk_select_poll(event_t *event)
-{
-    gli_select_or_poll(event, true);
-}
-
 void glk_tick()
 {
 #ifdef GARGLK_CONFIG_TICK
@@ -123,8 +103,21 @@ void glk_tick()
 #endif
 }
 
+// When pasting, it's possible that one of the pasted characters will
+// cause the current input event to stop (for char events, any character
+// will suffice, and for line events, a newline will do it). Once the
+// current input event is no longer active, any key presses are normally
+// discarded: if the window's not expecting input, it's got nowhere to
+// go. This causes problems with text pasting, however: if you paste
+// multiple lines, the line input event will be disabled after the first
+// line is pasted, and the rest of the lines will disappear into the
+// ether. To work around this, if no input events are active when a
+// paste comes in, the pasted characters will be buffered and replayed
+// the next time input is requested.
+static std::deque<glui32> paste_buffer;
+
 // Handle a keystroke.
-void gli_input_handle_key(glui32 key)
+static bool gli_input_handle_key(glui32 key, bool add_to_buffer)
 {
     if (gli_more_focus) {
         gli_input_more_focus();
@@ -134,7 +127,7 @@ void gli_input_handle_key(glui32 key)
         switch (key) {
         case keycode_Tab:
             gli_input_next_focus();
-            return;
+            return true;
         case keycode_PageUp:
         case keycode_PageDown:
         case keycode_MouseWheelUp:
@@ -154,10 +147,18 @@ void gli_input_handle_key(glui32 key)
             winexit();
         }
 
-        return;
+        return true;
     }
 
     bool defer_exit = false;
+    bool handled = true;
+
+    auto buffer = [&add_to_buffer, &key, &handled]() {
+        if (add_to_buffer) {
+            paste_buffer.push_back(key);
+        }
+        handled = false;
+    };
 
     switch (win->type) {
     case wintype_TextGrid:
@@ -165,6 +166,8 @@ void gli_input_handle_key(glui32 key)
             gcmd_grid_accept_readchar(win, key);
         } else if (win->line_request || win->line_request_uni) {
             gcmd_grid_accept_readline(win, key);
+        } else {
+            buffer();
         }
         break;
     case wintype_TextBuffer:
@@ -172,8 +175,11 @@ void gli_input_handle_key(glui32 key)
             gcmd_buffer_accept_readchar(win, key);
         } else if (win->line_request || win->line_request_uni) {
             gcmd_buffer_accept_readline(win, key);
-        } else if (win->more_request || win->scroll_request) {
+        } else if (!add_to_buffer && (win->more_request || win->scroll_request)) {
             defer_exit = gcmd_accept_scroll(win, key);
+            handled = false;
+        } else {
+            buffer();
         }
         break;
     }
@@ -181,6 +187,18 @@ void gli_input_handle_key(glui32 key)
     if (gli_terminated && !defer_exit) {
         winexit();
     }
+
+    return handled;
+}
+
+void gli_input_handle_key(glui32 key)
+{
+    gli_input_handle_key(key, false);
+}
+
+void gli_input_handle_key_paste(glui32 key)
+{
+    gli_input_handle_key(key, true);
 }
 
 void gli_input_handle_click(int x, int y)
@@ -188,6 +206,31 @@ void gli_input_handle_click(int x, int y)
     if (gli_rootwin != nullptr) {
         gli_window_click(gli_rootwin, x, y);
     }
+}
+
+static void gli_select_or_poll(event_t *event, bool polled)
+{
+    static bool first_event = false;
+    if (!first_event) {
+        gli_input_guess_focus();
+        first_event = true;
+    }
+
+    while (!paste_buffer.empty() && gli_input_handle_key(paste_buffer.front(), false)) {
+        paste_buffer.pop_front();
+    }
+
+    gli_select(event, polled);
+}
+
+void glk_select(event_t *event)
+{
+    gli_select_or_poll(event, false);
+}
+
+void glk_select_poll(event_t *event)
+{
+    gli_select_or_poll(event, true);
 }
 
 // Pick first window which might want input.
