@@ -76,6 +76,9 @@
 @protocol GargoyleApp
 
 - (BOOL) initWindow: (pid_t) processID
+               move: (BOOL) move
+                  x: (unsigned int) x
+                  y: (unsigned int) y
               width: (unsigned int) width
              height: (unsigned int) height
          fullscreen: (BOOL) fullscreen

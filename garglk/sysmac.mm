@@ -408,31 +408,53 @@ void winopen()
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
-    unsigned int defw = gli_wmarginx * 2 + gli_cellw * gli_cols / BACKING_SCALE_FACTOR;
-    unsigned int defh = gli_wmarginy * 2 + gli_cellh * gli_rows / BACKING_SCALE_FACTOR;
+    bool move = false;
+    int x = 0;
+    int y = 0;
+    unsigned int width = gli_wmarginx * 2 + gli_cellw * gli_cols / BACKING_SCALE_FACTOR;
+    unsigned int height = gli_wmarginy * 2 + gli_cellh * gli_rows / BACKING_SCALE_FACTOR;
     NSColor *windowColor = [NSColor colorWithCalibratedRed: (float) gli_window_color[0] / 255.0f
                                                      green: (float) gli_window_color[1] / 255.0f
                                                       blue: (float) gli_window_color[2] / 255.0f
                                                      alpha: 1.0f];
 
-    if (gli_conf_save_window_size) {
-        auto path = get_qt_plist_path();
-        if (path != nil) {
-            NSDictionary *config = [NSDictionary dictionaryWithContentsOfFile: path];
-            NSString *sizeobj = config[@"window.size"];
+    auto path = get_qt_plist_path();
+    if (path != nil) {
+        NSDictionary *config = [NSDictionary dictionaryWithContentsOfFile: path];
 
+        if (gli_conf_save_window_location) {
+            NSString *positionobj = config[@"window.position"];
+            if (positionobj) {
+                std::string position = [positionobj UTF8String];
+                std::regex position_re(R"(^@Point\((\d+) (\d+)\)$)");
+                std::smatch cm;
+                if (std::regex_match(position, cm, position_re) && cm.size() == 3) {
+                    try {
+                        auto tmpx = std::stoi(cm[1]);
+                        auto tmpy = std::stoi(cm[2]);
+
+                        x = tmpx;
+                        y = tmpy;
+                        move = true;
+                    } catch (...) {
+                    }
+                }
+            }
+        }
+
+        if (gli_conf_save_window_size) {
+            NSString *sizeobj = config[@"window.size"];
             if (sizeobj) {
                 std::string size = [sizeobj UTF8String];
                 std::regex size_re(R"(^@Size\((\d+) (\d+)\)$)");
                 std::smatch cm;
                 if (std::regex_match(size, cm, size_re) && cm.size() == 3) {
-                    int w, h;
                     try {
-                        w = std::stoi(cm[1]);
-                        h = std::stoi(cm[2]);
+                        auto tmpwidth = std::stoi(cm[1]);
+                        auto tmpheight = std::stoi(cm[2]);
 
-                        defw = w;
-                        defh = h;
+                        width = tmpwidth;
+                        height = tmpheight;
                     } catch (...) {
                     }
                 }
@@ -441,8 +463,11 @@ void winopen()
     }
 
     [gargoyle initWindow: processID
-                   width: defw
-                  height: defh
+                    move: move
+                       x: x
+                       y: y
+                   width: width
+                  height: height
               fullscreen: gli_conf_fullscreen
          backgroundColor: windowColor];
 

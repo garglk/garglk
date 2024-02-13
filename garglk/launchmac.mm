@@ -39,6 +39,15 @@ static const char *AppName = GARGOYLE_NAME " " GARGOYLE_VERSION;
 
 static std::string winpath();
 
+// Qt's origin is the top-left, but Mac's is bottom left, so translate,
+// since the config format is determined by Qt.
+static int coord_flip(NSWindow *window)
+{
+    auto screen_height = [NSScreen mainScreen].frame.size.height;
+    auto content = [NSWindow contentRectForFrameRect: window.frame styleMask: window.styleMask];
+    return screen_height - content.size.height;
+}
+
 static const std::unordered_map<FileFilter, std::string> winfilters = {
     {FileFilter::Save, "glksave"},
     {FileFilter::Text, "txt"},
@@ -164,7 +173,9 @@ static const std::unordered_map<FileFilter, std::string> winfilters = {
 - (void) moveWordBackward: (id) sender;
 - (void) moveWordForward: (id) sender;
 - (IBAction) performZoom: (id) sender;
+- (void) saveWindows;
 - (void) performRefresh: (NSNotification *) notice;
+- (void) performMove: (NSNotification *) notice;
 - (NSString *) openFileDialog: (NSString *) prompt
                    fileFilter: (FileFilter) filter;
 - (NSString *) saveFileDialog: (NSString *) prompt
@@ -199,19 +210,22 @@ static const std::unordered_map<FileFilter, std::string> winfilters = {
     [self setAcceptsMouseMovedEvents: YES];
     lastMouseMove = 0;
 
-    [[NSNotificationCenter defaultCenter] addObserver: self
-                                             selector: @selector(performRefresh:)
-                                                 name: NSWindowDidDeminiaturizeNotification
-                                               object: self];
+    std::vector<NSString *> names = {
+        NSWindowDidDeminiaturizeNotification,
+        NSWindowDidChangeScreenNotification,
+        NSWindowDidEndLiveResizeNotification,
+    };
+
+    for (const auto &name : names) {
+        [[NSNotificationCenter defaultCenter] addObserver: self
+                                                 selector: @selector(performRefresh:)
+                                                     name: name
+                                                   object: self];
+    }
 
     [[NSNotificationCenter defaultCenter] addObserver: self
                                              selector: @selector(performRefresh:)
-                                                 name: NSWindowDidChangeScreenNotification
-                                               object: self];
-
-    [[NSNotificationCenter defaultCenter] addObserver: self
-                                             selector: @selector(performRefresh:)
-                                                 name: NSWindowDidEndLiveResizeNotification
+                                                 name: NSWindowDidMoveNotification
                                                object: self];
 
     return self;
@@ -469,9 +483,9 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     [super performZoom: sender];
 }
 
-- (void) performRefresh: (NSNotification *) notice
+- (void) saveWindows
 {
-    if (gli_conf_save_window_size) {
+    if (gli_conf_save_window_location || gli_conf_save_window_size) {
         auto path = get_qt_plist_path();
         if (path != nil) {
             NSMutableDictionary *config = [NSMutableDictionary dictionaryWithContentsOfFile: path];
@@ -479,11 +493,25 @@ static BOOL isTextbufferEvent(NSEvent *evt)
                 config = [NSMutableDictionary dictionary];
             }
 
-            auto size = Format("@Size({} {})", self.frame.size.width, self.frame.size.height);
-            [config setObject: [NSString stringWithUTF8String: size.c_str()] forKey: @"window.size"];
+            if (gli_conf_save_window_location) {
+                auto location = Format("@Point({} {})", self.frame.origin.x, coord_flip(self) - self.frame.origin.y);
+                [config setObject: [NSString stringWithUTF8String: location.c_str()] forKey: @"window.position"];
+            }
+
+            if (gli_conf_save_window_size) {
+                auto size = Format("@Size({} {})", self.frame.size.width, self.frame.size.height);
+                printf("Size: %s\n", size.c_str());
+                [config setObject: [NSString stringWithUTF8String: size.c_str()] forKey: @"window.size"];
+            }
+
             [config writeToFile: path atomically: YES];
         }
     }
+}
+
+- (void) performRefresh: (NSNotification *) notice
+{
+    [self saveWindows];
 
     [self sendEvent: [NSEvent otherEventWithType: NSApplicationDefined
                                         location: NSZeroPoint
@@ -494,6 +522,11 @@ static BOOL isTextbufferEvent(NSEvent *evt)
                                          subtype: 0
                                            data1: 0
                                            data2: 0]];
+}
+
+- (void) performMove: (NSNotification *) notice
+{
+    [self saveWindows];
 }
 
 - (NSString *) openFileDialog: (NSString *) prompt
@@ -616,6 +649,9 @@ static BOOL isTextbufferEvent(NSEvent *evt)
 }
 
 - (BOOL) initWindow: (pid_t) processID
+               move: (BOOL) move
+                  x: (unsigned int) x
+                  y: (unsigned int) y
               width: (unsigned int) width
              height: (unsigned int) height
          fullscreen: (BOOL) fullscreen
@@ -637,7 +673,12 @@ static BOOL isTextbufferEvent(NSEvent *evt)
                                                          backgroundColor: backgroundColor];
 
     [window makeKeyAndOrderFront: window];
-    [window center];
+    if (move) {
+        rect = NSMakeRect(x, coord_flip(window) - y, width, height);
+        [window setFrame: rect display: YES];
+    } else {
+        [window center];
+    }
     [window setReleasedWhenClosed: YES];
     [window setDelegate: self];
     if (fullscreen) {
