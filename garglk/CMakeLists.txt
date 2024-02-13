@@ -227,7 +227,7 @@ endif()
 
 if("${SOUND}" STREQUAL "QT")
     find_package(Qt${QT_VERSION} COMPONENTS Multimedia REQUIRED CONFIG)
-    if (MSVC)  # pkg-config on Windows does not work when cross-compiling for Windows-on-ARM
+    if(MSVC)  # pkg-config on Windows does not work when cross-compiling for Windows-on-ARM
         find_library(SNDFILE sndfile REQUIRED)
         find_library(MPG123 NAMES mpg123 libmpg123 REQUIRED)
         find_library(OPENMPT NAMES openmpt libopenmpt REQUIRED)
@@ -267,7 +267,7 @@ if(JPEGLIB STREQUAL "AUTO" OR JPEGLIB STREQUAL "TURBO")
         endif()
     else()  # e.g. Windows-on-ARM cross-compilation
         find_library(TURBO NAMES turbojpeg libturbojpeg)
-        if (NOT "${TURBO}" STREQUAL "TURBO-NOTFOUND")
+        if(NOT "${TURBO}" STREQUAL "TURBO-NOTFOUND")
             target_link_libraries(garglk PRIVATE ${TURBO})
             target_compile_definitions(garglk PRIVATE GARGLK_CONFIG_JPEG_TURBO)
             set(GARGLK_FOUND_JPEG TRUE)
