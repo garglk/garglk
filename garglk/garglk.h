@@ -165,6 +165,7 @@ bool set_lcdfilter(const std::string &filter);
 nonstd::optional<std::string> winfontpath(const std::string &filename);
 std::vector<std::string> winappdata();
 nonstd::optional<std::string> winappdir();
+bool winisfullscreen();
 
 namespace theme {
 void init();

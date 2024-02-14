@@ -96,6 +96,24 @@ void glk_exit()
 
     garglk_set_story_title("[ press any key to exit ]");
 
+    /* After a game exits, Gargoyle waits for a keypress, since
+       otherwise text might get lost. It signals this by changing the
+       titlebar (as above). However, in full screen mode, the titlebar
+       isn't visible, so after quitting a game, Gargoyle looks like it's
+       sitting there doing nothing. On exit, in full screen mode, add a
+       "press any key to exit" message to all text buffer windows in the
+       hopes that one is visible. In weird cases this won't work (e.g.
+       if there is no text buffer window), but the vast majority of the
+       time this should work fine. */
+    if (garglk::winisfullscreen()) {
+        for (auto *win = glk_window_iterate(nullptr, 0); win != nullptr; win = glk_window_iterate(win, 0)) {
+            if (win->type == wintype_TextBuffer) {
+                glk_set_style_stream(glk_window_get_stream(win), style_Subheader);
+                glk_put_string_stream(glk_window_get_stream(win), const_cast<char *>("\n[Press any key to exit]"));
+            }
+        }
+    }
+
     gli_terminated = true;
 
     /* wait for gli_handle_input_key to exit() */
