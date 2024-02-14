@@ -569,6 +569,8 @@ extern bool gli_conf_sound;
 
 extern bool gli_conf_fullscreen;
 
+extern bool gli_wait_on_quit;
+
 extern bool gli_conf_speak;
 extern bool gli_conf_speak_input;
 

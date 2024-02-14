@@ -94,6 +94,10 @@ void glk_exit()
 #ifdef GARGLK
     event_t event;
 
+    if (!gli_wait_on_quit) {
+        winexit();
+    }
+
     garglk_set_story_title("[ press any key to exit ]");
 
     /* After a game exits, Gargoyle waits for a keypress, since
