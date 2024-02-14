@@ -478,28 +478,25 @@ void garglk::View::keyPressEvent(QKeyEvent *event)
         {{Qt::NoModifier, Qt::Key_F11},       []{ gli_input_handle_key(keycode_Func11); }},
         {{Qt::NoModifier, Qt::Key_F12},       []{ gli_input_handle_key(keycode_Func12); }},
 
-        {{Qt::ShiftModifier | Qt::ControlModifier, Qt::Key_S},
-            []{
-                auto text = gli_get_scrollback();
-                if (text.has_value()) {
-                    auto filename = QFileDialog::getSaveFileName(::window, "Save transcript", "transcript.txt", "Text files (*.txt)");
-                    if (!filename.isNull()) {
-                        QFile file(filename);
-                        if (file.open(QIODevice::WriteOnly)) {
-                            std::size_t n = file.write(text->data(), text->size());
-                            if (n != text->size()) {
-                                QMessageBox::critical(nullptr, "Error", "Error writing entire transcript.");
-                            }
-                        } else {
-                            QMessageBox::critical(nullptr, "Error", "Unable to open file for writing.");
+        {{Qt::ShiftModifier | Qt::ControlModifier, Qt::Key_S}, []{
+            auto text = gli_get_scrollback();
+            if (text.has_value()) {
+                auto filename = QFileDialog::getSaveFileName(::window, "Save transcript", "transcript.txt", "Text files (*.txt)");
+                if (!filename.isNull()) {
+                    QFile file(filename);
+                    if (file.open(QIODevice::WriteOnly)) {
+                        std::size_t n = file.write(text->data(), text->size());
+                        if (n != text->size()) {
+                            QMessageBox::critical(nullptr, "Error", "Error writing entire transcript.");
                         }
+                    } else {
+                        QMessageBox::critical(nullptr, "Error", "Unable to open file for writing.");
                     }
-                } else {
-                    QMessageBox::warning(nullptr, "Warning", "Could not find appropriate window for scrollback.");
                 }
+            } else {
+                QMessageBox::warning(nullptr, "Warning", "Could not find appropriate window for scrollback.");
             }
-        },
-
+        }},
     };
 
     try {
