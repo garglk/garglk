@@ -411,6 +411,8 @@ void winopen()
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
+    auto do_fullscreen = gli_conf_fullscreen;
+
     bool move = false;
     int x = 0;
     int y = 0;
@@ -463,6 +465,13 @@ void winopen()
                 }
             }
         }
+
+        if (gli_conf_save_window_location || gli_conf_save_window_size) {
+            NSNumber *fsobj = config[@"window.fullscreen"];
+            if (fsobj) {
+                do_fullscreen = [fsobj boolValue];
+            }
+        }
     }
 
     [gargoyle initWindow: processID
@@ -471,7 +480,7 @@ void winopen()
                        y: y
                    width: width
                   height: height
-              fullscreen: gli_conf_fullscreen
+              fullscreen: do_fullscreen
          backgroundColor: windowColor];
 
     wintitle();
@@ -634,8 +643,7 @@ void winkey(NSEvent *evt)
         {{0, NSKEY_F12},  []{ gli_input_handle_key(keycode_Func12); }},
 
         // save transcript
-        {{NSEventModifierFlagShift | NSEventModifierFlagCommand, NSKEY_S},
-        []{
+        {{NSEventModifierFlagShift | NSEventModifierFlagCommand, NSKEY_S}, []{
             auto text = gli_get_scrollback();
             if (text.has_value()) {
                 NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
@@ -661,6 +669,11 @@ void winkey(NSEvent *evt)
             } else {
                 show_warning(@"Warning", "Could not find appropriate window for scrollback.");
             }
+        }},
+
+        // toggle fullscreen
+        {{NSEventModifierFlagControl | NSEventModifierFlagCommand, NSKEY_F}, []{
+            [gargoyle toggleFullScreen: processID];
         }},
     };
 
