@@ -70,6 +70,8 @@
 #endif
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -77,15 +79,10 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
-#ifdef GARGLK_CONFIG_TICK
-#include <atomic>
-#include <chrono>
-#include <thread>
-#endif
 
 #include "format.h"
 #include "optional.hpp"
@@ -116,10 +113,8 @@ static garglk::Window *window;
 
 static bool refresh_needed = true;
 
-#ifdef GARGLK_CONFIG_TICK
 static constexpr int TICK_PERIOD_MILLIS = 10;
 static std::atomic<bool> process_events(false);
-#endif
 
 static void handle_input(const QString &input, bool from_paste)
 {
@@ -603,7 +598,6 @@ void wininit(int *, char **)
     QApplication::setApplicationName(GARGOYLE_NAME);
     QApplication::setApplicationVersion(GARGOYLE_VERSION);
 
-#ifdef GARGLK_CONFIG_TICK
     std::thread([]() {
         while (true) {
             std::this_thread::sleep_for(std::chrono::milliseconds(TICK_PERIOD_MILLIS));
@@ -611,7 +605,6 @@ void wininit(int *, char **)
         }
     })
     .detach();
-#endif
 }
 
 void winopen()
@@ -738,10 +731,8 @@ bool garglk::winisfullscreen()
 
 void gli_tick()
 {
-#ifdef GARGLK_CONFIG_TICK
-    // When the Qt sound backed is being used, glk_tick() needs to
-    // process events periodically, unlike the SDL backend, which uses a
-    // separate thread. Processing Qt events is expensive, so should not
+    // Qt needs to keep processing events even in the absence of calls
+    // to glk_select(). Processing Qt events is expensive, so should not
     // be done each tick (which generally happens each VM instruction).
     // Originally this waited at least 10ms between calls, but the mere
     // act of checking a timer each iteration was too expensive. Now a
@@ -752,7 +743,6 @@ void gli_tick()
         app->processEvents(QEventLoop::ExcludeUserInputEvents);
         process_events.store(false, std::memory_order_relaxed);
     }
-#endif
 }
 
 void gli_select(event_t *event, bool polled)
@@ -784,7 +774,5 @@ void gli_select(event_t *event, bool polled)
         window->reset_timeout();
     }
 
-#ifdef GARGLK_CONFIG_TICK
     process_events.store(false, std::memory_order_relaxed);
-#endif
 }
