@@ -860,6 +860,11 @@ nonstd::optional<std::string> garglk::winappdir()
     return nonstd::nullopt;
 }
 
+bool garglk::winisfullscreen()
+{
+    return [gargoyle isFullScreen: processID];
+}
+
 void gli_select(event_t *event, bool polled)
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];

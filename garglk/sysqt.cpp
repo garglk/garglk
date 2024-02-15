@@ -728,6 +728,11 @@ nonstd::optional<std::string> garglk::winappdir()
     return QCoreApplication::applicationDirPath().toStdString();
 }
 
+bool garglk::winisfullscreen()
+{
+    return window->isFullScreen();
+}
+
 void gli_tick()
 {
 #ifdef GARGLK_CONFIG_TICK

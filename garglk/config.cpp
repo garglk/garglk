@@ -221,6 +221,8 @@ std::string gli_conf_speak_language;
 
 bool gli_conf_fullscreen = false;
 
+bool gli_wait_on_quit = true;
+
 bool gli_conf_stylehint = true;
 bool gli_conf_safeclicks = false;
 
@@ -741,6 +743,8 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 gli_conf_fullscreen = asbool(arg);
             } else if (cmd == "zoom") {
                 gli_zoom = config_atleast(parse_double(arg), 0.1);
+            } else if (cmd == "wait_on_quit") {
+                gli_wait_on_quit = asbool(arg);
             } else if (cmd == "speak") {
                 gli_conf_speak = asbool(arg);
             } else if (cmd == "speak_input") {

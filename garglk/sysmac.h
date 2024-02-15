@@ -123,6 +123,8 @@
 
 - (void) setCursor: (unsigned int) cursor;
 
+- (BOOL) isFullScreen: (pid_t) processID;
+
 @end
 
 NSString *get_qt_plist_path();

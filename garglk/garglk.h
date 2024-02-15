@@ -165,6 +165,7 @@ bool set_lcdfilter(const std::string &filter);
 nonstd::optional<std::string> winfontpath(const std::string &filename);
 std::vector<std::string> winappdata();
 nonstd::optional<std::string> winappdir();
+bool winisfullscreen();
 
 namespace theme {
 void init();
@@ -567,6 +568,8 @@ extern bool gli_conf_graphics;
 extern bool gli_conf_sound;
 
 extern bool gli_conf_fullscreen;
+
+extern bool gli_wait_on_quit;
 
 extern bool gli_conf_speak;
 extern bool gli_conf_speak_input;

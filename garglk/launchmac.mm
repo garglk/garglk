@@ -853,6 +853,12 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     NSRunAlertPanel(@"Fatal error", @"%@", nil, nil, nil, prompt);
 }
 
+- (BOOL) isFullScreen: (pid_t) processID
+{
+    GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+    return (window.styleMask & NSWindowStyleMaskFullScreen) == NSWindowStyleMaskFullScreen;
+}
+
 #define kArrowCursor        1
 #define kIBeamCursor        2
 #define kPointingHandCursor 3
