@@ -193,13 +193,9 @@ class PixelView;
 // data; contrast this with PixelView which holds a pointer to a pixel.
 template <std::size_t N>
 class Pixel {
-public:
-    // Unfortunately, at the moment a default constructor is required so
-    // that pixels can be placed in a vector.
-    Pixel() {
-        m_pixel.fill(0);
-    }
+    static_assert(N > 0, "Pixel size must be non-zero");
 
+public:
     template <typename... Args>
     explicit Pixel(Args... args) : m_pixel{static_cast<unsigned char>(args)...} {
         static_assert(sizeof...(Args) == N, "Incorrect argument count for Pixel");
