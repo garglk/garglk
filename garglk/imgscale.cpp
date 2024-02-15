@@ -65,7 +65,7 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
 
     Canvas<4> rgba(newcols, newrows);
 
-    std::vector<Pixel<4>> tempxelrow(cols);
+    std::vector<Pixel<4>> tempxelrow(cols, Pixel<4>(0, 0, 0, 0));
     std::vector<long> rs(cols, HALFSCALE);
     std::vector<long> gs(cols, HALFSCALE);
     std::vector<long> bs(cols, HALFSCALE);
