@@ -121,13 +121,16 @@ static constexpr int TICK_PERIOD_MILLIS = 10;
 static std::atomic<bool> process_events(false);
 #endif
 
-static void handle_input(const QString &input)
+static void handle_input(const QString &input, bool from_paste)
 {
+    auto fn = from_paste ? gli_input_handle_key_paste :
+                           gli_input_handle_key;
+
     for (const uint &c : input.toUcs4()) {
         if (c == '\r' || c == '\n') {
-            gli_input_handle_key(keycode_Return);
+            fn(keycode_Return);
         } else if (QChar::isPrint(c)) {
-            gli_input_handle_key(c);
+            fn(c);
         }
     }
 }
@@ -218,7 +221,7 @@ static void winclipreceive(QClipboard::Mode mode)
     QClipboard *clipboard = QGuiApplication::clipboard();
     QString text = clipboard->text(mode);
 
-    handle_input(text);
+    handle_input(text, true);
 }
 
 garglk::Window::Window() :
@@ -505,7 +508,7 @@ void garglk::View::keyPressEvent(QKeyEvent *event)
     } catch (const std::out_of_range &) {
     }
 
-    handle_input(event->text());
+    handle_input(event->text(), false);
 }
 
 void garglk::View::mouseMoveEvent(QMouseEvent *event)
