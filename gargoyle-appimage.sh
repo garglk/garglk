@@ -14,7 +14,7 @@ https://github.com/garglk/assets/raw/appimage/linuxdeploy-plugin-appimage-x86_64
 https://github.com/garglk/assets/raw/appimage/linuxdeploy-plugin-qt-x86_64.AppImage
 EOF
 chmod +x linuxdeploy*
-cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DAPPIMAGE=TRUE -DBUILD_SHARED_LIBS=OFF
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DAPPIMAGE=TRUE -DBUILD_SHARED_LIBS=OFF
 make "-j$(nproc)"
 make install DESTDIR=AppDir
 
