@@ -22,7 +22,6 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <memory>
 #include <string>
 
 #include "format.h"
@@ -39,10 +38,9 @@ static bool find_font_file(const std::string &facename, std::string &filepath);
 
 static HDC hdc;
 
-static std::unique_ptr<FontFiller> filler;
-
-static int CALLBACK font_cb(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *, int, LPARAM)
+static int CALLBACK font_cb(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *, int, LPARAM filler_)
 {
+    FontFiller *filler = reinterpret_cast<FontFiller *>(filler_);
     std::string filepath;
     std::string style = reinterpret_cast<char *>(lpelfe->elfStyle);
 
@@ -139,13 +137,12 @@ void garglk::fontreplace(const std::string &font, FontType type)
 
     hdc = GetDC(0);
 
-    filler = std::make_unique<FontFiller>(type);
+    FontFiller filler(type);
 
     std::snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", font.c_str());
-    EnumFontFamiliesExA(hdc, &logfont, reinterpret_cast<FONTENUMPROCA>(font_cb), 0, 0);
+    EnumFontFamiliesExA(hdc, &logfont, reinterpret_cast<FONTENUMPROCA>(font_cb), reinterpret_cast<LPARAM>(&filler), 0);
 
-    filler->fill();
-    filler.reset();
+    filler.fill();
 
     ReleaseDC(0, hdc);
 }

@@ -246,7 +246,7 @@ FontEntry Font::getglyph(glui32 cid)
 // Look for a user-specified font. This will be either based on a font
 // family (propfont or monofont), or specific font files (e.g. propr,
 // monor, etc).
-static nonstd::optional<std::string> font_path_user(const std::string &path, const std::string &)
+static nonstd::optional<std::string> font_path_user(const nonstd::optional<std::string> &path, const std::string &)
 {
     return path;
 }
@@ -255,7 +255,7 @@ static nonstd::optional<std::string> font_path_user(const std::string &path, con
 // Unix this is generally somewhere like /usr/share/fonts/gargoyle
 // (although this can be changed at build time), and on Windows it's the
 // install directory (e.g. "C:\Program Files (x86)\Gargoyle").
-static nonstd::optional<std::string> font_path_fallback_system(const std::string &, const std::string &fallback)
+static nonstd::optional<std::string> font_path_fallback_system(const nonstd::optional<std::string> &, const std::string &fallback)
 {
 #ifdef _WIN32
     char directory[256];
@@ -275,13 +275,13 @@ static nonstd::optional<std::string> font_path_fallback_system(const std::string
 // Look in a platform-specific location for the fonts. This is typically
 // the same directory that the executable is in, but can be anything the
 // platform code deems appropriate.
-static nonstd::optional<std::string> font_path_fallback_platform(const std::string &, const std::string &fallback)
+static nonstd::optional<std::string> font_path_fallback_platform(const nonstd::optional<std::string> &, const std::string &fallback)
 {
     return garglk::winfontpath(fallback);
 }
 
 // As a last-ditch effort, look in the current directory for the fonts.
-static nonstd::optional<std::string> font_path_fallback_local(const std::string &, const std::string &fallback)
+static nonstd::optional<std::string> font_path_fallback_local(const nonstd::optional<std::string> &, const std::string &fallback)
 {
     return fallback;
 }
@@ -299,14 +299,14 @@ static std::string fontface_to_name(FontFace fontface)
 
 static Font make_font(FontFace fontface, const std::string &fallback)
 {
-    std::vector<std::function<nonstd::optional<std::string>(const std::string &path, const std::string &fallback)>> font_paths = {
+    std::vector<std::function<nonstd::optional<std::string>(const nonstd::optional<std::string> &path, const std::string &fallback)>> font_paths = {
         font_path_user,
         font_path_fallback_system,
         font_path_fallback_platform,
         font_path_fallback_local,
     };
 
-    const std::string &path =
+    const auto &path =
         fontface == FontFace::monor() ? gli_conf_mono.r :
         fontface == FontFace::monob() ? gli_conf_mono.b :
         fontface == FontFace::monoi() ? gli_conf_mono.i :
@@ -424,28 +424,28 @@ void gli_initialize_fonts()
     fontunload();
 
     // If the user provided specific fonts, swap them in
-    if (!gli_conf_mono_override.r.empty()) {
+    if (gli_conf_mono_override.r.has_value()) {
         gli_conf_mono.r = gli_conf_mono_override.r;
     }
-    if (!gli_conf_mono_override.b.empty()) {
+    if (gli_conf_mono_override.b.has_value()) {
         gli_conf_mono.b = gli_conf_mono_override.b;
     }
-    if (!gli_conf_mono_override.i.empty()) {
+    if (gli_conf_mono_override.i.has_value()) {
         gli_conf_mono.i = gli_conf_mono_override.i;
     }
-    if (!gli_conf_mono_override.z.empty()) {
+    if (gli_conf_mono_override.z.has_value()) {
         gli_conf_mono.z = gli_conf_mono_override.z;
     }
-    if (!gli_conf_prop_override.r.empty()) {
+    if (gli_conf_prop_override.r.has_value()) {
         gli_conf_prop.r = gli_conf_prop_override.r;
     }
-    if (!gli_conf_prop_override.b.empty()) {
+    if (gli_conf_prop_override.b.has_value()) {
         gli_conf_prop.b = gli_conf_prop_override.b;
     }
-    if (!gli_conf_prop_override.i.empty()) {
+    if (gli_conf_prop_override.i.has_value()) {
         gli_conf_prop.i = gli_conf_prop_override.i;
     }
-    if (!gli_conf_prop_override.z.empty()) {
+    if (gli_conf_prop_override.z.has_value()) {
         gli_conf_prop.z = gli_conf_prop_override.z;
     }
 
