@@ -598,7 +598,7 @@ extern int gli_baseline;
 extern int gli_leading;
 
 struct FontFiles {
-    std::string r, b, i, z;
+    nonstd::optional<std::string> r, b, i, z;
 };
 extern std::string gli_conf_propfont;
 extern FontFiles gli_conf_prop, gli_conf_prop_override;
