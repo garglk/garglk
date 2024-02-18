@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <deque>
 #include <list>
+#include <mutex>
 
 #include "glk.h"
 #include "garglk.h"

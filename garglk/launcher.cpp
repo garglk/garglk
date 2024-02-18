@@ -18,18 +18,15 @@
 // along with Gargoyle; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-#include <algorithm>
+#include <array>
 #include <cctype>
+#include <cstdint>
 #include <fstream>
-#include <iomanip>
 #include <ios>
-#include <memory>
 #include <regex>
-#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
