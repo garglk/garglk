@@ -30,7 +30,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
-#include <new>
 #include <string>
 #include <utility>
 #include <vector>

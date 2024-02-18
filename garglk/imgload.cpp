@@ -17,9 +17,6 @@
 // along with Gargoyle; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-#include <array>
-#include <cstdio>
-#include <fstream>
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -30,6 +27,9 @@
 #ifdef GARGLK_CONFIG_JPEG_TURBO
 #include <turbojpeg.h>
 #else
+#include <array>
+#include <cstdio>
+
 // jpeglib.h requires these to be defined.
 using std::size_t;
 using std::FILE;
