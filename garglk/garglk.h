@@ -19,7 +19,7 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 // Private header file for the Gargoyle Implementation of the Glk API.
-// Glk API which this implements: version 0.7.3.
+// Glk API which this implements: version 0.7.5.
 // Glk designed by Andrew Plotkin <erkyrath@eblong.com>
 // http://www.eblong.com/zarf/glk/index.html
 
