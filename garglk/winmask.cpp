@@ -363,11 +363,26 @@ bool gli_get_selection(int x0, int y0,
         }
     }
 
+    // XXX
+    // This is the equivalent to how this code was initially checked in,
+    // but it can't be correct. If rx1 is null, this will dereference a
+    // null pointer; but this has _never_ been called with a null
+    // pointer, so the first part is effectively dead code. On top of
+    // it, this will always return true, since rx0 and rx1 are always
+    // non-null pointers: there is one caller to this function and it
+    // always provides values for the pointers. For now just return
+    // true, since that's what the original code effectively did, but
+    // leave this as a marker to come back and try to figure out what
+    // the original intent was.
+#if 0
     if (rx0 != nullptr && rx1 == nullptr) {
         *rx1 = x1;
     }
 
     return rx0 != nullptr && rx1 != nullptr;
+#endif
+
+    return true;
 }
 
 void gli_clipboard_copy(const glui32 *buf, int len)
