@@ -32,16 +32,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(GARGLK) && defined(_WIN32)
-#include <io.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#endif
-
 #include "scare.h"
 #include "glk.h"
 
 #include "scprotos.h" /* for SCARE_VERSION */
+
+#undef _WIN32   /* Gargoyle */
 
 /*
  * True and false definitions -- usually defined in glkstart.h, but we need
@@ -1741,112 +1737,6 @@ os_stop_sound (void)
 }
 
 
-#ifdef GARGLK
-static const char *gamefile;
-static char gamedir[8192];
-
-static const char *find_last(const char *str, const char *chars)
-{
-  const char *found = NULL;
-  while (*chars != 0) {
-    const char *p = strrchr(str, *chars++);
-    if (p != NULL && (found == NULL || p > found)) {
-      found = p;
-    }
-  }
-
-  return found;
-}
-
-static size_t scare_min(size_t a, size_t b)
-{
-  return a < b ? a : b;
-}
-
-/*
- * os_show_graphic()
- *
- * Gargoyle supports loading external resources from individual files (for
- * example, PIC0 corresponds to glk_image_draw(0, ...)). This function makes use
- * of that by creating a temporary PIC0 file, writing the image to it, loading
- * it, then removing the image. This is not particularly clean, but since
- * there's no way to load images from memory in Gargoyle yet, it'll have to do.
- */
-void
-os_show_graphic (const sc_char *filepath, sc_int offset, sc_int length)
-{
-  FILE *in = NULL, *out = NULL;
-  static char picpath[(sizeof gamedir) + 5];
-
-  if (gamefile == NULL) {
-    return;
-  }
-
-  in = fopen(gamefile, "rb");
-  if (in == NULL) {
-    goto out;
-  }
-
-  if (fseek(in, offset, SEEK_SET) == -1) {
-    goto out;
-  }
-
-  snprintf(picpath, sizeof picpath, "%s/PIC0", gamedir);
-
-  // C11 adds "wx" support to fopen(), but apparently neither MinGW nor
-  // MSVC properly support it: MinGW explicitly fails citing 'x' as
-  // invalid, and at least under Wine, 'x' causes a crash when built
-  // with MSVC, but I only have access to a cross compiler on Linux, so
-  // it may be an artifact of either Wine or the cross compiling.
-#ifdef _WIN32
-  int fd = _open(picpath, _O_BINARY | _O_WRONLY | _O_EXCL | _O_CREAT, _S_IREAD | _S_IWRITE);
-  if (fd == -1) {
-    goto out;
-  }
-  out = _fdopen(fd, "wb");
-#else
-  out = fopen(picpath, "wbx");
-#endif
-
-  if (out == NULL) {
-    goto out;
-  }
-
-  char buf[8192];
-  size_t n;
-  size_t remaining = length;
-  while (remaining != 0 && (n = fread(buf, 1, scare_min(sizeof buf, remaining), in)) > 0) {
-    if (fwrite(buf, n, 1, out) != 1) {
-      goto out;
-    }
-
-    remaining -= n;
-  }
-
-  if (ferror(in)) {
-    goto out;
-  }
-
-  if (fclose(out) != 0) {
-    goto out;
-  }
-
-  out = NULL;
-
-  glk_image_draw(gsc_main_window, 0, imagealign_InlineDown, 0);
-
-out:
-  if (in != NULL) {
-    fclose(in);
-  }
-
-  if (out != NULL) {
-    fclose(out);
-  }
-
-  remove(picpath);
-}
-#else
 /*
  * os_show_graphic()
  *
@@ -1900,7 +1790,6 @@ os_show_graphic (const sc_char *filepath, sc_int offset, sc_int length)
   unused2 = offset;
   unused3 = length;
 }
-#endif
 #endif
 
 
@@ -3592,24 +3481,6 @@ glkunix_startup_code (glkunix_startup_t * data)
   gsclinux_game_file = argv[argv_index];
 #endif
 
-#ifdef GARGLK
-  if (strlen(argv[argv_index]) < (sizeof gamedir) - 1) {
-    gamefile = argv[argv_index];
-#ifdef _WIN32
-    char *sep = "/\\";
-#else
-    char *sep = "/";
-#endif
-    const char *slash = find_last(argv[argv_index], sep);
-    if (slash == NULL) {
-      strcpy(gamedir, argv[argv_index]);
-    } else {
-      // gamepath is initialized to zeros so no explicit null termination is necessary.
-      memcpy(gamedir, argv[argv_index], slash - argv[argv_index]);
-    }
-  }
-#endif
-
   /* Use the generic startup code to complete startup. */
   return gsc_startup_code (game_stream, restore_stream, trace_flags,
                            enable_debugger, stable_random, locale);
@@ -3617,7 +3488,6 @@ glkunix_startup_code (glkunix_startup_t * data)
 #endif /* __unix */
 
 
-#ifndef GARGLK
 /*---------------------------------------------------------------------*/
 /*  Glk linkage relevant only to the Windows platform                  */
 /*---------------------------------------------------------------------*/
@@ -3707,5 +3577,3 @@ winglk_startup_code (const char *cmdline)
                            enable_debugger, stable_random, locale);
 }
 #endif /* _WIN32 */
-
-#endif
