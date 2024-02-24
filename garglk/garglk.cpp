@@ -73,7 +73,7 @@ void gli_exit(int status)
 
 bool garglk::read_file(const std::string &filename, std::vector<unsigned char> &buf)
 {
-    std::ifstream f(filename);
+    std::ifstream f(filename, std::ios::binary);
     if (!f.is_open()) {
         return false;
     }
