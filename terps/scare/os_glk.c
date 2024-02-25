@@ -35,9 +35,26 @@
 #include "scare.h"
 #include "glk.h"
 
-#include "scprotos.h" /* for SCARE_VERSION */
+#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
+#include "gi_blorb.h"
 
-#undef _WIN32   /* Gargoyle */
+char gamefile[1024];
+
+static const char *find_last_of(const char *str, const char *chars)
+{
+  const char *found = NULL;
+  while (*chars != 0) {
+    const char *p = strrchr(str, *chars++);
+    if (p != NULL && (found == NULL || p > found)) {
+      found = p;
+    }
+  }
+
+  return found;
+}
+#endif
+
+#include "scprotos.h" /* for SCARE_VERSION */
 
 /*
  * True and false definitions -- usually defined in glkstart.h, but we need
@@ -1712,6 +1729,35 @@ os_display_hints (sc_game game)
 /*  Glk resource handling functions                                    */
 /*---------------------------------------------------------------------*/
 
+#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
+static schanid_t sound_channel;
+
+void
+os_play_sound (const sc_char *filepath,
+               sc_int offset, sc_int length, sc_bool is_looping)
+{
+  if (sound_channel == NULL) {
+    sound_channel = glk_schannel_create(0);
+  }
+
+  if (sound_channel == NULL) {
+    return;
+  }
+
+  glui32 id = garglk_add_resource_from_file(giblorb_ID_Snd, gamefile, offset, length);
+  if (id != 0) {
+    glk_schannel_play_ext(sound_channel, id, is_looping ? 0xffffffff : 1, 0);
+  }
+}
+
+void
+os_stop_sound (void)
+{
+  if (sound_channel != NULL) {
+    glk_schannel_stop(sound_channel);
+  }
+}
+#else
 /*
  * os_play_sound()
  * os_stop_sound()
@@ -1735,8 +1781,24 @@ void
 os_stop_sound (void)
 {
 }
+#endif
 
 
+#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
+/*
+ * os_show_graphic()
+ *
+ * Use the Gargoyle-specific garglk_add_resource_from_file().
+ */
+void
+os_show_graphic (const sc_char *filepath, sc_int offset, sc_int length)
+{
+  glui32 id = garglk_add_resource_from_file(giblorb_ID_Pict, gamefile, offset, length);
+  if (id != 0) {
+    glk_image_draw(gsc_main_window, id, imagealign_InlineDown, 0);
+  }
+}
+#else
 /*
  * os_show_graphic()
  *
@@ -1790,6 +1852,7 @@ os_show_graphic (const sc_char *filepath, sc_int offset, sc_int length)
   unused2 = offset;
   unused3 = length;
 }
+#endif
 #endif
 
 
@@ -3481,6 +3544,24 @@ glkunix_startup_code (glkunix_startup_t * data)
   gsclinux_game_file = argv[argv_index];
 #endif
 
+#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
+#ifdef _WIN32
+    const char *sep = "/\\";
+#else
+    const char *sep = "/";
+#endif
+    const char *slash = find_last_of(argv[argv_index], sep);
+    if (slash == NULL) {
+      snprintf(gamefile, sizeof gamefile, "%s", argv[argv_index]);
+    } else {
+      snprintf(gamefile, sizeof gamefile, "%s", slash + 1);
+  }
+#endif
+
+#ifdef GARGLK
+  glkunix_set_base_file(argv[argv_index]);
+#endif
+
   /* Use the generic startup code to complete startup. */
   return gsc_startup_code (game_stream, restore_stream, trace_flags,
                            enable_debugger, stable_random, locale);
@@ -3491,6 +3572,10 @@ glkunix_startup_code (glkunix_startup_t * data)
 /*---------------------------------------------------------------------*/
 /*  Glk linkage relevant only to the Windows platform                  */
 /*---------------------------------------------------------------------*/
+#ifdef GARGLK
+#undef _WIN32
+#endif
+
 #ifdef _WIN32
 
 #include <windows.h>
