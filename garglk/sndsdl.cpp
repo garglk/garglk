@@ -578,10 +578,8 @@ static glui32 play_sound(schanid_t chan)
 }
 
 // Start a mod music channel
-static glui32 play_mod(schanid_t chan, long len)
+static glui32 play_mod(schanid_t chan)
 {
-    std::FILE *file;
-    const char *tempdir;
     bool music_busy;
     int loop;
 
@@ -601,32 +599,7 @@ static glui32 play_mod(schanid_t chan, long len)
     }
 
     chan->status = CHANNEL_MUSIC;
-    // The fscking mikmod lib want to read the mod only from disk!
-    tempdir = std::getenv("TMPDIR");
-    if (tempdir == nullptr) {
-        tempdir = std::getenv("TEMP");
-        if (tempdir == nullptr) {
-            tempdir = std::getenv("TMP");
-            if (tempdir == nullptr) {
-                tempdir = ".";
-            }
-        }
-    }
-
-    // allocate size of string tempdir + "XXXXXX' + terminator
-    std::vector<char> tn(std::strlen(tempdir) + 7);
-    std::sprintf(tn.data(), "%sXXXXXX", tempdir);
-    int fd;
-    fd = mkstemp(tn.data());
-    if (fd == -1) {
-        gli_strict_warning("play mod failed: could not create temp file");
-        return 0;
-    }
-    file = fdopen(fd, "wb");
-    std::fwrite(chan->sdl_memory.data(), 1, len, file);
-    std::fclose(file);
-    chan->music = Mix_LoadMUS(tn.data());
-    std::remove(tn.data());
+    chan->music = Mix_LoadMUSType_RW(chan->sdl_rwops, MUS_MOD, 0);
     if (chan->music != nullptr) {
         SDL_LockAudio();
         music_channel = chan;
@@ -689,7 +662,7 @@ static glui32 gli_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, 
 
     case giblorb_ID_MOD:
     case giblorb_ID_MIDI:
-        result = play_mod(chan, chan->sdl_memory.size());
+        result = play_mod(chan);
         break;
 
     default:
