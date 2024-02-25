@@ -487,7 +487,13 @@ static int detect_format(const std::vector<unsigned char> &buf)
         {{0, {"OggS"}}, giblorb_ID_OGG},
 
         // mp3
-        {{0, {"\377\372"}}, giblorb_ID_MP3},
+        {{0, {"ID3"}}, giblorb_ID_MP3},
+        {{0, {"\xff\xe2"}}, giblorb_ID_MP3},
+        {{0, {"\xff\xe3"}}, giblorb_ID_MP3},
+        {{0, {"\xff\xf2"}}, giblorb_ID_MP3},
+        {{0, {"\xff\xf3"}}, giblorb_ID_MP3},
+        {{0, {"\xff\xfa"}}, giblorb_ID_MP3},
+        {{0, {"\xff\xfb"}}, giblorb_ID_MP3},
     };
 
     for (const auto &entry : formats) {
