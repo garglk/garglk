@@ -51,6 +51,60 @@ void hugo_setgametitle(char *t)
 static schanid_t mchannel = NULL;
 static schanid_t schannel = NULL;
 
+#ifdef GARGLK
+struct GlkResource {
+  long offset;
+  int id;
+};
+
+static struct GlkResource glk_resources[8192];
+static size_t glk_resources_count = 0;
+
+static int loadres(HUGO_FILE infile, int reslen, int type)
+{
+	long offset = ftell(infile);
+
+	if (offset == -1) {
+		return -1;
+	}
+
+	for (size_t i = 0; i < glk_resources_count; i++) {
+		if (glk_resources[i].offset == offset) {
+			return glk_resources[i].id;
+		}
+	}
+
+	if (glk_resources_count == (sizeof glk_resources / sizeof *glk_resources)) {
+		return -1;
+	}
+
+	unsigned char *data = malloc(reslen);
+	if (data == NULL) {
+		return -1;
+	}
+
+	for (int i = 0; i < reslen; i++) {
+		glsi32 c = fgetc(infile);
+		if (c == -1) {
+			break;
+		}
+		data[i] = c;
+	}
+
+	int id = type == PIC ?
+		garglk_add_image_resource(data, reslen) :
+		garglk_add_sound_resource(data, reslen);
+
+	free(data);
+
+	glk_resources[glk_resources_count++] = (struct GlkResource) {
+		.offset = offset,
+		.id = id,
+	};
+
+	return id;
+}
+#else
 static long resids[2][MAXRES];
 static int numres[2] = { 0, 0 };
 
@@ -73,33 +127,6 @@ static int loadres(HUGO_FILE infile, int reslen, int type)
 		return -1;
 
 	id = numres[type]++;
-#ifdef GARGLK
-	// Gargoyle now appends ".glkdata" to files opened with normal Glk file
-	// functions. That means that this would create files such as
-	// "PIC0.glkdata", but Gargoyle requires names like "PIC0". If Gargoyle
-	// used Glk routines to open individual media files, then Glk routines
-	// could be used to create them, but it doesn't; instead, it uses stdio
-	// routines, so do the same here.
-	snprintf(buf, sizeof buf, "%s/%s%d", hugo_path_to_game, type == PIC ? "PIC" : "SND", id);
-	resids[type][id] = offset;
-
-	FILE *fp = fopen(buf, "w");
-	if (fp != NULL)
-	{
-		while (reslen > 0)
-		{
-			n = fread(buf, 1, reslen < sizeof buf ? reslen : sizeof buf, infile);
-			if (n <= 0)
-				break;
-			fwrite(buf, n, 1, fp);
-			reslen -= n;
-		}
-
-		// Hugo defines an fclose function-like macro, so the parens
-		// here are needed to get to the actual fopen function.
-		(fclose)(fp);
-	}
-#else
 	sprintf(buf, "%s%d", type == PIC ? "PIC" : "SND", id);
 	resids[type][id] = offset;
 
@@ -128,10 +155,10 @@ static int loadres(HUGO_FILE infile, int reslen, int type)
 	}
 
 	glk_stream_close(stream, NULL);
-#endif
 
 	return id;
 }
+#endif
 
 int hugo_hasgraphics(void)
 {

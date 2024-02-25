@@ -1737,6 +1737,85 @@ os_stop_sound (void)
 }
 
 
+#ifdef GARGLK
+static const char *gamefile;
+
+struct GlkImage {
+  sc_int offset;
+  int id;
+};
+
+static struct GlkImage glk_images[8192];
+static size_t glk_images_count = 0;
+
+/*
+ * os_show_graphic()
+ *
+ * Use the Gargoyle-specific garglk_add_image_resource() to load images from memory.
+ */
+void
+os_show_graphic (const sc_char *filepath, sc_int offset, sc_int length)
+{
+  FILE *in = NULL;
+  unsigned char *data = NULL;
+
+  for (size_t i = 0; i < glk_images_count; i++) {
+    if (glk_images[i].offset == offset) {
+      glk_image_draw(gsc_main_window, glk_images[i].id, imagealign_InlineDown, 0);
+      return;
+    }
+  }
+
+  if (glk_images_count == (sizeof glk_images / sizeof *glk_images)) {
+    return;
+  }
+
+  if (gamefile == NULL) {
+    return;
+  }
+
+  in = fopen(gamefile, "rb");
+  if (in == NULL) {
+    goto out;
+  }
+
+  if (fseek(in, offset, SEEK_SET) == -1) {
+    goto out;
+  }
+
+  data = malloc(length);
+  if (data == NULL) {
+    goto out;
+  }
+
+  for (int i = 0; i < length; i++) {
+    int c = getc(in);
+    if (c == EOF) {
+      if (ferror(in)) {
+        goto out;
+      }
+      break;
+    }
+    data[i] = c;
+  }
+
+  int id = garglk_add_image_resource(data, length);
+
+  glk_images[glk_images_count++] = (struct GlkImage) {
+    .offset = offset,
+    .id = id,
+  };
+
+  glk_image_draw(gsc_main_window, id, imagealign_InlineDown, 0);
+
+out:
+  if (in != NULL) {
+    fclose(in);
+  }
+
+  free(data);
+}
+#else
 /*
  * os_show_graphic()
  *
@@ -1790,6 +1869,7 @@ os_show_graphic (const sc_char *filepath, sc_int offset, sc_int length)
   unused2 = offset;
   unused3 = length;
 }
+#endif
 #endif
 
 
@@ -3479,6 +3559,10 @@ glkunix_startup_code (glkunix_startup_t * data)
 #ifdef LINUX_GRAPHICS
   /* Note the path to the game file for graphics extraction. */
   gsclinux_game_file = argv[argv_index];
+#endif
+
+#ifdef GARGLK
+  gamefile = argv[argv_index];
 #endif
 
   /* Use the generic startup code to complete startup. */

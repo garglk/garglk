@@ -527,6 +527,19 @@ extern int garglk_tads_os_banner_size(winid_t win);
 
 extern void garglk_window_get_size_pixels(winid_t win, glui32 *width, glui32 *height);
 
+/* Some game formats include graphics and/or sound, but not in a Blorb file. To
+ * support this, Gargoyle provides these functions to add either an image or
+ * sound resource. The return value is a resource number that can be used to
+ * draw an image or play a sound. As a result, Gargoyle has three ways to find
+ * resources. In order of preference, highest to lowest:
+ *
+ * 1. From a Blorb file
+ * 2. From a resource added with these functions
+ * 3. From a PIC or SND file
+ */
+extern int garglk_add_image_resource(const unsigned char *data, glui32 n);
+extern int garglk_add_sound_resource(const unsigned char *data, glui32 n);
+
 
 /* non standard keycodes */
 #define keycode_Erase               (0xffffef7f)

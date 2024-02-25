@@ -748,19 +748,20 @@ static std::pair<int, std::vector<unsigned char>> load_bleep_resource(glui32 snd
     return {detect_format(data), data};
 }
 
+static std::vector<std::vector<unsigned char>> garglk_sound_data;
+
+int garglk_add_sound_resource(const unsigned char *data, glui32 n)
+{
+    garglk_sound_data.emplace_back(&data[0], &data[n]);
+
+    return garglk_sound_data.size() - 1;
+}
+
 static std::pair<int, std::vector<unsigned char>> load_sound_resource(glui32 snd)
 {
     std::vector<unsigned char> data;
 
-    if (giblorb_get_resource_map() == nullptr) {
-        auto filename = Format("{}/SND{}", gli_workdir, snd);
-
-        if (!garglk::read_file(filename, data)) {
-            throw SoundError("can't open SND file");
-        }
-
-        return {detect_format(data), data};
-    } else {
+    if (giblorb_get_resource_map() != nullptr) {
         glui32 type;
 
         if (!giblorb_copy_resource(giblorb_ID_Snd, snd, type, data)) {
@@ -768,6 +769,22 @@ static std::pair<int, std::vector<unsigned char>> load_sound_resource(glui32 snd
         }
 
         return std::make_pair(type, data);
+    } else {
+        if (!garglk_sound_data.empty()) {
+            try {
+                data = garglk_sound_data.at(snd);
+            } catch (const std::out_of_range &) {
+                throw SoundError("invalid resource");
+            }
+        } else {
+            auto filename = Format("{}/SND{}", gli_workdir, snd);
+
+            if (!garglk::read_file(filename, data)) {
+                throw SoundError("can't open SND file");
+            }
+        }
+
+        return {detect_format(data), data};
     }
 }
 

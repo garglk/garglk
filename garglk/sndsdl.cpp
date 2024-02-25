@@ -30,6 +30,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -519,19 +520,18 @@ static int load_bleep_resource(glui32 snd, std::vector<unsigned char> &buf)
     return detect_format(buf);
 }
 
+static std::vector<std::vector<unsigned char>> garglk_sound_data;
+
+int garglk_add_sound_resource(const unsigned char *data, glui32 n)
+{
+    garglk_sound_data.emplace_back(&data[0], &data[n]);
+
+    return garglk_sound_data.size() - 1;
+}
+
 static glui32 load_sound_resource(glui32 snd, std::vector<unsigned char> &buf)
 {
-    if (giblorb_get_resource_map() == nullptr) {
-        std::string name;
-
-        name = Format("{}/SND{}", gli_workdir, snd);
-
-        if (!garglk::read_file(name, buf)) {
-            return 0;
-        }
-
-        return detect_format(buf);
-    } else {
+    if (giblorb_get_resource_map() != nullptr) {
         glui32 type;
 
         if (!giblorb_copy_resource(giblorb_ID_Snd, snd, type, buf)) {
@@ -539,6 +539,22 @@ static glui32 load_sound_resource(glui32 snd, std::vector<unsigned char> &buf)
         }
 
         return type;
+    } else {
+        if (!garglk_sound_data.empty()) {
+            try {
+                buf = garglk_sound_data.at(snd);
+            } catch (const std::out_of_range &) {
+                return 0;
+            }
+        } else {
+            auto filename = Format("{}/SND{}", gli_workdir, snd);
+
+            if (!garglk::read_file(filename, buf)) {
+                return 0;
+            }
+        }
+
+        return detect_format(buf);
     }
 }
 
