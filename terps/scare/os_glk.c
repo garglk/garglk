@@ -35,6 +35,12 @@
 #include "scare.h"
 #include "glk.h"
 
+#ifdef GARGLK
+#include "gi_blorb.h"
+
+static const char *gamefile;
+#endif
+
 #include "scprotos.h" /* for SCARE_VERSION */
 
 #undef _WIN32   /* Gargoyle */
@@ -1712,6 +1718,36 @@ os_display_hints (sc_game game)
 /*  Glk resource handling functions                                    */
 /*---------------------------------------------------------------------*/
 
+#ifdef GARGLK
+static schanid_t sound_channel;
+
+void
+os_play_sound (const sc_char *filepath,
+               sc_int offset, sc_int length, sc_bool is_looping)
+{
+  glui32 id;
+
+  if (sound_channel == NULL) {
+    sound_channel = glk_schannel_create(0);
+  }
+
+  if (sound_channel == NULL) {
+    return;
+  }
+
+  if (gamefile != NULL && garglk_add_resource_from_file(giblorb_ID_Snd, gamefile, offset, length, &id)) {
+    glk_schannel_play_ext(sound_channel, id, is_looping ? 0xffffffff : 1, 0);
+  }
+}
+
+void
+os_stop_sound (void)
+{
+  if (sound_channel != NULL) {
+    glk_schannel_stop(sound_channel);
+  }
+}
+#else
 /*
  * os_play_sound()
  * os_stop_sound()
@@ -1735,8 +1771,25 @@ void
 os_stop_sound (void)
 {
 }
+#endif
 
 
+#ifdef GARGLK
+/*
+ * os_show_graphic()
+ *
+ * Use the Gargoyle-specific garglk_add_resource_from_file().
+ */
+void
+os_show_graphic (const sc_char *filepath, sc_int offset, sc_int length)
+{
+  glui32 id;
+
+  if (gamefile != NULL && garglk_add_resource_from_file(giblorb_ID_Pict, gamefile, offset, length, &id)) {
+    glk_image_draw(gsc_main_window, id, imagealign_InlineDown, 0);
+  }
+}
+#else
 /*
  * os_show_graphic()
  *
@@ -1790,6 +1843,7 @@ os_show_graphic (const sc_char *filepath, sc_int offset, sc_int length)
   unused2 = offset;
   unused3 = length;
 }
+#endif
 #endif
 
 
@@ -3479,6 +3533,10 @@ glkunix_startup_code (glkunix_startup_t * data)
 #ifdef LINUX_GRAPHICS
   /* Note the path to the game file for graphics extraction. */
   gsclinux_game_file = argv[argv_index];
+#endif
+
+#ifdef GARGLK
+  gamefile = argv[argv_index];
 #endif
 
   /* Use the generic startup code to complete startup. */

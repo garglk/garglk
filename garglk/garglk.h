@@ -1136,6 +1136,9 @@ void gli_edit_config();
 nonstd::optional<std::vector<char>> gli_get_scrollback();
 std::vector<char> gli_get_text(window_textbuffer_t *dwin);
 
+extern glui32 gli_add_image_resource(std::vector<unsigned char> data);
+extern glui32 gli_add_sound_resource(std::vector<unsigned char> data);
+
 // A macro which reads and decodes one character of UTF-8. Needs no
 // explanation, I'm sure.
 //

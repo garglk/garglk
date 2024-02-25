@@ -17,9 +17,14 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <cstdlib>
+#include <fstream>
+#include <ios>
+#include <map>
+#include <stdexcept>
 #include <string>
 
 #include "garglk.h"
+#include "gi_blorb.h"
 
 std::string gli_program_name = "Unknown";
 std::string gli_program_info;
@@ -114,4 +119,38 @@ void garglk_window_get_size_pixels(window_t *win, glui32 *width, glui32 *height)
     if (height != nullptr) {
         *height = hgt;
     }
+}
+
+static std::map<std::tuple<glui32, std::string, glui32>, glui32> resources;
+
+glui32 garglk_add_resource_from_file(glui32 type, const char *filename, glui32 offset, glui32 len, glui32 *id)
+{
+    auto key = std::make_tuple(type, std::string(filename), offset);
+
+    try {
+        *id = resources.at(key);
+        return 1;
+    } catch (const std::out_of_range &) {
+    }
+
+    std::ifstream f(filename, std::ios::binary);
+    if (!f.is_open()) {
+        return 0;
+    }
+
+    if (!f.seekg(offset, std::ios::beg)) {
+        return 0;
+    }
+
+    std::vector<unsigned char> data(len);
+    if (!f.read(reinterpret_cast<char *>(data.data()), len)) {
+        return 0;
+    }
+
+    *id = type == giblorb_ID_Pict ? gli_add_image_resource(std::move(data))
+                                  : gli_add_sound_resource(std::move(data));
+
+    resources.insert({key, *id});
+
+    return 1;
 }

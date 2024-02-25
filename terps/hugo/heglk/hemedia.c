@@ -39,6 +39,10 @@
 #define SOUND_SUPPORTED
 #define SETTITLE_SUPPORTED
 
+#ifdef GARGLK
+#include "gi_blorb.h"
+#endif
+
 void hugo_setgametitle(char *t)
 {
 //	garglk_set_story_name(t);
@@ -51,6 +55,7 @@ void hugo_setgametitle(char *t)
 static schanid_t mchannel = NULL;
 static schanid_t schannel = NULL;
 
+#ifndef GARGLK
 static long resids[2][MAXRES];
 static int numres[2] = { 0, 0 };
 
@@ -73,33 +78,6 @@ static int loadres(HUGO_FILE infile, int reslen, int type)
 		return -1;
 
 	id = numres[type]++;
-#ifdef GARGLK
-	// Gargoyle now appends ".glkdata" to files opened with normal Glk file
-	// functions. That means that this would create files such as
-	// "PIC0.glkdata", but Gargoyle requires names like "PIC0". If Gargoyle
-	// used Glk routines to open individual media files, then Glk routines
-	// could be used to create them, but it doesn't; instead, it uses stdio
-	// routines, so do the same here.
-	snprintf(buf, sizeof buf, "%s/%s%d", hugo_path_to_game, type == PIC ? "PIC" : "SND", id);
-	resids[type][id] = offset;
-
-	FILE *fp = fopen(buf, "w");
-	if (fp != NULL)
-	{
-		while (reslen > 0)
-		{
-			n = fread(buf, 1, reslen < sizeof buf ? reslen : sizeof buf, infile);
-			if (n <= 0)
-				break;
-			fwrite(buf, n, 1, fp);
-			reslen -= n;
-		}
-
-		// Hugo defines an fclose function-like macro, so the parens
-		// here are needed to get to the actual fopen function.
-		(fclose)(fp);
-	}
-#else
 	sprintf(buf, "%s%d", type == PIC ? "PIC" : "SND", id);
 	resids[type][id] = offset;
 
@@ -128,10 +106,10 @@ static int loadres(HUGO_FILE infile, int reslen, int type)
 	}
 
 	glk_stream_close(stream, NULL);
-#endif
 
 	return id;
 }
+#endif
 
 int hugo_hasgraphics(void)
 {
@@ -142,7 +120,9 @@ int hugo_hasgraphics(void)
 
 int hugo_displaypicture(HUGO_FILE infile, long reslen)
 {
+#ifndef GARGLK
 	int id;
+#endif
 
 	/* Ignore the call if the current window is set elsewhere. */
 	if (currentwin != NULL && currentwin != mainwin)
@@ -151,6 +131,21 @@ int hugo_displaypicture(HUGO_FILE infile, long reslen)
 		return false;
 	}
 
+#ifdef GARGLK
+	long offset = ftell(infile);
+	fclose(infile);
+
+	glui32 id;
+	if (!garglk_add_resource_from_file(giblorb_ID_Pict, loaded_filename, offset, reslen, &id)) {
+		return false;
+	}
+
+	if (glk_image_draw(mainwin, id, imagealign_InlineUp, 0)) {
+		glk_put_char('\n');
+	}
+
+	return true;
+#else
 	id = loadres(infile, reslen, PIC);
 	if (id < 0)
 	{
@@ -184,6 +179,7 @@ int hugo_displaypicture(HUGO_FILE infile, long reslen)
 	glk_put_char('\n');
 
 	return true;
+#endif
 }
 
 void initsound()
@@ -202,12 +198,24 @@ void initmusic()
 
 int hugo_playmusic(HUGO_FILE infile, long reslen, char loop_flag)
 {
+#ifndef GARGLK
 	int id;
+#endif
 
 	if (!mchannel)
 		initmusic();
 	if (mchannel)
 	{
+#ifdef GARGLK
+		long offset = ftell(infile);
+		fclose(infile);
+
+		glui32 id;
+		if (!garglk_add_resource_from_file(giblorb_ID_Snd, loaded_filename, offset, reslen, &id)) {
+			return false;
+		}
+		glk_schannel_play_ext(mchannel, id, loop_flag ? -1 : 1, 0);
+#else
 		id = loadres(infile, reslen, SND);
 		if (id < 0)
 		{
@@ -215,9 +223,12 @@ int hugo_playmusic(HUGO_FILE infile, long reslen, char loop_flag)
 			return false;
 		}
 		glk_schannel_play_ext(mchannel, id, loop_flag ? -1 : 1, 0);
+#endif
 	}
 
+#ifndef GARGLK
 	fclose(infile);
+#endif
 	return true;
 }
 
@@ -237,10 +248,22 @@ void hugo_stopmusic(void)
 
 int hugo_playsample(HUGO_FILE infile, long reslen, char loop_flag)
 {
+#ifndef GARGLK
 	int id;
+#endif
 
 	if (schannel)
 	{
+#ifdef GARGLK
+		long offset = ftell(infile);
+		fclose(infile);
+
+		glui32 id;
+		if (!garglk_add_resource_from_file(giblorb_ID_Snd, loaded_filename, offset, reslen, &id)) {
+			return false;
+		}
+		glk_schannel_play_ext(mchannel, id, loop_flag ? -1 : 1, 0);
+#else
 		id = loadres(infile, reslen, SND);
 		if (id < 0)
 		{
@@ -248,9 +271,12 @@ int hugo_playsample(HUGO_FILE infile, long reslen, char loop_flag)
 			return false;
 		}
 		glk_schannel_play_ext(schannel, id, loop_flag ? -1 : 1, 0);
+#endif
 	}
 
+#ifndef GARGLK
 	fclose(infile);
+#endif
 	return true;
 }
 
