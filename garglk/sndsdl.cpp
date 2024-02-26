@@ -605,7 +605,7 @@ static glui32 play_mod(schanid_t chan)
     }
 
     chan->status = CHANNEL_MUSIC;
-    chan->music = Mix_LoadMUSType_RW(chan->sdl_rwops, MUS_MOD, 0);
+    chan->music = Mix_LoadMUS_RW(chan->sdl_rwops, 0);
     if (chan->music != nullptr) {
         SDL_LockAudio();
         music_channel = chan;
