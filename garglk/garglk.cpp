@@ -123,16 +123,16 @@ void garglk_window_get_size_pixels(window_t *win, glui32 *width, glui32 *height)
     }
 }
 
-// Map tuples of (type, filename, offset) to IDs
+// Map tuples of (usage, filename, offset) to IDs
 static std::map<std::tuple<glui32, std::string, glui32>, glui32> resource_ids;
 
 // Map IDs to chunks loaded from files
 static std::map<glui32, std::map<glui32, std::vector<unsigned char>>> resource_maps;
 
 // Insert a data chunk into the specified resource map, returning a resource ID
-static glui32 gli_insert_resource(glui32 type, std::vector<unsigned char> data)
+static glui32 gli_insert_resource(glui32 usage, std::vector<unsigned char> data)
 {
-    auto &map = resource_maps[type];
+    auto &map = resource_maps[usage];
 
     glui32 id = 1;
     if (!map.empty()) {
@@ -144,14 +144,14 @@ static glui32 gli_insert_resource(glui32 type, std::vector<unsigned char> data)
     return id;
 }
 
-const std::map<glui32, std::vector<unsigned char>> &gli_get_resource_map(glui32 type)
+const std::map<glui32, std::vector<unsigned char>> &gli_get_resource_map(glui32 usage)
 {
-    return resource_maps[type];
+    return resource_maps[usage];
 }
 
-glui32 garglk_add_resource_from_file(glui32 type, const char *filename, glui32 offset, glui32 len)
+glui32 garglk_add_resource_from_file(glui32 usage, const char *filename, glui32 offset, glui32 len)
 {
-    auto key = std::make_tuple(type, std::string(filename), offset);
+    auto key = std::make_tuple(usage, std::string(filename), offset);
 
     try {
         return resource_ids.at(key);
@@ -172,7 +172,7 @@ glui32 garglk_add_resource_from_file(glui32 type, const char *filename, glui32 o
         return 0;
     }
 
-    auto id = gli_insert_resource(type, std::move(data));
+    auto id = gli_insert_resource(usage, std::move(data));
 
     resource_ids.insert({key, id});
 

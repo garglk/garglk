@@ -533,11 +533,11 @@ extern void garglk_window_get_size_pixels(winid_t win, glui32 *width, glui32 *he
  * resource from an arbitrary file. If the resource was successfully read from
  * the file, this function returns a positive ID. Otherwise, it returns 0.
  *
- * "type" is either giblorb_ID_Pict or giblorb_ID_Snd, meaning that gi_blorb.h
+ * "usage" is either giblorb_ID_Pict or giblorb_ID_Snd, meaning that gi_blorb.h
  * must be included before using this function.
  *
  * Resources are cached, so a future lookup of the same combination of
- * filename, offset, and length for a given resource type will always
+ * filename, offset, and length for a given resource usage type will always
  * return the same ID.
  *
  * Thus Gargoyle has three ways to find resources. In order of preference,
@@ -547,7 +547,7 @@ extern void garglk_window_get_size_pixels(winid_t win, glui32 *width, glui32 *he
  * 2. From a resource added with this function
  * 3. From a PIC or SND file
  */
-extern glui32 garglk_add_resource_from_file(glui32 type, const char *filename, glui32 offset, glui32 len);
+extern glui32 garglk_add_resource_from_file(glui32 usage, const char *filename, glui32 offset, glui32 len);
 
 
 /* non standard keycodes */
