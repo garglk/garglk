@@ -45,9 +45,6 @@ using std::FILE;
 #include "garglk.h"
 #include "gi_blorb.h"
 
-#define giblorb_ID_JPEG      (giblorb_make_id('J', 'P', 'E', 'G'))
-#define giblorb_ID_PNG       (giblorb_make_id('P', 'N', 'G', ' '))
-
 static std::shared_ptr<picture_t> load_image_png(const std::vector<unsigned char> &buf, unsigned long id);
 static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned char> &buf, unsigned long id);
 
