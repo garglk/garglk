@@ -167,14 +167,19 @@ glui32 garglk_add_resource_from_file(glui32 usage, const char *filename, glui32 
         return 0;
     }
 
-    std::vector<unsigned char> data(len);
-    if (!f.read(reinterpret_cast<char *>(data.data()), len)) {
+    // vector resize/map insert can throw memory-related exceptions.
+    try {
+        std::vector<unsigned char> data(len);
+        if (!f.read(reinterpret_cast<char *>(data.data()), len)) {
+            return 0;
+        }
+
+        auto id = gli_insert_resource(usage, std::move(data));
+
+        resource_ids.insert({key, id});
+
+        return id;
+    } catch (...) {
         return 0;
     }
-
-    auto id = gli_insert_resource(usage, std::move(data));
-
-    resource_ids.insert({key, id});
-
-    return id;
 }
