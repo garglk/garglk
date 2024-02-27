@@ -123,13 +123,12 @@ void garglk_window_get_size_pixels(window_t *win, glui32 *width, glui32 *height)
 
 static std::map<std::tuple<glui32, std::string, glui32>, glui32> resources;
 
-glui32 garglk_add_resource_from_file(glui32 type, const char *filename, glui32 offset, glui32 len, glui32 *id)
+glui32 garglk_add_resource_from_file(glui32 type, const char *filename, glui32 offset, glui32 len)
 {
     auto key = std::make_tuple(type, std::string(filename), offset);
 
     try {
-        *id = resources.at(key);
-        return 1;
+        return resources.at(key);
     } catch (const std::out_of_range &) {
     }
 
@@ -147,10 +146,10 @@ glui32 garglk_add_resource_from_file(glui32 type, const char *filename, glui32 o
         return 0;
     }
 
-    *id = type == giblorb_ID_Pict ? gli_add_image_resource(std::move(data))
-                                  : gli_add_sound_resource(std::move(data));
+    glui32 id = type == giblorb_ID_Pict ? gli_add_image_resource(std::move(data))
+                                        : gli_add_sound_resource(std::move(data));
 
-    resources.insert({key, *id});
+    resources.insert({key, ++id});
 
-    return 1;
+    return id;
 }

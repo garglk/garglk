@@ -1725,8 +1725,6 @@ void
 os_play_sound (const sc_char *filepath,
                sc_int offset, sc_int length, sc_bool is_looping)
 {
-  glui32 id;
-
   if (sound_channel == NULL) {
     sound_channel = glk_schannel_create(0);
   }
@@ -1735,8 +1733,11 @@ os_play_sound (const sc_char *filepath,
     return;
   }
 
-  if (gamefile != NULL && garglk_add_resource_from_file(giblorb_ID_Snd, gamefile, offset, length, &id)) {
-    glk_schannel_play_ext(sound_channel, id, is_looping ? 0xffffffff : 1, 0);
+  if (gamefile != NULL) {
+    glui32 id = garglk_add_resource_from_file(giblorb_ID_Snd, gamefile, offset, length);
+    if (id != 0) {
+      glk_schannel_play_ext(sound_channel, id, is_looping ? 0xffffffff : 1, 0);
+    }
   }
 }
 
@@ -1783,10 +1784,11 @@ os_stop_sound (void)
 void
 os_show_graphic (const sc_char *filepath, sc_int offset, sc_int length)
 {
-  glui32 id;
-
-  if (gamefile != NULL && garglk_add_resource_from_file(giblorb_ID_Pict, gamefile, offset, length, &id)) {
-    glk_image_draw(gsc_main_window, id, imagealign_InlineDown, 0);
+  if (gamefile != NULL) {
+    glui32 id = garglk_add_resource_from_file(giblorb_ID_Pict, gamefile, offset, length);
+    if (id != 0) {
+      glk_image_draw(gsc_main_window, id, imagealign_InlineDown, 0);
+    }
   }
 }
 #else

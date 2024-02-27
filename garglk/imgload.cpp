@@ -141,8 +141,12 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
         }
     } else {
         if (!garglk_image_data.empty()) {
+            if (id == 0) {
+                return nullptr;
+            }
+
             try {
-                buf = garglk_image_data.at(id);
+                buf = garglk_image_data.at(id - 1);
             } catch (const std::out_of_range &) {
                 return nullptr;
             }

@@ -772,7 +772,11 @@ static std::pair<int, std::vector<unsigned char>> load_sound_resource(glui32 snd
     } else {
         if (!garglk_sound_data.empty()) {
             try {
-                data = garglk_sound_data.at(snd);
+                if (snd == 0) {
+                    throw std::out_of_range("0");
+                }
+
+                data = garglk_sound_data.at(snd - 1);
             } catch (const std::out_of_range &) {
                 throw SoundError("invalid resource");
             }

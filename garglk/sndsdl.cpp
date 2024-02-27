@@ -547,8 +547,12 @@ static glui32 load_sound_resource(glui32 snd, std::vector<unsigned char> &buf)
         return type;
     } else {
         if (!garglk_sound_data.empty()) {
+            if (snd == 0) {
+                return 0;
+            }
+
             try {
-                buf = garglk_sound_data.at(snd);
+                buf = garglk_sound_data.at(snd - 1);
             } catch (const std::out_of_range &) {
                 return 0;
             }

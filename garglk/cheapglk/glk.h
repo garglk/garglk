@@ -530,8 +530,7 @@ extern void garglk_window_get_size_pixels(winid_t win, glui32 *width, glui32 *he
 /* Some game formats include graphics and/or sound, but not in a Blorb file. To
  * support this, Gargoyle provides this function to add either an image or sound
  * resource from an arbitrary file. If the resource was successfully read from
- * the file, this function returns true and stores the resource ID in *id.
- * Otherwise, it returns false.
+ * the file, this function returns a positive ID. Otherwise, it returns 0.
  *
  * "type" is either giblorb_ID_Pict or giblorb_ID_Snd, meaning that gi_blorb.h
  * must be included before using this function.
@@ -543,7 +542,7 @@ extern void garglk_window_get_size_pixels(winid_t win, glui32 *width, glui32 *he
  * 2. From a resource added with this function
  * 3. From a PIC or SND file
  */
-extern glui32 garglk_add_resource_from_file(glui32 type, const char *filename, glui32 offset, glui32 len, glui32 *id);
+extern glui32 garglk_add_resource_from_file(glui32 type, const char *filename, glui32 offset, glui32 len);
 
 
 /* non standard keycodes */

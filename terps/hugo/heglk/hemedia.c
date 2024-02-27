@@ -135,8 +135,8 @@ int hugo_displaypicture(HUGO_FILE infile, long reslen)
 	long offset = ftell(infile);
 	fclose(infile);
 
-	glui32 id;
-	if (!garglk_add_resource_from_file(giblorb_ID_Pict, loaded_filename, offset, reslen, &id)) {
+	glui32 id = garglk_add_resource_from_file(giblorb_ID_Pict, loaded_filename, offset, reslen);
+	if (id == 0) {
 		return false;
 	}
 
@@ -210,8 +210,8 @@ int hugo_playmusic(HUGO_FILE infile, long reslen, char loop_flag)
 		long offset = ftell(infile);
 		fclose(infile);
 
-		glui32 id;
-		if (!garglk_add_resource_from_file(giblorb_ID_Snd, loaded_filename, offset, reslen, &id)) {
+		glui32 id = garglk_add_resource_from_file(giblorb_ID_Snd, loaded_filename, offset, reslen);
+		if (id == 0) {
 			return false;
 		}
 		glk_schannel_play_ext(mchannel, id, loop_flag ? -1 : 1, 0);
@@ -258,8 +258,8 @@ int hugo_playsample(HUGO_FILE infile, long reslen, char loop_flag)
 		long offset = ftell(infile);
 		fclose(infile);
 
-		glui32 id;
-		if (!garglk_add_resource_from_file(giblorb_ID_Snd, loaded_filename, offset, reslen, &id)) {
+		glui32 id = garglk_add_resource_from_file(giblorb_ID_Snd, loaded_filename, offset, reslen);
+		if (id == 0) {
 			return false;
 		}
 		glk_schannel_play_ext(mchannel, id, loop_flag ? -1 : 1, 0);
