@@ -121,14 +121,38 @@ void garglk_window_get_size_pixels(window_t *win, glui32 *width, glui32 *height)
     }
 }
 
-static std::map<std::tuple<glui32, std::string, glui32>, glui32> resources;
+// Map tuples of (type, filename, offset) to IDs
+static std::map<std::tuple<glui32, std::string, glui32>, glui32> resource_ids;
+
+// Map IDs to chunks loaded from files
+static std::map<glui32, std::map<glui32, std::vector<unsigned char>>> resource_maps;
+
+// Insert a data chunk into the specified resource map, returning a resource ID
+static glui32 gli_insert_resource(glui32 type, std::vector<unsigned char> data)
+{
+    auto &map = resource_maps[type];
+
+    glui32 id = 1;
+    if (!map.empty()) {
+        id = map.rbegin()->first + 1;
+    }
+
+    map.insert({id, std::move(data)});
+
+    return id;
+}
+
+const std::map<glui32, std::vector<unsigned char>> &gli_get_resource_map(glui32 type)
+{
+    return resource_maps[type];
+}
 
 glui32 garglk_add_resource_from_file(glui32 type, const char *filename, glui32 offset, glui32 len)
 {
     auto key = std::make_tuple(type, std::string(filename), offset);
 
     try {
-        return resources.at(key);
+        return resource_ids.at(key);
     } catch (const std::out_of_range &) {
     }
 
@@ -146,10 +170,9 @@ glui32 garglk_add_resource_from_file(glui32 type, const char *filename, glui32 o
         return 0;
     }
 
-    glui32 id = type == giblorb_ID_Pict ? gli_add_image_resource(std::move(data))
-                                        : gli_add_sound_resource(std::move(data));
+    auto id = gli_insert_resource(type, std::move(data));
 
-    resources.insert({key, ++id});
+    resource_ids.insert({key, id});
 
     return id;
 }

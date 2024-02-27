@@ -115,15 +115,6 @@ std::shared_ptr<picture_t> gli_picture_retrieve(unsigned long id, bool scaled)
     }
 }
 
-static std::vector<std::vector<unsigned char>> garglk_image_data;
-
-glui32 gli_add_image_resource(std::vector<unsigned char> data)
-{
-    garglk_image_data.push_back(std::move(data));
-
-    return garglk_image_data.size() - 1;
-}
-
 std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
 {
     glui32 chunktype;
@@ -140,13 +131,10 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
             return nullptr;
         }
     } else {
-        if (!garglk_image_data.empty()) {
-            if (id == 0) {
-                return nullptr;
-            }
-
+        const auto &resource_map = gli_get_resource_map(giblorb_ID_Pict);
+        if (!resource_map.empty()) {
             try {
-                buf = garglk_image_data.at(id - 1);
+                buf = resource_map.at(id);
             } catch (const std::out_of_range &) {
                 return nullptr;
             }

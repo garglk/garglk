@@ -535,6 +535,10 @@ extern void garglk_window_get_size_pixels(winid_t win, glui32 *width, glui32 *he
  * "type" is either giblorb_ID_Pict or giblorb_ID_Snd, meaning that gi_blorb.h
  * must be included before using this function.
  *
+ * Resources are cached, so a future lookup of the same combination of
+ * filename, offset, and length for a given resource type will always
+ * return the same ID.
+ *
  * Thus Gargoyle has three ways to find resources. In order of preference,
  * highest to lowest:
  *

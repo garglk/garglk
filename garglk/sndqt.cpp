@@ -748,15 +748,6 @@ static std::pair<int, std::vector<unsigned char>> load_bleep_resource(glui32 snd
     return {detect_format(data), data};
 }
 
-static std::vector<std::vector<unsigned char>> garglk_sound_data;
-
-glui32 gli_add_sound_resource(std::vector<unsigned char> data)
-{
-    garglk_sound_data.push_back(std::move(data));
-
-    return garglk_sound_data.size() - 1;
-}
-
 static std::pair<int, std::vector<unsigned char>> load_sound_resource(glui32 snd)
 {
     std::vector<unsigned char> data;
@@ -770,13 +761,10 @@ static std::pair<int, std::vector<unsigned char>> load_sound_resource(glui32 snd
 
         return std::make_pair(type, data);
     } else {
-        if (!garglk_sound_data.empty()) {
+        const auto &resource_map = gli_get_resource_map(giblorb_ID_Snd);
+        if (!resource_map.empty()) {
             try {
-                if (snd == 0) {
-                    throw std::out_of_range("0");
-                }
-
-                data = garglk_sound_data.at(snd - 1);
+                data = resource_map.at(snd);
             } catch (const std::out_of_range &) {
                 throw SoundError("invalid resource");
             }

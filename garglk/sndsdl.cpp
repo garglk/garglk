@@ -526,15 +526,6 @@ static int load_bleep_resource(glui32 snd, std::vector<unsigned char> &buf)
     return detect_format(buf);
 }
 
-static std::vector<std::vector<unsigned char>> garglk_sound_data;
-
-glui32 gli_add_sound_resource(std::vector<unsigned char> data)
-{
-    garglk_sound_data.push_back(std::move(data));
-
-    return garglk_sound_data.size() - 1;
-}
-
 static glui32 load_sound_resource(glui32 snd, std::vector<unsigned char> &buf)
 {
     if (giblorb_get_resource_map() != nullptr) {
@@ -546,13 +537,10 @@ static glui32 load_sound_resource(glui32 snd, std::vector<unsigned char> &buf)
 
         return type;
     } else {
-        if (!garglk_sound_data.empty()) {
-            if (snd == 0) {
-                return 0;
-            }
-
+        const auto &resource_map = gli_get_resource_map(giblorb_ID_Snd);
+        if (!resource_map.empty()) {
             try {
-                buf = garglk_sound_data.at(snd - 1);
+                buf = resource_map.at(snd);
             } catch (const std::out_of_range &) {
                 return 0;
             }
