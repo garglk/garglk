@@ -35,7 +35,7 @@
 #include "scare.h"
 #include "glk.h"
 
-#ifdef GARGLK
+#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
 #include "gi_blorb.h"
 
 static const char *gamefile;
@@ -1718,7 +1718,7 @@ os_display_hints (sc_game game)
 /*  Glk resource handling functions                                    */
 /*---------------------------------------------------------------------*/
 
-#ifdef GARGLK
+#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
 static schanid_t sound_channel;
 
 void
@@ -1775,7 +1775,7 @@ os_stop_sound (void)
 #endif
 
 
-#ifdef GARGLK
+#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
 /*
  * os_show_graphic()
  *
@@ -3537,7 +3537,7 @@ glkunix_startup_code (glkunix_startup_t * data)
   gsclinux_game_file = argv[argv_index];
 #endif
 
-#ifdef GARGLK
+#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
   gamefile = argv[argv_index];
 #endif
 

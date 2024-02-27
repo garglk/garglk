@@ -39,7 +39,7 @@
 #define SOUND_SUPPORTED
 #define SETTITLE_SUPPORTED
 
-#ifdef GARGLK
+#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
 #include "gi_blorb.h"
 #endif
 
@@ -55,7 +55,7 @@ void hugo_setgametitle(char *t)
 static schanid_t mchannel = NULL;
 static schanid_t schannel = NULL;
 
-#ifndef GARGLK
+#ifndef GLK_MODULE_GARGLK_FILE_RESOURCES
 static long resids[2][MAXRES];
 static int numres[2] = { 0, 0 };
 
@@ -120,7 +120,7 @@ int hugo_hasgraphics(void)
 
 int hugo_displaypicture(HUGO_FILE infile, long reslen)
 {
-#ifndef GARGLK
+#ifndef GLK_MODULE_GARGLK_FILE_RESOURCES
 	int id;
 #endif
 
@@ -131,7 +131,7 @@ int hugo_displaypicture(HUGO_FILE infile, long reslen)
 		return false;
 	}
 
-#ifdef GARGLK
+#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
 	long offset = ftell(infile);
 	fclose(infile);
 
@@ -198,7 +198,7 @@ void initmusic()
 
 int hugo_playmusic(HUGO_FILE infile, long reslen, char loop_flag)
 {
-#ifndef GARGLK
+#ifndef GLK_MODULE_GARGLK_FILE_RESOURCES
 	int id;
 #endif
 
@@ -206,7 +206,7 @@ int hugo_playmusic(HUGO_FILE infile, long reslen, char loop_flag)
 		initmusic();
 	if (mchannel)
 	{
-#ifdef GARGLK
+#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
 		long offset = ftell(infile);
 		fclose(infile);
 
@@ -226,7 +226,7 @@ int hugo_playmusic(HUGO_FILE infile, long reslen, char loop_flag)
 #endif
 	}
 
-#ifndef GARGLK
+#ifndef GLK_MODULE_GARGLK_FILE_RESOURCES
 	fclose(infile);
 #endif
 	return true;
@@ -248,13 +248,13 @@ void hugo_stopmusic(void)
 
 int hugo_playsample(HUGO_FILE infile, long reslen, char loop_flag)
 {
-#ifndef GARGLK
+#ifndef GLK_MODULE_GARGLK_FILE_RESOURCES
 	int id;
 #endif
 
 	if (schannel)
 	{
-#ifdef GARGLK
+#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
 		long offset = ftell(infile);
 		fclose(infile);
 
@@ -274,7 +274,7 @@ int hugo_playsample(HUGO_FILE infile, long reslen, char loop_flag)
 #endif
 	}
 
-#ifndef GARGLK
+#ifndef GLK_MODULE_GARGLK_FILE_RESOURCES
 	fclose(infile);
 #endif
 	return true;
