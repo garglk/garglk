@@ -22,6 +22,8 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <tuple>
+#include <utility>
 
 #include "garglk.h"
 #include "gi_blorb.h"
