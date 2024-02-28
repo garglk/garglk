@@ -273,6 +273,17 @@ std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::stri
 {
     std::vector<ConfigFile> configs;
     if (gamepath.has_value()) {
+#if __cplusplus >= 201703L
+        // game file .ini
+        std::filesystem::path config(*gamepath);
+        config.replace_extension(".ini");
+        configs.emplace_back(config.string(), ConfigFile::Type::PerGame);
+
+        // game directory .ini
+        config = *gamepath;
+        config = config.parent_path() / "garglk.ini";
+        configs.emplace_back(config.string(), ConfigFile::Type::PerGame);
+#else
         std::string config;
 
         // game file .ini
@@ -296,6 +307,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::stri
         }
 
         configs.emplace_back(config, ConfigFile::Type::PerGame);
+#endif
     }
 
 #if defined(__HAIKU__)

@@ -31,6 +31,10 @@
 #include <algorithm>
 #include <string>
 
+#if __cplusplus >= 201703L
+#include <filesystem>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -525,6 +529,14 @@ void glk_fileref_delete_file(fileref_t *fref)
 void glkunix_set_base_file(char *filename)
 {
 #ifdef GARGLK
+#if __cplusplus >= 201703L
+    auto parent = std::filesystem::path(filename).parent_path();
+    if (parent.empty()) {
+        parent = ".";
+    }
+
+    gli_workdir = parent.string();
+#else
     gli_workdir = filename;
     auto slash = gli_workdir.find_last_of('/');
     if (slash == std::string::npos) {
@@ -536,6 +548,7 @@ void glkunix_set_base_file(char *filename)
     } else {
         gli_workdir = ".";
     }
+#endif
 
     gli_workfile = filename;
 #else
