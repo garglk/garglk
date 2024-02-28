@@ -38,12 +38,23 @@
 #ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
 #include "gi_blorb.h"
 
-static const char *gamefile;
+char gamefile[1024];
+
+static const char *find_last_of(const char *str, const char *chars)
+{
+  const char *found = NULL;
+  while (*chars != 0) {
+    const char *p = strrchr(str, *chars++);
+    if (p != NULL && (found == NULL || p > found)) {
+      found = p;
+    }
+  }
+
+  return found;
+}
 #endif
 
 #include "scprotos.h" /* for SCARE_VERSION */
-
-#undef _WIN32   /* Gargoyle */
 
 /*
  * True and false definitions -- usually defined in glkstart.h, but we need
@@ -1733,11 +1744,9 @@ os_play_sound (const sc_char *filepath,
     return;
   }
 
-  if (gamefile != NULL) {
-    glui32 id = garglk_add_resource_from_file(giblorb_ID_Snd, gamefile, offset, length);
-    if (id != 0) {
-      glk_schannel_play_ext(sound_channel, id, is_looping ? 0xffffffff : 1, 0);
-    }
+  glui32 id = garglk_add_resource_from_file(giblorb_ID_Snd, gamefile, offset, length);
+  if (id != 0) {
+    glk_schannel_play_ext(sound_channel, id, is_looping ? 0xffffffff : 1, 0);
   }
 }
 
@@ -1784,11 +1793,9 @@ os_stop_sound (void)
 void
 os_show_graphic (const sc_char *filepath, sc_int offset, sc_int length)
 {
-  if (gamefile != NULL) {
-    glui32 id = garglk_add_resource_from_file(giblorb_ID_Pict, gamefile, offset, length);
-    if (id != 0) {
-      glk_image_draw(gsc_main_window, id, imagealign_InlineDown, 0);
-    }
+  glui32 id = garglk_add_resource_from_file(giblorb_ID_Pict, gamefile, offset, length);
+  if (id != 0) {
+    glk_image_draw(gsc_main_window, id, imagealign_InlineDown, 0);
   }
 }
 #else
@@ -3538,7 +3545,21 @@ glkunix_startup_code (glkunix_startup_t * data)
 #endif
 
 #ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
-  gamefile = argv[argv_index];
+#ifdef _WIN32
+    const char *sep = "/\\";
+#else
+    const char *sep = "/";
+#endif
+    const char *slash = find_last_of(argv[argv_index], sep);
+    if (slash == NULL) {
+      snprintf(gamefile, sizeof gamefile, "%s", argv[argv_index]);
+    } else {
+      snprintf(gamefile, sizeof gamefile, "%s", slash + 1);
+  }
+#endif
+
+#ifdef GARGLK
+  glkunix_set_base_file(argv[argv_index]);
 #endif
 
   /* Use the generic startup code to complete startup. */
@@ -3551,6 +3572,10 @@ glkunix_startup_code (glkunix_startup_t * data)
 /*---------------------------------------------------------------------*/
 /*  Glk linkage relevant only to the Windows platform                  */
 /*---------------------------------------------------------------------*/
+#ifdef GARGLK
+#undef _WIN32
+#endif
+
 #ifdef _WIN32
 
 #include <windows.h>

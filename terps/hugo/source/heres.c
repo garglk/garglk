@@ -375,8 +375,9 @@ long FindResource(char *filename, char *resname)
 	/* Glk implementation */
 #ifdef GARGLK
 	// Under Gargoyle, use glkunix_stream_open_pathname to directly open a file.
-	snprintf(loaded_filename, sizeof loaded_filename, "%s/%s", hugo_path_to_game, filename);
-	resource_file = glkunix_stream_open_pathname(loaded_filename, 0, 0);
+	char temp[1024];
+	snprintf(temp, sizeof temp, "%s/%s", hugo_path_to_game, filename);
+	resource_file = glkunix_stream_open_pathname(temp, 0, 0);
 #else
 	fref = glk_fileref_create_by_name(fileusage_Data | fileusage_BinaryMode,
 		filename, 0);
@@ -483,8 +484,8 @@ NotinResourceFile:
 #else
 	/* Glk implementation */
 #ifdef GARGLK
-	snprintf(loaded_filename, sizeof loaded_filename, "%s/%s", hugo_path_to_game, resname);
-	resource_file = glkunix_stream_open_pathname(loaded_filename, 0, 0);
+	snprintf(temp, sizeof temp, "%s/%s", hugo_path_to_game, resname);
+	resource_file = glkunix_stream_open_pathname(temp, 0, 0);
 #else
 	fref = glk_fileref_create_by_name(fileusage_Data | fileusage_BinaryMode,
 		resname, 0);

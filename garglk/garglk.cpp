@@ -25,6 +25,8 @@
 #include <tuple>
 #include <utility>
 
+#include "format.h"
+
 #include "garglk.h"
 #include "gi_blorb.h"
 
@@ -149,14 +151,41 @@ const std::map<glui32, std::vector<unsigned char>> &gli_get_resource_map(glui32 
     return resource_maps[usage];
 }
 
-glui32 garglk_add_resource_from_file(glui32 usage, const char *filename, glui32 offset, glui32 len)
+glui32 garglk_add_resource_from_file(glui32 usage, const char *filename_, glui32 offset, glui32 len)
 {
-    auto key = std::make_tuple(usage, std::string(filename), offset);
+    std::string filename(filename_);
+
+#ifdef _WIN32
+    static const std::vector<std::string> reserved_names = {
+        "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4",
+        "com5", "com6", "com7", "com8", "com9", "lpt1", "lpt2",
+        "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+    };
+
+    auto lower = garglk::downcase(filename);
+    for (const auto &reserved_name : reserved_names) {
+        if (lower == reserved_name || lower.find(reserved_name + ".") == 0) {
+            return 0;
+        }
+    }
+
+    std::string sep = "/\\";
+#else
+    std::string sep = "/";
+#endif
+
+    if (filename.find_first_of(sep) != std::string::npos) {
+        return 0;
+    }
+
+    auto key = std::make_tuple(usage, filename, offset);
 
     try {
         return resource_ids.at(key);
     } catch (const std::out_of_range &) {
     }
+
+    filename = Format("{}/{}", gli_workdir, filename_);
 
     std::ifstream f(filename, std::ios::binary);
     if (!f.is_open()) {
