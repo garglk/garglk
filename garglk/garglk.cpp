@@ -25,6 +25,10 @@
 #include <tuple>
 #include <utility>
 
+#if __cplusplus >= 201703L
+#include <filesystem>
+#endif
+
 #include "format.h"
 
 #include "garglk.h"
@@ -168,7 +172,14 @@ glui32 garglk_add_resource_from_file(glui32 usage, const char *filename_, glui32
             return 0;
         }
     }
+#endif
 
+#if __cplusplus >= 201703L
+    if (std::filesystem::path(filename).has_parent_path()) {
+        return 0;
+    }
+#else
+#ifdef _WIN32
     std::string sep = "/\\";
 #else
     std::string sep = "/";
@@ -177,6 +188,7 @@ glui32 garglk_add_resource_from_file(glui32 usage, const char *filename_, glui32
     if (filename.find_first_of(sep) != std::string::npos) {
         return 0;
     }
+#endif
 
     auto key = std::make_tuple(usage, filename, offset);
 
