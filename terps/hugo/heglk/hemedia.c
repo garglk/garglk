@@ -40,6 +40,8 @@
 #define SETTITLE_SUPPORTED
 
 #ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
+#include <math.h>
+
 #include "gi_blorb.h"
 #endif
 
@@ -139,6 +141,30 @@ int hugo_displaypicture(HUGO_FILE infile, long reslen)
 	if (id == 0) {
 		return false;
 	}
+
+#ifdef GLK_MODULE_GARGLKWINSIZE
+	glui32 imagewidth, imageheight;
+	if (glk_image_get_info(id, &imagewidth, &imageheight)) {
+		glui32 winwidth, winheight;
+		garglk_window_get_size_pixels(mainwin, &winwidth, &winheight);
+
+		if (imagewidth > winwidth || imageheight > winheight) {
+			double scalex = (double)winwidth / imagewidth;
+			double scaley = (double)winheight / imageheight;
+
+			double scale = scalex < scaley ? scalex : scaley;
+
+			imagewidth = round(imagewidth * scale);
+			imageheight = round(imageheight * scale);
+
+			if (glk_image_draw_scaled(mainwin, id, imagealign_InlineUp, 0, imagewidth, imageheight)) {
+				glk_put_char('\n');
+			}
+
+			return true;
+		}
+	}
+#endif
 
 	if (glk_image_draw(mainwin, id, imagealign_InlineUp, 0)) {
 		glk_put_char('\n');
