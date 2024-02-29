@@ -159,21 +159,6 @@ glui32 garglk_add_resource_from_file(glui32 usage, const char *filename_, glui32
 {
     std::string filename(filename_);
 
-#ifdef _WIN32
-    static const std::vector<std::string> reserved_names = {
-        "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4",
-        "com5", "com6", "com7", "com8", "com9", "lpt1", "lpt2",
-        "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
-    };
-
-    auto lower = garglk::downcase(filename);
-    for (const auto &reserved_name : reserved_names) {
-        if (lower == reserved_name || lower.find(reserved_name + ".") == 0) {
-            return 0;
-        }
-    }
-#endif
-
 #if __cplusplus >= 201703L
     if (std::filesystem::path(filename).has_parent_path()) {
         return 0;
@@ -187,6 +172,21 @@ glui32 garglk_add_resource_from_file(glui32 usage, const char *filename_, glui32
 
     if (filename.find_first_of(sep) != std::string::npos) {
         return 0;
+    }
+#endif
+
+#ifdef _WIN32
+    static const std::vector<std::string> reserved_names = {
+        "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4",
+        "com5", "com6", "com7", "com8", "com9", "lpt1", "lpt2",
+        "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+    };
+
+    auto lower = garglk::downcase(filename);
+    for (const auto &reserved_name : reserved_names) {
+        if (lower == reserved_name || lower.find(reserved_name + ".") == 0) {
+            return 0;
+        }
     }
 #endif
 
