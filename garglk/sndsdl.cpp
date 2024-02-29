@@ -30,6 +30,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -527,17 +528,7 @@ static int load_bleep_resource(glui32 snd, std::vector<unsigned char> &buf)
 
 static glui32 load_sound_resource(glui32 snd, std::vector<unsigned char> &buf)
 {
-    if (giblorb_get_resource_map() == nullptr) {
-        std::string name;
-
-        name = Format("{}/SND{}", gli_workdir, snd);
-
-        if (!garglk::read_file(name, buf)) {
-            return 0;
-        }
-
-        return detect_format(buf);
-    } else {
+    if (giblorb_get_resource_map() != nullptr) {
         glui32 type;
 
         if (!giblorb_copy_resource(giblorb_ID_Snd, snd, type, buf)) {
@@ -545,6 +536,23 @@ static glui32 load_sound_resource(glui32 snd, std::vector<unsigned char> &buf)
         }
 
         return type;
+    } else {
+        const auto &resource_map = gli_get_resource_map(giblorb_ID_Snd);
+        if (!resource_map.empty()) {
+            try {
+                buf = resource_map.at(snd);
+            } catch (const std::out_of_range &) {
+                return 0;
+            }
+        } else {
+            auto filename = Format("{}/SND{}", gli_workdir, snd);
+
+            if (!garglk::read_file(filename, buf)) {
+                return 0;
+            }
+        }
+
+        return detect_format(buf);
     }
 }
 
