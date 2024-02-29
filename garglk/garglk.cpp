@@ -17,9 +17,22 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <cstdlib>
+#include <fstream>
+#include <ios>
+#include <map>
+#include <stdexcept>
 #include <string>
+#include <tuple>
+#include <utility>
+
+#if __cplusplus >= 201703L
+#include <filesystem>
+#endif
+
+#include "format.h"
 
 #include "garglk.h"
+#include "gi_blorb.h"
 
 std::string gli_program_name = "Unknown";
 std::string gli_program_info;
@@ -113,5 +126,101 @@ void garglk_window_get_size_pixels(window_t *win, glui32 *width, glui32 *height)
 
     if (height != nullptr) {
         *height = hgt;
+    }
+}
+
+// Map tuples of (usage, filename, offset) to IDs
+static std::map<std::tuple<glui32, std::string, glui32>, glui32> resource_ids;
+
+// Map IDs to chunks loaded from files
+static std::map<glui32, std::map<glui32, std::vector<unsigned char>>> resource_maps;
+
+// Insert a data chunk into the specified resource map, returning a resource ID
+static glui32 gli_insert_resource(glui32 usage, std::vector<unsigned char> data)
+{
+    auto &map = resource_maps[usage];
+
+    glui32 id = 1;
+    if (!map.empty()) {
+        id = map.rbegin()->first + 1;
+    }
+
+    map.insert({id, std::move(data)});
+
+    return id;
+}
+
+const std::map<glui32, std::vector<unsigned char>> &gli_get_resource_map(glui32 usage)
+{
+    return resource_maps[usage];
+}
+
+glui32 garglk_add_resource_from_file(glui32 usage, const char *filename_, glui32 offset, glui32 len)
+{
+    std::string filename(filename_);
+
+#ifdef _WIN32
+    static const std::vector<std::string> reserved_names = {
+        "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4",
+        "com5", "com6", "com7", "com8", "com9", "lpt1", "lpt2",
+        "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+    };
+
+    auto lower = garglk::downcase(filename);
+    for (const auto &reserved_name : reserved_names) {
+        if (lower == reserved_name || lower.find(reserved_name + ".") == 0) {
+            return 0;
+        }
+    }
+#endif
+
+#if __cplusplus >= 201703L
+    if (std::filesystem::path(filename).has_parent_path()) {
+        return 0;
+    }
+#else
+#ifdef _WIN32
+    std::string sep = "/\\";
+#else
+    std::string sep = "/";
+#endif
+
+    if (filename.find_first_of(sep) != std::string::npos) {
+        return 0;
+    }
+#endif
+
+    auto key = std::make_tuple(usage, filename, offset);
+
+    try {
+        return resource_ids.at(key);
+    } catch (const std::out_of_range &) {
+    }
+
+    filename = Format("{}/{}", gli_workdir, filename_);
+
+    std::ifstream f(filename, std::ios::binary);
+    if (!f.is_open()) {
+        return 0;
+    }
+
+    if (!f.seekg(offset, std::ios::beg)) {
+        return 0;
+    }
+
+    // vector resize/map insert can throw memory-related exceptions.
+    try {
+        std::vector<unsigned char> data(len);
+        if (!f.read(reinterpret_cast<char *>(data.data()), len)) {
+            return 0;
+        }
+
+        auto id = gli_insert_resource(usage, std::move(data));
+
+        resource_ids.insert({key, id});
+
+        return id;
+    } catch (...) {
+        return 0;
     }
 }

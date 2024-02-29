@@ -126,10 +126,27 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
 
     std::vector<unsigned char> buf;
 
-    if (giblorb_get_resource_map() == nullptr) {
-        auto filename = Format("{}/PIC{}", gli_workdir, id);
+    if (giblorb_get_resource_map() != nullptr) {
+        if (!giblorb_copy_resource(giblorb_ID_Pict, id, chunktype, buf)) {
+            return nullptr;
+        }
+    } else {
+        const auto &resource_map = gli_get_resource_map(giblorb_ID_Pict);
+        if (!resource_map.empty()) {
+            try {
+                buf = resource_map.at(id);
+            } catch (const std::out_of_range &) {
+                return nullptr;
+            }
+        } else {
+            auto filename = Format("{}/PIC{}", gli_workdir, id);
 
-        if (!garglk::read_file(filename, buf) || buf.size() < 8) {
+            if (!garglk::read_file(filename, buf)) {
+                return nullptr;
+            }
+        }
+
+        if (buf.size() < 8) {
             return nullptr;
         }
 
@@ -139,10 +156,6 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
             chunktype = giblorb_ID_JPEG;
         } else {
             // Not a readable file. Forget it.
-            return nullptr;
-        }
-    } else {
-        if (!giblorb_copy_resource(giblorb_ID_Pict, id, chunktype, buf)) {
             return nullptr;
         }
     }

@@ -63,6 +63,7 @@ typedef int32_t glsi32;
 #define GLK_MODULE_GARGLKTEXT
 #define GLK_MODULE_GARGLKBLEEP
 #define GLK_MODULE_GARGLKWINSIZE
+#define GLK_MODULE_GARGLK_FILE_RESOURCES
 
 /* Define a macro for a function attribute that indicates a function that
     never returns. (E.g., glk_exit().) We try to do this only in C compilers
@@ -526,6 +527,31 @@ extern void garglk_zbleep(glui32 number);
 extern int garglk_tads_os_banner_size(winid_t win);
 
 extern void garglk_window_get_size_pixels(winid_t win, glui32 *width, glui32 *height);
+
+/* Some game formats include graphics and/or sound, but not in a Blorb file. To
+ * support this, Gargoyle provides this function to add either an image or sound
+ * resource from a file. If the resource was successfully read from the file,
+ * this function returns a positive ID. Otherwise, it returns 0.
+ *
+ * The file will be loaded from the same directory as the game file, as set by
+ * glkunix_set_base_file(). The passed-in filename must be relative to this
+ * directory, which is to say, it cannot contain path separator characters.
+ *
+ * "usage" is either giblorb_ID_Pict or giblorb_ID_Snd, meaning that gi_blorb.h
+ * must be included before using this function.
+ *
+ * Resources are cached, so a future lookup of the same combination of
+ * filename, offset, and length for a given resource usage type will always
+ * return the same ID.
+ *
+ * Thus Gargoyle has three ways to find resources. In order of preference,
+ * highest to lowest:
+ *
+ * 1. From a Blorb file
+ * 2. From a resource added with this function
+ * 3. From a PIC or SND file
+ */
+extern glui32 garglk_add_resource_from_file(glui32 usage, const char *filename, glui32 offset, glui32 len);
 
 
 /* non standard keycodes */
