@@ -483,6 +483,10 @@ NotinResourceFile:
 		}
 #else
 	/* Glk implementation */
+#ifdef GARGLK
+	snprintf(temp, sizeof temp, "%s/%s", hugo_path_to_game, resname);
+	resource_file = glkunix_stream_open_pathname(temp, 0, 0);
+#else
 	fref = glk_fileref_create_by_name(fileusage_Data | fileusage_BinaryMode,
 		resname, 0);
 	if (glk_fileref_does_file_exist(fref))
@@ -490,6 +494,7 @@ NotinResourceFile:
 	else
 		resource_file = NULL;
 	glk_fileref_destroy(fref);
+#endif
 	if (!resource_file)
 	{
 		if (!strcmp(filename, ""))
