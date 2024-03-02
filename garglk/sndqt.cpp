@@ -55,6 +55,10 @@
 #include <mpg123.h>
 #include <sndfile.hh>
 
+#ifdef GARGLK_HAS_FLUIDSYNTH
+#include <fluidsynth.h>
+#endif
+
 #include "format.h"
 
 #include "glk.h"
@@ -70,6 +74,7 @@
 // non-standard types
 #define giblorb_ID_MP3  (giblorb_make_id('M', 'P', '3', ' '))
 #define giblorb_ID_WAVE (giblorb_make_id('W', 'A', 'V', 'E'))
+#define giblorb_ID_MIDI (giblorb_make_id('M', 'I', 'D', 'I'))
 
 #define GLK_MAXVOLUME 0x10000
 
@@ -432,6 +437,119 @@ private:
     }
 };
 
+#ifdef GARGLK_HAS_FLUIDSYNTH
+class FluidSynthSource : public SoundSource {
+public:
+    FluidSynthSource(const std::vector<unsigned char> &buf, glui32 plays) :
+        SoundSource(plays),
+        m_settings(new_fluid_settings(), delete_fluid_settings)
+    {
+        if (m_settings == nullptr) {
+            throw SoundError("fluidsynth unable to allocate settings");
+        }
+
+        for (const auto &level : {FLUID_PANIC, FLUID_ERR, FLUID_WARN, FLUID_INFO, FLUID_DBG}) {
+            fluid_set_log_function(level, nullptr, nullptr);
+        }
+
+        double samplerate;
+        fluid_settings_setnum(m_settings.get(), "synth.sample-rate", 48000);
+        if (fluid_settings_getnum(m_settings.get(), "synth.sample-rate", &samplerate) == FLUID_FAILED) {
+            throw SoundError("fluidsynth unable to get sample rate");
+        }
+
+        m_synth = {new_fluid_synth(m_settings.get()), delete_fluid_synth};
+        if (m_synth == nullptr) {
+            throw SoundError("fluidsynth unable to allocate synth");
+        }
+
+        for (const auto &soundfont : gli_conf_soundfonts) {
+            fluid_synth_sfload(m_synth.get(), soundfont.c_str(), 1);
+        }
+
+        if (fluid_synth_get_sfont(m_synth.get(), 0) == nullptr) {
+            char *s = nullptr;
+
+            if (fluid_settings_dupstr(m_settings.get(), "synth.default-soundfont", &s) != FLUID_OK ||
+                s == nullptr ||
+                s[0] == 0)
+            {
+                fluid_free(s);
+                throw SoundError("fluidsynth unable to find default soundfont");
+            }
+
+            std::string soundfont = s;
+            fluid_free(s);
+
+            if (fluid_synth_sfload(m_synth.get(), soundfont.c_str(), 1) == FLUID_FAILED) {
+                throw SoundError("unable to load sound font");
+            }
+        }
+
+        fluid_synth_set_interp_method(m_synth.get(), -1, FLUID_INTERP_7THORDER);
+
+        m_player = {new_fluid_player(m_synth.get()), delete_fluid_player};
+        if (m_player == nullptr) {
+            throw SoundError("fluidsynth unable to allocate player");
+        }
+
+        if (fluid_player_add_mem(m_player.get(), buf.data(), buf.size()) == FLUID_FAILED) {
+            throw SoundError("fluidsynth unable to load midi file");
+        }
+
+        if (fluid_player_play(m_player.get()) == FLUID_FAILED) {
+            throw SoundError("fluidsynth unable to play midi file");
+        }
+
+        set_format(samplerate, 2);
+    }
+
+protected:
+    qint64 source_read(void *data, qint64 max) override {
+        if (fluid_player_get_status(m_player.get()) == FLUID_PLAYER_DONE) {
+            return 0;
+        }
+
+        if (fluid_synth_write_float(m_synth.get(), max / 8, data, 0, 2, data, 1, 2) != FLUID_OK) {
+            return 0;
+        }
+
+        return max;
+    }
+
+    void source_rewind() override {
+        fluid_player_stop(m_player.get());
+        fluid_player_play(m_player.get());
+    }
+
+private:
+    // The FluidSynth code handles null pointers in its delete
+    // functions, but does not document this fact, so to be future
+    // proof, create wrappers that check for null.
+    static void settings_deleter(fluid_settings_t *settings) {
+        if (settings != nullptr) {
+            delete_fluid_settings(settings);
+        }
+    }
+
+    static void synth_deleter(fluid_synth_t *synth) {
+        if (synth != nullptr) {
+            delete_fluid_synth(synth);
+        }
+    }
+
+    static void player_deleter(fluid_player_t *player) {
+        if (player != nullptr) {
+            delete_fluid_player(player);
+        }
+    }
+
+    std::unique_ptr<fluid_settings_t, decltype(&settings_deleter)> m_settings{nullptr, settings_deleter};
+    std::unique_ptr<fluid_synth_t, decltype(&synth_deleter)> m_synth{nullptr, synth_deleter};
+    std::unique_ptr<fluid_player_t, decltype(&player_deleter)> m_player{nullptr, player_deleter};
+};
+#endif
+
 }
 
 struct glk_schannel_struct {
@@ -708,6 +826,7 @@ static int detect_format(const std::vector<unsigned char> &data)
         {std::make_shared<MagicString>(0, "FORM"), giblorb_ID_FORM},
         {std::make_shared<MagicString>(0, "RIFF"), giblorb_ID_WAVE},
         {std::make_shared<MagicString>(0, "OggS"), giblorb_ID_OGG},
+        {std::make_shared<MagicString>(0, "MThd"), giblorb_ID_MIDI},
 
         {std::make_shared<MagicMod>(), giblorb_ID_MOD},
 
@@ -814,6 +933,11 @@ static glui32 gli_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, 
             case giblorb_ID_MP3:
                 source.reset(new Mpg123Source(data, repeats));
                 break;
+#ifdef GARGLK_HAS_FLUIDSYNTH
+            case giblorb_ID_MIDI:
+                source.reset(new FluidSynthSource(data, repeats));
+                break;
+#endif
             default:
                 return 0;
             }

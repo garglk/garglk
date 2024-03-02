@@ -23,6 +23,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <deque>
 #include <fstream>
 #include <functional>
 #include <iomanip>
@@ -218,6 +219,12 @@ bool gli_conf_sound = true;
 bool gli_conf_speak = false;
 bool gli_conf_speak_input = false;
 std::string gli_conf_speak_language;
+
+#ifdef GARGLK_DEFAULT_SOUNDFONT
+std::deque<std::string> gli_conf_soundfonts = {GARGLK_DEFAULT_SOUNDFONT};
+#else
+std::deque<std::string> gli_conf_soundfonts;
+#endif
 
 bool gli_conf_fullscreen = false;
 
@@ -750,6 +757,15 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
 
                 if (argstream >> number >> path) {
                     gli_bleeps.update(config_range(parse_int(number), 1, 2), path);
+                }
+            } else if (cmd == "soundfont") {
+                gli_conf_soundfonts.clear();
+
+                std::istringstream argstream(arg);
+                std::string soundfont;
+
+                while (argstream >> std::quoted(soundfont)) {
+                    gli_conf_soundfonts.push_front(soundfont);
                 }
             } else if (cmd == "fullscreen") {
                 gli_conf_fullscreen = asbool(arg);

@@ -28,6 +28,7 @@ jobs:
           cmake
           extra-cmake-modules
           git
+          libfluidsynth-dev
           libfmt-dev
           libfontconfig1-dev
           libfreetype-dev
