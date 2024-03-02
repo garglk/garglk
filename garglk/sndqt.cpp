@@ -87,9 +87,9 @@ using ssize_t = std::make_signed_t<size_t>;
 
 namespace {
 
-class VFSAbstract {
+class VFS {
 public:
-    explicit VFSAbstract(std::vector<unsigned char> buf) : m_buf(std::move(buf)) {
+    explicit VFS(std::vector<unsigned char> buf) : m_buf(std::move(buf)) {
     }
 
     qsizetype size() {
@@ -293,7 +293,7 @@ public:
 
 private:
     SndfileHandle m_soundfile;
-    VFSAbstract m_vfs;
+    VFS m_vfs;
 
     static SF_VIRTUAL_IO get_io() {
         SF_VIRTUAL_IO io;
@@ -307,7 +307,7 @@ private:
         return io;
     }
 
-    static VFSAbstract &vfs(void *source) {
+    static VFS &vfs(void *source) {
         return reinterpret_cast<SndfileSource *>(source)->m_vfs;
     }
 
@@ -414,12 +414,12 @@ public:
 private:
     std::unique_ptr<mpg123_handle, decltype(&mpg123_delete)> m_handle;
 
-    VFSAbstract m_vfs;
+    VFS m_vfs;
     long m_rate;
     int m_channels;
     bool m_eof = false;
 
-    static VFSAbstract &vfs(void *source) {
+    static VFS &vfs(void *source) {
         return reinterpret_cast<Mpg123Source *>(source)->m_vfs;
     }
 
