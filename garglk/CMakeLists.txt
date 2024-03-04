@@ -247,7 +247,7 @@ if("${SOUND}" STREQUAL "QT")
         pkg_check_modules(SOUND REQUIRED IMPORTED_TARGET sndfile libmpg123 libopenmpt)
         target_link_libraries(garglk PRIVATE Qt${QT_VERSION}::Multimedia PkgConfig::SOUND)
 
-        pkg_check_modules(FLUIDSYNTH IMPORTED_TARGET fluidsynth2)
+        pkg_check_modules(FLUIDSYNTH IMPORTED_TARGET fluidsynth)
         if(TARGET PkgConfig::FLUIDSYNTH)
             target_compile_definitions(garglk PRIVATE GARGLK_HAS_FLUIDSYNTH)
             target_link_libraries(garglk PRIVATE PkgConfig::FLUIDSYNTH)
