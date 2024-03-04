@@ -441,9 +441,9 @@ private:
 class FluidSynthSource : public SoundSource {
 public:
     FluidSynthSource(const std::vector<unsigned char> &buf, glui32 plays) :
-        SoundSource(plays),
-        m_settings(new_fluid_settings(), delete_fluid_settings)
+        SoundSource(plays)
     {
+        m_settings.reset(new_fluid_settings());
         if (m_settings == nullptr) {
             throw SoundError("fluidsynth unable to allocate settings");
         }
@@ -458,7 +458,7 @@ public:
             throw SoundError("fluidsynth unable to get sample rate");
         }
 
-        m_synth = {new_fluid_synth(m_settings.get()), delete_fluid_synth};
+        m_synth.reset(new_fluid_synth(m_settings.get()));
         if (m_synth == nullptr) {
             throw SoundError("fluidsynth unable to allocate synth");
         }
@@ -488,7 +488,7 @@ public:
 
         fluid_synth_set_interp_method(m_synth.get(), -1, FLUID_INTERP_7THORDER);
 
-        m_player = {new_fluid_player(m_synth.get()), delete_fluid_player};
+        m_player.reset(new_fluid_player(m_synth.get()));
         if (m_player == nullptr) {
             throw SoundError("fluidsynth unable to allocate player");
         }
