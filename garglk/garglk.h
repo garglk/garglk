@@ -564,6 +564,7 @@ extern std::array<unsigned char, 5> gli_conf_lcd_weights;
 
 extern bool gli_conf_graphics;
 extern bool gli_conf_sound;
+extern std::deque<std::string> gli_conf_soundfonts;
 
 extern bool gli_conf_fullscreen;
 

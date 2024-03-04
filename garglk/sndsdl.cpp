@@ -127,6 +127,17 @@ void gli_initialize_sound()
             return;
         }
 
+        std::string soundfonts;
+        for (const auto &soundfont : gli_conf_soundfonts) {
+            if (soundfont.find(';') == std::string::npos) {
+                soundfonts += soundfont + ';';
+            }
+        }
+
+        if (!soundfonts.empty()) {
+            Mix_SetSoundFonts(soundfonts.c_str());
+        }
+
         int channels = Mix_AllocateChannels(SDL_CHANNELS);
         Mix_GroupChannels(0, channels - 1, FREE);
         Mix_ChannelFinished(nullptr);

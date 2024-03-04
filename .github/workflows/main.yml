@@ -35,6 +35,7 @@ jobs:
           gcc-7
           git
           grep
+          libfluidsynth-dev
           libfmt-dev
           libfontconfig1-dev
           libfreetype-dev

@@ -30,6 +30,10 @@ if(INTERFACE STREQUAL "QT")
     option(WITH_NATIVE_FILE_DIALOGS "Use native dialogs instead of Qt dialogs" ON)
 endif()
 
+if(SOUND STREQUAL "SDL" OR SOUND STREQUAL "QT")
+    set(DEFAULT_SOUNDFONT "" CACHE STRING "Path to a soundfont to use by default (defaults to empty, i.e. no default soundfont)")
+endif()
+
 if(MSVC)
     vtk_encode_string(
         INPUT garglk.ini
@@ -98,6 +102,10 @@ warnings(garglk)
 
 if(UNIX AND NOT APPLE)
     target_compile_definitions(garglk PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
+endif()
+
+if(DEFAULT_SOUNDFONT)
+    target_compile_definitions(garglk PRIVATE "GARGLK_DEFAULT_SOUNDFONT=\"${DEFAULT_SOUNDFONT}\"")
 endif()
 
 if(APPIMAGE)
@@ -238,6 +246,12 @@ if("${SOUND}" STREQUAL "QT")
         find_package(PkgConfig REQUIRED)
         pkg_check_modules(SOUND REQUIRED IMPORTED_TARGET sndfile libmpg123 libopenmpt)
         target_link_libraries(garglk PRIVATE Qt${QT_VERSION}::Multimedia PkgConfig::SOUND)
+
+        pkg_check_modules(FLUIDSYNTH IMPORTED_TARGET fluidsynth2)
+        if(TARGET PkgConfig::FLUIDSYNTH)
+            target_compile_definitions(garglk PRIVATE GARGLK_HAS_FLUIDSYNTH)
+            target_link_libraries(garglk PRIVATE PkgConfig::FLUIDSYNTH)
+        endif()
     endif()
     target_sources(garglk PRIVATE sndqt.cpp)
 elseif("${SOUND}" STREQUAL "SDL")

@@ -25,6 +25,8 @@ option (see below).
 In addition, if you want sound support, there are two backends: SDL and
 Qt. For SDL, you will need SDL2 and SDL2\_mixer. For Qt, you will need
 QtMultimedia, libsndfile (with Vorbis support), mpg123, and libopenmpt.
+In addition, if fluidsynth is installed, it will be used for MIDI in the
+Qt backend, but it is optional.
 
 If you want text-to-speech support on Unix, you will need
 speech-dispatcher. Windows and macOS natively provide text-to-speech
@@ -114,6 +116,13 @@ In addition, Gargoyle supports the following options:
 
 - `WITH_BUNDLED_FMT`: If true, prefer Gargoyle's bundled fmt library to
   the system library. Defaults to false.
+
+- `DEFAULT_SOUNDFONT`: Some MIDI backends require the use of a SoundFont, and
+  due to size restrictions, Gargoyle does not ship one. As a result, if a
+  SoundFont is required, and the user hasn't configured one, MIDI support
+  might be disabled. If a full path to a SoundFont is given to this option, it
+  will be used in the absence of a user's specified SoundFont, allowing
+  distributions to create an out-of-the-box working MIDI experience.
 
 As with any standard CMake-based project, DESTDIR can be used to install to a
 staging area:
