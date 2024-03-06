@@ -443,14 +443,16 @@ public:
     FluidSynthSource(const std::vector<unsigned char> &buf, glui32 plays) :
         SoundSource(plays)
     {
+        for (const auto &level : {FLUID_PANIC, FLUID_ERR, FLUID_WARN, FLUID_INFO, FLUID_DBG}) {
+            fluid_set_log_function(level, nullptr, nullptr);
+        }
+
         m_settings.reset(new_fluid_settings());
         if (m_settings == nullptr) {
             throw SoundError("fluidsynth unable to allocate settings");
         }
 
-        for (const auto &level : {FLUID_PANIC, FLUID_ERR, FLUID_WARN, FLUID_INFO, FLUID_DBG}) {
-            fluid_set_log_function(level, nullptr, nullptr);
-        }
+        fluid_settings_setnum(m_settings.get(), "synth.gain", 0.6);
 
         double samplerate;
         fluid_settings_setnum(m_settings.get(), "synth.sample-rate", 48000);
