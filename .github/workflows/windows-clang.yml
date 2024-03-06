@@ -35,7 +35,7 @@ jobs:
           modules: 'qtmultimedia'
 
       - name: Install other packages
-        run: vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo --triplet ${{ fromJSON('{"x86-64":"x64","arm64":"arm64"}')[matrix.arch] || matrix.arch }}-windows
+        run: vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo fluidsynth --triplet ${{ fromJSON('{"x86-64":"x64","arm64":"arm64"}')[matrix.arch] || matrix.arch }}-windows
       
       - name: Set up Visual Studio environment
         uses: seanmiddleditch/gha-setup-vsdevenv@v4
