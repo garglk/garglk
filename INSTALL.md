@@ -38,8 +38,7 @@ Qt cannot determine a user's text editor, so for editing the config
 file, Gargoyle instructs Qt to open the file, hoping that the user's
 environment will launch it in a text editor. If KDE Frameworks are used,
 the user's preferred text editor will be discovered and used directly to
-open the config file. KDE Frameworks are only available with Qt5. The
-following KDE Frameworks modules are required:
+open the config file. tHe following KDE Frameworks modules are required:
 
 - extra-cmake-modules
 - kio
