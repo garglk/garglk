@@ -185,11 +185,11 @@ if(${INTERFACE} STREQUAL "COCOA")
     target_link_libraries(garglk PUBLIC ${COCOA_LIBRARY} ${OPENGL_LIBRARIES})
 elseif(UNIX OR MINGW OR MSVC)
     option(WITH_QT6 "Build against Qt6 instead of Qt5" OFF)
+    option(WITH_KDE "Use KDE Frameworks (improves discovery of a text editor for config file editing)" OFF)
     if(WITH_QT6)
         set(QT_VERSION "6")
     else()
         set(QT_VERSION "5")
-        option(WITH_KDE "Use KDE Frameworks (improves discovery of a text editor for config file editing)" OFF)
     endif()
 
     find_package(Qt${QT_VERSION} COMPONENTS Widgets REQUIRED CONFIG)
@@ -207,22 +207,18 @@ elseif(UNIX OR MINGW OR MSVC)
     endif()
 
     if(WITH_KDE)
-        if(WITH_QT6)
-            message(FATAL_ERROR "KDE support requires Qt5")
-        endif()
-
         find_package(ECM 1.0.0 REQUIRED NO_MODULE)
         set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${ECM_KDE_MODULE_DIR})
 
         # This may trigger a warning about setting a more recent required CMake
-        # version. Such a warning can be safely ignored. The newest KF5 versions
+        # version. Such a warning can be safely ignored. The newest KF versions
         # require a more recent version of CMake than Gargoyle does, but older
         # versions do not. If Gargoyle were to require the CMake version that
-        # corresponds to the most recent KF5 version, systems with older
-        # combinations of CMake and KF5 would be excluded, even though they work
+        # corresponds to the most recent KF version, systems with older
+        # combinations of CMake and KF would be excluded, even though they work
         # just fine.
-        find_package(KF5 REQUIRED COMPONENTS KIO Service)
-        target_link_libraries(garglk PRIVATE KF5::KIOWidgets KF5::Service)
+        find_package(KF${QT_VERSION} REQUIRED COMPONENTS KIO Service)
+        target_link_libraries(garglk PRIVATE KF${QT_VERSION}::KIOWidgets KF${QT_VERSION}::Service)
         set_property(SOURCE sysqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLK_CONFIG_KDE)
     endif()
 
