@@ -226,6 +226,9 @@ std::deque<std::string> gli_conf_soundfonts = {GARGLK_DEFAULT_SOUNDFONT};
 std::deque<std::string> gli_conf_soundfonts;
 #endif
 
+bool gli_conf_fluidsynth_chorus = true;
+bool gli_conf_fluidsynth_reverb = true;
+
 bool gli_conf_fullscreen = false;
 
 bool gli_wait_on_quit = true;
@@ -767,6 +770,10 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 while (argstream >> std::quoted(soundfont)) {
                     gli_conf_soundfonts.push_front(soundfont);
                 }
+            } else if (cmd == "fluidsynth_reverb") {
+                gli_conf_fluidsynth_reverb = asbool(arg);
+            } else if (cmd == "fluidsynth_chorus") {
+                gli_conf_fluidsynth_chorus = asbool(arg);
             } else if (cmd == "fullscreen") {
                 gli_conf_fullscreen = asbool(arg);
             } else if (cmd == "zoom") {

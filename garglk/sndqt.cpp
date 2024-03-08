@@ -453,6 +453,8 @@ public:
         }
 
         fluid_settings_setnum(m_settings.get(), "synth.gain", 0.6);
+        fluid_settings_setint(m_settings.get(), "synth.reverb.active", gli_conf_fluidsynth_reverb);
+        fluid_settings_setint(m_settings.get(), "synth.chorus.active", gli_conf_fluidsynth_chorus);
 
         double samplerate;
         fluid_settings_setnum(m_settings.get(), "synth.sample-rate", 48000);

@@ -566,6 +566,9 @@ extern bool gli_conf_graphics;
 extern bool gli_conf_sound;
 extern std::deque<std::string> gli_conf_soundfonts;
 
+extern bool gli_conf_fluidsynth_reverb;
+extern bool gli_conf_fluidsynth_chorus;
+
 extern bool gli_conf_fullscreen;
 
 extern bool gli_wait_on_quit;
