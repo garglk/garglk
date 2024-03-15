@@ -534,8 +534,8 @@ extern void garglk_window_get_size_pixels(winid_t win, glui32 *width, glui32 *he
  * this function returns a positive ID. Otherwise, it returns 0.
  *
  * The file will be loaded from the same directory as the game file, as set by
- * glkunix_set_base_file(). The passed-in filename must be relative to this
- * directory, which is to say, it cannot contain path separator characters.
+ * glkunix_set_base_file(). The passed-in filename must be in this directory,
+ * which is to say, it cannot contain path separator characters.
  *
  * "usage" is either giblorb_ID_Pict or giblorb_ID_Snd, meaning that gi_blorb.h
  * must be included before using this function.
