@@ -64,6 +64,7 @@ typedef int32_t glsi32;
 #define GLK_MODULE_GARGLKBLEEP
 #define GLK_MODULE_GARGLKWINSIZE
 #define GLK_MODULE_GARGLK_FILE_RESOURCES
+#define GLK_MODULE_GARGLK_TADS_OS_BANNER_SIZE
 
 /* Define a macro for a function attribute that indicates a function that
     never returns. (E.g., glk_exit().) We try to do this only in C compilers

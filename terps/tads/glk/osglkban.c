@@ -28,6 +28,10 @@
 #include "os.h"
 #include "glk.h"
 
+#ifndef GLK_MODULE_GARGLK_TADS_OS_BANNER_SIZE
+#include "garglk.h"                 /* for-size to-contents hack */
+#endif
+
 typedef struct os_banner_s *osbanid_t;
 typedef struct banner_contents_s *contentid_t;
 
@@ -546,7 +550,15 @@ void os_banner_size_to_contents(void *banner_handle)
 #ifdef GARGLK
     if (banner->type == wintype_TextBuffer)
     {
+#ifdef GLK_MODULE_GARGLK_TADS_OS_BANNER_SIZE
         int size = garglk_tads_os_banner_size(banner->win);
+#else
+        winid_t win = banner->win;
+        window_textbuffer_t *dwin = win->data;
+        int size = dwin->scrollmax;
+        if (dwin->numchars)
+            size ++;
+#endif
         os_banner_set_size(banner, size, OS_BANNER_SIZE_ABS, 0);
     }
 #endif /* GARGLK */
