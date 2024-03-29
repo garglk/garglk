@@ -61,7 +61,4 @@ if(WITH_TADS)
     endif()
 
     target_include_directories(tadsr PRIVATE glk tads2 tads3)
-
-    # TADS needs access to garglk.h (although it really shouldn't).
-    target_include_directories(tadsr PRIVATE "${PROJECT_SOURCE_DIR}/garglk")
 endif()
