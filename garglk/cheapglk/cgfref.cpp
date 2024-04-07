@@ -263,6 +263,11 @@ frefid_t glk_fileref_create_by_name(glui32 usage, char *name,
                            [&to_remove](const char &c) { return to_remove.find(c) != std::string::npos; }),
             buf.end());
 
+    auto dot = buf.find('.');
+    if (dot != std::string::npos) {
+        buf = buf.substr(0, dot);
+    }
+
     if (buf.empty()) {
         buf = "null";
     }
