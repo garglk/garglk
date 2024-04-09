@@ -406,9 +406,8 @@ bool garglk::rungame(const std::string &game)
     try {
         return call_winterp(extensions.at(ext), game);
     } catch (const std::out_of_range &) {
+        garglk::winmsg("Unknown file type");
     }
-
-    garglk::winmsg("Unknown file type");
 
     return false;
 }
