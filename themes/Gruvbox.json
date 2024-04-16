@@ -1,0 +1,15 @@
+{
+    "name": "Gruvbox",
+    "window": "#282828",
+    "border": "#1d2021",
+    "caret": "#ebdbb2",
+    "link": "#458588",
+    "more": "#8ec07c",
+    "scrollbar": {"fg": "#808080", "bg": "#282828"},
+    "text_buffer": {
+        "default": {"fg": "#ebdbb2", "bg": "#282828"}
+    },
+    "text_grid": {
+        "default": {"fg": "#ebdbb2", "bg": "#282828"}
+    }
+}

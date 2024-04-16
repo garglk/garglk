@@ -96,10 +96,12 @@ cp -v garglk.ini "%{buildroot}%{_sysconfdir}/"
 %{_datarootdir}/fonts/gargoyle/Gargoyle-Serif.ttf
 %{_datarootdir}/io.github.garglk/Gargoyle/themes/Blue.json
 "%{_datarootdir}/io.github.garglk/Gargoyle/themes/Breeze Darker.json"
+%{_datarootdir}/io.github.garglk/Gargoyle/themes/Gruvbox.json
 "%{_datarootdir}/io.github.garglk/Gargoyle/themes/Lectrote Dark.json"
 "%{_datarootdir}/io.github.garglk/Gargoyle/themes/Lectrote Sepia.json"
 "%{_datarootdir}/io.github.garglk/Gargoyle/themes/Lectrote Slate.json"
 %{_datarootdir}/io.github.garglk/Gargoyle/themes/Pencil.json
+"%{_datarootdir}/io.github.garglk/Gargoyle/themes/Tomorrow Night Bright.json"
 %{_datarootdir}/io.github.garglk/Gargoyle/themes/Zoom.json
 %{_datarootdir}/io.github.garglk/Gargoyle/themes/dark.json
 %{_datarootdir}/io.github.garglk/Gargoyle/themes/light.json

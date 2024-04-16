@@ -424,10 +424,12 @@ elseif(UNIX)
     install(FILES
         "${PROJECT_SOURCE_DIR}/themes/Blue.json"
         "${PROJECT_SOURCE_DIR}/themes/Breeze Darker.json"
+        "${PROJECT_SOURCE_DIR}/themes/Gruvbox.json"
         "${PROJECT_SOURCE_DIR}/themes/Lectrote Dark.json"
         "${PROJECT_SOURCE_DIR}/themes/Lectrote Sepia.json"
         "${PROJECT_SOURCE_DIR}/themes/Lectrote Slate.json"
         "${PROJECT_SOURCE_DIR}/themes/Pencil.json"
+        "${PROJECT_SOURCE_DIR}/themes/Tomorrow Night Bright.json"
         "${PROJECT_SOURCE_DIR}/themes/Zoom.json"
         "${PROJECT_SOURCE_DIR}/themes/dark.json"
         "${PROJECT_SOURCE_DIR}/themes/light.json"
