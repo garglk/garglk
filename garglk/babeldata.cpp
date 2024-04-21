@@ -65,7 +65,7 @@ void gli_initialize_babel()
 
 #else
 
-void gli_initialize_babel(const std::string &)
+void gli_initialize_babel()
 {
 }
 
