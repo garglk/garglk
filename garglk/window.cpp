@@ -170,6 +170,10 @@ winid_t glk_window_open(winid_t splitwin,
     window_pair_t *dpairwin;
     glui32 val;
 
+    if (wintype == wintype_Graphics && !gli_conf_graphics) {
+        return nullptr;
+    }
+
     gli_force_redraw = true;
 
     if (gli_rootwin == nullptr) {
