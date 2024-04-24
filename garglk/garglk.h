@@ -46,6 +46,7 @@
 #include <vector>
 
 #include "optional.hpp"
+#include "variant.hpp"
 
 #include "glk.h"
 #include "gi_dispa.h"
@@ -762,13 +763,19 @@ struct glk_window_struct {
     window_t *parent = nullptr; // pair window which contains this one
     rect_t bbox;
     int yadj = 0;
-    union {
-        window_textgrid_t *textgrid;
-        window_textbuffer_t *textbuffer;
-        window_graphics_t *graphics;
-        window_blank_t *blank;
-        window_pair_t *pair;
-    } window;
+    nonstd::variant<
+        std::unique_ptr<window_textgrid_t>,
+        std::unique_ptr<window_textbuffer_t>,
+        std::unique_ptr<window_graphics_t>,
+        std::unique_ptr<window_blank_t>,
+        std::unique_ptr<window_pair_t>
+    > window;
+
+    window_textgrid_t *wingrid() { return nonstd::get<std::unique_ptr<window_textgrid_t>>(window).get(); }
+    window_textbuffer_t *winbuffer() { return nonstd::get<std::unique_ptr<window_textbuffer_t>>(window).get(); }
+    window_graphics_t *wingraphics() { return nonstd::get<std::unique_ptr<window_graphics_t>>(window).get(); }
+    window_blank_t *winblank() { return nonstd::get<std::unique_ptr<window_blank_t>>(window).get(); }
+    window_pair_t *winpair() { return nonstd::get<std::unique_ptr<window_pair_t>>(window).get(); }
 
     stream_t *str;               // the window stream.
     stream_t *echostr = nullptr; // the window's echo stream, if any.
@@ -835,10 +842,16 @@ struct tgline_t {
 };
 
 struct window_textgrid_t {
-    window_textgrid_t(window_t *owner_, Styles styles_) :
-        owner(owner_),
-        styles(std::move(styles_))
+    explicit window_textgrid_t(window_t *owner_) :
+        owner(owner_)
     {
+    }
+
+    ~window_textgrid_t() {
+        if (inbuf != nullptr && gli_unregister_arr != nullptr) {
+            const char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
+            gli_unregister_arr(inbuf, inoriglen, const_cast<char *>(typedesc), inarrayrock);
+        }
     }
 
     window_t *owner;
@@ -856,10 +869,9 @@ struct window_textgrid_t {
     int incurs, inlen;
     attr_t origattr;
     gidispatch_rock_t inarrayrock;
-    std::vector<glui32> line_terminators;
 
     // style hints and settings
-    Styles styles;
+    Styles styles = gli_gstyles;
 };
 
 struct tbline_t {
@@ -876,14 +888,19 @@ struct tbline_t {
 };
 
 struct window_textbuffer_t {
-    window_textbuffer_t(window_t *owner_, Styles styles_, int scrollback_) :
-        owner(owner_),
-        scrollback(scrollback_),
-        styles(std::move(styles_))
+    explicit window_textbuffer_t(window_t *owner_) :
+        owner(owner_)
     {
         lines.resize(scrollback);
         chars = lines[0].chars.data();
         attrs = lines[0].attrs.data();
+    }
+
+    ~window_textbuffer_t() {
+        if (inbuf != nullptr && gli_unregister_arr != nullptr) {
+            const char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
+            gli_unregister_arr(inbuf, inmax, const_cast<char *>(typedesc), inarrayrock);
+        }
     }
 
     window_t *owner;
@@ -923,11 +940,8 @@ struct window_textbuffer_t {
     attr_t origattr;
     gidispatch_rock_t inarrayrock;
 
-    bool echo_line_input = true;
-    std::vector<glui32> line_terminators;
-
     // style hints and settings
-    Styles styles;
+    Styles styles = gli_tstyles;
 
     // for copy selection
     std::vector<glui32> copybuf;
@@ -966,19 +980,13 @@ extern gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan);
 [[noreturn]]
 extern void gli_exit(int status);
 
-extern window_blank_t *win_blank_create(window_t *win);
-extern void win_blank_destroy(window_blank_t *dwin);
 extern void win_blank_rearrange(window_t *win, const rect_t *box);
 extern void win_blank_redraw(window_t *win);
 
-extern window_pair_t *win_pair_create(window_t *win, glui32 method, window_t *key, glui32 size);
-extern void win_pair_destroy(window_pair_t *dwin);
 extern void win_pair_rearrange(window_t *win, const rect_t *box);
 extern void win_pair_redraw(window_t *win);
 extern void win_pair_click(window_pair_t *dwin, int x, int y);
 
-extern window_textgrid_t *win_textgrid_create(window_t *win);
-extern void win_textgrid_destroy(window_textgrid_t *dwin);
 extern void win_textgrid_rearrange(window_t *win, rect_t *box);
 extern void win_textgrid_redraw(window_t *win);
 extern void win_textgrid_putchar_uni(window_t *win, glui32 ch);
@@ -992,8 +1000,6 @@ extern void win_textgrid_click(window_textgrid_t *dwin, int x, int y);
 extern void gcmd_grid_accept_readchar(window_t *win, glui32 arg);
 extern void gcmd_grid_accept_readline(window_t *win, glui32 arg);
 
-extern window_textbuffer_t *win_textbuffer_create(window_t *win);
-extern void win_textbuffer_destroy(window_textbuffer_t *dwin);
 extern void win_textbuffer_rearrange(window_t *win, rect_t *box);
 extern void win_textbuffer_redraw(window_t *win);
 extern void win_textbuffer_putchar_uni(window_t *win, glui32 ch);
@@ -1083,8 +1089,6 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
 void gli_piclist_increment();
 void gli_piclist_decrement();
 
-window_graphics_t *win_graphics_create(window_t *win);
-void win_graphics_destroy(window_graphics_t *dwin);
 void win_graphics_rearrange(window_t *win, rect_t *box);
 void win_graphics_get_size(window_t *win, glui32 *width, glui32 *height);
 void win_graphics_redraw(window_t *win);

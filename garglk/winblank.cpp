@@ -20,19 +20,9 @@
 
 // This code is just as simple as you think. A blank window does *nothing*.
 
-window_blank_t *win_blank_create(window_t *win)
-{
-    return new window_blank_t(win);
-}
-
-void win_blank_destroy(window_blank_t *dwin)
-{
-    delete dwin;
-}
-
 void win_blank_rearrange(window_t *win, const rect_t *box)
 {
-    win->window.blank->owner->bbox = *box;
+    win->winblank()->owner->bbox = *box;
 }
 
 void win_blank_redraw(window_t *win)

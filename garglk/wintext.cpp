@@ -58,26 +58,6 @@ static void touchscroll(window_textbuffer_t *dwin)
     }
 }
 
-window_textbuffer_t *win_textbuffer_create(window_t *win)
-{
-    return new window_textbuffer_t(win, gli_tstyles, SCROLLBACK);
-}
-
-void win_textbuffer_destroy(window_textbuffer_t *dwin)
-{
-    if (dwin->inbuf != nullptr) {
-        if (gli_unregister_arr != nullptr) {
-            const char *typedesc = (dwin->inunicode ? "&+#!Iu" : "&+#!Cn");
-            (*gli_unregister_arr)(dwin->inbuf, dwin->inmax, const_cast<char *>(typedesc), dwin->inarrayrock);
-        }
-        dwin->inbuf = nullptr;
-    }
-
-    dwin->owner = nullptr;
-
-    delete dwin;
-}
-
 std::vector<char> gli_get_text(window_textbuffer_t *dwin)
 {
     int s = dwin->scrollmax < SCROLLBACK ? dwin->scrollmax : SCROLLBACK - 1;
@@ -100,7 +80,7 @@ std::vector<char> gli_get_text(window_textbuffer_t *dwin)
 
 static void reflow(window_t *win)
 {
-    window_textbuffer_t *dwin = win->window.textbuffer;
+    window_textbuffer_t *dwin = win->winbuffer();
     int inputbyte = -1;
     attr_t curattr;
     attr_t oldattr;
@@ -215,7 +195,7 @@ static void reflow(window_t *win)
 
 void win_textbuffer_rearrange(window_t *win, rect_t *box)
 {
-    window_textbuffer_t *dwin = win->window.textbuffer;
+    window_textbuffer_t *dwin = win->winbuffer();
     int newwid, newhgt;
     int rnd;
 
@@ -290,7 +270,7 @@ static int calcwidth(window_textbuffer_t *dwin,
 
 void win_textbuffer_redraw(window_t *win)
 {
-    window_textbuffer_t *dwin = win->window.textbuffer;
+    window_textbuffer_t *dwin = win->winbuffer();
     tbline_t ln;
     int linelen;
     int nsp, spw, pw;
@@ -882,7 +862,7 @@ static bool leftquote(std::uint32_t c)
 
 void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 {
-    window_textbuffer_t *dwin = win->window.textbuffer;
+    window_textbuffer_t *dwin = win->winbuffer();
     std::array<glui32, TBLINELEN> bchars;
     std::array<attr_t, TBLINELEN> battrs;
     int pw;
@@ -1053,7 +1033,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 
 bool win_textbuffer_unputchar_uni(window_t *win, glui32 ch)
 {
-    window_textbuffer_t *dwin = win->window.textbuffer;
+    window_textbuffer_t *dwin = win->winbuffer();
     if (dwin->numchars > 0 && glk_char_to_upper(dwin->chars[dwin->numchars - 1]) == glk_char_to_upper(ch)) {
         dwin->numchars--;
         touch(dwin, 0);
@@ -1064,7 +1044,7 @@ bool win_textbuffer_unputchar_uni(window_t *win, glui32 ch)
 
 void win_textbuffer_clear(window_t *win)
 {
-    window_textbuffer_t *dwin = win->window.textbuffer;
+    window_textbuffer_t *dwin = win->winbuffer();
     int i;
 
     win->attr.fgcolor = gli_override_fg;
@@ -1106,7 +1086,7 @@ void win_textbuffer_clear(window_t *win)
 // Prepare the window for line input.
 static void win_textbuffer_init_impl(window_t *win, void *buf, int maxlen, int initlen, bool unicode)
 {
-    window_textbuffer_t *dwin = win->window.textbuffer;
+    window_textbuffer_t *dwin = win->winbuffer();
     int pw;
 
     gli_tts_flush();
@@ -1143,9 +1123,6 @@ static void win_textbuffer_init_impl(window_t *win, void *buf, int maxlen, int i
         }
     }
 
-    dwin->echo_line_input = win->echo_line_input;
-    dwin->line_terminators = win->line_terminators;
-
     if (gli_register_arr != nullptr) {
         dwin->inarrayrock = (*gli_register_arr)(dwin->inbuf, maxlen, const_cast<char *>(unicode ? "&+#!Iu" : "&+#!Cn"));
     }
@@ -1164,7 +1141,7 @@ void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int in
 // Abort line input, storing whatever's been typed so far.
 void win_textbuffer_cancel_line(window_t *win, event_t *ev)
 {
-    window_textbuffer_t *dwin = win->window.textbuffer;
+    window_textbuffer_t *dwin = win->winbuffer();
     gidispatch_rock_t inarrayrock;
     int ix;
     int len;
@@ -1213,11 +1190,10 @@ void win_textbuffer_cancel_line(window_t *win, event_t *ev)
 
     win->line_request = false;
     win->line_request_uni = false;
-    dwin->line_terminators.clear();
     dwin->inbuf = nullptr;
     dwin->inmax = 0;
 
-    if (dwin->echo_line_input) {
+    if (win->echo_line_input) {
         win_textbuffer_putchar_uni(win, '\n');
     } else {
         dwin->numchars = dwin->infence;
@@ -1235,7 +1211,7 @@ void win_textbuffer_cancel_line(window_t *win, event_t *ev)
 // Any key, when text buffer is scrolled.
 bool gcmd_accept_scroll(window_t *win, glui32 arg)
 {
-    window_textbuffer_t *dwin = win->window.textbuffer;
+    window_textbuffer_t *dwin = win->winbuffer();
     int pageht = dwin->height - 2; // 1 for prompt, 1 for overlap
     bool startpos = dwin->scrollpos != 0;
 
@@ -1285,7 +1261,7 @@ bool gcmd_accept_scroll(window_t *win, glui32 arg)
 // Any key, during character input. Ends character input.
 void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)
 {
-    window_textbuffer_t *dwin = win->window.textbuffer;
+    window_textbuffer_t *dwin = win->winbuffer();
     glui32 key;
 
     if (dwin->height < 2) {
@@ -1332,7 +1308,7 @@ static void acceptline(window_t *win, glui32 keycode)
     int inmax;
     bool inunicode;
     gidispatch_rock_t inarrayrock;
-    window_textbuffer_t *dwin = win->window.textbuffer;
+    window_textbuffer_t *dwin = win->winbuffer();
 
     if (dwin->inbuf == nullptr) {
         return;
@@ -1399,13 +1375,12 @@ static void acceptline(window_t *win, glui32 keycode)
 
     win->attr = dwin->origattr;
 
-    if (!dwin->line_terminators.empty()) {
+    if (!win->line_terminators.empty()) {
         glui32 val2 = keycode;
         if (val2 == keycode_Return) {
             val2 = 0;
         }
         gli_event_store(evtype_LineInput, win, len, val2);
-        dwin->line_terminators.clear();
     } else {
         gli_event_store(evtype_LineInput, win, len, 0);
     }
@@ -1414,7 +1389,7 @@ static void acceptline(window_t *win, glui32 keycode)
     dwin->inbuf = nullptr;
     dwin->inmax = 0;
 
-    if (dwin->echo_line_input) {
+    if (win->echo_line_input) {
         win_textbuffer_putchar_uni(win, '\n');
     } else {
         dwin->numchars = dwin->infence;
@@ -1430,7 +1405,7 @@ static void acceptline(window_t *win, glui32 keycode)
 // Any key, during line input.
 void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
 {
-    window_textbuffer_t *dwin = win->window.textbuffer;
+    window_textbuffer_t *dwin = win->winbuffer();
 
     if (dwin->height < 2) {
         dwin->scrollpos = 0;
@@ -1447,8 +1422,8 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
         return;
     }
 
-    if (!dwin->line_terminators.empty() && gli_window_check_terminator(arg)) {
-        if (std::find(dwin->line_terminators.begin(), dwin->line_terminators.end(), arg) != dwin->line_terminators.end()) {
+    if (!win->line_terminators.empty() && gli_window_check_terminator(arg)) {
+        if (std::find(win->line_terminators.begin(), win->line_terminators.end(), arg) != win->line_terminators.end()) {
             acceptline(win, arg);
             return;
         }

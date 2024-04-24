@@ -66,7 +66,7 @@ void garglk_set_story_title(const char *title)
 
 int garglk_tads_os_banner_size(winid_t win)
 {
-    window_textbuffer_t *dwin = win->window.textbuffer;
+    window_textbuffer_t *dwin = win->winbuffer();
     int size = dwin->scrollmax;
     if (dwin->numchars != 0) {
         size++;

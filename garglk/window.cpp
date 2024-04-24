@@ -56,12 +56,12 @@ nonstd::optional<std::vector<char>> gli_get_scrollback() {
     nonstd::optional<std::vector<char>> text;
 
     if (gli_focuswin != nullptr && gli_focuswin->type == wintype_TextBuffer) {
-        return gli_get_text(gli_focuswin->window.textbuffer);
+        return gli_get_text(gli_focuswin->winbuffer());
     }
 
     for (auto *win = glk_window_iterate(nullptr, nullptr); win != nullptr; win = glk_window_iterate(win, nullptr)) {
         if (win->type == wintype_TextBuffer) {
-            auto new_text = gli_get_text(win->window.textbuffer);
+            auto new_text = gli_get_text(win->winbuffer());
             if (!text.has_value() || new_text.size() > text->size()) {
                 text = new_text;
             }
@@ -166,8 +166,7 @@ winid_t glk_window_open(winid_t splitwin,
         glui32 method, glui32 size,
         glui32 wintype, glui32 rock)
 {
-    window_t *newwin, *pairwin, *oldparent;
-    window_pair_t *dpairwin;
+    window_t *oldparent;
     glui32 val;
 
     if (wintype == wintype_Graphics && !gli_conf_graphics) {
@@ -212,67 +211,70 @@ winid_t glk_window_open(winid_t splitwin,
         }
     }
 
+    // std::unique_ptr is used a couple places in this block just to guard
+    // against leaks. Those instances of it will ultimately release ownership.
+    // This is to mesh with the C ancestry of the code, while still using RAII
+    // to avoid leaks in error cases.
     try {
-        newwin = new window_t(wintype, rock);
-    } catch (const std::bad_alloc &) {
-        gli_strict_warning("window_open: unable to create window");
-        return nullptr;
-    }
+        auto newwin = std::make_unique<window_t>(wintype, rock);
 
-    switch (wintype) {
-    case wintype_Blank:
-        newwin->window.blank = win_blank_create(newwin);
-        break;
-    case wintype_TextGrid:
-        newwin->window.textgrid = win_textgrid_create(newwin);
-        break;
-    case wintype_TextBuffer:
-        newwin->window.textbuffer = win_textbuffer_create(newwin);
-        break;
-    case wintype_Graphics:
-        newwin->window.graphics = win_graphics_create(newwin);
-        break;
-    case wintype_Pair:
-        gli_strict_warning("window_open: cannot open pair window directly");
-        delete newwin;
-        return nullptr;
-    default:
-        // Unknown window type -- do not print a warning, just return 0
-        // to indicate that it's not possible.
-        delete newwin;
-        return nullptr;
-    }
-
-    if (splitwin == nullptr) {
-        gli_rootwin = newwin;
-    } else {
-        // create pairwin, with newwin as the key
-        pairwin = new window_t(wintype_Pair, 0);
-        dpairwin = win_pair_create(pairwin, method, newwin, size);
-        pairwin->window.pair = dpairwin;
-
-        dpairwin->child1 = splitwin;
-        dpairwin->child2 = newwin;
-
-        splitwin->parent = pairwin;
-        newwin->parent = pairwin;
-        pairwin->parent = oldparent;
-
-        if (oldparent != nullptr) {
-            window_pair_t *dparentwin = oldparent->window.pair;
-            if (dparentwin->child1 == splitwin) {
-                dparentwin->child1 = pairwin;
-            } else {
-                dparentwin->child2 = pairwin;
-            }
-        } else {
-            gli_rootwin = pairwin;
+        switch (wintype) {
+        case wintype_Blank:
+            newwin->window = std::make_unique<window_blank_t>(newwin.get());
+            break;
+        case wintype_TextGrid:
+            newwin->window = std::make_unique<window_textgrid_t>(newwin.get());
+            break;
+        case wintype_TextBuffer:
+            newwin->window = std::make_unique<window_textbuffer_t>(newwin.get());
+            break;
+        case wintype_Graphics:
+            newwin->window = std::make_unique<window_graphics_t>(newwin.get());
+            break;
+        case wintype_Pair:
+            gli_strict_warning("window_open: cannot open pair window directly");
+            return nullptr;
+        default:
+            // Unknown window type -- do not print a warning, just return 0
+            // to indicate that it's not possible.
+            return nullptr;
         }
+
+        if (splitwin == nullptr) {
+            gli_rootwin = newwin.get();
+        } else {
+            // create pairwin, with newwin as the key
+            auto pairwin = std::make_unique<window_t>(wintype_Pair, 0);
+            pairwin->window = std::make_unique<window_pair_t>(pairwin.get(), method, newwin.get(), size);
+
+            pairwin->winpair()->child1 = splitwin;
+            pairwin->winpair()->child2 = newwin.get();
+
+            splitwin->parent = pairwin.get();
+            newwin->parent = pairwin.get();
+            pairwin->parent = oldparent;
+
+            if (oldparent != nullptr) {
+                window_pair_t *dparentwin = oldparent->winpair();
+                if (dparentwin->child1 == splitwin) {
+                    dparentwin->child1 = pairwin.get();
+                } else {
+                    dparentwin->child2 = pairwin.get();
+                }
+            } else {
+                gli_rootwin = pairwin.get();
+            }
+
+            (void)pairwin.release();
+        }
+
+        gli_windows_rearrange();
+
+        return newwin.release();
+    } catch (const std::bad_alloc &) {
+        gli_strict_warning("window_open: unable to create window (out of memory)");
+        return nullptr;
     }
-
-    gli_windows_rearrange();
-
-    return newwin;
 }
 
 static void gli_window_close(window_t *win, bool recurse)
@@ -285,7 +287,7 @@ static void gli_window_close(window_t *win, bool recurse)
 
     for (wx = win->parent; wx != nullptr; wx = wx->parent) {
         if (wx->type == wintype_Pair) {
-            window_pair_t *dwx = wx->window.pair;
+            window_pair_t *dwx = wx->winpair();
             if (dwx->key == win) {
                 dwx->key = nullptr;
                 dwx->keydamage = true;
@@ -297,40 +299,14 @@ static void gli_window_close(window_t *win, bool recurse)
         gli_piclist_decrement();
     }
 
-    switch (win->type) {
-    case wintype_Blank: {
-        window_blank_t *dwin = win->window.blank;
-        win_blank_destroy(dwin);
-    }
-    break;
-    case wintype_Pair: {
-        window_pair_t *dwin = win->window.pair;
-        if (recurse) {
-            if (dwin->child1 != nullptr) {
-                gli_window_close(dwin->child1, true);
-            }
-            if (dwin->child2 != nullptr) {
-                gli_window_close(dwin->child2, true);
-            }
+    if (win->type == wintype_Pair && recurse) {
+        window_pair_t *dwin = win->winpair();
+        if (dwin->child1 != nullptr) {
+            gli_window_close(dwin->child1, true);
         }
-        win_pair_destroy(dwin);
-    }
-    break;
-    case wintype_TextBuffer: {
-        window_textbuffer_t *dwin = win->window.textbuffer;
-        win_textbuffer_destroy(dwin);
-    }
-    break;
-    case wintype_TextGrid: {
-        window_textgrid_t *dwin = win->window.textgrid;
-        win_textgrid_destroy(dwin);
-    }
-    break;
-    case wintype_Graphics: {
-        window_graphics_t *dwin = win->window.graphics;
-        win_graphics_destroy(dwin);
-    }
-    break;
+        if (dwin->child2 != nullptr) {
+            gli_window_close(dwin->child2, true);
+        }
     }
 
     delete win;
@@ -362,7 +338,7 @@ void glk_window_close(window_t *win, stream_result_t *result)
         window_pair_t *dpairwin, *dgrandparwin;
 
         pairwin = win->parent;
-        dpairwin = pairwin->window.pair;
+        dpairwin = pairwin->winpair();
         if (win == dpairwin->child1) {
             sibwin = dpairwin->child2;
         } else if (win == dpairwin->child2) {
@@ -377,7 +353,7 @@ void glk_window_close(window_t *win, stream_result_t *result)
             gli_rootwin = sibwin;
             sibwin->parent = nullptr;
         } else {
-            dgrandparwin = grandparwin->window.pair;
+            dgrandparwin = grandparwin->winpair();
             if (dgrandparwin->child1 == pairwin) {
                 dgrandparwin->child1 = sibwin;
             } else {
@@ -426,7 +402,7 @@ void glk_window_get_arrangement(window_t *win, glui32 *method, glui32 *size,
         return;
     }
 
-    dwin = win->window.pair;
+    dwin = win->winpair();
 
     val = dwin->dir | dwin->division;
     if (!dwin->wborder) {
@@ -486,7 +462,7 @@ void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid
         }
     }
 
-    dwin = win->window.pair;
+    dwin = win->winpair();
 
     newdir = method & winmethod_DirMask;
     newvertical = (newdir == winmethod_Left || newdir == winmethod_Right);
@@ -581,7 +557,7 @@ void gli_calc_padding(window_t *win, int *x, int *y)
         return;
     }
     if (win->type == wintype_Pair) {
-        wp = win->window.pair;
+        wp = win->winpair();
         if (wp->vertical) {
             *x += gli_wpaddingx;
         } else {
@@ -624,7 +600,7 @@ window_t *gli_window_iterate_treeorder(window_t *win)
     }
 
     if (win->type == wintype_Pair) {
-        window_pair_t *dwin = win->window.pair;
+        window_pair_t *dwin = win->winpair();
         if (!dwin->backward) {
             return dwin->child1;
         } else {
@@ -636,7 +612,7 @@ window_t *gli_window_iterate_treeorder(window_t *win)
 
         while (win->parent != nullptr) {
             parwin = win->parent;
-            dwin = parwin->window.pair;
+            dwin = parwin->winpair();
             if (!dwin->backward) {
                 if (win == dwin->child1) {
                     return dwin->child2;
@@ -696,7 +672,7 @@ winid_t glk_window_get_sibling(window_t *win)
         return nullptr;
     }
 
-    dparwin = win->parent->window.pair;
+    dparwin = win->parent->winpair();
     if (dparwin->child1 == win) {
         return dparwin->child2;
     } else if (dparwin->child2 == win) {
@@ -1164,16 +1140,16 @@ void gli_window_click(window_t *win, int x, int y)
 {
     switch (win->type) {
     case wintype_Pair:
-        win_pair_click(win->window.pair, x, y);
+        win_pair_click(win->winpair(), x, y);
         break;
     case wintype_TextBuffer:
-        win_textbuffer_click(win->window.textbuffer, x, y);
+        win_textbuffer_click(win->winbuffer(), x, y);
         break;
     case wintype_TextGrid:
-        win_textgrid_click(win->window.textgrid, x, y);
+        win_textgrid_click(win->wingrid(), x, y);
         break;
     case wintype_Graphics:
-        win_graphics_click(win->window.graphics, x, y);
+        win_graphics_click(win->wingraphics(), x, y);
         break;
     }
 }
@@ -1229,7 +1205,7 @@ void glk_window_clear(window_t *win)
         win_textgrid_clear(win);
         break;
     case wintype_Graphics:
-        win_graphics_erase_rect(win->window.graphics, true, 0, 0, 0, 0);
+        win_graphics_erase_rect(win->wingraphics(), true, 0, 0, 0, 0);
         break;
     }
 }
@@ -1266,10 +1242,10 @@ glui32 glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2)
 
     switch (win->type) {
     case wintype_TextBuffer:
-        return win_textbuffer_draw_picture(win->window.textbuffer, image, val1,
+        return win_textbuffer_draw_picture(win->winbuffer(), image, val1,
                                            false, 0, 0);
     case wintype_Graphics:
-        return win_graphics_draw_picture(win->window.graphics, image, val1, val2,
+        return win_graphics_draw_picture(win->wingraphics(), image, val1, val2,
                                          false, 0, 0);
     }
     return false;
@@ -1289,10 +1265,10 @@ glui32 glk_image_draw_scaled(winid_t win, glui32 image,
 
     switch (win->type) {
     case wintype_TextBuffer:
-        return win_textbuffer_draw_picture(win->window.textbuffer, image, val1,
+        return win_textbuffer_draw_picture(win->winbuffer(), image, val1,
                                            true, width, height);
     case wintype_Graphics:
-        return win_graphics_draw_picture(win->window.graphics, image, val1, val2,
+        return win_graphics_draw_picture(win->wingraphics(), image, val1, val2,
                                          true, width, height);
     }
 
@@ -1330,7 +1306,7 @@ void glk_window_flow_break(winid_t win)
         gli_strict_warning("window_flow_break: not a text buffer window");
         return;
     }
-    win_textbuffer_flow_break(win->window.textbuffer);
+    win_textbuffer_flow_break(win->winbuffer());
 }
 
 void glk_window_erase_rect(winid_t win,
@@ -1344,7 +1320,7 @@ void glk_window_erase_rect(winid_t win,
         gli_strict_warning("window_erase_rect: not a graphics window");
         return;
     }
-    win_graphics_erase_rect(win->window.graphics, false, left, top, width, height);
+    win_graphics_erase_rect(win->wingraphics(), false, left, top, width, height);
 }
 
 void glk_window_fill_rect(winid_t win, glui32 color,
@@ -1358,7 +1334,7 @@ void glk_window_fill_rect(winid_t win, glui32 color,
         gli_strict_warning("window_fill_rect: not a graphics window");
         return;
     }
-    win_graphics_fill_rect(win->window.graphics, color, left, top, width, height);
+    win_graphics_fill_rect(win->wingraphics(), color, left, top, width, height);
 }
 
 void glk_window_set_background_color(winid_t win, glui32 color)
@@ -1371,7 +1347,7 @@ void glk_window_set_background_color(winid_t win, glui32 color)
         gli_strict_warning("window_set_background_color: not a graphics window");
         return;
     }
-    win_graphics_set_background_color(win->window.graphics, color);
+    win_graphics_set_background_color(win->wingraphics(), color);
 }
 
 void attr_t::set(glui32 style_)
