@@ -550,24 +550,6 @@ void glk_window_get_size(window_t *win, glui32 *width, glui32 *height)
     }
 }
 
-void gli_calc_padding(window_t *win, int *x, int *y)
-{
-    window_pair_t *wp;
-    if (win == nullptr) {
-        return;
-    }
-    if (win->type == wintype_Pair) {
-        wp = win->winpair();
-        if (wp->vertical) {
-            *x += gli_wpaddingx;
-        } else {
-            *y += gli_wpaddingy;
-        }
-        gli_calc_padding(wp->child1, x, y);
-        gli_calc_padding(wp->child2, x, y);
-    }
-}
-
 //
 // Family matters
 //

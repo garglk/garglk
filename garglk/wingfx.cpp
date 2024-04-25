@@ -72,13 +72,6 @@ void win_graphics_rearrange(window_t *win, rect_t *box)
     win_graphics_touch(dwin);
 }
 
-void win_graphics_get_size(window_t *win, glui32 *width, glui32 *height)
-{
-    window_graphics_t *dwin = win->wingraphics();
-    *width = dwin->w;
-    *height = dwin->h;
-}
-
 void win_graphics_redraw(window_t *win)
 {
     window_graphics_t *dwin = win->wingraphics();
