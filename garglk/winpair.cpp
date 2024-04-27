@@ -19,19 +19,9 @@
 #include "glk.h"
 #include "garglk.h"
 
-window_pair_t *win_pair_create(window_t *win, glui32 method, window_t *key, glui32 size)
-{
-    return new window_pair_t(win, method, key, size);
-}
-
-void win_pair_destroy(window_pair_t *dwin)
-{
-    delete dwin;
-}
-
 void win_pair_rearrange(window_t *win, const rect_t *box)
 {
-    window_pair_t *dwin = win->window.pair;
+    window_pair_t *dwin = win->winpair();
     rect_t box1, box2;
     int min, diff, split, splitwid, max;
     window_t *key;
@@ -155,7 +145,7 @@ void win_pair_redraw(window_t *win)
         return;
     }
 
-    dwin = win->window.pair;
+    dwin = win->winpair();
 
     gli_window_redraw(dwin->child1);
     gli_window_redraw(dwin->child2);

@@ -38,23 +38,9 @@ static void win_graphics_touch(window_graphics_t *dest)
             dest->owner->bbox.y1);
 }
 
-window_graphics_t *win_graphics_create(window_t *win)
-{
-    if (!gli_conf_graphics) {
-        return nullptr;
-    }
-
-    return new window_graphics_t(win);
-}
-
-void win_graphics_destroy(window_graphics_t *dwin)
-{
-    delete dwin;
-}
-
 void win_graphics_rearrange(window_t *win, rect_t *box)
 {
-    window_graphics_t *dwin = win->window.graphics;
+    window_graphics_t *dwin = win->wingraphics();
     int newwid, newhgt;
     int oldw, oldh;
 
@@ -88,14 +74,14 @@ void win_graphics_rearrange(window_t *win, rect_t *box)
 
 void win_graphics_get_size(window_t *win, glui32 *width, glui32 *height)
 {
-    window_graphics_t *dwin = win->window.graphics;
+    window_graphics_t *dwin = win->wingraphics();
     *width = dwin->w;
     *height = dwin->h;
 }
 
 void win_graphics_redraw(window_t *win)
 {
-    window_graphics_t *dwin = win->window.graphics;
+    window_graphics_t *dwin = win->wingraphics();
     int x, y;
 
     int x0 = win->bbox.x0;
