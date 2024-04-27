@@ -1196,7 +1196,7 @@ void win_textbuffer_cancel_line(window_t *win, event_t *ev)
 
     win->line_request = false;
     win->line_request_uni = false;
-    win->line_terminators.clear();
+    dwin->line_terminators.clear();
     dwin->inbuf = nullptr;
     dwin->inmax = 0;
 
