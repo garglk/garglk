@@ -35,7 +35,6 @@
 #include <cstring>
 #include <deque>
 #include <exception>
-#include <fstream>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -1090,7 +1089,6 @@ void gli_piclist_increment();
 void gli_piclist_decrement();
 
 void win_graphics_rearrange(window_t *win, rect_t *box);
-void win_graphics_get_size(window_t *win, glui32 *width, glui32 *height);
 void win_graphics_redraw(window_t *win);
 void win_graphics_click(window_graphics_t *dwin, int x, int y);
 
@@ -1103,8 +1101,6 @@ void win_graphics_set_background_color(window_graphics_t *dwin, glui32 color);
 
 bool win_textbuffer_draw_picture(window_textbuffer_t *dwin, glui32 image, glui32 align, bool scaled, glui32 width, glui32 height);
 void win_textbuffer_flow_break(window_textbuffer_t *win);
-
-void gli_calc_padding(window_t *win, int *x, int *y);
 
 void gli_read_config(int argc, char **argv, bool quiet);
 

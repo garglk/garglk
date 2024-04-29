@@ -550,24 +550,6 @@ void glk_window_get_size(window_t *win, glui32 *width, glui32 *height)
     }
 }
 
-void gli_calc_padding(window_t *win, int *x, int *y)
-{
-    window_pair_t *wp;
-    if (win == nullptr) {
-        return;
-    }
-    if (win->type == wintype_Pair) {
-        wp = win->winpair();
-        if (wp->vertical) {
-            *x += gli_wpaddingx;
-        } else {
-            *y += gli_wpaddingy;
-        }
-        gli_calc_padding(wp->child1, x, y);
-        gli_calc_padding(wp->child2, x, y);
-    }
-}
-
 //
 // Family matters
 //
@@ -653,11 +635,8 @@ winid_t glk_window_get_parent(window_t *win)
         gli_strict_warning("window_get_parent: invalid ref");
         return nullptr;
     }
-    if (win->parent != nullptr) {
-        return win->parent;
-    } else {
-        return nullptr;
-    }
+
+    return win->parent;
 }
 
 winid_t glk_window_get_sibling(window_t *win)
@@ -707,11 +686,7 @@ strid_t glk_window_get_echo_stream(window_t *win)
         return nullptr;
     }
 
-    if (win->echostr != nullptr) {
-        return win->echostr;
-    } else {
-        return nullptr;
-    }
+    return win->echostr;
 }
 
 void glk_window_set_echo_stream(window_t *win, stream_t *str)
