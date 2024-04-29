@@ -175,10 +175,10 @@ In addition, Gargoyle supports many readline/Emacs-style line-editor bindings:
 
 * `Ctrl`+`a`: Go to the beginning of the line.
 * `Ctrl`+`b`: Move the cursor to the left.
-* `Ctrl`+`d`: Erase the key under the cursor.
+* `Ctrl`+`d`: Erase the character under the cursor.
 * `Ctrl`+`e`: Go to the end of the line.
 * `Ctrl`+`f`: Move the cursor to the right.
-* `Ctrl`+`h`: Erase the key to the left of the cursor.
+* `Ctrl`+`h`: Erase the character to the left of the cursor.
 * `Ctrl`+`n`: Next history entry.
 * `Ctrl`+`p`: Previous history entry.
 * `Ctrl`+`u`: Erase entire line.
