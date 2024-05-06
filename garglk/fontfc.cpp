@@ -81,10 +81,10 @@ static nonstd::optional<std::string> find_font_by_styles(const std::string &base
     return nonstd::nullopt;
 }
 
-void garglk::fontreplace(const std::string &font, FontType type)
+bool garglk::fontreplace(const std::string &font, FontType type)
 {
     if (cfg == nullptr || font.empty()) {
-        return;
+        return false;
     }
 
     // Although there are 4 "main" types of font (Regular, Italic, Bold, Bold
@@ -135,7 +135,7 @@ void garglk::fontreplace(const std::string &font, FontType type)
     // italic variations can be created out of a regular font, so it's
     // OK if those don't exist.
     if (!sysfont.has_value()) {
-        return;
+        return false;
     }
 
     FontFiller filler(type);
@@ -151,7 +151,7 @@ void garglk::fontreplace(const std::string &font, FontType type)
     sysfont = find_font_by_styles(font, bold_italic_styles, bold_weights, italic_slants);
     filler.add(FontFiller::Style::BoldItalic, sysfont);
 
-    filler.fill();
+    return filler.fill();
 }
 
 void fontload()

@@ -39,6 +39,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -158,8 +159,9 @@ std::string winopenfile(const char *prompt, FileFilter filter);
 std::string winsavefile(const char *prompt, FileFilter filter);
 [[noreturn]]
 void winabort(const std::string &msg);
+void winwarning(const std::string &title, const std::string &msg);
 std::string downcase(const std::string &string);
-void fontreplace(const std::string &font, FontType type);
+bool fontreplace(const std::string &font, FontType type);
 std::vector<ConfigFile> configs(const nonstd::optional<std::string> &gamepath);
 void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, const std::function<void(const std::string &cmd, const std::string &arg, int lineno)> &callback);
 std::string user_config();
@@ -183,6 +185,24 @@ std::unique_ptr<T, Deleter> unique(T *p, Deleter deleter)
 }
 
 bool read_file(const std::string &filename, std::vector<unsigned char> &buf);
+
+template <typename Iterable, typename DType>
+std::string join(const Iterable &values, const DType &delim)
+{
+    auto it = std::begin(values);
+    std::ostringstream result;
+
+    if (it != std::end(values)) {
+        result << *it++;
+    }
+
+    for (; it != std::end(values); ++it) {
+        result << delim << *it;
+    }
+
+    return result.str();
+}
+
 }
 
 template <std::size_t N>
@@ -607,12 +627,20 @@ extern int gli_baseline;
 extern int gli_leading;
 
 struct FontFiles {
-    nonstd::optional<std::string> r, b, i, z;
+    struct {
+        nonstd::optional<std::string> base;
+        nonstd::optional<std::string> override;
+
+        const nonstd::optional<std::string> &fontpath() const {
+            return override.has_value() ? override : base;
+        }
+    } r, b, i, z;
 };
+
 extern std::string gli_conf_propfont;
-extern FontFiles gli_conf_prop, gli_conf_prop_override;
+extern FontFiles gli_conf_prop;
 extern std::string gli_conf_monofont;
-extern FontFiles gli_conf_mono, gli_conf_mono_override;
+extern FontFiles gli_conf_mono;
 
 extern double gli_conf_gamma;
 extern double gli_conf_propsize;

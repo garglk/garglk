@@ -92,24 +92,6 @@ struct ColorPair {
 
 }
 
-template <typename Iterable, typename DType>
-std::string join(const Iterable &values, const DType &delim)
-{
-    auto it = std::begin(values);
-    std::ostringstream result;
-
-    if (it != std::end(values)) {
-        result << *it++;
-    }
-
-    for (; it != std::end(values); ++it) {
-        result << delim;
-        result << *it;
-    }
-
-    return result.str();
-}
-
 namespace {
 
 struct ThemeStyles {
@@ -244,7 +226,7 @@ private:
         }
 
         if (!missing.empty()) {
-            throw std::runtime_error(Format("{} is missing the following styles: {}", color, join(missing, ", ")));
+            throw std::runtime_error(Format("{} is missing the following styles: {}", color, garglk::join(missing, ", ")));
         }
 
         return {colors};

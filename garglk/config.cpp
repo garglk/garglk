@@ -87,7 +87,7 @@ std::string garglk::ConfigFile::format_type() const {
 double gli_backingscalefactor = 1.0;
 double gli_zoom = 1.0;
 
-FontFiles gli_conf_prop, gli_conf_mono, gli_conf_prop_override, gli_conf_mono_override;
+FontFiles gli_conf_prop, gli_conf_mono;
 
 std::string gli_conf_monofont = "Gargoyle Mono";
 std::string gli_conf_propfont = "Gargoyle Serif";
@@ -601,25 +601,25 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             } else if (cmd == "monosize") {
                 gli_conf_monosize = parse_double(arg);
             } else if (cmd == "monor") {
-                gli_conf_mono_override.r = arg;
+                gli_conf_mono.r.override = arg;
             } else if (cmd == "monob") {
-                gli_conf_mono_override.b = arg;
+                gli_conf_mono.b.override = arg;
             } else if (cmd == "monoi") {
-                gli_conf_mono_override.i = arg;
+                gli_conf_mono.i.override = arg;
             } else if (cmd == "monoz") {
-                gli_conf_mono_override.z = arg;
+                gli_conf_mono.z.override = arg;
             } else if (cmd == "monofont") {
                 gli_conf_monofont = arg;
             } else if (cmd == "propsize") {
                 gli_conf_propsize = parse_double(arg);
             } else if (cmd == "propr") {
-                gli_conf_prop_override.r = arg;
+                gli_conf_prop.r.override = arg;
             } else if (cmd == "propb") {
-                gli_conf_prop_override.b = arg;
+                gli_conf_prop.b.override = arg;
             } else if (cmd == "propi") {
-                gli_conf_prop_override.i = arg;
+                gli_conf_prop.i.override = arg;
             } else if (cmd == "propz") {
-                gli_conf_prop_override.z = arg;
+                gli_conf_prop.z.override = arg;
             } else if (cmd == "propfont") {
                 gli_conf_propfont = arg;
             } else if (cmd == "leading") {

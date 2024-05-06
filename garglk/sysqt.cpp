@@ -147,6 +147,12 @@ void garglk::winabort(const std::string &msg)
     gli_exit(EXIT_FAILURE);
 }
 
+void garglk::winwarning(const std::string &title, const std::string &msg)
+{
+    std::cerr << "warning: " << msg << std::endl;
+    QMessageBox::warning(nullptr, title.c_str(), msg.c_str());
+}
+
 void winexit()
 {
     gli_exit(0);

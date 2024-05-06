@@ -167,6 +167,13 @@ void garglk::winabort(const std::string &msg)
     std::exit(1);
 }
 
+void garglk::winwarning(const std::string &title, const std::string &msg)
+{
+    auto *nsTitle = [NSString stringWithCString: title.c_str() encoding: NSUTF8StringEncoding];
+    auto *nsMsg = [NSString stringWithCString: msg.c_str() encoding: NSUTF8StringEncoding];
+    NSRunAlertPanel(nsTitle, @"%@", nil, nil, nil, nsMsg);
+}
+
 void winexit()
 {
     [gargoyle closeWindow:processID];
