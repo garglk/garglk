@@ -79,12 +79,7 @@ public:
         return m_face;
     }
 
-    FontFace fontface() {
-        return m_fontface;
-    }
-
 private:
-    FontFace m_fontface;
     FT_Face m_face = nullptr;
     bool m_make_bold = false;
     bool m_make_oblique = false;
@@ -359,13 +354,12 @@ static std::vector<Font> make_substitution_fonts(FontFace fontface)
 }
 
 Font::Font(FontFace fontface, FT_Face face, const std::string &fontpath) :
-    m_fontface(fontface),
     m_face(face)
 {
     int err = 0;
     double aspect, size;
 
-    if (m_fontface.monospace) {
+    if (fontface.monospace) {
         aspect = gli_conf_monoaspect;
         size = gli_conf_monosize;
     } else {
@@ -397,8 +391,8 @@ Font::Font(FontFace fontface, FT_Face face, const std::string &fontpath) :
 
     m_kerned = FT_HAS_KERNING(m_face);
 
-    m_make_bold = m_fontface.bold && ((m_face->style_flags & FT_STYLE_FLAG_BOLD) == 0);
-    m_make_oblique = m_fontface.italic && ((m_face->style_flags & FT_STYLE_FLAG_ITALIC) == 0);
+    m_make_bold = fontface.bold && ((m_face->style_flags & FT_STYLE_FLAG_BOLD) == 0);
+    m_make_oblique = fontface.italic && ((m_face->style_flags & FT_STYLE_FLAG_ITALIC) == 0);
 }
 
 void gli_initialize_fonts()
