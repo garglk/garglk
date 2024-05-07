@@ -69,18 +69,26 @@ struct FontEntry {
     std::array<Bitmap, GLI_SUBPIX> glyph;
 };
 
+struct UniqueFaceDeleter {
+    void operator()(FT_Face face) const {
+        FT_Done_Face(face);
+    }
+};
+
+using UniqueFace = std::unique_ptr<std::remove_pointer_t<FT_Face>, UniqueFaceDeleter>;
+
 class Font {
 public:
-    Font(FontFace fontface, FT_Face face, const std::string &fontpath);
+    Font(FontFace fontface, UniqueFace face, const std::string &fontpath);
 
     FontEntry getglyph(glui32 cid);
     int charkern(glui32 c0, glui32 c1);
-    const FT_Face &face() {
+    const UniqueFace &face() {
         return m_face;
     }
 
 private:
-    FT_Face m_face = nullptr;
+    UniqueFace m_face;
     bool m_make_bold = false;
     bool m_make_oblique = false;
     bool m_kerned = false;
@@ -181,7 +189,7 @@ FontEntry Font::getglyph(glui32 cid)
     FontEntry entry;
     std::size_t datasize;
 
-    gid = FT_Get_Char_Index(m_face, cid);
+    gid = FT_Get_Char_Index(m_face.get(), cid);
     if (gid == 0) {
         throw std::out_of_range(Format("no glyph for {}", cid));
     }
@@ -190,9 +198,9 @@ FontEntry Font::getglyph(glui32 cid)
         v.x = (x * 64) / GLI_SUBPIX;
         v.y = 0;
 
-        FT_Set_Transform(m_face, nullptr, &v);
+        FT_Set_Transform(m_face.get(), nullptr, &v);
 
-        err = FT_Load_Glyph(m_face, gid,
+        err = FT_Load_Glyph(m_face.get(), gid,
                 FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
         if (err != 0) {
             throw FreetypeError(err, "Error in FT_Load_Glyph");
@@ -316,7 +324,7 @@ static Font make_font(FontFace fontface, const std::string &fallback)
         auto fontpath = get_font_path(path, fallback);
         FT_Face face;
         if (fontpath.has_value() && FT_New_Face(ftlib, fontpath->c_str(), 0, &face) == 0) {
-            return {fontface, face, *fontpath};
+            return {fontface, UniqueFace(face), *fontpath};
         }
     }
 
@@ -344,7 +352,7 @@ static std::vector<Font> make_substitution_fonts(FontFace fontface)
     for (const auto &file : files) {
         if (FT_New_Face(ftlib, file.c_str(), 0, &face) == 0) {
             try {
-                fonts.emplace_back(fontface, face, file);
+                fonts.emplace_back(fontface, UniqueFace(face), file);
             } catch (const FreetypeError &) {
             }
         }
@@ -353,8 +361,8 @@ static std::vector<Font> make_substitution_fonts(FontFace fontface)
     return fonts;
 }
 
-Font::Font(FontFace fontface, FT_Face face, const std::string &fontpath) :
-    m_face(face)
+Font::Font(FontFace fontface, UniqueFace face, const std::string &fontpath) :
+    m_face(std::move(face))
 {
     int err = 0;
     double aspect, size;
@@ -373,18 +381,18 @@ Font::Font(FontFace fontface, FT_Face face, const std::string &fontpath) :
         auto ext = afmbuf.substr(dot);
         if (ext == ".pfa" || ext == ".PFA" || ext == ".pfb" || ext == ".PFB") {
             afmbuf.replace(dot, std::string::npos, ".afm");
-            FT_Attach_File(m_face, afmbuf.c_str());
+            FT_Attach_File(m_face.get(), afmbuf.c_str());
             afmbuf.replace(dot, std::string::npos, ".AFM");
-            FT_Attach_File(m_face, afmbuf.c_str());
+            FT_Attach_File(m_face.get(), afmbuf.c_str());
         }
     }
 
-    err = FT_Set_Char_Size(m_face, size * aspect * 64, size * 64, 72, 72);
+    err = FT_Set_Char_Size(m_face.get(), size * aspect * 64, size * 64, 72, 72);
     if (err != 0) {
         throw FreetypeError(err, Format("Error in FT_Set_Char_Size for {}", fontpath));
     }
 
-    err = FT_Select_Charmap(m_face, FT_ENCODING_UNICODE);
+    err = FT_Select_Charmap(m_face.get(), FT_ENCODING_UNICODE);
     if (err != 0) {
         throw FreetypeError(err, Format("Error in FT_Select_CharMap for {}", fontpath));
     }
@@ -606,14 +614,14 @@ int Font::charkern(glui32 c0, glui32 c1)
     } catch (const std::out_of_range &) {
     }
 
-    g0 = FT_Get_Char_Index(m_face, c0);
-    g1 = FT_Get_Char_Index(m_face, c1);
+    g0 = FT_Get_Char_Index(m_face.get(), c0);
+    g1 = FT_Get_Char_Index(m_face.get(), c1);
 
     if (g0 == 0 || g1 == 0) {
         return 0;
     }
 
-    err = FT_Get_Kerning(m_face, g0, g1, FT_KERNING_UNFITTED, &v);
+    err = FT_Get_Kerning(m_face.get(), g0, g1, FT_KERNING_UNFITTED, &v);
     if (err != 0) {
         throw FreetypeError(err, "Error in FT_Get_Kerning");
     }
@@ -658,7 +666,7 @@ static int gli_string_impl(int x, FontFace fontface, const glui32 *s, std::size_
             });
         }
 
-        if (it != ligatures.end() && FT_Get_Char_Index(f.face(), it->second) != 0) {
+        if (it != ligatures.end() && FT_Get_Char_Index(f.face().get(), it->second) != 0) {
             c = it->second;
             s += it->first.size();
             n -= it->first.size();
