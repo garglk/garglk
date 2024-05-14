@@ -237,6 +237,8 @@ void garglk::Window::closeEvent(QCloseEvent *)
 
 void garglk::Window::resizeEvent(QResizeEvent *event)
 {
+    static bool first_resize = true;
+
     QMainWindow::resizeEvent(event);
 
     m_view->resize(event->size());
@@ -250,7 +252,10 @@ void garglk::Window::resizeEvent(QResizeEvent *event)
 
     refresh_needed = true;
 
-    gli_windows_size_change(newwid, newhgt);
+    // On startup, Qt posts a resize event as the window is created.
+    // This resize occurs before the Glk program even starts, so
+    // shouldn't create an arrange event.
+    gli_windows_size_change(newwid, newhgt, !first_resize);
 
     if (gli_conf_save_window_size) {
         m_settings->setValue("window/size", event->size());
@@ -261,6 +266,8 @@ void garglk::Window::resizeEvent(QResizeEvent *event)
     }
 
     event->accept();
+
+    first_resize = false;
 }
 
 void garglk::Window::moveEvent(QMoveEvent *event)

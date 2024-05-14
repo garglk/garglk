@@ -743,7 +743,7 @@ void gli_window_rearrange(window_t *win, rect_t *box)
     }
 }
 
-void gli_windows_size_change(int w, int h)
+void gli_windows_size_change(int w, int h, bool post_arrange_event)
 {
     gli_image_rgb.resize(w, h, false);
     gli_resize_mask(gli_image_rgb.width(), gli_image_rgb.height());
@@ -751,7 +751,10 @@ void gli_windows_size_change(int w, int h)
     gli_force_redraw = true;
     gli_windows_rearrange();
     gli_windows_redraw();
-    gli_event_store(evtype_Arrange, nullptr, 0, 0);
+
+    if (post_arrange_event) {
+        gli_event_store(evtype_Arrange, nullptr, 0, 0);
+    }
 }
 
 void gli_window_redraw(window_t *win)

@@ -310,7 +310,7 @@ void winresize()
         return;
     }
 
-    gli_windows_size_change(vw, vh);
+    gli_windows_size_change(vw, vh, true);
 
     // redraw window content
     gli_refresh_needed = true;
