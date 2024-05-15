@@ -1031,7 +1031,7 @@ extern bool gli_window_check_terminator(glui32 ch);
 extern void gli_window_refocus(window_t *win);
 
 extern void gli_windows_redraw();
-extern void gli_windows_size_change(int w, int h);
+extern void gli_windows_size_change(int w, int h, bool post_arrange_event);
 extern void gli_windows_unechostream(stream_t *str);
 
 extern void gli_window_click(window_t *win, int x, int y);
