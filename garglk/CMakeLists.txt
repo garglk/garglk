@@ -304,6 +304,12 @@ if(NOT GARGLK_FOUND_JPEG)
     message(FATAL_ERROR "Unable to find a usable JPEG library")
 endif()
 
+if(CXX_VERSION EQUAL 17)
+    target_compile_definitions(garglk PRIVATE GARGLK_CONFIG_SCALERS)
+    target_link_libraries(garglk PRIVATE xbrz)
+    target_link_libraries(garglk PRIVATE hqx)
+endif()
+
 if(WITH_BABEL)
     target_link_libraries(garglk PRIVATE babel)
     target_compile_definitions(garglk PRIVATE BABEL_HANDLER)

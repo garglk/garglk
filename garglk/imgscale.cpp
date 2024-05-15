@@ -19,11 +19,20 @@
 
 // Image scaling, based on pnmscale.c...
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "glk.h"
 #include "garglk.h"
+
+#ifdef GARGLK_CONFIG_SCALERS
+#include "hqx.h"
+#include "xbrz.h"
+#endif
 
 std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, int newrows)
 {
@@ -47,6 +56,45 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
     if (dst && dst->w == newcols && dst->h == newrows) {
         return dst;
     }
+
+#ifdef GARGLK_CONFIG_SCALERS
+    int scaleby = std::ceil(std::max(static_cast<double>(newcols) / src->w, static_cast<double>(newrows) / src->h));
+
+    dst.reset();
+
+    if (scaleby > 1) {
+        if (gli_conf_scaler == Scaler::HQX) {
+            scaleby = std::min(scaleby, 4);
+
+            static bool hqx_initialized = false;
+            if (!hqx_initialized) {
+                hqxInit();
+                hqx_initialized = true;
+            }
+
+            auto hqx = scaleby == 4 ? hq4x_32 :
+                       scaleby == 3 ? hq3x_32 :
+                                      hq2x_32;
+
+            Canvas<4> scaled_canvas(src->w * scaleby, src->h * scaleby);
+            hqx(reinterpret_cast<const std::uint32_t *>(src->rgba.data()), reinterpret_cast<std::uint32_t *>(scaled_canvas.data()), src->w, src->h);
+            dst = std::make_unique<picture_t>(src->id, std::move(scaled_canvas), true);
+            src = dst.get();
+        } else if (gli_conf_scaler == Scaler::XBRZ) {
+            scaleby = std::min(scaleby, xbrz::SCALE_FACTOR_MAX);
+
+            Canvas<4> scaled_canvas(src->w * scaleby, src->h * scaleby);
+            xbrz::scale(scaleby, reinterpret_cast<const std::uint32_t *>(src->rgba.data()), reinterpret_cast<std::uint32_t *>(scaled_canvas.data()), src->w, src->h, xbrz::ColorFormat::ARGB);
+            dst = std::make_unique<picture_t>(src->id, std::move(scaled_canvas), true);
+            src = dst.get();
+        }
+    }
+
+    if (dst != nullptr && dst->w == newcols && dst->h == newrows) {
+        gli_picture_store(dst);
+        return dst;
+    }
+#endif
 
     int row, col;
 
