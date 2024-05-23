@@ -28,10 +28,10 @@
 static NSMutableArray *gli_registered_fonts = nil;
 static NSDistributedLock *gli_font_lock = nil;
 
-void garglk::fontreplace(const std::string &font, FontType type)
+bool garglk::fontreplace(const std::string &font, FontType type)
 {
     if (font.empty()) {
-        return;
+        return false;
     }
 
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
@@ -77,9 +77,9 @@ void garglk::fontreplace(const std::string &font, FontType type)
         CFRelease(urlRef);
     }
 
-    filler.fill();
-
     [pool drain];
+
+    return filler.fill();
 }
 
 void fontload()

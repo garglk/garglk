@@ -57,6 +57,8 @@ using namespace std::literals;
 #define mulhigh(a, b) ((static_cast<int>(a) * (b) + (1 << (GAMMA_BITS - 1)) - 1) / GAMMA_MAX)
 #define grayscale(r, g, b) ((30 * (r) + 59 * (g) + 11 * (b)) / 100)
 
+static std::string convert_ft_error(FT_Error err, const std::string &basemsg);
+
 namespace {
 
 struct Bitmap {
@@ -79,6 +81,27 @@ using UniqueFace = std::unique_ptr<std::remove_pointer_t<FT_Face>, UniqueFaceDel
 
 class Font {
 public:
+    class LoadError : public std::exception {
+    public:
+        LoadError(FT_Error err, std::string filename, const std::string &basemsg) :
+            m_filename(std::move(filename)),
+            m_what(convert_ft_error(err, basemsg))
+        {
+        }
+
+        const std::string &filename() const {
+            return m_filename;
+        }
+
+        const char *what() const noexcept override {
+            return m_what.c_str();
+        }
+
+    private:
+        std::string m_filename;
+        std::string m_what;
+    };
+
     Font(FontFace fontface, UniqueFace face, const std::string &fontpath);
 
     FontEntry getglyph(glui32 cid);
@@ -166,21 +189,6 @@ static std::string convert_ft_error(FT_Error err, const std::string &basemsg)
 
 namespace {
 
-class FreetypeError : public std::exception {
-public:
-    FreetypeError(FT_Error err, const std::string &basemsg) :
-        m_what(convert_ft_error(err, basemsg))
-    {
-    }
-
-    const char *what() const noexcept override {
-        return m_what.c_str();
-    }
-
-private:
-    std::string m_what;
-};
-
 FontEntry Font::getglyph(glui32 cid)
 {
     FT_Vector v;
@@ -203,7 +211,7 @@ FontEntry Font::getglyph(glui32 cid)
         err = FT_Load_Glyph(m_face.get(), gid,
                 FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
         if (err != 0) {
-            throw FreetypeError(err, "Error in FT_Load_Glyph");
+            throw std::runtime_error(convert_ft_error(err, "FT_Load_Glyph"));
         }
 
         if (m_make_bold) {
@@ -227,7 +235,7 @@ FontEntry Font::getglyph(glui32 cid)
         }
 
         if (err != 0) {
-            throw FreetypeError(err, "Error in FT_Render_Glyph");
+            throw std::runtime_error(convert_ft_error(err, "FT_Render_Glyph"));
         }
 
         datasize = m_face->glyph->bitmap.pitch * m_face->glyph->bitmap.rows;
@@ -246,19 +254,11 @@ FontEntry Font::getglyph(glui32 cid)
 
 }
 
-// Look for a user-specified font. This will be either based on a font
-// family (propfont or monofont), or specific font files (e.g. propr,
-// monor, etc).
-static nonstd::optional<std::string> font_path_user(const nonstd::optional<std::string> &path, const std::string &)
-{
-    return path;
-}
-
 // Look in a system-wide location for the fallback Gargoyle fonts; on
 // Unix this is generally somewhere like /usr/share/fonts/gargoyle
 // (although this can be changed at build time), and on Windows it's the
 // install directory (e.g. "C:\Program Files (x86)\Gargoyle").
-static nonstd::optional<std::string> font_path_fallback_system(const nonstd::optional<std::string> &, const std::string &fallback)
+static nonstd::optional<std::string> font_path_fallback_system(const std::string &fallback)
 {
 #ifdef _WIN32
     char directory[256];
@@ -278,13 +278,13 @@ static nonstd::optional<std::string> font_path_fallback_system(const nonstd::opt
 // Look in a platform-specific location for the fonts. This is typically
 // the same directory that the executable is in, but can be anything the
 // platform code deems appropriate.
-static nonstd::optional<std::string> font_path_fallback_platform(const nonstd::optional<std::string> &, const std::string &fallback)
+static nonstd::optional<std::string> font_path_fallback_platform(const std::string &fallback)
 {
     return garglk::winfontpath(fallback);
 }
 
 // As a last-ditch effort, look in the current directory for the fonts.
-static nonstd::optional<std::string> font_path_fallback_local(const nonstd::optional<std::string> &, const std::string &fallback)
+static nonstd::optional<std::string> font_path_fallback_local(const std::string &fallback)
 {
     return fallback;
 }
@@ -300,16 +300,15 @@ static std::string fontface_to_name(FontFace fontface)
     return Format("{} {}", type, style);
 }
 
-static Font make_font(FontFace fontface, const std::string &fallback)
+static Font make_font(FontFace fontface, const std::string &fallback, std::vector<std::string> &problem_fonts)
 {
-    std::vector<std::function<nonstd::optional<std::string>(const nonstd::optional<std::string> &path, const std::string &fallback)>> font_paths = {
-        font_path_user,
+    std::vector<std::function<nonstd::optional<std::string>(const std::string &fallback)>> font_paths = {
         font_path_fallback_system,
         font_path_fallback_platform,
         font_path_fallback_local,
     };
 
-    const auto &path =
+    const auto &fontfiles =
         fontface == FontFace::monor() ? gli_conf_mono.r :
         fontface == FontFace::monob() ? gli_conf_mono.b :
         fontface == FontFace::monoi() ? gli_conf_mono.i :
@@ -320,16 +319,35 @@ static Font make_font(FontFace fontface, const std::string &fallback)
         fontface == FontFace::propz() ? gli_conf_prop.z :
                                         gli_conf_mono.r;
 
+    const auto &path = fontfiles.fontpath();
+    const auto &override = fontfiles.override;
+
+    // First look for a user-specified font. This will be either based
+    // on a font family (propfont or monofont), or specific font files
+    // (e.g. propr, monor, etc).
+    nonstd::optional<Font::LoadError> error;
+    FT_Face face;
+    if (path.has_value() && FT_New_Face(ftlib, path->c_str(), 0, &face) == 0) {
+        try {
+            return {fontface, UniqueFace(face), *path};
+        } catch (const Font::LoadError &e) {
+            error = e;
+        }
+    }
+
+    // If no user font can be loaded, try to find a fallback.
     for (const auto &get_font_path : font_paths) {
-        auto fontpath = get_font_path(path, fallback);
-        FT_Face face;
+        auto fontpath = get_font_path(fallback);
         if (fontpath.has_value() && FT_New_Face(ftlib, fontpath->c_str(), 0, &face) == 0) {
+            if (error.has_value()) {
+                problem_fonts.push_back(Format("Unable to load font file \"{}\" ({}): using fallback {}.", error->filename(), error->what(), *fontpath));
+            }
             return {fontface, UniqueFace(face), *fontpath};
         }
     }
 
-    garglk::winabort(Format("Unable to find font {} for {}, and fallback {} not found",
-                fontface.monospace ? gli_conf_monofont : gli_conf_propfont,
+    garglk::winabort(Format("Unable to find font \"{}\" for {}, and fallback {} not found",
+                override.value_or(fontface.monospace ? gli_conf_monofont : gli_conf_propfont),
                 fontface_to_name(fontface),
                 fallback));
 }
@@ -353,7 +371,7 @@ static std::vector<Font> make_substitution_fonts(FontFace fontface)
         if (FT_New_Face(ftlib, file.c_str(), 0, &face) == 0) {
             try {
                 fonts.emplace_back(fontface, UniqueFace(face), file);
-            } catch (const FreetypeError &) {
+            } catch (const Font::LoadError &) {
             }
         }
     }
@@ -389,12 +407,12 @@ Font::Font(FontFace fontface, UniqueFace face, const std::string &fontpath) :
 
     err = FT_Set_Char_Size(m_face.get(), size * aspect * 64, size * 64, 72, 72);
     if (err != 0) {
-        throw FreetypeError(err, Format("Error in FT_Set_Char_Size for {}", fontpath));
+        throw LoadError(err, fontpath, "FT_Set_Char_Size");
     }
 
     err = FT_Select_Charmap(m_face.get(), FT_ENCODING_UNICODE);
     if (err != 0) {
-        throw FreetypeError(err, Format("Error in FT_Select_CharMap for {}", fontpath));
+        throw LoadError(err, fontpath, "FT_Select_CharMap");
     }
 
     m_kerned = FT_HAS_KERNING(m_face);
@@ -420,36 +438,16 @@ void gli_initialize_fonts()
         garglk::winabort(convert_ft_error(err, "Unable to initialize FreeType"));
     }
 
-    fontload();
-    garglk::fontreplace(gli_conf_monofont, FontType::Monospace);
-    garglk::fontreplace(gli_conf_propfont, FontType::Proportional);
-    fontunload();
+    std::vector<std::string> problem_fonts;
 
-    // If the user provided specific fonts, swap them in
-    if (gli_conf_mono_override.r.has_value()) {
-        gli_conf_mono.r = gli_conf_mono_override.r;
+    fontload();
+    if (!garglk::fontreplace(gli_conf_monofont, FontType::Monospace)) {
+        problem_fonts.push_back(Format("Unable to find monospace font \"{}\", using fallback.", gli_conf_monofont));
     }
-    if (gli_conf_mono_override.b.has_value()) {
-        gli_conf_mono.b = gli_conf_mono_override.b;
+    if (!garglk::fontreplace(gli_conf_propfont, FontType::Proportional)) {
+        problem_fonts.push_back(Format("Unable to find proportional font \"{}\", using fallback.", gli_conf_propfont));
     }
-    if (gli_conf_mono_override.i.has_value()) {
-        gli_conf_mono.i = gli_conf_mono_override.i;
-    }
-    if (gli_conf_mono_override.z.has_value()) {
-        gli_conf_mono.z = gli_conf_mono_override.z;
-    }
-    if (gli_conf_prop_override.r.has_value()) {
-        gli_conf_prop.r = gli_conf_prop_override.r;
-    }
-    if (gli_conf_prop_override.b.has_value()) {
-        gli_conf_prop.b = gli_conf_prop_override.b;
-    }
-    if (gli_conf_prop_override.i.has_value()) {
-        gli_conf_prop.i = gli_conf_prop_override.i;
-    }
-    if (gli_conf_prop_override.z.has_value()) {
-        gli_conf_prop.z = gli_conf_prop_override.z;
-    }
+    fontunload();
 
     // Set up the Unicode fallback font.
     auto faces = {FontFace::propr(), FontFace::propi(), FontFace::propb(), FontFace::propz(),
@@ -464,8 +462,8 @@ void gli_initialize_fonts()
     ftmat.xy = 0x03000L;
     ftmat.yy = 0x10000L;
 
-    auto make_entry = [](FontFace face, const std::string &filename) {
-        return std::make_pair(face, make_font(face, filename));
+    auto make_entry = [&problem_fonts](FontFace face, const std::string &fallback) {
+        return std::make_pair(face, make_font(face, fallback, problem_fonts));
     };
 
     try {
@@ -482,8 +480,13 @@ void gli_initialize_fonts()
 
         gli_cellh = gli_leading;
         gli_cellw = (entry.adv + GLI_SUBPIX - 1) / GLI_SUBPIX;
-    } catch (const FreetypeError &e) {
-        garglk::winabort(e.what());
+    } catch (const Font::LoadError &e) {
+        garglk::winabort(Format("Unable to load font file \"{}\" ({}).", e.filename(), e.what()));
+    }
+
+    if (!problem_fonts.empty()) {
+        auto msg = garglk::join(problem_fonts, "\n\n");
+        garglk::winwarning("Font error", msg);
     }
 }
 
@@ -623,7 +626,7 @@ int Font::charkern(glui32 c0, glui32 c1)
 
     err = FT_Get_Kerning(m_face.get(), g0, g1, FT_KERNING_UNFITTED, &v);
     if (err != 0) {
-        throw FreetypeError(err, "Error in FT_Get_Kerning");
+        throw std::runtime_error(convert_ft_error(err, "FT_Get_Kerning"));
     }
 
     int value = (v.x * GLI_SUBPIX) / 64.0;

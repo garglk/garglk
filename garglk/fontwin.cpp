@@ -123,10 +123,10 @@ static bool find_font_file(const std::string &facename, std::string &filepath)
     return find_font_file_with_key(HKEY_LOCAL_MACHINE, FONT_SUBKEY, facename, filepath);
 }
 
-void garglk::fontreplace(const std::string &font, FontType type)
+bool garglk::fontreplace(const std::string &font, FontType type)
 {
     if (font.empty()) {
-        return;
+        return false;
     }
 
     LOGFONTA logfont;
@@ -142,9 +142,9 @@ void garglk::fontreplace(const std::string &font, FontType type)
     std::snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", font.c_str());
     EnumFontFamiliesExA(hdc, &logfont, reinterpret_cast<FONTENUMPROCA>(font_cb), reinterpret_cast<LPARAM>(&filler), 0);
 
-    filler.fill();
-
     ReleaseDC(0, hdc);
+
+    return filler.fill();
 }
 
 void fontload()
