@@ -390,6 +390,10 @@ public:
         return m_pixels.data();
     }
 
+    const unsigned char *data() const {
+        return m_pixels.data();
+    }
+
     std::size_t size() const {
         return m_pixels.size();
     }
@@ -499,7 +503,7 @@ struct rect_t {
 };
 
 struct picture_t {
-    picture_t(unsigned int id_, Canvas<4> rgba_, bool scaled_) :
+    picture_t(unsigned long id_, Canvas<4> rgba_, bool scaled_) :
         id(id_),
         rgba(std::move(rgba_)),
         w(rgba.width()),
@@ -659,6 +663,13 @@ extern bool gli_drawselect;
 extern bool gli_claimselect;
 
 extern bool gli_conf_per_game_config;
+
+enum class Scaler {
+    None,
+    HQX,
+    XBRZ,
+};
+extern Scaler gli_conf_scaler;
 
 extern std::unordered_map<FontFace, std::vector<std::string>> gli_conf_glyph_substitution_files;
 

@@ -259,6 +259,8 @@ bool gli_conf_safeclicks = false;
 
 bool gli_conf_per_game_config = true;
 
+Scaler gli_conf_scaler = Scaler::None;
+
 std::string garglk::downcase(const std::string &string)
 {
     std::string lowered;
@@ -799,6 +801,20 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 gli_conf_fullscreen = asbool(arg);
             } else if (cmd == "zoom") {
                 gli_zoom = config_atleast(parse_double(arg), 0.1);
+            } else if (cmd == "scaler") {
+#ifdef GARGLK_CONFIG_SCALERS
+                if (arg == "none") {
+                    gli_conf_scaler = Scaler::None;
+                } else if (arg == "hqx") {
+                    gli_conf_scaler = Scaler::HQX;
+                } else if (arg == "xbrz") {
+                    gli_conf_scaler = Scaler::XBRZ;
+                } else {
+                    throw ConfigError(Format("invalid value: {} (must be one of none, hqx, xbrz)", arg));
+                }
+#else
+                throw ConfigError("this build of Gargoyle does not have support for scalers");
+#endif
             } else if (cmd == "wait_on_quit") {
                 gli_wait_on_quit = asbool(arg);
             } else if (cmd == "speak") {
