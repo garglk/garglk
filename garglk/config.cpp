@@ -127,6 +127,27 @@ const Styles gli_gstyles_def = gli_gstyles;
 
 std::vector<garglk::ConfigFile> garglk::all_configs;
 
+void garglk_get_colors(glui32 wintype, glui32 style, glui32 *fg, glui32 *bg)
+{
+    auto styles = wintype == wintype_TextGrid ? gli_gstyles : gli_tstyles;
+
+    if (style >= style_NUMSTYLES) {
+        return;
+    }
+
+    if (fg != nullptr) {
+        *fg = (styles[style].fg[0] << 16) |
+              (styles[style].fg[1] <<  8) |
+              (styles[style].fg[2] <<  0);
+    }
+
+    if (bg != nullptr) {
+        *bg = (styles[style].bg[0] << 16) |
+              (styles[style].bg[1] <<  8) |
+              (styles[style].bg[2] <<  0);
+    }
+}
+
 static FontFace font2idx(const std::string &font)
 {
     const static std::unordered_map<std::string, FontFace> facemap = {
