@@ -64,7 +64,6 @@ typedef int32_t glsi32;
 #define GLK_MODULE_GARGLKBLEEP
 #define GLK_MODULE_GARGLKWINSIZE
 #define GLK_MODULE_GARGLK_FILE_RESOURCES
-#define GLK_MODULE_GARGLK_GET_COLORS
 
 /* Define a macro for a function attribute that indicates a function that
     never returns. (E.g., glk_exit().) We try to do this only in C compilers
@@ -522,7 +521,6 @@ extern void garglk_set_zcolors(glui32 fg, glui32 bg);
 extern void garglk_set_zcolors_stream(strid_t str, glui32 fg, glui32 bg);
 extern void garglk_set_reversevideo(glui32 reverse);
 extern void garglk_set_reversevideo_stream(strid_t str, glui32 reverse);
-extern void garglk_get_colors(glui32 wintype, glui32 style, glui32 *fg, glui32 *bg);
 
 extern void garglk_zbleep(glui32 number);
 
