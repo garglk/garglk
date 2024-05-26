@@ -35,7 +35,7 @@ jobs:
           freetype-devel
           libjpeg-turbo-devel
           libpng-devel
-          qt5-qtbase-devel
+          qt6-qtbase-devel
           rpm-build
           turbojpeg-devel
 
