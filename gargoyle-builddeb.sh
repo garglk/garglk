@@ -35,7 +35,7 @@ PKG_DEB_ROOT=${DEB_ROOT_DIR}/${PKG_NAME}/debian
 #Build Gargoyle
 mkdir build-debian
 pushd build-debian
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DQT_VERSION=5
 make -j$(nproc)
 make install DESTDIR=${PKG_DIR}
 popd

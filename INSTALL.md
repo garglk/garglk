@@ -72,9 +72,9 @@ In addition, Gargoyle supports the following options:
 - `WITH_LAUNCHER`: If true (the default), the launcher (gargoyle binary)
   will be built.
 
-- `WITH_QT6`: If true, and if the interface is Qt (currently true for
-  all platforms except macOS), use Qt6 instead of Qt5. The default is
-  false, i.e. use Qt5.
+- `QT_VERSION`: Set to the major version of Qt to use: both 5 and 6 are
+  supported, with 6 being the default. This does not have an effect on
+  Mac, which does not currently use Qt.
 
 - `WITH_FREEDESKTOP`: If true (the default), install
   freedesktop.org-compliant desktop, application, and MIME files. This

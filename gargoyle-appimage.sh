@@ -18,6 +18,8 @@ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_
 make "-j$(nproc)"
 make install DESTDIR=AppDir
 
+export QMAKE=qmake6
+
 OUTPUT=../Gargoyle-x86_64.AppImage ./linuxdeploy-x86_64.AppImage \
     --appdir=AppDir \
     --plugin qt \

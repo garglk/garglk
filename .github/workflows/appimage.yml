@@ -32,8 +32,8 @@ jobs:
           libspeechd-dev
           libturbojpeg0-dev
           patchelf
-          qtbase5-dev
-          qtbase5-dev-tools
+          qt6-base-dev
+          qt6-base-dev-tools
           wget
 
       - uses: actions/checkout@v3
