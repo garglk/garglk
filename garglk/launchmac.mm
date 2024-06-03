@@ -177,9 +177,11 @@ static const std::unordered_map<FileFilter, std::string> winfilters = {
 - (void) performRefresh: (NSNotification *) notice;
 - (void) performMove: (NSNotification *) notice;
 - (NSString *) openFileDialog: (NSString *) prompt
-                   fileFilter: (FileFilter) filter;
+                   fileFilter: (FileFilter) filter
+                      savedir: (NSString *) savedir;
 - (NSString *) saveFileDialog: (NSString *) prompt
-                   fileFilter: (FileFilter) filter;
+                   fileFilter: (FileFilter) filter
+                      savedir: (NSString *) savedir;
 - (pid_t) retrieveID;
 - (void) quit;
 @end
@@ -534,8 +536,49 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     [self saveWindows];
 }
 
+static NSURL *get_save_dir(NSString *filename)
+{
+
+    NSError *error = nil;
+    NSURL *dir = [[NSFileManager defaultManager] URLForDirectory: NSApplicationSupportDirectory
+                                                        inDomain: NSUserDomainMask
+                                               appropriateForURL: nil
+                                                          create: YES
+                                                           error: &error];
+
+    if (error != nil) {
+        return nil;
+    }
+
+    dir = [dir URLByAppendingPathComponent: @"io.github.garglk/Gargoyle/saves"];
+    dir = [dir URLByAppendingPathComponent: filename];
+    NSFileManager *fm = [NSFileManager defaultManager];
+    [fm createDirectoryAtURL: dir withIntermediateDirectories: YES attributes: nil error: &error];
+
+    if (error == nil) {
+        return dir;
+    } else {
+        return nil;
+    }
+}
+
+static void maybe_set_save_dir(NSSavePanel *panel, NSString *savedir)
+{
+    if (savedir == nil) {
+        return;
+    }
+
+    auto initial_directory = get_save_dir(savedir);
+
+    if (initial_directory != nil) {
+        NSURL *startingDirectoryURL = [NSURL fileURLWithPath: [initial_directory path]];
+        [panel setDirectoryURL: startingDirectoryURL];
+    }
+}
+
 - (NSString *) openFileDialog: (NSString *) prompt
                    fileFilter: (FileFilter) filter
+                      savedir: (NSString *) savedir
 {
     int result;
 
@@ -545,6 +588,8 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     [openDlg setCanChooseDirectories: NO];
     [openDlg setAllowsMultipleSelection: NO];
     [openDlg setTitle: prompt];
+
+    maybe_set_save_dir(openDlg, savedir);
 
     if (filter != FileFilter::Data) {
         NSArray *filterTypes = [NSArray arrayWithObject: [NSString stringWithCString: winfilters.at(filter).c_str()
@@ -563,6 +608,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
 
 - (NSString *) saveFileDialog: (NSString *) prompt
                    fileFilter: (FileFilter) filter
+                      savedir: (NSString *) savedir
 {
     int result;
 
@@ -570,6 +616,8 @@ static BOOL isTextbufferEvent(NSEvent *evt)
 
     [saveDlg setCanCreateDirectories: YES];
     [saveDlg setTitle: prompt];
+
+    maybe_set_save_dir(saveDlg, savedir);
 
     if (filter != FileFilter::Data) {
         NSArray *filterTypes = [NSArray arrayWithObject: [NSString stringWithCString: winfilters.at(filter).c_str()
@@ -829,11 +877,12 @@ static BOOL isTextbufferEvent(NSEvent *evt)
 - (NSString *) openWindowDialog: (pid_t) processID
                          prompt: (NSString *) prompt
                          filter: (FileFilter) filter
+                        savedir: (NSString *) savedir
 {
     GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
     if (window) {
-        return [window openFileDialog: prompt fileFilter: filter];
+        return [window openFileDialog: prompt fileFilter: filter savedir: savedir];
     }
 
     return nil;
@@ -842,11 +891,12 @@ static BOOL isTextbufferEvent(NSEvent *evt)
 - (NSString *) saveWindowDialog: (pid_t) processID
                          prompt: (NSString *) prompt
                          filter: (FileFilter) filter
+                        savedir: (NSString *) savedir
 {
     GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
     if (window) {
-        return [window saveFileDialog: prompt fileFilter: filter];
+        return [window saveFileDialog: prompt fileFilter: filter savedir: savedir];
     }
 
     return nil;

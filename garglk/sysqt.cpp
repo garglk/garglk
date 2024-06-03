@@ -25,6 +25,7 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QGraphicsView>
 #include <QLabel>
 #include <QList>
@@ -168,11 +169,27 @@ static std::string winchoosefile(const QString &prompt, FileFilter filter, Actio
     options |= QFileDialog::DontUseNativeDialog;
 #endif
 
+    QString dir = "";
+
+    if (filter == FileFilter::Save && gli_conf_dedicated_save_directory && gli_workfile.has_value()) {
+        auto path = QFileInfo(QString::fromStdString(*gli_workfile));
+        if (!path.fileName().isEmpty()) {
+            QDir basedir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+            QDir savepath = QDir(basedir.filePath("saves")).filePath(path.fileName());
+            if (savepath.mkpath(savepath.absolutePath())) {
+                dir = savepath.absolutePath();
+            }
+        }
+    }
+
     if (action == Action::Open) {
         QString filterstring = QString("%1;;All files (*)").arg(filters.at(filter).first);
-        filename = QFileDialog::getOpenFileName(window, prompt, "", filterstring, nullptr, options);
+        filename = QFileDialog::getOpenFileName(window, prompt, dir, filterstring, nullptr, options);
     } else {
-        QString dir = QString("./Untitled.%1").arg(filters.at(filter).second);
+        if (dir == "") {
+            dir += ".";
+        }
+        dir += QString("/Untitled.%1").arg(filters.at(filter).second);
         filename = QFileDialog::getSaveFileName(window, prompt, dir, filters.at(filter).first, nullptr, options);
     }
 
