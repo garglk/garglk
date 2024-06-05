@@ -440,11 +440,37 @@ void gli_initialize_fonts()
 
     std::vector<std::string> problem_fonts;
 
+    // Gargoyle ships "Gargoyle Mono" and "Gargoyle Serif" fonts, which
+    // can be installed system-wide; it also sets the default mono and
+    // prop fonts to these values. However, it's certainly not required
+    // for these fonts to be installed system-wide, so it has a fallback
+    // mechanism, which, if Gargoyle is installed/configured properly,
+    // will fall back to "known-good" locations of these fonts.
+    //
+    // The problem is that Gargoyle has, in the past, shipped with a
+    // garglk.ini specifying these fonts. That's always been fine,
+    // because Gargoyle falls back silently if they're not installed,
+    // and nobody's the wiser. But Gargoyle always fell back silently if
+    // _any_ user-specified font couldn't be located, which meant that
+    // if a user mistyped a font, the fallback would be substituted
+    // without warning. Gargoyle now warns about missing fonts, but that
+    // leads to the problem of Gargoyle warning about its own specified
+    // fonts not being installed, if indeed they're not. This wouldn't
+    // be a problem if users didn't already have garglk.ini, but they
+    // do, so it is.
+    //
+    // At the moment the solution is to elide the warning when either
+    // of Gargoyle's own fonts is requested, i.e. the fonts listed in
+    // the default garglk.ini. This is a bit ugly since it means
+    // Gargoyle treats two specific font names as special. Ideally the
+    // default fonts would be empty and Gargoyle would use that to mean
+    // "built-in/fallback fonts", but with existing configs out there,
+    // it's not meant to be.
     fontload();
-    if (!garglk::fontreplace(gli_conf_monofont, FontType::Monospace)) {
+    if (!garglk::fontreplace(gli_conf_monofont, FontType::Monospace) && gli_conf_monofont != DEFAULT_MONO_FONT) {
         problem_fonts.push_back(Format("Unable to find monospace font \"{}\", using fallback.", gli_conf_monofont));
     }
-    if (!garglk::fontreplace(gli_conf_propfont, FontType::Proportional)) {
+    if (!garglk::fontreplace(gli_conf_propfont, FontType::Proportional) && gli_conf_propfont != DEFAULT_PROP_FONT) {
         problem_fonts.push_back(Format("Unable to find proportional font \"{}\", using fallback.", gli_conf_propfont));
     }
     fontunload();
