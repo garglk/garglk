@@ -112,11 +112,13 @@
 
 - (NSString *) openWindowDialog: (pid_t) processID
                          prompt: (NSString *) prompt
-                         filter: (FileFilter) filter;
+                         filter: (FileFilter) filter
+                        savedir: (NSString *) savedir;
 
 - (NSString *) saveWindowDialog: (pid_t) processID
                          prompt: (NSString *) prompt
-                         filter: (FileFilter) filter;
+                         filter: (FileFilter) filter
+                        savedir: (NSString *) savedir;
 
 - (void) abortWindowDialog: (pid_t) processID
                     prompt: (NSString *) prompt;

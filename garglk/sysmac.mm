@@ -180,13 +180,23 @@ void winexit()
     gli_exit(0);
 }
 
+static NSString *get_savedir(FileFilter filter)
+{
+    if (filter == FileFilter::Save && gli_conf_dedicated_save_directory && gli_workfile.has_value()) {
+        return [NSString stringWithUTF8String: gli_workfile->c_str()];
+    }
+
+    return nil;
+}
+
 std::string garglk::winopenfile(const char *prompt, FileFilter filter)
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
     NSString *fileref = [gargoyle openWindowDialog: processID
                                             prompt: [NSString stringWithCString: prompt encoding: NSUTF8StringEncoding]
-                                            filter: filter];
+                                            filter: filter
+                                            savedir: get_savedir(filter)];
 
     std::string buf;
 
@@ -205,7 +215,8 @@ std::string garglk::winsavefile(const char *prompt, FileFilter filter)
 
     NSString *fileref = [gargoyle saveWindowDialog: processID
                                             prompt: [NSString stringWithCString: prompt encoding: NSUTF8StringEncoding]
-                                            filter: filter];
+                                            filter: filter
+                                           savedir: get_savedir(filter)];
 
     std::string buf;
 
@@ -657,7 +668,8 @@ void winkey(NSEvent *evt)
 
                 NSString *fileref = [gargoyle saveWindowDialog: processID
                                                         prompt: @"Save transcript"
-                                                        filter: FileFilter::Text];
+                                                        filter: FileFilter::Text
+                                                       savedir: nil];
 
                 if (fileref != nullptr) {
                     std::string filename = [fileref UTF8String];
