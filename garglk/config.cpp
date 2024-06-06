@@ -89,8 +89,8 @@ double gli_zoom = 1.0;
 
 FontFiles gli_conf_prop, gli_conf_mono;
 
-std::string gli_conf_monofont = "Gargoyle Mono";
-std::string gli_conf_propfont = "Gargoyle Serif";
+std::string gli_conf_monofont = DEFAULT_MONO_FONT;
+std::string gli_conf_propfont = DEFAULT_PROP_FONT;
 double gli_conf_monosize = 12.6; // good size for Gargoyle Mono
 double gli_conf_propsize = 14.7; // good size for Gargoyle Serif
 

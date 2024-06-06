@@ -641,6 +641,9 @@ struct FontFiles {
     } r, b, i, z;
 };
 
+#define DEFAULT_MONO_FONT	"Gargoyle Mono"
+#define DEFAULT_PROP_FONT	"Gargoyle Serif"
+
 extern std::string gli_conf_propfont;
 extern FontFiles gli_conf_prop;
 extern std::string gli_conf_monofont;
