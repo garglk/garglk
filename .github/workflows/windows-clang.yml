@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      
+
       - name: Cache VCPKG
         uses: actions/cache@v3
         with:
@@ -26,7 +26,7 @@ jobs:
             C:\vcpkg\packages
             C:\vcpkg\installed
           key: vcpkg-${{ matrix.arch }}
-      
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
@@ -36,12 +36,15 @@ jobs:
 
       - name: Install other packages
         run: vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo fluidsynth --triplet ${{ fromJSON('{"x86-64":"x64","arm64":"arm64"}')[matrix.arch] || matrix.arch }}-windows
-      
+
       - name: Set up Visual Studio environment
         uses: seanmiddleditch/gha-setup-vsdevenv@v4
         with:
           arch: ${{ fromJSON('{"x86-64":"amd64","arm64":"arm64"}')[matrix.arch] || matrix.arch }}
           host_arch: 'amd64'
+
+      - name: Fix LLVM version issue
+        run: choco upgrade llvm
 
       - name: Build (x64)
         if: ${{ matrix.arch == 'x86-64' }}
@@ -50,7 +53,7 @@ jobs:
           cd cmake-build
           cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link -DINTERFACE=QT -DQT_VERSION=6 -DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DSOUND=QT ..
           ninja
-      
+
       - name: Build (arm64)
         if: ${{ matrix.arch == 'arm64' }}
         # yes. this is terrible.
@@ -59,7 +62,7 @@ jobs:
           cd cmake-build
           cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link -DINTERFACE=QT -DWITH_QT6=ON -DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DSOUND=QT -DCMAKE_C_COMPILER_TARGET=arm64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=arm64-pc-windows-msvc -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY -DCMAKE_CROSSCOMPILING=ON -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=arm64 -DCMAKE_STATIC_LINKER_FLAGS="/machine:arm64 " -DCMAKE_EXE_LINKER_FLAGS="/machine:arm64 " ..
           ninja
-      
+
       - name: Assemble results
         run: |
           mkdir gargoyle-staging
@@ -69,12 +72,12 @@ jobs:
           cp cmake-build\*.otf gargoyle-staging
           cp cmake-build\terps\*.exe gargoyle-staging
           cp cmake-build\terps\tads\tadsr.exe gargoyle-staging
-      
+
       - name: Deploy Qt files
         run: |
           cd gargoyle-staging
           windeployqt --no-quick-import --no-compiler-runtime garglk.dll
-      
+
       - name: Compress
         run: Compress-Archive -Path gargoyle-staging -DestinationPath gargoyle-win-clang-${{ matrix.arch }}.zip
 
