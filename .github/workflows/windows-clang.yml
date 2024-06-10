@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Cache VCPKG
         uses: actions/cache@v3
@@ -82,7 +82,7 @@ jobs:
         run: Compress-Archive -Path gargoyle-staging -DestinationPath gargoyle-win-clang-${{ matrix.arch }}.zip
 
       - name: Upload archive
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gargoyle-win-clang-${{ matrix.arch }}.zip
           path: gargoyle-*.zip

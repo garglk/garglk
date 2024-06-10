@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Update packages
         run: apt update
@@ -51,7 +51,7 @@ jobs:
 
       - name: Upload DEB
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Gargoyle-Ubuntu-${{ matrix.version }}
           path: ~/deb_factory/gargoyle*.deb
