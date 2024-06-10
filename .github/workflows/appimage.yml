@@ -36,7 +36,7 @@ jobs:
           qt6-base-dev-tools
           wget
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Build AppImage
         run: |
@@ -45,7 +45,7 @@ jobs:
 
       - name: Upload AppImage
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Gargoyle-x86_64.AppImage
           path: Gargoyle-x86_64.AppImage
