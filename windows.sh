@@ -26,11 +26,15 @@ fatal() {
     exit 1
 }
 
+QT_VERSION="5"
 GARGOYLE_SOUND="SDL"
 
-while getopts "a:bgq" o
+while getopts "6a:bgq" o
 do
     case "${o}" in
+        6)
+            QT_VERSION="6"
+            ;;
         a)
             GARGOYLE_ARCH="${OPTARG}"
             ;;
@@ -78,6 +82,18 @@ else
     mingw_location=/usr/llvm-mingw
 fi
 
+if [[ "${QT_VERSION}" == "6" ]]
+then
+    if [[ -n "${GARGOYLE_MINGW_GCC}" ]]
+    then
+        QT6HOME="${HOME}/Qt/6.7.1/mingw_64"
+    else
+        QT6HOME="${HOME}/Qt/6.7.1/llvm-mingw_64"
+    fi
+
+    CMAKE_QT6="-DCMAKE_PREFIX_PATH=${QT6HOME}"
+fi
+
 export PATH="${mingw_location}/bin:${PATH}"
 
 nproc=$(getconf _NPROCESSORS_ONLN)
@@ -87,7 +103,7 @@ mkdir build-mingw
 
 (
 cd build-mingw
-env MINGW_TRIPLE=${target} MINGW_LOCATION=${mingw_location} cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DSOUND=${GARGOYLE_SOUND} -DQT_VERSION=5
+env MINGW_TRIPLE=${target} MINGW_LOCATION=${mingw_location} cmake .. ${CMAKE_QT6} -DCMAKE_TOOLCHAIN_FILE=../Toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DSOUND=${GARGOYLE_SOUND} -DQT_VERSION=${QT_VERSION}
 make -j${nproc}
 make install
 )
@@ -107,27 +123,43 @@ fi
 
 case ${GARGOYLE_SOUND} in
     QT)
-        SOUND_DLLS="Qt5Multimedia Qt5Network libfluidsynth-3 libglib-2.0-0 libintl-8 libmpg123-0 libogg-0 libopenmpt-0 libpcre2-8-0 libsndfile libvorbis-0 libvorbisenc-2 libvorbisfile-3"
+        SOUND_DLLS="Qt${QT_VERSION}Multimedia Qt${QT_VERSION}Network libfluidsynth-3 libglib-2.0-0 libintl-8 libmpg123-0 libogg-0 libopenmpt-0 libpcre2-8-0 libsndfile libvorbis-0 libvorbisenc-2 libvorbisfile-3"
         ;;
     SDL)
         SOUND_DLLS="SDL2 SDL2_mixer libmodplug-1 libmpg123-0 libogg-0 libopenmpt-0 libvorbis-0 libvorbisfile-3"
         ;;
 esac
 
-for dll in Qt5Core Qt5Gui Qt5Widgets libfmt libfreetype-6 libpng16-16 libturbojpeg zlib1 ${SOUND_DLLS}
+for dll in Qt${QT_VERSION}Core Qt${QT_VERSION}Gui Qt${QT_VERSION}Widgets libfmt libfreetype-6 libpng16-16 libturbojpeg zlib1 ${SOUND_DLLS}
 do
-    cp "${mingw_location}/${target}/bin/${dll}.dll" "build/dist"
+    if [[ "${dll}" =~ ^Qt6 ]]
+    then
+        cp "${QT6HOME}/bin/${dll}.dll" "build/dist"
+    else
+        cp "${mingw_location}/${target}/bin/${dll}.dll" "build/dist"
+    fi
 done
 
 find build/dist \( -name '*.exe' -o -name '*.dll' \) -exec ${target}-strip --strip-unneeded {} \;
 
 mkdir -p "build/dist/plugins/platforms"
-cp "${mingw_location}/${target}/plugins/platforms/qwindows.dll" "build/dist/plugins/platforms"
+if [[ "${QT_VERSION}" == "5" ]]
+then
+    cp "${mingw_location}/${target}/plugins/platforms/qwindows.dll" "build/dist/plugins/platforms"
+else
+    cp "${QT6HOME}/plugins/platforms/qwindows.dll" "build/dist/plugins/platforms"
+fi
 
 if [[ "${GARGOYLE_SOUND}" == "QT" ]]
 then
-    mkdir -p build/dist/plugins/audio
-    cp "${mingw_location}/${target}/plugins/audio/qtaudio_windows.dll" "build/dist/plugins/audio"
+    if [[ "${QT_VERSION}" == "5" ]]
+    then
+        mkdir -p build/dist/plugins/audio
+        cp "${mingw_location}/${target}/plugins/audio/qtaudio_windows.dll" "build/dist/plugins/audio"
+    else
+        mkdir -p build/dist/plugins/multimedia
+        cp "${QT6HOME}/plugins/multimedia/windowsmediaplugin.dll" "build/dist/plugins/multimedia"
+    fi
 fi
 
 [[ "${GARGOYLE_BUILD_ONLY}" ]] && exit
