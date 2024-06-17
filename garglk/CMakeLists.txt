@@ -23,7 +23,7 @@ endif()
 
 set(WITH_TTS "AUTO" CACHE STRING "Enable text-to-speech support (ON/OFF/AUTO/DYNAMIC)")
 set(GARGLKPRE "" CACHE STRING "Binary prefix")
-set(SOUND "SDL" CACHE STRING "Backend to use for sound (SDL, QT, or none)")
+set(SOUND "SDL" CACHE STRING "Backend to use for sound (SDL, QT, or NONE)")
 set(JPEGLIB "AUTO" CACHE STRING "JPEG library to use (TURBO, IJG, or AUTO)")
 
 if(INTERFACE STREQUAL "QT")
