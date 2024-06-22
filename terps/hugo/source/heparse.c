@@ -1087,7 +1087,12 @@ int MatchObject(int *wordnum)
 
 				/* definitely not this object */
 				else
+				{
 					SubtractPossibleObject(i);
+					/* clear bestobj if i is the current best object */
+					if (i == bestobj)
+						bestobj = 0;
+				}
 			}
 
 
