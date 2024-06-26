@@ -321,7 +321,7 @@ static SearchResultType find_syncbytes(uint8_t *bitstream, int bitcount, int *po
         if ((b & 0x01) != 0 && (bitstream[i + 1] & 0x80) != 0) {
             for (int j = 1; j < 8; j++) {
                 // Check if this bit and the next one left-shifted j places become 0xff
-                if (((bitstream[i] << j) | (bitstream[i + 1] >> (8 - j))) == 0xff) {
+                if ((uint8_t)((bitstream[i] << j) | (bitstream[i + 1] >> (8 - j))) == 0xff) {
                     // If so, copy the following 8 bytes to a buffer left-shifted j positions,
                     // and compare them to the sync byte sequences.
                     for (int k = 8; k > 0; k--) {
