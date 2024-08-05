@@ -171,11 +171,11 @@ static std::string winchoosefile(const QString &prompt, FileFilter filter, Actio
 
     QString dir = "";
 
-    if (filter == FileFilter::Save && gli_conf_dedicated_save_directory && gli_workfile.has_value()) {
+    if (gli_conf_dedicated_gamedata_directory && gli_workfile.has_value()) {
         auto path = QFileInfo(QString::fromStdString(*gli_workfile));
         if (!path.fileName().isEmpty()) {
             QDir basedir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-            QDir savepath = QDir(basedir.filePath("saves")).filePath(path.fileName());
+            QDir savepath = QDir(basedir.filePath("gamedata")).filePath(path.fileName());
             if (savepath.mkpath(savepath.absolutePath())) {
                 dir = savepath.absolutePath();
             }

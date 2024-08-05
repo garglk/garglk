@@ -550,7 +550,7 @@ static NSURL *get_save_dir(NSString *filename)
         return nil;
     }
 
-    dir = [dir URLByAppendingPathComponent: @"io.github.garglk/Gargoyle/saves"];
+    dir = [dir URLByAppendingPathComponent: @"io.github.garglk/Gargoyle/gamedata"];
     dir = [dir URLByAppendingPathComponent: filename];
     NSFileManager *fm = [NSFileManager defaultManager];
     [fm createDirectoryAtURL: dir withIntermediateDirectories: YES attributes: nil error: &error];

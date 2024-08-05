@@ -238,7 +238,7 @@ bool gli_conf_safeclicks = false;
 
 bool gli_conf_per_game_config = true;
 
-bool gli_conf_dedicated_save_directory = false;
+bool gli_conf_dedicated_gamedata_directory = false;
 
 Scaler gli_conf_scaler = Scaler::None;
 
@@ -850,8 +850,8 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 }
             } else if (cmd == "game_config") {
                 gli_conf_per_game_config = asbool(arg);
-            } else if (cmd == "dedicated_save_directory") {
-                gli_conf_dedicated_save_directory = asbool(arg);
+            } else if (cmd == "dedicated_gamedata_directory") {
+                gli_conf_dedicated_gamedata_directory = asbool(arg);
             } else if (cmd == "redraw_hack") {
                 gli_conf_redraw_hack = asbool(arg);
             } else if (cmd == "glyph_substitution_file") {
