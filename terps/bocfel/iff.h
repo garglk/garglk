@@ -28,7 +28,7 @@ public:
         explicit TypeID(uint32_t type) : m_type(type) {
         }
 
-        explicit TypeID(const char (*type)[5]) : TypeID((*type)[0], (*type)[1], (*type)[2], (*type)[3]) {
+        explicit TypeID(const char (&type)[5]) : TypeID(type[0], type[1], type[2], type[3]) {
         }
 
         uint32_t val() const {
@@ -71,7 +71,7 @@ public:
         uint32_t size;
     };
 
-    class InvalidFile : std::exception {
+    class InvalidFile : public std::exception {
     };
 
     IFF(std::shared_ptr<IO> io, TypeID type);

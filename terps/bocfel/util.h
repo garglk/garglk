@@ -4,6 +4,7 @@
 #define ZTERP_UTIL_H
 
 #include <cstdarg>
+#include <functional>
 #include <string>
 
 #include "types.h"
@@ -40,19 +41,12 @@ zprintflike(1, 2)
 void die(const char *fmt, ...);
 void help();
 
-enum class ArgStatus {
-    Ok,
-    Help,
-    Fail,
-};
-
-extern ArgStatus arg_status;
-void process_arguments(int argc, char **argv);
 long parseint(const std::string &s, int base, bool &valid);
 std::string vstring(const char *fmt, std::va_list ap);
 zprintflike(1, 2)
 std::string fstring(const char *fmt, ...);
 std::string ltrim(const std::string &s);
 std::string rtrim(const std::string &s);
+void parse_grouped_file(std::ifstream &f, const std::function<void(const std::string &line, int lineno)> &callback);
 
 #endif

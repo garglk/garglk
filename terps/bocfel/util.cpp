@@ -17,11 +17,10 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
+#include <fstream>
+#include <functional>
 #include <iostream>
-#include <memory>
 #include <string>
-#include <vector>
 
 #include "util.h"
 #include "process.h"
@@ -101,218 +100,6 @@ void die(const char *fmt, ...)
     throw Exit(EXIT_FAILURE);
 }
 
-enum FakeArg { glkunix_arg_NoValue, glkunix_arg_NumberValue, glkunix_arg_ValueFollows };
-
-void help()
-{
-    // Simulate a glkunix_argumentlist_t structure so help can be shared.
-    struct FakeArgList {
-        const char *name;
-        FakeArg type;
-        const char *description;
-    };
-
-    const std::vector<FakeArgList> args = {
-#include "help.h"
-    };
-
-#ifdef ZTERP_GLK
-    glk_set_style(style_Preformatted);
-#endif
-
-    screen_puts("Usage: bocfel [args] filename");
-    for (const auto &arg : args) {
-        std::string line;
-        const char *typestr;
-
-        switch (arg.type) {
-        case glkunix_arg_NumberValue:  typestr = "number"; break;
-        case glkunix_arg_ValueFollows: typestr = "string"; break;
-        default:                       typestr = "";       break;
-        }
-
-        line = fstring("%s %-12s%s", arg.name, typestr, arg.description);
-        screen_puts(line);
-    }
-}
-
-// This is not POSIX compliant, but it gets the job done.
-// It should not be called more than once.
-static int zoptind = 0;
-static const char *zoptarg;
-static int zgetopt(int argc, char *const argv[], const char *optstring)
-{
-    static const char *p = "";
-    const char *optp;
-    int c;
-
-    if (*p == 0) {
-        // No more arguments.
-        if (++zoptind >= argc) {
-            return -1;
-        }
-
-        p = argv[zoptind];
-
-        // No more options.
-        if (p[0] != '-' || p[1] == 0) {
-            return -1;
-        }
-
-        // Handle “--”
-        if (*++p == '-') {
-            zoptind++;
-            return -1;
-        }
-    }
-
-    c = *p++;
-
-    optp = std::strchr(optstring, c);
-    if (optp == nullptr) {
-        return '?';
-    }
-
-    if (optp[1] == ':') {
-        if (*p != 0) {
-            zoptarg = p;
-        } else {
-            zoptarg = argv[++zoptind];
-        }
-
-        p = "";
-        if (zoptarg == nullptr) {
-            return '?';
-        }
-    }
-
-    return c;
-}
-
-ArgStatus arg_status = ArgStatus::Ok;
-void process_arguments(int argc, char **argv)
-{
-    int c;
-
-    while ((c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGhHikl:mn:N:prR:sS:tT:u:vxXyYz:Z:")) != -1) {
-        switch (c) {
-        case 'a':
-            options.eval_stack_size = std::strtoul(zoptarg, nullptr, 10);
-            break;
-        case 'A':
-            options.call_stack_size = std::strtoul(zoptarg, nullptr, 10);
-            break;
-        case 'c':
-            options.disable_color = true;
-            break;
-        case 'C':
-            options.disable_config = true;
-            break;
-        case 'd':
-            options.disable_timed = true;
-            break;
-        case 'D':
-            options.disable_sound = true;
-            break;
-        case 'e':
-            options.enable_escape = true;
-            break;
-        case 'E':
-            options.escape_string = std::make_unique<std::string>(zoptarg);
-            break;
-        case 'f':
-            options.disable_fixed = true;
-            break;
-        case 'F':
-            options.assume_fixed = true;
-            break;
-        case 'g':
-            options.disable_graphics_font = true;
-            break;
-        case 'G':
-            options.enable_alt_graphics = true;
-            break;
-        case 'h':
-            arg_status = ArgStatus::Help;
-            return;
-        case 'H':
-            options.disable_history_playback = true;
-            break;
-        case 'i':
-            options.show_id = true;
-            break;
-        case 'k':
-            options.disable_term_keys = true;
-            break;
-        case 'l':
-            options.username = std::make_unique<std::string>(zoptarg);
-            break;
-        case 'm':
-            options.disable_meta_commands = true;
-            break;
-        case 'n':
-            options.int_number = std::strtoul(zoptarg, nullptr, 10);
-            break;
-        case 'N':
-            options.int_version = zoptarg[0];
-            break;
-        case 'p':
-            options.disable_patches = true;
-            break;
-        case 'r':
-            options.replay_on = true;
-            break;
-        case 'R':
-            options.replay_name = std::make_unique<std::string>(zoptarg);
-            break;
-        case 's':
-            options.record_on = true;
-            break;
-        case 'S':
-            options.record_name = std::make_unique<std::string>(zoptarg);
-            break;
-        case 't':
-            options.transcript_on = true;
-            break;
-        case 'T':
-            options.transcript_name = std::make_unique<std::string>(zoptarg);
-            break;
-        case 'u':
-            options.undo_slots = std::strtoul(zoptarg, nullptr, 10);
-            break;
-        case 'v':
-            options.show_version = true;
-            break;
-        case 'x':
-            options.disable_abbreviations = true;
-            break;
-        case 'X':
-            options.enable_censorship = true;
-            break;
-        case 'y':
-            options.overwrite_transcript = true;
-            break;
-        case 'Y':
-            options.override_undo = true;
-            break;
-        case 'z':
-            options.random_seed = std::make_unique<unsigned long>(std::strtoul(zoptarg, nullptr, 10));
-            break;
-        case 'Z':
-            options.random_device = std::make_unique<std::string>(zoptarg);
-            break;
-        default:
-            arg_status = ArgStatus::Fail;
-            return;
-        }
-    }
-
-    // Just ignore excess stories for now.
-    if (zoptind < argc) {
-        game_file = argv[zoptind];
-    }
-}
-
 long parseint(const std::string &s, int base, bool &valid)
 {
     long ret;
@@ -329,14 +116,17 @@ std::string vstring(const char *fmt, std::va_list ap)
 {
     std::va_list ap_copy;
     std::string s;
-    size_t n;
+    int n;
 
     va_copy(ap_copy, ap);
 
     n = std::vsnprintf(nullptr, 0, fmt, ap);
+    if (n < 0) {
+        die("error processing format string");
+    }
 
     s.resize(n);
-    vsnprintf(&s[0], n + 1, fmt, ap_copy);
+    std::vsnprintf(&s[0], n + 1, fmt, ap_copy);
 
     va_end(ap_copy);
 
@@ -374,5 +164,38 @@ std::string rtrim(const std::string &s)
         return s.substr(0, pos + 1);
     } else {
         return s;
+    }
+}
+
+void parse_grouped_file(std::ifstream &f, const std::function<void(const std::string &line, int lineno)> &callback)
+{
+    std::string line;
+    bool story_matches = true;
+
+    for (int lineno = 1; std::getline(f, line); lineno++) {
+        line = ltrim(line);
+
+        auto comment = line.find('#');
+        if (comment != std::string::npos) {
+            line.erase(comment);
+        }
+        line = rtrim(line);
+
+        if (line.empty()) {
+            continue;
+        }
+
+        if (line[0] == '[' && line.back() == ']') {
+            std::string id = line.substr(1, line.size() - 2);
+            story_matches = id == get_story_id();
+
+            continue;
+        }
+
+        if (!story_matches) {
+            continue;
+        }
+
+        callback(line, lineno);
     }
 }

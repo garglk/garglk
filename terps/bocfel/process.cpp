@@ -29,6 +29,7 @@ extern "C" {
 #include "mathop.h"
 #include "memory.h"
 #include "objects.h"
+#include "options.h"
 #include "random.h"
 #include "screen.h"
 #include "sound.h"
@@ -258,7 +259,7 @@ void setup_opcodes()
     setup_single_opcode(5, 6, Opcount::Ext, 0x02, zlog_shift);
     setup_single_opcode(5, 6, Opcount::Ext, 0x03, zart_shift);
     setup_single_opcode(5, 6, Opcount::Ext, 0x04, zset_font);
-    setup_single_opcode(6, 6, Opcount::Ext, 0x05, znop); // XXX draw_picture
+    setup_single_opcode(6, 6, Opcount::Ext, 0x05, zdraw_picture);
     setup_single_opcode(6, 6, Opcount::Ext, 0x06, zpicture_data);
     setup_single_opcode(6, 6, Opcount::Ext, 0x07, znop); // XXX erase_picture
     setup_single_opcode(6, 6, Opcount::Ext, 0x08, znop); // XXX set_margins
@@ -287,6 +288,9 @@ void setup_opcodes()
     setup_single_opcode(5, 6, Opcount::Ext, 0x81, zstop_timer);
     setup_single_opcode(5, 6, Opcount::Ext, 0x82, zread_timer);
     setup_single_opcode(5, 6, Opcount::Ext, 0x83, zprint_timer);
+
+    // Journey hack.
+    setup_single_opcode(6, 6, Opcount::Ext, JOURNEY_DIAL_EXT, zjourney_dial);
 }
 
 // The main processing loop. This decodes and dispatches instructions.

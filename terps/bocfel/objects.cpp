@@ -373,6 +373,7 @@ void zget_prop_len()
 void zget_prop_addr()
 {
     check_zero(true, false);
+
     // Theoretically this should check whether the requested property is
     // valid (i.e. is within the proper range for the current story type).
     // However, at least one game (Mingsheng) attempts to get the address

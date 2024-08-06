@@ -14,13 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
+#include <algorithm>
 #include <cstring>
+#include <fstream>
 #include <functional>
+#include <ios>
+#include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "patches.h"
 #include "memory.h"
+#include "process.h"
 #include "types.h"
 #include "util.h"
 #include "zterp.h"
@@ -41,7 +47,7 @@ struct Replacement {
 
 struct Patch {
     std::string title;
-    const char (*serial)[sizeof header.serial + 1];
+    const char (&serial)[sizeof header.serial + 1];
     uint16_t release;
     uint16_t checksum;
     std::vector<Replacement> replacements;
@@ -66,7 +72,30 @@ static bool bureaucracy_active()
 }
 #endif
 
-static std::vector<Patch> patches = {
+static std::vector<Patch> base_patches = {
+    // In Arthur, there is a routine called INIT-STATUS-LINE which does this:
+    //
+    // <PUTB ,K-DIROUT-TBL 0 !\ >
+    // <SET N </ <WINGET 1 ,K-W-XSIZE> ,GL-SPACE-WIDTH>>
+    // <COPYT ,K-DIROUT-TBL <ZREST ,K-DIROUT-TBL 1> <- .N>>
+    //
+    // The intent is to fill K-DIROUT-TBL with as many spaces as there
+    // are characters in a line, but K-DIROUT-TBL is only 255 bytes
+    // wide. If K-W-XSIZE / GL-SPACE-WIDTH is greater than 255, it will
+    // overrun the buffer. This patch pulls the width from the value at
+    // 0x21 in the header, which is the width of the screen in
+    // characters, capped at 255.
+    {
+        "Arthur", "890714", 74, 0xd526,
+        {
+            {
+                0x9de8, 20,
+                {0xbe, 0x13, 0x5f, 0x01, 0x03, 0x00, 0x77, 0x00, 0x1f, 0x01, 0xd4, 0x1f, 0x41, 0x29, 0x01, 0x05, 0x35, 0x00, 0x01, 0x00},
+                {0xd4, 0x1f, 0x41, 0x29, 0x01, 0x05, 0x10, 0x00, 0x21, 0x00, 0x35, 0x00, 0x00, 0x00, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4}
+            }
+        }
+    },
+
     // There are several patches for Beyond Zork.
     //
     // In four places it tries to treat a dictionary word as an object.
@@ -75,7 +104,7 @@ static std::vector<Patch> patches = {
     // <REPLACE-SYN? ,W?CIRCLET ,W?FILM ,W?ZZZP>
     // <REPLACE-ADJ? ,W?CIRCLET ,W?SWIRLING ,W?ZZZP>
     //
-    // Here “,W?CIRCLET” is the dictionary word "circlet"; what was
+    // Here “,W?CIRCLET” is the dictionary word “circlet”; what was
     // intended is “,CIRCLET”, the object. Given that the object number
     // of the circlet is easily discoverable, these calls can be
     // rewritten to use the object number instead of the incorrect
@@ -103,7 +132,7 @@ static std::vector<Patch> patches = {
     // which dumps newlines in an attempt to force a [MORE] prompt; see
     // the Trinity section for more information.
     {
-        "Beyond Zork", &"870915", 47, 0x3ff4,
+        "Beyond Zork", "870915", 47, 0x3ff4,
         {
             // Circlet object
             { 0x2f8e6, 2, {0xa3, 0x9a}, {0x01, 0x86} },
@@ -148,7 +177,7 @@ static std::vector<Patch> patches = {
     },
 
     {
-        "Beyond Zork", &"870917", 49, 0x24d6,
+        "Beyond Zork", "870917", 49, 0x24d6,
         {
             // Circlet object
             { 0x2f8b6, 2, {0xa3, 0x9c}, {0x01, 0x86} },
@@ -193,7 +222,7 @@ static std::vector<Patch> patches = {
     },
 
     {
-        "Beyond Zork", &"870923", 51, 0x0cbe,
+        "Beyond Zork", "870923", 51, 0x0cbe,
         {
             // Circlet object
             { 0x2f762, 2, {0xa3, 0x8d}, {0x01, 0x86} },
@@ -238,7 +267,7 @@ static std::vector<Patch> patches = {
     },
 
     {
-        "Beyond Zork", &"871221", 57, 0xc5ad,
+        "Beyond Zork", "871221", 57, 0xc5ad,
         {
             // Circlet object
             { 0x2fc72, 2, {0xa3, 0xba}, {0x01, 0x87} },
@@ -283,7 +312,7 @@ static std::vector<Patch> patches = {
     },
 
     {
-        "Beyond Zork", &"880610", 60, 0xa49d,
+        "Beyond Zork", "880610", 60, 0xa49d,
         {
             // Circlet object
             { 0x2fbfe, 2, {0xa3, 0xc0}, {0x01, 0x87} },
@@ -344,7 +373,7 @@ static std::vector<Patch> patches = {
     //     @rtrue;
     // ];
     {
-        "Bureaucracy", &"870212", 86, 0xe024,
+        "Bureaucracy", "870212", 86, 0xe024,
         {
             {
                 0x2128c, 18,
@@ -355,7 +384,7 @@ static std::vector<Patch> patches = {
         }
     },
     {
-        "Bureaucracy", &"870602", 116, 0xfc65,
+        "Bureaucracy", "870602", 116, 0xfc65,
         {
             {
                 0x212d0, 18,
@@ -366,7 +395,7 @@ static std::vector<Patch> patches = {
         }
     },
     {
-        "Bureaucracy", &"880521", 160, 0x07f0,
+        "Bureaucracy", "880521", 160, 0x07f0,
         {
             {
                 0x212c8, 18,
@@ -382,29 +411,29 @@ static std::vector<Patch> patches = {
     // included, which is not valid, as the last attribute is 47 (0x2f);
     // there are 48 attributes but the count starts at 0.
     {
-        "Sherlock", &"871214", 21, 0x79b2,
+        "Sherlock", "871214", 21, 0x79b2,
         {{ 0x223ac, 1, {0x30}, {0x2f} }},
     },
     {
-        "Sherlock", &"880112", 22, 0xcb96,
+        "Sherlock", "880112", 22, 0xcb96,
         {{ 0x225a4, 1, {0x30}, {0x2f} }},
     },
     {
-        "Sherlock", &"880127", 26, 0x26ba,
+        "Sherlock", "880127", 26, 0x26ba,
         {{ 0x22818, 1, {0x30}, {0x2f} }},
     },
     {
-        "Sherlock", &"880324", 4, 0x7086,
+        "Sherlock", "880324", 4, 0x7086,
         {{ 0x22498, 1, {0x30}, {0x2f} }},
     },
 
     // The operands to @get_prop here are swapped, so swap them back.
     {
-        "Stationfall", &"870326", 87, 0x71ae,
+        "Stationfall", "870326", 87, 0x71ae,
         {{ 0xd3d4, 3, {0x31, 0x0c, 0x73}, {0x51, 0x73, 0x0c} }},
     },
     {
-        "Stationfall", &"870430", 107, 0x2871,
+        "Stationfall", "870430", 107, 0x2871,
         {{ 0xe3fe, 3, {0x31, 0x0c, 0x77}, {0x51, 0x77, 0x0c} }},
     },
 
@@ -439,15 +468,15 @@ static std::vector<Patch> patches = {
     // worth it for the benefit of not losing game text.
 #ifdef ZTERP_GLK
     {
-        "Trinity", &"860509", 11, 0xfaae,
+        "Trinity", "860509", 11, 0xfaae,
         {{ 0x2d453, 4, {0x88, 0x44, 0x33, 0x00}, {0xf6, 0x7f, 0x01, 0x00}}},
     },
     {
-        "Trinity", &"860926", 12, 0x16ab,
+        "Trinity", "860926", 12, 0x16ab,
         {{ 0x2d487, 4, {0x88, 0x44, 0x30, 0x00}, {0xf6, 0x7f, 0x01, 0x00}}},
     },
     {
-        "Trinity", &"870628", 15, 0xf112,
+        "Trinity", "870628", 15, 0xf112,
         {{ 0x2d25f, 4, {0x88, 0x44, 0x12, 0x00}, {0xf6, 0x7f, 0x01, 0x00}}},
     },
 #endif
@@ -455,32 +484,153 @@ static std::vector<Patch> patches = {
     // The Solid Gold (V5) version of Wishbringer calls @show_status, but
     // that is an illegal instruction outside of V3. Convert it to @nop.
     {
-        "Wishbringer", &"880706", 23, 0x4222,
+        "Wishbringer", "880706", 23, 0x4222,
         {{ 0x1f910, 1, {0xbc}, {0xb4} }},
     },
+};
 
-    // Robot Finds Kitten attempts to sleep with the following:
-    //
-    // [ Func junk;
-    //     @aread junk 0 10 PauseFunc -> junk;
-    // ];
-    //
-    // However, since “junk” is a local variable with value 0 instead of a
-    // text buffer, this is asking to read from/write to address 0. This
-    // works in some interpreters, but Bocfel is more strict, and aborts
-    // the program. Rewrite this instead to:
-    //
-    // @read_char 1 10 PauseFunc -> junk;
-    // @nop; ! This is for padding.
+// These patches help with the V6 hacks.
+static std::vector<Patch> v6_patches = {
     {
-        "Robot Finds Kitten", &"130320", 7, 0x4a18,
+        "Arthur", "890714", 74, 0xd526,
         {
+            // In the intro to Arthur, two images are shown in immediate
+            // succession:
+            //
+            // <RT-CENTER-PIC ,K-PIC-SWORD>
+            // <RT-CENTER-PIC ,K-PIC-SWORD-MERLIN>
+            //
+            // This is presumably under the assmption that drawing is
+            // slow, so it will look like a small animation. On modern
+            // systems K-PIC-SWORD won't be seen in this sequence, so
+            // this patch rewrites the code to add a 1s sleep call via
+            // @read_char. There are two calls to @set_cursor (to hide
+            // the cursor) which have no effect in Bocfel, giving 8
+            // total bytes to work with, which is enough to add the new
+            // call. The following:
+            //
+            // <RT-CENTER-PIC ,K-PIC-SWORD-MERLIN>     |   call_2n         #19234 #03
+            // <CURSET -1> ;"Make cursor go away."     |   set_cursor      #ffff
+            // <INPUT 1 150 ,RT-STOP-READ>             |   read_char       #01 #96 #11d64 -> -(SP)
+            // <CURSET -2> ;"Make cursor come back."   |   set_cursor      #fffe
+            //
+            // is replaced with:
+            //
+            // <INPUT 1 10 ,RT-STOP-READ>              |   read_char        #01 #0a #11d64 -> -(SP)
+            // <RT-CENTER-PIC ,K-PIC-SWORD-MERLIN>     |   call_2n          #19234 #03
+            // <INPUT 1 150 ,RT-STOP-READ>             |   read_char        #01 #96 #11d64 -> -(SP)
+            // <NOOP>                                  |   nop
             {
-                0x4912, 8,
-                {0xe4, 0x94, 0x05, 0x00, 0x0a, 0x12, 0x5a, 0x05},
-                {0xf6, 0x53, 0x01, 0x0a, 0x12, 0x5a, 0x05, 0xb4},
+                0x10e76, 20,
+                {0xda, 0x1f, 0x3d, 0xb1, 0x03, 0xef, 0x3f, 0xff, 0xff, 0xf6, 0x53, 0x01, 0x96, 0x20, 0x7d, 0x00, 0xef, 0x3f, 0xff, 0xfe},
+                {0xf6, 0x53, 0x01, 0x0a, 0x20, 0x7d, 0x00, 0xda, 0x1f, 0x3d, 0xb1, 0x03, 0xf6, 0x53, 0x01, 0x96, 0x20, 0x7d, 0x00, 0xb4}
             },
+
+            // Parser messages are meant to be displayed on the bottom
+            // of the screen, but since Bocfel doesn’t have real V6
+            // window support, the messages are displayed inline as with
+            // most other Infocom games. However, the messages are
+            // printed in reverse video (in fact, the current color is
+            // looked up with @get_wind_prop, @set_colour is called with
+            // the values swapped, the message is printed, and then
+            // @set_colour puts things back). This might look OK with
+            // the parser messages in a separate window, but it’s
+            // jarring interleaved with user input, so this removes the
+            // calls to @set_colour entirely.
+            { 0x1124b, 3, {0x7b, 0x0d, 0x0c}, {0xb4, 0xb4, 0xb4} },
+            { 0x11257, 3, {0x7b, 0x0c, 0x0d}, {0xb4, 0xb4, 0xb4} },
+        },
+    },
+
+    {
+        "Shogun", "890706", 322, 0x5c88,
+        {
+            // Avoid calling a function that prints too many newlines
+            // during interludes.
+            { 0x12771, 1, {0xda}, {0xb0} },
+
+            // Shogun uses @set_text_style to switch to reverse video on
+            // Amiga only; otherwise it uses @set_colour. This
+            // unconditionally uses @set_text_style, for better results.
+            { 0x11865, 4, {0x41, 0x43, 0x04, 0x46}, {0xf1, 0x7f, 0x01, 0xb0} },
         }
+    },
+
+    {
+        "Journey", "890706", 83, 0xd2b8,
+        {
+            // The DIAL-GRAPHICS routine calls GRAPHICS with the
+            // specified arrow and location; since the same arrows are
+            // used for both dials, the offset for the arrows can’t be
+            // determined just by the picture number. Instead rewrite
+            // the calls to a custom zjourney_dial(), passing 0 for the
+            // left arrow, and 1 for the right.
+            {
+                0x307b9, 6,
+                {0xf9, 0x59, 0xef, 0x00, 0x00, 0x00},
+                {0xbe, JOURNEY_DIAL_EXT, 0x9f, 0x97, 0x00, 0xb4}
+            },
+            {
+                0x307c7, 6,
+                {0xe0, 0x58, 0xef, 0x00, 0x00, 0xff},
+                {0xbe, JOURNEY_DIAL_EXT, 0x9f, 0x97, 0x01, 0xb0}
+            },
+
+            // The Amiga version of Journey draws a box around the
+            // entire screen. This is not possible with Glk (at least
+            // not in a way that wouldn’t require loads of special-
+            // casing); and even worse, Bocfel hacks around some
+            // Journey/Glk issues by pretending the screen height is 6,
+            // so that Journey won’t expand the upper window to extend
+            // across the whole screen, with the side effect that the
+            // calculation of the border is broken, causing an apparent
+            // hang that is effectively this, but slow, since it’s
+            // interpreted:
+            //
+            // uint16_t val = 1;
+            // while (val++ != 0) { }
+            //
+            // Border drawing is controlled by the global variable
+            // BORDER-FLAG (G9f), which is only set for Amiga. This
+            // patch ensures that BORDER-FLAG is never set, so the game
+            // never tries to draw the border.
+            { 0x4dcf, 3, {0x0d, 0xaf, 0x01}, {0x0d, 0xaf, 0x00} },
+        }
+    },
+
+    {
+        "Zork Zero", "890714", 393, 0x791c,
+        {
+            // In Fanucci, Zork Zero displays labels under each card
+            // (DISCARD, 1, 2, 3, 4). This is done in a graphics window,
+            // though, and Glk doesn’t support text in graphics windows.
+            // It would probably be possible to create a new text window
+            // just below the graphics window and put this text in
+            // there, but since it’s not crucial to the game, as you can
+            // either use the mouse to click, or just infer/look up
+            // which cards are which, replace the entire sequence of
+            // moving the cursor and writing text with @nop.
+            {
+                0x2a127, 63,
+                {0xef, 0xaf, 0x03, 0x04, 0xb2, 0x11, 0x24, 0x38, 0x98, 0x11, 0x04, 0x18, 0x97, 0x91, 0x25, 0xef,
+                 0xaf, 0x03, 0x05, 0xe5, 0x7f, 0x31, 0x74, 0x05, 0x06, 0x00, 0xef, 0xaf, 0x03, 0x00, 0xe5, 0x7f,
+                 0x32, 0x56, 0x06, 0x02, 0x00, 0x74, 0x05, 0x00, 0x00, 0xef, 0xaf, 0x03, 0x00, 0xe5, 0x7f, 0x33,
+                 0x56, 0x06, 0x03, 0x00, 0x74, 0x05, 0x00, 0x00, 0xef, 0xaf, 0x03, 0x00, 0xe5, 0x7f, 0x34},
+
+                {0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4,
+                 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4,
+                 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4,
+                 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4}
+            },
+
+            // Zork Zero only allows the compass to be clicked when the
+            // machine is an Apple II, Macintosh, Amiga, or IBM PC. But
+            // the mouse works under Glk regardless (if the Glk
+            // implementation supports mouse clicks). This bypasses the
+            // mouse check, allowing the compass rose to be clicked no
+            // matter which interpreter number is selected.
+            { 0x1c20d, 3, {0xa0, 0x00, 0xce}, {0xb4, 0xb4, 0xb4} },
+        },
     },
 };
 
@@ -498,10 +648,10 @@ static bool apply_patch(const Replacement &r)
     return false;
 }
 
-void apply_patches()
+static void apply_patches(const std::vector<Patch> &patches)
 {
     for (const auto &patch : patches) {
-        if (std::memcmp(*patch.serial, header.serial, sizeof header.serial) == 0 &&
+        if (std::memcmp(patch.serial, header.serial, sizeof header.serial) == 0 &&
             patch.release == header.release &&
             patch.checksum == header.checksum) {
 
@@ -514,23 +664,14 @@ void apply_patches()
     }
 }
 
-static bool read_into(std::vector<uint8_t> &buf, long count)
+void apply_patches()
 {
-    for (long i = 0; i < count; i++) {
-        long b;
-        bool valid;
-        char *p = std::strtok(nullptr, " \t[],");
-        if (p == nullptr) {
-            return false;
-        }
-        b = parseint(p, 16, valid);
-        if (!valid || b < 0 || b > 255) {
-            return false;
-        }
-        buf.push_back(b);
-    }
+    apply_patches(base_patches);
+}
 
-    return true;
+void apply_v6_patches()
+{
+    apply_patches(v6_patches);
 }
 
 // User patches have the form:
@@ -547,32 +688,37 @@ static bool read_into(std::vector<uint8_t> &buf, long count)
 // 0xe3fe 3 [0x31, 0x0c, 0x77] [0x51, 0x77, 0x0c]
 void apply_user_patch(std::string patchstr)
 {
-    char *p;
-    bool valid;
     uint32_t addr, count;
     std::vector<uint8_t> in, out;
 
-    p = std::strtok(&patchstr[0], " \t");
-    if (p == nullptr) {
+    std::replace_if(patchstr.begin(), patchstr.end(),
+                    [](char c) { return c == '[' || c == ']' || c == ','; },
+                    ' ');
+
+    std::istringstream ss(rtrim(patchstr));
+
+    if (!(ss >> std::hex >> addr) ||
+        !(ss >> std::dec >> count))
+    {
         throw PatchStatus::SyntaxError();
     }
 
-    addr = parseint(p, 16, valid);
-    if (!valid) {
-        throw PatchStatus::SyntaxError();
-    }
+    ss >> std::hex;
 
-    p = std::strtok(nullptr, " \t");
-    if (p == nullptr) {
-        throw PatchStatus::SyntaxError();
-    }
+    auto read_into = [&count, &ss](std::vector<uint8_t> &vec){
+        for (uint32_t i = 0; i < count; i++) {
+            unsigned int byte;
+            if (!(ss >> byte) || byte > 255) {
+                throw PatchStatus::SyntaxError();
+            }
+            vec.push_back(byte);
+        }
+    };
 
-    count = parseint(p, 10, valid);
-    if (!valid) {
-        throw PatchStatus::SyntaxError();
-    }
+    read_into(in);
+    read_into(out);
 
-    if (!read_into(in, count) || !read_into(out, count)) {
+    if (ss.peek() != std::char_traits<char>::eof()) {
         throw PatchStatus::SyntaxError();
     }
 
@@ -586,4 +732,33 @@ void apply_user_patch(std::string patchstr)
     if (!apply_patch(replacement)) {
         throw PatchStatus::NotFound();
     }
+}
+
+// A patch file is somewhat similar to a user configuration file, but
+// contains *only* patches. It uses grouping as in the configuration
+// file, and the patch syntax is the same, but without the “patch” key.
+// For example, a patch file for the first couple of IBM characters in
+// Beyond Zork would look like:
+//
+// # Comments are allowed.
+// [57-871221]
+// 0xe58b 1 [da] [2b]
+// 0xe591 1 [c4] [2d]
+void patch_load_file(const std::string &file)
+{
+    std::ifstream f(file);
+
+    if (!f.is_open()) {
+        return;
+    }
+
+    parse_grouped_file(f, [&file](const std::string &line, int lineno) {
+        try {
+            apply_user_patch(line);
+        } catch (const PatchStatus::SyntaxError &) {
+            std::cerr << file << ":" << lineno << ": patch file syntax error" << std::endl;
+        } catch (const PatchStatus::NotFound &) {
+            std::cerr << file << ":" << lineno << ": patch file byte sequence not found" << std::endl;
+        }
+    });
 }

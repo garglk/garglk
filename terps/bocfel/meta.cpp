@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <algorithm>
 #include <array>
 #include <cstring>
+#include <memory>
 #include <new>
 #include <set>
 #include <sstream>
@@ -28,12 +28,14 @@
 #include "io.h"
 #include "memory.h"
 #include "objects.h"
+#include "options.h"
 #include "osdep.h"
 #include "process.h"
 #include "screen.h"
 #include "stack.h"
 #include "stash.h"
 #include "types.h"
+#include "unicode.h"
 #include "util.h"
 #include "zterp.h"
 
@@ -41,7 +43,7 @@ using namespace std::literals;
 
 static bool uni_isdigit(char c)
 {
-    return c > '0' && c < '9';
+    return c >= '0' && c <= '9';
 }
 
 static bool uni_isxdigit(char c)
@@ -82,11 +84,6 @@ static void try_user_drop(size_t i)
     } else {
         screen_puts("[Drop failed]");
     }
-}
-
-static void meta_status_putc(uint8_t c)
-{
-    screen_print(std::string{static_cast<char>(c)});
 }
 
 static std::vector<uint8_t> debug_change_memory;
@@ -158,7 +155,7 @@ static bool meta_debug_scan(const std::string &string)
         invalid_addr.clear();
         screen_puts("[Debug scan reset]");
     } else if (string == "show") {
-        for (size_t addr = 0; addr < header.static_start - 2; addr++) {
+        for (uint16_t addr = 0; addr < header.static_start - 2; addr++) {
             if (invalid_addr.find(addr) == invalid_addr.end()) {
                 if (is_global(addr) || !in_globals(addr)) {
                     screen_puts(addrstring(addr));
@@ -183,7 +180,7 @@ static bool meta_debug_scan(const std::string &string)
                 value += 0x10000;
             }
 
-            for (size_t addr = 0; addr < header.static_start - 2; addr++) {
+            for (uint16_t addr = 0; addr < header.static_start - 2; addr++) {
                 if (word(addr) != value) {
                     invalid_addr.insert(addr);
                 }
@@ -244,29 +241,29 @@ static bool meta_debug_print(const std::string &string)
         return true;
     }
 
-    screen_printf("%ld (0x%lx)\n", static_cast<long>(as_signed(word(addr))), static_cast<unsigned long>(word(addr)));
+    screen_printf("%ld (0x%04lx)\n", static_cast<long>(as_signed(word(addr))), static_cast<unsigned long>(word(addr)));
 
     return true;
 }
 
 #ifndef ZTERP_NO_CHEAT
-// This is an array of pairs (frozen, value), where the specified
-// address is frozen to “value” if “frozen” is true.
-static std::array<std::pair<bool, uint16_t>, UINT16_MAX + 1> freeze;
+// This is a lookup table of pairs (frozen, value), where the specified
+// address (as the index) is frozen to “value” if “frozen” is true.
+static std::array<std::pair<bool, uint16_t>, UINT16_MAX + 1> frozen_addresses;
 
-bool cheat_add(std::string how, bool print)
+bool cheat_add(const std::string &how, bool print)
 {
-    char *type, *addrstr, *valstr;
+    std::istringstream ss(how);
+    std::string type, addrstr, valstr;
 
-    type = std::strtok(&how[0], ":");
-    addrstr = std::strtok(nullptr, ":");
-    valstr = std::strtok(nullptr, "");
-
-    if (type == nullptr || addrstr == nullptr || valstr == nullptr) {
+    if (!std::getline(ss, type, ':') ||
+        !std::getline(ss, addrstr, ':') ||
+        !std::getline(ss, valstr))
+    {
         return false;
     }
 
-    if (std::strcmp(type, "freeze") == 0 || std::strcmp(type, "freezew") == 0) {
+    if (type == "freeze" || type == "freezew") {
         long addr;
         long value;
         bool valid;
@@ -291,7 +288,7 @@ bool cheat_add(std::string how, bool print)
             return true;
         }
 
-        freeze[addr] = {true, value};
+        frozen_addresses[addr] = {true, value};
     } else {
         return false;
     }
@@ -305,39 +302,37 @@ bool cheat_add(std::string how, bool print)
 
 static bool cheat_remove(uint16_t addr)
 {
-    if (!freeze[addr].first) {
+    if (!frozen_addresses[addr].first) {
         return false;
     }
 
-    freeze[addr] = {false, 0};
+    frozen_addresses[addr] = {false, 0};
     return true;
 }
 
 bool cheat_find_freeze(uint32_t addr, uint16_t &val)
 {
-    if (addr > UINT16_MAX || !freeze[addr].first) {
+    if (addr > UINT16_MAX || !frozen_addresses[addr].first) {
         return false;
     }
 
-    val = freeze[addr].second;
+    val = frozen_addresses[addr].second;
 
     return true;
 }
 
-static bool meta_debug_freeze(std::string string)
+static bool meta_debug_freeze(const std::string &string)
 {
-    char *addrstr, *valstr;
+    std::istringstream ss(string);
+    std::string addrstr, valstr;
 
-    addrstr = std::strtok(&string[0], " ");
-    if (addrstr == nullptr) {
-        return false;
-    }
-    valstr = std::strtok(nullptr, "");
-    if (valstr == nullptr) {
+    if (!std::getline(ss, addrstr, ' ') ||
+        !std::getline(ss, valstr))
+    {
         return false;
     }
 
-    std::string cheat = "freeze:"s + addrstr + ":" + valstr;
+    std::string cheat = "freeze:" + addrstr + ":" + valstr;
 
     return cheat_add(cheat, true);
 }
@@ -368,10 +363,10 @@ static bool meta_debug_show_freeze()
 {
     bool any_frozen = false;
 
-    for (size_t addr = 0; addr < freeze.size(); addr++) {
-        if (freeze[addr].first) {
+    for (size_t addr = 0; addr < frozen_addresses.size(); addr++) {
+        if (frozen_addresses[addr].first) {
             any_frozen = true;
-            screen_printf("%s: %lu\n", addrstring(addr).c_str(), static_cast<unsigned long>(freeze[addr].second));
+            screen_printf("%s: %lu\n", addrstring(addr).c_str(), static_cast<unsigned long>(frozen_addresses[addr].second));
         }
     }
 
@@ -505,7 +500,7 @@ static void meta_debug_help()
             "watch [address]: report any changes to the word at [address]\n"
             "watch all: report any changes to words at all addresses\n"
             "unwatch [address]: stop watching [address]\n"
-            "unwatch all: stop watching all adddresses\n"
+            "unwatch all: stop watching all addresses\n"
             "show_watch: show all watched-for addresses\n"
 #endif
             "\nAddresses are either absolute, specified in hexadecimal with an optional leading 0x, or global variables. Global variables have the syntax Gxx, where xx is a hexadecimal value in the range [00, ef], corresponding to global variables 0 to 239.\n"
@@ -552,6 +547,13 @@ static void meta_debug(const std::string &string)
     }
 }
 
+static void meta_info()
+{
+    screen_printf("File: %s\n", game_file.c_str());
+    screen_printf("Z-machine version: %d\n", memory[0]);
+    screen_printf("ID: %s\n", get_story_id().c_str());
+}
+
 static std::vector<char> meta_notes;
 
 IFF::TypeID meta_write_bfnt(IO &savefile)
@@ -563,7 +565,7 @@ IFF::TypeID meta_write_bfnt(IO &savefile)
     savefile.write32(0); // Version
     savefile.write_exact(meta_notes.data(), meta_notes.size());
 
-    return IFF::TypeID(&"Bfnt");
+    return IFF::TypeID("Bfnt");
 }
 
 void meta_read_bfnt(IO &io, uint32_t size)
@@ -609,26 +611,25 @@ void meta_read_bfnt(IO &io, uint32_t size)
     }
 }
 
-static std::vector<char> meta_notes_backup;
+class NotesStasher : public Stasher {
+public:
+    void backup() override {
+        m_notes = meta_notes;
+    }
 
-static void notes_stash_backup()
-{
-    meta_notes_backup = meta_notes;
+    bool restore() override {
+        meta_notes = m_notes;
 
-    meta_notes.clear();
-}
+        return true;
+    }
 
-static bool notes_stash_restore()
-{
-    meta_notes = meta_notes_backup;
+    void free() override {
+        m_notes.clear();
+    }
 
-    return true;
-}
-
-static void notes_stash_free()
-{
-    meta_notes_backup.clear();
-}
+private:
+    std::vector<char> m_notes;
+};
 
 // Try to parse a meta command. If input should be re-requested, return
 // <MetaResult::Rerequest, "">. If a portion of the passed-in string
@@ -654,7 +655,7 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
             }
         }
 
-        auto buf = io.get_memory();
+        const auto &buf = io.get_memory();
         converted = rtrim(std::string(buf.begin(), buf.end()));
     } catch (const IO::OpenError &) {
         return {MetaResult::Rerequest, ""};
@@ -686,13 +687,13 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
             screen_puts("[No save found, unable to undo]");
         }
     } else if ZEROARG("scripton") {
-        if (output_stream(OSTREAM_SCRIPT, 0)) {
+        if (output_stream(OSTREAM_TRANSCRIPT, 0)) {
             screen_puts("[Transcripting on]");
         } else {
             screen_puts("[Transcripting failed]");
         }
     } else if ZEROARG("scriptoff") {
-        output_stream(-OSTREAM_SCRIPT, 0);
+        output_stream(-OSTREAM_TRANSCRIPT, 0);
         screen_puts("[Transcripting off]");
     } else if ZEROARG("recon") {
         if (output_stream(OSTREAM_RECORD, 0)) {
@@ -757,9 +758,11 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
             restore_or_drop(saveno - 1);
         }
     } else if ZEROARG("ls") {
-        list_saves(SaveStackType::User, screen_puts);
+        list_saves(SaveStackType::User);
     } else if ZEROARG("savetranscript") {
         screen_save_persistent_transcript();
+    } else if ZEROARG("showtranscript") {
+        screen_show_persistent_transcript();
     } else if ZEROARG("notes") {
         screen_puts("[Editing notes]");
         screen_flush();
@@ -773,7 +776,9 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
         if (meta_notes.empty()) {
             screen_puts("[No notes taken]");
         } else {
-            screen_printf("[Start of notes]\n%.*s\n[End of notes]\n", static_cast<int>(meta_notes.size()), meta_notes.data());
+            screen_puts("[Start of notes]");
+            screen_puts(std::string(meta_notes.data(), meta_notes.size()));
+            screen_puts("[End of notes]");
         }
     } else if ZEROARG("savenotes") {
         if (meta_notes.empty()) {
@@ -797,7 +802,9 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
         } else {
             long first = as_signed(variable(0x11)), second = as_signed(variable(0x12));
 
-            print_object(variable(0x10), meta_status_putc);
+            print_object(variable(0x10), [](uint8_t c) {
+                screen_putc(zscii_to_unicode[c]);
+            });
 
             screen_print("\n");
 
@@ -835,6 +842,8 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
         meta_debug(rest);
     } else if ZEROARG("quit") {
         zquit();
+    } else if ZEROARG("info") {
+        meta_info();
     } else {
         if (command != "help") {
             screen_printf("Unknown command: /%s\n\n", command.c_str());
@@ -868,6 +877,7 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
                 "/config: open the config file in a text editor\n"
                 "/debug [...]: perform a debugging operation\n"
                 "/quit: quit immediately (as if the @quit opcode were executed)\n"
+                "/info: display some info about the current game\n"
                 );
     }
 
@@ -877,6 +887,6 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
 void init_meta(bool first_run)
 {
     if (first_run) {
-        stash_register(notes_stash_backup, notes_stash_restore, notes_stash_free);
+        stash_register(std::make_unique<NotesStasher>());
     }
 }

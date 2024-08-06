@@ -3,9 +3,14 @@
 #ifndef ZTERP_STASH_H
 #define ZTERP_STASH_H
 
-#include <functional>
+#include <memory>
 
-void stash_register(std::function<void()> backup, std::function<bool()> restore, std::function<void()> free);
+struct Stasher {
+    virtual ~Stasher() = default;
+    virtual void backup() = 0;
+    virtual bool restore() = 0;
+    virtual void free() = 0;
+};
 
 class Stash {
 public:
@@ -22,5 +27,7 @@ private:
     void free();
     bool m_have_stash = false;
 };
+
+void stash_register(std::unique_ptr<Stasher> stasher);
 
 #endif

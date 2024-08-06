@@ -103,7 +103,7 @@ void user_store_byte(uint16_t addr, uint8_t v)
         ZASSERT((byte(addr) ^ v) < 8, "not allowed to modify bits 3-7 at 0x0011");
 
         bool transcript_set = (v & FLAGS2_TRANSCRIPT) == FLAGS2_TRANSCRIPT;
-        if (!output_stream(transcript_set ? OSTREAM_SCRIPT : -OSTREAM_SCRIPT, 0)) {
+        if (!output_stream(transcript_set ? OSTREAM_TRANSCRIPT : -OSTREAM_TRANSCRIPT, 0)) {
             v &= ~FLAGS2_TRANSCRIPT;
         }
 

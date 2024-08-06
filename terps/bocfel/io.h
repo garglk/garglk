@@ -22,16 +22,16 @@ extern "C" {
 
 class IO {
 public:
-    class Error : std::exception {
+    class Error : public std::exception {
     };
 
-    class OpenError : Error {
+    class OpenError : public Error {
     };
 
-    class IOError : Error {
+    class IOError : public Error {
     };
 
-    class EndOfFile : Error {
+    class EndOfFile : public Error {
     };
 
     enum class Mode {
@@ -53,10 +53,11 @@ public:
         Current,
     };
 
-    IO(const std::string *filename, Mode mode_, Purpose purpose_);
-    IO(std::vector<uint8_t> buf, Mode mode_);
+    IO(const std::string *filename, Mode mode, Purpose purpose);
+    IO(std::vector<uint8_t> buf, Mode mode);
     void operator=(IO const &) = delete;
     IO(const IO &) = delete;
+    IO(IO &&) = default;
 
     static IO standard_in() {
         return IO(stdin, Mode::ReadOnly, Purpose::Input, false);
@@ -66,10 +67,10 @@ public:
         return IO(stdout, Mode::WriteOnly, Purpose::Transcript, false);
     }
 
-    const std::vector<uint8_t> &get_memory();
+    const std::vector<uint8_t> &get_memory() const;
 
     void seek(long offset, SeekFrom whence);
-    long tell();
+    long tell() const;
     size_t read(void *buf, size_t n);
     void read_exact(void *buf, size_t n);
     size_t write(const void *buf, size_t n);
@@ -83,7 +84,7 @@ public:
     long getc(bool limit16);
     void putc(uint32_t c);
     std::vector<uint16_t> readline();
-    long filesize();
+    long filesize() const;
     void flush();
 
 private:
@@ -108,7 +109,7 @@ private:
     using StdioType = std::unique_ptr<std::FILE, std::function<void(std::FILE *)>>;
 
 #ifdef ZTERP_GLK
-    using GlkType = std::unique_ptr<std::remove_pointer<strid_t>::type, std::function<void(strid_t)>>;
+    using GlkType = std::unique_ptr<std::remove_pointer_t<strid_t>, std::function<void(strid_t)>>;
 #endif
 
     struct File {
@@ -134,7 +135,6 @@ private:
 
     IO(std::FILE *fp, Mode mode, Purpose purpose, bool close) : m_file(fp, close), m_type(Type::StandardIO), m_mode(mode), m_purpose(purpose) {
     }
-    IO(IO &&) = default;
 
     [[noreturn]] void bad_type() const;
     bool textmode() const;
