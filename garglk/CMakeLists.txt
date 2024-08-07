@@ -221,6 +221,7 @@ elseif(UNIX OR MINGW OR MSVC)
         target_link_libraries(gargoyle PRIVATE Qt${QT_VERSION}::Widgets)
     endif()
 
+    target_compile_definitions(garglk PRIVATE GARGLK_CONFIG_TICK)
     set(GARGLK_NEEDS_TICK TRUE CACHE INTERNAL "")
 else()
     message(FATAL_ERROR "Unsupported platform (${CMAKE_SYSTEM_NAME}).")
