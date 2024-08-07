@@ -28,7 +28,7 @@ IFF::IFF(std::shared_ptr<IO> io, TypeID type) : m_io(std::move(io))
 
         m_io->seek(0, IO::SeekFrom::Start);
         type_val = m_io->read32();
-        if (type_val != TypeID(&"FORM").val()) {
+        if (type_val != TypeID("FORM").val()) {
             throw InvalidFile();
         }
 

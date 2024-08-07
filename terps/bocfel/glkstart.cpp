@@ -17,8 +17,9 @@
 #include <initializer_list>
 #include <string>
 
+#include "options.h"
+#include "screen.h"
 #include "types.h"
-#include "util.h"
 #include "zterp.h"
 
 extern "C" {
@@ -49,9 +50,8 @@ extern "C" {
 #define glkunix_fileref_get_filename garglk_fileref_get_name
 #endif
 
-glkunix_argumentlist_t glkunix_arguments[] = {
-#include "help.h"
-    { const_cast<char *>(""),		glkunix_arg_ValueFollows,	const_cast<char *>("file to load") },
+// Filled in by the Options constructor.
+glkunix_argumentlist_t glkunix_arguments[128] = {
     { nullptr, glkunix_arg_End, nullptr }
 };
 
@@ -64,20 +64,19 @@ static strid_t load_file(const std::string &file)
 
 int glkunix_startup_code(glkunix_startup_t *data)
 {
-    process_arguments(data->argc, data->argv);
+#ifdef GARGLK
+    garglk_set_program_name("Bocfel");
+#endif
+    options.process_arguments(data->argc, data->argv);
 
-    if (arg_status != ArgStatus::Ok) {
+    if (arg_status.any() || options.show_version || options.show_help) {
         return 1;
     }
 
 #ifdef GARGLK
-    garglk_set_program_name("Bocfel");
-    if (options.show_version) {
-        return 1;
-    }
     if (!game_file.empty()) {
         auto story_name = game_file;
-        auto slash = story_name.find_last_of('/');
+        auto slash = story_name.rfind('/');
 
         if (slash != std::string::npos) {
             story_name.erase(0, slash + 1);
@@ -99,7 +98,7 @@ int glkunix_startup_code(glkunix_startup_t *data)
 #endif
 
     if (!game_file.empty()) {
-#ifndef ZTERP_DOS
+#ifndef ZTERP_OS_DOS
         glkunix_set_base_file(&game_file[0]);
 #endif
         load_resources();
@@ -109,9 +108,10 @@ int glkunix_startup_code(glkunix_startup_t *data)
 }
 #elif defined(ZTERP_GLK_WINGLK)
 #include <cstdlib>
-#include <sstream>
 
 #include <WinGlk.h>
+
+using namespace std::literals;
 
 extern "C" {
 int InitGlk(unsigned int);
@@ -139,20 +139,20 @@ static void startup()
     winglk_set_about_text("Windows Bocfel " ZTERP_VERSION);
     winglk_show_game_dialog();
 
-    process_arguments(__argc, __argv);
+    options.process_arguments(__argc, __argv);
 
-    if (arg_status != ArgStatus::Ok) {
+    if (arg_status.any() || options.show_version || options.show_help) {
         return;
     }
 
     if (game_file.empty()) {
-        const char *patterns = "*.z1;*.z2;*.z3;*.z4;*.z5;*.z6;*.z7.*.z8;*.zblorb;*.zlb;*.blorb;*.blb";
-        std::ostringstream filter;
+        const std::string patterns = "*.z1;*.z2;*.z3;*.z4;*.z5;*.z6;*.z7.*.z8;*.zblorb;*.zlb;*.blorb;*.blb";
+        std::string filter;
         const char *filename;
 
-        filter << "Z-Code Files (" << patterns << ")|" << patterns << "|All Files (*.*)|*.*||";
+        filter = "Z-Code Files (" + patterns + ")|" + patterns + "|All Files (*.*)|*.*||";
 
-        filename = winglk_get_initial_filename(nullptr, "Choose a Z-Code Game", filter.str().c_str());
+        filename = winglk_get_initial_filename(nullptr, "Choose a Z-Code Game", filter.c_str());
         if (filename != nullptr) {
             game_file = filename;
         }
@@ -173,7 +173,7 @@ static void startup()
         winglk_set_resource_directory(game_dir.c_str());
 
         if (!filename.empty()) {
-            auto dot = filename.find_last_of('.');
+            auto dot = filename.rfind('.');
             if (dot != std::string::npos) {
                 filename.resize(dot);
             }
@@ -199,7 +199,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
     return 0;
 }
 #else
+#ifdef ZTERP_GLK_BLORB
 #define load_file(file) nullptr
+#endif
 #error Glk on this platform is not supported.
 #endif
 
@@ -214,6 +216,8 @@ static void load_resources()
         strid_t file = load_file(blorb_file);
         if (file != nullptr) {
             if (giblorb_set_resource_map(file) == giblorb_err_None) {
+                screen_load_scale_info(blorb_file);
+
                 return true;
             }
             glk_stream_close(file, nullptr);

@@ -15,7 +15,7 @@
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <algorithm>
-#include <functional>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -32,9 +32,9 @@
 // of state that needs to be protected. The restore code will ensure
 // these are all called appropriately.
 //
-// Required functions:
+// Required methods:
 //
-// void backup()  - Stash away the current state for future restore
+// void backup()  - Stash away the current state for future restore.
 // bool restore() - Restore the stashed state, returning true if it
 //                  could successfully be restored, false otherwise.
 // void free()    - Free any resources that were allocated by
@@ -43,23 +43,11 @@
 //                  including multiple times in a row without any
 //                  intervening call to backup().
 
-struct PrivateStash {
-    std::function<void()> backup;
-    std::function<bool()> restore;
-    std::function<void()> free;
-};
+static std::vector<std::unique_ptr<Stasher>> stashes;
 
-static std::vector<PrivateStash> stashes;
-
-void stash_register(std::function<void()> backup, std::function<bool()> restore, std::function<void()> free)
+void stash_register(std::unique_ptr<Stasher> stasher)
 {
-    PrivateStash stash = {
-        std::move(backup),
-        std::move(restore),
-        std::move(free),
-    };
-
-    stashes.push_back(stash);
+    stashes.push_back(std::move(stasher));
 }
 
 Stash::~Stash()
@@ -70,7 +58,7 @@ Stash::~Stash()
 void Stash::backup()
 {
     for (const auto &stash : stashes) {
-        stash.backup();
+        stash->backup();
     }
 
     m_have_stash = true;
@@ -78,7 +66,7 @@ void Stash::backup()
 
 bool Stash::restore()
 {
-    bool success = std::all_of(stashes.begin(), stashes.end(), [](const PrivateStash &stash) { return stash.restore(); });
+    bool success = std::all_of(stashes.begin(), stashes.end(), [](std::unique_ptr<Stasher> &stash) { return stash->restore(); });
 
     free();
 
@@ -88,7 +76,7 @@ bool Stash::restore()
 void Stash::free()
 {
     for (const auto &stash : stashes) {
-        stash.free();
+        stash->free();
     }
 
     m_have_stash = false;

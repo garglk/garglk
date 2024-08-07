@@ -16,15 +16,18 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
 #include <deque>
-#include <map>
+#include <iomanip>
+#include <locale>
 #include <memory>
 #include <new>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -34,6 +37,7 @@
 #include "io.h"
 #include "memory.h"
 #include "meta.h"
+#include "options.h"
 #include "osdep.h"
 #include "process.h"
 #include "random.h"
@@ -101,16 +105,19 @@ public:
 
 private:
     static std::string format_time() {
-        char formatted_time[128];
-        time_t when = time(nullptr);
-        struct tm *tm;
+        auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        auto lt = std::localtime(&now);
 
-        tm = std::localtime(&when);
-        if (tm == nullptr || std::strftime(formatted_time, sizeof formatted_time, "%c", tm) == 0) {
-            std::snprintf(formatted_time, sizeof formatted_time, "<no time information>");
+        if (lt == nullptr) {
+            return "<no time information>";
+        } else {
+            std::ostringstream formatted_time;
+
+            formatted_time.imbue(std::locale(""));
+            formatted_time << std::put_time(lt, "%c");
+
+            return formatted_time.str();
         }
-
-        return formatted_time;
     }
 };
 
@@ -148,7 +155,7 @@ struct SaveStack {
         states.shrink_to_fit();
     }
 };
-static std::map<SaveStackType, SaveStack> save_stacks;
+static std::unordered_map<SaveStackType, SaveStack> save_stacks;
 
 bool seen_save_undo = false;
 
@@ -525,7 +532,7 @@ static IFF::TypeID write_ifhd(IO &savefile)
     savefile.write8((pc >>  8) & 0xff);
     savefile.write8((pc >>  0) & 0xff);
 
-    return IFF::TypeID(&"IFhd");
+    return IFF::TypeID("IFhd");
 }
 
 // Store the filename in an IntD chunk.
@@ -538,7 +545,7 @@ static IFF::TypeID write_intd(IO &savefile)
     savefile.write_exact("    ", 4);
     savefile.write_exact(game_file.c_str(), game_file.size());
 
-    return IFF::TypeID(&"IntD");
+    return IFF::TypeID("IntD");
 }
 
 static IFF::TypeID write_mem(IO &savefile)
@@ -546,7 +553,7 @@ static IFF::TypeID write_mem(IO &savefile)
     std::vector<uint8_t> compressed;
     uint32_t memsize = header.static_start;
     const uint8_t *mem = memory;
-    IFF::TypeID type = IFF::TypeID(&"UMem");
+    IFF::TypeID type = IFF::TypeID("UMem");
 
     try {
         compressed = compress_memory();
@@ -555,7 +562,7 @@ static IFF::TypeID write_mem(IO &savefile)
         if (compressed.size() < header.static_start) {
             mem = compressed.data();
             memsize = compressed.size();
-            type = IFF::TypeID(&"CMem");
+            type = IFF::TypeID("CMem");
         }
     } catch (const std::bad_alloc &) {
     }
@@ -606,7 +613,7 @@ static IFF::TypeID write_stks(IO &savefile)
         }
     }
 
-    return IFF::TypeID(&"Stks");
+    return IFF::TypeID("Stks");
 }
 
 static IFF::TypeID write_anno(IO &savefile)
@@ -614,7 +621,7 @@ static IFF::TypeID write_anno(IO &savefile)
     std::string anno = "Interpreter: Bocfel "s + ZTERP_VERSION;
     savefile.write_exact(anno.c_str(), anno.size());
 
-    return IFF::TypeID(&"ANNO");
+    return IFF::TypeID("ANNO");
 }
 
 static IFF::TypeID write_args(IO &savefile, SaveOpcode saveopcode)
@@ -625,7 +632,7 @@ static IFF::TypeID write_args(IO &savefile, SaveOpcode saveopcode)
         savefile.write16(zargs[i]);
     }
 
-    return IFF::TypeID(&"Args");
+    return IFF::TypeID("Args");
 }
 
 static void write_undo_msav(IO &savefile, SaveStackType type)
@@ -656,14 +663,14 @@ static IFF::TypeID write_undo(IO &savefile)
 {
     write_undo_msav(savefile, SaveStackType::Game);
 
-    return IFF::TypeID(&"Undo");
+    return IFF::TypeID("Undo");
 }
 
 static IFF::TypeID write_msav(IO &savefile)
 {
     write_undo_msav(savefile, SaveStackType::User);
 
-    return IFF::TypeID(&"MSav");
+    return IFF::TypeID("MSav");
 }
 
 template<typename... Types>
@@ -694,7 +701,7 @@ static void write_chunk(IO &io, IFF::TypeID (*writefunc)(IO &savefile, Types... 
 // format of the save state is the same (that is, the IFhd, IntD, and
 // CMem/UMem chunks are identical). The type of the save file itself is
 // BFZS instead of IFZS to prevent the files from being used by a normal
-// @restore (as they are not compatible). See `Quetzal.md` for a
+// @restore (as they are not compatible). See Quetzal.md for a
 // description of how BFZS differs from IFZS.
 static bool save_quetzal(IO &savefile, SaveType savetype, SaveOpcode saveopcode, bool on_save_stack)
 {
@@ -711,17 +718,19 @@ static bool save_quetzal(IO &savefile, SaveType savetype, SaveOpcode saveopcode,
         write_chunk(savefile, write_mem);
         write_chunk(savefile, write_stks);
         write_chunk(savefile, write_anno);
-        write_chunk(savefile, meta_write_bfnt);
 
         // When saving to a stack (either for undo or for in-memory saves),
-        // don’t store history or persistent transcripts. History is
-        // pointless, since the user can see this history already, and
-        // persistent transcripts want to track what actually happened. If
-        // the user types UNDO, for example, that should be reflected in the
-        // transcript.
-        if (on_save_stack) {
+        // don’t store history, persistent transcripts, or notes. History is
+        // pointless, since the user can see this history already. Persistent
+        // transcripts want to track what actually happened. If the user types
+        // UNDO, for example, that should be reflected in the transcript. And
+        // notes shouldn’t be cleared just because the user undid a turn; if a
+        // user doesn’t want the notes, he can delete them, but he can’t bring
+        // back notes that he never wanted deleted.
+        if (!on_save_stack) {
             write_chunk(savefile, screen_write_bfhs);
             write_chunk(savefile, screen_write_bfts);
+            write_chunk(savefile, meta_write_bfnt);
         }
 
         // When restoring a meta save, @read will be called to bring the user
@@ -756,7 +765,7 @@ static void read_mem(IFF &iff)
 {
     uint32_t size;
 
-    if (iff.find(IFF::TypeID(&"CMem"), size)) {
+    if (iff.find(IFF::TypeID("CMem"), size)) {
         std::vector<uint8_t> buf;
 
         // Dynamic memory is 64KB, and a worst-case save should take up
@@ -780,7 +789,7 @@ static void read_mem(IFF &iff)
         if (!uncompress_memory(buf.data(), size)) {
             throw RestoreError("memory cannot be uncompressed");
         }
-    } else if (iff.find(IFF::TypeID(&"UMem"), size)) {
+    } else if (iff.find(IFF::TypeID("UMem"), size)) {
         if (size != header.static_start) {
             throw RestoreError("memory size mismatch");
         }
@@ -798,7 +807,7 @@ static void read_stks(IFF &iff)
 {
     uint32_t size, n = 0, frameno = 0;
 
-    if (!iff.find(IFF::TypeID(&"Stks"), size)) {
+    if (!iff.find(IFF::TypeID("Stks"), size)) {
         throw RestoreError("no stacks chunk found");
     }
     if (size == 0) {
@@ -875,7 +884,7 @@ static void read_args(IFF &iff, SaveOpcode &saveopcode)
     uint32_t size;
     uint8_t saveopcode_temp;
 
-    if (!iff.find(IFF::TypeID(&"Args"), size)) {
+    if (!iff.find(IFF::TypeID("Args"), size)) {
         throw RestoreError("no meta save Args chunk found");
     }
 
@@ -923,11 +932,11 @@ static void read_bfzs_specific(IFF &iff, SaveType savetype, SaveOpcode &saveopco
 
     read_args(iff, saveopcode);
 
-    if (savetype == SaveType::Autosave && iff.find(IFF::TypeID(&"Rand"), size)) {
+    if (savetype == SaveType::Autosave && iff.find(IFF::TypeID("Rand"), size)) {
         random_read_rand(*iff.io());
     }
 
-    if (iff.find(IFF::TypeID(&"Scrn"), size)) {
+    if (iff.find(IFF::TypeID("Scrn"), size)) {
         // Restoring cannot fail after this, because this function
         // actively touches the screen (changing window
         // configuration, etc). It would be possible to stash the
@@ -975,7 +984,7 @@ static void read_undo_msav(IO &savefile, uint32_t size, SaveStackType type)
 
             if (type == SaveStackType::Game) {
                 savetype = savefile.read8();
-                if ((static_cast<SaveType>(savetype) != SaveType::Normal && static_cast<SaveType>(savetype) != SaveType::Meta)) {
+                if (static_cast<SaveType>(savetype) != SaveType::Normal && static_cast<SaveType>(savetype) != SaveType::Meta) {
 
                     return;
                 }
@@ -1061,7 +1070,7 @@ static bool instruction_has_stack_argument(uint32_t addr)
     return false;
 }
 
-static bool restore_quetzal(std::shared_ptr<IO> savefile, SaveType savetype, SaveOpcode &saveopcode)
+static bool restore_quetzal(const std::shared_ptr<IO> &savefile, SaveType savetype, SaveOpcode &saveopcode, bool close_window)
 {
     std::unique_ptr<IFF> iff;
     uint32_t size;
@@ -1070,29 +1079,30 @@ static bool restore_quetzal(std::shared_ptr<IO> savefile, SaveType savetype, Sav
     bool is_bfzs = savetype == SaveType::Meta || savetype == SaveType::Autosave;
     bool is_bfms = false;
     Stash stash;
+    uint16_t flags2 = word(0x10);
 
     saveopcode = SaveOpcode::None;
 
     if (is_bfzs) {
         try {
-            iff = std::make_unique<IFF>(savefile, IFF::TypeID(&"BFZS"));
+            iff = std::make_unique<IFF>(savefile, IFF::TypeID("BFZS"));
         } catch (const IFF::InvalidFile &) {
             try {
-                iff = std::make_unique<IFF>(savefile, IFF::TypeID(&"BFMS"));
+                iff = std::make_unique<IFF>(savefile, IFF::TypeID("BFMS"));
                 is_bfms = true;
             } catch (const IFF::InvalidFile &) {
             }
         }
     } else {
         try {
-            iff = std::make_unique<IFF>(savefile, IFF::TypeID(&"IFZS"));
+            iff = std::make_unique<IFF>(savefile, IFF::TypeID("IFZS"));
         } catch (const IFF::InvalidFile &) {
         }
     }
 
     try {
         if (iff == nullptr ||
-            !iff->find(IFF::TypeID(&"IFhd"), size) ||
+            !iff->find(IFF::TypeID("IFhd"), size) ||
             size != 13) {
 
             throw RestoreError("corrupted save file or not a save file at all");
@@ -1121,11 +1131,11 @@ static bool restore_quetzal(std::shared_ptr<IO> savefile, SaveType savetype, Sav
         }
 
         if (is_bfzs && savetype == SaveType::Autosave) {
-            if (iff->find(IFF::TypeID(&"Undo"), size)) {
+            if (iff->find(IFF::TypeID("Undo"), size)) {
                 read_undo(*iff->io(), size);
             }
 
-            if (iff->find(IFF::TypeID(&"MSav"), size)) {
+            if (iff->find(IFF::TypeID("MSav"), size)) {
                 read_msav(*iff->io(), size);
             }
         }
@@ -1135,11 +1145,11 @@ static bool restore_quetzal(std::shared_ptr<IO> savefile, SaveType savetype, Sav
         read_mem(*iff);
         read_stks(*iff);
 
-        if (iff->find(IFF::TypeID(&"Bfnt"), size)) {
+        if (iff->find(IFF::TypeID("Bfnt"), size)) {
             meta_read_bfnt(*iff->io(), size);
         }
 
-        if (iff->find(IFF::TypeID(&"Bfhs"), size)) {
+        if (iff->find(IFF::TypeID("Bfhs"), size)) {
             if (savetype == SaveType::Autosave || !options.disable_history_playback) {
                 try {
                     long start = iff->io()->tell();
@@ -1155,10 +1165,10 @@ static bool restore_quetzal(std::shared_ptr<IO> savefile, SaveType savetype, Sav
             }
         } else if (savetype == SaveType::Autosave) {
             warning("unable to find history record");
-            screen_printf(">");
+            screen_print(">");
         }
 
-        if (iff->find(IFF::TypeID(&"Bfts"), size)) {
+        if (iff->find(IFF::TypeID("Bfts"), size)) {
             screen_read_bfts(*iff->io(), size);
         }
 
@@ -1192,6 +1202,36 @@ static bool restore_quetzal(std::shared_ptr<IO> savefile, SaveType savetype, Sav
     }
 
     pc = newpc;
+
+    // §8.6.1.3
+    if (close_window && zversion == 3) {
+        close_upper_window();
+    }
+
+    // For user saves, the game won’t know a restore occurred, so it
+    // won’t redraw the status line. Set the “redraw status” bit of
+    // Flags 2 to indicate a redraw is requested. The Z-Machine
+    // Standards Document says this bit is for V6 only, but Infocom’s
+    // documentation says V4+, and A Mind Forever Voyaging (which is V4)
+    // checks it.
+    if (zversion >= 4 && (savetype == SaveType::Autosave || savetype == SaveType::Meta)) {
+        flags2 |= FLAGS2_STATUS;
+    }
+
+    // §6.1.2.2: The save might be from a different interpreter with
+    // different capabilities, so update the header to indicate what the
+    // current capabilities are.
+    //
+    // Even for in-game saves (either via the game or user stack),
+    // rewrite the header: the interpreter will probably be the same,
+    // but the screen size might have changed. And, in fact, since these
+    // stacks can be stored in autosaves, it’s technically possible they
+    // COULD be running in another interpreter, or at least a future
+    // version of this one.
+    write_header();
+
+    // §6.1.2: Flags 2 should be preserved.
+    store_word(0x10, flags2);
 
     return true;
 }
@@ -1227,7 +1267,7 @@ bool do_save(SaveType savetype, SaveOpcode saveopcode)
         return false;
     }
 
-    if (!save_quetzal(*savefile, savetype, saveopcode, true)) {
+    if (!save_quetzal(*savefile, savetype, saveopcode, false)) {
         warning("error while writing save file");
         return false;
     }
@@ -1260,39 +1300,12 @@ void zsave()
 // this is.
 bool do_restore(SaveType savetype, SaveOpcode &saveopcode)
 {
-    uint16_t flags2;
-    bool success;
-
     auto savefile = open_savefile(savetype, IO::Mode::ReadOnly);
     if (savefile == nullptr) {
         return false;
     }
 
-    flags2 = word(0x10);
-
-    success = restore_quetzal(savefile, savetype, saveopcode);
-
-    if (success) {
-        // §8.6.1.3
-        if (zversion == 3) {
-            close_upper_window();
-        }
-
-        // §6.1.2.2: The save might be from a different interpreter with
-        // different capabilities, so update the header to indicate what the
-        // current capabilities are...
-        write_header();
-
-        // ...except that flags2 should be preserved (§6.1.2).
-        store_word(0x10, flags2);
-
-        // Redraw the status line in games that use one.
-        if (zversion <= 3) {
-            zshow_status();
-        }
-    }
-
-    return success;
+    return restore_quetzal(savefile, savetype, saveopcode, true);
 }
 
 void zrestore()
@@ -1326,7 +1339,7 @@ SaveResult push_save(SaveStackType type, SaveType savetype, SaveOpcode saveopcod
     try {
         IO savefile(std::vector<uint8_t>(), IO::Mode::WriteOnly);
 
-        if (!save_quetzal(savefile, savetype, saveopcode, false)) {
+        if (!save_quetzal(savefile, savetype, saveopcode, true)) {
             return SaveResult::Failure;
         }
 
@@ -1346,14 +1359,11 @@ SaveResult push_save(SaveStackType type, SaveType savetype, SaveOpcode saveopcod
 bool pop_save(SaveStackType type, size_t saveno, SaveOpcode &saveopcode)
 {
     SaveStack &s = save_stacks[type];
-    uint16_t flags2;
     std::shared_ptr<IO> savefile;
 
     if (saveno >= s.states.size()) {
         return false;
     }
-
-    flags2 = word(0x10);
 
     for (size_t i = 0; i < saveno; i++) {
         s.states.pop_front();
@@ -1368,21 +1378,7 @@ bool pop_save(SaveStackType type, size_t saveno, SaveOpcode &saveopcode)
         return false;
     }
 
-    if (!restore_quetzal(savefile, p.savetype, saveopcode)) {
-        return false;
-    }
-
-    // §6.1.2.2: As with @restore, header values marked with Rst (in
-    // §11) should be reset. Unlike with @restore, it can be assumed
-    // that the game was saved by the same interpreter, but it cannot be
-    // assumed that the screen size is the same as it was at the time
-    // @save_undo was called.
-    write_header();
-
-    // §6.1.2: Flags 2 should be preserved.
-    store_word(0x10, flags2);
-
-    return true;
+    return restore_quetzal(savefile, p.savetype, saveopcode, false);
 }
 
 // Wrapper around trim_saves which reports failure if the specified save
@@ -1400,25 +1396,24 @@ bool drop_save(SaveStackType type, size_t i)
     return true;
 }
 
-void list_saves(SaveStackType type, void (*printer)(const std::string &))
+void list_saves(SaveStackType type)
 {
     SaveStack &s = save_stacks[type];
     auto nsaves = s.states.size();
 
     if (nsaves == 0) {
-        printer("[No saves available]");
+        screen_puts("[No saves available]");
         return;
     }
 
     for (auto p = s.states.crbegin(); p != s.states.crend(); ++p) {
-        std::ostringstream ss;
+        std::string desc = std::to_string(nsaves) + ". " + (p->desc.empty() ? "<no description>" : p->desc);
 
-        ss << nsaves << ". " << (p->desc.empty() ? "<no description>" : p->desc);
         if (nsaves == 1) {
-            ss << " *";
+            desc += " *";
         }
 
-        printer(ss.str());
+        screen_puts(desc);
 
         nsaves--;
     }
@@ -1482,108 +1477,112 @@ void zrestore_undo()
     }
 }
 
-static std::vector<uint16_t> zargs_stash;
-
-static void args_stash_backup()
-{
-    zargs_stash.assign(zargs.begin(), zargs.begin() + znargs);
-}
-
-static bool args_stash_restore()
-{
-    std::copy(zargs_stash.begin(), zargs_stash.end(), zargs.begin());
-    znargs = zargs_stash.size();
-
-    return true;
-}
-
-static void args_stash_free()
-{
-    zargs_stash.clear();
-}
-
-static std::unique_ptr<std::vector<uint8_t>> memory_backup;
-
-static void memory_stash_backup()
-{
-    try {
-        memory_backup = std::make_unique<std::vector<uint8_t>>(memory, memory + header.static_start);
-    } catch (std::bad_alloc &) {
-        memory_backup.reset();
-    }
-}
-
-static bool memory_stash_restore()
-{
-    if (memory_backup == nullptr) {
-        return false;
+class ArgsStasher : public Stasher {
+public:
+    void backup() override {
+        m_zargs.assign(zargs.begin(), zargs.begin() + znargs);
     }
 
-    std::copy(memory_backup->begin(), memory_backup->end(), memory);
+    bool restore() override {
+        std::copy(m_zargs.begin(), m_zargs.end(), zargs.begin());
+        znargs = m_zargs.size();
 
-    return true;
-}
-
-static void memory_stash_free()
-{
-    memory_backup.reset();
-}
-
-static std::unique_ptr<std::vector<uint16_t>> stack_backup;
-
-static void stack_stash_backup()
-{
-    try {
-        stack_backup = std::make_unique<std::vector<uint16_t>>(stack, sp);
-    } catch (const std::bad_alloc &) {
-        stack_backup.reset();
-    }
-}
-
-static bool stack_stash_restore()
-{
-    if (stack_backup == nullptr) {
-        return false;
+        return true;
     }
 
-    sp = BASE_OF_STACK + stack_backup->size();
-    std::copy(stack_backup->begin(), stack_backup->end(), stack);
-
-    return true;
-}
-
-static void stack_stash_free()
-{
-    stack_backup.reset();
-}
-
-static std::unique_ptr<std::vector<CallFrame>> frames_backup;
-
-static void frames_stash_backup()
-{
-    try {
-        frames_backup = std::make_unique<std::vector<CallFrame>>(frames, fp);
-    } catch (const std::bad_alloc &) {
-        frames_backup.reset();
-    }
-}
-
-static bool frames_stash_restore()
-{
-    if (frames_backup == nullptr) {
-        return false;
+    void free() override {
+        m_zargs.clear();
     }
 
-    fp = BASE_OF_FRAMES + frames_backup->size();
-    std::copy(frames_backup->begin(), frames_backup->end(), frames);
+private:
+    std::vector<uint16_t> m_zargs;
+};
 
-    return true;
-}
+class MemoryStasher : public Stasher {
+public:
+    void backup() override {
+        try {
+            m_memory = std::make_unique<std::vector<uint8_t>>(memory, memory + header.static_start);
+        } catch (std::bad_alloc &) {
+            m_memory.reset();
+        }
+    }
 
-static void frames_stash_free()
-{
-    frames_backup.reset();
-}
+    bool restore() override {
+        if (m_memory == nullptr) {
+            return false;
+        }
+
+        std::copy(m_memory->begin(), m_memory->end(), memory);
+
+        return true;
+    }
+
+    void free() override {
+        m_memory.reset();
+    }
+
+private:
+    std::unique_ptr<std::vector<uint8_t>> m_memory;
+};
+
+class StackStasher : public Stasher {
+public:
+    void backup() override {
+        try {
+            m_stack = std::make_unique<std::vector<uint16_t>>(stack, sp);
+        } catch (const std::bad_alloc &) {
+            m_stack.reset();
+        }
+    }
+
+    bool restore() override {
+        if (m_stack == nullptr) {
+            return false;
+        }
+
+        sp = BASE_OF_STACK + m_stack->size();
+        std::copy(m_stack->begin(), m_stack->end(), stack);
+
+        return true;
+    }
+
+    void free() override {
+        m_stack.reset();
+    }
+
+private:
+    std::unique_ptr<std::vector<uint16_t>> m_stack;
+};
+
+class FrameStasher : public Stasher {
+public:
+    void backup() override {
+        try {
+            m_frames = std::make_unique<std::vector<CallFrame>>(frames, fp);
+        } catch (const std::bad_alloc &) {
+            m_frames.reset();
+        }
+    }
+
+    bool restore() override {
+        if (m_frames == nullptr) {
+            return false;
+        }
+
+        fp = BASE_OF_FRAMES + m_frames->size();
+        std::copy(m_frames->begin(), m_frames->end(), frames);
+
+        return true;
+    }
+
+    void free() override {
+        m_frames.reset();
+    }
+
+private:
+    std::unique_ptr<std::vector<CallFrame>> m_frames;
+};
 
 // Replace with std::clamp when switching to C++17.
 template <typename T>
@@ -1618,10 +1617,10 @@ void init_stack(bool first_run)
         }
         TOP_OF_FRAMES = &frames[options.call_stack_size];
 
-        stash_register(args_stash_backup, args_stash_restore, args_stash_free);
-        stash_register(memory_stash_backup, memory_stash_restore, memory_stash_free);
-        stash_register(stack_stash_backup, stack_stash_restore, stack_stash_free);
-        stash_register(frames_stash_backup, frames_stash_restore, frames_stash_free);
+        stash_register(std::make_unique<ArgsStasher>());
+        stash_register(std::make_unique<MemoryStasher>());
+        stash_register(std::make_unique<StackStasher>());
+        stash_register(std::make_unique<FrameStasher>());
     }
 
     sp = BASE_OF_STACK;

@@ -165,14 +165,14 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Bocfel 2.1.2
+# Bocfel 2.2
 #
 if(WITH_BOCFEL)
     set(BOCFEL_MACROS ZTERP_GLK ZTERP_GLK_BLORB ZTERP_GLK_UNIX)
     if(UNIX)
-        list(APPEND BOCFEL_MACROS ZTERP_UNIX)
+        list(APPEND BOCFEL_MACROS ZTERP_OS_UNIX)
     elseif(MINGW)
-        list(APPEND BOCFEL_MACROS ZTERP_WIN32)
+        list(APPEND BOCFEL_MACROS ZTERP_OS_WIN32)
     endif()
 
     if(GARGLK_NEEDS_TICK)
@@ -182,9 +182,9 @@ if(WITH_BOCFEL)
     terp(bocfel
         SRCS bocfel/blorb.cpp bocfel/branch.cpp bocfel/dict.cpp bocfel/iff.cpp
         bocfel/io.cpp bocfel/mathop.cpp bocfel/meta.cpp bocfel/memory.cpp bocfel/objects.cpp
-        bocfel/osdep.cpp bocfel/patches.cpp bocfel/process.cpp bocfel/random.cpp
-        bocfel/screen.cpp bocfel/sound.cpp bocfel/stack.cpp bocfel/stash.cpp
-        bocfel/unicode.cpp bocfel/util.cpp bocfel/zoom.cpp bocfel/zterp.cpp
+        bocfel/options.cpp bocfel/osdep.cpp bocfel/patches.cpp bocfel/process.cpp
+        bocfel/random.cpp bocfel/screen.cpp bocfel/sound.cpp bocfel/stack.cpp
+        bocfel/stash.cpp bocfel/unicode.cpp bocfel/util.cpp bocfel/zoom.cpp bocfel/zterp.cpp
         bocfel/glkstart.cpp
         CXXSTD 14
         MACROS ${BOCFEL_MACROS}

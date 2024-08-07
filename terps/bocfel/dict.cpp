@@ -21,6 +21,7 @@
 
 #include "dict.h"
 #include "memory.h"
+#include "options.h"
 #include "process.h"
 #include "types.h"
 #include "unicode.h"
@@ -167,7 +168,7 @@ static uint16_t lookup_replacement(uint16_t original, const std::vector<uint8_t>
     return d;
 }
 
-static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, uint16_t parse, const Dictionary &dictionary, int found, bool flag, bool start_of_sentence)
+static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, uint16_t parse, const Dictionary &dictionary, int found, bool ignore_unknown, bool start_of_sentence)
 {
     uint16_t d;
 
@@ -190,7 +191,7 @@ static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, 
         }
     }
 
-    if (flag && d == 0) {
+    if (ignore_unknown && d == 0) {
         return;
     }
 
@@ -225,7 +226,7 @@ static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, 
 //   for the token, or 0 if the token was not found in the dictionary.
 // • The next byte is the length of the token.
 // • The final byte is the offset in the string of the token.
-void tokenize(uint16_t text, uint16_t parse, uint16_t dictaddr, bool flag)
+void tokenize(uint16_t text, uint16_t parse, uint16_t dictaddr, bool ignore_unknown)
 {
     const uint8_t *p, *lastp;
     const uint8_t *string;
@@ -269,13 +270,13 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictaddr, bool flag)
 
         if (text_len == 0 || dictionary.is_sep(*p)) {
             if (in_word && found < maxwords) {
-                handle_token(string, lastp, p - lastp, parse, dictionary, found++, flag, start_of_sentence);
+                handle_token(string, lastp, p - lastp, parse, dictionary, found++, ignore_unknown, start_of_sentence);
                 start_of_sentence = false;
             }
 
             // §13.6.1: Separators (apart from a space) are tokens too.
             if (text_len != 0 && *p != ZSCII_SPACE && found < maxwords) {
-                handle_token(string, p, 1, parse, dictionary, found++, flag, start_of_sentence);
+                handle_token(string, p, 1, parse, dictionary, found++, ignore_unknown, start_of_sentence);
                 start_of_sentence = *p == ZSCII_PERIOD;
             }
 

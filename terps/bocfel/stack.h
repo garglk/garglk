@@ -13,8 +13,7 @@ static constexpr unsigned long DEFAULT_CALL_DEPTH = 0x400;
 
 class RestoreError : public std::runtime_error {
 public:
-    explicit RestoreError(const std::string &msg) : std::runtime_error(msg) {
-    }
+    using std::runtime_error::runtime_error;
 };
 
 extern bool seen_save_undo;
@@ -60,7 +59,7 @@ enum class SaveResult {
 SaveResult push_save(SaveStackType type, SaveType savetype, SaveOpcode saveopcode, const char *desc);
 bool pop_save(SaveStackType type, size_t saveno, SaveOpcode &saveopcode);
 bool drop_save(SaveStackType type, size_t i);
-void list_saves(SaveStackType type, void (*printer)(const std::string &));
+void list_saves(SaveStackType type);
 
 void zpush();
 void zpull();

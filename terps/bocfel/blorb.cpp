@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <map>
 #include <memory>
 #include <stdexcept>
+#include <unordered_map>
 #include <utility>
 
 #include "blorb.h"
@@ -36,12 +36,12 @@ Blorb::Blorb(const std::shared_ptr<IO> &io)
     std::unique_ptr<IFF> iff;
 
     try {
-        iff = std::make_unique<IFF>(io, IFF::TypeID(&"IFRS"));
+        iff = std::make_unique<IFF>(io, IFF::TypeID("IFRS"));
     } catch (const IFF::InvalidFile &) {
         throw InvalidFile();
     }
 
-    if (!iff->find(IFF::TypeID(&"RIdx"), size)) {
+    if (!iff->find(IFF::TypeID("RIdx"), size)) {
         throw InvalidFile();
     }
 
@@ -62,7 +62,7 @@ Blorb::Blorb(const std::shared_ptr<IO> &io)
             start = iff->io()->read32();
 
             try {
-                static const std::map<uint32_t, Usage> usages = {
+                static const std::unordered_map<uint32_t, Usage> usages = {
                     {PICT, Usage::Pict},
                     {SND,  Usage::Snd},
                     {EXEC, Usage::Exec},
@@ -82,7 +82,7 @@ Blorb::Blorb(const std::shared_ptr<IO> &io)
 
             IFF::TypeID type(type_);
 
-            if (type == IFF::TypeID(&"FORM")) {
+            if (type == IFF::TypeID("FORM")) {
                 start -= 8;
                 size += 8;
             }

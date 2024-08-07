@@ -17,19 +17,26 @@
 #include <algorithm>
 #include <array>
 #include <bitset>
+#include <cmath>
 #include <cstdarg>
 #include <cstdlib>
 #include <cstring>
 #include <deque>
 #include <functional>
 #include <initializer_list>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <list>
+#include <map>
 #include <memory>
 #include <new>
+#include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -38,7 +45,15 @@ extern "C" {
 #include <glk.h>
 }
 
-#ifdef ZERP_GLK_WINGLK
+#if defined(GLK_MODULE_IMAGE) && defined(ZTERP_GLK_BLORB)
+#define ZTERP_GLK_GRAPHICS
+
+extern "C" {
+#include <gi_blorb.h>
+}
+#endif
+
+#ifdef ZTERP_GLK_WINGLK
 // rpcndr.h, eventually included via WinGlk.h, defines a type “byte”
 // which conflicts with the “byte” from memory.h. Temporarily redefine
 // it to avoid a compile error.
@@ -59,6 +74,7 @@ extern "C" {
 #include "memory.h"
 #include "meta.h"
 #include "objects.h"
+#include "options.h"
 #include "osdep.h"
 #include "process.h"
 #include "sound.h"
@@ -81,9 +97,6 @@ extern "C" {
 #define glk_put_char_stream_uni(...)	die("bug %s:%d: glk_put_char_stream_uni() called with no unicode", __FILE__, __LINE__)
 #define glk_request_char_event_uni(...)	die("bug %s:%d: glk_request_char_event_uni() called with no unicode", __FILE__, __LINE__)
 #define glk_request_line_event_uni(...)	die("bug %s:%d: glk_request_line_event_uni() called with no unicode", __FILE__, __LINE__)
-#endif
-#ifndef GLK_MODULE_LINE_ECHO
-#define glk_set_echo_line_event(...)	die("bug: %s %d: glk_set_echo_line_event() called with no line echo", __FILE__, __LINE__)
 #endif
 #endif
 
@@ -129,6 +142,201 @@ static Window statuswin;
 static long upper_window_height = 0;
 static long upper_window_width = 0;
 static winid_t errorwin;
+
+#ifdef ZTERP_GLK_GRAPHICS
+
+#ifndef GLK_MODULE_GARGLKWINSIZE
+// For scaling V6 graphics, the window width and height are needed, but
+// really what’s needed is the main window width and height so that
+// scaling can be done with things like margins taken into account.
+// Gargoyle provides an extension for this, but for Glk implementations
+// that do not, temporarily create a graphics window that’s as large as
+// possible, and measure it. This isn’t perfect, but works well enough.
+static glui32 full_window_width = -1, full_window_height = -1;
+
+static void find_window_size(winid_t split)
+{
+    auto gwin = glk_window_open(split, winmethod_Above | winmethod_Proportional, 100, wintype_Graphics, 0);
+    if (gwin != nullptr) {
+        glk_window_get_size(gwin, &full_window_width, &full_window_height);
+        glk_window_close(gwin, nullptr);
+    }
+}
+#endif
+
+// Glk’s window/graphics model is not suitable for V6’s graphics.
+// However, since Infocom produced only 4 V6 games, it’s possible to
+// special-case their graphics calls to at least approximate a proper
+// apperance, which Bocfel does. In addition to Infocom games, Colin
+// Davies’ ports of Brian Howarth’s Mysterious Adventure games are
+// supported as well.
+//
+// For most games, graphics tend to be drawn in a window on top, and
+// text below it, which is implemented here by opening a graphics window
+// above other windows, and resizing it as necessary. For Journey, the
+// dedicated graphics window is on the left side.
+//
+// To deal with different target machines, Infocom’s graphics
+// formats included what they called invisible pictures, which were
+// coordinates showing where to draw pictures. Different target machines
+// were given different invisible pictures, presumably based on the
+// target resolution. Kevin Bracey created Blorb files based on the
+// MS-DOS releases, which had a 320x200 target resolution.
+//
+// But different Infocom games dealt with graphics slightly differently.
+//
+// Zork Zero: Generally uses invisible pictures to determine where to
+// draw things. The invisible pictures effectively instruct Zork Zero to
+// draw into a 320x200 region, and it does so correctly, regardless of
+// the actual size of the window: Zork Zero doesn’t generally care about
+// the window size since it “knows” the size is 320x200 based on the
+// invisible pictures. Drawing calls are intercepted and scaled up (or
+// down) to the actual window size, and no further work is necessary.
+// Zork Zero writes text on top of its graphics, which Glk does not
+// support at all (graphics windows don’t support text, and text windows
+// don’t support drawing at arbitrary locations). In these cases, the
+// text will generally be in the window below the graphics. It looks a
+// little odd, but works well enough. Zork Zero also has marginal
+// images, which do use the window size to determine where to place
+// them, but Bocfel ignores all the intricate setup for marginal
+// pictures, and instead just “knows” which images are marginal, and
+// instructs Glk to draw them in the margins, which it directly
+// supports.
+//
+// Shogun: Most graphics in Shogun are marginal graphics, and as with
+// Zork Zero, are hard coded to be drawn in the margins via Glk calls.
+// The Shogun maze does use the upper graphics window, and again as with
+// Zork Zero, it generally works using invisible pictures, resulting in
+// proper calculations. There is one small hack needed to get an offset
+// right, but otherwise the game’s coordinates are used.
+//
+// Journey: This makes a lot more use of the actual screen size to draw.
+// The problem there is that the Glk screen size will likely be some
+// value which is nowhere near the 320x200 that Journey is expecting. As
+// a result, the handling of graphics is more invasive. Graphics in
+// Journey are pictures drawn in a left-hand window that illustrate the
+// current scene, but in some cases, these include overlaid images (what
+// Infocom called “stamps”): in the cave, near the beginning, for
+// example, is a covered pool. Journey draws the image of a covered
+// pool. When you pick up the cover, Journey draws an image of a pool of
+// water in exactly the same place the cover is. The pool image is a
+// stamp, drawn in precisely the right location to hide the cover. To
+// handle all this, Bocfel effectively takes over all image drawing. A
+// graphics window on the left side, taking up 3/8 of the screen, is
+// created. When Journey draws a background image, Bocfel ignores its
+// coordinates, and draws it centered in this left-hand window. When
+// Journey draws a stamp, Bocfel also ignores the coordinates. Instead,
+// it has a table of where all the stamps are supposed to be drawn,
+// since they are always in a fixed location. Journey should be able to
+// calculate stamp locations, but since Bocfel doesn’t properly track
+// windows (yet), it gets the values wrong. As with Shogun, if window
+// tracking is eventually properly supported, this table of stamp sizes
+// may become obsolete, but for now it works fine.
+//
+// Arthur: Arthur has two main graphics modes: either showing a picture
+// of the current location, or a map. Arthur uses invisible images for
+// the map, and draws it correctly with no aid needed (apart from a
+// fixed offset as with Shogun’s maze). However, the location pictures
+// make a lot of use of the actual window size, which doesn’t currently
+// work. Since these images are always drawn in the same place, it’s
+// trivial to plot them directly. Journey also uses stamps like Journey,
+// and like in Journey, these stamps’ locations are looked up in a
+// table. Ultimately, as with all other games, it’d be nice to remove
+// the hard coding and allow the game to calculate everything, but for
+// now, this works.
+//
+// Mysterious Adventures games are generally straightforward in that
+// each room has a static image which is displayed in the top window.
+// However, the Z-machine versions of the games also have an image which
+// serves as a separator, or border, between the upper part of the
+// window (containing the image and description/exits/items) and the
+// lower part, which contains the input and parser messages. Bocfel
+// creates a second graphics window for this border, so that the
+// appearance is generally faithful to the original intent.
+static bool arthur_hack = false;
+static bool zorkzero_hack = false;
+static bool shogun_hack = false;
+static bool journey_hack = false;
+static bool mysterious_hack = false;
+
+struct ImageSize {
+    double width;
+    double height;
+};
+
+struct ImageGeometry {
+    ImageGeometry(double x_, double y_) : x(x_), y(y_) {}
+    double x;
+    double y;
+};
+
+class GraphicsWindow {
+public:
+    enum class Type {
+        None,
+        ArthurIntro,
+        ArthurBanner,
+        ArthurDemon,
+        ZorkZeroTitle,
+        ZorkZeroBorder,
+        ZorkZero320,
+        ShogunMaze,
+        Mysterious,
+        MysteriousSeparator,
+    };
+
+    bool create();
+    bool resize(Type type);
+    void destroy();
+    void clear();
+    void draw(glui32 pic, const ImageGeometry *geom, glui32 w, glui32 h) const;
+    winid_t id() const { return m_id; }
+    Type type() const { return m_type; }
+    double ratio() const { return m_ratio; }
+
+    static glui32 get_window_width();
+
+private:
+    winid_t m_id = nullptr;
+    Type m_type = Type::None;
+    double m_ratio = 0.0;
+    double m_base_width = 0.0;
+    glui32 m_width = 0;
+};
+
+// The “main” graphics window: this is use for the banner/map in Arthur,
+// the maze in Shogun, the banner/map in Zork Zero, and the room images
+// in Mysterious Adventures.
+static GraphicsWindow graphics_window;
+
+// Arthur, Shogun, and Zork Zero all have roughly the same layout, with
+// graphics on top and text on the bottom. Journey has a different
+// enough layout that it’s not worth trying to shoehorn it into the
+// GraphicsWindow class.
+static winid_t journey_window;
+static glui32 journey_screen_width;
+
+// Mysterious Adventures have an image separating the “upper window”
+// (graphics plus location info) from the main text window. For the main
+// graphics window, use the common graphics_window, but dedicate a
+// special window for the separator.
+static GraphicsWindow mysterious_separator;
+
+// Mysterious Adventures games always start up with two images: the
+// Mysterious Adventures logo, and the game title. These are displayed
+// one right after the other, so if they were placed in the graphics
+// window, the game title would always immediately overwrite the
+// Mysterious Adventures logo. To avoid this, the graphics window isn’t
+// opened until after these images are displayed; but these images are
+// always the last two in the Blorb, and there are different numbers of
+// images for different games, so the image IDs aren‘t the same across
+// games. We could map game IDs to image IDs, but it's simpler to just
+// count the total number of images and use that.
+static glui32 mysterious_max_image;
+
+static constexpr glui32 SHOGUN_MAZE_BLOCK_WIDTH = 7;
+static constexpr glui32 SHOGUN_MAZE_BLOCK_HEIGHT = 7;
+#endif
 #endif
 
 // In all versions but 6, styles and colors are global and stored in
@@ -140,22 +348,14 @@ static Window *style_window()
     return zversion == 6 ? curwin : mainwin;
 }
 
-// Output stream bits.
-enum {
-    STREAM_SCREEN = 1,
-    STREAM_TRANS  = 2,
-    STREAM_MEMORY = 3,
-    STREAM_SCRIPT = 4,
-};
-
 static std::bitset<5> streams;
 static std::unique_ptr<IO> scriptio, transio, perstransio;
 
 class StreamTables {
 public:
-    void push(uint16_t addr) {
+    void push(uint16_t addr, bool formatted) {
         ZASSERT(m_tables.size() < MAX_STREAM_TABLES, "too many stream tables");
-        m_tables.emplace_back(addr);
+        m_tables.emplace_back(addr, formatted);
     }
 
     void pop() {
@@ -181,7 +381,10 @@ private:
     static constexpr size_t MAX_STREAM_TABLES = 16;
     class Table {
     public:
-        explicit Table(uint16_t addr) : m_addr(addr) {
+        explicit Table(uint16_t addr, bool formatted) :
+            m_addr(addr),
+            m_formatted(formatted)
+        {
             user_store_word(m_addr, 0);
         }
 
@@ -190,6 +393,11 @@ private:
 
         ~Table() {
             user_store_word(m_addr, m_idx - 2);
+
+            if (m_formatted) {
+                user_store_word(m_addr + m_idx, 0);
+            }
+
             if (zversion == 6) {
                 store_word(0x30, m_idx - 2);
             }
@@ -201,6 +409,7 @@ private:
 
     private:
         uint16_t m_addr;
+        bool m_formatted;
         uint16_t m_idx = 2;
     };
 
@@ -403,7 +612,7 @@ static void set_current_style()
 // The following implements a circular buffer to track the state of the
 // screen so that recent history can be stored in save files for
 // playback on restore.
-constexpr size_t HISTORY_SIZE = 2000;
+static constexpr size_t HISTORY_SIZE = 2000;
 
 class History {
 public:
@@ -455,7 +664,7 @@ public:
         }
     };
 
-    std::deque<Entry>::size_type size() {
+    std::deque<Entry>::size_type size() const {
         return m_entries.size();
     }
 
@@ -500,7 +709,7 @@ public:
         add(Entry::character(c));
     }
 
-    const std::deque<Entry> &entries() {
+    const std::deque<Entry> &entries() const {
         return m_entries;
     }
 
@@ -529,7 +738,7 @@ void screen_set_header_bit(bool set)
 
 static void transcribe(uint32_t c)
 {
-    if (streams.test(STREAM_TRANS)) {
+    if (streams.test(OSTREAM_TRANSCRIPT)) {
         transio->putc(c);
     }
 
@@ -551,7 +760,7 @@ static void put_char_base(uint16_t c, bool unicode)
         return;
     }
 
-    if (streams.test(STREAM_MEMORY)) {
+    if (streams.test(OSTREAM_MEMORY)) {
         // When writing to memory, ZSCII should always be used (§7.5.3).
         if (unicode) {
             c = unicode_to_zscii_q[c];
@@ -583,7 +792,7 @@ static void put_char_base(uint16_t c, bool unicode)
                 c = zscii_to_font3[zscii];
             }
 #ifdef ZTERP_GLK
-            if (streams.test(STREAM_SCREEN) && curwin->id != nullptr) {
+            if (streams.test(OSTREAM_SCREEN) && curwin->id != nullptr) {
                 if (curwin == upperwin) {
                     // Interpreters seem to have differing ideas about what
                     // happens when the cursor reaches the end of a line in the
@@ -617,8 +826,8 @@ static void put_char_base(uint16_t c, bool unicode)
                 }
             }
 #else
-            if (streams.test(STREAM_SCREEN) && curwin == mainwin) {
-#ifdef ZTERP_DOS
+            if (streams.test(OSTREAM_SCREEN) && curwin == mainwin) {
+#ifdef ZTERP_OS_DOS
                 // DOS doesn’t support Unicode, but instead uses code
                 // page 437. Special-case non-Glk DOS here, by writing
                 // bytes (not UTF-8 characters) from code page 437.
@@ -662,11 +871,42 @@ void put_char(uint8_t c)
     put_char_base(c, false);
 }
 
-// Print a C string (UTF-8) directly to the main window. This is meant
-// to print text from the interpreter, not the game. Text will also be
-// written to any transcripts which are active, as well as to the
-// history buffer. For convenience, carriage returns are ignored under
-// the assumption that they are coming from a Windows text stream.
+// Glk doesn’t allow control characters (apart from newline) to be
+// written (§2.2). In most cases this isn’t a problem, but there are a
+// couple of places where user-provided strings need to be printed out
+// (/shownotes and history replay), which means we have no control over
+// whether those contain control characters. In circumstances where
+// possibly-uncontrolled input is being sent to Glk, it is passed
+// through here first, which converts invalid characters to hex escape
+// sequences.
+//
+// Since there’s really no need to allow user-provided control
+// characters to be written out, this happens in non-Glk mode as well,
+// including for transcripts and history.
+static std::vector<uint32_t> cleanse_control(uint32_t c)
+{
+    std::vector<uint32_t> ret;
+    if (c == 10 || (c >= 32 && c <= 126) || c >= 160) {
+        ret.push_back(c);
+    } else {
+        std::ostringstream ss;
+        ss << "\\x" << std::setw(2) << std::setfill('0') << std::hex << c;
+        for (const auto esc : ss.str()) {
+            ret.push_back(esc);
+        }
+    }
+
+    return ret;
+}
+
+// Print a string directly to the main window. This is meant to print
+// text from the interpreter, not the game. Text will also be written to
+// any transcripts which are active, as well as to the history buffer.
+// For convenience, carriage returns are ignored under the assumption
+// that they are coming from a Windows text stream.
+//
+// This string should be UTF-8 encoded. If it’s not, invalid sequences
+// will be represented as the Unicode replacement character.
 void screen_print(const std::string &s)
 {
     auto io = std::make_unique<IO>(std::vector<uint8_t>(s.begin(), s.end()), IO::Mode::ReadOnly);
@@ -675,15 +915,29 @@ void screen_print(const std::string &s)
 #endif
     for (long c = io->getc(false); c != -1; c = io->getc(false)) {
         if (c != UNICODE_CARRIAGE_RETURN) {
-            transcribe(c);
-            history.add_char(c);
+            for (const auto clean : cleanse_control(c)) {
+                transcribe(clean);
+                history.add_char(clean);
 #ifdef ZTERP_GLK
-            xglk_put_char_stream(stream, c);
+                xglk_put_char_stream(stream, clean);
+#else
+                IO::standard_out().putc(clean);
 #endif
+            }
         }
     }
-#ifndef ZTERP_GLK
-    std::cout << s;
+}
+
+// Print a Unicode character directly to the main window. This is the
+// single-character analog of screen_print().
+void screen_putc(uint32_t c)
+{
+    transcribe(c);
+    history.add_char(c);
+#ifdef ZTERP_GLK
+    xglk_put_char_stream(glk_window_get_stream(mainwin->id), c);
+#else
+    IO::standard_out().putc(c);
 #endif
 }
 
@@ -770,7 +1024,7 @@ void screen_message_prompt(const std::string &message)
 // See §7.
 // This returns true if the stream was successfully selected.
 // Deselecting a stream is always successful.
-bool output_stream(int16_t number, uint16_t table)
+static bool output_stream(int16_t number, uint16_t table, bool formatted)
 {
     ZASSERT(std::labs(number) <= (zversion >= 3 ? 4 : 2), "invalid output stream selected: %ld", static_cast<long>(number));
 
@@ -791,7 +1045,7 @@ bool output_stream(int16_t number, uint16_t table)
                 transio = std::make_unique<IO>(options.transcript_name.get(), options.overwrite_transcript ? IO::Mode::WriteOnly : IO::Mode::Append, IO::Purpose::Transcript);
             } catch (const IO::OpenError &) {
                 store_word(0x10, word(0x10) & ~FLAGS2_TRANSCRIPT);
-                streams.reset(STREAM_TRANS);
+                streams.reset(OSTREAM_TRANSCRIPT);
                 warning("unable to open the transcript");
             }
         }
@@ -800,7 +1054,7 @@ bool output_stream(int16_t number, uint16_t table)
     }
 
     if (number == 3) {
-        stream_tables.push(table);
+        stream_tables.push(table, formatted);
     } else if (number == -3) {
         stream_tables.pop();
     }
@@ -810,7 +1064,7 @@ bool output_stream(int16_t number, uint16_t table)
             try {
                 scriptio = std::make_unique<IO>(options.record_name.get(), IO::Mode::WriteOnly, IO::Purpose::Input);
             } catch (const IO::OpenError &) {
-                streams.reset(STREAM_SCRIPT);
+                streams.reset(OSTREAM_RECORD);
                 warning("unable to open the script");
             }
         }
@@ -820,9 +1074,14 @@ bool output_stream(int16_t number, uint16_t table)
     return number < 0 || streams.test(number);
 }
 
+bool output_stream(int16_t number, uint16_t table)
+{
+    return output_stream(number, table, false);
+}
+
 void zoutput_stream()
 {
-    output_stream(as_signed(zargs[0]), zargs[1]);
+    output_stream(as_signed(zargs[0]), zargs[1], znargs > 2);
 }
 
 // See §10.
@@ -862,7 +1121,11 @@ static void set_current_window(Window *window)
 #ifdef ZTERP_GLK
     if (curwin == upperwin && upperwin->id != nullptr) {
         upperwin->x = upperwin->y = 0;
-        glk_window_move_cursor(upperwin->id, 0, 0);
+        // V3 (§8.6.1) and V4/V5 (§8.7.2) require the cursor to be moved
+        // to the origin when the upper window is selected, but V6 doesn’t.
+        if (zversion != 6) {
+            glk_window_move_cursor(upperwin->id, 0, 0);
+        }
     }
 
     glk_set_window(curwin->id);
@@ -891,7 +1154,11 @@ static void perform_upper_window_resize(long new_height)
 {
     glui32 actual_height;
 
-    glk_window_set_arrangement(glk_window_get_parent(upperwin->id), winmethod_Above | winmethod_Fixed, new_height, upperwin->id);
+    auto location = is_game(Game::Journey) ?
+        winmethod_Below :
+        winmethod_Above;
+
+    glk_window_set_arrangement(glk_window_get_parent(upperwin->id), location | winmethod_Fixed, new_height, upperwin->id);
     upper_window_height = new_height;
 
     // Glk might resize the window to a smaller height than was requested,
@@ -1047,7 +1314,7 @@ std::vector<glui32> term_keys;
 #endif
 static bool term_mouse = false;
 
-void term_keys_reset()
+static void term_keys_reset()
 {
 #ifdef GLK_MODULE_LINE_TERMINATORS
     term_keys.clear();
@@ -1062,7 +1329,7 @@ static void insert_key(uint32_t key)
 #endif
 }
 
-void term_keys_add(uint8_t key)
+static void term_keys_add(uint8_t key)
 {
     switch (key) {
     case ZSCII_UP:    insert_key(keycode_Up); break;
@@ -1110,10 +1377,7 @@ void term_keys_add(uint8_t key)
 }
 
 // Look in the terminating characters table (if any) and reset the
-// current state of terminating characters appropriately. Then enable
-// terminating characters for Glk line input on the specified window. If
-// there are no terminating characters, disable the use of terminating
-// characters for Glk input.
+// current state of terminating characters appropriately.
 static void check_terminators(const Window *window)
 {
     if (header.terminating_characters_table != 0) {
@@ -1122,16 +1386,6 @@ static void check_terminators(const Window *window)
         for (uint32_t addr = header.terminating_characters_table; user_byte(addr) != 0; addr++) {
             term_keys_add(user_byte(addr));
         }
-
-#ifdef GLK_MODULE_LINE_TERMINATORS
-        if (glk_gestalt(gestalt_LineTerminators, 0)) {
-            glk_set_terminators_line_event(window->id, term_keys.data(), term_keys.size());
-        }
-    } else {
-        if (glk_gestalt(gestalt_LineTerminators, 0)) {
-            glk_set_terminators_line_event(window->id, nullptr, 0);
-        }
-#endif
     }
 }
 #endif
@@ -1259,9 +1513,302 @@ void zprint_ret()
     zrtrue();
 }
 
+#ifdef ZTERP_GLK_GRAPHICS
+bool GraphicsWindow::create()
+{
+    if (m_id == nullptr) {
+        m_id = glk_window_open(mainwin->id, winmethod_Above | winmethod_Fixed, 0, wintype_Graphics, 0);
+    }
+
+    return m_id != nullptr;
+}
+
+bool GraphicsWindow::resize(Type type)
+{
+    if (m_id == nullptr) {
+        return false;
+    }
+
+    if (type == m_type) {
+        return true;
+    }
+
+    if (m_id != nullptr) {
+        glk_window_clear(m_id);
+    }
+
+    try {
+        auto window_width = get_window_width();
+        if (window_width == 0) {
+            return false;
+        }
+
+        static const std::unordered_map<GraphicsWindow::Type, ImageSize> window_sizes = {
+            {GraphicsWindow::Type::ArthurIntro, {292, 196}},
+            {GraphicsWindow::Type::ArthurBanner, {320, 96}},
+            {GraphicsWindow::Type::ArthurDemon, {254, 164}},
+            {GraphicsWindow::Type::ZorkZeroTitle, {320, 240}},
+            {GraphicsWindow::Type::ZorkZeroBorder, {320, 40}},
+            {GraphicsWindow::Type::ZorkZero320, {320, 200}},
+            {GraphicsWindow::Type::ShogunMaze, {274, 140}},
+            {GraphicsWindow::Type::Mysterious, {512, 208}},
+            {GraphicsWindow::Type::MysteriousSeparator, {512, 16}},
+        };
+
+        const auto &size = window_sizes.at(type);
+
+        m_ratio = std::min(window_width / size.width, options.v6_hack_max_scale);
+        m_width = window_width;
+        m_base_width = size.width;
+
+        glk_window_set_arrangement(glk_window_get_parent(m_id), winmethod_Above | winmethod_Fixed, std::round(size.height * m_ratio), m_id);
+    } catch (const std::out_of_range &) {
+        return false;
+    }
+
+    if (m_id == nullptr) {
+        return false;
+    }
+
+    m_type = type;
+
+    return true;
+}
+
+void GraphicsWindow::destroy()
+{
+    if (m_id != nullptr) {
+        m_type = Type::None;
+        glk_window_clear(m_id);
+        glk_window_set_arrangement(glk_window_get_parent(m_id), winmethod_Above | winmethod_Fixed, 0, m_id);
+    }
+}
+
+void GraphicsWindow::clear()
+{
+    if (m_id != nullptr) {
+        glk_window_clear(m_id);
+    }
+}
+
+glui32 GraphicsWindow::get_window_width()
+{
+    auto win = glk_window_open(mainwin->id, winmethod_Above | winmethod_Fixed, 0, wintype_Graphics, 0);
+    if (win == nullptr) {
+        return 0;
+    }
+
+    glui32 width;
+    glk_window_get_size(win, &width, nullptr);
+
+    glk_window_close(win, nullptr);
+
+    return width;
+}
+
+static bool zorkzero_has_border()
+{
+    return variable(0x83 + 0x10) != 0;
+}
+
+struct JourneyStamp {
+    glui32 background;
+    ImageGeometry geom;
+};
+
+static std::unordered_map<glui32, JourneyStamp> journey_stamps = {
+    {6,   JourneyStamp{5,   ImageGeometry(0, 32)}},
+    {8,   JourneyStamp{7,   ImageGeometry(0, 4)}},
+    {12,  JourneyStamp{11,  ImageGeometry(23, 74)}},
+    {21,  JourneyStamp{20,  ImageGeometry(0, 21)}},
+    {46,  JourneyStamp{7,   ImageGeometry(0, 0)}},
+    {81,  JourneyStamp{80,  ImageGeometry(0, 12)}},
+    {82,  JourneyStamp{84,  ImageGeometry(0, 0)}},
+    {85,  JourneyStamp{84,  ImageGeometry(0, 0)}},
+    {88,  JourneyStamp{87,  ImageGeometry(0, 0)}},
+    {91,  JourneyStamp{90,  ImageGeometry(0, 39)}},
+    {101, JourneyStamp{100, ImageGeometry(0, 0)}},
+    {115, JourneyStamp{114, ImageGeometry(49, 0)}},
+    {129, JourneyStamp{128, ImageGeometry(1, 0)}},
+    {139, JourneyStamp{138, ImageGeometry(0, 0)}},
+    {141, JourneyStamp{140, ImageGeometry(0, 92)}},
+    {145, JourneyStamp{144, ImageGeometry(26, 80)}},
+    {147, JourneyStamp{146, ImageGeometry(0, 87)}},
+    {158, JourneyStamp{157, ImageGeometry(33, 74)}},
+};
+
+static void close_journey_window()
+{
+    if (journey_window != nullptr) {
+        glk_window_close(journey_window, nullptr);
+        journey_window = nullptr;
+    }
+}
+
+// This duplicates some code from draw_journey(), but it may not be
+// worth pulling it out since the code is just different enough to make
+// that annoying.
+static void draw_journey_stamp(glui32 pic, glui32 w, glui32 h, const JourneyStamp &stamp)
+{
+    glui32 width = journey_screen_width * 0.375;
+
+    glui32 gwin_width, gwin_height;
+    glk_window_get_size(journey_window, &gwin_width, &gwin_height);
+
+    double multiplier = width / 120.0;
+
+    glui32 base_background_width, base_background_height;
+    glk_image_get_info(stamp.background, &base_background_width, &base_background_height);
+
+    double background_width = std::round(base_background_width * multiplier);
+    double background_height = std::round(base_background_height * multiplier);
+
+    double x = (stamp.geom.x * multiplier) + (gwin_width - background_width) / 2.0;
+    double y = (stamp.geom.y * multiplier) + (gwin_height - background_height) / 2.0;
+
+    glk_image_draw_scaled(journey_window, pic, std::round(x), std::round(y), std::round(w * multiplier), std::round(h * multiplier));
+}
+
+static bool draw_journey_background(glui32 pic, glui32 w, glui32 h)
+{
+    journey_screen_width = GraphicsWindow::get_window_width();
+    if (journey_screen_width == 0) {
+        return false;
+    }
+
+    glui32 width = journey_screen_width * 0.375;
+
+    // Try to somewhat match the bars in the menu area.
+    int border_width = 1;
+    if (options.int_number == 2 || options.int_number == 6 || options.int_number == 9 || options.int_number == 10) {
+        border_width = 10;
+    }
+
+    if (journey_window == nullptr) {
+        journey_window = glk_window_open(mainwin->id, winmethod_Left | winmethod_Fixed, width + border_width, wintype_Graphics, 0);
+        if (journey_window == nullptr) {
+            return false;
+        }
+    }
+
+    glui32 gwin_width, gwin_height;
+    glk_window_get_size(journey_window, &gwin_width, &gwin_height);
+
+    // The widest image is 119 pixels so scale everything based on that.
+    double multiplier = width / 120.0;
+
+    double image_width = std::round(w * multiplier);
+    double image_height = std::round(h * multiplier);
+
+    double x = (gwin_width - image_width) / 2.0;
+    double y = (gwin_height - image_height) / 2.0;
+
+    glk_image_draw_scaled(journey_window, pic, std::round(x), std::round(y), std::round(w * multiplier), std::round(h * multiplier));
+
+    glui32 color;
+    if (!glk_style_measure(mainwin->id, style_Normal, stylehint_TextColor, &color)) {
+        color = 0xe7e8e9;
+    }
+
+    glk_window_fill_rect(journey_window, color, width, 0, border_width, gwin_height);
+
+    return true;
+}
+
+static bool draw_journey(glui32 pic, glui32 w, glui32 h)
+{
+    if (!journey_hack) {
+        return false;
+    }
+
+    try {
+        const auto &stamp = journey_stamps.at(pic);
+        draw_journey_stamp(pic, w, h, stamp);
+        return true;
+    } catch (const std::out_of_range &) {
+    }
+
+    close_journey_window();
+
+    // This is the title; ignore it here to allow zdraw_picture() to
+    // draw it inline in the main window.
+    if (pic == 160) {
+        return false;
+    }
+
+    return draw_journey_background(pic, w, h);
+}
+
+static bool draw_mysterious(glui32 pic, glui32 w, glui32 h, double x, double y)
+{
+    if (!mysterious_hack ||
+        mysterious_max_image == 0 ||
+        pic > (mysterious_max_image - 3))
+    {
+        return false;
+    }
+
+    if (!graphics_window.resize(GraphicsWindow::Type::Mysterious)) {
+        return true;
+    }
+
+    // Delay creation till here, to ensure the upper window is created
+    // first, so this comes _below_ the upper window.
+    if (mysterious_separator.create() && mysterious_separator.resize(GraphicsWindow::Type::MysteriousSeparator)) {
+        glui32 sepw, seph;
+        if (pic == mysterious_max_image - 3 && glk_image_get_info(mysterious_max_image - 3, &sepw, &seph)) {
+            ImageGeometry geom{0, 0};
+            mysterious_separator.draw(mysterious_max_image - 3, &geom, sepw, seph);
+
+            return true;
+        }
+    }
+
+    ImageGeometry geom{0, 0};
+    graphics_window.draw(pic, &geom, w, h);
+
+    return true;
+}
+#endif
+
+void zjourney_dial()
+{
+#ifdef ZTERP_GLK_GRAPHICS
+    if (!journey_hack || journey_window == nullptr) {
+        return;
+    }
+
+    glui32 w, h;
+    if (!glk_image_get_info(zargs[0], &w, &h)) {
+        return;
+    }
+
+    auto stamp = zargs[1] == 0 ? JourneyStamp{150, ImageGeometry(0, 0)} :
+                                 JourneyStamp{150, ImageGeometry(52, 0)};
+
+    draw_journey_stamp(zargs[0], w, h, stamp);
+#endif
+}
+
 void zerase_window()
 {
 #ifdef ZTERP_GLK
+
+#ifdef ZTERP_GLK_GRAPHICS
+    // Special case for the intro.
+    if (arthur_hack && (current_instruction == 0x10c3b || current_instruction == 0x10c61 || current_instruction == 0x10e8a)) {
+        graphics_window.destroy();
+        return;
+    }
+
+    // In Arthur, the banner/map window is 2, so hijack this call to
+    // clear the graphics window.
+    if (arthur_hack && zargs[0] == 2) {
+        graphics_window.clear();
+        return;
+    }
+#endif
+
     switch (as_signed(zargs[0])) {
     case -2:
         for (auto &window : windows) {
@@ -1278,6 +1825,21 @@ void zerase_window()
         // clearing, and that doesn’t really seem to be an issue; so just
         // call glk_window_clear().
         clear_window(mainwin);
+
+#ifdef ZTERP_GLK_GRAPHICS
+        // This is in the routine handler for “mode”: if switching to
+        // borders off, close the window; otherwise create it.
+        if (zorkzero_hack && current_instruction == 0x1414d) {
+            if (zorkzero_has_border()) {
+                graphics_window.destroy();
+            } else {
+                if (!graphics_window.resize(GraphicsWindow::Type::ZorkZeroBorder)) {
+                    zorkzero_hack = false;
+                }
+            }
+        }
+#endif
+
         break;
     case 1:
         clear_window(upperwin);
@@ -1331,7 +1893,7 @@ static void set_cursor(uint16_t y, uint16_t x)
     }
 
     // This handles 0, but also takes care of working around a bug in Inform’s
-    // “box" statement, which causes “x” to be negative if the box’s text is
+    // “box” statement, which causes “x” to be negative if the box’s text is
     // wider than the screen.
     if (as_signed(x) < 1) {
         x = 1;
@@ -1353,6 +1915,12 @@ static void set_cursor(uint16_t y, uint16_t x)
 
 void zset_cursor()
 {
+#ifdef ZTERP_GLK_GRAPHICS
+    if (mysterious_hack) {
+        zargs[0] -= 180;
+    }
+#endif
+
     set_cursor(zargs[0], zargs[1]);
 }
 
@@ -1524,22 +2092,12 @@ void zprint_table()
 
 void zprint_char()
 {
-    // Check 32 (space) first: a cursory examination of story files
-    // indicates that this is the most common value passed to @print_char.
-    // This appears to be due to V4+ games blanking the upper window.
-#define valid_zscii_output(c)	((c) == 32 || (c) == 0 || (c) == 9 || (c) == 11 || (c) == 13 || ((c) > 32 && (c) <= 126) || ((c) >= 155 && (c) <= 251))
-    ZASSERT(valid_zscii_output(zargs[0]), "@print_char called with invalid character: %u", static_cast<unsigned int>(zargs[0]));
-#undef valid_zscii_output
-
     put_char(zargs[0]);
 }
 
 void zprint_num()
 {
-    std::ostringstream ss;
-
-    ss << as_signed(zargs[0]);
-    for (const auto &c : ss.str()) {
+    for (const auto &c : std::to_string(as_signed(zargs[0]))) {
         put_char(c);
     }
 }
@@ -1557,6 +2115,12 @@ void zprint_paddr()
 // XXX This is more complex in V6 and needs to be updated when V6 windowing is implemented.
 void zsplit_window()
 {
+#ifdef ZTERP_GLK_GRAPHICS
+    if (mysterious_hack) {
+        zargs[0] = 3;
+    }
+#endif
+
     if (zargs[0] == 0) {
         close_upper_window();
     } else {
@@ -1572,12 +2136,22 @@ void zset_window()
 #ifdef ZTERP_GLK
 static void window_change()
 {
+#ifdef ZTERP_GLK_GRAPHICS
+    graphics_window.destroy();
+    close_journey_window();
+    mysterious_separator.destroy();
+#endif
+
     // When a textgrid (the upper window) in Gargoyle is rearranged, it
     // forgets about reverse video settings, so reapply any styles to the
     // current window (it doesn’t hurt if the window is a textbuffer). If
     // the current window is not the upper window that’s OK, because
     // set_current_style() is called when a @set_window is requested.
     set_current_style();
+
+#if defined(ZTERP_GLK_GRAPHICS) && !defined(GLK_MODULE_GARGLKWINSIZE)
+    find_window_size(mainwin->id);
+#endif
 
     // Track the new size of the upper window.
     if (zversion >= 3 && upperwin->id != nullptr) {
@@ -1651,7 +2225,14 @@ static void request_char()
 
 static void request_line(Line &line, glui32 maxlen)
 {
-    check_terminators(curwin);
+    // If the game has specified any line terminators, enable them.
+#ifdef GLK_MODULE_LINE_TERMINATORS
+    if (glk_gestalt(gestalt_LineTerminators, 0)) {
+        glk_set_terminators_line_event(curwin->id, term_keys.data(), term_keys.size());
+    } else {
+        glk_set_terminators_line_event(curwin->id, nullptr, 0);
+    }
+#endif
 
     if (have_unicode) {
         glk_request_line_event_uni(curwin->id, line.unicode.data(), maxlen, line.len);
@@ -1708,6 +2289,21 @@ static uint16_t handle_interrupt(uint16_t addr, Line *line)
     return ret;
 }
 
+// Request mouse events in all supported windows, which is to say the
+// upper window (if it exists) and the graphics window (if it exists).
+static void request_mouse_events()
+{
+    if (upperwin->id != nullptr) {
+        glk_request_mouse_event(upperwin->id);
+    }
+
+#ifdef ZTERP_GLK_GRAPHICS
+    if (graphics_window.id() != nullptr) {
+        glk_request_mouse_event(graphics_window.id());
+    }
+#endif
+}
+
 // All read events are canceled during an interrupt, but after an
 // interrupt returns, it’s possible that the read should be restarted,
 // so this function does that.
@@ -1723,7 +2319,7 @@ static void restart_read_events(Line &line, const Input &input, bool enable_mous
     }
 
     if (enable_mouse) {
-        glk_request_mouse_event(upperwin->id);
+        request_mouse_events();
     }
 }
 #endif
@@ -1860,7 +2456,6 @@ static bool istream_read_from_file(Input &input)
 static uint8_t zscii_from_glk(glui32 key)
 {
     switch (key) {
-    case 13:             return ZSCII_NEWLINE;
     case keycode_Up:     return ZSCII_UP;
     case keycode_Down:   return ZSCII_DOWN;
     case keycode_Left:   return ZSCII_LEFT;
@@ -1916,6 +2511,11 @@ static bool get_input(uint16_t timer, uint16_t routine, Input &input)
         perstransio->flush();
     }
 
+    // Update the status of line terminators.
+#ifdef ZTERP_GLK
+    check_terminators(curwin);
+#endif
+
     // Generally speaking, newline will be the reason the line input
     // stopped, so set it by default. It will be overridden where
     // necessary.
@@ -1933,12 +2533,10 @@ static bool get_input(uint16_t timer, uint16_t routine, Input &input)
     Window *saved = nullptr;
     // Mouse support is turned on if the game requests it via Flags2
     // and, for @read, if it adds single click to the list of
-    // terminating keys; in addition, an upper window must be available
-    // since that’s the only window we use to handle mouse events.
+    // terminating keys.
     bool enable_mouse = mouse_available() &&
                         ((input.type == Input::Type::Char) ||
-                         (input.type == Input::Type::Line && term_mouse)) &&
-                        upperwin->id != nullptr;
+                         (input.type == Input::Type::Line && term_mouse));
 
     // In V6, input might be requested on an unsupported window. If so,
     // switch to the main window temporarily.
@@ -1949,7 +2547,7 @@ static bool get_input(uint16_t timer, uint16_t routine, Input &input)
     }
 
     if (enable_mouse) {
-        glk_request_mouse_event(upperwin->id);
+        request_mouse_events();
     }
 
     switch (input.type) {
@@ -1957,6 +2555,14 @@ static bool get_input(uint16_t timer, uint16_t routine, Input &input)
         request_char();
         break;
     case Input::Type::Line:
+#ifdef ZTERP_GLK_GRAPHICS
+        // When in borderless mode, there’s no direct way to detect when
+        // the game is finished with a 320x200 window, so infer it from
+        // line input being requested.
+        if (zorkzero_hack && graphics_window.type() == GraphicsWindow::Type::ZorkZero320 && !zorkzero_has_border()) {
+            graphics_window.destroy();
+        }
+#endif
         line.len = input.preloaded;
         for (int i = 0; i < input.preloaded; i++) {
             if (have_unicode) {
@@ -2052,6 +2658,7 @@ static bool get_input(uint16_t timer, uint16_t routine, Input &input)
                 case keycode_Return: input.key = ZSCII_NEWLINE; break;
 
                 default:
+                    input.key = ZSCII_QUESTIONMARK;
                     if (ev.val1 >= 32 && ev.val1 <= 126) {
                         input.key = ev.val1;
                     } else if (ev.val1 < UINT16_MAX) {
@@ -2060,7 +2667,7 @@ static bool get_input(uint16_t timer, uint16_t routine, Input &input)
                         if (c != 0) {
                             input.key = c;
                         }
-                    } else {
+                    } else if (ev.val1 > 0xffffffff - keycode_MAXVAL) {
                         status = InputStatus::Waiting;
                         request_char();
                     }
@@ -2109,14 +2716,29 @@ static bool get_input(uint16_t timer, uint16_t routine, Input &input)
             ZASSERT(ev.win == curwin->id, "got evtype_LineInput on unexpected window");
             line.len = ev.val1;
 #ifdef GLK_MODULE_LINE_TERMINATORS
-            if (zversion >= 5) {
+            if (zversion >= 5 && ev.val2 != 0) {
                 input.term = zscii_from_glk(ev.val2);
             }
 #endif
             status = InputStatus::Received;
             break;
         case evtype_MouseInput:
-            zterp_mouse_click(ev.val1 + 1, ev.val2 + 1);
+            if (ev.win == upperwin->id) {
+#ifdef ZTERP_GLK_GRAPHICS
+                if (zorkzero_hack) {
+                    // In Fanucci, mouse clicks are off by one, probably
+                    // due to the faking of the size of rectangle 384; a
+                    // better fix is surely possible, but this works for now.
+                    ev.val1++;
+                    ev.val2++;
+                }
+#endif
+                zterp_mouse_click(ev.val1 + 1, ev.val2 + 1);
+#ifdef ZTERP_GLK_GRAPHICS
+            } else if (ev.win == graphics_window.id()) {
+                zterp_mouse_click(ev.val1 / graphics_window.ratio(), ev.val2 / graphics_window.ratio());
+#endif
+            }
             status = InputStatus::Received;
 
             switch (input.type) {
@@ -2201,6 +2823,12 @@ static bool get_input(uint16_t timer, uint16_t routine, Input &input)
 
             glk_window_move_cursor(upperwin->id, upperwin->x, upperwin->y);
         }
+
+#ifdef ZTERP_GLK_GRAPHICS
+        if (arthur_hack && input.term == ZSCII_F6) {
+            graphics_window.destroy();
+        }
+#endif
     }
 
     saw_input = true;
@@ -2292,7 +2920,7 @@ void zread_char()
     update_delayed();
 #endif
 
-    if (streams.test(STREAM_SCRIPT)) {
+    if (streams.test(OSTREAM_RECORD)) {
         // Values 127 to 159 are not valid Unicode, and these just happen to
         // match up to the values needed for special ZSCII keys, so store
         // them as-is.
@@ -2305,13 +2933,6 @@ void zread_char()
 
     store(input.key);
 }
-
-#ifdef ZTERP_GLK
-static void status_putc(uint8_t c)
-{
-    xglk_put_char_stream(glk_window_get_stream(statuswin.id), zscii_to_unicode[c]);
-}
-#endif
 
 // §8.2.3.2 says the hours can be assumed to be in the range [0, 23] and
 // can be reduced modulo 12 for 12-hour time. Cutthroats, however, sets
@@ -2356,7 +2977,9 @@ void zshow_status()
     glk_window_move_cursor(statuswin.id, 1, 0);
 
     // Variable 0x10 is global variable 1.
-    print_object(variable(0x10), status_putc);
+    print_object(variable(0x10), [](uint8_t c) {
+        xglk_put_char_stream(glk_window_get_stream(statuswin.id), zscii_to_unicode[c]);
+    });
 
     if (status_is_time()) {
         rhs = screen_format_time(first, second);
@@ -2471,7 +3094,7 @@ static bool read_handler()
 #ifdef GARGLK
         input.line[i] = 0;
         if (curwin->id != nullptr) {
-            // Convert the Z-machine's 16-bit string to a 32-bit string for Glk.
+            // Convert the Z-machine’s 16-bit string to a 32-bit string for Glk.
             std::vector<glui32> line32;
             std::copy(input.line.begin(), input.line.begin() + input.preloaded + 1, std::back_inserter(line32));
             // If the preloaded text would wrap backward in the upper window
@@ -2530,7 +3153,7 @@ static bool read_handler()
 
     for (int i = 0; i < input.len; i++) {
         transcribe(input.line[i]);
-        if (streams.test(STREAM_SCRIPT)) {
+        if (streams.test(OSTREAM_RECORD)) {
             scriptio->putc(input.line[i]);
         }
     }
@@ -2543,7 +3166,7 @@ static bool read_handler()
     }
 
     transcribe(UNICODE_LINEFEED);
-    if (streams.test(STREAM_SCRIPT)) {
+    if (streams.test(OSTREAM_RECORD)) {
         scriptio->putc(UNICODE_LINEFEED);
     }
 
@@ -2725,9 +3348,639 @@ void zcheck_unicode()
     store(res);
 }
 
-// Should picture_data and get_wind_prop be moved to a V6 source file?
+#ifdef ZTERP_GLK_BLORB
+
+#ifdef GLK_MODULE_IMAGE
+static uint16_t blorb_reln;
+
+struct ScaleInfo {
+    uint32_t px;
+    uint32_t py;
+    double stdratio;
+    double minratio;
+    double maxratio;
+};
+static std::map<uint32_t, ScaleInfo> picture_scale;
+#endif
+
+// If possible, load information for image scaling from the Blorb file.
+// Errors here aren’t fatal, since the images will just be drawn in
+// their original resolution if scale data can’t be loaded.
+void screen_load_scale_info(const std::string &blorb_file) {
+#ifdef GLK_MODULE_IMAGE
+    if (!glk_gestalt(gestalt_Graphics, 0) || !glk_gestalt(gestalt_DrawImage, wintype_TextBuffer)) {
+        return;
+    }
+
+    try {
+        auto io = std::make_shared<IO>(&blorb_file, IO::Mode::ReadOnly, IO::Purpose::Data);
+        IFF iff(io, IFF::TypeID("IFRS"));
+
+        uint32_t size;
+
+        if (iff.find(IFF::TypeID("RelN"), size) && size == 2) {
+            blorb_reln = io->read16();
+        }
+
+        if (iff.find(IFF::TypeID("Reso"), size) && size >= 24 && (size - 24) % 28 == 0) {
+            auto count = (size - 24) / 28;
+            auto px = io->read32();
+            auto py = io->read32();
+
+            if (px == 0 || py == 0) {
+                throw std::runtime_error("invalid window size");
+            }
+
+            io->seek(16, IO::SeekFrom::Current);
+
+            for (uint32_t i = 0; i < count; i++) {
+                auto num = io->read32();
+                double ratnum = io->read32();
+                double ratden = io->read32();
+                double minnum = io->read32();
+                double minden = io->read32();
+                double maxnum = io->read32();
+                double maxden = io->read32();
+
+                auto stdratio = ratnum / ratden;
+                auto minratio = (minnum == 0 || minden == 0) ? 0 : (minnum / minden);
+                auto maxratio = (maxnum == 0 || maxden == 0) ? std::numeric_limits<double>::max() : (maxnum / maxden);
+
+                ScaleInfo scale_info = {
+                    px,
+                    py,
+                    stdratio,
+                    minratio,
+                    maxratio,
+                };
+
+                picture_scale.insert({num, scale_info});
+            }
+        }
+    } catch (...) {
+        picture_scale.clear();
+    }
+#else
+#endif
+}
+#endif
+
+#ifdef ZTERP_GLK_GRAPHICS
+// Map a pair of (palette image, requested image) to the ID of a
+// precomputed palette image: this corresponds to the BPal chunk.
+static std::map<std::pair<uint32_t, uint32_t>, uint32_t> palette_map;
+
+static void build_palette_map()
+{
+    auto *map = giblorb_get_resource_map();
+
+    if (map == nullptr) {
+        return;
+    }
+
+    auto be32 = [](const unsigned char *base) {
+        return
+            (static_cast<uint32_t>(base[0]) << 24) |
+            (static_cast<uint32_t>(base[1]) << 16) |
+            (static_cast<uint32_t>(base[2]) <<  8) |
+            (static_cast<uint32_t>(base[3]) <<  0);
+    };
+
+    giblorb_result_t res;
+    if (giblorb_load_chunk_by_type(map, giblorb_method_Memory, &res, giblorb_make_id('B', 'P', 'a', 'l'), 0) == giblorb_err_None) {
+        if (res.length % 12 == 0) {
+            auto *ptr = static_cast<unsigned char *>(res.data.ptr);
+            for (size_t i = 0; i < res.length; i += 12) {
+                auto source = be32(ptr + i);
+                auto apal = be32(ptr + i + 4);
+                auto id = be32(ptr + i + 8);
+                palette_map.insert({{source, apal}, id});
+            }
+        } else {
+            show_message("Invalid BPal chunk detected; proceeding without adaptive palette");
+        }
+    }
+}
+
+static std::unique_ptr<ImageGeometry> arthur_geom(glui32 pic)
+{
+    switch (pic) {
+
+    // Intro / Ending
+
+    case 1: case 2: // Title screen and sword in stone
+        return std::make_unique<ImageGeometry>(0, 0);
+    case 3: // Merlin by sword in stone
+        return std::make_unique<ImageGeometry>(26, 23);
+    case 84: // game end
+        return std::make_unique<ImageGeometry>(0, 0);
+
+    // Banner images. These all have the X value offset by 3 because the
+    // upper window is based on the map width, which is 6 pixels wider
+    // than the banner. This centers the banner images.
+
+    case 4:   case 7:   case 10:  case 11:  case 12:  case 13:  case 14:  case 15:
+    case 16:  case 18:  case 19:  case 20:  case 21:  case 22:  case 23:  case 24:
+    case 25:  case 26:  case 27:  case 28:  case 29:  case 30:  case 31:  case 32:
+    case 33:  case 34:  case 35:  case 36:  case 37:  case 38:  case 39:  case 40:
+    case 41:  case 42:  case 43:  case 44:  case 45:  case 46:  case 47:  case 48:
+    case 49:  case 50:  case 51:  case 52:  case 53:  case 55:  case 56:  case 57:
+    case 58:  case 59:  case 60:  case 61:  case 62:  case 63:  case 64:  case 65:
+    case 66:  case 67:  case 68:  case 69:  case 70:  case 71:  case 72:  case 73:
+    case 74:  case 75:  case 76:  case 77:  case 78:  case 81:  case 86:  case 89:
+    case 101: case 102: case 154: case 157: case 162: case 165: case 166:
+        return std::make_unique<ImageGeometry>(95, 7);
+    case 6: // sword in stone
+        return std::make_unique<ImageGeometry>(134, 54);
+    case 9: // sword in stone (behind gravestone)
+        return std::make_unique<ImageGeometry>(171, 51);
+    case 17: // parade area
+        return std::make_unique<ImageGeometry>(70, 6);
+    case 54: // banner
+        return std::make_unique<ImageGeometry>(3, 0);
+    case 80: // key on necklace (woman)
+        return std::make_unique<ImageGeometry>(42, 26);
+    case 83: // key on necklace (demon)
+        return std::make_unique<ImageGeometry>(44, 23);
+    case 85: // angry demon
+        return std::make_unique<ImageGeometry>(0, 0);
+    case 88: // boar (from south)
+        return std::make_unique<ImageGeometry>(124, 17);
+    case 91: // boar (from north, startled)
+        return std::make_unique<ImageGeometry>(137, 34);
+    case 93: // boar (charging)
+        return std::make_unique<ImageGeometry>(130, 22);
+    case 95: // gold egg
+        return std::make_unique<ImageGeometry>(144, 46);
+    case 97: // leprechaun
+        return std::make_unique<ImageGeometry>(176, 31);
+    case 99: // leprechaun (bottle)
+        return std::make_unique<ImageGeometry>(179, 28);
+    case 104: // boar (from north)
+        return std::make_unique<ImageGeometry>(129, 33);
+    case 156: // gauntlet (in chamber)
+        return std::make_unique<ImageGeometry>(48, 28);
+    case 158: // tower door
+        return std::make_unique<ImageGeometry>(84, 13);
+    case 161: // gauntlet (through window)
+        return std::make_unique<ImageGeometry>(67, 35);
+    case 163: // flying
+        return std::make_unique<ImageGeometry>(51, 6);
+    case 169: // boar (dead)
+        return std::make_unique<ImageGeometry>(12, 8);
+
+    // Map images
+
+    case 137: // map
+        return std::make_unique<ImageGeometry>(0, 0);
+    case 138: case 139: case 140: case 141: case 142: case 143: case 144: case 145: case 146: // compass rose
+        return std::make_unique<ImageGeometry>(260, 8);
+    case 148: // down
+        return std::make_unique<ImageGeometry>(260, 1);
+    case 149: // up
+        return std::make_unique<ImageGeometry>(292, 1);
+    }
+
+    return nullptr;
+};
+
+struct PaletteImage {
+    PaletteImage(glui32 id_, glui32 parent_) :
+        id(id_),
+        parent(parent_)
+    {
+    }
+
+    glui32 id;
+    glui32 parent;
+};
+
+static long last_palette_image = -1;
+
+static std::unique_ptr<PaletteImage> get_paletted_image(glui32 pic)
+{
+    if (last_palette_image == -1) {
+        return nullptr;
+    }
+
+    auto id = palette_map.find(std::pair<uint32_t, uint32_t>(last_palette_image, pic));
+    if (id != palette_map.end()) {
+        return std::make_unique<PaletteImage>(id->second, pic);
+    }
+
+    return nullptr;
+}
+
+void GraphicsWindow::draw(glui32 pic, const ImageGeometry *geom, glui32 w, glui32 h) const
+{
+    if (m_id == nullptr) {
+        return;
+    }
+
+    auto paletted_image = get_paletted_image(pic);
+    if (paletted_image != nullptr) {
+        pic = paletted_image->id;
+    } else if (arthur_hack) {
+        // The Blorb standard’s recommendation for dealing with the
+        // adaptive palette isn’t sufficient for Arthur. It says that
+        // APal images (which in Arthur’s case is just the banner plus
+        // staffs) should take on the palette of the last-drawn image;
+        // but generally speaking, the banner is not redrawn. Rather,
+        // when new rooms are entered, the banner is expected to already
+        // be on screen, and just the room image is drawn. For Arthur,
+        // if a room picture is drawn, redraw the banner using the room
+        // picture as the palette.
+        switch (pic) {
+        // Rooms
+        case 4:   case 7:   case 10:  case 11:  case 12:  case 13:  case 14:  case 15:
+        case 16:  case 18:  case 19:  case 20:  case 21:  case 22:  case 23:  case 24:
+        case 25:  case 26:  case 27:  case 28:  case 29:  case 30:  case 31:  case 32:
+        case 33:  case 34:  case 35:  case 36:  case 37:  case 38:  case 39:  case 40:
+        case 41:  case 42:  case 43:  case 44:  case 45:  case 46:  case 47:  case 48:
+        case 49:  case 50:  case 51:  case 52:  case 53:  case 55:  case 56:  case 57:
+        case 58:  case 59:  case 60:  case 61:  case 62:  case 63:  case 64:  case 65:
+        case 66:  case 67:  case 68:  case 69:  case 70:  case 71:  case 72:  case 73:
+        case 74:  case 75:  case 76:  case 77:  case 78:  case 81:  case 86:  case 89:
+        case 101: case 102: case 154: case 157: case 162: case 165: case 166:
+
+        // Parade area and flying
+        case 17:  case 163:
+            last_palette_image = pic;
+
+            auto banner_geom = arthur_geom(54);
+            draw(54, banner_geom.get(), 314, 84);
+        }
+    } else {
+        last_palette_image = pic;
+    }
+
+    auto x = m_ratio * geom->x;
+    x += (m_width - (m_ratio * m_base_width)) / 2;
+    glk_image_draw_scaled(m_id, pic, std::round(x), std::round(m_ratio * geom->y), std::round(m_ratio * w), std::round(m_ratio * h));
+}
+
+static bool draw_arthur(glui32 pic, glui32 w, glui32 h)
+{
+    if (!arthur_hack) {
+        return false;
+    }
+
+    auto type = pic == 1 || pic == 2 || pic == 3 || pic == 84 ? GraphicsWindow::Type::ArthurIntro :
+                pic == 85 ?                                     GraphicsWindow::Type::ArthurDemon :
+                                                                GraphicsWindow::Type::ArthurBanner;
+
+    if (!graphics_window.resize(type)) {
+        return false;
+    }
+
+    // Arthur draws blanks over the up and down arrow areas in the map
+    // so that any previous arrows are gone when moving rooms. It always
+    // does this over both arrows (since it will be redrawing the whole
+    // map anyway), but since there are two arrows but only one blank,
+    // this can’t directly use arthur_geom(). Instead, when a blank
+    // request comes in, always write the blank over both arrows.
+    if (pic == 147) {
+        for (const auto arrow_pic : {148, 149}) {
+            auto geom = arthur_geom(arrow_pic);
+            if (geom != nullptr) {
+                graphics_window.draw(147, geom.get(), 8, 7);
+            }
+        }
+
+        return true;
+    }
+
+    // Arthur does a lot of checking of window sizes to determine where
+    // to draw things. At the moment, window sizes are not tracked at
+    // all, so they can’t accurately be reported, causing graphics to be
+    // drawn in the wrong places. Instead of relying on the game, a
+    // table of locations is used, given that these graphics never
+    // change place. Ultimately it’d be nicer to track sizes so the game
+    // can provide locations, but this is fine for now.
+    auto geom = arthur_geom(pic);
+    if (geom != nullptr) {
+        graphics_window.draw(pic, geom.get(), w, h);
+        return true;
+    }
+
+    return false;
+}
+
+static bool draw_zorkzero(glui32 pic, glui32 w, glui32 h, double x, double y)
+{
+    if (!zorkzero_hack) {
+        return false;
+    }
+
+    // 5, 6, and 7 are the borders. If a request comes in for one of
+    // them, ensure the graphics window is the right size, and clear it
+    // first: different borders are different sizes, so drawing on top
+    // of each other causes the previous image to leak through.
+    if ((pic == 5 || pic == 6 || pic == 7)) {
+        if (!graphics_window.resize(GraphicsWindow::Type::ZorkZeroBorder)) {
+            return true;
+        }
+        graphics_window.clear();
+    }
+
+    // Infer 320x200 mode via the background (encyclopeida, towers,
+    // peggleboz, snarfem, fanucci, map).
+    if (pic == 25 || pic == 41 || pic == 49 || pic == 73 || pic == 99 || pic == 163) {
+        if (!graphics_window.resize(GraphicsWindow::Type::ZorkZero320)) {
+            return true;
+        }
+    }
+
+    // The picture number can’t be used to determine whether this is a
+    // map or border request, because some overlap, e.g. the compass
+    // directions. Track which mode we’re in via the graphics window,
+    // and if map mode, assume the game’s got its geometry correct,
+    // and plot the pictures just as they’re requested.
+    if (graphics_window.type() == GraphicsWindow::Type::ZorkZero320) {
+        ImageGeometry geom{x - 1, y - 1};
+        graphics_window.draw(pic, &geom, w, h);
+        return true;
+    }
+
+    if (pic == 1) {
+        if (!graphics_window.resize(GraphicsWindow::Type::ZorkZeroTitle)) {
+            return true;
+        }
+
+        ImageGeometry geom{x - 1, x - 1};
+        graphics_window.draw(pic, &geom, w, h);
+
+        return true;
+    }
+
+    if (pic == 5 || pic == 6 || pic == 7 || // Banner
+       (pic >= 9 && pic <= 24) ||                // Compass directions
+       (pic >= 479 && pic <= 481))               // Up & down
+    {
+        ImageGeometry geom{x - 1, y - 1};
+        graphics_window.draw(pic, &geom, w, h);
+        return true;
+    }
+
+    return false;
+}
+#endif
+
+// If this has to reduce the scaled value to UINT16_MAX, the image will
+// almost certainly be squashed horizontally or vertically (meaning this
+// will not take into account the original aspect ratio of the image),
+// but that’s really not something to worry about.
+#ifdef ZTERP_GLK_GRAPHICS
+static uint16_t scale_picture(uint32_t num, uint16_t val)
+{
+    double r = 1.0;
+
+    ScaleInfo scale_info;
+    try {
+        scale_info = picture_scale.at(num);
+    } catch (const std::out_of_range &) {
+        return val;
+    }
+
+    glui32 width, height;
+#ifdef GLK_MODULE_GARGLKWINSIZE
+    garglk_window_get_size_pixels(mainwin->id, &width, &height);
+#else
+    width = full_window_width;
+    height = full_window_height;
+#endif
+
+    if (width != static_cast<glui32>(-1) && height != static_cast<glui32>(-1)) {
+        // Scale according to §11.2 of the Blorb 2.0.4 specification.
+        auto erf = std::min(static_cast<double>(width) / scale_info.px,
+                static_cast<double>(height) / scale_info.py);
+
+        if (erf * scale_info.stdratio < scale_info.minratio) {
+            r = scale_info.minratio;
+        } else if (erf * scale_info.stdratio > scale_info.maxratio) {
+            r = scale_info.maxratio;
+        } else {
+            r = erf * scale_info.stdratio;
+        }
+    }
+
+    auto max = static_cast<double>(std::numeric_limits<uint16_t>::max());
+    return std::min(std::round(val * r), max);
+}
+#endif
+
+void zdraw_picture()
+{
+#ifdef ZTERP_GLK_GRAPHICS
+    if (!glk_gestalt(gestalt_Graphics, 0) || !glk_gestalt(gestalt_DrawImage, wintype_TextBuffer)) {
+        return;
+    }
+
+    uint16_t pic = zargs[0], scale_pic = zargs[0];
+    uint16_t x = zargs[2];
+    uint16_t y = zargs[1];
+
+    static std::set<glui32> arthur_ignore = {170, 171};
+    if (arthur_hack && arthur_ignore.find(pic) != arthur_ignore.end()) {
+        return;
+    }
+
+    static std::set<glui32> zorkzero_ignore = {497, 498, 499, 500, 501, 502, 503, 504};
+    if (zorkzero_hack && zorkzero_ignore.find(pic) != zorkzero_ignore.end()) {
+        return;
+    }
+
+    static std::set<glui32> shogun_ignore = {3, 59};
+    if (shogun_hack && shogun_ignore.find(pic) != shogun_ignore.end()) {
+        return;
+    }
+
+    glui32 w, h;
+    if (glk_image_get_info(pic, &w, &h)) {
+        glui32 align = imagealign_InlineUp;
+
+        // Arthur calculates map coordinates basically correctly; just
+        // need to scale and offset the X axis a bit.
+        if (arthur_hack && pic >= 106 && pic <= 136) {
+            ImageGeometry geom(x + 14, y);
+            graphics_window.draw(pic, &geom, w, h);
+            return;
+        }
+
+        // Shogun also calculates coordinates (for the maze) correctly.
+        if (shogun_hack && pic >= 38 && pic <= 44) {
+            graphics_window.resize(GraphicsWindow::Type::ShogunMaze);
+
+            // The maze itself is offset one block from the background
+            // (so it’s centered), but to calculate this, it uses the
+            // maze window size, which isn’t currently tracked by
+            // Bocfel, so its calculating is incorrect. However, since
+            // we know the invisible picture size (7x7), it’s simple
+            // enough to manually add this to the offsets for the maze
+            // pieces. Eventually, if window sizes are properly tracked,
+            // this should not be necessary.
+            x--;
+            y--;
+            if (pic != 44) {
+                x += SHOGUN_MAZE_BLOCK_WIDTH;
+                y += SHOGUN_MAZE_BLOCK_HEIGHT;
+            }
+
+            ImageGeometry geom(x, y);
+            graphics_window.draw(pic, &geom, w, h);
+            return;
+        }
+
+        if (draw_arthur(pic, w, h) ||
+            draw_zorkzero(pic, w, h, x, y) ||
+            draw_journey(pic, w, h) ||
+            draw_mysterious(pic, w, h, x, y)) {
+            return;
+        }
+
+        if (zorkzero_hack) {
+            if (pic == 2 || pic == 3 || pic == 4 || (pic >= 204 && pic <= 329) || pic == 440) {
+                align = imagealign_MarginLeft;
+            }
+        }
+
+        if (shogun_hack) {
+            static const std::set<glui32> right = {7, 8, 9, 10, 11, 12, 13, 14, 22, 24, 25, 26, 28, 30, 32, 37};
+            static const std::set<glui32> left = {15, 17, 20, 27, 29, 33, 36};
+
+            if (right.find(pic) != right.end()) {
+                align = imagealign_MarginRight;
+            } else if (left.find(pic) != left.end()) {
+                align = imagealign_MarginLeft;
+            } else if (pic == 44) {
+                if (graphics_window.resize(GraphicsWindow::Type::ShogunMaze)) {
+                    ImageGeometry maze_geom{0, 0};
+                    graphics_window.draw(pic, &maze_geom, w, h);
+                }
+
+                return;
+            }
+        }
+
+        auto paletted_image = get_paletted_image(pic);
+        if (paletted_image != nullptr) {
+            pic = paletted_image->id;
+            scale_pic = paletted_image->parent;
+        }
+
+        glk_image_draw_scaled(curwin->id, pic, align, 0, scale_picture(scale_pic, w), scale_picture(scale_pic, h));
+    }
+#endif
+}
+
+#ifdef ZTERP_GLK_GRAPHICS
+static bool image_or_rect_size(glui32 pic, glui32 &width, glui32 &height)
+{
+    glui32 w, h;
+    if (glk_image_get_info(zargs[0], &w, &h)) {
+        width = w;
+        height = h;
+        return true;
+    } else {
+        auto *map = giblorb_get_resource_map();
+        if (map == nullptr) {
+            return false;
+        }
+        giblorb_result_t res;
+        if (giblorb_load_resource(map, giblorb_method_Memory, &res, giblorb_ID_Pict, zargs[0]) == giblorb_err_None) {
+            auto be32 = [](const unsigned char *base) {
+                return
+                    (static_cast<uint32_t>(base[0]) << 24) |
+                    (static_cast<uint32_t>(base[1]) << 16) |
+                    (static_cast<uint32_t>(base[2]) <<  8) |
+                    (static_cast<uint32_t>(base[3]) <<  0);
+            };
+
+            if (res.length == 8 && res.chunktype == giblorb_make_id('R', 'e', 'c', 't')) {
+                auto *ptr = static_cast<unsigned char *>(res.data.ptr);
+                width = be32(ptr + 0);
+                height = be32(ptr + 4);
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+}
+#endif
+
 void zpicture_data()
 {
+#ifdef ZTERP_GLK_GRAPHICS
+    auto *map = giblorb_get_resource_map();
+
+    if (map == nullptr || !glk_gestalt(gestalt_Graphics, 0) || !glk_gestalt(gestalt_DrawImage, wintype_TextBuffer)) {
+        if (zargs[0] == 0) {
+            user_store_word(zargs[1] + 0, 0);
+            user_store_word(zargs[1] + 2, 0);
+        }
+
+        branch_if(false);
+    } else {
+        if (zargs[0] == 0) {
+            glui32 num = 0;
+            giblorb_count_resources(map, giblorb_ID_Pict, &num, nullptr, nullptr);
+
+            user_store_word(zargs[1] + 0, num);
+            user_store_word(zargs[1] + 2, blorb_reln);
+
+            branch_if(num != 0);
+        } else {
+            if (zorkzero_hack) {
+                // The following are very hacky, and hopefully will be
+                // fixed up at some point.
+                if (zargs[0] == 1) {
+                    // Trick Zork Zero into creating a zero-height upper
+                    // window when displaying the title screen.
+                    user_store_word(zargs[1] + 0, 0);
+                    user_store_word(zargs[1] + 2, 0);
+                    branch_if(true);
+                    return;
+                } else if (zargs[0] == 382) {
+                    // Combined with 383, ensure a half-decent display
+                    // for the status line.
+                    user_store_word(zargs[1] + 0, 0);
+                    user_store_word(zargs[1] + 2, 0);
+                    branch_if(true);
+                    return;
+                } else if (zargs[0] == 383) {
+                    user_store_word(zargs[1] + 0, 0);
+                    user_store_word(zargs[1] + 2, upper_window_width);
+                    branch_if(true);
+                    return;
+                } else if (zargs[0] == 384) {
+                    // Fanucci menu location.
+                    user_store_word(zargs[1] + 0, 0);
+                    user_store_word(zargs[1] + 2, 0);
+                    branch_if(true);
+                    return;
+                } else if (zargs[0] == 385) {
+                    // Fanucci score location.
+                    user_store_word(zargs[1] + 0, 4);
+                    user_store_word(zargs[1] + 2, 0);
+                    branch_if(true);
+                    return;
+                }
+            }
+
+            glui32 w, h;
+            if (image_or_rect_size(zargs[0], w, h)) {
+                user_store_word(zargs[1] + 0, h);
+                user_store_word(zargs[1] + 2, w);
+                branch_if(true);
+            } else {
+                branch_if(false);
+            }
+        }
+    }
+#else
     if (zargs[0] == 0) {
         user_store_word(zargs[1] + 0, 0);
         user_store_word(zargs[1] + 2, 0);
@@ -2735,6 +3988,7 @@ void zpicture_data()
 
     // No pictures means no valid pictures, so never branch.
     branch_if(false);
+#endif
 }
 
 void zget_wind_prop()
@@ -2742,6 +3996,19 @@ void zget_wind_prop()
     uint8_t font_width = 1, font_height = 1;
     uint16_t val;
     Window *win;
+
+#ifdef ZTERP_GLK_GRAPHICS
+    // This is the start of LEAVE-MAZE. This maybe should occur instead
+    // during SETUP-TEXT-AND-STATUS but that would have to deal with
+    // WINDEF which doesn’t currently get called with good information
+    // (likely because there’s some discrepancy in what Bocfel reports
+    // to the game regarding font size, display size, etc). For now,
+    // it’s enough to “know” that this instruction is part of a routine
+    // that handles leaving the maze, and erase the maze screen.
+    if (shogun_hack && current_instruction == 0x3d8a5) {
+        graphics_window.destroy();
+    }
+#endif
 
     win = find_window(zargs[0]);
 
@@ -2781,7 +4048,7 @@ void zget_wind_prop()
         val = win->style.to_ulong();
         break;
     case 11: // colour data
-        val = (9 << 8) | 2;
+        val = (win->bg_color.as_zcolor() << 8) | win->fg_color.as_zcolor();
         break;
     case 12: // font number
         val = static_cast<uint16_t>(win->font);
@@ -2808,11 +4075,6 @@ void zget_wind_prop()
     store(val);
 }
 
-// This is not correct, because @output_stream does not work as it
-// should with a width argument; however, this does print out the
-// contents of a table that was sent to stream 3, so it’s at least
-// somewhat useful.
-//
 // Output should be to the currently-selected window, but since V6 is
 // only marginally supported, other windows are not active. Send to the
 // main window for the time being.
@@ -2825,11 +4087,16 @@ void zprint_form()
     glk_set_window(mainwin->id);
 #endif
 
-    for (uint16_t i = 0; i < user_word(zargs[0]); i++) {
-        put_char(user_byte(zargs[0] + 2 + i));
-    }
+    uint32_t addr = zargs[0];
+    for (uint16_t count = user_word(addr); count != 0; count = user_word(addr)) {
+        for (uint16_t i = 0; i < count; i++) {
+            put_char(user_byte(addr + 2 + i));
+        }
 
-    put_char(ZSCII_NEWLINE);
+        put_char(ZSCII_NEWLINE);
+
+        addr += 2 + count;
+    }
 
     curwin = saved;
 #ifdef ZTERP_GLK
@@ -2902,6 +4169,10 @@ bool create_mainwin()
     glk_stylehint_set(wintype_AllTypes, GStyleBoldItalicFixed, stylehint_Proportional, 0);
 #endif
 
+#if defined(ZTERP_GLK_GRAPHICS) && !defined(GLK_MODULE_GARGLKWINSIZE)
+    find_window_size(nullptr);
+#endif
+
     mainwin->id = glk_window_open(nullptr, 0, 0, wintype_TextBuffer, 1);
     if (mainwin->id == nullptr) {
         return false;
@@ -2936,7 +4207,11 @@ bool create_upperwin()
 #ifdef ZTERP_GLK
     // The upper window appeared in V3. */
     if (zversion >= 3) {
-        upperwin->id = glk_window_open(mainwin->id, winmethod_Above | winmethod_Fixed, 0, wintype_TextGrid, 0);
+        auto location = is_game(Game::Journey) ?
+            winmethod_Below :
+            winmethod_Above;
+
+        upperwin->id = glk_window_open(mainwin->id, location | winmethod_Fixed, 0, wintype_TextGrid, 0);
         upperwin->x = upperwin->y = 0;
         upper_window_height = 0;
 
@@ -2986,7 +4261,7 @@ IFF::TypeID screen_write_scrn(IO &io)
         io.write16(windows[i].bg_color.value);
     }
 
-    return IFF::TypeID(&"Scrn");
+    return IFF::TypeID("Scrn");
 }
 
 static void try_load_color(Color::Mode mode, uint16_t value, Color &color)
@@ -3124,10 +4399,11 @@ IFF::TypeID screen_write_bfhs(IO &io)
         case History::Entry::Type::Char:
             io.write8(static_cast<uint8_t>(entry.type));
             io.putc(entry.contents.c);
+            break;
         }
     };
 
-    return IFF::TypeID(&"Bfhs");
+    return IFF::TypeID("Bfhs");
 }
 
 class ScopeGuard {
@@ -3286,12 +4562,14 @@ void screen_read_bfhs(IO &io, bool autosave)
             if (c == -1) {
                 return;
             }
+            for (const auto &clean : cleanse_control(c)) {
+                history.add_char(clean);
 #ifdef ZTERP_GLK
-            xglk_put_char_stream(stream, c);
+                xglk_put_char_stream(stream, clean);
 #else
-            IO::standard_out().putc(c);
+                IO::standard_out().putc(clean);
 #endif
-            history.add_char(c);
+            }
             break;
         default:
             return;
@@ -3307,10 +4585,10 @@ IFF::TypeID screen_write_bfts(IO &io)
 
     io.write32(0); // Version
 
-    auto buf = perstransio->get_memory();
+    const auto &buf = perstransio->get_memory();
     io.write_exact(buf.data(), buf.size());
 
-    return IFF::TypeID(&"Bfts");
+    return IFF::TypeID("Bfts");
 }
 
 void screen_read_bfts(IO &io, uint32_t size)
@@ -3363,59 +4641,69 @@ void screen_read_bfts(IO &io, uint32_t size)
     }
 }
 
-static std::unique_ptr<std::vector<uint8_t>> perstrans_backup;
+class PersistentTranscriptStasher : public Stasher {
+public:
+    void backup() override {
+        m_transcript.reset();
 
-static void perstrans_stash_backup()
-{
-    perstrans_backup.reset();
-
-    if (options.persistent_transcript && perstransio != nullptr) {
-        auto buf = perstransio->get_memory();
-        try {
-            perstrans_backup = std::make_unique<std::vector<uint8_t>>(buf);
-        } catch (const std::bad_alloc &) {
+        if (options.persistent_transcript && perstransio != nullptr) {
+            const auto &buf = perstransio->get_memory();
+            try {
+                m_transcript = std::make_unique<std::vector<uint8_t>>(buf);
+            } catch (const std::bad_alloc &) {
+            }
         }
     }
-}
 
-// Never fail: this is an optional chunk so isn’t fatal on error.
-static bool perstrans_stash_restore()
-{
-    if (perstrans_backup == nullptr) {
+    // Never fail: this is an optional chunk so isn’t fatal on error.
+    bool restore() override {
+        if (m_transcript == nullptr) {
+            return true;
+        }
+
+        perstransio = std::make_unique<IO>(*m_transcript, IO::Mode::WriteOnly);
+
+        try {
+            perstransio->seek(0, IO::SeekFrom::End);
+        } catch (const IO::IOError &) {
+            perstransio.reset();
+        }
+
+        m_transcript.reset();
+
         return true;
     }
 
-    perstransio = std::make_unique<IO>(*perstrans_backup, IO::Mode::WriteOnly);
-
-    try {
-        perstransio->seek(0, IO::SeekFrom::End);
-    } catch (const IO::IOError &) {
-        perstransio.reset();
+    void free() override {
+        m_transcript.reset();
     }
 
-    perstrans_backup.reset();
+private:
+    std::unique_ptr<std::vector<uint8_t>> m_transcript;
+};
 
-    return true;
-}
-
-static void perstrans_stash_free()
-{
-    perstrans_backup.reset();
-}
-
-void screen_save_persistent_transcript()
+static bool check_transcript()
 {
     if (!options.persistent_transcript) {
         screen_puts("[Persistent transcripting is turned off]");
-        return;
+        return false;
     }
 
     if (perstransio == nullptr) {
         screen_puts("[Persistent transcripting failed to start]");
+        return false;
+    }
+
+    return true;
+}
+
+void screen_save_persistent_transcript()
+{
+    if (!check_transcript()) {
         return;
     }
 
-    auto buf = perstransio->get_memory();
+    const auto &buf = perstransio->get_memory();
 
     try {
         IO io(nullptr, IO::Mode::WriteOnly, IO::Purpose::Transcript);
@@ -3430,6 +4718,54 @@ void screen_save_persistent_transcript()
         screen_puts("[Failed to open file]");
         return;
     }
+}
+
+void screen_show_persistent_transcript() {
+    if (!check_transcript()) {
+        return;
+    }
+
+    const auto &buf = perstransio->get_memory();
+
+    std::vector<char> transcript(buf.begin(), buf.end());
+
+    screen_puts("[Opening persistent transcript]");
+    screen_flush();
+
+    try {
+        zterp_os_show_transcript(transcript);
+    } catch (const std::runtime_error &e) {
+        screen_printf("[Error showing persistent transcript: %s]\n", e.what());
+    }
+}
+
+void create_graphicswin()
+{
+#ifdef ZTERP_GLK_GRAPHICS
+    if (glk_gestalt(gestalt_DrawImage, wintype_Graphics)) {
+        if ((is_game(Game::Arthur) ||
+             is_game(Game::ZorkZero) ||
+             is_game(Game::Shogun) ||
+             is_game(Game::MysteriousAdventures)) &&
+             graphics_window.create())
+        {
+            arthur_hack = is_game(Game::Arthur);
+            zorkzero_hack = is_game(Game::ZorkZero);
+            shogun_hack = is_game(Game::Shogun);
+            mysterious_hack = is_game(Game::MysteriousAdventures);
+
+            if (mysterious_hack) {
+                auto *map = giblorb_get_resource_map();
+                if (map == nullptr || giblorb_count_resources(map, giblorb_ID_Pict, &mysterious_max_image, nullptr, nullptr) != giblorb_err_None) {
+                    graphics_window.destroy();
+                    mysterious_hack = false;
+                }
+            }
+        } else if (is_game(Game::Journey)) {
+            journey_hack = true;
+        }
+    }
+#endif
 }
 
 void init_screen(bool first_run)
@@ -3447,6 +4783,16 @@ void init_screen(bool first_run)
     close_upper_window();
 
 #ifdef ZTERP_GLK
+    // For now, unless the user disables it, point windows 2–7 (from
+    // version 6) to the main window, allowing all output (text and
+    // graphics) to be seen. Things could get pretty jumbled but it’s
+    // not inherently worse than a chunk of output missing.
+    if (options.redirect_v6_windows) {
+        for (int i = 2; i < 8; i++) {
+            windows[i].id = windows[0].id;
+        }
+    }
+
     if (statuswin.id != nullptr) {
         glk_window_clear(statuswin.id);
     }
@@ -3457,6 +4803,10 @@ void init_screen(bool first_run)
     }
 
     stop_timer();
+
+#ifdef ZTERP_GLK_GRAPHICS
+    build_palette_map();
+#endif
 
 #else
     have_unicode = true;
@@ -3469,14 +4819,14 @@ void init_screen(bool first_run)
             warning("Failed to start persistent transcripting");
         }
 
-        stash_register(perstrans_stash_backup, perstrans_stash_restore, perstrans_stash_free);
+        stash_register(std::make_unique<PersistentTranscriptStasher>());
     }
 
     // On restart, deselect stream 3 and select stream 1. This allows
     // the command script and transcript to persist across restarts,
     // while resetting memory output and ensuring screen output.
-    streams.reset(STREAM_MEMORY);
-    streams.set(STREAM_SCREEN);
+    streams.reset(OSTREAM_MEMORY);
+    streams.set(OSTREAM_SCREEN);
     stream_tables.clear();
 
     set_current_window(mainwin);

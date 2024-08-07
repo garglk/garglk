@@ -16,12 +16,13 @@
 
 #include <array>
 #include <exception>
-#include <map>
+#include <memory>
 #include <set>
 #include <stdexcept>
+#include <unordered_map>
 
 #include "sound.h"
-#include "blorb.h"
+#include "iff.h"
 #include "process.h"
 #include "types.h"
 #include "zterp.h"
@@ -40,8 +41,7 @@ struct Channel {
     class Error : public std::exception {
     };
 
-    Channel()
-    {
+    Channel() {
         if (channel == nullptr) {
             throw Error();
         }
@@ -86,7 +86,7 @@ public:
         }
     };
 
-    bool loaded() {
+    bool loaded() const {
         return !m_channels.empty();
     }
 
@@ -95,7 +95,7 @@ public:
     }
 
 private:
-    std::map<glui32, std::shared_ptr<Channel>> m_channels;
+    std::unordered_map<glui32, std::shared_ptr<Channel>> m_channels;
 };
 
 constexpr glui32 Channels::Effects;
@@ -104,7 +104,7 @@ constexpr glui32 Channels::Music;
 static Channels channels;
 
 static std::set<uint32_t> looping_sounds;
-static std::map<uint32_t, bool> music_sounds;
+static std::unordered_map<uint32_t, bool> music_sounds;
 #endif
 
 void init_sound()
@@ -126,14 +126,14 @@ void init_sound()
     // directly into the sound files themselves, which is why Blorbs
     // include the looping information. This is only used in V3 games.
     // See §11.4 of the Blorb specification.
-    auto map = giblorb_get_resource_map();
+    auto *map = giblorb_get_resource_map();
     if (zversion == 3 && sound_loaded() && map != nullptr) {
         giblorb_result_t res;
-        glui32 chunktype = IFF::TypeID(&"Loop").val();
+        glui32 chunktype = IFF::TypeID("Loop").val();
         if (giblorb_load_chunk_by_type(map, giblorb_method_Memory, &res, chunktype, 0) == giblorb_err_None) {
             for (size_t i = 0; i < res.length; i += 8) {
                 auto read32 = [&res](size_t offset) {
-                    auto *p = static_cast<const char *>(res.data.ptr) + offset;
+                    const auto *p = static_cast<const char *>(res.data.ptr) + offset;
                     return (static_cast<uint32_t>(p[0]) << 24) |
                            (static_cast<uint32_t>(p[1]) << 16) |
                            (static_cast<uint32_t>(p[2]) <<  8) |
@@ -251,10 +251,10 @@ void zsound_effect()
     // The Blorb standard (§14.5) notes that Adrift Blorbs are allowed
     // more sound formats than standard Blorb: WAV, MIDI, and MP3. While
     // there’s likely never going to be a Blorb file with these sound
-    // formats meant for use with the Z-Machine, there's no harm in
+    // formats meant for use with the Z-Machine, there’s no harm in
     // adding MIDI and MP3 as music types here.
     if (music_sounds.find(number) == music_sounds.end()) {
-        auto map = giblorb_get_resource_map();
+        auto *map = giblorb_get_resource_map();
         if (map != nullptr) {
             giblorb_result_t res;
             if (giblorb_load_resource(map, giblorb_method_DontLoad, &res, giblorb_ID_Snd, number) == giblorb_err_None) {

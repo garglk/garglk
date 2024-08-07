@@ -14,7 +14,7 @@
 
 class Blorb {
 public:
-    class InvalidFile : std::exception {
+    class InvalidFile : public std::exception {
     };
 
     enum class Usage {

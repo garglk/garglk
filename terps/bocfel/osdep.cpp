@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <cerrno>
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
@@ -23,6 +22,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <thread>
@@ -31,16 +31,21 @@
 
 #ifdef ZTERP_GLK
 extern "C" {
-#include "glk.h"
+#include <glk.h>
 }
 #endif
 
 #include "io.h"
+#include "options.h"
 #include "osdep.h"
 #include "screen.h"
 #include "types.h"
 #include "util.h"
 #include "zterp.h"
+
+#if defined(ZTERP_UNIX) || defined(ZTERP_WIN32) || defined(ZTERP_DOS)
+#error The operating system macros have been renamed to have a ZTERP_OS prefix.
+#endif
 
 using namespace std::literals;
 
@@ -82,14 +87,16 @@ using namespace std::literals;
 //
 // The Z-machine allow games to save and load arbitrary files. Bocfel
 // confines these files to a single (per-game) directory to avoid games
-// overwriting unrelated files. This function, given such an arbitrary
-// filename, returns a pointer to a string containing a full path to a
-// file which represents the passed-in filename. The file need not
-// exist, but its containing directory must. A null pointer is returned
-// on failure. The file must not escape its containing directory, which
-// may require platform-specific methods, but at the very least means
-// that a file containing directory separators (e.g. '/' on Unix) must
-// be rejected.
+// overwriting unrelated files. This function, given a filename, returns
+// a pointer to a string containing a full path to a file which
+// represents the passed-in filename. The file need not exist, but its
+// containing directory must. A null pointer is returned on failure. The
+// file must not escape its containing directory, which may require
+// platform-specific methods, but at the very least means that a file
+// containing directory separators (e.g. '/' on Unix) must be rejected
+// or sanitized. The incoming filename is guaranteed to consist of ASCII
+// printable characters, i.e. in the range 32-126, but may need to be
+// further sanitized depending on the needs of the target platform.
 //
 // void zterp_os_edit_file(const std::string &filename)
 //
@@ -102,6 +109,12 @@ using namespace std::literals;
 // which contains those notes. When the editor successfully exits,
 // return the contents of the saved file. On failure, std::runtime_error
 // is thrown.
+//
+// void zterp_os_show_transcript(const std::vector<char> &transcript)
+//
+// Identical to zterp_os_edit_notes, except nothing is returned. This is
+// meant to show the persistent transcript in the user’s editor, so it
+// can be easily read, searched, etc.
 //
 // The following functions are useful for non-Glk builds only. They
 // provide for some handling of screen functions that is normally taken
@@ -140,31 +153,45 @@ using namespace std::literals;
 // ╔══════════════════════════════════════════════════════════════════════════════╗
 // ║ Shared functions                                                             ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
-#if (defined(ZTERP_WIN32) || defined(ZTERP_DOS)) && !defined(ZTERP_GLK)
-static void ansi_set_style(const Style &style, const Color &fg, const Color &bg)
+#if defined(ZTERP_OS_UNIX) || defined(ZTERP_OS_WIN32)
+static std::unique_ptr<std::string> env(const std::string &name)
 {
-    std::printf("\33[0m");
-
-    if (style.test(STYLE_ITALIC)) {
-        std::printf("\33[4m");
-    }
-    if (style.test(STYLE_REVERSE)) {
-        std::printf("\33[7m");
-    }
-    if (style.test(STYLE_BOLD)) {
-        std::printf("\33[1m");
+    const char *val = std::getenv(name.c_str());
+    if (val == nullptr) {
+        return nullptr;
     }
 
-    if (fg.mode == Color::Mode::ANSI) {
-        std::printf("\33[%dm", 28 + fg.value);
-    }
-    if (bg.mode == Color::Mode::ANSI) {
-        std::printf("\33[%dm", 38 + bg.value);
-    }
+    return std::make_unique<std::string>(val);
 }
 #endif
 
-#if defined(ZTERP_UNIX) || defined(ZTERP_WIN32)
+#if (defined(ZTERP_OS_WIN32) || defined(ZTERP_OS_DOS)) && !defined(ZTERP_GLK)
+static void ansi_set_style(const Style &style, const Color &fg, const Color &bg)
+{
+    std::cout << "\33[0";
+
+    if (style.test(STYLE_ITALIC)) {
+        std::cout << ";4";
+    }
+    if (style.test(STYLE_REVERSE)) {
+        std::cout << ";7";
+    }
+    if (style.test(STYLE_BOLD)) {
+        std::cout << ";1";
+    }
+
+    if (fg.mode == Color::Mode::ANSI) {
+        std::cout << ";" << (28 + fg.value);
+    }
+    if (bg.mode == Color::Mode::ANSI) {
+        std::cout << ";" << (38 + bg.value);
+    }
+
+    std::cout << "m";
+}
+#endif
+
+#if defined(ZTERP_OS_UNIX) || defined(ZTERP_OS_WIN32)
 static std::vector<char> read_file(const std::string &filename)
 {
     std::vector<char> new_file;
@@ -195,7 +222,7 @@ static std::vector<char> read_file(const std::string &filename)
 // ╔══════════════════════════════════════════════════════════════════════════════╗
 // ║ Unix functions                                                               ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
-#ifdef ZTERP_UNIX
+#ifdef ZTERP_OS_UNIX
 #include <cstring>
 #include <vector>
 
@@ -211,7 +238,7 @@ static std::vector<char> read_file(const std::string &filename)
 
 static std::string unique_name()
 {
-    auto slash = game_file.find_last_of('/');
+    auto slash = game_file.rfind('/');
     std::string basename;
 
     if (slash != std::string::npos) {
@@ -254,16 +281,6 @@ long zterp_os_filesize(std::FILE *fp)
 }
 #define have_zterp_os_filesize
 
-static std::unique_ptr<std::string> env(const std::string &name)
-{
-    const char *val = std::getenv(name.c_str());
-    if (val == nullptr) {
-        return nullptr;
-    }
-
-    return std::make_unique<std::string>(val);
-}
-
 std::unique_ptr<std::string> zterp_os_rcfile(bool create_parent)
 {
     std::unique_ptr<std::string> config_file;
@@ -286,7 +303,7 @@ std::unique_ptr<std::string> zterp_os_rcfile(bool create_parent)
     }
 
     auto config_home = env("XDG_CONFIG_HOME");
-    if (config_home != nullptr && config_home->find_first_of('/') == 0) {
+    if (config_home != nullptr && config_home->find('/') == 0) {
         config_file = std::make_unique<std::string>(*config_home + "/bocfel/bocfelrc");
     } else if (home != nullptr) {
         config_file = std::make_unique<std::string>(*home + "/.config/bocfel/bocfelrc");
@@ -314,18 +331,17 @@ static std::unique_ptr<std::string> data_file(const std::string &filename)
 
     auto name = std::make_unique<std::string>(std::string(settings_dir) + "/bocfel/" + filename);
 #else
-    const char *data_home;
     std::unique_ptr<std::string> name;
 
-    data_home = std::getenv("XDG_DATA_HOME");
-    if (data_home != nullptr && data_home[0] == '/') {
-        name = std::make_unique<std::string>(std::string(data_home) + "/bocfel/" + filename);
+    auto data_home = env("XDG_DATA_HOME");
+    if (data_home != nullptr && (*data_home)[0] == '/') {
+        name = std::make_unique<std::string>(*data_home + "/bocfel/" + filename);
     } else {
-        char *home = std::getenv("HOME");
+        auto home = env("HOME");
         if (home == nullptr) {
             return nullptr;
         }
-        name = std::make_unique<std::string>(std::string(home) + "/.local/share/bocfel/" + filename);
+        name = std::make_unique<std::string>(*home + "/.local/share/bocfel/" + filename);
     }
 #endif
 
@@ -344,10 +360,13 @@ std::unique_ptr<std::string> zterp_os_autosave_name()
 }
 #define have_zterp_os_autosave_name
 
-std::unique_ptr<std::string> zterp_os_aux_file(const std::string &filename)
+std::unique_ptr<std::string> zterp_os_aux_file(const std::string &filename_)
 {
-    if (filename.find('/') != std::string::npos) {
-        return nullptr;
+    std::string filename = filename_;
+    for (auto &c : filename) {
+        if (c == '/') {
+            c = '_';
+        }
     }
 
     return data_file("auxiliary/"s + unique_name() + "/" + filename);
@@ -434,7 +453,7 @@ void zterp_os_edit_file(const std::string &filename)
 
 #ifdef ZTERP_GLK_TICK
     while (waitpid(pid, &status, WNOHANG) != pid) {
-        std::this_thread::sleep_for(100ms);
+        std::this_thread::sleep_for(10ms);
         glk_tick();
     }
 #else
@@ -452,26 +471,21 @@ void zterp_os_edit_file(const std::string &filename)
 #endif
 
     if (WEXITSTATUS(status) != 0) {
-        std::ostringstream errstr;
-
-        errstr << "editor had exit status " << WEXITSTATUS(status);
-        throw std::runtime_error(errstr.str());
+        throw std::runtime_error("editor had exit status " + std::to_string(WEXITSTATUS(status)));
     }
 }
 #define have_zterp_os_edit_file
 
-class TempFD {
+class TempFile {
 public:
-    explicit TempFD(const std::string &tmpl)
+    explicit TempFile(const std::string &tmpl)
     {
-        const char *tmpdir;
-
-        tmpdir = std::getenv("TMPDIR");
+        auto tmpdir = env("TMPDIR");
         if (tmpdir == nullptr) {
-            tmpdir = "/tmp";
+            tmpdir = std::make_unique<std::string>("/tmp");
         }
 
-        m_path = std::string(tmpdir) + "/" + tmpl + ".XXXXXX";
+        m_path = *tmpdir + "/" + tmpl + ".XXXXXX";
 
         m_fd = mkstemp(&m_path[0]);
         if (m_fd == -1) {
@@ -479,16 +493,23 @@ public:
         }
     }
 
-    TempFD(const TempFD &) = delete;
-    TempFD &operator=(const TempFD &) = delete;
+    TempFile(const TempFile &) = delete;
+    TempFile &operator=(const TempFile &) = delete;
 
-    ~TempFD() {
-        close(m_fd);
-        std::remove(m_path.c_str());
+    void write(const std::vector<char> &data) const {
+        size_t bytes = 0;
+        while (bytes < data.size()) {
+            ssize_t n = ::write(m_fd, &data[bytes], data.size() - bytes);
+            if (n == -1) {
+                throw std::runtime_error("unable to write to temporary file");
+            }
+            bytes += n;
+        }
     }
 
-    int fd() const {
-        return m_fd;
+    ~TempFile() {
+        close(m_fd);
+        std::remove(m_path.c_str());
     }
 
     const std::string &path() const {
@@ -502,22 +523,23 @@ private:
 
 std::vector<char> zterp_os_edit_notes(const std::vector<char> &notes)
 {
-    size_t bytes = 0;
-    TempFD tempfd("bocfel.notes");
+    TempFile tempfile("bocfel.notes");
 
-    while (bytes < notes.size()) {
-        ssize_t n = write(tempfd.fd(), &notes[bytes], notes.size() - bytes);
-        if (n == -1) {
-            throw std::runtime_error("unable to write to temporary file");
-        }
-        bytes += n;
-    }
+    tempfile.write(notes);
+    zterp_os_edit_file(tempfile.path());
 
-    zterp_os_edit_file(tempfd.path());
-
-    return read_file(tempfd.path());
+    return read_file(tempfile.path());
 }
 #define have_zterp_os_edit_notes
+
+void zterp_os_show_transcript(const std::vector<char> &transcript)
+{
+    TempFile tempfile("bocfel.transcript");
+
+    tempfile.write(transcript);
+    zterp_os_edit_file(tempfile.path());
+}
+#define have_zterp_os_show_transcript
 
 #ifndef ZTERP_GLK
 
@@ -604,7 +626,7 @@ static void set_color(const char *string, const Color &color)
     switch (color.mode) {
     case Color::Mode::ANSI:
         if (color.value >= 2 && color.value <= 9) {
-            putp(tparm(const_cast<char *>(string), color.value - 2));
+            putp(tparm(const_cast<char *>(string), color.value - 2, 0, 0, 0, 0, 0, 0, 0, 0));
         }
         break;
     case Color::Mode::True:
@@ -618,7 +640,7 @@ static void set_color(const char *string, const Color &color)
             uint16_t transformed = color.value < 4 ? 0 :
                                    color.value < 8 ? 8 :
                                    color.value;
-            putp(tparm(const_cast<char *>(string), screen_convert_color(transformed)));
+            putp(tparm(const_cast<char *>(string), screen_convert_color(transformed), 0, 0, 0, 0, 0, 0, 0, 0));
         }
         break;
     }
@@ -656,7 +678,7 @@ void zterp_os_set_style(const Style &style, const Color &fg, const Color &bg)
 // ╔══════════════════════════════════════════════════════════════════════════════╗
 // ║ Windows functions                                                            ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
-#elif defined(ZTERP_WIN32)
+#elif defined(ZTERP_OS_WIN32)
 #include <direct.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -706,14 +728,12 @@ static bool mkdir_p(const std::string &filename)
 
 std::unique_ptr<std::string> zterp_os_rcfile(bool create_parent)
 {
-    const char *appdata;
-
-    appdata = std::getenv("APPDATA");
+    auto appdata = env("APPDATA");
     if (appdata == nullptr) {
         return nullptr;
     }
 
-    auto config = std::make_unique<std::string>(std::string(appdata) + "\\Bocfel\\bocfel.ini");
+    auto config = std::make_unique<std::string>(*appdata + "\\Bocfel\\bocfel.ini");
 
     if (create_parent && !mkdir_p(*config)) {
         return nullptr;
@@ -736,14 +756,12 @@ std::unique_ptr<std::string> unique_name()
 
 static std::unique_ptr<std::string> data_file(const std::string &filename)
 {
-    const char *appdata;
-
-    appdata = std::getenv("APPDATA");
+    auto appdata = env("APPDATA");
     if (appdata == nullptr) {
         return nullptr;
     }
 
-    auto name = std::make_unique<std::string>(std::string(appdata) + "\\Bocfel\\" + filename);
+    auto name = std::make_unique<std::string>(*appdata + "\\Bocfel\\" + filename);
 
     if (!mkdir_p(*name)) {
         return nullptr;
@@ -764,15 +782,43 @@ std::unique_ptr<std::string> zterp_os_autosave_name()
 }
 #define have_zterp_os_autosave_name
 
-std::unique_ptr<std::string> zterp_os_aux_file(const std::string &filename)
+static std::string ascii_toupper(std::string s)
 {
-    auto basename = unique_name();
-
-    if (basename == nullptr) {
-        return nullptr;
+    for (auto &c : s) {
+        if (c >= 97 && c <= 122) {
+            c -= 32;
+        }
     }
 
-    if (basename->find_first_of("/\\") != std::string::npos) {
+    return s;
+}
+
+std::unique_ptr<std::string> zterp_os_aux_file(const std::string &filename_)
+{
+    std::string filename = filename_;
+    std::string upper = ascii_toupper(filename);
+
+    static const std::vector<std::string> reserved_names = {
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4",
+        "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2",
+        "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    };
+
+    for (const auto &reserved_name : reserved_names) {
+        if (upper == reserved_name || upper.find(reserved_name + ".") == 0) {
+            return nullptr;
+        }
+    }
+
+    static const std::string invalid_characters = "<>:\"/\\|?*";
+    for (auto &c : filename) {
+        if (invalid_characters.find(c) != std::string::npos) {
+            c = '_';
+        }
+    }
+
+    auto basename = unique_name();
+    if (basename == nullptr) {
         return nullptr;
     }
 
@@ -797,8 +843,8 @@ void zterp_os_edit_file(const std::string &filename)
         throw std::runtime_error("unable to launch text editor");
     }
 
-#ifdef ZTERP_GLK
-    while (WaitForSingleObject(si.hProcess, 100) != 0) {
+#ifdef ZTERP_GLK_TICK
+    while (WaitForSingleObject(si.hProcess, 10) != 0) {
         glk_tick();
     }
 #else
@@ -817,8 +863,14 @@ public:
     Remover(const Remover &) = delete;
     Remover &operator=(const Remover &) = delete;
 
+    Remover(Remover &&other) noexcept : m_filename(std::move(other.m_filename)) {
+        other.m_filename.clear();
+    }
+
     ~Remover() {
-        std::remove(m_filename.c_str());
+        if (!m_filename.empty()) {
+            std::remove(m_filename.c_str());
+        }
     }
 
     const std::string &filename() {
@@ -829,7 +881,19 @@ private:
     std::string m_filename;
 };
 
-std::vector<char> zterp_os_edit_notes(const std::vector<char> &notes)
+static std::string generate_random_prefix()
+{
+    const char charset[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    std::default_random_engine rng(std::random_device{}());
+    std::uniform_int_distribution<> dist(0, sizeof(charset) - 2);
+    std::string prefix;
+    for (size_t i = 0; i < 12; ++i) {
+        prefix += charset[dist(rng)];
+    }
+    return prefix;
+}
+
+static Remover create_temp_file(const std::string &filename, const std::vector<char> &data)
 {
     char tempdir[300];
 
@@ -838,21 +902,35 @@ std::vector<char> zterp_os_edit_notes(const std::vector<char> &notes)
         throw std::runtime_error("unable to find temporary directory");
     }
 
-    Remover notes_name(std::string(tempdir) + "\\bocfel_notes.txt");
+    Remover remover(std::string(tempdir) + "\\" + generate_random_prefix() + "-" + filename);
     try {
-        IO io(&notes_name.filename(), IO::Mode::WriteOnly, IO::Purpose::Data);
-        io.write_exact(notes.data(), notes.size());
+        IO io(&remover.filename(), IO::Mode::WriteOnly, IO::Purpose::Data);
+        io.write_exact(data.data(), data.size());
     } catch (const IO::OpenError &) {
         throw std::runtime_error("unable to create temporary file");
     } catch (const IO::IOError &) {
         throw std::runtime_error("unable to write to temporary file");
     }
 
+    return remover;
+}
+
+std::vector<char> zterp_os_edit_notes(const std::vector<char> &notes)
+{
+    auto notes_name = create_temp_file("bocfel_notes.txt", notes);
+
     zterp_os_edit_file(notes_name.filename());
 
     return read_file(notes_name.filename());
 }
 #define have_zterp_os_edit_notes
+
+void zterp_os_show_transcript(const std::vector<char> &transcript)
+{
+    auto transcript_name = create_temp_file("bocfel_transcript.txt", transcript);
+    zterp_os_edit_file(transcript_name.filename());
+}
+#define have_zterp_os_show_transcript
 
 #ifndef ZTERP_GLK
 std::pair<unsigned int, unsigned int> zterp_os_get_screen_size()
@@ -910,7 +988,7 @@ void zterp_os_set_style(const Style &style, const Color &fg, const Color &bg)
 // ╔══════════════════════════════════════════════════════════════════════════════╗
 // ║ DOS functions                                                                ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
-#elif defined(ZTERP_DOS)
+#elif defined(ZTERP_OS_DOS)
 #ifndef ZTERP_GLK
 // This assumes ANSI.SYS (or equivalent) is loaded.
 bool zterp_os_have_style(StyleBit)
@@ -981,6 +1059,13 @@ std::unique_ptr<std::string> zterp_os_aux_file(const std::string &)
 std::vector<char> zterp_os_edit_notes(const std::vector<char> &)
 {
     throw std::runtime_error("notes unimplemented on this platform");
+}
+#endif
+
+#ifndef have_zterp_os_show_transcript
+void zterp_os_show_transcript(const std::vector<char> &transcript)
+{
+    throw std::runtime_error("transcript display unimplemented on this platform");
 }
 #endif
 

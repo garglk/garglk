@@ -22,6 +22,7 @@
 
 #include "unicode.h"
 #include "memory.h"
+#include "options.h"
 #include "types.h"
 #include "util.h"
 #include "zterp.h"
@@ -69,8 +70,8 @@ void parse_unicode_table(uint16_t utable)
 }
 
 // Table used to convert a ZSCII value to Unicode; and since this is
-// only used for output, non-output values will be returned as a
-// question mark.
+// only used for output, non-output values will be returned as the
+// Unicode replacement character.
 std::array<uint16_t, UINT8_MAX + 1> zscii_to_unicode;
 
 // These tables translate a Unicode or Latin-1 character into its ZSCII
@@ -402,7 +403,7 @@ bool valid_unicode(uint16_t c)
     return (c >= 32 && c <= 126) || c >= 160;
 }
 
-#ifdef ZTERP_DOS
+#ifdef ZTERP_OS_DOS
 // Convert from Unicode to code page 437, used by DOS.
 uint8_t unicode_to_437(uint16_t c)
 {

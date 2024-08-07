@@ -7,13 +7,15 @@
 #include <string>
 
 namespace PatchStatus {
-    class SyntaxError : std::exception {
+    class SyntaxError : public std::exception {
     };
-    class NotFound : std::exception {
+    class NotFound : public std::exception {
     };
 }
 
 void apply_patches();
+void apply_v6_patches();
 void apply_user_patch(std::string patchstr);
+void patch_load_file(const std::string &file);
 
 #endif

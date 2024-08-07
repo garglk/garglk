@@ -5,13 +5,11 @@
 
 #include <array>
 #include <exception>
-#include <memory>
 #include <string>
 
-#include "stack.h"
 #include "types.h"
 
-class Exit : std::exception {
+class Exit : public std::exception {
 public:
     explicit Exit(int code) : m_code(code) {
     }
@@ -24,53 +22,9 @@ private:
     int m_code;
 };
 
-constexpr unsigned long DEFAULT_INT_NUMBER = 1; // DEC
-
-struct Options {
-    unsigned long eval_stack_size = DEFAULT_STACK_SIZE;
-    unsigned long call_stack_size = DEFAULT_CALL_DEPTH;
-    bool disable_color = false;
-    bool disable_config = false;
-    bool disable_timed = false;
-    bool disable_sound = false;
-    bool enable_escape = false;
-    std::unique_ptr<std::string> escape_string = std::make_unique<std::string>("1m");
-    bool disable_fixed = false;
-    bool assume_fixed = false;
-    bool disable_graphics_font = false;
-    bool enable_alt_graphics = false;
-    bool disable_history_playback = false;
-    bool show_id = false;
-    bool disable_term_keys = false;
-    std::unique_ptr<std::string> username = nullptr;
-    bool disable_meta_commands = false;
-    unsigned long int_number = DEFAULT_INT_NUMBER;
-    unsigned char int_version = 'C';
-    bool disable_patches = false;
-    bool replay_on = false;
-    std::unique_ptr<std::string> replay_name = nullptr;
-    bool record_on = false;
-    std::unique_ptr<std::string> record_name = nullptr;
-    bool transcript_on = false;
-    std::unique_ptr<std::string> transcript_name = nullptr;
-    unsigned long undo_slots = 100;
-    bool show_version = false;
-    bool disable_abbreviations = false;
-    bool enable_censorship = false;
-    bool overwrite_transcript = false;
-    bool override_undo = false;
-    std::unique_ptr<unsigned long> random_seed;
-    std::unique_ptr<std::string> random_device = nullptr;
-
-    bool autosave = false;
-    bool persistent_transcript = false;
-    std::unique_ptr<std::string> editor = nullptr;
-};
-
 extern std::string game_file;
-extern Options options;
 
-#define ZTERP_VERSION	"2.1.2"
+#define ZTERP_VERSION	"2.2"
 
 // v3
 constexpr uint8_t FLAGS1_STATUSTYPE  = 1U << 1;
@@ -101,7 +55,7 @@ constexpr uint16_t FLAGS2_MENUS      = 1U << 8;
 
 #define status_is_time()	(zversion == 3 && (byte(0x01) & FLAGS1_STATUSTYPE))
 #define timer_available()	(zversion >= 4 && (byte(0x01) & FLAGS1_TIMED))
-#define mouse_available()	(zversion == 5 && (word(0x10) & FLAGS2_MOUSE))
+#define mouse_available()	(zversion >= 5 && (word(0x10) & FLAGS2_MOUSE))
 
 struct Header {
     uint16_t pc;
@@ -109,7 +63,7 @@ struct Header {
     uint16_t dictionary;
     uint16_t objects;
     uint16_t globals;
-    uint32_t static_start;
+    uint16_t static_start;
     uint16_t static_end;
     uint16_t abbr;
     uint32_t file_length;
@@ -129,11 +83,15 @@ extern std::array<uint8_t, 26 * 3> atable;
 const std::string &get_story_id();
 
 enum class Game {
+    Arthur,
     Infocom1234,
     Journey,
     LurkingHorror,
     Planetfall,
+    Shogun,
     Stationfall,
+    ZorkZero,
+    MysteriousAdventures,
 };
 
 bool is_game(Game game);
@@ -148,7 +106,9 @@ void store(uint16_t v);
 void zterp_mouse_click(uint16_t x, uint16_t y);
 
 void znop();
+[[noreturn]]
 void zrestart();
+[[noreturn]]
 void zquit();
 void zverify();
 void zpiracy();

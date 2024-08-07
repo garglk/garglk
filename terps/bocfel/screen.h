@@ -33,11 +33,21 @@ struct Color {
 
     Color(Mode mode_, uint16_t value_) : mode(mode_), value(value_) {
     }
+
+    uint16_t as_zcolor() const {
+        // For now, true color returns default.
+        if (mode == Mode::True) {
+            return 1;
+        }
+
+        return value;
+    }
 };
 
 void init_screen(bool first_run);
 
 bool create_mainwin();
+void create_graphicswin();
 bool create_statuswin();
 bool create_upperwin();
 void get_screen_size(unsigned int &width, unsigned int &height);
@@ -58,6 +68,7 @@ enum StyleBit {
 zprintflike(1, 2)
 void show_message(const char *fmt, ...);
 void screen_print(const std::string &s);
+void screen_putc(uint32_t c);
 zprintflike(1, 2)
 void screen_printf(const char *fmt, ...);
 void screen_puts(const std::string &s);
@@ -65,23 +76,30 @@ void screen_message_prompt(const std::string &message);
 void screen_flush();
 
 #ifdef ZTERP_GLK
-void term_keys_reset();
-void term_keys_add(uint8_t key);
-#endif
 
 #ifdef GLK_MODULE_GARGLKTEXT
 void update_color(int which, unsigned long color);
 #endif
 
+#ifdef ZTERP_GLK_BLORB
+void screen_load_scale_info(const std::string &blorb_file);
+#endif
+
+#endif
+
 // Output streams.
-constexpr uint16_t OSTREAM_SCREEN = 1;
-constexpr uint16_t OSTREAM_SCRIPT = 2;
-constexpr uint16_t OSTREAM_MEMORY = 3;
-constexpr uint16_t OSTREAM_RECORD = 4;
+enum : int {
+    OSTREAM_SCREEN     = 1,
+    OSTREAM_TRANSCRIPT = 2,
+    OSTREAM_MEMORY     = 3,
+    OSTREAM_RECORD     = 4,
+};
 
 // Input streams.
-constexpr int ISTREAM_KEYBOARD = 0;
-constexpr int ISTREAM_FILE     = 1;
+enum : int {
+    ISTREAM_KEYBOARD = 0,
+    ISTREAM_FILE     = 1,
+};
 
 void screen_set_header_bit(bool set);
 
@@ -99,6 +117,7 @@ IFF::TypeID screen_write_bfhs(IO &io);
 void screen_read_bfts(IO &io, uint32_t size);
 IFF::TypeID screen_write_bfts(IO &io);
 void screen_save_persistent_transcript();
+void screen_show_persistent_transcript();
 
 void zoutput_stream();
 void zinput_stream();
@@ -125,10 +144,13 @@ void zshow_status();
 void zread();
 void zprint_unicode();
 void zcheck_unicode();
+void zdraw_picture();
 void zpicture_data();
 void zget_wind_prop();
 void zprint_form();
 void zmake_menu();
 void zbuffer_screen();
+
+void zjourney_dial();
 
 #endif

@@ -70,7 +70,7 @@ uint16_t char_to_unicode(char c);
 
 bool valid_unicode(uint16_t c);
 
-#ifdef ZTERP_DOS
+#ifdef ZTERP_OS_DOS
 uint8_t unicode_to_437(uint16_t c);
 #endif
 

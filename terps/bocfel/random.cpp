@@ -15,14 +15,16 @@
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <cerrno>
+#include <chrono>
 #include <climits>
 #include <cstring>
-#include <ctime>
 #include <fstream>
+#include <memory>
 
 #include "random.h"
 #include "iff.h"
 #include "io.h"
+#include "options.h"
 #include "process.h"
 #include "stash.h"
 #include "types.h"
@@ -108,8 +110,8 @@ static void seed_random(uint32_t seed)
         mode = Mode::Random;
 
         if (options.random_seed == nullptr) {
-            std::time_t t = std::time(nullptr);
-            unsigned char *p = reinterpret_cast<unsigned char *>(&t);
+            auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            const unsigned char *p = reinterpret_cast<const unsigned char *>(&t);
             uint32_t s = 0;
 
             // time_t hashing based on code by Lawrence Kirby.
@@ -129,7 +131,7 @@ static void seed_random(uint32_t seed)
 }
 
 enum class RNGType {
-    XORShift = 0,
+    XORShift32 = 0,
 };
 
 IFF::TypeID random_write_rand(IO &io)
@@ -138,10 +140,10 @@ IFF::TypeID random_write_rand(IO &io)
         return IFF::TypeID();
     }
 
-    io.write16(static_cast<uint16_t>(RNGType::XORShift));
+    io.write16(static_cast<uint16_t>(RNGType::XORShift32));
     io.write32(xstate);
 
-    return IFF::TypeID(&"Rand");
+    return IFF::TypeID("Rand");
 }
 
 void random_read_rand(IO &io)
@@ -156,34 +158,33 @@ void random_read_rand(IO &io)
         return;
     }
 
-    if (rng_type == static_cast<uint16_t>(RNGType::XORShift) && state != 0) {
+    if (rng_type == static_cast<uint16_t>(RNGType::XORShift32) && state != 0) {
         xstate = state;
         mode = Mode::Predictable;
     }
 }
 
-static struct {
-    Mode mode;
-    uint32_t xstate;
-} stash;
+class RandomStasher : public Stasher {
+public:
+    void backup() override {
+        m_mode = mode;
+        m_xstate = xstate;
+    }
 
-static void random_stash_backup()
-{
-    stash.mode = mode;
-    stash.xstate = xstate;
-}
+    bool restore() override {
+        mode = m_mode;
+        xstate = m_xstate;
 
-static bool random_stash_restore()
-{
-    mode = stash.mode;
-    xstate = stash.xstate;
+        return true;
+    }
 
-    return true;
-}
+    void free() override {
+    }
 
-static void random_stash_free()
-{
-}
+private:
+    Mode m_mode = Mode::Random;
+    uint32_t m_xstate = 0;
+};
 
 void init_random(bool first_run)
 {
@@ -197,7 +198,7 @@ void init_random(bool first_run)
             }
         }
 
-        stash_register(random_stash_backup, random_stash_restore, random_stash_free);
+        stash_register(std::make_unique<RandomStasher>());
     }
 }
 

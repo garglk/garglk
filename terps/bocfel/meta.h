@@ -18,7 +18,7 @@ enum class MetaResult {
 std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, uint8_t len);
 
 #ifndef ZTERP_NO_CHEAT
-bool cheat_add(std::string how, bool print);
+bool cheat_add(const std::string &how, bool print);
 bool cheat_find_freeze(uint32_t addr, uint16_t &val);
 #endif
 

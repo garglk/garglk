@@ -196,7 +196,7 @@ IO::IO(std::vector<uint8_t> buf, Mode mode) :
 // represents the state of the “file” at the time the function is
 // called. The reference is only valid until the next call to an I/O
 // method on this same I/O instance.
-const std::vector<uint8_t> &IO::get_memory()
+const std::vector<uint8_t> &IO::get_memory() const
 {
     if (m_type != Type::Memory) {
         throw std::runtime_error("not a memory object");
@@ -261,7 +261,7 @@ void IO::seek(long offset, SeekFrom whence)
     }
 }
 
-long IO::tell()
+long IO::tell() const
 {
     switch (m_type) {
     case Type::StandardIO: {
@@ -424,7 +424,7 @@ uint16_t IO::read16()
 
     read_exact(buf, sizeof buf);
 
-    return ((static_cast<uint16_t>(buf[0]) << 8)) | (static_cast<uint16_t>(buf[1]));
+    return (static_cast<uint16_t>(buf[0]) << 8) | (static_cast<uint16_t>(buf[1]));
 }
 
 uint32_t IO::read32()
@@ -481,7 +481,7 @@ long IO::getc(bool limit16)
 {
     long ret;
     uint8_t c;
-    struct NotUnicode : std::exception {};
+    class NotUnicode : public std::exception {};
 
     try {
         c = read8();
@@ -506,15 +506,24 @@ long IO::getc(bool limit16)
         } else if ((c & 0xe0) == 0xc0) { // Two bytes.
             ret = (c & 0x1f) << 6;
             ret |= (read_byte() & 0x3f);
+            if (ret < 0x80) {
+                throw NotUnicode();
+            }
         } else if ((c & 0xf0) == 0xe0) { // Three bytes.
             ret = (c & 0x0f) << 12;
             ret |= (read_byte() & 0x3f) << 6;
             ret |= (read_byte() & 0x3f);
+            if (ret < 0x800) {
+                throw NotUnicode();
+            }
         } else if ((c & 0xf8) == 0xf0) { // Four bytes.
             ret = (static_cast<long>(c) & 0x07) << 18;
             ret |= (read_byte() & 0x3f) << 12;
             ret |= (read_byte() & 0x3f) << 6;
             ret |= (read_byte() & 0x3f);
+            if (ret < 0x10000) {
+                throw NotUnicode();
+            }
         } else { // Invalid value.
             ret = UNICODE_REPLACEMENT;
         }
@@ -524,7 +533,7 @@ long IO::getc(bool limit16)
         return UNICODE_REPLACEMENT;
     }
 
-    if (limit16 && ret > UINT16_MAX) {
+    if (ret > (limit16 ? UINT16_MAX : 0x10ffff)) {
         ret = UNICODE_REPLACEMENT;
     }
 
@@ -568,8 +577,9 @@ void IO::putc(uint32_t c)
 // characters terminated by a Unicode linefeed (0xa). If EOF is
 // encountered at any point (including after characters have been read,
 // but before a linefeed), EndOfFile is thrown, which means that all
-// lines, including the last one, must end in a linefeed. Any characters
-// read before the EOF can be considered lost and unrecoverable.
+// lines, including the last one, must end in a linefeed. If the last
+// line does not end in a linefeed, its characters will be read, but
+// ultimately discarded, so can be considered lost and unrecoverable.
 std::vector<uint16_t> IO::readline()
 {
     std::vector<uint16_t> result;
@@ -591,7 +601,7 @@ std::vector<uint16_t> IO::readline()
     return result;
 }
 
-long IO::filesize()
+long IO::filesize() const
 {
     switch (m_type) {
     case Type::StandardIO:
