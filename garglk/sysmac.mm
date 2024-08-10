@@ -229,9 +229,9 @@ std::string garglk::winsavefile(const char *prompt, FileFilter filter)
     return buf;
 }
 
-void winclipstore(const glui32 *text, int len)
+void winclipstore(const std::vector<glui32> &text)
 {
-    if (!len) {
+    if (text.empty()) {
         return;
     }
 
@@ -240,8 +240,8 @@ void winclipstore(const glui32 *text, int len)
         cliptext = nil;
     }
 
-    cliptext = [[NSString alloc] initWithBytes: text
-                                        length: (len * sizeof(glui32))
+    cliptext = [[NSString alloc] initWithBytes: text.data()
+                                        length: (text.size() * sizeof(glui32))
                                       encoding: UTF32StringEncoding];
 }
 

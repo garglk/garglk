@@ -991,7 +991,6 @@ struct window_textbuffer_t {
 
     // for copy selection
     std::vector<glui32> copybuf;
-    int copypos = 0;
 };
 
 struct window_graphics_t {
@@ -1121,7 +1120,7 @@ void winmore();
 void winrepaint(int x0, int y0, int x1, int y1);
 bool windark();
 void winexit();
-void winclipstore(const glui32 *text, int len);
+void winclipstore(const std::vector<glui32> &text);
 
 void fontload();
 void fontunload();
@@ -1177,7 +1176,7 @@ glui32 gli_get_hyperlink(int x, int y);
 void gli_clear_selection();
 bool gli_check_selection(int x0, int y0, int x1, int y1);
 bool gli_get_selection(int x0, int y0, int x1, int y1, int *rx0, int *rx1);
-void gli_clipboard_copy(const glui32 *buf, int len);
+void gli_clipboard_copy(const std::vector<glui32> &buf);
 void gli_start_selection(int x, int y);
 void gli_resize_mask(unsigned int x, unsigned int y);
 void gli_move_selection(int x, int y);

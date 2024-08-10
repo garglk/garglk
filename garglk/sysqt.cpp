@@ -218,9 +218,9 @@ std::string garglk::winsavefile(const char *prompt, FileFilter filter)
     return winchoosefile(realprompt, filter, Action::Save);
 }
 
-void winclipstore(const glui32 *text, int len)
+void winclipstore(const std::vector<glui32> &text)
 {
-    cliptext = QString::fromUcs4(reinterpret_cast<const char32_t *>(text), len);
+    cliptext = QString::fromUcs4(reinterpret_cast<const char32_t *>(text.data()), text.size());
 }
 
 static void winclipsend(QClipboard::Mode mode)
