@@ -385,7 +385,7 @@ bool gli_get_selection(int x0, int y0,
     return true;
 }
 
-void gli_clipboard_copy(const glui32 *buf, int len)
+void gli_clipboard_copy(const std::vector<glui32> &buf)
 {
-    winclipstore(buf, len);
+    winclipstore(buf);
 }

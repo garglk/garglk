@@ -231,11 +231,7 @@ void win_textbuffer_rearrange(window_t *win, rect_t *box)
         }
         touchscroll(dwin);
 
-        // allocate copy buffer
-        dwin->copybuf.resize(dwin->height * TBLINELEN);
-        std::fill(dwin->copybuf.begin(), dwin->copybuf.end(), 0);
-
-        dwin->copypos = 0;
+        dwin->copybuf.clear();
     }
 }
 
@@ -429,14 +425,12 @@ void win_textbuffer_redraw(window_t *win)
             if (selchar) {
                 for (tsc = lsc; tsc <= rsc; tsc++) {
                     ln.attrs[tsc].reverse = !ln.attrs[tsc].reverse;
-                    dwin->copybuf[dwin->copypos] = ln.chars[tsc];
-                    dwin->copypos++;
+                    dwin->copybuf.push_back(ln.chars[tsc]);
                 }
             }
             // add newline if we reach the end of the line
             if (ln.len == 0 || ln.len == (rsc + 1)) {
-                dwin->copybuf[dwin->copypos] = '\n';
-                dwin->copypos++;
+                dwin->copybuf.push_back('\n');
             }
         }
 
@@ -656,13 +650,10 @@ void win_textbuffer_redraw(window_t *win)
     }
 
     // send selected text to clipboard
-    if (selbuf && dwin->copypos != 0) {
+    if (selbuf && !dwin->copybuf.empty()) {
         gli_claimselect = true;
-        gli_clipboard_copy(dwin->copybuf.data(), dwin->copypos);
-        for (i = 0; i < dwin->copypos; i++) {
-            dwin->copybuf[i] = 0;
-        }
-        dwin->copypos = 0;
+        gli_clipboard_copy(dwin->copybuf);
+        dwin->copybuf.clear();
     }
 
     // no more prompt means all text has been seen
