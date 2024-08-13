@@ -182,8 +182,10 @@ void winexit()
 
 static NSString *get_savedir(FileFilter filter)
 {
-    if (gli_conf_dedicated_gamedata_directory && gli_workfile.has_value()) {
+    if (gli_conf_gamedata_location == GamedataLocation::Dedicated && gli_workfile.has_value()) {
         return [NSString stringWithUTF8String: gli_workfile->c_str()];
+    } else if (gli_conf_gamedata_location == GamedataLocation::Gamedir) {
+        return [NSString stringWithUTF8String: gli_workdir.c_str()];
     }
 
     return nil;
