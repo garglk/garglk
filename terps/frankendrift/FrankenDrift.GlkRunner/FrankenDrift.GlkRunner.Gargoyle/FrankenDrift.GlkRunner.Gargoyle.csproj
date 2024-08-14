@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	  <OutputType>WinExe</OutputType>
+	  <StartupObject>FrankenDrift.GlkRunner.Gargoyle.GarGlkRunner</StartupObject>
+	  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+	
+	
+	<ItemGroup>
+		<ProjectReference Include="..\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.csproj" />
+	</ItemGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
+		<PublishAot>true</PublishAot>
+		<TrimmerSingleWarn>false</TrimmerSingleWarn>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="('$(TargetFramework)' == 'net8.0' And (!$(RuntimeIdentifier.StartsWith('win'))) And '$(GarglkStatic)'!='false') Or ('$(GarglkStatic)'=='true')">
+		<DefineConstants>GarglkStatic</DefineConstants>
+		<GarglkStatic>true</GarglkStatic>
+	</PropertyGroup>
+
+	<ItemGroup Condition="'$(GarglkStatic)' == 'true' And (!$(RuntimeIdentifier.StartsWith('win')))">
+		<DirectPInvoke Include="garglk" />
+		<NativeLibrary Include="libgarglk.a" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(GarglkStatic)' == 'true' And $(RuntimeIdentifier.StartsWith('win'))">
+		<DirectPInvoke Include="garglk" />
+		<NativeLibrary Include="garglk.lib" />
+	</ItemGroup>
+
+</Project>

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>FrankenDrift.Adrift</RootNamespace>
+    <TargetFramework>net8.0</TargetFramework>
+    <DefineConstants>Runner=True,Adravalon=True</DefineConstants>
+	<VersionPrefix>0.7.1</VersionPrefix>
+	  <VersionSuffix>indev</VersionSuffix>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FrankenDrift.Glue\FrankenDrift.Glue.csproj" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<TrimmableAssembly Include="FrankenDrift.Adrift" />
+	</ItemGroup>
+
+</Project>
