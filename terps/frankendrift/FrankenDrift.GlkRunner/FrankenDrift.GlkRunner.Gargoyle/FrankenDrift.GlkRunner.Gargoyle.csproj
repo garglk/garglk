@@ -32,5 +32,12 @@
 		<DirectPInvoke Include="garglk" />
 		<NativeLibrary Include="garglk.lib" />
 	</ItemGroup>
+	<PropertyGroup Condition="('$(GarglkStatic)'=='false') And ($(RuntimeIdentifier.StartsWith('osx')))">
+		<DefineConstants>GarglkStatic</DefineConstants>
+	</PropertyGroup>
+	<ItemGroup Condition="('$(GarglkStatic)'=='false') And ($(RuntimeIdentifier.StartsWith('osx')))">
+		<DirectPInvoke Include="garglk" />
+		<NativeLibrary Include="libgarglk.dylib" />
+	</ItemGroup>
 
 </Project>
