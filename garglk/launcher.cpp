@@ -45,6 +45,7 @@
 #include "launcher.h"
 
 #define T_ADRIFT    "scare"
+#define T_ADRIFT5   "FrankenDrift.GlkRunner.Gargoyle"
 #define T_ADVSYS    "advsys"
 #define T_AGT       "agility"
 #define T_ALAN2     "alan2"
@@ -158,6 +159,7 @@ static const std::unordered_map<std::string, Format> extensions = {
 // Map formats to default interpreters
 static const std::unordered_map<Format, Interpreter> interpreters = {
     {Format::Adrift, Interpreter(T_ADRIFT)},
+	{Format::Adrift5, Interpreter(T_ADRIFT5)},
     {Format::AdvSys, Interpreter(T_ADVSYS)},
     {Format::AGT, Interpreter(T_AGT, {"-gl"})},
     {Format::Alan2, Interpreter(T_ALAN2)},
