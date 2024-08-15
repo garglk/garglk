@@ -46,13 +46,29 @@ mkdir -p "$BUNDLE/Resources/Fonts"
 mkdir -p "$BUNDLE/Resources/themes"
 mkdir -p "$BUNDLE/PlugIns"
 
+INITIAL_WORKDIR=`pwd`
 rm -rf $GARGDIST
 mkdir -p build-osx
 cd build-osx
-cmake .. -DBUILD_SHARED_LIBS=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOS_MIN_VER} -DDIST_INSTALL=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_FRAMEWORK=LAST -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+cmake .. -DBUILD_SHARED_LIBS=ON -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOS_MIN_VER} -DDIST_INSTALL=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_FRAMEWORK=LAST -DCMAKE_EXPORT_COMPILE_COMMANDS=1
 make "-j${NUMJOBS}"
 make install
 cd -
+
+# Build FrankenDrift through dotnet
+ln "$GARGDIST/libgarglk.dylib" terps/frankendrift/FrankenDrift.GlkRunner/FrankenDrift.GlkRunner.Gargoyle/libgarglk.dylib
+cd "terps/frankendrift/FrankenDrift.GlkRunner/FrankenDrift.GlkRunner.Gargoyle/"
+dotnet publish --self-contained -c Release --os osx -p:GarglkStatic=false
+cp bin/Release/net8.0/osx-*/publish/FrankenDrift.GlkRunner.Gargoyle "$INITIAL_WORKDIR/$GARGDIST"
+# clean up after us
+rm -r bin/ obj/ libgarglk.dylib
+cd ../FrankenDrift.GlkRunner
+rm -r bin/ obj/
+cd ../../FrankenDrift.Glue
+rm -r bin/ obj/
+cd ../FrankenDrift.Adrift
+rm -r bin/ obj/
+cd $INITIAL_WORKDIR
 
 # Copy the main executable to the MacOS directory;
 cp "$GARGDIST/gargoyle" "$BUNDLE/MacOS/Gargoyle"
@@ -115,6 +131,10 @@ find "${BUNDLE}" -type f -print0 | while IFS= read -r -d "" file_path
 do
   find "${GARGDIST}" -type f -name '*.dylib' -exec install_name_tool -change "@executable_path/$(basename "{}")" "@executable_path/../Frameworks/$(basename "{}")" "${file_path}" \;
 done
+
+# Ensure interpreters can find libgarglk
+find Gargoyle.app/Contents/PlugIns/ -type f -exec install_name_tool -add_rpath '@executable_path/../Frameworks' {} \;
+install_name_tool -add_rpath '@executable_path/../Frameworks' "$BUNDLE/MacOS/Gargoyle"
 
 echo "Copying additional support files..."
 /usr/bin/sed -E -e "s/INSERT_VERSION_HERE/$GARVERSION/" garglk/launcher.plist > $BUNDLE/Info.plist
