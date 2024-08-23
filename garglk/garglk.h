@@ -667,7 +667,13 @@ extern bool gli_claimselect;
 
 extern bool gli_conf_per_game_config;
 
-extern bool gli_conf_dedicated_gamedata_directory;
+enum class GamedataLocation {
+    Default,
+    Dedicated,
+    Gamedir,
+};
+
+extern GamedataLocation gli_conf_gamedata_location;
 
 enum class Scaler {
     None,

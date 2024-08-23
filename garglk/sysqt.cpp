@@ -171,7 +171,7 @@ static std::string winchoosefile(const QString &prompt, FileFilter filter, Actio
 
     QString dir = "";
 
-    if (gli_conf_dedicated_gamedata_directory && gli_workfile.has_value()) {
+    if (gli_conf_gamedata_location == GamedataLocation::Dedicated && gli_workfile.has_value()) {
         auto path = QFileInfo(QString::fromStdString(*gli_workfile));
         if (!path.fileName().isEmpty()) {
             QDir basedir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
@@ -180,6 +180,8 @@ static std::string winchoosefile(const QString &prompt, FileFilter filter, Actio
                 dir = savepath.absolutePath();
             }
         }
+    } else if (gli_conf_gamedata_location == GamedataLocation::Gamedir) {
+        dir = QString::fromStdString(gli_workdir);
     }
 
     if (action == Action::Open) {
