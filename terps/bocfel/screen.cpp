@@ -549,6 +549,8 @@ static void xglk_put_char_stream(strid_t s, uint32_t c)
 }
 #endif
 
+static bool set_force_fixed = false;
+
 static void set_window_style(const Window *win)
 {
 #ifdef ZTERP_GLK
@@ -559,6 +561,10 @@ static void set_window_style(const Window *win)
 
 #ifdef GLK_MODULE_GARGLKTEXT
     if (curwin->font == Window::Font::Fixed || header_fixed_font) {
+        style.set(STYLE_FIXED);
+    }
+
+    if (curwin == mainwin && set_force_fixed) {
         style.set(STYLE_FIXED);
     }
 
@@ -574,6 +580,10 @@ static void set_window_style(const Window *win)
 #else
     // Yes, there are three ways to indicate that a fixed-width font should be used.
     bool use_fixed_font = style.test(STYLE_FIXED) || curwin->font == Window::Font::Fixed || header_fixed_font;
+
+    if (curwin == mainwin && set_force_fixed) {
+        use_fixed_font = true;
+    }
 
     // Glk can’t mix other styles with fixed-width, but the upper window
     // is always fixed, so if it is selected, there is no need to
@@ -602,6 +612,13 @@ static void set_window_style(const Window *win)
 #else
     zterp_os_set_style(win->style, win->fg_color, win->bg_color);
 #endif
+}
+
+bool screen_toggle_force_fixed()
+{
+    set_force_fixed = !set_force_fixed;
+    set_window_style(mainwin);
+    return set_force_fixed;
 }
 
 static void set_current_style()
@@ -1548,7 +1565,7 @@ bool GraphicsWindow::resize(Type type)
             {GraphicsWindow::Type::ArthurBanner, {320, 96}},
             {GraphicsWindow::Type::ArthurDemon, {254, 164}},
             {GraphicsWindow::Type::ZorkZeroTitle, {320, 240}},
-            {GraphicsWindow::Type::ZorkZeroBorder, {320, 40}},
+            {GraphicsWindow::Type::ZorkZeroBorder, {320, 39}},
             {GraphicsWindow::Type::ZorkZero320, {320, 200}},
             {GraphicsWindow::Type::ShogunMaze, {274, 140}},
             {GraphicsWindow::Type::Mysterious, {512, 208}},

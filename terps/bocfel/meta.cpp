@@ -838,6 +838,12 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
         } else {
             screen_puts("[Cannot determine configuration file location]");
         }
+    } else if (command == "fixed") {
+        if (screen_toggle_force_fixed()) {
+            screen_puts("[Force fixed font on]");
+        } else {
+            screen_puts("[Force fixed font off]");
+        }
     } else if (command == "debug") {
         meta_debug(rest);
     } else if ZEROARG("quit") {
@@ -875,6 +881,7 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
                 "/disable: disable these commands for the rest of this session\n"
                 "/say [command]: pretend like [command] was typed\n"
                 "/config: open the config file in a text editor\n"
+                "/fixed: toggle forced fixed-width font in the main window\n"
                 "/debug [...]: perform a debugging operation\n"
                 "/quit: quit immediately (as if the @quit opcode were executed)\n"
                 "/info: display some info about the current game\n"

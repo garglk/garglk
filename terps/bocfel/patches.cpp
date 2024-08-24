@@ -487,6 +487,10 @@ static std::vector<Patch> base_patches = {
         "Wishbringer", "880706", 23, 0x4222,
         {{ 0x1f910, 1, {0xbc}, {0xb4} }},
     },
+
+#ifdef ZTERP_STATIC_PATCH_FILE
+#include ZTERP_STATIC_PATCH_FILE
+#endif
 };
 
 // These patches help with the V6 hacks.
