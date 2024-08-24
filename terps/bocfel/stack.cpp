@@ -113,7 +113,12 @@ private:
         } else {
             std::ostringstream formatted_time;
 
-            formatted_time.imbue(std::locale(""));
+            try {
+                formatted_time.imbue(std::locale(""));
+            } catch (...) {
+                // If the locale is invalid, don’t worry about it.
+            }
+
             formatted_time << std::put_time(lt, "%c");
 
             return formatted_time.str();

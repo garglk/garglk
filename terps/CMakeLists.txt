@@ -165,7 +165,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Bocfel 2.2
+# Bocfel 2.2.1
 #
 if(WITH_BOCFEL)
     set(BOCFEL_MACROS ZTERP_GLK ZTERP_GLK_BLORB ZTERP_GLK_UNIX)

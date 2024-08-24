@@ -24,7 +24,7 @@ private:
 
 extern std::string game_file;
 
-#define ZTERP_VERSION	"2.2"
+#define ZTERP_VERSION	"2.2.1"
 
 // v3
 constexpr uint8_t FLAGS1_STATUSTYPE  = 1U << 1;
