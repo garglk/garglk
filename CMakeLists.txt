@@ -68,6 +68,7 @@ if(UNIX AND NOT DIST_INSTALL)
     endif()
 endif()
 
+option(WITH_FRANKENDRIFT "Indicates that the FrankenDrift interpreter for ADRIFT 5 games will be made available" OFF)
 add_subdirectory(garglk)
 
 # xBRZ requires C++17.
@@ -85,4 +86,5 @@ if(WITH_BABEL)
 endif()
 
 include(FeatureSummary)
+add_feature_info(FrankenDrift WITH_FRANKENDRIFT "Indicates to the Gargoyle launcher that the FrankenDrift interpreter will be made available.")
 feature_summary(WHAT ALL)
