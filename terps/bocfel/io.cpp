@@ -35,6 +35,20 @@ extern "C" {
 #include "unicode.h"
 #include "util.h"
 
+#ifdef ZTERP_NO_STDIO
+#ifndef ZTERP_GLK_UNIX
+#error ZTERP_NO_STDIO requires a Unix Glk
+#endif
+
+#include <glkstart.h>
+
+#ifndef GLKUNIX_FILEREF_CREATE_UNCLEANED
+#error ZTERP_NO_STDIO requires the extension glkunix_fileref_create_by_name_uncleaned
+// Prototype so that usage of this function doesn’t cause a compile error.
+frefid_t glkunix_fileref_create_by_name_uncleaned(glui32 usage, const char *name, glui32 rock);
+#endif
+#endif
+
 // Due to C++’s less-than-ideal type system, there’s no way to guarantee
 // that an enum class actually contains a valid value. When checking the
 // value of the I/O object’s type, this method is used as a sort of
@@ -70,6 +84,8 @@ IO::IO(const std::string *filename, Mode mode, Purpose purpose) :
     m_mode(mode),
     m_purpose(purpose)
 {
+
+#if !defined(ZTERP_GLK) || !defined(ZTERP_NO_STDIO)
     char smode[] = "wb";
 
     if (m_mode == Mode::ReadOnly) {
@@ -81,62 +97,28 @@ IO::IO(const std::string *filename, Mode mode, Purpose purpose) :
     if (textmode()) {
         smode[1] = 0;
     }
+#endif
 
     // No need to prompt.
     if (filename != nullptr) {
+        // Use stdio in non-Glk mode always, and in Glk mode unless
+        // non-stdio mode is requested.
+#if !defined(ZTERP_GLK) || !defined(ZTERP_NO_STDIO)
         m_type = Type::StandardIO;
         m_file = File(std::fopen(filename->c_str(), smode), true);
         if (m_file.stdio == nullptr) {
             throw OpenError();
         }
+#else
+        open_as_glk([&filename](glui32 usage, glui32) {
+            return glkunix_fileref_create_by_name_uncleaned(usage, filename->c_str(), 0);
+        });
+#endif
     } else { // Prompt.
 #ifdef ZTERP_GLK
-        frefid_t ref;
-        glui32 usage, filemode;
-        usage = fileusage_BinaryMode;
-
-        switch (m_purpose) {
-        case Purpose::Data:
-            usage |= fileusage_Data;
-            break;
-        case Purpose::Save:
-            usage |= fileusage_SavedGame;
-            break;
-        case Purpose::Transcript:
-            usage |= fileusage_Transcript;
-            break;
-        case Purpose::Input:
-            usage |= fileusage_InputRecord;
-            break;
-        default:
-            throw OpenError();
-        }
-
-        switch (m_mode) {
-        case Mode::ReadOnly:
-            filemode = filemode_Read;
-            break;
-        case Mode::WriteOnly:
-            filemode = filemode_Write;
-            break;
-        case Mode::Append:
-            filemode = filemode_WriteAppend;
-            break;
-        default:
-            throw OpenError();
-        }
-
-        ref = glk_fileref_create_by_prompt(usage, filemode, 0);
-        if (ref == nullptr) {
-            throw OpenError();
-        }
-
-        m_type = Type::Glk;
-        m_file = File(glk_stream_open_file(ref, filemode, 0));
-        glk_fileref_destroy(ref);
-        if (m_file.glk == nullptr) {
-            throw OpenError();
-        }
+        open_as_glk([](glui32 usage, glui32 filemode) {
+            return glk_fileref_create_by_prompt(usage, filemode, 0);
+        });
 #else
         std::string fn, prompt;
 
@@ -170,6 +152,58 @@ IO::IO(const std::string *filename, Mode mode, Purpose purpose) :
 #endif
     }
 }
+
+#ifdef ZTERP_GLK
+void IO::open_as_glk(const std::function<frefid_t(glui32 usage, glui32 filemode)> &create_fref)
+{
+    frefid_t ref;
+    glui32 usage, filemode;
+    usage = fileusage_BinaryMode;
+
+    switch (m_purpose) {
+    case Purpose::Data:
+        usage |= fileusage_Data;
+        break;
+    case Purpose::Save:
+        usage |= fileusage_SavedGame;
+        break;
+    case Purpose::Transcript:
+        usage |= fileusage_Transcript;
+        break;
+    case Purpose::Input:
+        usage |= fileusage_InputRecord;
+        break;
+    default:
+        throw OpenError();
+    }
+
+    switch (m_mode) {
+    case Mode::ReadOnly:
+        filemode = filemode_Read;
+        break;
+    case Mode::WriteOnly:
+        filemode = filemode_Write;
+        break;
+    case Mode::Append:
+        filemode = filemode_WriteAppend;
+        break;
+    default:
+        throw OpenError();
+    }
+
+    ref = create_fref(usage, filemode);
+    if (ref == nullptr) {
+        throw OpenError();
+    }
+
+    m_type = Type::Glk;
+    m_file = File(glk_stream_open_file(ref, filemode, 0));
+    glk_fileref_destroy(ref);
+    if (m_file.glk == nullptr) {
+        throw OpenError();
+    }
+}
+#endif
 
 // Instead of being file-backed, indicate that this I/O object is
 // memory-backed. This allows internal save states (for @save_undo as
@@ -612,8 +646,13 @@ long IO::filesize() const
     case Type::Memory:
         return m_file.backing.memory.size();
 #ifdef ZTERP_GLK
-    case Type::Glk:
-        break;
+    case Type::Glk: {
+        auto orig = glk_stream_get_position(m_file.glk.get());
+        glk_stream_set_position(m_file.glk.get(), 0, seekmode_End);
+        long size = glk_stream_get_position(m_file.glk.get());
+        glk_stream_set_position(m_file.glk.get(), orig, seekmode_Start);
+        return size;
+    }
 #endif
     }
 

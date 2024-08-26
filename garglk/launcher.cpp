@@ -105,7 +105,7 @@ static nonstd::optional<Format> probe(const std::array<char, 32> &header)
     std::vector<std::pair<std::string, Format>> magic = {
         {R"(^[\x01-\x08][\s\S]{17}\d{6})", Format::ZCode},
         {R"(^TADS2 bin\x0a\x0d\x1a)", Format::TADS},
-        {R"(^T3-image\x0d\x0a\x1a(\x01|\x02)\x00)", Format::TADS},
+        {R"(^T3-image\x0d\x0a\x1a[\x01\x02]\x00)", Format::TADS},
         {R"(^Glul)", Format::Glulx},
         {R"(^MaSc[\s\S]{4}\x00\x00\x00\x2a\x00[\x00\x01\x02\x03\x04])", Format::Magnetic},
         {R"(^\x3c\x42\x3f\xc9\x6a\x87\xc2\xcf[\x93\x94]\x45)", Format::Adrift},
@@ -114,7 +114,7 @@ static nonstd::optional<Format> probe(const std::array<char, 32> &header)
         {R"(^[\s\S]{2}\xa0\x9d\x8b\x8e\x88\x8e)", Format::AdvSys},
         {R"(^[\x16\x18\x19\x1e\x1f][\s\S]{2}\d\d-\d\d-\d\d)", Format::Hugo},
         {R"(^[\s\S]{3}\x9b\x36\x21[\s\S]{18}\xff)", Format::Level9},
-        {R"(^(\x02\x07\x05|\x02\x08[\x01\x02\x03\x07]))", Format::Alan2},
+        {R"(^\x02(\x07\x05|\x08[\x01\x02\x03\x07]))", Format::Alan2},
         {R"(^ALAN\x03)", Format::Alan3},
     };
 

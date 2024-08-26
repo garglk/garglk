@@ -139,6 +139,10 @@ private:
     [[noreturn]] void bad_type() const;
     bool textmode() const;
 
+#ifdef ZTERP_GLK
+    void open_as_glk(const std::function<frefid_t(glui32 usage, glui32 filemode)> &create_fref);
+#endif
+
     File m_file;
     Type m_type;
     Mode m_mode;

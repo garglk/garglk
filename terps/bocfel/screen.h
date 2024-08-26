@@ -119,6 +119,8 @@ IFF::TypeID screen_write_bfts(IO &io);
 void screen_save_persistent_transcript();
 void screen_show_persistent_transcript();
 
+bool screen_toggle_force_fixed();
+
 void zoutput_stream();
 void zinput_stream();
 void zprint();

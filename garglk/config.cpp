@@ -238,7 +238,7 @@ bool gli_conf_safeclicks = false;
 
 bool gli_conf_per_game_config = true;
 
-bool gli_conf_dedicated_gamedata_directory = false;
+GamedataLocation gli_conf_gamedata_location = GamedataLocation::Default;
 
 Scaler gli_conf_scaler = Scaler::None;
 
@@ -850,8 +850,16 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 }
             } else if (cmd == "game_config") {
                 gli_conf_per_game_config = asbool(arg);
-            } else if (cmd == "dedicated_gamedata_directory") {
-                gli_conf_dedicated_gamedata_directory = asbool(arg);
+            } else if (cmd == "gamedata_location") {
+                if (arg == "default") {
+                    gli_conf_gamedata_location = GamedataLocation::Default;
+                } else if (arg == "dedicated") {
+                    gli_conf_gamedata_location = GamedataLocation::Dedicated;
+                } else if (arg == "gamedir") {
+                    gli_conf_gamedata_location = GamedataLocation::Gamedir;
+                } else {
+                    throw ConfigError(Format("unknown gamedata location: {}", arg));
+                }
             } else if (cmd == "redraw_hack") {
                 gli_conf_redraw_hack = asbool(arg);
             } else if (cmd == "glyph_substitution_file") {
