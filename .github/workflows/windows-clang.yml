@@ -10,7 +10,6 @@ jobs:
       matrix:
         arch:
           - x86-64
-        # disabled because broken and I can't really figure out what's wrong with it.
         #  - arm64
 
     runs-on: windows-2022
@@ -28,9 +27,9 @@ jobs:
           key: vcpkg-${{ matrix.arch }}
 
       - name: Install Qt
-        uses: jurplel/install-qt-action@v3
+        uses: jurplel/install-qt-action@v4
         with:
-          version: '6.5.*'
+          version: '6.7.*'
           arch: win64_msvc2019_${{ fromJSON('{"x86-64":"64","arm64":"arm64"}')[matrix.arch] || matrix.arch }}
           modules: 'qtmultimedia'
 
@@ -53,15 +52,9 @@ jobs:
           cd cmake-build
           cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link -DINTERFACE=QT -DQT_VERSION=6 -DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DSOUND=QT ..
           ninja
-
-      - name: Build (arm64)
-        if: ${{ matrix.arch == 'arm64' }}
-        # yes. this is terrible.
-        run: |
-          mkdir cmake-build
-          cd cmake-build
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link -DINTERFACE=QT -DWITH_QT6=ON -DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DSOUND=QT -DCMAKE_C_COMPILER_TARGET=arm64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=arm64-pc-windows-msvc -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY -DCMAKE_CROSSCOMPILING=ON -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=arm64 -DCMAKE_STATIC_LINKER_FLAGS="/machine:arm64 " -DCMAKE_EXE_LINKER_FLAGS="/machine:arm64 " ..
-          ninja
+          mkdir terps/frankendrift
+          cp garglk/garglk.lib ../terps/frankendrift/FrankenDrift.GlkRunner/FrankenDrift.GlkRunner.Gargoyle
+          dotnet publish ../terps/frankendrift/FrankenDrift.GlkRunner/FrankenDrift.GlkRunner.Gargoyle --self-contained -c Release -f net8.0 -r win-x64 -p:GarglkStatic=true -o terps/frankendrift
 
       - name: Assemble results
         run: |
@@ -72,14 +65,15 @@ jobs:
           cp cmake-build\*.otf gargoyle-staging
           cp cmake-build\terps\*.exe gargoyle-staging
           cp cmake-build\terps\tads\tadsr.exe gargoyle-staging
+          cp cmake-build\terps\frankendrift\FrankenDrift.GlkRunner.Gargoyle.exe gargoyle-staging
 
       - name: Deploy Qt files
         run: |
           cd gargoyle-staging
-          windeployqt --no-quick-import --no-compiler-runtime garglk.dll
+          windeployqt --no-quick-import --no-compiler-runtime --no-system-d3d-compiler --no-network garglk.dll
 
       - name: Compress
-        run: Compress-Archive -Path gargoyle-staging -DestinationPath gargoyle-win-clang-${{ matrix.arch }}.zip
+        run: Compress-Archive -Path gargoyle-staging -DestinationPath gargoyle-win-clang-fd-${{ matrix.arch }}.zip
 
       - name: Upload archive
         uses: actions/upload-artifact@v4
