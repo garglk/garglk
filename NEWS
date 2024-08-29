@@ -1,9 +1,29 @@
+2026.1:
+• Gargoyle now implements Glk version 0.7.6.
+• Infocom’s graphical games are now playable, with some visual quirks.
+• Support for building with MSVC (thanks to Adrian Welcker).
+• Experimental, disabled-by-default support for Adrift 5 games via the new
+  Frankendrift interpreter (thanks to Adrian Welcker).
+• Support for (and default to) Qt 6 and KDE Frameworks 6.
+• Added graphics scalers hqx and xBRZ.
+• MIDI and graphics support for Adrift games.
+• Image scaling can be specified for Magnetic Scrolls games.
+• Location of game data (save files, transcripts, etc) can be configured.
+• Improved behavior of pasting text with newlines.
+• The scrollback buffer can be saved to a text file (Ctrl-Shift-S / ⌘-Shift-S).
+• Added a toggle for full screen (Alt-Enter / ⌘-Ctrl-F).
+• On Unix, Gargoyle’s XDG data directory name changed from
+  “io.github.garglk/Gargoyle” to just “gargoyle”. The older location is still
+  checked for backward compatibility.
+• Interpreter updates.
+• Various accumulated small fixes and updates.
+
 2023.1:
 • $HOME/garglk.ini is loaded on macOS again.
 • Fallback fonts work on macOS again.
 • Non-ASCII filenames are better supported on Windows.
 • Transcripts update in real time again.
-• Fix some cases where Agility save/restore prompts didn't work on macOS.
+• Fix some cases where Agility save/restore prompts didn’t work on macOS.
 • Fix media loading in JACL and Hugo.
 • Avoid potential crash with newer versions of SDL2_mixer.
 • Readline-style shortcuts are available on macOS now.
@@ -32,7 +52,7 @@
 • The default proportional font has been changed to Charis SIL (renamed to
   “Gargoyle Serif”); the default monospace font is still Go Mono, renamed to
   “Gargoyle Mono”.
-• Improved font rendering, including fine-grained control over FreeType's
+• Improved font rendering, including fine-grained control over FreeType’s
   renderer (thanks to Tynach).
 • Improved font lookup on Fontconfig-based systems to avoid cases where the
   wrong font styles were being used.

@@ -50,6 +50,27 @@
     <url type="bugtracker">https://github.com/garglk/garglk/issues</url>
     <launchable type="desktop-id">io.github.garglk.Gargoyle.desktop</launchable>
     <releases>
+        <release version="2026.1" date="2026-02-07">
+            <description>
+                <ul>
+                    <li>Gargoyle now implements Glk version 0.7.6.</li>
+                    <li>Infocom’s graphical games are now playable, with some visual quirks.</li>
+                    <li>Support for building with MSVC (thanks to Adrian Welcker).</li>
+                    <li>Experimental, disabled-by-default support for Adrift 5 games via the new Frankendrift interpreter (thanks to Adrian Welcker).</li>
+                    <li>Support for (and default to) Qt 6 and KDE Frameworks 6.</li>
+                    <li>Added graphics scalers hqx and xBRZ.</li>
+                    <li>MIDI and graphics support for Adrift games.</li>
+                    <li>Image scaling can be specified for Magnetic Scrolls games.</li>
+                    <li>Location of game data (save files, transcripts, etc) can be configured.</li>
+                    <li>Improved behavior of pasting text with newlines.</li>
+                    <li>The scrollback buffer can be saved to a text file (Ctrl-Shift-S / ⌘-Shift-S).</li>
+                    <li>Added a toggle for full screen (Alt-Enter / ⌘-Ctrl-F).</li>
+                    <li>On Unix, Gargoyle’s XDG data directory name changed from “io.github.garglk/Gargoyle” to just “gargoyle”. The older location is still checked for backward compatibility.</li>
+                    <li>Interpreter updates.</li>
+                    <li>Various accumulated small fixes and updates.</li>
+                </ul>
+            </description>
+        </release>
         <release version="2023.1" date="2023-02-20">
             <description>
                 <ul>
@@ -83,7 +104,7 @@
                     <li>Experimental Haiku OS support.</li>
                     <li>Migrated from SDL1 to SDL2 (thanks to Manuel Stoeckl).</li>
                     <li>Removed built-in fonts due to licensing issues.</li>
-                    <li>Default proportional font is now Charis SIL ("Gargoyle Serif"); default monospace is still Go Mono ("Gargoyle Mono").</li>
+                    <li>Default proportional font is now Charis SIL (“Gargoyle Serif”); default monospace is still Go Mono (“Gargoyle Mono”).</li>
                     <li>Improved font rendering with FreeType tuning (thanks to Tynach).</li>
                     <li>Improved Fontconfig lookup to avoid wrong styles.</li>
                     <li>HiDPI support on macOS.</li>
