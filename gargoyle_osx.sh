@@ -28,7 +28,12 @@ else
   HOMEBREW_OR_MACPORTS_LOCATION="$(pushd "$(dirname "$(which port)")/.." > /dev/null ; pwd -P ; popd > /dev/null)"
 fi
 
-MACOS_MIN_VER="10.13"
+if [[ "$(sw_vers -productVersion)" =~ ^10\.([0-9]+) && ${BASH_REMATCH[1]} -lt 15 ]]; then
+  MACOS_MIN_VER="10.13"
+else
+    MACOS_MIN_VER="10.15"
+fi
+
 echo "MACOS_MIN_VER $MACOS_MIN_VER"
 
 # Use as many CPU cores as possible
