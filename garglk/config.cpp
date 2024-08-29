@@ -898,6 +898,8 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                         }
                     }
                 }
+            } else if (cmd == "terp") {
+                // Ignore: this is used by the launcher.
             } else {
                 warn(Format("unknown configuration option: {}", cmd));
             }
