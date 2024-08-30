@@ -31,7 +31,7 @@ fi
 if [[ "$(sw_vers -productVersion)" =~ ^10\.([0-9]+) && ${BASH_REMATCH[1]} -lt 15 ]]; then
   MACOS_MIN_VER="10.13"
 else
-    MACOS_MIN_VER="10.15"
+  MACOS_MIN_VER="10.15"
 fi
 
 echo "MACOS_MIN_VER $MACOS_MIN_VER"
