@@ -161,7 +161,7 @@ static const std::unordered_map<std::string, Format> extensions = {
 static const std::unordered_map<Format, Interpreter> interpreters = {
     {Format::Adrift, Interpreter(T_ADRIFT)},
 #ifdef WITH_FRANKENDRIFT
-	{Format::Adrift5, Interpreter(T_ADRIFT5)},
+    {Format::Adrift5, Interpreter(T_ADRIFT5)},
 #endif
     {Format::AdvSys, Interpreter(T_ADVSYS)},
     {Format::AGT, Interpreter(T_AGT, {"-gl"})},
@@ -189,14 +189,17 @@ static bool call_winterp(Format format, const std::string &game)
     try {
         return call_winterp(interpreters.at(format), game);
     } catch (const std::out_of_range &) {
-		// The FrankenDrift interpreter for Adrift 5 games is not supported on all
-		// platforms. Let the user know when this is the case.
+        // The FrankenDrift interpreter for Adrift 5 games is not supported on all
+        // platforms. Let the user know when this is the case.
 #ifndef WITH_FRANKENDRIFT
         if (format == Format::Adrift5) {
-            garglk::winmsg("Adrift 5 games are not supported by this build of Gargoyle.");
-			return false;
+            garglk::winmsg("Adrift 5 games are not supported by this build of Gargoyle");
+            return false;
         }
 #endif
+
+        // This should never occur: apart from Adrift 5, handled above,
+        // all known game formats always have interpreters.
         garglk::winmsg("This game type is not supported");
         return false;
     }
