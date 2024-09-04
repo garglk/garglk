@@ -406,6 +406,36 @@ static std::vector<Patch> base_patches = {
         }
     },
 
+    // Journey doubles up the word “essence” when examining Praxix’s
+    // pouch: originally the game printed short descriptions when the
+    // screen was narrow enough, which didn't include the word
+    // “essence”, so it always just printed out an extra “essence”,
+    // knowing that it wasn't shown. However, release 51 changed this so
+    // that the long descriptions, which included “essence”, were
+    // unconditionally printed in this circumstance; but the extra
+    // “essence” remained. This patches out the printing of that extra
+    // word by replacing it with @nop.
+    {
+        "Journey", "890522", 51, 0x4f59,
+        {{ 0x9d9f, 3, {0xb2, 0x80, 0x3e}, {0xb4, 0xb4, 0xb4} }},
+    },
+    {
+        "Journey", "890526", 54, 0x5707,
+        {{ 0x9e2f, 3, {0xb2, 0x80, 0x3e}, {0xb4, 0xb4, 0xb4} }},
+    },
+    {
+        "Journey", "890616", 77, 0xb136,
+        {{ 0xa09f, 3, {0xb2, 0x80, 0x3e}, {0xb4, 0xb4, 0xb4} }},
+    },
+    {
+        "Journey", "890627", 79, 0xff04,
+        {{ 0xa10b, 3, {0xb2, 0x80, 0x3e}, {0xb4, 0xb4, 0xb4} }},
+    },
+    {
+        "Journey", "890706", 83, 0xd2b8,
+        {{ 0xa0ef, 3, {0xb2, 0x80, 0x3e}, {0xb4, 0xb4, 0xb4} }},
+    },
+
     // This is in a routine which iterates over all attributes of an
     // object, but due to an off-by-one error, attribute 48 (0x30) is
     // included, which is not valid, as the last attribute is 47 (0x2f);
