@@ -7,6 +7,21 @@
 
 set -e
 
+frankendrift="OFF"
+
+while getopts "f" o
+do
+    case "${o}" in
+        f)
+            frankendrift_spec="%{_libexecdir}/gargoyle/FrankenDrift.GlkRunner.Gargoyle"
+            frankendrift="ON"
+            ;;
+        *)
+            fatal "Usage: $0 [-f]"
+            ;;
+    esac
+done
+
 VERSION=$(<VERSION)
 
 # Holds the name of the root directory containing the necessary structure to
@@ -19,7 +34,7 @@ PKG_DIR=/tmp/${PKG_NAME}
 #Build Gargoyle
 mkdir build-rpm
 pushd build-rpm
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DWITH_FRANKENDRIFT="${frankendrift}"
 make -j$(nproc)
 make install DESTDIR=${PKG_DIR}
 popd
@@ -67,6 +82,7 @@ cp -v garglk.ini "%{buildroot}%{_sysconfdir}/"
 %files
 %{_sysconfdir}/garglk.ini
 %{_libdir}/libgarglk.so
+${frankendrift_spec}
 %{_libexecdir}/gargoyle/advsys
 %{_libexecdir}/gargoyle/magnetic
 %{_libexecdir}/gargoyle/agility

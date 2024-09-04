@@ -46,7 +46,6 @@ mkdir -p "$BUNDLE/Resources/Fonts"
 mkdir -p "$BUNDLE/Resources/themes"
 mkdir -p "$BUNDLE/PlugIns"
 
-INITIAL_WORKDIR=`pwd`
 rm -rf $GARGDIST
 mkdir -p build-osx
 cd build-osx
@@ -54,21 +53,6 @@ cmake .. -DBUILD_SHARED_LIBS=ON -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOS_MIN_VER} -
 make "-j${NUMJOBS}"
 make install
 cd -
-
-# Build FrankenDrift through dotnet
-ln "$GARGDIST/libgarglk.dylib" terps/frankendrift/FrankenDrift.GlkRunner/FrankenDrift.GlkRunner.Gargoyle/libgarglk.dylib
-cd "terps/frankendrift/FrankenDrift.GlkRunner/FrankenDrift.GlkRunner.Gargoyle/"
-dotnet publish --self-contained -c Release --os osx -p:GarglkStatic=false
-cp bin/Release/net8.0/osx-*/publish/FrankenDrift.GlkRunner.Gargoyle "$INITIAL_WORKDIR/$GARGDIST"
-# clean up after us
-rm -r bin/ obj/ libgarglk.dylib
-cd ../FrankenDrift.GlkRunner
-rm -r bin/ obj/
-cd ../../FrankenDrift.Glue
-rm -r bin/ obj/
-cd ../FrankenDrift.Adrift
-rm -r bin/ obj/
-cd $INITIAL_WORKDIR
 
 # Copy the main executable to the MacOS directory;
 cp "$GARGDIST/gargoyle" "$BUNDLE/MacOS/Gargoyle"

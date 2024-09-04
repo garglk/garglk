@@ -30,6 +30,7 @@ jobs:
           SDL2-devel
           SDL2_mixer-devel
           cmake
+          dotnet-sdk-8.0
           fmt-devel
           fontconfig-devel
           freetype-devel
@@ -42,7 +43,7 @@ jobs:
       - name: Build Fedora package
         run: |
           echo $(date +"%Y%m%d").$(echo $GITHUB_SHA | cut -b 1-7) > VERSION
-          ./gargoyle-buildrpm.sh
+          ./gargoyle-buildrpm.sh -f
 
       - name: Upload RPM
         if: github.event_name != 'pull_request'
