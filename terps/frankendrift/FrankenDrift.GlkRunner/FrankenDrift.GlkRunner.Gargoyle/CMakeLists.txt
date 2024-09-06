@@ -3,6 +3,36 @@ if(NOT DOTNET)
     message(FATAL_ERROR "FrankenDrift requires the .NET SDK (missing \"dotnet\")")
 endif()
 
+# Cannot cross-compile FrankenDrift for another OS ...
+if(NOT CMAKE_SYSTEM_NAME STREQUAL CMAKE_HOST_SYSTEM_NAME)
+    message(FATAL_ERROR "Cross-compiling to another OS is not supported for FrankenDrift.")
+endif()
+
+# ... but CAN cross-compile for a different CPU architecture:
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    set(GARGLK_DOTNET_CPU "x64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
+    set(GARGLK_DOTNET_CPU "x64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "x64")
+    set(GARGLK_DOTNET_CPU "x64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "i386")
+    set(GARGLK_DOTNET_CPU "x86")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "i686")
+    set(GARGLK_DOTNET_CPU "x86")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "X86")
+    set(GARGLK_DOTNET_CPU "x86")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+    set(GARGLK_DOTNET_CPU "arm64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
+    set(GARGLK_DOTNET_CPU "arm64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+    set(GARGLK_DOTNET_CPU "arm64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "armv8l")
+    set(GARGLK_DOTNET_CPU "arm64")
+else()
+    message(FATAL_ERROR "Unsupported CPU architecture for FrankenDrift: ${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(GARGLK_DOTNET_OS "linux")
 elseif(WIN32)
@@ -26,7 +56,7 @@ add_custom_target(frankendrift
     ALL
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMAND ${COPY_DYLIB}
-    COMMAND ${DOTNET} publish --self-contained -c Release --os "${GARGLK_DOTNET_OS}" -p:GarglkStatic=false -o .
+    COMMAND ${DOTNET} publish --self-contained -c Release -r "${GARGLK_DOTNET_OS}-${GARGLK_DOTNET_CPU}" -p:GarglkMode=dynamic -o .
     COMMENT "Building FrankenDrift with ${DOTNET}"
 )
 
