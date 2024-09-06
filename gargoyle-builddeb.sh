@@ -10,9 +10,14 @@
 
 set -e
 
-while getopts "t" o
+frankendrift="OFF"
+
+while getopts "ft" o
 do
     case "${o}" in
+        f)
+            frankendrift="ON"
+            ;;
         t)
             NO_TADS_ICON=1
             ;;
@@ -35,7 +40,7 @@ PKG_DEB_ROOT=${DEB_ROOT_DIR}/${PKG_NAME}/debian
 #Build Gargoyle
 mkdir build-debian
 pushd build-debian
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DQT_VERSION=5
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DQT_VERSION=5 -DWITH_FRANKENDRIFT="${frankendrift}"
 make -j$(nproc)
 make install DESTDIR=${PKG_DIR}
 popd

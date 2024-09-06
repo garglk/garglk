@@ -410,3 +410,7 @@ if(WITH_TAYLOR)
         INCLUDE_DIRS ${TAYLOR_INCLUDE_DIRS}
         LIBS c64diskimage unp64)
 endif()
+
+if(WITH_FRANKENDRIFT)
+    add_subdirectory(frankendrift/FrankenDrift.GlkRunner/FrankenDrift.GlkRunner.Gargoyle)
+endif()

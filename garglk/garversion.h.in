@@ -23,4 +23,6 @@
 #define GARGOYLE_VERSION "${GARGOYLE_VERSION}"
 #define GARGOYLE_ORGANIZATION "io.github.garglk"
 
+#cmakedefine WITH_FRANKENDRIFT
+
 #endif

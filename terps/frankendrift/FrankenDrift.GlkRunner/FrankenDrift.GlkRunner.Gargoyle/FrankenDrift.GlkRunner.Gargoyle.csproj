@@ -1,0 +1,49 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<OutputType>WinExe</OutputType>
+		<StartupObject>FrankenDrift.GlkRunner.Gargoyle.GarGlkRunner</StartupObject>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+	
+	<ItemGroup>
+		<ProjectReference Include="..\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.csproj" />
+	</ItemGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
+		<PublishAot>true</PublishAot>
+		<TrimmerSingleWarn>false</TrimmerSingleWarn>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(GarglkMode)' == ''">
+		<GarglkMode>runtime</GarglkMode>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(GarglkMode)' == 'dynamic' Or '$(GarglkMode)' == 'static'">
+		<DefineConstants>GarglkStatic</DefineConstants>
+	</PropertyGroup>
+
+	<ItemGroup Condition="$(RuntimeIdentifier.StartsWith('win')) And ('$(GarglkMode)' == 'dynamic' Or '$(GarglkMode)' == 'static')">
+		<DirectPInvoke Include="garglk" />
+		<NativeLibrary Include="garglk.lib" />
+	</ItemGroup>
+
+	<ItemGroup Condition="$(RuntimeIdentifier.StartsWith('osx')) And '$(GarglkMode)' == 'dynamic'">
+		<DirectPInvoke Include="garglk" />
+		<NativeLibrary Include="libgarglk.dylib" />
+	</ItemGroup>
+
+	<ItemGroup Condition="$(RuntimeIdentifier.StartsWith('linux')) And '$(GarglkMode)' == 'dynamic'">
+		<DirectPInvoke Include="garglk" />
+		<NativeLibrary Include="libgarglk.so" />
+	</ItemGroup>
+
+	<ItemGroup Condition="($(RuntimeIdentifier.StartsWith('osx')) Or $(RuntimeIdentifier.StartsWith('linux'))) And '$(GarglkMode)' == 'static'">
+		<DirectPInvoke Include="garglk" />
+		<NativeLibrary Include="libgarglk.a" />  <!-- for static linking, specify libgarglk's dependencies here -->
+	</ItemGroup>
+
+</Project>
