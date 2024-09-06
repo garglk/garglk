@@ -50,11 +50,8 @@ jobs:
         run: |
           mkdir cmake-build
           cd cmake-build
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link -DINTERFACE=QT -DQT_VERSION=6 -DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DSOUND=QT ..
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link -DINTERFACE=QT -DQT_VERSION=6 -DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DSOUND=QT -DWITH_FRANKENDRIFT=ON -DDIST_INSTALL=ON ..
           ninja
-          mkdir terps/frankendrift
-          cp garglk/garglk.lib ../terps/frankendrift/FrankenDrift.GlkRunner/FrankenDrift.GlkRunner.Gargoyle
-          dotnet publish ../terps/frankendrift/FrankenDrift.GlkRunner/FrankenDrift.GlkRunner.Gargoyle --self-contained -c Release -f net8.0 -r win-x64 -p:GarglkStatic=true -o terps/frankendrift
 
       - name: Assemble results
         run: |
@@ -65,7 +62,7 @@ jobs:
           cp cmake-build\*.otf gargoyle-staging
           cp cmake-build\terps\*.exe gargoyle-staging
           cp cmake-build\terps\tads\tadsr.exe gargoyle-staging
-          cp cmake-build\terps\frankendrift\FrankenDrift.GlkRunner.Gargoyle.exe gargoyle-staging
+          cp terps\frankendrift\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.Gargoyle\FrankenDrift.GlkRunner.Gargoyle.exe gargoyle-staging
 
       - name: Deploy Qt files
         run: |
