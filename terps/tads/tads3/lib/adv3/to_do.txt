@@ -1,0 +1,947 @@
+================================ VERSION 3.0 =================================
+
+================================ VERSION 3.1 =================================
+
+**** COMMITTED CHANGES - the following are changes that we've
+definitely decided to make, but which we've deferred until after the
+next general release because it's too late in the current release
+cycle to make changes that could be potentially destabilizing.
+
+1. In DefineTAction(TravelVia), remove the override for
+getCurrentObjects.  This override was originally put in place because
+the direct object of a TravelVia is a TravelConnector, which was at
+one time based on 'object' rather than on Thing.  TravelConnector is
+now a Thing subclass, so the direct object of a TravelVia will always
+be a simulation object, hence it's fine to return it as an action
+object.
+
+2. In RestrictedUnderside, RestrictedRearContainer, and
+RestrictedRearSurface, the iobjFor(PutXxx) check() routine should call
+"inherited Xxx()" (where Xxx is the unrestricted base class - the
+*second* base class in the RestrictedXxx superclass list) to enforce
+the inherited allowPutXxx restriction.  However, we can't just add the
+'inherited' call: each of the base container check() methods does a
+simple reportFailure(&cannotPutXxxMsg), whereas the Restricted classes
+invoke self.cannotPutXxxMsg(dobj) - same method, different argument
+list.  We either need to rename the cannotPutXxxMsg(dobj) version of
+the method, OR add the dobj parameter to the parameter-less form of
+the method.  In either case, we could break some existing code.  I
+think the renaming approach is probably better, because there really
+are two failure conditions here.
+
+The lowest impact approach is probably to change cannotPutXxxMsg(obj)
+to something like cannotPutObjXxxMsg(obj) for all of the various
+RestrictedXxx containers.  This will necessitate a little global
+search and replace for existing code, but the alternative is to change
+some much lower level code: the no-parameter cannotPutXxxMsg messages
+are used in Thing, for instance.
+
+
+
+**** REQUESTED CHANGES - the following are changes that have been
+suggested and possibly discussed to some extent on the tads3 mailing
+list, but whose final disposition is yet to be determined.  We might
+or might not ultimately decide to add any of these features.
+Priorities, feasibility, and full design details are yet to be
+determined for many of these.
+
+
+---------
+
+From Eric Eve <eric.eve@harris-manchester.oxford.ac.uk>: In the adv3
+command execution sequence, the relative ordering of the "check" phase
+and the various "before" notifications seems wrong as it currently
+stands.  Currently, "before" happens before "check" - this means that
+the command can fail in the "check" after the "before" notifications
+have occurred.  Conceptually, it seems like "before" notifications
+should only occur after the action is committed.  Now, this isn't
+truly possible in practice, because any individual "before" handler
+could still cancel the whole command - the relative ordering of
+"before" handlers is arbitrary, so a "before" handler could cancel the
+action after other "before" handlers already ran.  Nonetheless, it
+probably makes sense to consider "check" as a stronger sort of test
+than "before"; it's relatively rare for "before" handlers to cancel a
+command, while testing for cancel-worthy conditions is the whole point
+of "check."
+
+Implementing this change is trivial.  The only reason for putting this
+off until 3.1 is that it seems likely to break a small amount of
+existing code - most code won't be affected at all, but there will
+probably be a few existing cases that depend subtly on the existing
+ordering due to interactions among multiple objects and/or handlers.
+People are more likely to expect and accept this sort of compatibility
+risk in a major update.
+
+
+---------
+
+From Michel Nizette <mnizette@ulb.ac.be> [9/1/06]:
+
+Would there be any value in implementing pending conversations via
+regular AgendaItems, like we just did for the boredom handling?
+Again, the advantage would be simply to provide more control over the
+order of priority of an actor's various pending activities.  Also,
+should this prove useful, we could then think of adding an
+Actor.scheduleConditionalInitiateConversation method, which would do
+the same thing as scheduleInitiateConversation, but would additionally
+specify an extra condition to be checked as part of the AgendaItem's
+isReady property.  The condition could be specified simply as a
+callback function that returns nil or true. 
+
+---------
+
+From Michel Nizette <mnizette@ulb.ac.be> [9/1/06]:
+
+Currently, the method Actor.noteConversation is invoked each time a
+TopicEntry is triggered, no matter if the topic is conversational or
+not (i.e., marked with isConversational = true or nil).  The
+noteConversation method does a number of things like marking the actor
+as having conversed on the current turn, and resetting the boredom
+count.  But I'm wondering if this is really what we want in the case
+of a non-conversational topic, whose typical purpose is to describe a
+refusal to engage in a particular conversation.  If the conversation
+doesn't actually take place, should there really be any effect on the
+NPC's behavior?  It would seem a little odd to see an NPC delaying a
+pending conversation for several turns just because he was involved in
+a sequence of conversational commands that all got blocked in the PC's
+mind for motivational reasons and didn't result in a real dialogue,
+for example. 
+
+In contrast, noteConversation also does a few things that
+unquestionably make sense for non-conversational topics, like updating
+pronouns and establishing a default interlocutor: these are interface
+features independent of what happens in the game world. 
+
+So, my suggestion would be to distinguish between the situation where
+a conversation actually takes place (in which case it makes sense to
+call noteConversation) and the situation where the conversation is
+only attempted, which we could handle via a new
+noteAttemptedConversation method that would only set pronouns and the
+default interlocutor.  The library could then simply invoke
+noteAttemptedConversation everywhere it currently invokes
+noteConversation, and could additionally call noteConversation in the
+few places where a real conversation takes place, like the triggering
+of a conversational topic or a call to Actor.initiateConversation.  If
+maintaining backwards compatibility is important, we could have
+noteAttemptedConversation call noteConversation by default, but we
+could make this controllable via a switch. 
+
+---------
+
+From Krister Fundin <fundin@yahoo.com> [9/3/06]:
+
+> bob, follow me
+"Okay, I will follow you."
+> g
+"Okay, I will follow you."
+
+The library comments suggest that the latter should not happen. The
+problem is that Actor.nonIdleTurn() cancels following whenever the
+actor receives an order. Thus the check for already being in following
+mode is always negative.
+
+[mjr: I actually think the current behavior as shown is fairly
+reasonable.  It would be marginally better to have a message like "I'm
+already following you."  But short of repeating the command ten times
+in a row for comic effect, I'm not sure players would ever be bothered
+by the present behavior in practice - if they're repeating the command,
+they're presumably not sure that Bob was already in follow mode, so
+they're not going to be bothered by another acknowledgment.]
+
+I had already removed this cancellation from one of my projects, since
+it wasn't appropriate there, but that seems to cause a different
+problem instead:
+
+> bob, follow me
+"Okay, I will follow you."
+> g
+Nothing obvious happens.
+
+In this case, Bob can already see the player and thus only makes a
+call to checkMovingActorInto(), which does nothing since he's already
+where he's supposed to be.
+
+[mjr: This part is worth looking into whatever the disposition of the
+first part, since the nonIdleTurn() comment suggests that it's okay to
+override and not cancel follow mode, but apparently that's
+problematic.]
+
+---------
+
+From Krister Fundin <fundin@yahoo.com> [9/3/06]:
+
+just a thought (feel free to ignore it):
+
+> bob, follow me
+"Okay, I will follow you." Bob stands on the main platform.
+
+versus:
+
+> bob, follow me
+Bob stands on the main platform. "Okay, I will follow you."
+
+Doesn't the latter sound marginally better? 
+
+[mjr: I'm not sure about this; Bob acknowledging first actually strikes
+me at the moment as the better sounding version]
+
+I guess in practice there would be a command separator between the two
+reports, but that could actually improve things when two or more
+implicit actions are needed:
+
+> bob, follow me
+"Okay, I will follow you." Bob stands on the main platform.
+
+Bob stands on the red platform.
+
+versus:
+
+> bob, follow me
+Bob stands on the main platform.
+
+Bob stands on the red platform.
+
+"Okay, I will follow you."
+
+---------
+
+From Krister Fundin <fundin@yahoo.com> [9/8/06]:
+
+How about adding a command joiner report and corresponding pseudo-tag?
+Any combination of joiner and separator or separator and joiner would
+just remove both. I can think of a few other places where I could use
+one of those.
+
+[i.e., something like <.commandjoin> to cancel out <.commandsep>]
+
+---------
+
+From Krister Fundin <fundin@yahoo.com> [9/13/06]:
+
+   > push television into white box
+   (first standing on the main platform)
+   Okay, you're now standing in the white box.
+
+Perhaps it's not serious enough that it needs to be fixed now. In the
+long run, one could imagine a "first trying to push the television
+onto the main platform" type of implicit action here, but that would
+take some work.
+
+[I'm not even sure what would be right here.  I guess some
+fine-grained variation of PushTravel for pushing into nested rooms or
+something.]
+
+---------
+
+The ThingState mechanism should be extended to allow a single object
+to have multiple current, active states.  For example, it should be
+possible for an object to be simultaneously worn, lit, and open.  As
+it stands, an object can only have one state at a time.
+
+On the parsing side, this is straightforward: we simply have to
+iterate over the list of active states and consider each one's token
+selectivity in turn.  All active states must rule positively on the
+token list to allow a match.
+
+On the output side, it's slightly more work.  We'll have to list
+multiple states in messages like "(providing light)", which isn't
+hard: "(worn, open, providing light)".  We'll also have to list
+multiple states in sublists: "one worn, open, and providing light; one
+closed."  This is also relatively straightforward except that we'll
+have to go to semicolons in the overall list when the sublists start
+expanding out to the point that they need commas.
+
+(Ideally, ThingState probably ought to be the *only* state mechanism
+for any sort of state for which it's used.  For example, there really
+shouldn't be a separate isOpen property - an object's open/closed
+status instead ought to be determined by the presence of an openState
+or closedState object in the object's state vector.  Opening an object
+would then be a matter of calling obj.setState(openState).  This would
+require that each ThingState know its set of states, for mutual
+exclusion when a new state is set (which would simplify things
+slightly in that we'd be able to dispense with the per-object
+allStates list.)
+
+(Also ideally, ThingState sets would implicitly and automatically
+create distinguishers.  Any time we have a pair of objects with
+different active states from a given set, we should automatically be
+able to distinguish those objects on the basis of that ThingState
+set.)
+
+---------
+
+In announceAmbigActionObject, announceMultiActionObject, and
+announceDefaultObject, it'd be ideal to use distinguishers to decide
+on the object name.  This would ensure, for example, that we generate
+"(the lit candle)" when litness would distinguish the candle we chose
+from others present.  
+
+I think we'd basically have to do the same work that
+BasicResolveResults.ambiguousNounPhrase does to choose a distinguisher,
+but in this case we want to tell apart the object in question from
+everything else in scope that has the same name.  So, probably we want
+to go through the objects in scope and build a list of everything
+with the same disambigName; then we want to search for a distinguisher
+that can tell apart the object in question from all of those other
+objects; failing that, we could settle for a distinguisher that can
+tell apart the object in question from any of the other objects, as
+this would provide at least some greater specificity.  Failing that,
+we just use the disambigName.
+
+---------
+
+Consider removing several modules from adv3 and putting them in the
+"system" library instead:
+
+  banner.t
+  menusys.t
+  modid.t
+  numbers.t
+
+---------
+
+Add a property setting that makes the contents of an item listed
+immediately after the item's specialDesc, if it's using a specialDesc.
+The contents would be listed there rather than in the miscellaneous
+portable list paragraph.
+
+---------
+
+Add static File.deleteFile(filename), to delete a file from disk.
+This operation should require WRITE privileges (as determined by the
+file safety level setting) for the given file.
+
+---------
+
+Add a version of saveGame() and restoreGame() that use a ByteArray as
+the saved state medium.  save() would create and return a new
+ByteArray object containing the saved state (which must, of course,
+exclude the new ByteArray itself); restore() would take a ByteArray
+object and restore its contents as the current game state.
+
+For interface purposes, we could simply let saveGame() without an
+argument return a ByteArray, and restoreGame() could take a ByteArray
+as its argument.  Alternatively, saveGame() could take a pre-created
+ByteArray as its argument, and we'd fill in that ByteArray with the
+saved state (but we'd somehow have to make sure that this ByteArray
+was excluded from the saved state).
+
+(Implementation note: this is fairly straightforward, but some work.
+We first have to refactor CVmFileSave::save() and restore() to take
+CVmStream objects instead of CVmFile objects; this is fairly simple,
+but requires changes down through the whole save/restore stacks, which
+touch a lot of objects.  Then, where we currently call save/restore
+with CVmFile objects, wrap the CVmFile in a CVmFileStream and make the
+same call.  Finally, we'd have to create a new CVmStream subclass that
+operates on ByteArray objects, which should be a fairly easy mapping.
+It'd be worth making sure that changing CVmFile to CVmStream in
+save/restore doesn't balloon up the executable too much - this would
+introduce a ton of new virtual calls, because all of the CVmStream
+methods are virtual while the corresponding CVmFile methods are
+non-virtual.  It'd also be worth measuring any degradation in
+save/restore performance from all the new virtual calls.)
+
+---------
+
+Store ALL objects as potential future pronoun antecedents when
+processing a multi-object command.  For example, when executing UNLOCK
+DOOR WITH KEY, store *both* the door and the key as potential
+antecedents for 'it'.  On using 'it' in a future command, look at all
+of the possible antecedents, and choose the most logical one -
+essentially treat the set of possible antecedents as though it were
+the set of matching objects for an indefinite noun phrase.  If there's
+more than one equally logical choice, choose one arbitrarily, the same
+way we would if the player typed TAKE ANY BOOK:
+
+>unlock door with key
+Unlocked.
+
+>drop it
+Dropped.           // refers to the key, since the door is illogical for DROP
+
+...but if the next command were this instead:
+
+>open it
+Opened.            // refers to the door, since the key is illogical for OPEN
+
+...and if it were this instead:
+
+>x it
+(the door)             // both door and key are equally logical, so choose
+It's a massive...      // one arbitrarily, and report the choice
+
+---------
+
+Debugger: display the current method (the top of the stack trace) in
+the status line.
+
+---------
+
+Debugger: add an option to skip over library code when stepping.  This
+could be a mode, or it could be a new 'step' command (alongside 'step
+in', 'step over', 'step out').  This would make it easier to isolate a
+bug in game code, and it would also clarify the control flow through
+the sequence of game-provided entrypoints.
+
+The main question in implementing this is how exactly to define
+'library' code for the purposes of this new form of stepping.  Library
+code could be defined as anything from a .tl file, or as any source
+file under the system directory tree, or as files designated as such
+manually (with a right-click on a file in the project tree, say).
+
+---------
+
+Can we rephrase the UNDO command results so that they reflect the logical
+command rather than the actual text typed in?  Something like:
+
+ >undo
+ Taking back: attack the troll with the sword
+
+(For commands involving multiple objects, this could get cumbersome, since
+we probably wouldn't be able to easily reconstruct the original ALL or
+plural usage, but would instead list all of the objects.)
+
+---------
+
+Maybe use <.Q> rather than <Q> in msg_neu and en_us, to allow customization
+of quote styles.
+
+---------
+
+Add a global compiler options setting to workbench?
+
+---------
+
+The compiler should flag some types of errors at the location of the
+particular token causing the error, rather than at the location of
+the enclosing source line.  Krister Fundin <fundin@yahoo.com> pointed
+this out with respect to an expression like this, where the 'method'
+name is undefined:
+
+   property.method(new function(x)
+   {
+        code;
+   });
+
+The error ought to be reported at the exact line containing the
+undefined token 'method', rather than at the statement level - which,
+in this case, reports at the *end* of the nested function.
+
+To accomplish this, the compiler would have to (a) save the source
+location for each individual token, in addition to the location of the
+current statement; and (b) use the token location rather than the
+current line when reporting any error that can be associated with a
+token.  [The second part is probably pretty easy - almost all such
+cases can probably be caught by changing
+CTcTokenizer::log_error_curtok() to report at the current token
+position.  Saving the token position probably isn't too hard, either,
+but there might be some subleties, such as with respect to the
+preprocessor.]
+
+---------
+
+Add a general "warning check" mechanism to the library.  This would
+be an add-on module that would encapsulate a bunch of checks for
+common pitfalls, using reflection mechanisms to display warnings.
+Authors could optionally compile with this module from time to time
+to check for common errors.  This would only be of interest to
+authors during development, of course - it would always be removed
+for the final build for release.  (This came up in the context of
+checking for default Container objects when using the liquid add-on
+library.  It would be nice to have a generic mechanism, or at least
+some coding patterns to follow, that would simplify adding this kind
+of warning check.)
+
+---------
+
+For ResolvedTopic, it might be nice to ask for disambiguation for
+in-scope objects if there are more than one, especially if this were
+parameterized.
+
+---------
+
+Menu-based conversation framework
+
+---------
+
+For travel, add a check to see if the actor fits through the passage.
+This should ideally be implemented using a precondition that would
+check the actor's bulk to ensure it's below a maximum.  The actor
+would have a chance to reduce its bulk via a tryReducingBulk call,
+perhaps - this would let the actor do something obvious like close
+an umbrella.
+
+---------
+
+For travel, add a check for excessive encumbering bulk or weight.
+This could be used for things like climbing ropes or walking across a
+rickety bridge.  For excessive encumbrance, the actor could use the
+standard tryMakingRoomToHold mechanism to reduce held bulk.  For
+excessive weight, this is probably just a connector-specific check
+and message on failure, so there might not be much we can do in the
+library other than make sure the framework is in place.
+
+---------
+
+Weapons (attack with)
+
+---------
+
+flammability as a mix-in (for paper, wood, and the like)
+
+---------
+
+Liquids and bottles
+
+---------
+
+Drinkables (special kind of liquid)
+
+---------
+
+Probably need a variation of objHeld for liquids that lets us specify
+that we need to be holding the container of the liquid (for 'pour',
+for example).  containerHeld?  Or, we could do like we do with keys
+on keyrings, and consider a liquid within a container being held to
+be itself held.
+
+---------
+
+If we have a bucket or some other container filled with liquid, and
+we try to put another item into the bucket, we should run a special
+check for wetting the item.  The default should probably just be to
+say "you don't want to get that wet" and refuse the command.
+Similarly, "fill bucket" when the bucket contains non-liquid objects
+should run the same checks.
+
+---------
+
+Burning and liquids: wetting a burning item with a non-flammable
+liquid should extinguish the flame.
+
+---------
+
+Burning and liquids: provide a flammable liquid class.  This should
+consume the liquid at a particular rate while burning.  The basic
+flammable fuel consumption mechanism should be used here if possible.
+
+---------
+
+Provide an extensible "chemistry" framework for combining different
+kinds of liquids.
+
+Perhaps we could define an object to represent the operation of
+combining each pair of liquid classes - this class doesn't represent
+the mixture, but rather the operation of mixing.  So, for example, we
+define an object for the operation of mixing water and liquid
+nitrogen.
+
+Each of mixing object must define a method that is called when its
+pair of liquids are mixed; this method encapsulates the action of
+mixing the liquids.  Use a global lookup table of these objects,
+keyed by liquid class pairs; when we want to mix two liquids, we look
+up the pair of liquid classes to be mixed and find the mixer object,
+then call its mixer method. 
+
+---------
+
+Putting a container with liquid into another container in inventory
+should have some conditions attached.  First, an openable liquid
+container should be closed whenever moving it into a sub-container
+(so a bottle of water should be closed before putting it in your
+backpack) to avoid spilling.  Second, a container that can't be
+closed should probably not be allowed to be moved to a sub-container.
+Third, taking or otherwise moving any item should probably be
+disallowed if the item contains an open container of liquid.
+
+---------
+
+Pouring a liquid onto the floor, into a container that isn't set up
+as a container for liquids, onto a surface, or onto an arbitrary
+object should all do something reasonable.  It's unclear what to do
+in general; the easiest thing would be for the liquid evaporate
+immediately, but that's not all that realistic.  Pouring liquid onto
+an arbitrary object should probably call the object's
+notify-getting-wet method, just as though the object were in a
+container being filled (although we might want to differentiate
+between submerging and dousing, maybe just via a flag to the
+notify-getting-wet method), but then something needs to happen to the
+liquid, even if the thing that happens is simply evaporation.
+
+---------
+
+Leaky containers: when a leaky container has liquid added, it should
+set up a daemon to cause it to leak slowly.  The liquid leaking out
+should do whatever liquid does when poured into the leaky object's
+enclosing location.
+
+---------
+
+Absorbent materials: these should retain a quantity of liquid as
+though they were a liquid container, allowing the absorbed liquid to
+be recovered by squeezing the object.
+
+---------
+
+Ropes, to the extent they can be generalized
+
+---------
+
+In two-object actions (including topic and literal actions), when
+both objects are missing, we might want to consider some alternative
+way to specify which object we ask for first.  This might vary
+by language, so it might be better to have an action property that
+specifies which goes first when both are missing.  Or maybe this is
+the same as resolution order, or opposite of the resolution order,
+or something.
+
+---------
+
+OBJECTS command - list all portable objects that have been seen, and
+the last location where they were seen
+
+---------
+
+It seems like it should be possible to talk to an actor in situations
+when the actor is audible only, such as in the dark.  But how do we
+initiate contact if we don't see the actor?
+
+1 - broadcast a greeting:  
+
+>hello
+Bob says, "Is that you?  I can't see anything."
+
+2 - try talking to a specific actor:  
+
+>bob, hello
+
+This doesn't seem very good because we need to have a way of knowing
+Bob is present in order to talk to him.
+
+3 - the actor hears you come in and says he's present:
+
+>n
+In the Dark
+It's pitch black.
+
+In the darkness, you hear Bob.  "Is that you?" he asks.
+
+---------
+
+Add new syntax:
+
+  x.delegated y.prop(args)
+
+This syntax explicitly targets 'y' with self as 'x'.  This differs from
+the regular 'delegated y.prop()' in that the latter can only set 'self'
+in the delgatee to 'self' in the delegating method.
+
+Or, perhaps we could take this one step further, by allowing the
+target object, self, *and* defining object to be independently specified.
+Something like
+
+  x.delegated y.inherited z.prop(args)
+
+
+This would set self to x, target object to y, and defining object to
+z, then try to find the method in z.  If the method doesn't exist in
+z, we should probably throw an error rather than try to inherit from
+there, since this is so fully specified already.
+
+We would need a new opcode for each case.  The first would require an
+opcode with the new self, the target object, and the target property
+as operands; the second would require those operands plus another for
+the defining object.  We could have two variations of each opcode
+(one with a fixed property ID and the other with a property pointer
+operand from the stack), or we could presume that the operands would
+be rarely used and define only the property pointer version (it would
+be less efficient for cases with a static property ID, but if the
+opcode is rarely used, this extra cost shouldn't be important).
+
+---------
+
+Add a Set intrinsic class?  (For unordered lists, optimized for inclusion
+testing: essentially a LookupTable with only the keys.)
+
+---------
+
+Soft linking:
+
+   local x = ifdef(obj);  // if obj is linked in, return obj, else nil
+
+   replace ifdef obj ...  // same as a new object def if obj isn't linked in
+
+   modify ifdef obj ...   // ignored if obj isn't linked in
+
+---------
+
+List methods: add compare funcs to more methods:
+   - intersect
+   - getUnique
+   - appendUnique
+
+likewise:
+   - Array.getUnique
+   - Array.appendUnique
+   - Vector.getUnique
+   - Vector.appendUnique
+
+---------
+
+Compiler: equivalent property list syntax: 
+
+  a, b = foo
+  c, d(x) { bar }
+
+---------
+
+Add items that are by themselves ambiguous?  This might be interesting
+for things like PO Boxes:
+
+>look in box
+Which box do you mean, the cardboard box, or a mail box?
+
+>mail box
+Which mail box do you mean?  They're numbered from 23000 to 23999.
+
+>23001
+Box 23001 seems to be locked.
+
+This could be accomplished with an isAmbiguous flag in the object,
+which would be similar in effect to isEquivalent.  Whenever the object
+shows up in a list with multiple objects, we use an indefinite article
+with it, as though it were one of a bunch of equivalent items.  When
+the object shows up by itself, we ask a single-object disambig
+question, perhaps by calling a method on the object itself -
+disambigPrompt?
+
+Ultimately, matchName() and matchNameDisambig() would be responsible
+for coming up with a specific object based on the noun phrase.
+
+---------
+
+repeated messages: gather up and group defaults?
+
+---------
+
+Sound defaults.  Add a background sound resource property to each
+object.  On each turn, the library scans for all objects in hearing
+range and plays the associated background sound for each one.  Could
+have near/far/obscured versions, or maybe simply adjust the volume,
+or whatever.
+
+---------
+
+Graphics defaults.  Add a graphic resource property to each room and
+item.  On "look" and "examine", display the associated graphic as
+part of the default room/item description.  It would be especially
+nice to have a choice of presentation styles, maybe even including a
+Legend-style split-screen interface (but that might be more
+appropriate as an add-on; even so, it would be good to keep it in
+mind so that the necessary hooks are there for creating a
+Legend-style presentation add-on).
+
+---------
+
+Add a music soundtrack scheme that simplifies management of background
+music.
+
+---------
+
+Look into formally structuring things into try/check method pairs
+(checkHolding/tryHolding, etc), to make precondition implementation
+more consistent and clear.  This would apply most to the
+preconditions.
+
+---------
+
+Krister Fundin <fundin@yahoo.com> proposes: The list of end-of-game
+options currently specified as the 'extra' parameter to the
+finishGame() and finishGameMsg() functions could instead be bundled up
+into a FinishType object, so that the message and extra options could
+be specified with just one object parameter.  This would make
+game-ending code more concise and also make it easier to reuse an
+option list.
+
+[We'd probably need a new common function that takes a FinishType
+object as its sole parameter; the existing interface functions would
+simply create a dynamic FinishType object to encapsulate the
+parameters and call the new common function.]
+
+---------
+
+Krister Fundin <fundin@yahoo.com> proposes allowing a list parameter
+in the middle of a parameter list, rather than only as the last
+parameter, as in foo(a, [b], c).  The compiler could generate function
+prologue code that moves the trailing arguments into locals, then
+truncates the list created via PUSHPARLST.  It's a little inefficient,
+since we just throw away the first list and have to move the locals
+around, but the case is probably sufficiently rare and non-critical
+that this doesn't much matter.
+
+---------
+
+Andreas Sewe <2003-10-01.as.int-fiction@web.de> proposes that
+'inherited' in templates should NOT implicitly expand to nothing.  As
+it is, 'inherited' in a template expands to each inherited superclass
+template, but also expands to nothing.  Andreas suggests that this
+should be changed to eliminate the empty expansion, AND the empty
+template should be allowed, so that it's possible to make inheritors
+explicitly pick up the empty case.  [It's not entirely clear to me
+that the empty case really needs to be inherited in the first place,
+but Andreas's point is that it *could* be there to ensure backwards
+compatibility with the existing template structure, which implicitly
+does inherit the empty case.]
+
+---------
+
+From <2003-10-01.as.int-fiction@web.de>: add a way of naming
+anonymous functions (which would make the name an oxymoron, so
+I suppose we'd have to rename them to "in-line" functions
+or similar).  Something like this:
+
+ local f = new function factorial(n) { return n > 1 ? n*factorial(n-1) : 1; };
+
+---------
+
+From Krister Fundin <fundin@yahoo.com>: add
+TadsObject.forEachSuperclass(); takes a callback function pointer as
+its argument.  This would iterate through all of the direct and
+indirect superclasses of an object.  (This is readily implementable in
+byte code, but the VM might have the class hierarchy cached, so it
+could iterate through them more efficiently than byte code could.)
+
+---------
+
+From Robey Holderith <robey@flaminglunchbox.net>: add a new
+Python-style string notation: use three single quotes in a row as
+an alternative single-quoted string delimiter.  For example:
+
+   '''Sorry, she's not here right now.'''
+
+would be treated as equivalent to
+
+   'Sorry, she\'s not here right now.'
+
+Many people find the Python notation more readable than the present
+backslash notation.  The backslash notation would be retained as well;
+this would just be a new, optional variation.  (There's some
+compatibility risk, but it's probably negligible - it's hard to come
+up with any example of where a tripled quote like this would be useful
+in the present notation.)
+
+---------
+
+From steve breslin <steve.breslin@gmail.com>: Add auto-completion
+popup lists and parameter-list tooltips to the editor, a la
+"intellisense" in msft dev env's.  Scintilla has native support for
+both of these (the "autocomplete" and "call tips" features), so
+there'd be no UI work; it's just a matter of monitoring keystrokes,
+generating the popup/tip data, and making the appropriate SCI_xxx
+calls to activate the features.
+
+The main difficulty is that TADS is not a statically typed language,
+so it's not possible in principal to generate the popup data that you
+can in a language like C++, where you can determine the type of any
+expression at compile time (and thus at editing time).  You could find
+the popup information only when referring directly to an object by
+name.  I'm not sure if the result would be useful enough to justify
+the work.
+
+The other complication is that I don't think the compiler currently
+provides any sort of convenient packaging for the sort of information
+you'd need to generate the popups; it would probably require some
+compiler work to generate a little database giving the method list for
+each object.  This wouldn't be a ton of work but wouldn't be free.
+
+---------
+
+From Knight Errant <sigmundvondanzig@gmail.com>: add a spell-checker
+to Workbench.  (Could be an on-the-fly spell checker a la Word's
+squiggly underlines, or could be an explicit separate step.  I think
+Scintilla has some built-in support for the display part of on-the-fly
+spell checking, so that would probably be the way to go.  Spell
+checking would be most useful if it were mode-sensitive, so that, for
+example, the tads3 mode would only check text within strings, and
+exclude HTML substrings.  Presumably we could use the style
+information to do this.)
+
+---------
+
+From Eric Eve <eric.eve@hmc.ox.ac.uk>: It would be quite nice if
+TravelBarrier objects had some easy way to refer to the connector
+through which they're blocking travel in their explainTravelBarrier()
+method. One way to do this might be to add a second parameter to
+TravelBarrier.explainTravelBarrier and then have
+TravelConnector.checkTravelBarriers() call
+explainTravelBarrier(traveler, self) instead of
+explainTravelBarrier(traveler); but this could break a lot of existing
+code. The slightly messier alternative, which might nevertheless
+better preserve backward compatibility would be to add a connector
+property to TravelBarrier and then add cur.connector = self just
+before cur.explainTravelBarrier(traveler) in the foreach(cur in lst)
+loop in TravelConnector.checkTravelBarriers().
+
+---------
+
+From Eric Eve <eric.eve@hmc.ox.ac.uk>: At present attempting to travel
+via an AskConnector will always prefer an open door to a closed one
+(without prompting the player to specify which door s/he wants to go
+through). This may be fine as default behaviour but sometimes in might
+be nice to allow the option of always prompting the player to specify
+which door is meant. (I can see that this might be quite fiddly to
+achieve, and if it's too fiddly then by all means don't pursue it;
+it's hardly high priority).
+
+---------
+
+From Eric Eve <eric.eve@hmc.ox.ac.uk>: IIRC this came up before, but I
+can't remember that it was ever pursued. It would be quite nice if
+ThingMatchTopic could match on a class as well as an object, e.g.:
+
+ThingMatchTopic.matchTopic(fromActor, obj)
+{
+        /*
+         *   if matchObj is a collection, check each element, otherwise
+         *   just match the single object
+         */
+        if (matchObj.ofKind(Collection))
+        {
+            /* try matching each object in the list */
+            if (matchObj.indexWhich({cur: obj.ofKind(cur)}) != nil)
+                return matchScore;
+        }
+        else
+        {
+            /* match the single object */
+            if (obj.ofKind(matchObj))
+                return matchScore;
+        }
+
+        /* didn't find a match - indicate this by returning a nil score */
+        return nil;
+    }
+
+With corresponding changes to ThingMatchTopic.isMatchPossible().
+
+So far as I can see this shouldn't break any existing code (if
+obj==matchObj then obj.ofKind(matchObj)), but would allow for greater
+flexibility, making it easier to write responses such as:
+
++ GiveShowTopic @Food
+  topicResponse()
+  {
+     gDobj.moveInto(nil);
+     "Bob snatches {the dobj/him} from you and wolfs it down.\b
+      <q>Thanks,</q> he says, <q>I needed that -- I waa starving!</q>";
+  }
+;
+---------
+
+From Eric Eve <eric.eve@hmc.ox.ac.uk>: Some time ago Michel sent me
+some very nice code to add a vocabLikehihood property to VocabObject,
+which allows authors to nudge the parser to prefering some objects to
+others when all other distinguishers fail. I've found it pretty useful
+ever since and I think it would make a nice addition to the standard
+library if Michel were willing to contribute it.
+

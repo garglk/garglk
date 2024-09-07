@@ -1,0 +1,70 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export resfile.t -> resfile.t3s
+	compile _main.t -> _main.t3o
+	compile resfile.t -> resfile.t3o
+	link -> resfile.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
++ test\data\resfile.dat (testres.txt)
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+1:This is a data file for the 'resfile.t' test.
+2:
+3:IMPORTANT NOTE - this file does NOT have the same name as the
+4:resource that the file loads, because we explicitly set a
+5:different resource name when we run the resource bundler in
+6:the test script. That's the whole point of the test, really -
+7:we want to make sure that we properly load the data from the
+8:resource embedded in the image file, not from an external OS
+9:file.
+10:
+11:This is just some random data for the test. There's no real
+12:significance to the data; we just want to make sure that the
+13:program can read the data and display it.
+14:
+15:We'll copy in the text of the resource program itself, to give
+16:some volume to the data (to ensure we exercise buffer filling
+17:and so on in the file reader layers).
+18:
+19: #charset "us-ascii"
+20:
+21: #include <tads.h>
+22: #include <file.h>
+23:
+24: main(args)
+25: {
+26: local f;
+27:
+28: /* read a resource file */
+29: f = File.openTextResource('testres.txt', 'iso-8859-1');
+30:
+31: /* read from the file until done */
+32: for (local linenum = 1 ; ; ++linenum)
+33: {
+34: local txt;
+35:
+36: /* read another line - stop at eof */
+37: if ((txt = f.readFile()) == nil)
+38: break;
+39:
+40: /* show it */
+41: "<<linenum>>:<<txt>>";
+42: }
+43:
+44: "\<\<EOF>>\b";
+45: }
+46:
+47:That's about it for this file.
+48:
+49:[end]
+<<EOF>>
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

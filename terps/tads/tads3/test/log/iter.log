@@ -1,0 +1,74 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export iter.t -> iter.t3s
+	compile _main.t -> _main.t3o
+	compile iter.t -> iter.t3o
+	link -> iter.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Constant list:
+Next is 1
+Next is 2
+Next is 3
+Next is 4
+Next is 5
+
+List:
+Next is hello
+Next is there
+Next is how
+Next is are
+Next is you
+Next is today
+
+Vector:
+Next is hello
+Next is there
+Next is how
+Next is are
+Next is you
+Next is today
+
+Vector with fill in progress:
+Next is hello
+Next is there
+Next is how
+Next is are
+Next is you
+Next is today
+
+Saving after third element:
+Next is hello!!!!!!
+Next is there!!!!!!
+Next is how!!!!!!
+Next is are!!!!!!
+Next is you!!!!!!
+Next is today!!!!!!
+
+Current position check:
+Current index is 1, value is hello!!!!!!
+Current index is 2, value is there!!!!!!
+Current index is 3, value is how!!!!!!
+Current index is 4, value is are!!!!!!
+Current index is 5, value is you!!!!!!
+Current index is 6, value is today!!!!!!
+
+Reset check:
+Current index is 1, value is hello!!!!!!
+Current index is 2, value is there!!!!!!
+Current index is 3, value is how!!!!!!
+Current index is 4, value is are!!!!!!
+Current index is 5, value is you!!!!!!
+Current index is 6, value is today!!!!!!
+Current index is 1, value is hello!!!!!!
+Current index is 2, value is there!!!!!!
+Current index is 3, value is how!!!!!!
+Current index is 4, value is are!!!!!!
+Current index is 5, value is you!!!!!!
+Current index is 6, value is today!!!!!!
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

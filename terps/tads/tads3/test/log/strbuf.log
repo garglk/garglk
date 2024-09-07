@@ -1,0 +1,165 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export strbuf.t -> strbuf.t3s
+	compile _main.t -> _main.t3o
+	compile strbuf.t -> strbuf.t3o
+	link -> strbuf.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+[1] s=[Testing one... two... three... ]
+[2] s=[one... two... three... ]
+[3] s=[one... ... three... ]
+[4] s=[one... TWO!!!... three... ]
+[5] s=[one... TWO@@@@@... three... ]
+[6] s=[one*#+ TWO@@@@@... three...$]
+[7] s=[one*#+ TWO@@@@@... three...$(i is now 1...) (i is now 2...) (i is now
+3...) (i is now 4...) (i is now 5...) (i is now 6...) (i is now 7...) (i is now
+8...) (i is now 9...) (i is now 10...) (i is now 11...) (i is now 12...) (i is
+now 13...) (i is now 14...) (i is now 15...) (i is now 16...) (i is now 17...)
+(i is now 18...) (i is now 19...) (i is now 20...) (i is now 21...) (i is now
+22...) (i is now 23...) (i is now 24...) (i is now 25...) (i is now 26...) (i
+is now 27...) (i is now 28...) (i is now 29...) (i is now 30...) (i is now
+31...) (i is now 32...) (i is now 33...) (i is now 34...) (i is now 35...) (i
+is now 36...) (i is now 37...) (i is now 38...) (i is now 39...) (i is now
+40...) (i is now 41...) (i is now 42...) (i is now 43...) (i is now 44...) (i
+is now 45...) (i is now 46...) (i is now 47...) (i is now 48...) (i is now
+49...) (i is now 50...) (i is now 51...) (i is now 52...) (i is now 53...) (i
+is now 54...) (i is now 55...) (i is now 56...) (i is now 57...) (i is now
+58...) (i is now 59...) (i is now 60...) (i is now 61...) (i is now 62...) (i
+is now 63...) (i is now 64...) (i is now 65...) (i is now 66...) (i is now
+67...) (i is now 68...) (i is now 69...) (i is now 70...) (i is now 71...) (i
+is now 72...) (i is now 73...) (i is now 74...) (i is now 75...) (i is now
+76...) (i is now 77...) (i is now 78...) (i is now 79...) (i is now 80...) (i
+is now 81...) (i is now 82...) (i is now 83...) (i is now 84...) (i is now
+85...) (i is now 86...) (i is now 87...) (i is now 88...) (i is now 89...) (i
+is now 90...) (i is now 91...) (i is now 92...) (i is now 93...) (i is now
+94...) (i is now 95...) (i is now 96...) (i is now 97...) (i is now 98...) (i
+is now 99...) (i is now 100...) ]
+[8] s=[one*#+ TWO@@@@@... three...$(i is now 1...) (i is now 2...) (i is now
+3...) (i is now 4...) (i is now 5...) (i is now 6...) (i is now 7...) (i is now
+8...) (i is now 9...) (i is now 10...) (i is now 11...) (i is now 12...) (i is
+now 13...) (i is now 14...) (i is now 15...) (i is now 16...) (i is now 17...)
+(i is now 18...) (i is now 19...) (i is now 20...) (i is now 21...) (i is now
+22...) (i is now 23...) (i is now 24...) (i is now 25...) (i is now 26...) (i
+is now 27...) (i is now 28...) (i is now 29...) (i is now 30...) (i is now
+31...) (i is now 32...) (i is now 33...) (i is now 34...) (i is now 35...) (i
+is now 36...) (i is now 37...) (i is now 38...) (i is now 39...) (i is now
+40...) (i is now 41...) (i is now 42...) (i is now 43...) (i is now 44...) (i
+is now 45...) (i is now 46...) (i is now 47...) (i is now 48...) (i is now
+49...) (i is now 50...) (i is now 51...) (i is now 52...) (i is now 53...) (i
+is now 54...) (i is now 55...) (i is now 56...) (i is now 57...) (i is now
+58...) (i is now 59...) (i is now 60...) (i is now 61...) (i is now 62...) (i
+is now 63...) (i is now 64...) (i is now 65...) (i is now 66...) (i is now
+67...) (i is now 68...) (i is now 69...) (i is now 70...) (i is now 71...) (i
+is now 72...) (i is now 73...) (i is now 74...) (i is now 75...) (i is now
+76...) (i is now 77...) (i is now 78...) (i is now 79...) (i is now 80...) (i
+is now 81...) (i is now 82...) (i is now 83...) (i is now 84...) (i is now
+85...) (i is now 86...) (i is now 87...) (i is now 88...) (i is now 89...) (i
+is now 90...) (i is now 91...) (i is now 92...) (i is now 93...) (i is now
+94...) (i is now 95...) (i is now 96...) (i is now 97...) (i is now 98...) (i
+is now 99...) (i is now 100...)]
+
+[9] s.substr(8,11) = [TWO@@@@@...]
+[10] s.substr(s.length()-10) = [now 100...)]
+[11] s.substr(-10) = [ow 100...)]
+[12] s.substr(-11, 5) = [now 1]
+[13] s.charAt(1) = 111
+[14] s.charAt(2) = 110
+[15] s.charAt(-1) = 41
+[16] s.charAt(-2) = 46
+
+Undo tests:
+
+[u1] s=[]
+[u2] s=[one*#+ TWO@@@@@... three...$(i is now 1...) (i is now 2...) (i is now
+3...) (i is now 4...) (i is now 5...) (i is now 6...) (i is now 7...) (i is now
+8...) (i is now 9...) (i is now 10...) (i is now 11...) (i is now 12...) (i is
+now 13...) (i is now 14...) (i is now 15...) (i is now 16...) (i is now 17...)
+(i is now 18...) (i is now 19...) (i is now 20...) (i is now 21...) (i is now
+22...) (i is now 23...) (i is now 24...) (i is now 25...) (i is now 26...) (i
+is now 27...) (i is now 28...) (i is now 29...) (i is now 30...) (i is now
+31...) (i is now 32...) (i is now 33...) (i is now 34...) (i is now 35...) (i
+is now 36...) (i is now 37...) (i is now 38...) (i is now 39...) (i is now
+40...) (i is now 41...) (i is now 42...) (i is now 43...) (i is now 44...) (i
+is now 45...) (i is now 46...) (i is now 47...) (i is now 48...) (i is now
+49...) (i is now 50...) (i is now 51...) (i is now 52...) (i is now 53...) (i
+is now 54...) (i is now 55...) (i is now 56...) (i is now 57...) (i is now
+58...) (i is now 59...) (i is now 60...) (i is now 61...) (i is now 62...) (i
+is now 63...) (i is now 64...) (i is now 65...) (i is now 66...) (i is now
+67...) (i is now 68...) (i is now 69...) (i is now 70...) (i is now 71...) (i
+is now 72...) (i is now 73...) (i is now 74...) (i is now 75...) (i is now
+76...) (i is now 77...) (i is now 78...) (i is now 79...) (i is now 80...) (i
+is now 81...) (i is now 82...) (i is now 83...) (i is now 84...) (i is now
+85...) (i is now 86...) (i is now 87...) (i is now 88...) (i is now 89...) (i
+is now 90...) (i is now 91...) (i is now 92...) (i is now 93...) (i is now
+94...) (i is now 95...) (i is now 96...) (i is now 97...) (i is now 98...) (i
+is now 99...) (i is now 100...)]
+[u3] s=[Testing one... two... three... ]
+[u4] s=[Testing one... two... ]
+[u5] s=[Testing one... ]
+[u6] s=[Testing ]
+[u7] s=[]
+[u8] s=[Testing one... two... three...]
+[u9] s=[Testing two... three...]
+[u10] s=[Testing one... two... three...]
+[u11] s=[Testing {SPLICE HERE!!!} two... three...]
+[u12] s=[Testing one... two... three...]
+[u13] s=[Testing {INSERT HERE!!!}one... two... three...]
+[u14] s=[Testing one... two... three...]
+[u15] s=[Testing one*+# two... three...]
+[u16] s=[Testing one... two... three...]
+[u17] s=[Testing one.ABCDEo... three...]
+[u18] s=[Testing one... two... three...]
+
+Comparison tests
+
+[c1] s=[Hello there!]
+s == 'Hello there!'? yes
+s == str? yes
+'Hello there!' == s ? yes
+str == s? yes
+s > 'Hello there!'? no
+s < 'Hello there!'? no
+s > str? no
+s < str? no
+'Hello there!' > s? no
+'Hello there!' < s? no
+str > s? no
+str < s? no
+
+[c2] s=[Hello here!]
+s == 'Hello there!'? no
+s == str? no
+'Hello there!' == s ? no
+str == s? no
+s > 'Hello there!'? no
+s < 'Hello there!'? yes
+s > str? no
+s < str? yes
+'Hello there!' > s? yes
+'Hello there!' < s? no
+str > s? yes
+str < s? no
+
+[c4] s=[Hello there!], str=[Hello there!]
+s == str? yes
+str == s? yes
+s > str? no
+s < str? no
+str > s? no
+str < s? no
+
+[c5] s=[Hello here!], str=[Hello there!]
+s == str? no
+str == s? no
+s > str? no
+s < str? yes
+str > s? yes
+str < s? no
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

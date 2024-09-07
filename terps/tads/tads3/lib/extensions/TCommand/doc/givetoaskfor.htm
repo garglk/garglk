@@ -1,0 +1,50 @@
+<html><head><meta name="generator" content="Help & Manual 2.7.0"><title>GiveToAskFor</title></head>
+<body bgcolor="#FFFFFF">
+<table width="100%" border="0" cellspacing="0" cellpadding="3" bgcolor="#C0C0C0"><tr><td align="left">
+<font face="Arial" size="3" color="#000000"><b>GiveToAskFor
+<br>
+</b></font>
+
+</td><td align="right"><font face="Arial" size="2"><a href="tcommand.htm">[Previous]</a> <a href="introduction.htm">[Main]</a></font></td></tr></table><br>
+
+<font face="Arial" size="2" color="#000000">GiveToAskFor provides, in a somewhat limited way, the means to translate commands like:
+<br>
+
+<br>
+<b>&gt;bob, give me the gold
+<br>
+</b>
+<br>
+into
+<br>
+
+<br>
+<b>&gt;ask bob for the gold
+<br>
+</b>
+<br>
+It does this by defining a StringPreparser that simply looks for input of the form "X, GIVE ME Y" and transforms it into "ASK X FOR Y". This may  have odd effects if Y is not simply the name of an object or topic that can occur in an ASK FOR command. For example, if the player typed:
+<br>
+
+<br>
+<b>&gt;bob, give me the coin, then go north</b>
+<br>
+
+<br>
+The input would be translated into
+<br>
+
+<br>
+<b>&gt;ask bob for the coin, then go north
+<br>
+
+<br>
+</b>Which would not mean the same thing. The moral is that the mechanism this module employs is somewhat fragile, and should be used only at your risk.<b>
+<br>
+</b>
+<br>
+To use GiveToAskFor simply include GiveToAskFor.t in the list of source files in your project makefile.
+<br>
+</font>
+
+</body></html>

@@ -1,0 +1,17 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export propaddr.t -> propaddr.t3s
+	compile _main.t -> _main.t3o
+	compile propaddr.t -> propaddr.t3o
+	link -> propaddr.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+calling prop1: this is prop1
+calling prop2: this is prop2
+calling prop3:
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

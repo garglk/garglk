@@ -1,0 +1,12 @@
+#line 1 "circ2.c"
+
+
+"circular_a(100): "; CIRCULAR_A(100*A*B);
+"circular_a(circular_b(50)): "; CIRCULAR_A(CIRCULAR_B(50*B*A)*A*B);
+hash table: total 12, longest 1, average 0
+number of buckets over average length: 12
+number of empty buckets: 500
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

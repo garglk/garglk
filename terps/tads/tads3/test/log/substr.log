@@ -1,0 +1,56 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export substr.t -> substr.t3s
+	compile _main.t -> _main.t3o
+	compile substr.t -> substr.t3o
+	link -> substr.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+'abcdefghijkl'.substr(0, 100) = 'abcdefghijkl'
+'abcdefghijkl'.substr(-5, 100) = 'hijkl'
+'abcdefghijkl'.substr(5, 100) = 'efghijkl'
+'abcdefghijkl'.substr(5, -100) = ''
+'abcdefghijkl'.substr(5, -3) = 'efghi'
+'abcdefghijkl'.substr(-6, -3) = 'ghi'
+'abcdefghijkl'.substr(-1, -1) = ''
+'abcdefghijkl'.substr(-1, -1) = ''
+'abcdefghijkl'.substr(-2, -1) = 'k'
+'abcdefghijkl'.substr(-3, -1) = 'jk'
+'abcdefghijkl'.substr(-4, -1) = 'ijk'
+'abcdefghijkl'.substr(-5, -1) = 'hijk'
+'abcdefghijkl'.substr(-6, -1) = 'ghijk'
+'abcdefghijkl'.substr(-7, -1) = 'fghijk'
+'abcdefghijkl'.substr(-8, -1) = 'efghijk'
+'abcdefghijkl'.substr(-9, -1) = 'defghijk'
+'abcdefghijkl'.substr(-10, -1) = 'cdefghijk'
+'abcdefghijkl'.substr(-10, -2) = 'cdefghij'
+'abcdefghijkl'.substr(-10, -3) = 'cdefghi'
+'abcdefghijkl'.substr(-10, -4) = 'cdefgh'
+'abcdefghijkl'.substr(-10, -5) = 'cdefg'
+'abcdefghijkl'.substr(-10, -6) = 'cdef'
+'abcdefghijkl'.substr(-10, -7) = 'cde'
+'abcdefghijkl'.substr(-10, -8) = 'cd'
+'abcdefghijkl'.substr(-10, -9) = 'c'
+'abcdefghijkl'.substr(-10, -10) = ''
+'abcdefghijkl'.substr(-10, -11) = ''
+'abcdefghijkl'.substr(-11, -1) = 'bcdefghijk'
+'abcdefghijkl'.substr(-12, -1) = 'abcdefghijk'
+'abcdefghijkl'.substr(-13, -1) = 'abcdefghijk'
+'abcdefghijkl'.substr(-14, -1) = 'abcdefghijk'
+'abcdefghijkl'.substr(-14, -2) = 'abcdefghij'
+'abcdefghijkl'.substr(-14, -10) = 'ab'
+'abcdefghijkl'.substr(-14, -11) = 'a'
+'abcdefghijkl'.substr(-14, -12) = ''
+'abcdefghijkl'.substr(-14, -13) = ''
+'abcdefghijkl'.substr(-14, -14) = ''
+'abcdefghijkl'.substr(10, -1) = 'jk'
+'abcdefghijkl'.substr(11, -1) = 'k'
+'abcdefghijkl'.substr(12, -1) = ''
+'abcdefghijkl'.substr(13, -1) = ''
+'abcdefghijkl'.substr(14, -1) = ''
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

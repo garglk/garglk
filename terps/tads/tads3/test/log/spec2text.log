@@ -1,0 +1,118 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export spec2text.t -> spec2text.t3s
+	compile _main.t -> _main.t3o
+	compile spec2text.t -> spec2text.t3o
+	link -> spec2text.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Src:  This is a test of the specialsToText() conversion process.
+Disp: This is a test of the specialsToText() conversion process.
+s2t:  This is a test of the specialsToText() conversion process.
+
+Src:  These first strings have no special characters, but we'll get to that
+presently.
+Disp: These first strings have no special characters, but we'll get to that
+presently.
+s2t:  These first strings have no special characters, but we'll get to that
+presently.
+
+Src:  We have some \ \ quoted spaces \ \ in this one.
+Disp: We have some  quoted spaces  in this one.
+s2t:  We have some  quoted spaces  in this one.
+
+Src:  Mixing \  \  quoted and \ \   \   unquoted spaces.
+Disp: Mixing  quoted and   unquoted spaces.
+s2t:  Mixing  quoted and   unquoted spaces.
+
+Src:  This one has some <q>quote <q>markups</q> end quote</q>.
+Disp: This one has some <q>quote <q>markups</q> end quote</q>.
+s2t:  This one has some "quote 'markups' end quote".
+
+Src:  Let's try <q>quote
+Disp: Let's try <q>quote
+s2t:  Let's try "quote
+
+Src:  <q>markups</q>
+Disp: <q>markups</q>
+s2t:   'markups'
+
+Src:  end quote</q> across elements!
+Disp: end quote</q> across elements!
+s2t:  end quote" across elements!
+
+Src:  Some newline conversions: newline\nblank\bthree newlines\n\n\nthree
+blanks\b\b\bnewline-blank-newline-blank\n\b\n\b
+Disp: Some newline conversions: newline
+blank
+
+three newlines
+three blanks
+
+
+
+newline-blank-newline-blank
+
+
+
+s2t:  Some newline conversions: newline\nblank\n\nthree newlines\nthree
+blanks\n\n\n\nnewline-blank-newline-blank\n\n\n
+
+Src:  A tag across lines: <a href="test
+Disp: A tag across lines: <a href="test
+s2t:  A tag across lines:
+
+Src:  <link>">hyperlinked text here</
+Disp: <link>">hyperlinked text here</
+s2t:  hyperlinked text here
+
+Src:  a>
+Disp: a>
+s2t:
+
+Src:  Caps flag: \^<q>in quotes</q>, nocaps: \v<a href='link
+Disp: Caps flag: <Q>in quotes</q>, nocaps: <a href='link
+s2t:  Caps flag: "In quotes", nocaps:
+
+Src:  -<across>-lines'>ALL CAPS</a>
+Disp: -<across>-lines'>ALL CAPS</a>
+s2t:  aLL CAPS
+
+Src:  BR with HEIGHT attributes... first, height=0<br height=0>\nNow
+height=1<br height=1>And height=2<br height=2>And now a height=0 at the start
+of a line\n<br height=0>And height=2 at start of line\n<br height=2>
+Disp: BR with HEIGHT attributes... first, height=0<br height=0>
+Now height=1<br height=1>And height=2<br height=2>And now a height=0 at the
+start of a line
+<br height=0>And height=2 at start of line
+<br height=2>
+s2t:  BR with HEIGHT attributes... first, height=0\nNow height=1\n\nAnd
+height=2\n\n\nAnd now a height=0 at the start of a line\nAnd height=2 at start
+of line\n\n\n
+
+Src:
+Tabs:\none\ttwo\tthree\tfour\tfive\tsix\n\ta\tb\tc\td\nhello\tgoodbye\tthat
+should be all
+Disp: Tabs:
+one    two three   four    five    six
+   a   b   c   d
+hello  goodbye that should be all
+s2t:
+Tabs:\none\ttwo\tthree\tfour\tfive\tsix\n\ta\tb\tc\td\nhello\tgoodbye\tthat
+should be all
+
+Src:  Some entity markups: &quot;Quotes&quot;, &ldquo;Curly Quotes&rdquo;,
+&lsquo;Single Curlies&rsquo;, &lt;angle brackets&gt; &amp; and such,
+nb&nbsp;spaces.
+Disp: Some entity markups: &quot;Quotes&quot;, &ldquo;Curly Quotes&rdquo;,
+&lsquo;Single Curlies&rsquo;, &lt;angle brackets&gt; &amp; and such,
+nb&nbsp;spaces.
+s2t:  Some entity markups: "Quotes", "Curly Quotes", 'Single Curlies', <angle
+brackets> & and such, nb spaces.
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

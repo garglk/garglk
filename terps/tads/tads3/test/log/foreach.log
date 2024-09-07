@@ -1,0 +1,55 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export foreach.t -> foreach.t3s
+	compile _main.t -> _main.t3o
+	compile foreach.t -> foreach.t3o
+	link -> foreach.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Constant list:
+hello
+there
+how
+are
+you
+today
+
+Non-constant list:
+hello
+there
+how
+are
+you
+today
+!!!
+
+Vector:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+
+Vector, modifying throughout foreach:
+x = 1, vec[1] = 2
+x = 2, vec[2] = 4
+x = 3, vec[3] = 6
+x = 4, vec[4] = 8
+x = 5, vec[5] = 10
+x = 6, vec[6] = 12
+x = 7, vec[7] = 14
+x = 8, vec[8] = 16
+x = 9, vec[9] = 18
+x = 10, vec[10] = 20
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

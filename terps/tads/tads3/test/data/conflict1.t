@@ -1,0 +1,2 @@
+obj1: object
+;

@@ -1,0 +1,61 @@
+	Files to build: 6
+	symbol_export _main.t -> _main.t3s
+	symbol_export newembed.t -> newembed.t3s
+	compile _main.t -> _main.t3o
+	compile newembed.t -> newembed.t3o
+	link -> newembed.t3p
+	preinit -> newembed.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+It's a brown cardboard box. It appears to be large in size. The box is open. It
+appears to be a bit damp.
+
+It's a large oak cabinet. It appears to be medium in size. The cabinet is
+closed.
+
+\*Nested if with i=1: i is less than 3
+\*Nested if with i=2: i is less than 3
+\*Nested if with i=3: i is at least 3 but less than 5
+\*Nested if with i=4: i is at least 3 but less than 5
+\*Nested if with i=5: i is 5-7
+\*Nested if with i=6: i is 5-7
+\*Nested if with i=7: i is 5-7
+\*Nested if with i=8: i is greater than 7
+\*Nested if with i=9: i is greater than 7
+\*Nested if with i=10: i is greater than 7
+
+i=10, which is less than fifty
+i=20, which is less than fifty
+i=30, which is less than fifty
+i=40, which is less than fifty
+i=50, which is at least fifty, but less than seventy
+i=60, which is at least fifty, but less than seventy
+i=70, which is seventy and up
+i=80, which is seventy and up
+i=90, which is seventy and up
+i=100, which is seventy and up
+
+The oven door is closed.
+The oven door is closed.
+The oven door is open.
+The oven door is open and the light inside is on.
+
+This is an "unless" test. 'a' is not less than 3.
+
+Second "unless" test.
+
+Third "unless" test. 'a' is not less than 3.
+
+Another "unless" test. 'a' is less than 6.
+
+s is: The value of i is 3, and j is boo!
+s is now: The value of i is 3, and j is boo!
+
+s is: The value of i is 3, and j is boo!
+s is now: The value of i is 7, and j is boo hoo!
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

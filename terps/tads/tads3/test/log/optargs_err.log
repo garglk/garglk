@@ -1,0 +1,16 @@
+	Files to build: 6
+	symbol_export _main.t -> _main.t3s
+	symbol_export optargs_err.t -> optargs_err.t3s
+optargs_err.t(3): error: parameter 'd' must be optional because it follows an optional parameter
+optargs_err.t(8): error: parameter 'd' must be optional because it follows an optional parameter
+Errors:   2
+Warnings: 0
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+VM Error: file not found
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

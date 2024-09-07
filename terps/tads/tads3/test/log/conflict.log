@@ -1,0 +1,18 @@
+	Files to build: 5
+	symbol_export conflict1.t -> conflict1.t3s
+	symbol_export conflict2.t -> conflict2.t3s
+	compile conflict1.t -> conflict1.t3o
+	compile conflict2.t -> conflict2.t3o
+	link -> conflict.t3
+error: symbol "obj1" (type: object) redefined in object file "conflict2.t3o"
+Errors:   1
+Warnings: 0
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+VM Error: file not found
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

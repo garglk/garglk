@@ -1,0 +1,115 @@
+# TADS 3 makefile
+#
+# Warning: this file was mechanically generated.  You may edit this file
+# manually, but your changes might be modified or discarded when
+# you load this file into a TADS development tool.  The TADS tools
+# generally retain the comment at the start of the file and the
+# comment marked "##sources" below, but other comments might be
+# discarded, the formatting might be changed, and some option
+# settings might be modified.
+
+#
+# makefile for calc
+#
+
+# source files
+
+
+
+
+
+##sources
+-source calc
+-source tok
+
+# The following is machine-generated - DO NOT EDIT
+[Config:devsys]
+DebugToolbar:rebarWidth:I:558
+build:ext resfile cnt:I:0
+build:defaults set:I:1
+watch win:pos:R:410,559,528,559
+watch win:vis:I:0
+SearchToolbar:rebarNewLine:I:0
+log win pos::R:455,181,1515,715
+log win vis::I:0
+MenuBar:rebarVis:I:1
+DocToolbar:rebarIndex:I:3
+DocToolbar:rebarWidth:I:835
+DebugToolbar:rebarVis:I:1
+build:installer options:S:0:name=calc_dbg
+build:installer options:S:1:savext=calc_dbg
+*42 src win pos:C:\TADS\tads3\test\data\calc.t:R:0,0,706,522
+search:start at top:I:0
+EditToolbar:rebarNewLine:I:1
+*35 src win pos:c:\tads\build\lib\tok.t:R:39,22,987,741
+proj search:exact case:I:0
+DocToolbar:rebarVis:I:1
+auto-script:quit sequences:S:0:<nocase>[<]line[>]<space>*q(uit)?<space>*
+auto-script:quit sequences:S:1:<nocase>[<]line[>]<space>*y.*
+SearchToolbar:rebarIndex:I:2
+search:wrap:I:1
+auto-script:next-id:I:3
+SearchToolbar:rebarWidth:I:312
+search:text:S:0:
+search:text:S:1:
+docking config::S:0:CL
+docking config::S:1:W0,356,412,-170,17,161,509,D,L,project win
+docking config::S:2:W0,356,150,175,508,345,658,D,L,script win
+docking config::S:3:CB
+docking config::S:4:W3,823,170,406,535,532,555,D,B,watch win
+docking config::S:5:W3,775,170,-153,535,533,555,D,B,locals win
+docking config::S:6:W-1,170,170,73,10,1141,573,M,R,log win
+locals win:pos:R:-149,559,529,559
+locals win:vis:I:0
+main win max::I:0
+proj search:collapse spaces:I:0
+search:exact case:I:0
+mdi win list::S:0:c:\tads\build\lib\tok.t
+main win pos::R:16,16,1627,1108
+proj search:whole word:I:0
+help win vis::I:0
+build:exe:S:0:calc_dbg.exe
+docsearch win vis::I:0
+script win:vis:I:1
+script win:pos:R:22,949,369,1079
+src win list::S:0:C:\TADS\tads3\test\data\calc.t
+EditToolbar:rebarIndex:I:1
+hist win vis::I:0
+EditToolbar:rebarWidth:I:260
+SearchToolbar:rebarVis:I:1
+MenuBar:rebarNewLine:I:0
+proj search:regex:I:0
+search:whole word:I:0
+build:debug_image_file:S:0:C:\TADS\tads3\test\data\calc_dbg.t3
+DebugToolbar:rebarNewLine:I:1
+search:regex:I:0
+mdi tab order::S:0:0
+build:rlsgam:S:0:calc_dbg_rls.t3
+EditToolbar:rebarVis:I:1
+main win mdi max::I:1
+auto-script:default quit sequences set:I:1
+DocToolbar:rebarNewLine:I:0
+MenuBar:rebarIndex:I:0
+mdi win title::S:0:c:\tads\build\lib\tok.t
+search:dir:I:1
+build:installer prog:S:0:calc_dbg_Setup.exe
+MenuBar:rebarWidth:I:424
+project win:pos:R:22,142,369,923
+project win:vis:I:1
+stack win vis::I:0
+stack win pos::R:266,146,1168,562
+filesearch win vis::I:0
+src win title::S:0:C:\TADS\tads3\test\data\calc.t
+DebugToolbar:rebarIndex:I:4
+searchMode::I:1
+search dlg:old repl text:S:0:
+search dlg:old repl text:S:1:tt
+search dlg:old repl text:S:2:oo
+search dlg:old repl text:S:3:test111
+search dlg:old repl text:S:4:baba
+search dlg:old repl text:S:5:Statue.IsPulled
+search dlg:old repl text:S:6:Status.IsPulled
+search dlg:old repl text:S:7:XXXX
+search dlg:old repl text:S:8:tt
+search dlg:old repl text:S:9:oo
+

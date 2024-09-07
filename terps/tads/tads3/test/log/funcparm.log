@@ -1,0 +1,18 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export funcparm.t -> funcparm.t3s
+	compile _main.t -> _main.t3o
+	compile funcparm.t -> funcparm.t3o
+	link -> funcparm.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+main(a)
+varfunc(a, b, ...)
+varfunc2(...)
+_showParams(a, b)
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

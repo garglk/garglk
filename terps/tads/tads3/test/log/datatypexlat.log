@@ -1,0 +1,27 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export datatypexlat.t -> datatypexlat.t3s
+	compile _main.t -> _main.t3o
+	compile datatypexlat.t -> datatypexlat.t3o
+	link -> datatypexlat.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+f1(5) = 10
+dataType(f1) = 12
+dataTypeXlat(f1) = 12
+
+f2(5) = 15
+dataType(f2) = 5
+dataTypeXlat(f2) = 12
+
+f3(5) = 20
+dataType(f3) = 5
+dataTypeXlat(f3) = 12
+
+f3.ofKind(DynamicFunc) ? yes
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

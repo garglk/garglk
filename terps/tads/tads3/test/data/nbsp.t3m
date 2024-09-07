@@ -1,0 +1,112 @@
+# TADS 3 makefile
+#
+# Warning: this file was mechanically generated.  You may edit this file
+# manually, but your changes might be modified or discarded when
+# you load this file into a TADS development tool.  The TADS tools
+# generally retain the comment at the start of the file and the
+# comment marked "##sources" below, but other comments might be
+# discarded, the formatting might be changed, and some option
+# settings might be modified.
+
+-pre
+-D LANGUAGE=en_us
+-D MESSAGESTYLE=neu
+-Fy obj
+-Fo obj
+-v
+-w2
+
+##sources
+-source nbsp
+
+-res
+GameInfo.txt
+
+# The following is machine-generated - DO NOT EDIT
+[Config:devsys]
+build:ext resfile cnt:I:0
+build:defaults set:I:1
+watch win:vis:I:1
+watch win:pos:R:527,770,1228,945
+log win max::I:0
+build:c ops:I:0
+src win options:text color:C:0,0,0
+log win vis::I:1
+log win pos::R:67,36,903,596
+build:charmap:S:0:
+build:include_files-sys:S:0:system
+build:include_files-sys:S:1:system
+build:include_files-sys:S:2:system
+build:include_files-sys:S:3:system
+build:include_files-sys:S:4:system
+build:include_files-sys:S:5:system
+build:include_files-sys:S:6:system
+build:include_files-sys:S:7:system
+build:include_files-sys:S:8:system
+build:include_files-sys:S:9:system
+build:include_files-sys:S:10:system
+build:include_files-sys:S:11:system
+build:include_files-sys:S:12:system
+build:include_files-sys:S:13:system
+build:include_files-sys:S:14:lib
+build:include_files-sys:S:15:system
+build:include_files-sys:S:16:lib
+project win:dock id:I:6
+src win options:tab size:I:8
+ask reload src::I:0
+build:installer options:S:0:name=nbsp
+build:installer options:S:1:savext=nbsp
+search:start at top:I:0
+ask load dlg::I:0
+search:wrap:I:1
+docking config::S:0:CL
+docking config::S:1:CL
+docking config::S:2:CR
+docking config::S:3:CB
+docking config::S:4:CB
+docking config::S:5:CB
+docking config::S:6:CB
+docking config::S:7:CB
+docking config::S:8:CB
+docking config::S:9:CB
+docking config::S:10:CB
+docking config::S:11:W10,270,184,-177,562,355,723,D,locals win
+docking config::S:12:W10,270,184,381,562,913,723,D,watch win
+docking config::S:13:CR
+docking config::S:14:W13,170,170,315,92,1159,681,M,log win
+docking config::S:15:CL
+docking config::S:16:CR
+docking config::S:17:W16,170,170,266,86,938,559,M,stack win
+docking config::S:18:CL
+docking config::S:19:W18,217,270,-212,17,-9,537,D,project win
+search:text:S:0:
+locals win:vis:I:1
+locals win:pos:R:-200,770,501,945
+main win max::I:0
+search:exact case:I:0
+main win pos::R:29,7,1486,1055
+src win options:use win colors:I:1
+build:ignore case:I:0
+build:exe:S:0:nbsp.exe
+src win options:bkg color:C:255,255,255
+build:use charmap:I:0
+src win options:font name:S:0:Courier New
+hist win vis::I:0
+editor:cmdline:S:0:"+%n:%0c" "%f"
+gameover dlg::I:1
+src win options:font size:I:10
+build:debug_image_file:S:0:debug\nbsp.t3
+editor:program:S:0:D:\PROGRA~1\Eps11\bin\SendEps.exe
+startup:action:I:2
+build:rlsgam:S:0:nbsp.t3
+main win mdi max::I:0
+dbglog:clear on build:I:1
+bpmove dlg::I:1
+stack win max::I:0
+search:dir:I:1
+build:installer prog:S:0:nbsp_Setup.exe
+project win:vis:I:1
+project win:pos:R:-217,17,-9,761
+stack win pos::R:18,30,682,474
+stack win vis::I:1
+

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Preinit tests
+
+echo Preinit test: $1
+
+test_prs_top -It3inc $T3_DAT/$1.t $T3_OUT/$1.t3 >$T3_OUT/$1.log 2>&1
+t3pre $T3_OUT/$1.t3 $T3_OUT/${1}_pre.t3 >>$T3_OUT/$1.log 2>&1
+test_exec -cs cp437 $T3_OUT/${1}_pre.t3 >>$T3_OUT/$1.log 2>&1
+test_diff $1
+
+echo

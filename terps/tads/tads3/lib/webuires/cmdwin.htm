@@ -1,0 +1,36 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Strict//EN">
+<!--
+Copyright 2010 Michael J Roberts.
+
+Command-line window template for TADS Web UI.  This can be used as the
+top-level document, or as the contents of an <iframe>.  For example, we
+can use an iframe at the top to show the traditional IF status line,
+and then cover the rest of the window with a separate iframe containing
+the main game transcript window.
+
+-->
+
+<html>
+<link rel="stylesheet" type="text/css" href="/webuires/tads.css">
+<link rel="stylesheet" type="text/css" href="/webuires/cmdwin.css">
+
+<script type="text/javascript" src="/webuires/util.js"></script>
+<script type="text/javascript" src="/webuires/cmdwin.js"></script>
+<body onload="javascript:cmdWinInit();" class="cmdwin default">
+
+<div id="maindiv">
+   <div id="maindiv_lineht">
+      <span></span>
+   </div>
+</div>
+
+<div id="bottomSpacerDiv">
+&nbsp;
+</div>
+
+<div id="cmdline_probe">
+   <span class="cmdline"></span>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,11 @@
+The TADS 2 Unix source distribution is now separate from this generic
+distribution.  You should look at the site where you found this zip file
+and look for another file with a name like this:
+
+  tads23-unix.tar.gz
+
+That file should contain the latest source distribution packaged for easy
+Unix installation.
+
+Please see http://www.tads.org if you need to contact anyone for more
+help.

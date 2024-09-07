@@ -1,0 +1,27 @@
+	Files to build: 7
+	symbol_export _main.t -> _main.t3s
+	symbol_export defined.t -> defined.t3s
+	symbol_export defined2.t -> defined2.t3s
+	compile _main.t -> _main.t3o
+	compile defined.t -> defined.t3o
+defined.t(14): warning: "if" condition is always false
+	compile defined2.t -> defined2.t3o
+	link -> defined_test2.t3
+Errors:   0
+Warnings: 1
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+foo is defined
+foo is a C
+bar is defined
+bar is a C
+bar is a foo
+
+foo is defined
+bar is defined
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

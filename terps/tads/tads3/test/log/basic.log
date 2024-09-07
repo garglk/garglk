@@ -1,0 +1,93 @@
+basic.t(38): warning: assignment in condition (possible use of '=' where '==' was intended)
+basic.t(208): warning: unreachable statement
+basic.t(226): warning: code has "return" with value but also falls off end
+basic.t(252): warning: unreachable statement
+basic.t(268): warning: label "stm3" is not referenced
+basic.t(35): warning: local variable "i" is never used
+basic.t(36): warning: local variable "j" is never used
+basic.t(42): warning: value is assigned to local variable "i" but the value is never used
+basic.t(43): warning: local variable "j" is never used
+basic.t(231): warning: value is assigned to local variable "j" but the value is never used
+Warnings: 10
+Errors:   0
+Longest string: 34, longest list: 0
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+... this is _main() ...
+iter[0]: 7! = 5040
+iter[1]: 7! = 5040
+iter[2]: 7! = 5040
+iter[3]: 7! = 5040
+iter[4]: 7! = 5040
+i = 1, j = hello, x = bye
+i = 2, j = hello, x = bye!
+i = 3, j = hello, x = bye!!
+i = 4, j = hello, x = bye!!!
+at outer scope: i = outer i
+test break - i = 1
+test break - i = 2
+test break - i = 3
+test break - i = 4
+test break - i = 5
+test continue - i = 1
+...not continuing this time!
+test continue - i = 2
+...not continuing this time!
+test continue - i = 3
+...not continuing this time!
+test continue - i = 4
+...not continuing this time!
+test continue - i = 5
+test continue - i = 6
+test continue - i = 7
+test continue - i = 8
+test continue - i = 9
+this is while loop iteration #0
+this is while loop iteration #1
+this is while loop iteration #2
+this is while loop iteration #3
+this is while loop iteration #4
+this is while loop 2 - iteration #5
+this is while loop 3 - iteration #5
+this is while loop 3 - iteration #3
+this is while loop 3 - iteration #2
+this is while loop 3 - iteration #1
+this is do loop - iteration #0
+this is do loop - iteration #1
+this is do loop - iteration #2
+this is do loop - iteration #3
+this is do loop - iteration #4
+this is do loop - iteration #5
+this is do loop 2 - iteration #6
+this is do loop 2 - iteration #7
+this is do loop 3 - iteration #7
+this is do loop 3 - iteration #5
+this is do loop 3 - iteration #3
+this is do loop 3 - iteration #2
+this is do loop 3 - iteration #1
+no breaks - i = 3
+case 3
+case 4
+case 5
+default 1
+with breaks - i = 2
+case 2
+
+Labeled Break Test
+
+starting stm1:
+we're now in stm1...
+preparing to break...
+here we are after stm1
+starting stm2:
+   - loop: i = 1
+   - loop: i = 2
+   - loop: i = 3
+after stm2
+... _main() exiting ...
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

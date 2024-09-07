@@ -1,0 +1,17 @@
+#line 1 "embed.c"
+"try __FILE__ and __LINE__";
+"__FILE__: <<'embed.c'>>, __LINE__: << 2 >>\n";
+
+"__FILE__: <<
+  'embed.c'
+  >>, __LINE__: <<
+#line 8 "embed.c"
+  8 >> -- that was __FILE and __LINE!\n";
+
+hash table: total 10, longest 1, average 0
+number of buckets over average length: 10
+number of empty buckets: 502
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

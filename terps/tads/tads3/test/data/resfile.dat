@@ -1,0 +1,49 @@
+This is a data file for the 'resfile.t' test.
+
+IMPORTANT NOTE - this file does NOT have the same name as the
+resource that the file loads, because we explicitly set a
+different resource name when we run the resource bundler in
+the test script.  That's the whole point of the test, really -
+we want to make sure that we properly load the data from the
+resource embedded in the image file, not from an external OS
+file.
+
+This is just some random data for the test.  There's no real
+significance to the data; we just want to make sure that the
+program can read the data and display it.
+
+We'll copy in the text of the resource program itself, to give
+some volume to the data (to ensure we exercise buffer filling
+and so on in the file reader layers).
+
+    #charset "us-ascii"
+
+    #include <tads.h>
+    #include <file.h>
+
+    main(args)
+    {
+        local f;
+
+        /* read a resource file */
+        f = File.openTextResource('testres.txt', 'iso-8859-1');
+
+        /* read from the file until done */
+        for (local linenum = 1 ; ; ++linenum)
+        {
+            local txt;
+
+            /* read another line - stop at eof */
+            if ((txt = f.readFile()) == nil)
+                break;
+
+            /* show it */
+            "<<linenum>>:<<txt>>";
+        }
+
+        "\<\<EOF>>\b";
+    }
+
+That's about it for this file. 
+
+[end]

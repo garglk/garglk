@@ -1,0 +1,41 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export lookupdef.t -> lookupdef.t3s
+	compile _main.t -> _main.t3o
+	compile lookupdef.t -> lookupdef.t3o
+	link -> lookupdef.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+t[one] = 111, t[two] = 222, t[three] = 333, t[four] = 444, t[five] = , t[six] =
+.. t[one] = 111
+.. t[two] = 222
+.. t[three] = 333
+.. t[four] = 444
+t.getDefaultValue =
+
+t[one] = 111, t[two] = 222, t[three] = 333, t[four] = 444, t[five] = 999,
+t[six] = 999
+.. t[one] = 111
+.. t[two] = 222
+.. t[three] = 333
+.. t[four] = 444
+t.getDefaultValue = 999
+
+t[one] = 111, t[two] = 222, t[three] = 333, t[four] = 444, t[five] = 888,
+t[six] = 888
+.. t[one] = 111
+.. t[two] = 222
+.. t[three] = 333
+.. t[four] = 444
+t.getDefaultValue = 888
+
+t[one] = 999, t[two] = 999, t[three] = 999, t[four] = 999, t[five] = 999,
+t[six] = 999
+t.getDefaultValue = 999
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

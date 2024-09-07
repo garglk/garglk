@@ -1,0 +1,149 @@
+finally.t(197): warning: unreachable statement
+finally.t(205): warning: unreachable statement
+finally.t(220): warning: local variable "i" is never used
+Warnings: 3
+Errors:   0
+Longest string: 53, longest list: 0
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+entering main
+Break Tests
+
+loop 1
+entering try1
+loop 1 - i = 1
+this is the finally for try 1
+done with try1
+entering try1
+loop 1 - i = 2
+this is the finally for try 1
+done with try1
+entering try1
+loop 1 - i = 3
+this is the finally for try 1
+done with try1
+entering try1
+loop 1 - i = 4
+breaking...
+this is the finally for try 1
+end of loop 1
+
+loop 2 - label LOOP2:
+(( inner loop 2 - i = 1
+)) end of inner loop 2 - i = 1
+(( inner loop 2 - i = 2
+   + loop 2a - j = 1
+)) end of inner loop 2 - i = 2
+(( inner loop 2 - i = 3
+   + loop 2a - j = 1
+   + loop 2a - j = 2
+)) end of inner loop 2 - i = 3
+(( inner loop 2 - i = 4
+   + loop 2a - j = 1
+   + loop 2a - j = 2
+   + loop 2a - j = 3
+breaking out of LOOP2...
+end of loop 2
+
+Continue Test
+
+loop1 - i = 1
+   inner loop 1a - j = 1
+inner finally
+   inner loop 1a - j = 2
++ continuing...
+inner finally
+outer finally
+loop1 - i = 2
+   inner loop 1a - j = 1
+inner finally
+   inner loop 1a - j = 2
++ continuing...
+inner finally
+outer finally
+loop1 - i = 3
+   inner loop 1a - j = 1
+inner finally
+   inner loop 1a - j = 2
++ continuing...
+inner finally
+outer finally
+loop1 - i = 4
+   inner loop 1a - j = 1
+inner finally
+   inner loop 1a - j = 2
++ continuing...
+inner finally
+outer finally
+loop1 - i = 5
+   inner loop 1a - j = 1
+inner finally
+   inner loop 1a - j = 2
++ continuing...
+inner finally
+outer finally
+end loop1
+
+Return Test -- will not return in the middle of the try block
+
+entering try 1
+entering try 1a
+not returning
+end of inner try 1a
+finally 1a
+end out outer try 1
+finally 1
+end of ret_test
+ret_test(nil) = NIL!!!
+
+Return Test -- will return in the middle of the try block
+
+entering try 1
+entering try 1a
+returning...
+finally 1a
+finally 1
+ret_test(true) = TRUE!!!
+Goto Tests
+
+simple goto s1...
+here we are at s1!
+entering try 1
+goto within try - s2
+here we are at s2!
+jumping out of try 1 to s3
+finally 1
+now at s3!
+jumping into a try - s4
+at s4!
+leaving try 1 again - s5
+finally 1
+okay, this is s5
+
+Exception Throw Tests
+
+entering try 1
+this should be innocuous!
+this is the first finally
+entering try 2
+entering nested try 2a
+in try - calling exc_test_thrower - valid value...
++ in exc_test_thrower - entering try
++ in try - computing value
++ result = 8
++ exc_test_thrower finally
++ exc_test_thrower - returning
+in try - calling exc_test_thrower - INVALID value...
++ in exc_test_thrower - entering try
++ in try - computing value
++ exc_test_thrower finally
+this is finally 2a
+this is the second finally block!
+
+Unhandled exception: numeric value required
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

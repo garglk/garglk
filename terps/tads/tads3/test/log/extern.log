@@ -1,0 +1,25 @@
+	Files to build: 7
+	symbol_export extern1.t -> extern1.t3s
+	symbol_export extern2.t -> extern2.t3s
+	symbol_export extern3.t -> extern3.t3s
+	compile extern1.t -> extern1.t3o
+	compile extern2.t -> extern2.t3o
+	compile extern3.t -> extern3.t3o
+	link -> extern.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+entering main
+calling f1_a
+this is f1_a
+- calling f2_b
+this is f2_b
+calling f2_a
+this is f2_a
+- calling f1_b
+this is f1_b
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

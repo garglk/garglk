@@ -1,0 +1,13 @@
+fnredef.t(20): error: function "test" is already defined
+Warnings: 0
+Errors:   1
+Longest string: 29, longest list: 0
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+VM Error: file not found
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

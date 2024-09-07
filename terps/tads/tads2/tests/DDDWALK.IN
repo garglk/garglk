@@ -1,0 +1,48 @@
+# Ditch Day Drifter walk-through QA script.
+# Redirect output with the -l switch to get a comparison file.
+
+>look under bed.get bottle.w.s
+>w.n.n.get flask.s.s.e
+>e.e.n.get cup.e.put cup in machine.push button.get cup.w.s.w
+>d.e.e.n.open washing machine.x jeans.get key.s.w
+>n.n.e.n.give cup to guard.unlock door with key.open door.n
+>w.w.s.w.type 293.push button.type 612.push button.w.n.put all in chute.n.e.n
+>e.s.get rope.n.w.w.tie rope to rail.d
+
+
+>se.get flask,bill,bottle.nw
+
+>e.s.open cabinet.get funnel,clonemaster,gf-xq3,poly blue,t99
+>n.e.e.put slime,gf-xq3,poly blue,t99 in clonemaster
+>push clone.drop clonemaster.e.get seal.w.w.w
+
+>s.s.open bottle.put funnel in bottle.pour liquid in funnel.get funnel
+>close bottle.put bottle in slot.z.z.z.z.get darbcard.n.n
+
+>n.n.enter car.put funnel in hole.pour liquid in funnel
+>push green button.z.z.z.z.exit
+>s.get book.n.enter car
+>push green button.z.z.z.z.exit
+>s.s
+
+>sw.give bill to lloyd.ne.w.push red button.e
+
+
+>u.e.e.n.n
+>n.e.n.w.w.s.w.s.w.n.n.n.e.n.w.w.s.s
+
+>s.get flashlight.n.e.nw.get battery.pay clerk.put battery in flashlight.se
+>s.s.e.e.d.e.n.n.e.n.n
+>w.w.s.w.w.n.put all in chute.n.e.n.w.d
+>se.get seal,card,book,light.nw
+>w.turn on flashlight.n.get gear.s.e
+
+>u.e.e.n.n
+>n.e.n.w.w.s.w.s.w.n.n.n.e.n.w.w.s.s
+
+>e.s.s.e.n
+>put book,card,gear,seal in slot
+>w.get motivator.d.put motivator in socket.enter ship.push launch
+
+>quit
+>y

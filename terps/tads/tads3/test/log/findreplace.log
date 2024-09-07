@@ -1,0 +1,85 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export findreplace.t -> findreplace.t3s
+	compile _main.t -> _main.t3o
+	compile findreplace.t -> findreplace.t3o
+	link -> findreplace.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+[1: bb->xx] this is a test abcdef ABCDEF AbcDef
+[2: b->x, all] this is a test axcdef ABCDEF AxcDef
+[3: b->x, all,nocase] this is a test axcdef AxCDEF AxcDef
+[4: b->x, all,nocase,follow] this is a test axcdef AXCDEF AxcDef
+[5: ab->xxxx, all] this is a test xxxxcdef ABCDEF AbcDef
+[6: ab->xxxx, all,nocase] this is a test xxxxcdef xxxxCDEF xxxxcDef
+[7: ab->xxxx, all,nocase,follow] this is a test xxxxcdef XXXXCDEF XxxxcDef
+[8: ab->xxxx, all, from 15] this is a test xxxxcdef ABCDEF AbcDef
+[9: ab->xxxx, all,nocase, from 15] this is a test xxxxcdef xxxxCDEF xxxxcDef
+[10: ab->xxxx, all,nocase,follow, from 15] this is a test xxxxcdef XXXXCDEF
+XxxxcDef
+[11: ab->xxxx, all, from 16] this is a test xxxxcdef ABCDEF AbcDef
+[12: ab->xxxx, all,nocase, from 16] this is a test xxxxcdef xxxxCDEF xxxxcDef
+[13: ab->xxxx, all,nocase,follow, from 16] this is a test xxxxcdef XXXXCDEF
+XxxxcDef
+[14: ab->xxxx, all, from 17] this is a test abcdef ABCDEF AbcDef
+[15: ab->xxxx, all,nocase, from 17] this is a test abcdef xxxxCDEF xxxxcDef
+[16: ab->xxxx, all,nocase,follow, from 17] this is a test abcdef XXXXCDEF
+XxxxcDef
+[17: ab->xxxx, once] this is a test xxxxcdef ABCDEF AbcDef
+[18: ab->xxxx, once,nocase] this is a test xxxxcdef ABCDEF AbcDef
+[19: ab->xxxx, once,nocase,follow] this is a test xxxxcdef ABCDEF AbcDef
+[20: ab->xxxx, once, from 17] this is a test abcdef ABCDEF AbcDef
+[21: ab->xxxx, once,nocase, from 17] this is a test abcdef xxxxCDEF AbcDef
+[22: ab->xxxx, once,nocase,follow, from 17] this is a test abcdef XXXXCDEF
+AbcDef
+[23: a->XX, b->YY, all] this is XX test XXYYcdef ABCDEF AYYcDef
+[24: a,b,c->XX, all] this is XX test XXXXXXdef ABCDEF AXXXXDef
+[25: a->bb, b->cc, c->dd, parallel] this is bb test bbccdddef ABCDEF AccddDef
+[26: a->bb, b->cc, c->dd, serial] this is dddddddd test dddddddddddddddef
+ABCDEF AddddddDef
+[27: a->bb, b->cc, c->dd, parallel,nocase,follow] this is bb test bbccdddef
+BBCCDDDEF BBccddDef
+[28: a->bb, b->cc, c->dd, serial,nocase,follow] this is dddddddd test
+dddddddddddddddef DDDDDDDDDDDDDDDEF DDDDDDDDddddddDef
+[29: a->bb, b->cc, c->dd, once,serial,nocase,follow] this is bb test abcdef
+ABCDEF AbcDef
+[30: a->bb, b->cc, c->dd, parallel,nocase,follow, limit=0] this is a test
+abcdef ABCDEF AbcDef
+[31: a->bb, b->cc, c->dd, parallel,nocase,follow, limit=1] this is bb test
+abcdef ABCDEF AbcDef
+[32: a->bb, b->cc, c->dd, parallel,nocase,follow, limit=2] this is bb test
+bbbcdef ABCDEF AbcDef
+[33: a->bb, b->cc, c->dd, parallel,nocase,follow, limit=3] this is bb test
+bbcccdef ABCDEF AbcDef
+[34: a->bb, b->cc, c->dd, parallel,nocase,follow, limit=4] this is bb test
+bbccdddef ABCDEF AbcDef
+[35: a->bb, b->cc, c->dd, serial,nocase,follow, limit=0] this is a test abcdef
+ABCDEF AbcDef
+[36: a->bb, b->cc, c->dd, serial,nocase,follow, limit=1] this is bb test abcdef
+ABCDEF AbcDef
+[37: a->bb, b->cc, c->dd, serial,nocase,follow, limit=2] this is bb test
+bbbcdef ABCDEF AbcDef
+[38: a->bb, b->cc, c->dd, serial,nocase,follow, limit=3] this is bb test
+bbbcdef BBBCDEF AbcDef
+[39: a->bb, b->cc, c->dd, serial,nocase,follow, limit=4] this is bb test
+bbbcdef BBBCDEF BBbcDef
+[40: a->func(match, index, orig), all] this is [end A] test [little A]bcdef
+[big A]BCDEF [big A]bcDef
+[41: a->func(match), all] this is [little A] test [little A]bcdef [big A]BCDEF
+[big A]bcDef
+[42: a->func(match, ...), all] this is [a] test [a]bcdef [A]BCDEF [A]bcDef
+[43: a->func(match, index, orig, extra), all - caught exception] argument
+mismatch calling String.findReplace - function definition is incorrect
+[44: a->func(m), func(m,i), all] this is [a] test [a][b:17]cdef [A][B:24]CDEF
+[A][b:31]cDef
+[45: a->%1, b->%2, c->%*, d->%%] this is %1 test %1%2%*%%ef %1%2%*%%EF
+%1%2%*%%ef
+[46: + -> word(orig)] word(this) word(is) word(a) word(test) word(abcdef)
+WORD(ABCDEF) Word(AbcDef)
+[47: concat] [[[THIS is a TEST abcdef ABCDEF AbcDef]]]
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

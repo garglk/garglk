@@ -1,0 +1,483 @@
+/*
+ *   TADS Web UI - style sheet for the main, top-level window.  The main
+ *   window is mostly a frame container for subwindow widgets and doesn't
+ *   show much content of its own, except that the main window handles
+ *   our in-window dialog framework and has a special widget for error
+ *   notification. 
+ */
+
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0px;
+    padding: 0px;
+    overflow: hidden;
+}
+html {
+    overflow: hidden;
+    height: 100%;
+}
+iframe {
+    margin: 0px;
+    padding: 0px;
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    border: 0px;
+}
+div#errorPopupDiv {
+    position: absolute;
+    top: -1000px; /* to initially hide it */
+    z-index: 10000;
+    height: 12pt;
+    width: 45ex;
+    color: #ffffff;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    font: bold 8pt/12pt Verdana, Helvetica, Sans-Serif;
+}
+div#errorPopupDiv div.icon {
+    background: url("errorPopupBkg.gif");
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 20px;
+    height: 100%;
+    margin: 0px;
+}
+div#errorPopupDiv div.content {
+    background: #ff0000;
+    color: #ffffff;
+    margin: 0px 0px 0px 20px;
+    height: 100%;
+    font: bold 8pt/12pt Verdana, Helvetica, Sans-Serif;
+    border-top: 1px solid #ffffff;
+}
+div#errorPopupDiv a {
+    color: #ffffff;
+}
+
+div#downloadPopupDiv {
+    position: absolute;
+    top: -1000px; /* to initially hide it */
+    z-index: 10000;
+    width: 45ex;
+    color: #ffffff;
+    text-align: left;
+    margin: 0;
+    padding: 0;
+    font: 8pt/12pt Verdana, Helvetica, Sans-Serif;
+}
+div#downloadPopupDiv div.icon {
+    background: url("downloadPopupBkg.gif");
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 10px;
+    margin: 0px;
+    height: 100%;
+}
+div#downloadPopupDiv div.content {
+    background: #6000e0;
+    color: #ffffff;
+    margin: 0px 0px 0px 10px;
+    font: 8pt/12pt Verdana, Helvetica, Sans-Serif;
+    border-top: 1px solid #ffffff;
+}
+div#downloadPopupDiv div.dlfile {
+    padding-left: 2ex;
+}
+div#downloadPopupDiv div.dlfile a:link {
+    color: #ffffff;
+}
+div#downloadPopupDiv div.dlfile a:visited {
+    color: #ffffff;
+}
+
+div.dialogCoverDiv {
+    position: fixed;
+    z-index: 10100;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    background: url("modal-cover.png");
+    opacity: 0.70;
+    filter: alpha(opacity=70);
+}
+div.dialogCanvas {
+    position: fixed;
+    z-index: 10101;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    opacity: 0.00;
+}
+div.dialogDiv {
+    position: relative;
+    z-index: 10101;
+    background: transparent;
+    width: 70%;
+}
+div.dialogTitleBar {
+    position: absolute;
+    top: -12pt;
+    left: 0px;
+    width: 100%;
+    height: 12pt;
+    background: #4040ff;
+    border-bottom: 1px solid #9090ff;
+    cursor: move;
+}
+div.dialogTitle {
+    position: absolute;
+    left: 0px;
+    top: -5px;
+    width: 100%;
+    height: 12pt;
+    text-align: center;
+    color: #ffffff;
+    font: bold 9pt/12pt Verdana, Helvetica, Sans-Serif;
+    cursor: move;
+}
+div.dialogCloseBox {
+    position: absolute;
+    right: 10px;
+    top: -5px;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    background: url("dlg-closebox.gif") no-repeat top right;
+}
+div.dialogCloseBoxH {
+    background: url("dlg-closeboxH.gif") no-repeat top right;
+}
+div.dialogCloseBoxA {
+    background: url("dlg-closeboxA.gif") no-repeat top right;
+}
+
+div.dialogMoveCover {
+    display: none;
+    position: absolute;
+    z-index: 12000;
+}
+
+div.dialogDiv-tl {
+    position: absolute;
+    background: url("dlg-title-corners.gif") no-repeat top left;
+    left: 0px;
+    top: -10px;
+    width: 52%;
+    height: 10px;
+}
+div.dialogDiv-tr {
+    position: absolute;
+    background: url("dlg-title-corners.gif") no-repeat top right;
+    right: 0px;
+    top: -10px;
+    width: 52%;
+    height: 10px;
+}
+div.dialogDiv-bl {
+    position: absolute;
+    background: url("dlg-corners.gif") no-repeat bottom left;
+    left: 0px;
+    bottom: -10px;
+    width: 52%;
+    height: 10px;
+}
+div.dialogDiv-br {
+    position: absolute;
+    background: url("dlg-corners.gif") no-repeat bottom right;
+    right: 0px;
+    bottom: -10px;
+    width: 52%;
+    height: 10px;
+}
+
+div.dialogWrapper {
+    text-align: center; /* IE hack - center the dialogContent block */
+    background: #ffffff;
+    overflow: auto;
+}
+
+div.dialogContent {
+    color: #000000;
+    font: 9pt/11pt Verdana, Helvetica, Sans-Serif;
+
+    /* the real CSS way to center the dialog content */
+    margin: 0px auto;   /* automatic left/right margins */
+    display: inline-block; /* use the content width as the DIV width */
+
+    /* ...but, of course, IE has to do things its own bizarre way */
+    zoom: 1;  /* force the block to have an IE "layout" object */
+    * display: inline; /* "layout" makes this work like inline-block */
+    text-align: left; /* uninherit the IE centering hack in the wrapper */
+}
+
+div.dialogContent a {
+    color: #0000ff;
+}
+div.dialogContent a:hover {
+    color: #ff00ff;
+}
+div.dialogContent a:active {
+    color: #ff0000;
+}
+
+div.dialogMarginDiv {
+    margin: 1em 2em 1ex 2em;
+}
+div.dialogZeroMarginDiv {
+    margin: 0px;
+}
+
+div.dialogButtons {
+    text-align: center;
+    margin: 1.5em 1em 1ex 1em;
+    clear: both;
+}
+
+div#debugLogDiv {
+    position: absolute;
+    right: 0px;
+    top: 50px;
+    z-index: 11000;
+    width: 35%;
+    height: 75%;
+    overflow: auto;
+    background: #ff8000;
+    font: 8pt/12pt Verdana, Helvetica, Sans-Serif; color: #ffffff;
+    display: none;
+}
+
+div.errorListDiv {
+    margin: 1em;
+    overflow: auto;
+    border: 1px inset #c0c0ff;
+    background: #f0f0f0;
+    padding: 1em;
+    max-height: 20em;
+}
+div.dialogContent span.details {
+    font-size: 90%;
+}
+
+div.errorFooter {
+    font-size: 85%;
+    color: #303030;
+    margin-top: 1ex;
+}
+
+div.errorDetail {
+    font-size: 85%;
+    color: #303030;
+    display: none;
+}
+div.errorDetail div.errorSubDetail {
+    padding: 0 1em 0 2em;
+}
+
+div.dialogContent a.colorbutton {
+    height: 1.5em;
+    width: 3em;
+    background: #ff00ff;
+    border: 1px solid #0000ff;
+    display: table-cell;
+    display: inline-block;
+    margin: 0.75em 0.75ex 0.75em 0.75ex;
+    vertical-align: middle;
+
+    color: #ffffff;
+    text-decoration: none;
+    text-align: center;
+}
+
+div.prefsSection {
+    margin: 1ex 0 1ex 0;
+}
+
+div.prefsSection select {
+    margin: 0.5em 0.75ex 0.5em 0.75ex;
+    vertical-align: middle;
+}
+div.prefsSection input {
+    margin: 0.5em 0.75ex 0.5em 0.75ex;
+    vertical-align: middle;
+}
+div.prefsSection div.combobox {
+    margin: 0.5em 0.75ex 0.5em 0.75ex;
+    vertical-align: middle;
+}    
+
+span.prefsLabel {
+    width: 30ex;
+    display: table-cell;
+    display: inline-block;
+}
+
+a.dlgButton {
+    margin: 0 1ex 0 1ex;
+}
+
+div.colorPicker {
+    position: absolute;
+    z-index: 19900;
+    display: none;
+    background: #000080;
+    color: #ffffff;
+    font: 8pt/10pt Verdana, Helvetica, Sans-Serif;
+    border: 1px solid #808080;
+}
+div.colorPicker input {
+    border: 1px solid #303030;
+    font: 8pt/10pt Verdana, Helvetica, Sans-Serif;
+    color: #000000;
+    background: #c0c0ff;
+}
+a.colorPickerButton {
+    display: table-cell;
+    display: inline-block;
+    width: 2ex;
+    height: 2ex;
+    margin: 2px;
+    border: 2px inset gray;
+    cursor: pointer;
+}
+div.colorPickerDefault {
+    text-align: center;
+    width: 100%;
+}
+div.colorPickerDefault div.off {
+    padding: 0px 1ex;
+    display: inline-block; zoom: 1; * display: inline;
+}
+div.colorPickerDefault div.on {
+    padding: 0px 1ex;
+    display: inline-block; zoom: 1; * display: inline;
+    background: #0080ff;
+}
+div.colorPickerDefault a {
+    color: #ffffff;
+    text-decoration: none;
+    border: none;
+}
+div.colorPickerDefault img {
+    border: none;
+    vertical-align: middle;
+}
+
+div.inputDialog {
+    text-align: center;
+    margin: 1em;
+    padding: 1em;
+}
+
+table.inputDialogTab {
+    width: 100%;
+    border: none;
+    margin: 0px;
+}
+table.inputDialogTab tr {
+    vertical-align: top;
+    height: 40px;
+}
+td.inputDialogPrompt {
+    vertical-align: middle;
+    text-align: center;
+    padding: 0px 60px;
+}
+
+img.inputDialogIcon {
+    position: absolute;
+}
+img.inputDialogStrut {
+    height: 40px;
+    width: 0px;
+}
+
+iframe.downloadFile {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    left: -100px;
+    top: -100px;
+}
+
+div.menuSys {
+    padding: 3em 0px;
+    text-align: center;
+}
+
+div.menuSysItem {
+    padding: 1ex 0px;
+}
+
+div.menuSysTopicFooter {
+    padding: 1em 0px 0px 0px;
+    text-align: center;
+}
+
+div.menuSysItem a:link {
+    text-decoration: none;
+}
+div.menuSysItem a:active {
+    text-decoration: underline;
+}
+div.menuSysItem a:hover {
+    text-decoration: underline;
+}
+
+div.menuSysLongTopic {
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin: 2em 0px 1em 0px;
+    text-align: left;
+    padding-right: 24px; /* hack for IE scrollbar overlap */
+}
+
+div.menuSysChapterButtons {
+}
+
+div.menuSysChapterButtons a {
+    padding: 0px 1.5em;
+}
+
+div#pageMenuDiv {
+    position: absolute;
+    z-index: 20000;
+    display: none;
+    background: #ffffff;
+    padding: 0px;
+    margin: 0px;
+    border: 0px;
+}
+div.pageMenuWrapper {
+    color: #00000;
+    font: bold 8pt/16pt Verdana, Helvetica, Sans-Serif;
+    border: 1px solid #c0c0c0;
+    padding: 6px 1.5em;
+}
+div#pageMenuDiv a {
+    text-decoration: none;
+    color: #0000ff;
+}
+div#pageMenuDiv a:hover {
+    color: #ff0000;
+}
+div.menuShadow {
+    position: absolute;
+    z-index: 19999;
+    background: #b0b0b0;
+    opacity: 0.60;
+    filter: alpha(opacity=60);
+}
+
+div#__TADS_swf_div {
+    position: absolute;
+    left: -10000px;
+    top: -10000px;
+}

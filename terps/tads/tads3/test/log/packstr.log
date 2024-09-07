@@ -1,0 +1,354 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export packstr.t -> packstr.t3s
+	compile _main.t -> _main.t3o
+	compile packstr.t -> packstr.t3o
+	link -> packstr.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+format = A4/(A10), args = ['One', 'Two', 'Three', 'Four', 'Five']
+.. pack = '5   One       Two       Three     Four      Five      '
+.. pack hex =
+352020204F6E652020202020202054776F2020202020202054687265652020202020466F7572202
+02020202046697665202020202020
+.. unpack = ['One', 'Two', 'Three', 'Four', 'Five']
+
+format = C/l, args = [[305419896 (0x12345678), 296401868 (0x11AABBCC)]]
+.. pack = '\x02xV4\x12IØ¶\x11'
+.. pack hex = 0278563412CCBBAA11
+.. unpack = [305419896 (0x12345678), 296401868 (0x11AABBCC)]
+
+format = A10 X5 A3, args = ['aaaaaaaaaa', 'BBBBB']
+.. pack = 'aaaaaBBBaa'
+.. pack hex = 61616161614242426161
+.. unpack = ['aaaaaBBBaa', 'BBB']
+
+format = c4*, args = []
+.. pack = ''
+.. pack hex =
+.. unpack = []
+
+format = c4*, args = [1 (0x1), 2 (0x2)]
+.. pack = '\x01\x02'
+.. pack hex = 0102
+.. unpack = [1 (0x1), 2 (0x2)]
+
+format = c4*, args = [1 (0x1), 2 (0x2), 3 (0x3)]
+.. pack = '\x01\x02\x03'
+.. pack hex = 010203
+.. unpack = [1 (0x1), 2 (0x2), 3 (0x3)]
+
+format = c4*, args = [1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4)]
+.. pack = '\x01\x02\x03\x04'
+.. pack hex = 01020304
+.. unpack = [1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4)]
+
+format = c4*, args = [1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4), 5 (0x5), 6 (0x6)]
+.. pack = '\x01\x02\x03\x04'
+.. pack hex = 01020304
+.. unpack = [1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4)]
+
+format = c4*, args = [[]]
+.. pack = ''
+.. pack hex =
+.. unpack = []
+
+format = c4*, args = [[1 (0x1), 2 (0x2), 3 (0x3)]]
+.. pack = '\x01\x02\x03'
+.. pack hex = 010203
+.. unpack = [1 (0x1), 2 (0x2), 3 (0x3)]
+
+format = c4*, args = [[1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4)]]
+.. pack = '\x01\x02\x03\x04'
+.. pack hex = 01020304
+.. unpack = [1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4)]
+
+format = c4*, args = [[1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4), 5 (0x5)]]
+.. pack = '\x01\x02\x03\x04'
+.. pack hex = 01020304
+.. unpack = [1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4)]
+
+format = [cc]4*!, args = []
+.. pack = ''
+.. pack hex =
+.. unpack = []
+
+format = [cc]4*!, args = [[1 (0x1), 2 (0x2)], [3 (0x3)], [4 (0x4), 5 (0x5)]]
+.. pack = '\x01\x02\x03\x00\x04\x05'
+.. pack hex = 010203000405
+.. unpack = [[1 (0x1), 2 (0x2)], [3 (0x3), 0 (0x0)], [4 (0x4), 5 (0x5)]]
+
+format = [cc]4*!, args = [[1 (0x1), 2 (0x2)], [3 (0x3)], [4 (0x4), 5 (0x5)], [6
+(0x6), 7 (0x7)]]
+.. pack = '\x01\x02\x03\x00\x04\x05\x06\x07'
+.. pack hex = 0102030004050607
+.. unpack = [[1 (0x1), 2 (0x2)], [3 (0x3), 0 (0x0)], [4 (0x4), 5 (0x5)], [6
+(0x6), 7 (0x7)]]
+
+format = [cc]4*!, args = [[1 (0x1), 2 (0x2)], [3 (0x3)], [4 (0x4), 5 (0x5)], [6
+(0x6), 7 (0x7)], [8 (0x8)]]
+.. pack = '\x01\x02\x03\x00\x04\x05\x06\x07'
+.. pack hex = 0102030004050607
+.. unpack = [[1 (0x1), 2 (0x2)], [3 (0x3), 0 (0x0)], [4 (0x4), 5 (0x5)], [6
+(0x6), 7 (0x7)]]
+
+format = a10*, args = ['short']
+.. pack = 'short'
+.. pack hex = 73686F7274
+.. unpack = ['short']
+
+format = a10*, args = ['10 exactly']
+.. pack = '10 exactly'
+.. pack hex = 31302065786163746C79
+.. unpack = ['10 exactly']
+
+format = a10*, args = ['a bit too long']
+.. pack = 'a bit too '
+.. pack hex = 612062697420746F6F20
+.. unpack = ['a bit too ']
+
+pack OK: pack('c', 127) = 7F
+.. unpack = [127 (0x7F)]
+pack OK: pack('c%', 127) = 7F
+.. unpack = [127 (0x7F)]
+
+pack error: pack('c', 128) = Runtime error: numeric overflow
+pack OK: pack('c%', 128) = 80
+.. unpack = [-128 (0xFFFFFF80)] *** value change ***
+
+pack error: pack('c', 129) = Runtime error: numeric overflow
+pack OK: pack('c%', 129) = 81
+.. unpack = [-127 (0xFFFFFF81)] *** value change ***
+
+pack OK: pack('c', -127) = 81
+.. unpack = [-127 (0xFFFFFF81)]
+pack OK: pack('c%', -127) = 81
+.. unpack = [-127 (0xFFFFFF81)]
+
+pack OK: pack('c', -128) = 80
+.. unpack = [-128 (0xFFFFFF80)]
+pack OK: pack('c%', -128) = 80
+.. unpack = [-128 (0xFFFFFF80)]
+
+pack error: pack('c', -129) = Runtime error: numeric overflow
+pack OK: pack('c%', -129) = 7F
+.. unpack = [127 (0x7F)] *** value change ***
+
+pack OK: pack('C', 127) = 7F
+.. unpack = [127 (0x7F)]
+pack OK: pack('C%', 127) = 7F
+.. unpack = [127 (0x7F)]
+
+pack OK: pack('C', 128) = 80
+.. unpack = [128 (0x80)]
+pack OK: pack('C%', 128) = 80
+.. unpack = [128 (0x80)]
+
+pack OK: pack('C', 129) = 81
+.. unpack = [129 (0x81)]
+pack OK: pack('C%', 129) = 81
+.. unpack = [129 (0x81)]
+
+pack OK: pack('C', 255) = FF
+.. unpack = [255 (0xFF)]
+pack OK: pack('C%', 255) = FF
+.. unpack = [255 (0xFF)]
+
+pack error: pack('C', 256) = Runtime error: numeric overflow
+pack OK: pack('C%', 256) = 00
+.. unpack = [0 (0x0)] *** value change ***
+
+pack error: pack('C', -1) = Runtime error: numeric overflow
+pack OK: pack('C%', -1) = FF
+.. unpack = [255 (0xFF)] *** value change ***
+
+pack OK: pack('s', 32767) = FF7F
+.. unpack = [32767 (0x7FFF)]
+pack OK: pack('s%', 32767) = FF7F
+.. unpack = [32767 (0x7FFF)]
+
+pack error: pack('s', 32768) = Runtime error: numeric overflow
+pack OK: pack('s%', 32768) = 0080
+.. unpack = [-32768 (0xFFFF8000)] *** value change ***
+
+pack OK: pack('s', -32767) = 0180
+.. unpack = [-32767 (0xFFFF8001)]
+pack OK: pack('s%', -32767) = 0180
+.. unpack = [-32767 (0xFFFF8001)]
+
+pack OK: pack('s', -32768) = 0080
+.. unpack = [-32768 (0xFFFF8000)]
+pack OK: pack('s%', -32768) = 0080
+.. unpack = [-32768 (0xFFFF8000)]
+
+pack error: pack('s', -32769) = Runtime error: numeric overflow
+pack OK: pack('s%', -32769) = FF7F
+.. unpack = [32767 (0x7FFF)] *** value change ***
+
+pack OK: pack('l', 2147483647) = FFFFFF7F
+.. unpack = [2147483647 (0x7FFFFFFF)]
+pack OK: pack('l%', 2147483647) = FFFFFF7F
+.. unpack = [2147483647 (0x7FFFFFFF)]
+
+pack OK: pack('l', -2147483648) = 00000080
+.. unpack = [-2147483648 (0x80000000)]
+pack OK: pack('l%', -2147483648) = 00000080
+.. unpack = [-2147483648 (0x80000000)]
+
+pack error: pack('l', 3000000000) = Runtime error: numeric overflow
+pack OK: pack('l%', 3000000000) = 005ED0B2
+.. unpack = [-1294967296 (0xB2D05E00)] *** value change ***
+
+pack OK: pack('L~', 2147483647) = FFFFFF7F
+.. unpack = [2147483647 (0x7FFFFFFF)]
+pack OK: pack('L~%', 2147483647) = FFFFFF7F
+.. unpack = [2147483647 (0x7FFFFFFF)]
+
+pack error: pack('L~', -1) = Runtime error: numeric overflow
+pack OK: pack('L~%', -1) = FFFFFFFF
+.. unpack = [4294967295 (bignum) (0xFFFFFFFF)] *** value change ***
+
+pack OK: pack('L~', 4294967295) = FFFFFFFF
+.. unpack = [4294967295 (bignum) (0xFFFFFFFF)]
+pack OK: pack('L~%', 4294967295) = FFFFFFFF
+.. unpack = [4294967295 (bignum) (0xFFFFFFFF)]
+
+pack error: pack('L~', 4294967296) = Runtime error: numeric overflow
+pack OK: pack('L~%', 4294967296) = 00000000
+.. unpack = [0 (0x0)] *** value change ***
+
+pack OK: pack('q~', 2147483647) = FFFFFF7F00000000
+.. unpack = [2147483647 (0x7FFFFFFF)]
+pack OK: pack('q~%', 2147483647) = FFFFFF7F00000000
+.. unpack = [2147483647 (0x7FFFFFFF)]
+
+pack OK: pack('q~', 9223372036854775807) = FFFFFFFFFFFFFF7F
+.. unpack = [9223372036854775807 (bignum) (0x7FFFFFFFFFFFFFFF)]
+pack OK: pack('q~%', 9223372036854775807) = FFFFFFFFFFFFFF7F
+.. unpack = [9223372036854775807 (bignum) (0x7FFFFFFFFFFFFFFF)]
+
+pack error: pack('q~', 9223372036854775808) = Runtime error: numeric overflow
+pack OK: pack('q~%', 9223372036854775808) = 0000000000000080
+.. unpack = [-9223372036854775808 (bignum) (0x-8000000000000000)] *** value
+change ***
+
+pack OK: pack('q~', -9223372036854775808) = 0000000000000080
+.. unpack = [-9223372036854775808 (bignum) (0x-8000000000000000)]
+pack OK: pack('q~%', -9223372036854775808) = 0000000000000080
+.. unpack = [-9223372036854775808 (bignum) (0x-8000000000000000)]
+
+pack error: pack('q~', -9223372036854775809) = Runtime error: numeric overflow
+pack OK: pack('q~%', -9223372036854775809) = FFFFFFFFFFFFFF7F
+.. unpack = [9223372036854775807 (bignum) (0x7FFFFFFFFFFFFFFF)] *** value
+change ***
+
+pack OK: pack('Q~', 2147483647) = FFFFFF7F00000000
+.. unpack = [2147483647 (0x7FFFFFFF)]
+pack OK: pack('Q~%', 2147483647) = FFFFFF7F00000000
+.. unpack = [2147483647 (0x7FFFFFFF)]
+
+pack OK: pack('Q~', 9223372036854775807) = FFFFFFFFFFFFFF7F
+.. unpack = [9223372036854775807 (bignum) (0x7FFFFFFFFFFFFFFF)]
+pack OK: pack('Q~%', 9223372036854775807) = FFFFFFFFFFFFFF7F
+.. unpack = [9223372036854775807 (bignum) (0x7FFFFFFFFFFFFFFF)]
+
+pack OK: pack('Q~', 9223372036854775808) = 0000000000000080
+.. unpack = [9223372036854775808 (bignum) (0x8000000000000000)]
+pack OK: pack('Q~%', 9223372036854775808) = 0000000000000080
+.. unpack = [9223372036854775808 (bignum) (0x8000000000000000)]
+
+pack error: pack('Q~', -9223372036854775808) = Runtime error: numeric overflow
+pack OK: pack('Q~%', -9223372036854775808) = 0000000000000080
+.. unpack = [9223372036854775808 (bignum) (0x8000000000000000)] *** value
+change ***
+
+pack error: pack('Q~', -9223372036854775809) = Runtime error: numeric overflow
+pack OK: pack('Q~%', -9223372036854775809) = FFFFFFFFFFFFFF7F
+.. unpack = [9223372036854775807 (bignum) (0x7FFFFFFFFFFFFFFF)] *** value
+change ***
+
+pack OK: pack('Q~', 18446744073709551615) = FFFFFFFFFFFFFFFF
+.. unpack = [18446744073709551615 (bignum) (0xFFFFFFFFFFFFFFFF)]
+pack OK: pack('Q~%', 18446744073709551615) = FFFFFFFFFFFFFFFF
+.. unpack = [18446744073709551615 (bignum) (0xFFFFFFFFFFFFFFFF)]
+
+pack error: pack('Q~', 18446744073709551616) = Runtime error: numeric overflow
+pack OK: pack('Q~%', 18446744073709551616) = 0000000000000000
+.. unpack = [0 (0x0)] *** value change ***
+
+pack error: pack('Q~', 18446744074014971512) = Runtime error: numeric overflow
+pack OK: pack('Q~%', 18446744074014971512) = 7856341200000000
+.. unpack = [305419896 (0x12345678)] *** value change ***
+
+pack OK: pack('f', 112345000000000000000000000000000000000) = B809A97E
+.. unpack = [112345000000000000000000000000000000000 (bignum)]
+pack OK: pack('f%', 112345000000000000000000000000000000000) = B809A97E
+.. unpack = [112345000000000000000000000000000000000 (bignum)]
+
+pack OK: pack('f', 340282300000000000000000000000000000000) = FDFF7F7F
+.. unpack = [340282310000000000000000000000000000000 (bignum)] *** value change
+***
+pack OK: pack('f%', 340282300000000000000000000000000000000) = FDFF7F7F
+.. unpack = [340282310000000000000000000000000000000 (bignum)] *** value change
+***
+
+pack error: pack('f', 340282400000000000000000000000000000000) = Runtime error:
+numeric overflow
+pack OK: pack('f%', 340282400000000000000000000000000000000) = 0000807F
+.. unpack = [1.#INF (bignum)] *** value change ***
+
+pack error: pack('f', 4000000000000000000000000000000000000000) = Runtime
+error: numeric overflow
+pack OK: pack('f%', 4000000000000000000000000000000000000000) = 0000807F
+.. unpack = [1.#INF (bignum)] *** value change ***
+
+pack error: pack('f', -340282400000000000000000000000000000000) = Runtime
+error: numeric overflow
+pack OK: pack('f%', -340282400000000000000000000000000000000) = 000080FF
+.. unpack = [-1.#INF (bignum)] *** value change ***
+
+pack error: pack('f', -340282400000000000000000000000000000000) = Runtime
+error: numeric overflow
+pack OK: pack('f%', -340282400000000000000000000000000000000) = 000080FF
+.. unpack = [-1.#INF (bignum)] *** value change ***
+
+pack error: pack('f', -4000000000000000000000000000000000000000) = Runtime
+error: numeric overflow
+pack OK: pack('f%', -4000000000000000000000000000000000000000) = 000080FF
+.. unpack = [-1.#INF (bignum)] *** value change ***
+
+pack OK: pack('d', 1.12345e308) = 9908E8C381FFE37F
+.. unpack = [1.1234499999999999e308 (bignum)] *** value change ***
+pack OK: pack('d%', 1.12345e308) = 9908E8C381FFE37F
+.. unpack = [1.1234499999999999e308 (bignum)] *** value change ***
+
+pack OK: pack('d', 1.7976931348623158e308) = FFFFFFFFFFFFEF7F
+.. unpack = [1.7976931348623156e308 (bignum)] *** value change ***
+pack OK: pack('d%', 1.7976931348623158e308) = FFFFFFFFFFFFEF7F
+.. unpack = [1.7976931348623156e308 (bignum)] *** value change ***
+
+pack error: pack('d', 1.797694e308) = Runtime error: numeric overflow
+pack OK: pack('d%', 1.797694e308) = 000000000000F07F
+.. unpack = [1.#INF (bignum)] *** value change ***
+
+pack error: pack('d', -1.797694e308) = Runtime error: numeric overflow
+pack OK: pack('d%', -1.797694e308) = 000000000000F0FF
+.. unpack = [-1.#INF (bignum)] *** value change ***
+
+pack error: pack('d', 4e309) = Runtime error: numeric overflow
+pack OK: pack('d%', 4e309) = 000000000000F07F
+.. unpack = [1.#INF (bignum)] *** value change ***
+
+pack error: pack('d', -4e309) = Runtime error: numeric overflow
+pack OK: pack('d%', -4e309) = 000000000000F0FF
+.. unpack = [-1.#INF (bignum)] *** value change ***
+
+sha256 = 154153748367D0449C41CF952F66A9CBC5E49ADBAE37645BD6D9F652C9F3BD08
+unpacked = \x15ASt?gDHD?AI?/f(c)EèÑ?U(R)7d[ôUîRê¢´\x08
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

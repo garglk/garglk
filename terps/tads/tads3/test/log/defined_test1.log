@@ -1,0 +1,23 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export defined.t -> defined.t3s
+	compile _main.t -> _main.t3o
+	compile defined.t -> defined.t3o
+defined.t(28): warning: undefined symbol "bar"
+defined.t(14): warning: "if" condition is always false
+	link -> defined_test1.t3
+Errors:   0
+Warnings: 2
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+foo is defined
+foo is a C
+
+foo is defined
+bar is undefined
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

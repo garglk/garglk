@@ -1,0 +1,101 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export rexassert.t -> rexassert.t3s
+	compile _main.t -> _main.t3o
+	compile rexassert.t -> rexassert.t3o
+	link -> rexassert.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+<nocase>%<[a-z]+%>(?<!%<a+%>)
+a aaa aaaaa aaba aa aaaa
+            ^^^^
+index=13, length=4, match=aaba
+
+s(?!<space>)
+this is a test string
+            ^
+index=13, length=1, match=s
+
+(?<!<space|i>)s
+this is a silly test string
+                  ^
+index=19, length=1, match=s
+
+(?<!\)"
+A string with \"slashed\" quotes and one-"-non-slashed
+                                         ^
+index=42, length=1, match="
+
+<nocase>[a-z]+<space>+(?<!test<space>+)word
+this is a test word, another test word, a non-test regular word
+                                                   ^^^^^^^^^^^^
+index=52, length=12, match=regular word
+
+<nocase>[a-z]+<space>+(?<!a test<space>+)word
+this is a test word, another test word, a non-test regular word
+                             ^^^^^^^^^
+index=30, length=9, match=test word
+
+(?<=^|[.!?]<space>+)%<%w+%>
+This is our test. It's very nice.
+^^^^
+index=1, length=4, match=This
+
+(?<=[.!?]<space>+)%<%w+%>
+This is our test. It's very nice.
+                  ^^
+index=19, length=2, match=It
+
+(?=x)*.*
+asdf
+^^^^
+index=1, length=4, match=asdf
+
+((?=x))*.*
+asdf
+^^^^
+index=1, length=4, match=asdf
+
+(?=x)+.*
+asdf
+nil
+
+((?=x))+.*
+asdf
+nil
+
+(?=x)+.*
+xyz
+^^^
+index=1, length=3, match=xyz
+
+((?=x))+.*
+xyz
+^^^
+index=1, length=3, match=xyz
+
+(((?=x)(?=x)(?=x))*)+.*
+asdf
+^^^^
+index=1, length=4, match=asdf
+
+(((?=x)(?=x)(?=x))+)*.*
+asdf
+^^^^
+index=1, length=4, match=asdf
+
+(((?=x)(?=x)(?=x))+)+.*
+asdf
+nil
+
+(((?=x)(?=x)(?=x))+)+.*
+xyz
+^^^
+index=1, length=3, match=xyz
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

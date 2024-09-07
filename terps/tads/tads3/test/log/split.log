@@ -1,0 +1,70 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export split.t -> split.t3s
+	compile _main.t -> _main.t3o
+	compile split.t -> split.t3o
+	link -> split.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+'one,two,three'.split(',', ) -> ['one', 'two', 'three']
+
+'one,two,three'.split(',', 1) -> ['one,two,three']
+
+'one,two,three'.split(',', 3) -> ['one', 'two', 'three']
+
+'one,two,three'.split(',', 10) -> ['one', 'two', 'three']
+
+'one,two,three,four,five,six,seven,eight,nine,ten,eleven,twelve,thirteen,fourte
+en,fifteen,sixteen,seventeen,eighteen,nineteen,twenty,twenty-one,twenty-
+two,twenty-three'.split(',', ) -> ['one', 'two', 'three', 'four', 'five',
+'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen',
+'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen',
+'twenty', 'twenty-one', 'twenty-two', 'twenty-three']
+
+'one,two,three,four,five,six,seven,eight,nine,ten,eleven,twelve,thirteen,fourte
+en,fifteen,sixteen,seventeen,eighteen,nineteen,twenty,twenty-one,twenty-
+two,twenty-three'.split(',', 5) -> ['one', 'two', 'three', 'four',
+'five,six,seven,eight,nine,ten,eleven,twelve,thirteen,fourteen,fifteen,sixteen,
+seventeen,eighteen,nineteen,twenty,twenty-one,twenty-two,twenty-three']
+
+'one,two,three,four,five,six,seven,eight,nine,ten,eleven,twelve,thirteen,fourte
+en,fifteen,sixteen,seventeen,eighteen,nineteen,twenty,twenty-one,twenty-
+two,twenty-three'.split(',', 16) -> ['one', 'two', 'three', 'four', 'five',
+'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen',
+'fourteen', 'fifteen', 'sixteen,seventeen,eighteen,nineteen,twenty,twenty-
+one,twenty-two,twenty-three']
+
+'one,two,three,four,five,six,seven,eight,nine,ten,eleven,twelve,thirteen,fourte
+en,fifteen,sixteen,seventeen,eighteen,nineteen,twenty,twenty-one,twenty-
+two,twenty-three'.split(',', 30) -> ['one', 'two', 'three', 'four', 'five',
+'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen',
+'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen',
+'twenty', 'twenty-one', 'twenty-two', 'twenty-three']
+
+'abcdefghi'.split(, ) -> ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i']
+
+'abcdefghi'.split(2, ) -> ['ab', 'cd', 'ef', 'gh', 'i']
+
+'abcdefghi'.split(3, ) -> ['abc', 'def', 'ghi']
+
+'abcdefghi'.split(3, 2) -> ['abc', 'defghi']
+
+'abcdefghi'.split(3, 3) -> ['abc', 'def', 'ghi']
+
+'abcdefghi'.split(22, ) -> ['abcdefghi']
+
+'one,two, three, four'.split('/,<space>*/', ) -> ['one', 'two', 'three',
+'four']
+
+'one,two, three, four, five, six'.split('/,<space>*/', 3) -> ['one', 'two',
+'three, four, five, six']
+
+'one,two, three, four, five, six'.split('/,<space>*/', 5) -> ['one', 'two',
+'three', 'four', 'five, six']
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

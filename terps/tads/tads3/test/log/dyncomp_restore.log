@@ -1,0 +1,128 @@
+Restoring...
+Source: function(x) { return x*2; }
+Call: f(7)
+Result: 14
+
+Source: function(x, p, y) { return x.(p)(y + 1000); }
+Call: f(test1, &m1, 456)
+Result: greetings from test1.m1(1456)!
+
+Source: function(x, y) { return x.m1(y + 1000); }
+Call: f(test1, 678)
+Result: greetings from test1.m1(1678)!
+
+Source: test1.m1(123);
+Call: f()
+Result: greetings from test1.m1(123)!
+
+Source: test2.m1(123);
+Call: f()
+Result: greetings from test2.m1(123)!
+
+Source: function(x) { return test2.m1(x + 1000); }
+Call: f(789)
+Result: greetings from test2.m1(1789)!
+
+Source: function(x) { return f1(x + 1000); }
+Call: f(654)
+Result: Greetings from f1(1654)!
+
+Source: new BigNumber('123.456');
+Call: f()
+Result: 123.456
+
+Source: function(x) { local a = x*2, f = {x, y: 'anon f! x=<<x>>, y=<<y>>,
+a=<<a>>'}; a += 1; return f; }
+Call: f(135)(7, 8)
+Result: anon f! x=7, y=8, a=271
+
+Source: function(x, y) { local f = {: ++x, ++y, 'this is anon 1: x=<<x>>,
+y=<<y>>' }; local g = {: ++x, ++y, 'this is anon 2: x=<<x>>, y=<<y>>' }; return
+[f, g]; }
+Call: testAnon(f)
+Result: l = f(123, 456):
+type(l)=10, l.length=2
+type(l[1])=5, type(l[2])=5
+l[1]()=this is anon 1: x=124, y=457, l[2]()=this is anon 2: x=125, y=458
+
+Source:
+Call: l[1]()
+Result: this is anon 1: x=126, y=459
+
+Source:
+Call: l[2]()
+Result: this is anon 2: x=127, y=460
+
+Source: function(a:, b:) { return a+b*1000; }
+Call: f(b:123, a:789)
+Result: 123789
+
+Source: function() { local lst = [10, 20, 30, 40, 50]; local sum = 0; for
+(local i in lst) sum += i; return sum; }
+Call: f()
+Result: 150
+
+Source: function() { nameTest(b:123, a:'hello'); }
+Call: f()
+Result: Named argument test: a=hello, b=123
+
+Source: function() { local obj = new Thing('test'); obj.desc; }
+Call: f()
+Result: This is a Thing whose name is 'test'!
+
+Source: function(cnt) { for (local i in 1..cnt) "[<<i>>] Embedded item number
+<<one of>>one<<or>>two<<or >>three<<or>>four<<cycling>>... "; }
+Call: f(10)
+Result: [1] Embedded item number three... [2] Embedded item number four... [3]
+Embedded item number one... [4] Embedded item number two... [5] Embedded item
+number three... [6] Embedded item number four... [7] Embedded item number
+one... [8] Embedded item number two... [9] Embedded item number three... [10]
+Embedded item number four...
+
+Source: function([lst]) { for (local x in lst) "Embedded if test: x=<<x>>,
+which is << if x > 5>>greater than<<else if x < 5>>less than<<else
+>>exactly<<end>> five... "; }
+Call: f(7, 3, 5, 9, 4)
+Result: Embedded if test: x=7, which is greater than five... Embedded if test:
+x=3, which is less than five... Embedded if test: x=5, which is exactly five...
+Embedded if test: x=9, which is greater than five... Embedded if test: x=4,
+which is less than five...
+
+Source: function(x) { return square(x); }
+Call: f(11)
+Result: 121
+
+Source: function(x, y) { return RTEST(x+1, y+1); }
+Call: f(101, 202)
+Result: This is RTEST(102, 203)!!!
+
+Source: function() { return i; }
+Call: localtest()
+Result: this is the 'i' value!
+
+Source: function() { return i; }
+Call: localtest()
+Result: another 'i' value!
+
+Source: function() { local orig = i; i += ' *MODIFIED!*'; return orig; }
+Call: localtest2_part1()
+Result: original 'i' value *MODIFIED!*
+
+Source: function() { return i; }
+Call: localtest2_part2()
+Result: original 'i' value *MODIFIED!* *MODIFIED!*
+
+Source: function() { local orig = i; i += ' [modified by dynfunc]'; return
+orig; }
+Call: localtest3_part1()
+Result: first i value [modified by dynfunc] [modified by anon fn]
+
+Source: function() { return i; }
+Call: localtest3_part2()
+Result: first i value [modified by dynfunc] [modified by anon fn] [modified by
+dynfunc]
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

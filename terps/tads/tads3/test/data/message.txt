@@ -1,0 +1,13 @@
+#charset "cp1252"
+#include "vmerrnum.h"
+
+VMERR_IMAGE_NO_CODE image contains no code
+This image file contains no executable code.  This file
+might be corrupted.
+
+VMERR_IMAGE_INCOMPAT_HDR_FMT 
+incompatible image file format; method header too old
+This image file has an incompatible method header format.
+ This is an older image file version which this interpreter
+ does not support.
+

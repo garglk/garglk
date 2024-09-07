@@ -1,0 +1,110 @@
+Warnings: 0
+Errors:   0
+Longest string: 18, longest list: 0
+
+Memory blocks still in use:
+
+Total blocks in use: 0
+*** Pass 0 ***
+
+Step One
+obj1.p1 = one, p2 = two, p3 = three, p4 = This is obj1(step one, 4095)
+
+Step Two
+obj1.p1 = one111, p2 = two222, p3 = three333, p4 = This is obj1(step two, 4091)
+
+Step Three
+obj1.p1 = x, p2 = y, p3 = z, p4 = This is obj1(step three, 4090)
+
+Undoing:  true
+Finalizer:  obj1(original, 4090)
+obj1.p1 = one111, p2 = two222, p3 = three333, p4 = This is obj1(step two, 4091)
+
+Step Three Prime
+obj1.p1 = a, p2 = b, p3 = c, p4 = This is obj1(step three prime, 4090)
+
+Undoing:  true
+Finalizer:  obj1(original, 4090)
+obj1.p1 = one111, p2 = two222, p3 = three333, p4 = This is obj1(step two, 4091)
+
+Undoing:  true
+Finalizer:  obj1(original, 4091)
+obj1.p1 = one, p2 = two, p3 = three, p4 = This is obj1(step one, 4095)
+
+Undoing:  true
+Finalizer:  obj1(original, 4095)
+obj1.p1 = 1, p2 = 2, p3 = 3, p4 = nil
+
+Undoing:  nil
+obj1.p1 = 1, p2 = 2, p3 = 3, p4 = nil
+
+*** Pass 1 ***
+
+Step One
+obj1.p1 = one, p2 = two, p3 = three, p4 = This is obj1(step one, 4095)
+
+Step Two
+obj1.p1 = one111, p2 = two222, p3 = three333, p4 = This is obj1(step two, 4092)
+
+Step Three
+obj1.p1 = x, p2 = y, p3 = z, p4 = This is obj1(step three, 4090)
+
+Undoing:  true
+Finalizer:  obj1(original, 4090)
+obj1.p1 = one111, p2 = two222, p3 = three333, p4 = This is obj1(step two, 4092)
+
+Step Three Prime
+obj1.p1 = a, p2 = b, p3 = c, p4 = This is obj1(step three prime, 4090)
+
+Undoing:  true
+Finalizer:  obj1(original, 4090)
+obj1.p1 = one111, p2 = two222, p3 = three333, p4 = This is obj1(step two, 4092)
+
+Undoing:  true
+Finalizer:  obj1(original, 4092)
+obj1.p1 = one, p2 = two, p3 = three, p4 = This is obj1(step one, 4095)
+
+Undoing:  true
+Finalizer:  obj1(original, 4095)
+obj1.p1 = 1, p2 = 2, p3 = 3, p4 = nil
+
+Undoing:  nil
+obj1.p1 = 1, p2 = 2, p3 = 3, p4 = nil
+
+*** Pass 2 ***
+
+Step One
+obj1.p1 = one, p2 = two, p3 = three, p4 = This is obj1(step one, 4095)
+
+Step Two
+obj1.p1 = one111, p2 = two222, p3 = three333, p4 = This is obj1(step two, 4091)
+
+Step Three
+obj1.p1 = x, p2 = y, p3 = z, p4 = This is obj1(step three, 4090)
+
+Undoing:  true
+Finalizer:  obj1(original, 4090)
+obj1.p1 = one111, p2 = two222, p3 = three333, p4 = This is obj1(step two, 4091)
+
+Step Three Prime
+obj1.p1 = a, p2 = b, p3 = c, p4 = This is obj1(step three prime, 4090)
+
+Undoing:  true
+Finalizer:  obj1(original, 4090)
+obj1.p1 = one111, p2 = two222, p3 = three333, p4 = This is obj1(step two, 4091)
+
+Undoing:  true
+Finalizer:  obj1(original, 4091)
+obj1.p1 = one, p2 = two, p3 = three, p4 = This is obj1(step one, 4095)
+
+Undoing:  true
+Finalizer:  obj1(original, 4095)
+obj1.p1 = 1, p2 = 2, p3 = 3, p4 = nil
+
+Undoing:  nil
+obj1.p1 = 1, p2 = 2, p3 = 3, p4 = nil
+
+
+Memory blocks still in use:
+
+Total blocks in use: 0

@@ -1,0 +1,66 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export asi.t -> asi.t3s
+	compile _main.t -> _main.t3o
+	compile asi.t -> asi.t3o
+	link -> asi.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+i=2, j=1, k=1, l = [A1, b, c, d, e]
+
+i=3, j=1, k=1, l = [A1, bB2, c, d, e]
+
+i=4, j=1, k=1, l = [A1, bB2, c, dC3, e]
+
+i=2, j=2, k=1, l2 = [[D4, b, c, d, e], [f, g, h, i, j], [k, l, m, n, o], [p, q,
+r, s, t], [u, v, w, x, y]]
+
+i=3, j=3, k=1, l2 = [[D4, b, c, d, e], [f, gE5, h, i, j], [k, l, m, n, o], [p,
+q, r, s, t], [u, v, w, x, y]]
+
+
+i=2, j=2, k=2, l3 = [[[F6, b, c, d, e], [f, g, h, i, j], [k, l, m, n, o], [p,
+q, r, s, t], [u, v, w, x, y]], [[a, b, c, d, e], [f, g, h, i, j], [k, l, m, n,
+o], [p, q, r, s, t], [u, v, w, x, y]], [[a, b, c, d, e], [f, g, h, i, j], [k,
+l, m, n, o], [p, q, r, s, t], [u, v, w, x, y]], [[a, b, c, d, e], [f, g, h, i,
+j], [k, l, m, n, o], [p, q, r, s, t], [u, v, w, x, y]], [[a, b, c, d, e], [f,
+g, h, i, j], [k, l, m, n, o], [p, q, r, s, t], [u, v, w, x, y]]]
+
+i=3, j=3, k=3, l3 = [[[F6, b, c, d, e], [f, g, h, i, j], [k, l, m, n, o], [p,
+q, r, s, t], [u, v, w, x, y]], [[a, b, c, d, e], [f, gG7, h, i, j], [k, l, m,
+n, o], [p, q, r, s, t], [u, v, w, x, y]], [[a, b, c, d, e], [f, g, h, i, j],
+[k, l, m, n, o], [p, q, r, s, t], [u, v, w, x, y]], [[a, b, c, d, e], [f, g, h,
+i, j], [k, l, m, n, o], [p, q, r, s, t], [u, v, w, x, y]], [[a, b, c, d, e],
+[f, g, h, i, j], [k, l, m, n, o], [p, q, r, s, t], [u, v, w, x, y]]]
+
+i=2, j=1, k=1, obj.p1 = [M1, w, x, y, z]
+
+i=3, j=1, k=1, obj.p1 = [M1, wN2, x, y, z]
+
+i=2, j=2, k=1, obj.p2 = [[O3, w, x, y, z], [v, w, x, y, z], [v, w, x, y, z],
+[v, w, x, y, z], [v, w, x, y, z]]
+
+i=3, j=3, k=1, obj.p2 = [[O3, w, x, y, z], [v, wP4, x, y, z], [v, w, x, y, z],
+[v, w, x, y, z], [v, w, x, y, z]]
+
+i=2, j=2, k=1, obj.p2 = [[Q5, w, x, y, z], [v, wP4, x, y, z], [v, w, x, y, z],
+[v, w, x, y, z], [v, w, x, y, z]]
+
+i=3, j=3, k=1, obj.p2 = [[Q5, w, x, y, z], [v, wP4R6, x, y, z], [v, w, x, y,
+z], [v, w, x, y, z], [v, w, x, y, z]]
+
+-> This is func1(obj2)!
+-> This is func1(p1)!
+-> This is func1(p2)!
+-> This is func1(idx 3)!
+-> This is func1(idx 4)!
+-> This is func1(val S8)!
+i=3, j=3, k=1, obj.p2 = [[Q5, w, x, y, z], [v, wP4R6, x, y, z], [v, w, x, yS8,
+z], [v, w, x, y, z], [v, w, x, y, z]]
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

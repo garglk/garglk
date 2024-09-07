@@ -1,0 +1,54 @@
+	Files to build: 8
+	symbol_export _main.t -> _main.t3s
+	symbol_export setmethod.t -> setmethod.t3s
+	symbol_export dynfunc.t -> dynfunc.t3s
+	compile _main.t -> _main.t3o
+	compile setmethod.t -> setmethod.t3o
+	compile dynfunc.t -> dynfunc.t3o
+	link -> setmethod.t3p
+	preinit -> setmethod.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+This is a - x=200, i=100
+This is b - y=300
+This is c
+This is obj1.d - n=400
+This is e: Test... Test... Test... Test... Test...
+
+obj2.s = [This is e], dataType(s) = 8
+This is a - x=2000, i=100
+This is b - y=3000
+This is c
+This is obj3.d - n=4000
+
+obj1.topLoc=obj1
+obj2.getLoc=obj1, topLoc=obj1
+obj3.getLoc=obj2, topLoc=obj2
+
+fopt interface = (minArgc=2, optArgc=1, varargs=no)
+obj1.a interface = (minArgc=2, optArgc=1, varargs=no)
+obj1.b interface = (minArgc=1, optArgc=2, varargs=no)
+obj1.c interface = (minArgc=0, optArgc=1, varargs=yes)
+obj1.d interface = (minArgc=2, optArgc=1, varargs=no)
+
+obj1.a interface = (minArgc=1, optArgc=1, varargs=no)
+obj1.b interface = (minArgc=5, optArgc=0, varargs=no)
+obj1.c interface = (minArgc=1, optArgc=0, varargs=yes)
+obj1.d interface = (minArgc=2, optArgc=1, varargs=no)
+obj1.d call = test
+
+shared ctx: x=11, self=obj1, defobj=obj1
+unshared ctx: x=12, self=obj3, defobj=obj3
+unshared ctx 2: x=13, i=1, self=obj3, defobj=obj3
+shared ctx: x=14, self=obj1, defobj=obj1
+unshared ctx: x=15, self=obj4, defobj=obj3
+unshared ctx 2: x=16, i=2, self=obj4, defobj=obj3
+shared ctx: x=17, self=obj1, defobj=obj1
+unshared ctx: x=18, self=obj5, defobj=obj3
+unshared ctx 2: x=19, i=3, self=obj5, defobj=obj3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

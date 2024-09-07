@@ -1,0 +1,513 @@
+<html>
+<title>Test of TADS.swf</title>
+
+<body onload="javascript:init();">
+
+<div style="position: absolute; left: -10000px; top: -10000px;">
+<object id="__TADS_swf" classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
+    codebase="http://fpdownload.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=9,0,0,0"
+    width="0" height="0" align="middle">
+   <param name="movie" value="TADS.swf"/>
+   <param name="quality" value="high"/>
+   <param name="bgcolor" value="#ffffff"/>
+   <param name="allowScriptAccess" value="always"/>
+   <param name="FlashVars" value="onload=TADS_swf.onDone"/>
+   <embed name="__TADS_swf" src="TADS.swf"
+      width="0" height="0"
+      quality="high" bgcolor="#ffffff" allowScriptAccess="always"
+      align="middle" type="application/x-shockwave-flash"
+      pluginspage="http://www.macromedia.com/go/getflashplayer"
+      FlashVars="onload=TADS_swf.onDone"/>
+</object>
+<span id="__font_test">
+   ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$$%^*()-+=.,?/'":;
+</span>
+<span id="__font_ref" style="font-family: Comic Sans MS, Times New Roman;">
+   ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$$%^*()-+=.,?/'":;
+</span>
+</div>
+
+<div id="fontlist">
+   <b>Fonts installed:</b><br>
+</div>
+
+<script type="text/javascript">
+
+var TADS_swf = new AbsEvent();
+
+function init()
+{
+    TADS_swf.whenDone(buildFontList);
+}
+
+function buildFontList()
+{
+    // In case Flash isn't available, set up a list of common fonts to
+    // test.  We'll check each entry to see if it's actually installed,
+    // so the final list won't include any missing fonts.  We can't
+    // guess at all of the fonts a given system might have installed,
+    // but the idea is to list lots of fonts in the hope of finding a
+    // reasonably large subset of installed fonts on typical systems.
+    var defaultFonts = [
+        "Absalom",
+        "Academy Engraved LET",
+        "Alibi",
+        "Allegro BT",
+        "Alleycat ICG",
+        "Almanac MT",
+        "American Uncial",
+        "Americana",
+        "Amiga Forever",
+        "Anivers",
+        "Anna",
+        "Arial",
+        "Arial Black",
+        "Arial Narrow",
+        "Arial Unicode MS",
+        "Augsburger Initials",
+        "AvantGarde",
+        "BankGothic Md BT",
+        "Batang",
+        "BatangChe",
+        "Batavia",
+        "Bauhaus 93",
+        "Bernhard Modern Roman",
+        "BernhardFashion BT",
+        "BernhardMod BT",
+        "Bitstream Vera Sans Mono",
+        "Blackletter686 BT",
+        "Blackoak",
+        "Boca Raton ICG",
+        "Boca Raton ICG Solid",
+        "Book Antiqua",
+        "Bookman",
+        "Bookman Old Style",
+        "Boulevard",
+        "Bradley Hand ITC",
+        "Bremen Bd BT",
+        "Broadway BT",
+        "BrushScript",
+        "Calibri",
+        "Californian FB",
+        "Calisto MT",
+        "Calligraph421 BT",
+        "Cambria",
+        "Cambria Math",
+        "Candara",
+        "Carta",
+        "Casmira",
+        "Castellar",
+        "Cataneo BT",
+        "Century",
+        "Century Gothic",
+        "Chilada ICG Cuatro",
+        "Chilada ICG Dos",
+        "Chilada ICG Tres",
+        "Chilada ICG Uno",
+        "Comic Sans MS",
+        "CommonBullets",
+        "Consolas",
+        "Constantia",
+        "Copperplate Gothic",
+        "Copperplate Gothic Bold",
+        "Copperplate Gothic Light",
+        "Copperplate31ab",
+        "Copperplate33bc",
+        "CopprplGoth Bd BT",
+        "Corbel",
+        "Courier New",
+        "Debussy",
+        "Decotura ICG",
+        "Decotura ICG Inline",
+        "Desdemona",
+        "Dotum",
+        "DotumChe",
+        "Edda",
+        "Elegance",
+        "Ellis",
+        "English111 Vivace BT",
+        "Enviro",
+        "Estrangelo Edessa",
+        "Eurostile",
+        "Excess",
+        "Fajita ICG Mild",
+        "Felix Titling",
+        "Fine Hand",
+        "Franklin Gothic",
+        "Franklin Gothic Demi",
+        "Franklin Gothic Demi Cond",
+        "Franklin Gothic Heavy",
+        "Franklin Gothic Medium",
+        "Franklin Gothic Medium Cond",
+        "Freshbot",
+        "Futura Lt BT",
+        "Futura Md BT",
+        "Futura XBlk BT",
+        "FuturaBlack BT",
+        "Garamond",
+        "Gautami",
+        "Genuine",
+        "Georgia",
+        "Giddyup",
+        "Giddyup Thangs",
+        "Gill Sans MT",
+        "Gill Sans MT Condensed",
+        "Gill Sans MT Ext Condensed Bold",
+        "GillSans",
+        "GoudyHandtooled BT",
+        "GoudyOlSt BT",
+        "Gradl",
+        "Greek Symbols",
+        "Gulim",
+        "GulimChe",
+        "Gungsuh",
+        "GungsuhChe",
+        "Harrington",
+        "Helterskelter",
+        "Helvetica",
+        "Helvetica-Narrow",
+        "Herman",
+        "Highlight LET",
+        "HolidayPi BT",
+        "Humanst521 BT",
+        "Iconic Symbols Ext",
+        "Impact",
+        "Imprint MT Shadow",
+        "Isabelle",
+        "Joan",
+        "John Handy LET",
+        "Jokerman LET",
+        "Justice",
+        "Kartika",
+        "Kaufmann",
+        "La Bamba LET",
+        "Latha",
+        "LetterGothic",
+        "Lucida Console",
+        "Lucida Sans Unicode",
+        "Mandela",
+        "Mangal",
+        "Marlett",
+        "Matteroffact",
+        "Mediascape OSD Icon",
+        "Mekanik LET",
+        "Microdot",
+        "Microsoft Sans Serif",
+        "Milano LET",
+        "MingLiU",
+        "MisterEarl BT",
+        "Monotype Corsiva",
+        "MV Boli",
+        "Naturalborn",
+        "Neolith",
+        "NewCenturySchlbk",
+        "NewsGothic",
+        "Nina",
+        "NSimSun",
+        "OCR B MT",
+        "OCR-A II",
+        "Odessa LET",
+        "OldDreadfulNo7 BT",
+        "One Stroke Script LET",
+        "Openclassic",
+        "Orange LET",
+        "OzHandicraft BT",
+        "Paisley ICG 01",
+        "Paisley ICG 01 Alt",
+        "Paisley ICG 02",
+        "Paisley ICG 02 Alt",
+        "Palatino",
+        "Palatino Linotype",
+        "Parisian",
+        "ParkAvenue",
+        "ParkAvenue BT",
+        "Perpetua",
+        "PMingLiU",
+        "PosterBodoni BT",
+        "Pretext",
+        "Pump Demi Bold LET",
+        "Puppylike",
+        "Quixley LET",
+        "Raavi",
+        "Radagund",
+        "Rage Italic LET",
+        "Realvirtue",
+        "Ruach LET",
+        "Scruff LET",
+        "Segoe Condensed",
+        "Segoe UI",
+        "Serifa BT",
+        "Serifa Th BT",
+        "Shelman",
+        "Shruti",
+        "SimHei",
+        "SimSun",
+        "SimSun-PUA",
+        "Smudger LET",
+        "Staccato222 BT",
+        "Sylfaen",
+        "Tahoma",
+        "Tekton",
+        "Times",
+        "Times New Roman",
+        "Tiranti Solid LET",
+        "Trajan",
+        "Trebuchet MS",
+        "Trendy",
+        "Tunga",
+        "TypoUpright BT",
+        "University Roman LET",
+        "Venetian301 BT",
+        "Verdana",
+        "Victorian LET",
+        "Village",
+        "Vrinda",
+        "Westwood LET",
+        "Whimsy ICG",
+        "Whimsy ICG Heavy",
+        "Wonton ICG",
+        "ZapfChancery",
+        "ZapfEllipt BT",
+        "Zurich Ex BT"
+    ];
+
+    // Build the candidate font list.  First try the TADS.swf embedded
+    // Flash object.  Flash isn't everywhere, so if we don't find it,
+    // fall back on our canned list of candidate fonts.
+    var fonts;
+    try {
+        // get the flash object
+        var ie = navigator.userAgent.indexOf("Microsoft") != -1;
+        var mobj = (ie ? window["__TADS_swf"] : document["__TADS_swf"]);
+
+        // ask the Flash object for the list of installed fonts
+        var sfonts = mobj.getFonts();
+
+        // Build a list of the font names, filtering for "regular" style
+        // fonts.  We ignore other styles (bold, italic, etc), since we
+        // don't want to show these in the UI.  
+        fonts = [];
+        for (var i = 0 ; i < sfonts.length ; ++i)
+        {
+            if (sfonts[i].fontStyle == "regular")
+                fonts.push(sfonts[i].fontName);
+        }
+    }
+    catch (e) {
+        // Couldn't get the fonts from flash, so use our canned list
+        // of candidates.  We'll filter out any fonts that aren't
+        // actually installed below.
+        fonts = defaultFonts;
+    }
+
+    // Filter the fonts by testing to see if they're actually installed.
+    // The Flash font enumerator reportedly returns garbage font names on
+    // some systems.  Test each font name by styling a test span with it.
+    // Compare the pixel width of the test span with that of a reference
+    // span that's styled in a fallback font.  If the test and reference
+    // spans have the same widths, it's a good bet that the test span is
+    // actually being rendered in the fallback font, which will presumably
+    // only happen when the tested font doesn't exist on the system.
+    var goodFonts = [];
+    var testSpan = document.getElementById("__font_test");
+    var refSpan = document.getElementById("__font_ref");
+    for (var i = 0 ; i < fonts.length ; ++i)
+    {
+        var n = fonts[i];
+        testSpan.style.fontFamily = n + ", Comic Sans MS, Times New Roman";
+        if (n == "Comic Sans MS"
+            || n == "Times New Roman"
+            || testSpan.offsetWidth != refSpan.offsetWidth)
+            goodFonts.push(n);
+    }
+
+    // keep the filtered list
+    fonts = goodFonts;
+
+    // sort the final list by name
+    fonts.sort(function(a, b) {
+        return a.toUpperCase().localeCompare(b.toUpperCase());
+    });
+
+    document.getElementById("fontlist").innerHTML += fonts.join("<br>");
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* 
+ *   Shorthand to retrieve an object by name.
+ *   
+ *   If 'obj' is a string, we treat it as a path of elements separated by
+ *   periods.  Each element can be an object ID, or a class name in [square
+ *   brackets].  For example, "form3.[details]" returns the first child with
+ *   class="details" of the element with ID "form3".
+ *   
+ *   If 'obj' is any other type, we return it as-is.  This allows passing in
+ *   an element reference without first checking its type, since it will
+ *   simply be returned unchanged.  This makes it easy to write routines that
+ *   accept path names or references as arguments: if the argument is a path
+ *   name, it will be translated to an element; if it's already an element,
+ *   it will be returned as given.  
+ */
+function $(obj)
+{
+    // if it's a string, look it up by name
+    if (typeof(obj) == "string")
+    {
+        // break it up into dot-delimited path elements
+        var path = obj.split(".");
+
+        // find each item in the path
+        for (var i = 0 ; i < path.length ; ++i)
+        {
+            // check the syntax for this element
+            var e = path[i];
+            var cond;
+            if (e.match(/^\[.*\]$/))
+            {
+                // search by class name, starting with the body element
+                e = e.substr(1, e.length - 2);
+                obj = breadthSearch(
+                    i == 0 ? document.body : obj,
+                    function(x) { return x.className == e; });
+            }
+            else
+            {
+                // search by ID
+                cond = function(x) { return x.id == e; }
+                if (i == 0)
+                    obj = document.getElementById(e);
+                else
+                    obj = breadthSearch(
+                        obj, function(x) { return x.id == e; });
+            }
+
+            // if we didn't find a match at this point, give up
+            if (!obj)
+                return null;
+        }
+    }
+
+    // return what we ended with
+    return obj;
+}
+
+/*
+ *   Do a breadth-first search for a child matching the given condition
+ */
+function breadthSearch(obj, cond)
+{
+    // first, search all direct children of 'obj'
+    var chi;
+    for (chi = obj.firstChild ; chi ; chi = chi.nextSibling)
+    {
+        if (cond(chi))
+            return chi;
+    }
+
+    // didn't find it among direct children, so search grandchildren
+    for (chi = obj.firstChild ; chi ; chi = chi.nextSibling)
+    {
+        var gc = breadthSearch(chi, cond);
+        if (gc)
+            return gc;
+    }
+
+    // didn't find it
+    return null;
+}
+    
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Event manipulation.  IE has slightly different syntax from all of the
+ *   other browsers (but basically the same semantics, so it's fairly easy to
+ *   create a common handler ourselves).  
+ */
+function addEventHandler(obj, eventName, func)
+{
+    obj = $(obj);
+    if (obj.addEventListener)
+        obj.addEventListener(eventName, func, false);
+    else if (obj.attachEvent)
+        obj.attachEvent("on" + eventName, func);
+}
+
+function removeEventHandler(obj, eventName, func)
+{
+    obj = $(obj);
+    if (obj.removeEventListener)
+        obj.removeEventListener(eventName, func, false);
+    else if (obj.detachEvent)
+        obj.detachEvent("on" + eventName, func);
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Abstract event handler object.  This simplifies handling for code that's
+ *   conditional on some external event or process completing.  Use
+ *   whenDone() method to invoke a callback if and when the event has
+ *   occurred: if the event has already occurred, we'll invoke the callback
+ *   immediately, otherwise we'll queue it up to be invoked when the event
+ *   occurs.  
+ */
+function AbsEvent(ele, eventName)
+{
+    // we're not done yet, and we have no callbacks queued yet
+    this.isDone = false;
+    this.cb = [];
+
+    // set up our event listener, if applicable
+    if (ele && eventName)
+    {
+        var ae = this;
+        addEventHandler(ele, eventName, function() { ae.onDone(); });
+    }
+
+    // return the new object
+    return this;
+}
+
+/*
+ *   Invoke a callback if and when the event has occurred.  If the event has
+ *   already occurred, we'll invoke the callback immediately; otherwise we'll
+ *   enqueue it to be invoked when the event fires.
+ */
+AbsEvent.prototype.whenDone = function(cb)
+{
+    // check to see if the event has already fired
+    if (this.isDone)
+    {
+        // the event has fired already - invoke the callback immediately
+        cb();
+    }
+    else
+    {
+        // the event hasn't fired yet - queue the callback for later
+        this.cb.push(cb);
+    }
+};
+
+/*
+ *   Completion event.  The caller must invoke this when our external event
+ *   occurs.  
+ */
+AbsEvent.prototype.onDone = function()
+{
+    // note that the event has fired
+    this.isDone = true;
+
+    // invoke each queued callback
+    for (var i = 0 ; i < this.cb.length ; ++i)
+        this.cb[i]();
+
+    // clear the callback list
+    this.cb = [];
+};
+
+
+</script>
+
+</body>
+</html>

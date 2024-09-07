@@ -1,0 +1,139 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export sprintf.t -> sprintf.t3s
+	compile _main.t -> _main.t3o
+	compile sprintf.t -> sprintf.t3o
+	link -> sprintf.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Hello!
+-> Hello!
+
+Percent %% test!
+-> Percent % test!
+
+Integers: decimal=%d, unsigned=%u, octal=%o, hex=%x, HEX=%X, binary=%b
+-> Integers: decimal=-123, unsigned=4294966840, octal=3344, hex=55aa66bb,
+HEX=88CC99DD, binary=1111000011110000
+
+Unsigned: u=%u, u=%u, hex=%x, hex=%x, octal=%o, octal=%o
+-> Unsigned: u=4294954951, u=-12345, hex=ffffff01, hex=-ff, octal=37777776001,
+octal=-1777
+
+Plus signs: %+d, %+d, %+d, %+d
+-> Plus signs: +123, -456, +7890, +0
+
+Plus w/space: % d, % d, % d, % d
+-> Plus w/space:  123, -456,  7890,  0
+
+# format: %#x, %#x, %#X, %#X, %#o, %#o
+-> # format: 0, 0x123abc, 0, 0X345DEF, 0, 07654
+
+Roman numerals I: %r, %R, %r, %R, %r, %R
+-> Roman numerals I: 0, -5, c, CXI, mmmdccclxxxviii, MMMMCMXCIX
+
+Roman numerals II: %r, %R, %r, %R, %r, %R
+-> Roman numerals II: i, 0, cxxiii, DCLXXIX, dxvii, 9999
+
+Integers with field widths: [%8d] [%_ 8d] [%_*8d] [%016d] [%_*8x]
+-> Integers with field widths: [     100] [     200] [***-1234]
+[0000000000004567] [*****400]
+
+Field widths too small: [%4d] [%4d] [%4d] [%4x]
+-> Field widths too small: [1234] [-123] [12345] [abcde]
+
+Left align: [%-5d] [%-5d] [%-5d] [%-5d] [%_*-10d] [%- 5d]
+-> Left align: [123  ] [-1234] [12345] [123456] [87654*****] [ 987 ]
+
+Integers with precisions: [%+.8d] [%.20d] [%.8x] [%.8o]
+-> Integers with precisions: [+00000123] [-00000001234567890987] [00456abc]
+[00334455]
+
+Grouping: [%,d] [%,d] [%,d] [%,d] [%,8d] [%,10d] [%,10d]
+-> Grouping: [1] [12] [123] [1,234] [1,234,567] [ 1,234,567] [-1,234,567]
+
+Positionals: %[3]d, %[2]d, %d, %d, %[1]d, %d
+-> Positionals: 3, 2, 1, 2, 1, 3
+
+Positionals with widths: [%[2]6d], [%[1]06d]
+-> Positionals with widths: [   200], [000100]
+
+Strings as integers: %d, %x, %d
+-> Strings as integers: 12345, ffff, 988
+
+BigNumbers as integers: %d, %d, %d, %d, %d, %020x
+-> BigNumbers as integers: 0, 1, 2, 2, 9111222333, 000fffffffffffffffff
+
+Strings: [%s] [%s] [%s] [%s] [%s]
+-> Strings: [This is a test string!] [100] [123.4567] [] []
+
+Strings with widths: [%8s] [%8s] [%8s]
+-> Strings with widths: [   Short] [Too long for the limit] [Right on]
+
+Strings w/widths, left-aligned: [%-8s] [%-8s] [%-8s]
+-> Strings w/widths, left-aligned: [Short   ] [Too long for the limit] [Right
+on]
+
+Strings with limits: [%8.8s] [%8.8s] [%8.8s]
+-> Strings with limits: [   Short] [Too long] [Perfect!]
+
+Chars: [%c] [%c] [%c] [%c]
+-> Chars: [A] [h] [a] [ ]
+
+f format: %f, %f, %f, %f
+-> f format: 1234.000000, 321.123457, 3456789.000000, 0.000000
+
+f with precision: %.10f, %.20f, %.3f
+-> f with precision: 1234.5678909877, 8899.00112233445566778900, 789.877
+
+f with zero precision: %.0f, %.0f, %.f
+-> f with zero precision: 1235, 8899, 790
+
+f with zero precision and #: %#.0f, %#.0f, %#.f
+-> f with zero precision and #: 1235., 8899., 790.
+
+e format: %e, %e, %e, %e
+-> e format: 1.230000e+002, -9.994448e+008, 1.234568e+006, 1.000000e+006
+
+E format: %E, %E, %E
+-> E format: 4.560000E-003, 1.876543E+020, -3.141593E-4567
+
+e with precision: %.10e, %.3e, %.6e
+-> e with precision: 1.2345000000e-002, 7.767e-001, 7.778890e+002
+
+e with zero precision: %.0e, %.e, %.e
+-> e with zero precision: 1e-002, 8e-001, 8e+002
+
+e with zero precision and #: %#.0e, %#.e, %#.e
+-> e with zero precision and #: 1.e-002, 8.e-001, 8.e+002
+
+Floats with signs: %+f, %+f, %+f
+-> Floats with signs: +1234.567800, -9876.543210, +0.000000
+
+Floats with spaces: % f, % f, % f
+-> Floats with spaces:  1234.567800, -9876.543210,  0.000000
+
+Floats with widths: [%10f] [%10f]
+-> Floats with widths: [10203040.000000] [  0.246814]
+
+g format: %g, %g, %g, %g, %g
+-> g format: 100, 1.23457e+008, -2.34568e+007, 0.000123457, 0.000123457
+
+G format: %G, %G, %G
+-> G format: 0.00012345, 1.2345E-005, 1.2345E-006
+
+More g: %g, %g, %g, %g
+-> More g: 1234, 12345, 123456, 1.23457e+006
+
+g with precision: %.3g, %.8g, %.5g
+-> g with precision: 12.8, 123.456, 1.2346e+005
+
+#g: %#g, %#g, %#g, %#g, %#g, %#g
+-> #g: 1234.00, 12345.0, 123456., 1.23457e+006, 123000., 1.23000e+022
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

@@ -1,0 +1,19 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export join.t -> join.t3s
+	compile _main.t -> _main.t3o
+	compile join.t -> join.t3o
+	link -> join.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+12buckle my shoe34open the door
+1,2,buckle my shoe,3,4,open the door
+1, 2, buckle my shoe, 3, 4, open the door
+1hello24.5044227another string
+1; hello; 24.5044227; another string
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

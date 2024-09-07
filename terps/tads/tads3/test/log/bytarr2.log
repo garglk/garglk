@@ -1,0 +1,56 @@
+	Files to build: 6
+	symbol_export _main.t -> _main.t3s
+	symbol_export bytarr2.t -> bytarr2.t3s
+	compile _main.t -> _main.t3o
+	compile bytarr2.t -> bytarr2.t3o
+	link -> bytarr2.t3p
+	preinit -> bytarr2.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+--- integer writing ---
+0001: C8 00 00 00 00 00 00 00
+0011: B5 00 00 00 00 00 00 00
+0021: 28 A0 00 00 00 00 00 00
+0031: F8 AD 00 00 00 00 00 00
+0041: A4 10 00 00 00 00 00 00
+0051: AA 10 00 00 00 00 00 00
+0061: C0 27 09 00 00 00 00 00
+0071: 40 D8 F6 FF 00 00 00 00
+0101: 00 0A AE 60 00 00 00 00
+0111: FF F5 51 A0 00 00 00 00
+0121: 00 00 00 00 00 00 00 00
+0131: 00 00 00 00 00 00 00 00
+0141: 00 00 00 00 00 00 00 00
+0151: 00 00 00 00 00 00 00 00
+0161: 00 00 00 00 00 00 00 00
+0171: 00 00 00 00 00 00 00 00
+0201: 00 00 00 00 00 00 00 00
+0211: 00 00 00 00 00 00 00 00
+0221: 00 00 00 00 00 00 00 00
+0231: 00 00 00 00 00 00 00 00
+0241: 00 00 00 00 00 00 00 00
+0251: 00 00 00 00 00 00 00 00
+0261: 00 00 00 00 00 00 00 00
+0271: 00 00 00 00 00 00 00 00
+0301: 00 00 00 00 00 00 00 00
+
+--- integer reading ---
+int8 -
+   unsigned: 200
+   signed: -75
+int16 -
+   unsigned, LE: 41000
+   signed, LE: -21000
+   unsigned, BE: 42000
+   signed, BE: -22000
+int32 -
+   LE: 600000
+   LE: -600000
+   BE: 700000
+   BE: -700000
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

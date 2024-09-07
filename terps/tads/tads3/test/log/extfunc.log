@@ -1,0 +1,22 @@
+	Files to build: 5
+	symbol_export extfunc1.t -> extfunc1.t3s
+	symbol_export extfunc2.t -> extfunc2.t3s
+	compile extfunc1.t -> extfunc1.t3o
+	compile extfunc2.t -> extfunc2.t3o
+	link -> extfunc.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+this is main - calling test1(1, 2, 3)...
+++ this is test1(1, 2, 3)
+++ calling test2(888,999)...
+-> this is test2(888, 999)
+++ back in test1 - returning
+back in main - calling test2(4, 5)...
+-> this is test2(4, 5)
+back in main - terminating!
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

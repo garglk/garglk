@@ -1,0 +1,18 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export strtpl.t -> strtpl.t3s
+	compile _main.t -> _main.t3o
+	compile strtpl.t -> strtpl.t3o
+	link -> strtpl.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Let's try some tests: twice a is 246, twice a in words is two hundred forty-
+six, thrice f(a) is 455555223, thrice f(a) in words is four hundred fifty-five
+million five hundred fifty-five thousand two hundred twenty-three! By the way,
+the player's location is In the Kitchen. And finally, book=blue book.
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

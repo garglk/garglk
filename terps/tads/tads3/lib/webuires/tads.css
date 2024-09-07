@@ -1,0 +1,108 @@
+/*
+ *   TADS Web UI - global style sheet.
+ */
+
+body {
+    line-height: 140%;
+
+    /* the following can be changed by the player via the preference
+       settings mechanism */
+    font-family: Georgia, Times New Roman, Times, New York, serif;
+    font-size: 10pt;
+    color: #000000;
+    background-color: #ffffff;
+}
+
+/* generic font styles for the preferences mechanism */
+.serifFont {
+    font-family: Georgia, Times New Roman, Times, New York, serif;
+}
+.sansFont {
+    font-family: Verdana, Arial, Helvetica, sans-serif;
+}
+.scriptFont {
+    font-family: Comic Sans MS, Zapf Chancery, ZapfChancery, cursive;
+}
+.ttFont {
+    font-family: Courier New, Courier, monospace;
+}
+tt {
+    font-family: Courier New, Courier, monospace;
+}
+
+/* note - the extra .plain selectors are to increase the specificity
+   of this item, so that it overrides other regular A items we might
+   define later */
+a.plain:link {
+    text-decoration: none;
+    color: inherit;
+
+    /* IE hack - works around lack of support for 'inherit' */
+    color: expression(this.parentNode.currentStyle
+                      ? this.parentNode.currentStyle.color : "normal");
+}
+
+a:link {
+    /* color: preference setting */
+    color: #0000ff;
+    text-decoration: underline;
+}
+
+a:hover, a.plain:hover {
+    /* color: preference setting */
+    color: #ff00ff;
+    text-decoration: underline;
+}
+
+a:active, a.plain:active, a:focus, a.plain:focus {
+    /* color: preference setting */
+    color: #ff0000;
+    text-decoration: underline;
+}
+
+div.combobox {
+    display: inline-block;
+    zoom: 1; * display: inline;
+    border: 1px solid #0000ff;
+    background: #c0e0e0;
+    margin: 0px;
+    vertical-align: middle;
+}
+
+div.combobox input {
+    margin: 1px;
+    padding: 2px;
+    vertical-align: middle;
+    border: none;
+    background: #ffffff;
+    color: #000000;
+}
+
+div.combobox img {
+    vertical-align: middle;
+    margin: 0px;
+    border: none;
+}
+
+select.comboPopup {
+    position: absolute;
+    z-index: 19900;
+    display: none;
+    padding: 0px;
+    margin: 0px;
+}
+
+/*
+ *  replacement for <HR> - this looks like a horizontal rule, but works 
+ *  an IE bug.  IE uses the wrong containing box to calculate the auto
+ *  width of a real <HR> when used in an inline-block box.  IE goes up
+ *  to the parent block box, bypassing the inline-block box.  This makes
+ *  an embedded HR expand the inline-block box to the full width of the
+ *  parent, which is often not what we want.  Using the <DIV> avoids
+ *  the bug and looks basically the same.  To use, simply write
+ *  <DIV CLASS="HR"></DIV> in place of a regular <HR> element.
+ */
+div.hr {
+    border-top: 1px solid #808080;
+    margin: 1ex 0px;
+}

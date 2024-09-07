@@ -1,0 +1,32 @@
+# tads 3 makefile for the library sample game
+#
+# To compile the library sample game, use this makefile with the
+# command-line compiler like this:
+#
+#   t3make -f sample
+#
+# You can also use this makefile with Workbench on Windows.  Start Workbench,
+# select "Load Project" from the "File" menu, and then choose this file from
+# the file selector dialog.
+#
+
+-o sample.t3
+-pre
+-nodef
+-D LANGUAGE=en_us
+-D MESSAGESTYLE=neu
+-Fy obj
+-Fo obj
+-w1
+
+##sources
+# This is the list of source files making up the sample game.
+#
+-source reflect
+-lib system
+-lib adv3/adv3
+-source sample
+-source bantest
+
+-res
+GameInfo.txt

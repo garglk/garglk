@@ -1,0 +1,100 @@
+	Files to build: 8
+	symbol_export _main.t -> _main.t3s
+	symbol_export multimethod.t -> multimethod.t3s
+	symbol_export multmeth.t -> multmeth.t3s
+	compile _main.t -> _main.t3o
+	compile multimethod.t -> multimethod.t3o
+	compile multmeth.t -> multmeth.t3o
+	link -> multimethod.t3p
+	preinit -> multimethod.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Accented characters: ед
+f(A, B):
+f(A,A)
+Inheriting f(A, ...)...
+f(A,...)
+Inheriting...
+f(A,...)
+
+f(B, A):
+f(A,A)
+Inheriting f(A, ...)...
+f(A,...)
+Inheriting...
+f(A,...)
+
+f(C, D):
+f(C,D)
+
+f(D, C):
+f(B,B)
+
+f(A):
+f(A,...)
+
+f(B):
+f(B)
+inheriting f(*)...
+f(x)
+inheriting f()...
+f()
+
+f(C):
+f(B)
+inheriting f(*)...
+f(x)
+inheriting f()...
+f()
+
+f():
+f()
+
+f(A, 1):
+f(A,...)
+
+f(A, B, 2):
+f(A,...)
+
+x(C, D):
+f(C,D)
+
+g(String, List):
+g(String(Test String), List)
+
+g(String, Vector, Vector):
+g(String(Test String), Vector, Vector)
+
+g(List, Vector, Vector):
+g(List, Vector, Vector)
+
+h1(Table, Table):
+h1.C
+
+h2(Table, Table):
+h2.D
+
+h3(DiningTable, DiningTable):
+h3.B
+
+h4(DiningTable, DiningTable):
+h4.C - inheriting B (Table, Thing)...
+h4.B - inheriting A (Thing, Thing)...
+h4.A
+h4.B - inheriting next...
+h4.A
+
+h4.C - inheriting A (Thing,Thing)...
+h4.A
+
+h4.C - inheriting next...
+h4.B - inheriting A (Thing, Thing)...
+h4.A
+h4.B - inheriting next...
+h4.A
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

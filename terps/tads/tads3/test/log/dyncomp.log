@@ -1,0 +1,13 @@
+	Files to build: 8
+	symbol_export _main.t -> _main.t3s
+	symbol_export dyncomp.t -> dyncomp.t3s
+	symbol_export dynfunc.t -> dynfunc.t3s
+	compile _main.t -> _main.t3o
+	compile dyncomp.t -> dyncomp.t3o
+	compile dynfunc.t -> dynfunc.t3o
+	link -> dyncomp.t3p
+	preinit -> dyncomp.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

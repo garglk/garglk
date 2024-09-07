@@ -1,0 +1,24 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export propptr.t -> propptr.t3s
+	compile _main.t -> _main.t3o
+	compile propptr.t -> propptr.t3o
+	link -> propptr.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+obj1.p1=2: 2
+obj1.p1+=13: 15
+a.p1=6: 6
+a.p1+=17: 23
+obj1.(b)=4: 4
+obj1.(b)+=5: 9
+a.(b)=7: 7
+a.(b)+=3: 10
+self.(a)=11: 11
+self.(a)+=6: 17
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

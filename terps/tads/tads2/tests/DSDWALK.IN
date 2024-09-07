@@ -1,0 +1,205 @@
+# Deep Space Drifter walk-through.
+# Redirect output (with '-l') to a file to capture a log for differencing
+
+
+#-----------------------------------------------------------------------------
+# The Station
+#-----------------------------------------------------------------------------
+
+#
+# Dock with the Station.
+#
+>push distress.z.z.z.push autonav.z.unfasten.get up.open hatch
+
+#
+# We gotta sleep.  Deal with the cleaning robot when we wake up.
+#
+>w.w.w.look under cushion.get remote
+>lie on couch.sleep.n.n.
+>touch pad
+
+#
+# We gotta eat, too.  Get the working bulb from the fridge while we're at it.
+#
+>get up.n.open fridge.eat ham.get bulb
+
+#
+# Get the log tape out of the desk.
+#
+>s.se.unlock.open.get blue
+
+#
+# Go up to the Control Room and play the log tapes.  Get the power supply
+# and nav (red) tape.
+#
+>nw.u.plug cord
+>put blue in log
+>push continue,continue,continue,continue,continue,continue,continue,continue,continue
+>get blue.drop blue,key
+>put yellow in log
+>push continue,continue,continue,continue,continue,continue,continue,continue,continue,continue,continue,continue
+>get supply,red
+
+#
+# Program the nav tape.
+#
+>d.d.plug cord.put red in slot.type 1701.get red
+
+#
+# Get the air tank from the space suit and fill it down in the Lab.  Grab
+# the working fuse from the power supply.
+#
+>u.drop remote,red.e.u.get tank.d.w.d.e
+>plug cord.attach hose to tank.turn knob
+>open compart.drop supply.get fuse
+
+#
+# Go put the suit back together and get ready to go outside the Station.
+#
+>w.u.e.u.attach tank to suit.get burned.put working bulb in socket
+>get suit.wear it.e.push cycle.g.push white
+
+#
+# Replace the fuse on the roof of the tram.
+#
+>e.s.s.open compartment.get blown.put working fuse in compartment
+>n.n.w.push cycle.drop suit,fuse,burned bulb
+
+#
+# Gather up everything we'll need on the Planet, get in the tram, and go!
+#
+>w.d.w.get all,orange.e.s.s
+>put red in slot.sit in pilot seat.fasten.push launch.z.z.z.z
+
+
+#-----------------------------------------------------------------------------
+# The Planet
+#-----------------------------------------------------------------------------
+
+#
+# Head over to the Weapons Hall and defuse the guard robot.
+#
+>unfasten.get up.n.w.w.w.n.w
+>touch pad.get black.drop black,vacuum.put orange in slot.touch pad
+
+#
+# Run the Gauntlet.
+#
+>w.w.get unit.flip alarm
+
+#
+# Grab the shuttle and head for the Reactor.  Send the shuttle back to the
+# 1/4's.
+#
+>e.e.e.n
+>enter shuttle.turn dial to 4.touch silver.z.z.z.z.z.z.z.z
+>turn dial to 1.pull cord.exit.touch silver
+
+#
+# Open up the reactor door and head for the Caves.
+#
+>w.push button 2,button 4,button 1,button 2,button 2
+>d.s.d.s.w
+
+#
+# Traverse the Caves, grab the xenite, and get washed back to the Lakebed.
+#
+>w.w.nw.nw.w.nw.u
+>d.w.nw.nw.n.u.z
+>d.ne.n.nw.u.z.z
+>d.se.se.se.n.ne.u
+>d.s.ne.ne.n.u.z
+>d.nw.n.nw.n.nw.u
+>d.ne.nw.nw.nw.s.u
+>d.se.s.s.nw.n.u
+>d.s.s.w.nw.u.z
+>d.nw.n.n.n.nw.u
+>d.nw.w.nw.u
+>get xenite.d
+>d.z.z.z.z.z
+
+#
+# Head up to the Airshaft, call the shuttle, and jump in.
+#
+>n.e.n.e.push call.u.u.u.s.s.jump
+
+#
+# Wait for the shuttle to autopilot back to the 1/4's, then guide it on
+# manual over to the East Pad.
+#
+>z.z.z.z.flip autopilot.move stick south
+>touch silver.z.z.move stick east
+
+#
+# Set up the shuttle for Reactor meltdown!  Then head over to the Swamp.
+#
+>drop xenite.turn dial to 4.flip autopilot.exit
+>s.w.w
+
+#
+# Traverse the Swamp, herding the weasels toward the exit, and eject a weasel
+# toward the beaver.
+#
+>s.s.sw.w.w.w.sw.push red
+>ne.push red
+>sw.push blue
+>e.push red
+>e.n.push red
+>w.ne.push red
+>se.n.n.push red
+>s.nw.push red
+>w.push red
+>s.push blue
+>s.sw.n.push red
+>n.push red
+>n.push red
+>n.push red
+>n.w.push red
+>n.push blue
+>s.e.push red
+>sw.push red
+>s.push red
+>se.push red
+>n.push red
+>n.push blue
+>e.push red
+>e.push red
+>n.push red
+>e.s.push red
+>s.push red
+>s.nw.push red
+>w.push red
+>s.push red
+>s.e.push red
+>w.ne.push blue
+>se.n.push red
+>n.e.push red
+>w.push red
+>s.nw.push red
+>w.push red
+>s.push red
+>s.e.push red
+>w.ne.push blue
+>se.n.push blue
+>s.e.n.push red
+>s.e.push red
+>w.ne.push red
+>n.n.push red
+
+#
+# Go to the Depot and send the shuttle back to the reactor.
+#
+>e.e.n.touch silver
+
+#
+# Go to the Ship and wait for the base to blow up.  All we have to do after
+# that is blast off and watch the endgame text!
+#
+>s.e.z.z.z.z.z.z.z.z.z.z.z.z
+>push launch.z.z.z.z.z.z
+
+#
+# Just in case.
+#
+>quit
+>y

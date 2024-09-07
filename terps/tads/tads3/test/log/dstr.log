@@ -1,0 +1,27 @@
+Warnings: 0
+Errors:   0
+Longest string: 41, longest list: 10
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+This is a test of double-quoted strings.
+
+This is embedded string one
+This is embedded string two
+This is embedded string three
+This is embedded string four
+This is embedded string five
+This is embedded string six
+This is embedded string seven
+This is embedded string eight
+This is embedded string nine
+This is embedded string ten
+x is greater than 3 (correct)
+x is still greater than 3!
+
+Done!!!
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

@@ -1,0 +1,16 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export testaddr2.t -> testaddr2.t3s
+	compile _main.t -> _main.t3o
+	compile testaddr2.t -> testaddr2.t3o
+	link -> testaddr2.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+a = &f: dataType(a) = 6, a(7) =
+Runtime error: function pointer required
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

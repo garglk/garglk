@@ -1,0 +1,410 @@
+Warnings: 0
+Errors:   0
+Longest string: 124, longest list: 10
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+built-in function tests
+str.length() = 26
+str.substr(5) = [efghijklmnopqrstuvwxyz]
+str.substr(7, 11) = [ghijklmnopq]
+str.substr(7, 30) = [ghijklmnopqrstuvwxyz]
+str.substr(30) = []
+str.substr(30, 8) = []
+
+str.startsWith(a) = yes
+str.startsWith(b) = no
+str.startsWith(abc) = yes
+str.startsWith(abcdef) = yes
+str.startsWith(bc) = no
+str.startsWith(abcefg) = no
+
+str.endWith(z) = yes
+str.endWith(y) = no
+str.endsWith(xyz) = yes
+str.endsWith(tuvwxyz) = yes
+str.endsWith(xy) = no
+str.endsWith(tuvxyz) = no
+
+lst.length() = 10
+lst.sublist(5) = [five, six, seven, eight, nine, ten]
+lst.sublist(5, 3) = [five, six, seven]
+lst.sublist(5, 15) = [five, six, seven, eight, nine, ten]
+lst.sublist(15) = []
+lst.sublist(15, 3) = []
+lst.car() = one
+lst.cdr() = [two, three, four, five, six, seven, eight, nine, ten]
+[].car() = nil? yes
+[].cdr() = nil? yes
+lst - 'three' -> [one, two, four, five, six, seven, eight, nine, ten]
+lst - ['four', 'eight'] -> [one, two, three, five, six, seven, nine, ten]
+lst - ['four', '123', 'nine'] -> [one, two, three, five, six, seven, eight,
+ten]
+lst2 == ['one', [2, 3], 'four']: true
+lst2 == ['one', 2, 3, 'four']: nil
+lst2 == ['one', [3, 4], 'four']: nil
+
+dataType() tests
+dataType(nil) = 1
+dataType(true) = 2
+dataType(obj1) = 5
+dataType(&prop1) = 6
+dataType(123) = 7
+dataType('hello') = 8
+dataType('abcdefghijklmnopqrstuvwxyz1234567890' /*dynamic string*/) = 8
+dataType([1, 2, 3]) = 10
+dataType([ONE, two, three, four, five, six, seven, eight, nine, ten] /*dynamic
+list*/) = 10
+dataType(_main) = 12
+
+varargs tests
+varfunc(1): 1
+varfunc(1, 2, 3): 1, 2, 3
+
+upper/lower test
+upper('This is a TEST of UPPER and lower. 123;!@#$') = 'THIS IS A TEST OF UPPER
+AND LOWER. 123;!@#$'
+lower('This is a TEST of UPPER and lower. 123;!@#$') = 'this is a test of upper
+and lower. 123;!@#$'
+title('This is a TEST of UPPER and lower. 123;!@#$') = 'THIS IS A TEST OF UPPER
+AND LOWER. 123;!@#$'
+caseFold('This is a TEST of UPPER and lower. 123;!@#$') = 'this is a test of
+upper and lower. 123;!@#$'
+upper('We\u0130ßsträße O\ufb03ceplätz') = 'WE\u0130SSSTRÄSSE OFFICEPLÄTZ'
+lower('We\u0130ßsträße O\ufb03ceplätz') = 'wei\u0307ßsträße o\ufb03ceplätz'
+title('We\u0130ßsträße O\ufb03ceplätz') = 'WE\u0130SsSTRÄSsE OFfiCEPLÄTZ'
+caseFold('We\u0130ßsträße O\ufb03ceplätz') = 'wei\u0307sssträsse officeplätz'
+
+toString tests
+toString(123) = 123
+toString(123, 8) = 173
+toString(123, 16) = 7B
+toString(true) = true
+toString(nil) = nil
+toString(0xffffffff, 10) = -1
+toString(0xffffffff, 16) = FFFFFFFF
+toString(0xffffffff, 8) = 37777777777
+toString(0xffffffff, 2) = 11111111111111111111111111111111
+toString(0xffffffff, 10, nil) = 4294967295
+toString(0xffffffff, 16, true) = -1
+toString(0xffffffff, 8, true) = -1
+toString(0xffffffff, 2, true) = -1
+toString([1,2,3]) = 1,2,3
+toString([true, 'x', nil, 7]) = true,x,nil,7
+toString(Vector.generate({i: i*10},3) = 10,20,30
+toString([100, 1000, 10000], 16) = 64,3E8,2710
+toString([100, [200, 300], 400], 8) = 144,310,454,620
+
+toInteger tests
+toInteger('nil') = 0
+toInteger('true') = 1
+toInteger(' nil ') = 0
+toInteger(' true ') = 1
+toInteger(' + 123') = 123
+toInteger('ffff', 16) = 65535
+toInteger('123', 8) = 83
+toInteger('11111111', 2) = 255
+toInteger('100', 12) = 144
+toInteger('ABCDEF', 16) = 11259375
+toInteger('abcdef', 15) = 546284
+toInteger('ABCDEF', 14) = 29777
+toInteger(' - ABCDEF', 13) = -1845
+toInteger('ABCDEF', 12) = 131
+toInteger('ABCDEF', 11) = 10
+toInteger('ABCDEF', 10) = 0
+toInteger('6789', 10) = 6789
+toInteger('6789', 9) = 557
+toInteger('6789', 8) = 55
+toInteger('6789', 7) = 6
+toInteger('2147483640') = 2147483640
+toInteger('2147483647') = 2147483647
+toInteger('2147483648') = Runtime Error: 2023
+toInteger('2147483649') = Runtime Error: 2023
+toInteger('2147483650') = Runtime Error: 2023
+toInteger('-2147483647') = -2147483647
+toInteger('-2147483648') = -2147483648
+toInteger('-2147483649') = Runtime Error: 2023
+toInteger('7fffffff', 16) = 2147483647
+toInteger('80000000', 16) = -2147483648
+toInteger('80000001', 16) = -2147483647
+toInteger('-7fffffff', 16) = -2147483647
+toInteger('-80000000', 16) = -2147483648
+toInteger('-80000001', 16) = Runtime Error: 2023
+toInteger('ffffffff', 16) = -1
+toInteger('ffffffff1', 16) = Runtime Error: 2023
+toInteger('11fffffff', 16) = Runtime Error: 2023
+toInteger('1ffffffff', 16) = Runtime Error: 2023
+toNumber('ABCDEF', 16) = 11259375
+toNumber('7fffffff', 16) = 2147483647
+toNumber('80000000', 16) = -2147483648
+toNumber('100000000', 16) = 4294967296 (BigNumber)
+toNumber('ffffffffffffffff', 16) = 18446744073709551615 (BigNumber)
+toNumber('ZZZZZZZ', 36) = 78364164095 (BigNumber)
+toNumber('1000000000') = 1000000000
+toNumber('2000000000') = 2000000000
+toNumber('4000000000') = 4000000000 (BigNumber)
+toNumber('1.234') = 1.234 (BigNumber)
+toNumber('1234e') = 1234
+toNumber('1234e+') = 1234
+toNumber('1234e+20e') = 123400000000000000000000 (BigNumber)
+toNumber('.1234e+2') = 12.34 (BigNumber)
+toNumber('1234.') = 1234 (BigNumber)
+toNumber(true) = 1
+toNumber(nil) = 0
+toNumber(' true ', 16) = 1
+toNumber(' nil ', 7) = 0
+
+abs(17) = 17
+abs(-17) = 17
+abs(0) = 0
+abs(3.1415) = 3.1415
+abs(20.1415) = 20.1415
+abs(-13.8585) = 13.8585
+abs(0) = 0
+
+sgn(17) = 1
+sgn(-17) = -1
+sgn(0) = 0
+sgn(3.1415) = 1
+sgn(20.1415) = 1
+sgn(-13.8585) = -1
+sgn(0) = 0
+
+concat() =
+concat(one) = one
+concat(one, two) = onetwo
+concat(one, two, three) = onetwothree
+concat(111) = 111
+concat(111, 222) = 111222
+concat(111, 222, 333) = 111222333
+concat(111, two, 333) = 111two333
+concat(111, 222.222, three) = 111222.222three
+
+find() tests
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('') = 1
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('abcdef') = 1
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('xyz') = 24
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('1234567890') = 27
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('xxx') =
+'abcdefghijklmnopqrstuvwxyz1234567890'.find(R'%d+') = 27
+   %0 = '1234567890' (index=27, len=10)
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('cde', 1) = 3
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('cde', 2) = 3
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('cde', 3) = 3
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('cde', 4) =
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('cde', 5) =
+
+findLast() tests
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast('') = 37
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast('abcdef') = 1
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast('xyz') = 24
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast('1234567890') = 27
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast('xxx') =
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast(R'%d+') = 27
+   %0 = '1234567890' (index=27, len=10)
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast(R'<fe>%d+') = 36
+   %0 = '0' (index=36, len=1)
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast(R'<min>%d+') = 36
+   %0 = '0' (index=36, len=1)
+'aaaaaaaabaaa'.findLast(R'<fe>a+ba+|b+') = 9
+   %0 = 'b' (index=9, len=1)
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast(R'b.*9|%d+8') = 2
+   %0 = 'bcdefghijklmnopqrstuvwxyz123456789' (index=2, len=34)
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast(R'<fe>b.*9|%d+8') = 33
+   %0 = '78' (index=33, len=2)
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast('cde', 7) = 3
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast('cde', 6) = 3
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast('cde', 5) =
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast('cde', 4) =
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast('cde', 3) =
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast('cde', 2) =
+'abcdefghijklmnopqrstuvwxyz1234567890'.findLast('cde', 1) =
+'abc ade afg ahi'.findLast('a') = 13
+'abc ade afg ahi'.findLast('a', 0) = 13
+'abc ade afg ahi'.findLast('a', -1) = 13
+'abc ade afg ahi'.findLast('a', -2) = 13
+'abc ade afg ahi'.findLast('a', -3) = 9
+'abc ade afg ahi'.findLast('a', -4) = 9
+'abc ade afg ahi'.findLast('a', -5) = 9
+'abc ade afg ahi'.findLast('a', -6) = 9
+'abc ade afg ahi'.findLast('a', -7) = 5
+'abc ade afg ahi'.findLast('a', -8) = 5
+'abc ade afg ahi'.findLast('a', -9) = 5
+'abc ade afg ahi'.findLast('a', -10) = 5
+'abc ade afg ahi'.findLast('a', -11) = 1
+'abc ade afg ahi'.findLast('a', -12) = 1
+'abc ade afg ahi'.findLast('a', -13) = 1
+'abc ade afg ahi'.findLast('a', -14) = 1
+'abc ade afg ahi'.findLast('a', -15) =
+'abc ade afg ahi'.findLast('a', -16) =
+
+find()-with-index tests
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', 1) = 1
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', 2) = 7
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', 3) = 7
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', 4) = 7
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', 5) = 7
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', 6) = 7
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', 7) = 7
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', 8) = 13
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', 9) = 13
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', 10) = 13
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', -1) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', -2) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', -3) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', -4) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', -5) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', -6) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', -7) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', -8) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', -9) = 43
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find('abc', -10) = 43
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', 1) = 1
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', 2) = 7
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', 3) = 7
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', 4) = 7
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', 5) = 7
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', 6) = 7
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', 7) = 7
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', 8) = 13
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', 9) = 13
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', 10) = 13
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', -1) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', -2) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', -3) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', -4) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', -5) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', -6) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', -7) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', -8) =
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', -9) = 43
+'abcdefabcghiabcjklabcmnoabcpqrabcstuabcvwxabcyz...f'.find(re 'a.*f', -10) = 43
+
+indexOf() tests
+[ONE, two, three, four, five, six, seven, eight, nine, ten].indexOf('one') =
+[ONE, two, three, four, five, six, seven, eight, nine, ten].indexOf('ONE') = 1
+[ONE, two, three, four, five, six, seven, eight, nine, ten].indexOf('two') = 2
+[ONE, two, three, four, five, six, seven, eight, nine, ten].indexOf('ten') = 10
+[ONE, two, three, four, five, six, seven, eight, nine, ten].indexOf('222') =
+[1, [2, 3], 4].indexOf([2, 3]) = 2
+[1, [2, 3], 4].indexOf([3, 4]) =
+[1, 2, 3, 4].intersect([3, 4, 5]) = [3, 4]
+lst3.intersect(lst4) = [four, five]
+lst3.intersect(['three', 'six']) = [three]
+['two', 'four', 'eight'].intersect(lst3) = [two, four]
+lst3.intersect(['six', 'seven', 'eight', 'nine', 'ten']) = []
+
+Regular Expression Tests
+pat1 = '%<test%>'
+pat2 = '([a-z]+) *%1'
+pat3 = '([a-z]+)([0-9]+)'
+search(pat1, 'this is a test') = [11, 4, test]
+search(pat1, 'testing some tests') = nil
+search(pat1, 'testing a test run') = [11, 4, test]
+search(pat2, 'abc def ghi') = nil
+search(pat2, 'abc def def ghi') = [5, 7, def def]
+group(1) = [5, 3, def]
+search(pat4='<lparen>(.*?)<space>*<alpha>+<rparen>', '/hrabes/vyhrabala (v cem)
+(asfd)') = [19, 7, (v cem)]
+   %0 = '(v cem)' (index=19, len=7)
+   %1 = 'v' (index=20, len=1)
+search(pat4='<lparen>(.*?)<space>*<alpha>+<rparen>', '/hrabes/vyhrabala (verb
+cem) (asfd)') = [19, 10, (verb cem)]
+   %0 = '(verb cem)' (index=19, len=10)
+   %1 = 'verb' (index=20, len=4)
+search(pat4a='<lparen>(.*?)(<space>*<alpha>+)<rparen>', '/hrabes/vyhrabala (v
+cem) (asfd)') = [19, 7, (v cem)]
+   %0 = '(v cem)' (index=19, len=7)
+   %1 = 'v' (index=20, len=1)
+   %2 = ' cem' (index=21, len=4)
+search(pat4a='<lparen>(.*?)(<space>*<alpha>+)<rparen>', '/hrabes/vyhrabala
+(verb cem) (asfd)') = [19, 10, (verb cem)]
+   %0 = '(verb cem)' (index=19, len=10)
+   %1 = 'verb' (index=20, len=4)
+   %2 = ' cem' (index=24, len=4)
+search(pat4b='<lparen>(.*?)<space>*(<alpha>+)<rparen>', '/hrabes/vyhrabala (v
+cem) (asfd)') = [19, 7, (v cem)]
+   %0 = '(v cem)' (index=19, len=7)
+   %1 = 'v' (index=20, len=1)
+   %2 = 'cem' (index=22, len=3)
+search(pat4b='<lparen>(.*?)<space>*(<alpha>+)<rparen>', '/hrabes/vyhrabala
+(verb cem) (asfd)') = [19, 10, (verb cem)]
+   %0 = '(verb cem)' (index=19, len=10)
+   %1 = 'verb' (index=20, len=4)
+   %2 = 'cem' (index=25, len=3)
+search(pat4c='<lparen>(|(.*?)<space>)(<alpha>+)<rparen>', '/hrabes/vyhrabala (v
+cem) (asfd)') = [19, 7, (v cem)]
+   %0 = '(v cem)' (index=19, len=7)
+   %1 = 'v ' (index=20, len=2)
+   %2 = 'v' (index=20, len=1)
+   %3 = 'cem' (index=22, len=3)
+search(pat4c='<lparen>(|(.*?)<space>)(<alpha>+)<rparen>', '/hrabes/vyhrabala
+(verb cem) (asfd)') = [19, 10, (verb cem)]
+   %0 = '(verb cem)' (index=19, len=10)
+   %1 = 'verb ' (index=20, len=5)
+   %2 = 'verb' (index=20, len=4)
+   %3 = 'cem' (index=25, len=3)
+search(pat5='%((|(.*) )(<alpha>+)%)', 'test (a xyz) TEST') = [6, 7, (a xyz)]
+   %0 = '(a xyz)' (index=6, len=7)
+   %1 = 'a ' (index=7, len=2)
+   %2 = 'a' (index=7, len=1)
+   %3 = 'xyz' (index=9, len=3)
+search(pat5='%((|(.*) )(<alpha>+)%)', 'test (abc xyz) TEST') = [6, 9, (abc
+xyz)]
+   %0 = '(abc xyz)' (index=6, len=9)
+   %1 = 'abc ' (index=7, len=4)
+   %2 = 'abc' (index=7, len=3)
+   %3 = 'xyz' (index=11, len=3)
+searchLast(pat1='%<test%>', 'this is a test') = [11, 4, test]
+   %0 = 'test' (index=11, len=4)
+searchLast(pat1='%<test%>', 'this is a test of rexSearchLast()') = [11, 4,
+test]
+   %0 = 'test' (index=11, len=4)
+searchLast(pat2='([a-z]+) *%1', 'abc def ghi') = nil
+searchLast(pat2='([a-z]+) *%1', 'abc def def ghi ghi') = [13, 7, ghi ghi]
+   %0 = 'ghi ghi' (index=13, len=7)
+   %1 = 'ghi' (index=13, len=3)
+searchLast(pat2='([a-z]+) *%1', 'abc def def ghi') = [5, 7, def def]
+   %0 = 'def def' (index=5, len=7)
+   %1 = 'def' (index=5, len=3)
+searchLast(pat2='([a-z]+) *%1', 'abc abc def ghi') = [1, 7, abc abc]
+   %0 = 'abc abc' (index=1, len=7)
+   %1 = 'abc' (index=1, len=3)
+match(pat1, 'this is a test') =
+match(pat1, 'test a bit') = 4
+match(pat1, 'testing one two three') =
+match(pat3, 'abcdef123!!!') = 9
+group(1) = [1, 6, abcdef]
+group(2) = [7, 3, 123]
+replace(pat1, 'this is a test', 'TEST!!!', ReplaceOnce) = this is a TEST!!!
+replace(pat3, 'this is box123!!!', '%2%1', ReplaceOnce) = this is 123box!!!
+replace(pat2, 'abc def def ghi', '<%*><%*>', ReplaceOnce) = abc <def def><def
+def> ghi
+replace('^[a-z]*$', 'this is a test', '%*%*', ReplaceOnce) = this is a test
+replace('^[a-z]*$', 'testing', '%*%*', ReplaceOnce) = testingtesting
+replace('%([0-9][0-9][0-9]%) *[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]', 'dial
+(800) 555-1212 on phone', '"%*"', ReplaceOnce) = dial "(800) 555-1212" on phone
+replace('[0-9]+', 'abc 123 def 456 789 ghi', '(%*)', ReplaceAll) = abc (123)
+def (456) (789) ghi
+replace('[0-9]+', '123 def 456 789', '(%*)', ReplaceAll) = (123) def (456)
+(789)
+replace('[0-9]+', 'abc 123 def 456 789 ghi', '(%*)', ReplaceOnce) = abc (123)
+def 456 789 ghi
+replace('([a-z])([0-9]+)', 'x1937y2908z4200d', '%1 := %2; ', ReplaceAll) = x :=
+1937; y := 2908; z := 4200; d
+replace with concat: [[[ABC def ASDF]]]
+
+String.find() and String.findLast() tests with rexGroup()
+'test one123 two456 three789 end'.find(R'(%w+?)(%d+)') = 6
+   %0 = 'one123' (index=6, len=6)
+   %1 = 'one' (index=6, len=3)
+   %2 = '123' (index=9, len=3)
+'test one123 two456 three789 end'.findLast(R'(%w+?)(%d+)') = 20
+   %0 = 'three789' (index=20, len=8)
+   %1 = 'three' (index=20, len=5)
+   %2 = '789' (index=25, len=3)
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

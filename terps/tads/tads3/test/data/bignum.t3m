@@ -1,0 +1,160 @@
+# TADS 3 makefile
+#
+# Warning: this file was mechanically generated.  You may edit this file
+# manually, but your changes might be modified or discarded when
+# you load this file into a TADS development tool.  The TADS tools
+# generally retain the comment at the start of the  file and the
+# comment marked "##sources" below, but other comments might be
+# discarded, the formatting might be changed, and some option
+# settings might be modified.
+
+# tads 3 makefile for the library sample game
+#
+# To compile the library sample game, use this makefile with the
+# command-line compiler like this:
+#
+#   t3make -f sample
+#
+# You can also use this makefile with Workbench on Windows - start Workbench,
+# select "Load Project" from the "File" menu, and then choose this file from
+# the file selector dialog.
+#
+
+-o sample.t3
+
+##sources
+# This is the list of source files making up the sample game.
+#
+-lib system.tl
+-source bignum.t
+
+# The following is machine-generated - DO NOT EDIT
+[Config:devsys]
+*57 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\pov.t:R:88,88,813,478
+*59 src win pos:D:\downloads\tsrc\t3\src\build\samples\sample.t:R:33,85,758,480
+build:ext resfile cnt:I:0
+build:defaults set:I:1
+watch win:vis:I:1
+watch win:pos:R:344,569,865,730
+build:image_resources-sys:S:0:user
+*60 src win pos:D:\downloads\tsrc\t3\src\build\lib\adv3\parser.t:R:57,66,840,549
+build:c ops:I:0
+*62 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\resolver.t:R:38,86,763,481
+log win vis::I:1
+log win pos::R:12,51,815,512
+*57 src win pos:d:\downloads\tsrc\t3\src\build\lib\gameinfo.t:R:43,109,768,504
+*60 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\action.t:R:80,37,841,532
+build:include_files-sys:S:0:system
+build:include_files-sys:S:1:system
+build:include_files-sys:S:2:system
+build:include_files-sys:S:3:system
+build:include_files-sys:S:4:system
+build:include_files-sys:S:5:system
+build:include_files-sys:S:6:system
+build:include_files-sys:S:7:system
+build:include_files-sys:S:8:system
+build:include_files-sys:S:9:system
+build:include_files-sys:S:10:system
+build:include_files-sys:S:11:system
+build:include_files-sys:S:12:system
+build:include_files-sys:S:13:system
+build:include_files-sys:S:14:system
+build:include_files-sys:S:15:system
+project win:dock id:I:7
+*52 src win pos:d:\downloads\tsrc\t3\src\build\lib\tok.t:R:66,66,791,461
+*44 src win pos:C:\TADS\tads3\test\data\bignum.t:R:62,72,801,545
+*60 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\parser.t:R:59,98,803,546
+*60 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\travel.t:R:88,88,813,483
+watch win:expression list 0:S:0:new BigNumber(1,2)/3
+*60 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\lister.t:R:53,19,815,462
+*60 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\events.t:R:110,110,835,505
+build:installer options:S:0:name=bignum
+build:installer options:S:1:savext=bignum
+search:start at top:I:0
+*60 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\report.t:R:110,110,835,505
+stack win:dock id:I:9
+watch win:dock id:I:5
+*58 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\misc.t:R:15,86,733,476
+*42 src win pos:C:\TADS\build\lib\adv3\input.t:R:44,48,755,440
+*60 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\output.t:R:44,44,766,495
+*37 src win pos:C:\TADS\build\lib\_main.t:R:132,144,843,536
+search:wrap:I:1
+docking config::S:0:CL
+docking config::S:1:CL
+docking config::S:2:CR
+docking config::S:3:CB
+docking config::S:4:W3,270,170,236,413,536,563,D
+docking config::S:5:W3,231,170,399,574,925,735,D
+docking config::S:6:CL
+docking config::S:7:W6,221,270,2,413,302,563,D
+docking config::S:8:CB
+docking config::S:9:W8,170,117,279,94,1058,560,M
+docking config::S:10:CB
+docking config::S:11:CB
+docking config::S:12:CB
+docking config::S:13:CB
+docking config::S:14:CB
+docking config::S:15:CB
+docking config::S:16:CB
+docking config::S:17:CB
+docking config::S:18:W17,170,119,258,108,1069,598,M
+search:text:S:0:getnominal
+log win:dock id:I:18
+locals win:vis:I:1
+locals win:pos:R:-204,569,318,730
+main win max::I:0
+search:exact case:I:0
+*53 src win pos:d:\downloads\tsrc\t3\src\build\lib\file.t:R:22,22,662,396
+main win pos::R:23,9,1121,818
+build:image_resources:S:0:GameInfo.txt
+*59 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\adv3.tl:R:132,132,857,527
+srcdir::S:0:C:\TADS\build\lib\
+build:ignore case:I:0
+build:exe:S:0:bignum.exe
+src win list::S:0:C:\TADS\build\lib\_main.t
+src win list::S:1:C:\TADS\tads3\test\data\bignum.t
+build:use charmap:I:0
+hist win vis::I:0
+*61 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\msg_neu.t:R:66,66,865,515
+*61 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\actions.t:R:44,44,769,439
+build:include_files:S:0:tads.h
+build:include_files:S:1:t3.h
+build:include_files:S:2:lookup.h
+build:include_files:S:3:tadsgen.h
+build:include_files:S:4:tadsio.h
+build:include_files:S:5:systype.h
+build:include_files:S:6:charset.h
+build:include_files:S:7:bytearr.h
+build:include_files:S:8:file.h
+build:include_files:S:9:bignum.h
+*43 src win pos:C:\TADS\build\lib\adv3\us_eng.t:R:66,72,777,468
+search dlg:old searches:S:0:getnominal
+search dlg:old searches:S:1:quantifiedplural
+search dlg:old searches:S:2:insufficientquantity
+search dlg:old searches:S:3:tall
+search dlg:old searches:S:4:filterambiguousequiv
+search dlg:old searches:S:5:curmatchlist
+search dlg:old searches:S:6:filterambig
+search dlg:old searches:S:7:"On <
+search dlg:old searches:S:8:smellaction
+search dlg:old searches:S:9:(take)
+locals win:dock id:I:4
+*43 src win pos:C:\TADS\build\lib\adv3\parser.t:R:44,48,755,444
+*51 src win pos:D:\downloads\tsrc\t3\src\htmltads\amp.t:R:132,132,857,527
+*59 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\actor.t:R:132,132,857,527
+*59 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\thing.t:R:62,71,780,510
+build:rlsgam:S:0:bignum_rls.t3
+*52 src win pos:D:\downloads\tsrc\t3\src\build\startI3.t:R:19,56,744,451
+*59 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\input.t:R:36,118,731,551
+*62 src win pos:d:\downloads\tsrc\t3\src\build\lib\adv3\disambig.t:R:153,145,878,540
+search:dir:I:1
+build:installer prog:S:0:bignum_Setup.exe
+project win:vis:I:1
+project win:pos:R:-221,17,-9,560
+*56 src win pos:d:\downloads\tsrc\t3\src\build\lib\system.tl:R:88,88,813,483
+stack win pos::R:33,37,804,474
+stack win vis::I:1
+src win title::S:0:C:\TADS\build\lib\_main.t
+src win title::S:1:C:\TADS\tads3\test\data\bignum.t
+*52 src win pos:D:\downloads\tsrc\t3\src\build\start3.tl:R:26,105,751,500
+

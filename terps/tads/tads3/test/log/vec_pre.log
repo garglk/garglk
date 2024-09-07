@@ -1,0 +1,21 @@
+	Files to build: 6
+	symbol_export _main.t -> _main.t3s
+	symbol_export vec_pre.t -> vec_pre.t3s
+	compile _main.t -> _main.t3o
+	compile vec_pre.t -> vec_pre.t3o
+	link -> vec_pre.t3p
+	preinit -> vec_pre.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+initial: obj1.v = [abc]
+after changes: obj1.v = [abcdefgh]
+restarting...
+restarted!
+obj1.v = [abc]
+more changes: [abcx]
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

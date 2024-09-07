@@ -1,0 +1,57 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export rexreplace.t -> rexreplace.t3s
+	compile _main.t -> _main.t3o
+	compile rexreplace.t -> rexreplace.t3o
+	link -> rexreplace.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+[1: all s->S] thiS iS a teSt
+[2: one s->S] thiS is a test
+[3: all s->S from 5] this iS a teSt
+[4: one s->S from 5] this iS a test
+[5: all s->S from 4] thiS iS a teSt
+[6: one s->S from 4] thiS is a test
+[7: a->x, b->y, c->z, case sensitive] xyz ABC this is xn xyz ABC test
+[8: a->x, b->y, c->z, case insensitive] xyz xyz this is xn xyz xyz test
+[9: a->x, b->y, c->z, case insensitive, follow case] xyz XYZ this is xn xyz XYZ
+test
+[10: and->und, or->oder, the->der, case sensitive] This und That AND These und
+Those OR der Oderr Thing Or Whatever And Done!
+[11: and->und, or->oder, the->der, case sensitive] This und That und derse und
+Those oder der Oderr Thing oder Whatever und Done!
+[12: and->und, or->oder, the->der, case sensitive] This und That UND Derse und
+Those ODER der Oderr Thing Oder Whatever Und Done!
+[13: digits->(digits)] (123), (4567), and (891011)
+[14: all s->SS, t->TT] TThiSS iSS a TTeSSTT
+[15: one s->SS, t->TT] TThis is a test
+[16: serial s->SS, t->TT] TThiSS iSS a TTeSSTT
+[17: serial,one s->SS, t->TT] thiSS is a test
+[18: serial,one q->QQ, t->TT] TThis is a test
+[19: parallel s->SS, t->TT] TThiSS iSS a TTeSSTT
+[20: serial a->bb, b->cc, c->dd] dddddddddddddd this is ddddddddn
+dddddddddddddd test
+[21: parallel a->bb, b->cc, c->dd] bbccdd this is bbn bbccdd test
+[22: serial a->bb, b->cc, c->dd from 5] abc this is ddddddddn dddddddddddddd
+test
+[23: parallel a->bb, b->cc, c->dd from 5] abc this is bbn bbccdd test
+[24: serial a->bb, b->cc, c->dd limit=0] abc this is an abc test
+[25: serial a->bb, b->cc, c->dd limit=2] bbbc this is an abc test
+[26: serial a->bb, b->cc, c->dd limit=2] bbbc this is bbn abc test
+[27: serial a->bb, b->cc, c->dd limit=3] bbbc this is bbn bbbc test
+[28: parallel a->bb, b->cc, c->dd limit=0] abc this is an abc test
+[29: parallel a->bb, b->cc, c->dd limit=2] bbbc this is an abc test
+[30: parallel a->bb, b->cc, c->dd limit=2] bbccc this is an abc test
+[31: parallel a->bb, b->cc, c->dd limit=3] bbccdd this is an abc test
+[32: alpha->func(even 's' only)] this iS a test of Some special Stuff
+[33: t,s->func(even only)] thiS is a TesT of some Special sTuff
+[34: s->func(even only), t->func(odd only)] This iS a tesT of Some special
+Stuff
+[35: s,t->func(m), func(m,i)] [t:1]hi[s] i[s] a [t:11]e[s][t:14] of [s]ome
+[s]pecial [s][t:33]uff
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

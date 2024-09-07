@@ -1,0 +1,18 @@
+	Files to build: 6
+	symbol_export _main.t -> _main.t3s
+	symbol_export newembederr.t -> newembederr.t3s
+newembederr.t(6): error: <<else>> found in string without a matching <<if>> or <<unless>>
+newembederr.t(8): error: expected integer, string, symbol, '[', or '(', but found "case"
+newembederr.t(9): error: expected '>>' and the string continuation, but found "error"
+newembederr.t(10): error: expected '>>' and the string continuation, but found "same"
+Errors:   4
+Warnings: 0
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+VM Error: file not found
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

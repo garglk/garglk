@@ -1,0 +1,37 @@
+	Files to build: 6
+	symbol_export _main.t -> _main.t3s
+	symbol_export optargs.t -> optargs.t3s
+	compile _main.t -> _main.t3o
+	compile optargs.t -> optargs.t3o
+	link -> optargs.t3p
+	preinit -> optargs.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+f1: a=1, b=2, c=
+f1: a=3, b=4, c=5
+f2: a=6, b=7, c=, d=
+f2: a=8, b=9, c=10, d=
+f2: a=11, b=12, c=13, d=14
+f3: a=15, b=B default, c=C default (b=B default)
+f3: a=16, b=, c=C default (b=)
+f3: a=17, b=, c=
+f3: a=18, b=19, c=C default (b=19)
+f3: a=19, b=20, c=
+f3: a=21, b=, c=22
+f3: a=23, b=24, c=25
+n1: a=101, b=102, c=
+n1: a=103, b=104, c=105
+n2: a=106, b=107, c=C default
+n2: a=108, b=109, c=110
+n3: a=111, b=B default, c=C default (b=B default)
+n3: a=112, b=, c=C default (b=)
+n3: a=113, b=114, c=C default (b=114)
+n3: a=115, b=116, c=
+n3: a=117, b=118, c=119
+n3: a=120, b=, c=121
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

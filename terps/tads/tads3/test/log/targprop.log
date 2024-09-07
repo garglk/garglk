@@ -1,0 +1,25 @@
+	Files to build: 8
+	symbol_export _main.t -> _main.t3s
+	symbol_export targprop.t -> targprop.t3s
+	symbol_export reflect.t -> reflect.t3s
+	compile _main.t -> _main.t3o
+	compile targprop.t -> targprop.t3o
+	compile reflect.t -> reflect.t3o
+	link -> targprop.t3p
+	preinit -> targprop.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+This is myObj.prop1 - targetprop = prop1
+...inheriting...
+This is myClass.prop1 - targetprop = prop1
+...inheriting implicitly...
+This is myClass.prop1 - targetprop = prop1
+...again without arguments...
+This is myClass.prop1 - targetprop = prop1
+This is myClass.prop2 - targetprop = prop2
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

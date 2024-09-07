@@ -1,0 +1,24 @@
+	Files to build: 3
+	symbol_export listpar.t -> listpar.t3s
+	compile listpar.t -> listpar.t3o
+	link -> listpar.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+func: a = 9, b = []
++ func2: x = [9]
++ func2: x = [9]
+func: a = 8, b = [2]
++ func2: x = [2, 8]
++ func2: x = [8, 2]
+func: a = 7, b = [2, 3]
++ func2: x = [2, 3, 7]
++ func2: x = [7, 2, 3]
+func: a = 6, b = [2, 3, 4]
++ func2: x = [2, 3, 4, 6]
++ func2: x = [6, 2, 3, 4]
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

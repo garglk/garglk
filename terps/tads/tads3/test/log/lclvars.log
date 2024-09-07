@@ -1,0 +1,2090 @@
+	Files to build: 12
+	symbol_export _main.t -> _main.t3s
+	symbol_export lclvars.t -> lclvars.t3s
+	symbol_export lclvars2.t -> lclvars2.t3s
+	symbol_export reflect.t -> reflect.t3s
+	symbol_export dynfunc.t -> dynfunc.t3s
+	compile _main.t -> _main.t3o
+	compile lclvars.t -> lclvars.t3o
+	compile lclvars2.t -> lclvars2.t3o
+	compile reflect.t -> reflect.t3o
+	compile dynfunc.t -> dynfunc.t3o
+	link -> lclvars.t3p
+	preinit -> lclvars.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Stack trace for f #1:
+   dumpStack('f #1') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'f #1'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'f #1'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+g: i=4, j=6, k=5
+
+Stack trace for g 1:
+   dumpStack('g 1') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'g 1'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'g 1'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   g(3, 5, 4) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 3
+       b = 5
+       c = 4
+       cnt = nil
+       i = 4
+       j = 6
+       k = 5
+       af1 = nil
+   Locals via StackFrameDesc.getVars():
+       a = 3
+       b = 5
+       c = 4
+       cnt = nil
+       i = 4
+       j = 6
+       k = 5
+       af1 = nil
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for af1-nested:
+   dumpStack('af1-nested') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'af1-nested'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'af1-nested'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   {anonFunc}(1) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       k = 1
+       cnt = 1
+       sum = 1
+   Locals via StackFrameDesc.getVars():
+       k = 1
+       cnt = 1
+       sum = 1
+   [1, 2, 3, 4, 5].forEach({obj:AnonFuncPtr})
+   (no locals)
+   (no frame ref)
+   {anonFunc}([1, 2, 3, 4, 5]) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       a = [1, 2, 3, 4, 5]
+       sum = 1
+       cnt = 1
+       i = 4
+   Locals via StackFrameDesc.getVars():
+       a = [1, 2, 3, 4, 5]
+       sum = 1
+       cnt = 1
+       i = 4
+   g(3, 5, 4) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 3
+       b = 5
+       c = 4
+       cnt = 1
+       i = 4
+       j = 6
+       k = 5
+       af1 = {obj:AnonFuncPtr}
+   Locals via StackFrameDesc.getVars():
+       a = 3
+       b = 5
+       c = 4
+       cnt = 1
+       i = 4
+       j = 6
+       k = 5
+       af1 = {obj:AnonFuncPtr}
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for af1-nested:
+   dumpStack('af1-nested') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'af1-nested'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'af1-nested'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   {anonFunc}(2) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       k = 2
+       cnt = 2
+       sum = 3
+   Locals via StackFrameDesc.getVars():
+       k = 2
+       cnt = 2
+       sum = 3
+   [1, 2, 3, 4, 5].forEach({obj:AnonFuncPtr})
+   (no locals)
+   (no frame ref)
+   {anonFunc}([1, 2, 3, 4, 5]) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       a = [1, 2, 3, 4, 5]
+       sum = 3
+       cnt = 2
+       i = 4
+   Locals via StackFrameDesc.getVars():
+       a = [1, 2, 3, 4, 5]
+       sum = 3
+       cnt = 2
+       i = 4
+   g(3, 5, 4) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 3
+       b = 5
+       c = 4
+       cnt = 2
+       i = 4
+       j = 6
+       k = 5
+       af1 = {obj:AnonFuncPtr}
+   Locals via StackFrameDesc.getVars():
+       a = 3
+       b = 5
+       c = 4
+       cnt = 2
+       i = 4
+       j = 6
+       k = 5
+       af1 = {obj:AnonFuncPtr}
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for af1-nested:
+   dumpStack('af1-nested') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'af1-nested'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'af1-nested'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   {anonFunc}(3) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       k = 3
+       cnt = 3
+       sum = 6
+   Locals via StackFrameDesc.getVars():
+       k = 3
+       cnt = 3
+       sum = 6
+   [1, 2, 3, 4, 5].forEach({obj:AnonFuncPtr})
+   (no locals)
+   (no frame ref)
+   {anonFunc}([1, 2, 3, 4, 5]) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       a = [1, 2, 3, 4, 5]
+       sum = 6
+       cnt = 3
+       i = 4
+   Locals via StackFrameDesc.getVars():
+       a = [1, 2, 3, 4, 5]
+       sum = 6
+       cnt = 3
+       i = 4
+   g(3, 5, 4) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 3
+       b = 5
+       c = 4
+       cnt = 3
+       i = 4
+       j = 6
+       k = 5
+       af1 = {obj:AnonFuncPtr}
+   Locals via StackFrameDesc.getVars():
+       a = 3
+       b = 5
+       c = 4
+       cnt = 3
+       i = 4
+       j = 6
+       k = 5
+       af1 = {obj:AnonFuncPtr}
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for af1-nested:
+   dumpStack('af1-nested') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'af1-nested'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'af1-nested'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   {anonFunc}(4) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       k = 4
+       cnt = 4
+       sum = 10
+   Locals via StackFrameDesc.getVars():
+       k = 4
+       cnt = 4
+       sum = 10
+   [1, 2, 3, 4, 5].forEach({obj:AnonFuncPtr})
+   (no locals)
+   (no frame ref)
+   {anonFunc}([1, 2, 3, 4, 5]) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       a = [1, 2, 3, 4, 5]
+       sum = 10
+       cnt = 4
+       i = 4
+   Locals via StackFrameDesc.getVars():
+       a = [1, 2, 3, 4, 5]
+       sum = 10
+       cnt = 4
+       i = 4
+   g(3, 5, 4) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 3
+       b = 5
+       c = 4
+       cnt = 4
+       i = 4
+       j = 6
+       k = 5
+       af1 = {obj:AnonFuncPtr}
+   Locals via StackFrameDesc.getVars():
+       a = 3
+       b = 5
+       c = 4
+       cnt = 4
+       i = 4
+       j = 6
+       k = 5
+       af1 = {obj:AnonFuncPtr}
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for af1-nested:
+   dumpStack('af1-nested') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'af1-nested'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'af1-nested'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   {anonFunc}(5) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       k = 5
+       cnt = 5
+       sum = 15
+   Locals via StackFrameDesc.getVars():
+       k = 5
+       cnt = 5
+       sum = 15
+   [1, 2, 3, 4, 5].forEach({obj:AnonFuncPtr})
+   (no locals)
+   (no frame ref)
+   {anonFunc}([1, 2, 3, 4, 5]) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       a = [1, 2, 3, 4, 5]
+       sum = 15
+       cnt = 5
+       i = 4
+   Locals via StackFrameDesc.getVars():
+       a = [1, 2, 3, 4, 5]
+       sum = 15
+       cnt = 5
+       i = 4
+   g(3, 5, 4) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 3
+       b = 5
+       c = 4
+       cnt = 5
+       i = 4
+       j = 6
+       k = 5
+       af1 = {obj:AnonFuncPtr}
+   Locals via StackFrameDesc.getVars():
+       a = 3
+       b = 5
+       c = 4
+       cnt = 5
+       i = 4
+       j = 6
+       k = 5
+       af1 = {obj:AnonFuncPtr}
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for af1 - done:
+   dumpStack('af1 - done') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'af1 - done'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'af1 - done'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}]
+   {anonFunc}([1, 2, 3, 4, 5]) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       a = [1, 2, 3, 4, 5]
+       sum = 15
+       cnt = 5
+       i = 15
+   Locals via StackFrameDesc.getVars():
+       a = [1, 2, 3, 4, 5]
+       sum = 15
+       cnt = 5
+       i = 15
+   g(3, 5, 4) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 3
+       b = 5
+       c = 4
+       cnt = 5
+       i = 15
+       j = 6
+       k = 5
+       af1 = {obj:AnonFuncPtr}
+   Locals via StackFrameDesc.getVars():
+       a = 3
+       b = 5
+       c = 4
+       cnt = 5
+       i = 15
+       j = 6
+       k = 5
+       af1 = {obj:AnonFuncPtr}
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for g 2:
+   dumpStack('g 2') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'g 2'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'g 2'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   g(3, 5, 4) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 3
+       b = 5
+       c = 4
+       cnt = 5
+       i = 15
+       j = 6
+       k = 5
+       af1 = {obj:AnonFuncPtr}
+   Locals via StackFrameDesc.getVars():
+       a = 3
+       b = 5
+       c = 4
+       cnt = 5
+       i = 15
+       j = 6
+       k = 5
+       af1 = {obj:AnonFuncPtr}
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+f #2: aa=2, bb=4, cc=6
+Stack trace for f #2:
+   dumpStack('f #2') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'f #2'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'f #2'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+g: i=301, j=501, k=401
+
+Stack trace for g 1:
+   dumpStack('g 1') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'g 1'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'g 1'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   g(300, 500, 400) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 300
+       b = 500
+       c = 400
+       cnt = nil
+       i = 301
+       j = 501
+       k = 401
+       af1 = nil
+   Locals via StackFrameDesc.getVars():
+       a = 300
+       b = 500
+       c = 400
+       cnt = nil
+       i = 301
+       j = 501
+       k = 401
+       af1 = nil
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for af1-nested:
+   dumpStack('af1-nested') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'af1-nested'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'af1-nested'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   {anonFunc}(1) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       k = 1
+       cnt = 1
+       sum = 1
+   Locals via StackFrameDesc.getVars():
+       k = 1
+       cnt = 1
+       sum = 1
+   [1, 2, 3, 4, 5].forEach({obj:AnonFuncPtr})
+   (no locals)
+   (no frame ref)
+   {anonFunc}([1, 2, 3, 4, 5]) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       a = [1, 2, 3, 4, 5]
+       sum = 1
+       cnt = 1
+       i = 301
+   Locals via StackFrameDesc.getVars():
+       a = [1, 2, 3, 4, 5]
+       sum = 1
+       cnt = 1
+       i = 301
+   g(300, 500, 400) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 300
+       b = 500
+       c = 400
+       cnt = 1
+       i = 301
+       j = 501
+       k = 401
+       af1 = {obj:AnonFuncPtr}
+   Locals via StackFrameDesc.getVars():
+       a = 300
+       b = 500
+       c = 400
+       cnt = 1
+       i = 301
+       j = 501
+       k = 401
+       af1 = {obj:AnonFuncPtr}
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for af1-nested:
+   dumpStack('af1-nested') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'af1-nested'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'af1-nested'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   {anonFunc}(2) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       k = 2
+       cnt = 2
+       sum = 3
+   Locals via StackFrameDesc.getVars():
+       k = 2
+       cnt = 2
+       sum = 3
+   [1, 2, 3, 4, 5].forEach({obj:AnonFuncPtr})
+   (no locals)
+   (no frame ref)
+   {anonFunc}([1, 2, 3, 4, 5]) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       a = [1, 2, 3, 4, 5]
+       sum = 3
+       cnt = 2
+       i = 301
+   Locals via StackFrameDesc.getVars():
+       a = [1, 2, 3, 4, 5]
+       sum = 3
+       cnt = 2
+       i = 301
+   g(300, 500, 400) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 300
+       b = 500
+       c = 400
+       cnt = 2
+       i = 301
+       j = 501
+       k = 401
+       af1 = {obj:AnonFuncPtr}
+   Locals via StackFrameDesc.getVars():
+       a = 300
+       b = 500
+       c = 400
+       cnt = 2
+       i = 301
+       j = 501
+       k = 401
+       af1 = {obj:AnonFuncPtr}
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for af1-nested:
+   dumpStack('af1-nested') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'af1-nested'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'af1-nested'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   {anonFunc}(3) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       k = 3
+       cnt = 3
+       sum = 6
+   Locals via StackFrameDesc.getVars():
+       k = 3
+       cnt = 3
+       sum = 6
+   [1, 2, 3, 4, 5].forEach({obj:AnonFuncPtr})
+   (no locals)
+   (no frame ref)
+   {anonFunc}([1, 2, 3, 4, 5]) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       a = [1, 2, 3, 4, 5]
+       sum = 6
+       cnt = 3
+       i = 301
+   Locals via StackFrameDesc.getVars():
+       a = [1, 2, 3, 4, 5]
+       sum = 6
+       cnt = 3
+       i = 301
+   g(300, 500, 400) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 300
+       b = 500
+       c = 400
+       cnt = 3
+       i = 301
+       j = 501
+       k = 401
+       af1 = {obj:AnonFuncPtr}
+   Locals via StackFrameDesc.getVars():
+       a = 300
+       b = 500
+       c = 400
+       cnt = 3
+       i = 301
+       j = 501
+       k = 401
+       af1 = {obj:AnonFuncPtr}
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for af1-nested:
+   dumpStack('af1-nested') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'af1-nested'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'af1-nested'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   {anonFunc}(4) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       k = 4
+       cnt = 4
+       sum = 10
+   Locals via StackFrameDesc.getVars():
+       k = 4
+       cnt = 4
+       sum = 10
+   [1, 2, 3, 4, 5].forEach({obj:AnonFuncPtr})
+   (no locals)
+   (no frame ref)
+   {anonFunc}([1, 2, 3, 4, 5]) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       a = [1, 2, 3, 4, 5]
+       sum = 10
+       cnt = 4
+       i = 301
+   Locals via StackFrameDesc.getVars():
+       a = [1, 2, 3, 4, 5]
+       sum = 10
+       cnt = 4
+       i = 301
+   g(300, 500, 400) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 300
+       b = 500
+       c = 400
+       cnt = 4
+       i = 301
+       j = 501
+       k = 401
+       af1 = {obj:AnonFuncPtr}
+   Locals via StackFrameDesc.getVars():
+       a = 300
+       b = 500
+       c = 400
+       cnt = 4
+       i = 301
+       j = 501
+       k = 401
+       af1 = {obj:AnonFuncPtr}
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for af1-nested:
+   dumpStack('af1-nested') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'af1-nested'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'af1-nested'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   {anonFunc}(5) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       k = 5
+       cnt = 5
+       sum = 15
+   Locals via StackFrameDesc.getVars():
+       k = 5
+       cnt = 5
+       sum = 15
+   [1, 2, 3, 4, 5].forEach({obj:AnonFuncPtr})
+   (no locals)
+   (no frame ref)
+   {anonFunc}([1, 2, 3, 4, 5]) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       a = [1, 2, 3, 4, 5]
+       sum = 15
+       cnt = 5
+       i = 301
+   Locals via StackFrameDesc.getVars():
+       a = [1, 2, 3, 4, 5]
+       sum = 15
+       cnt = 5
+       i = 301
+   g(300, 500, 400) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 300
+       b = 500
+       c = 400
+       cnt = 5
+       i = 301
+       j = 501
+       k = 401
+       af1 = {obj:AnonFuncPtr}
+   Locals via StackFrameDesc.getVars():
+       a = 300
+       b = 500
+       c = 400
+       cnt = 5
+       i = 301
+       j = 501
+       k = 401
+       af1 = {obj:AnonFuncPtr}
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for af1 - done:
+   dumpStack('af1 - done') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'af1 - done'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'af1 - done'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}]
+   {anonFunc}([1, 2, 3, 4, 5]) [invokee={obj:AnonFuncPtr}]
+   Locals via T3GetStackLocals:
+       a = [1, 2, 3, 4, 5]
+       sum = 15
+       cnt = 5
+       i = 15
+   Locals via StackFrameDesc.getVars():
+       a = [1, 2, 3, 4, 5]
+       sum = 15
+       cnt = 5
+       i = 15
+   g(300, 500, 400) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 300
+       b = 500
+       c = 400
+       cnt = 5
+       i = 15
+       j = 501
+       k = 401
+       af1 = {obj:AnonFuncPtr}
+   Locals via StackFrameDesc.getVars():
+       a = 300
+       b = 500
+       c = 400
+       cnt = 5
+       i = 15
+       j = 501
+       k = 401
+       af1 = {obj:AnonFuncPtr}
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for g 2:
+   dumpStack('g 2') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'g 2'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'g 2'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   g(300, 500, 400) [invokee=g]
+   Locals via T3GetStackLocals:
+       a = 300
+       b = 500
+       c = 400
+       cnt = 5
+       i = 15
+       j = 501
+       k = 401
+       af1 = {obj:AnonFuncPtr}
+   Locals via StackFrameDesc.getVars():
+       a = 300
+       b = 500
+       c = 400
+       cnt = 5
+       i = 15
+       j = 501
+       k = 401
+       af1 = {obj:AnonFuncPtr}
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       aa = 2
+       bb = 4
+       cc = 6
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for f #3:
+   dumpStack('f #3') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'f #3'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'f #3'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   Locals via StackFrameDesc.getVars():
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 3
+       y = 5
+       z = 4
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for f #4:
+   dumpStack('f #4') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'f #4'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'f #4'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 30
+       y = 50
+       z = 40
+   Locals via StackFrameDesc.getVars():
+       a = 1
+       b = 2
+       c = 3
+       dyn = nil
+       x = 30
+       y = 50
+       z = 40
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+This is DynamicFunc 1 (cx=101, cy=202)!
+Stack trace for DynamicFunc 1:
+   dumpStack('DynamicFunc 1') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'DynamicFunc 1'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'DynamicFunc 1'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}]
+   {obj:DynamicFunc}(101, 202) [invokee={obj:DynamicFunc}]
+   Locals via T3GetStackLocals:
+       cx = 101
+       cy = 202
+   Locals via StackFrameDesc.getVars():
+       cx = 101
+       cy = 202
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       a = 1
+       b = 2
+       c = 3
+       dyn = {obj:DynamicFunc}
+       x = 30
+       y = 50
+       z = 40
+   Locals via StackFrameDesc.getVars():
+       a = 1
+       b = 2
+       c = 3
+       dyn = {obj:DynamicFunc}
+       x = 30
+       y = 50
+       z = 40
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for rexReplace callback:
+   dumpStack('rexReplace callback') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'rexReplace callback'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'rexReplace callback'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}]
+   {anonFunc}('test', 1) [invokee={anonFunc}]
+   Locals via T3GetStackLocals:
+       idx = 1
+       match = 'test'
+   Locals via StackFrameDesc.getVars():
+       idx = 1
+       match = 'test'
+   rexReplace('<alpha>+', 'test string', {anonFunc})
+   (no locals)
+   (no frame ref)
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       a = 1
+       b = 2
+       c = 3
+       dyn = {obj:DynamicFunc}
+       x = 30
+       y = 50
+       z = 40
+   Locals via StackFrameDesc.getVars():
+       a = 1
+       b = 2
+       c = 3
+       dyn = {obj:DynamicFunc}
+       x = 30
+       y = 50
+       z = 40
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Stack trace for rexReplace callback:
+   dumpStack('rexReplace callback') [invokee=dumpStack]
+   Locals via T3GetStackLocals:
+       id = 'rexReplace callback'
+       t = nil
+   Locals via StackFrameDesc.getVars():
+       id = 'rexReplace callback'
+       t = [{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo}, {obj:T3StackInfo},
+{obj:T3StackInfo}]
+   {anonFunc}('string', 6) [invokee={anonFunc}]
+   Locals via T3GetStackLocals:
+       idx = 6
+       match = 'string'
+   Locals via StackFrameDesc.getVars():
+       idx = 6
+       match = 'string'
+   rexReplace('<alpha>+', 'test string', {anonFunc})
+   (no locals)
+   (no frame ref)
+   f(1, 2, 3) [invokee=f]
+   Locals via T3GetStackLocals:
+       a = 1
+       b = 2
+       c = 3
+       dyn = {obj:DynamicFunc}
+       x = 30
+       y = 50
+       z = 40
+   Locals via StackFrameDesc.getVars():
+       a = 1
+       b = 2
+       c = 3
+       dyn = {obj:DynamicFunc}
+       x = 30
+       y = 50
+       z = 40
+   main(['lclvars.t3']) [invokee=main]
+   Locals via T3GetStackLocals:
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       i = 1
+       j = 2
+       k = 3
+       args = ['lclvars.t3']
+   flexcall(main, ['lclvars.t3']) [invokee=flexcall]
+   Locals via T3GetStackLocals:
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   Locals via StackFrameDesc.getVars():
+       func = main
+       args = [['lclvars.t3']]
+       n = 1
+       paramDesc = [1, 0, nil]
+   _mainCommon(['lclvars.t3'], nil) [invokee=_mainCommon]
+   Locals via T3GetStackLocals:
+       restoreFile = nil
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       restoreFile = nil
+       args = ['lclvars.t3']
+   _main(['lclvars.t3']) [invokee=_main]
+   Locals via T3GetStackLocals:
+       args = ['lclvars.t3']
+   Locals via StackFrameDesc.getVars():
+       args = ['lclvars.t3']
+
+Trying exception trace...
+Runtime error: object value required
+-->f(1, 2, 3)
+   main(['lclvars.t3'])
+   flexcall(main, ['lclvars.t3'])
+   _mainCommon(['lclvars.t3'], nil)
+   _main(['lclvars.t3'])
+
+Done!
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

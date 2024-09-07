@@ -1,0 +1,53 @@
+	Files to build: 8
+	symbol_export _main.t -> _main.t3s
+	symbol_export dynctx.t -> dynctx.t3s
+	symbol_export dynfunc.t -> dynfunc.t3s
+	compile _main.t -> _main.t3o
+	compile dynctx.t -> dynctx.t3o
+	compile dynfunc.t -> dynfunc.t3o
+	link -> dynctx.t3p
+	preinit -> dynctx.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+test 1: function with no method context
+function(x) { return x*i; }
+self available: no
+As function: 14
+As method: 14
+
+test 2: function with a method context
+function(x) { return x*p1; }
+self available: yes
+As function: 39
+As method: 39
+
+test 3: method with a method context
+method(x) { return x*p1; }
+self available: yes
+As function: error: Runtime error: numeric value required
+As method: 76
+
+test 4: function with a full method context
+function(x) { return x*p1*inherited(); }
+self available: yes
+As function: 2035
+As method: 2035
+
+test 5: function with a full method context
+function() { return definingobj.p1; }
+self available: yes
+As function: 37
+As method: 37
+
+test 6: method with a full method context
+method(x) { return x*p1*inherited(); }
+self available: yes
+As function: error: Runtime error: numeric value required
+As method: 5453
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

@@ -1,0 +1,135 @@
+#line 1 "ansi.c"
+ 
+
+
+
+
+ 
+file = 'ansi.c';
+line = 8;
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+f(2 * (0)) + t(1);
+f(2 * (f(2 * (z[0]))));
+f(2 * (y+1)) + f(2 * (f(2 * (z[0])))) % f(2 * (0)) + t(1);
+f(2 * (2+(3,4)-0,1)) | f(2 * (~ 5)) & f(2 * (0,1))
+^m(0,1);
+
+"Result should be:";
+"f(2 * (0)) + t(1);";
+"f(2 * (f(2 * (z[0]))));";
+"f(2 * (y+1)) + f(2 * (f(2 * (z[0])))) % f(2 * (0)) + t(1);";
+"f(2 * (2+(3,4)-0,1)) | f(2 * (~5)) & f(2 * (0,1))^m(0,1);";
+
+ 
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+ 
+
+
+
+
+#line 59 "ansi.c"
+
+ 
+ansi.c(61): warning: redefinition of macro "OBJ_LIKE"
+
+ansi.c(62): warning: redefinition of macro "OBJ_LIKE"
+
+ansi.c(63): warning: redefinition of macro "FTN_LIKE"
+
+ansi.c(64): warning: redefinition of macro "FTN_LIKE"
+
+
+ 
+
+
+
+
+ 
+
+
+
+
+
+
+#line 79 "ansi.c"
+
+
+
+
+
+
+printf("x" "1" "= %d, x" "2" "= %s",                                 x1, x2);
+fputs("strncmp(\"abc\\0d\", \"abc\", '\\4') == 0"
+ ": @\n", s);
+
+#line 1 "vers2.h"
+"This is vers2.h - this header is for inclusion from the ansi.c test file.";
+#line 89 "ansi.c"
+"hello";        >>> should be: "hello"
+"hello" ", world";       >>> should be: "hello" ", world"
+
+
+"should be:";
+'printf("x" "1" "= %d, x" "2" "= %s", x1, x2);'
+'fputs("strncmp(\"abc\\0d\", \"abc\", '\\4') == 0" ": @\n", s);'
+'#include "vers2.h"    (after macro replacement, before file access)'
+'"hello";'
+'"hello" ", world";'
+
+ 
+
+
+
+
+
+
+"should not expand macros on the following two lines";
+ansi.c(108): error: cannot open include file "INCFILE"
+
+ansi.c(109): error: cannot open include file "INCFILE"
+
+
+
+
+"should expand macros on the following line";
+
+#line 1 "vers2.h"
+"This is vers2.h - this header is for inclusion from the ansi.c test file.";
+#line 115 "ansi.c"
+
+
+hash table: total 18, longest 1, average 0
+number of buckets over average length: 18
+number of empty buckets: 494
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

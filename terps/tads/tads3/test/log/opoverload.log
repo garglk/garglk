@@ -1,0 +1,103 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export opoverload.t -> opoverload.t3s
+	compile _main.t -> _main.t3o
+	compile opoverload.t -> opoverload.t3o
+	link -> opoverload.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Baseline tests - integer values
+a+b = 130
+a-b = 116
+a*b = 861
+a/b = 17
+a%b = 4
+a&b = 3
+a|b = 127
+a^b = 124
+a<<b = 15744
+a>>b = 0
+a>>>b = 0
+~a = -124
+-a = -123
+
+Operator overload tests - regular objects
+
+a+1 = this is a + 1
+a+b = this is a + b
+a-1 = this is a - 1
+a-b = this is a - b
+a*b = this is a * b
+a/b = this is a / b
+a%b = this is a % b
+a&b = this is a & b
+a|b = this is a | b
+a^b = this is a ^ b
+a<<b = this is a << b
+a>>b = this is a >> b
+a>>>b = this is a >>> b
+~a = this is ~a
+-a = this is -a
+a[b] = this is a[b]
+a.getSelf[b] = this is a[b]
+a[19] = this is a[19]
+{{in a[b] = hello}} a = updated a with [b] set to hello!
+{{in a[7] = hello}} a[7]='hello': a = updated a with [7] set to hello!
+a+=b: a=this is a + b
+a+=1: a=this is a + 1
+a+=7: a=this is a + 7
+a+=12345: a=this is a + 12345
+a-=b: a=this is a - b
+a-=1: a=this is a - 1
+a*=b: a=this is a * b
+a/=b: a=this is a / b
+a%=b: a=this is a % b
+a|=b: a=this is a | b
+a&=b: a=this is a & b
+a^=b: a=this is a ^ b
+a<<=b: a=this is a << b
+a>>=b: a=this is a >> b
+a>>>=b: a=this is a >>> b
+
+Operator overload tests - String intrinsics
+a[1] = 104, a[2]=101, a[3]=108
+a = Hello-therE
+
+'&' property name tests
+(Thing)
+a.propDefined(&operator +)? yes
+a.propDefined(&operator -)? yes
+a.propDefined(&operator *)? yes
+a.propDefined(&operator [])? yes
+a.propDefined(&operator []=)? yes
+(String)
+a.propDefined(&operator +)? no
+a.propDefined(&operator -)? no
+a.propDefined(&operator *)? no
+a.propDefined(&operator [])? yes
+a.propDefined(&operator []=)? yes
+(Other)
+~a = 7
+a.propDefined(&operator +)? yes
+a.propDefined(&operator -)? yes
+a.propDefined(&operator *)? no
+a.propDefined(&operator [])? no
+a.propDefined(&operator []=)? no
+
+ReverseList tests
+a+b = [1, 2, 3, 4, 5, 8, 700, 6, 500, 4, 300, 2, 100]
+a-b = [1, 3, 5]
+a.intersect(b) = [2, 4]
+a.appendUnique(b) = [1, 2, 3, 4, 5, 8, 700, 6, 500, 300, 100]
+
+...with Vectors
+new Vector(b) = [8, 700, 6, 500, 4, 300, 2, 100]
+a.appendAll(b) = [8, 700, 6, 500, 4, 300, 2, 100, 8, 700, 6, 500, 4, 300, 2,
+100]
+a.appendUnique(b) = [8, 700, 6, 500, 4, 300, 2, 100]
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

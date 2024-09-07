@@ -1,0 +1,79 @@
+	Files to build: 3
+	symbol_export rand.t -> rand.t3s
+	compile rand.t -> rand.t3o
+	link -> rand.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Generating random numbers from 1 to 10...
+
+Number of values at each integer:
+1: 1022
+2: 1017
+3: 1030
+4: 1001
+5: 1015
+6: 956
+7: 987
+8: 986
+9: 968
+10: 1018
+
+Picking random list elements
+ten, four, nine, six, three, five, ten, nine, seven, eight, eight, two, ten,
+five, seven, four, two, nine, one, one, eight, four, two, nine, two, seven,
+ten, two, four, three, ten, one, two, six, eight, eight, two, nine, four, ten,
+nine, four, eight, eight, ten, five, three, five, three, five, seven, seven,
+three, six, six, nine, five, three, seven, eight, three, five, one, nine, five,
+nine, five, one, ten, eight, one, eight, four, five, five, nine, nine, seven,
+nine, two, ten, nine, eight, one, one, three, seven, eight, three, six, two,
+five, two, five, eight, ten, four, four, one, five,
+
+Picking random elements from fakeList
+one, two, one, four, seven, four, one, seven, five, seven, seven, two, seven,
+seven, six, one, three, three, seven, six, three, five, six, three, one, two,
+six, six, seven, three, four, two, six, one, seven, three, seven, six, two,
+seven, three, four, five, seven, two, one, seven, two, five, seven, three,
+five, seven, four, two, two, four, seven, three, five, six, three, two, four,
+seven, six, seven, four, six, six, six, four, one, seven, one, four, five, one,
+six, seven, six, one, one, seven, three, two, three, five, three, three, three,
+six, four, four, one, seven, one, seven, four, two,
+
+Picking random arguments
+q, g, h, n, y, x, u, a, z, p, m, l, h, b, n, z, m, f, y, i, x, w, g, b, t, s,
+i, e, n, s, o, y, k, y, j, e, x, k, a, r, y, s, j, f, e, c, e, s, b, c, v, s,
+k, s, i, z, b, x, t, y, h, i, d, g, q, h, o, i, v, z, u, d, q, x, h, a, p, t,
+q, q, t, y, m, y, o, f, x, g, l, c, v, f, z, p, m, w, s, n, r, p,
+
+Pick some 0/1 values...
+1001011010100101101100011100100110110111001000100011100110001000000101110000010
+0000000110001110010100011011010110001010000110010011110100100111011111101100010
+0011010100001010110101011101110101101111110111010000010110100101001111101011010
+1100000111101001011111011010101100111010111001111011011100011010110100000000100
+0101001110010101001111011101100011001010110110000011110110000111101010110000110
+0101010100101011011011100000100000110011110101001010111111001111000010110100001
+0000101010000010100110011101010010111011101100111110110011100001101110100110001
+0001011100111101000011111010101100100101010110100101111100011100001101111010110
+0010111110001001101011100001100001001011001110011011110011111101111001010100110
+0000010100010100101001111100001111101000010110010111011010000010110101100100010
+0100101011110011110100011110000001110001101111010001110001010001011100110111110
+0010001101110111100001000000010001101010100100111111110011011001000101101010111
+1110100111000001001001100010011010011001001010001100
+0's: 498; 1's: 502
+
+Random arguments with side effects:
+i=0: Two; ***f(8)***; r=800
+i=1: Five; ***f(6)***; r=600
+i=2: Three; ***f(1)***; r=100
+i=3: Two; ***f(3)***; r=300
+i=4: Four; ***f(4)***; r=400
+i=5: Four; ***f(5)***; r=500
+i=6: Five; ***f(8)***; r=800
+i=7: Three; ***f(2)***; r=200
+i=8: One; ***f(5)***; r=500
+i=9: Six; ***f(1)***; r=100
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

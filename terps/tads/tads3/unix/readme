@@ -1,0 +1,29 @@
+The TADS 3 Unix version is distributed separately from this generic
+distribution, which is designed as a porting kit not tied to any
+single platform.
+
+The official Unix port is FrobTADS by Nikos Chantziaras.  You can find
+information on FrobTADS, and the latest source distribution, at
+
+   http://www.tads.org/frobtads.htm
+
+Updates to FrobTADS sometimes take a little while to catch up to the
+latest porting kit.  If you can't find a FrobTADS version matching the
+latest generic release, it's often relatively simple to create your
+own "merged" version of the latest update.  The generic code is
+designed to be 100% portable and require absolutely no manual editing
+when porting to Unix (or anywhere else).  All of the port-specific
+code is isolated in a separate "unix/" subdirectory.  The interface
+between the generic code and the Unix code rarely changes, so you can
+*usually* combine the latest generic code with the most recent
+FrobTADS "unix/" portion, and get a working build from the result.  To
+do this, simply take the current generic source files and COPY THEM
+OVER the corresponding files from the FrobTADS distribution, then run
+the FrobTADS build script as usual.  In most cases this will compile
+and run correctly.  Occasionally, the interface between the generic
+and port-specific code changes slightly, requiring some extra work to
+update the unix/ code; when this happens, the build usually fails with
+compiler errors due to the mismatched interfaces.  If you get any
+errors building a merged version, you'll probably need to contact
+Nikos for help updating the unix/ sources.
+

@@ -1,0 +1,223 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Strict//EN">
+<!--
+
+TADS Web UI main window.  This is a generic page that can be used as the
+top-level user interface window.  This page is a "layout window", which
+is designed to be divided up via IFRAMEs into sub-windows that contain
+the UI elements (status line, main command transcript window, etc).
+This page also sets up the main server-to-client event handler request
+"thread", which sits in a loop asking the server for events and
+displatching the event replies.
+
+-->
+<html>
+<head>
+<title>TADS</title>
+<link rel="stylesheet" type="text/css" href="/webuires/tads.css">
+<link rel="stylesheet" type="text/css" href="/webuires/layoutwin.css">
+<link rel="stylesheet" type="text/css" href="/webuires/main.css">
+<script src="/webuires/util.js"></script>
+<script src="/webuires/layoutwin.js"></script>
+<script src="/webuires/main.js"></script>
+<script src="/webuires/defaultPrefs.js"></script>
+</head>
+
+<body onload="javascript:mainInit();"
+   onkeydown="javascript:return $kd(event, mainBodyKey);"
+   onkeypress="javascript:return $kp(event, mainBodyKey);">
+
+<div id="debugLogDiv"
+   onkeydown="javascript:return $kd(event, popupDivKey);"
+   onkeypress="javascript:return $kp(event, popupDivKey);">
+</div>
+
+<div id="errorPopupDiv"
+   onkeydown="javascript:return $kd(event, popupDivKey);"
+   onkeypress="javascript:return $kp(event, popupDivKey);">
+   <div style="position: relative;"><!-- workaround for weird IE7 bug -->
+      <div class="icon"></div>
+      <div class="content">
+         Error -
+         <a href="#" onclick="javascript:showErrorLog();return false;">
+            Details</a> |
+         <a href="#" onclick="javscript:hideErrorPopup();return false;">
+            Ignore</a>
+      </div>
+   </div>
+</div>
+
+<div id="downloadPopupDiv"
+   onkeydown="javascript:return $kd(event, popupDivKey);"
+   onkeypress="javascript:return $kp(event, popupDivKey);">
+   <div style="position: relative;"><!-- workaround for weird IE7 bug -->
+      <div class="icon"></div>
+      <div class="content">
+         <b>File Downloads</b>
+      </div>
+   </div>
+</div>
+   
+
+<div id="dialogTemplate" style="display:none;">
+   <div class="dialogTitleBar"
+       onmousedown="javascript:return dlgTitleDown(event);">
+      <div class="dialogDiv-tl"></div>
+      <div class="dialogDiv-tr"></div>
+      <div class="dialogTitle"></div>
+      <div class="dialogCloseBox" title="Close"
+        onclick="javascript:dismissDialog(null);return false;"
+        onmousedown="javascript:return trackButton(event, this);"
+        onmouseover="javascript:return trackButton(event, this);">
+      </div>
+   </div>
+   <div class="dialogMoveCover"></div>
+   <div class="dialogWrapper">
+      <div class="dialogContent"></div>
+   </div>
+   <div class="dialogDiv-bl"></div>
+   <div class="dialogDiv-br"></div>
+</div>
+   
+<div id="colorPicker" class="colorPicker"
+  onkeydown="javascript:return $kd(event, colorPopupKey);"
+  onkeypress="javascript:return $kp(event, colorPopupKey);">
+   <!-- we populate the contents with javascript on the first use -->
+</div>
+
+<div id="prefsDialog" style="display: none;">
+
+   <div class="prefsSection">
+      <span class="prefsLabel">Current profile:</span>
+      <select id="curProfile" size="1"
+         onchange="javascript:onChangeProfile(event, this);"></select>
+      <a href="#" onclick="javascript:renamePrefProfile();return false;"
+         class="dlgButton">
+         Rename</a>
+      <a href="#" onclick="javascript:delPrefProfile();return false;"
+         class="dlgButton">
+         Delete</a>
+      <a href="#" onclick="javascript:resetPrefProfile();return false;"
+         class="dlgButton">
+         Reset</a>
+      <a href="#" onclick="javascript:newPrefProfile();return false;"
+         class="dlgButton">
+         Create New</a>
+   </div>
+
+   <div class="hr"></div>
+
+   <div class="prefsSection">
+      <span class="prefsLabel"></span>
+      <span class="details"><nobr>* <i>indicates a default setting</i></nobr>
+      </span><br>
+
+      <nobr>
+         <span class="prefsLabel">Main game text:</span>
+         $[fontpicker id="mainFont"] $[colorpicker id="mainColor"]
+      </nobr>
+      <br>
+      <nobr>
+         <span class="prefsLabel">Link colors:</span>
+         $[colorpicker id="mainLinkColor"]
+         &nbsp; Hover: $[colorpicker id="mainLinkHover"]
+         &nbsp; Active: $[colorpicker id="mainLinkActive"]
+      </nobr>
+      <br>
+      <nobr>
+         <span class="prefsLabel">Main background:</span>
+         $[colorpicker id="mainBkg"]
+      </nobr>
+      <br>
+      <nobr>
+         <span class="prefsLabel">Command-line text:</span>
+         $[fontpicker id="cmdFont"] $[colorpicker id="cmdColor"]
+      </nobr>
+      <br>
+      <nobr>
+         <span class="prefsLabel"></span>
+         $[checkbox id="cmdBold" label="Bold"]
+         $[checkbox id="cmdItalic" label="Italic"]
+      </nobr>
+   </div>
+
+   <div class="hr"></div>
+
+   <div class="prefsSection">
+      <nobr>
+         <span class="prefsLabel">Status line text:</span>
+         $[fontpicker id="statusFont"] $[colorpicker id="statusColor"]
+      </nobr>
+      <br>
+      <nobr>
+         <span class="prefsLabel">Link colors:</span>
+         $[colorpicker id="statusLinkColor"]
+         &nbsp; Hover: $[colorpicker id="statusLinkHover"]
+         &nbsp; Active: $[colorpicker id="statusLinkActive"]
+      </nobr>
+      <br>
+      <nobr>
+         <span class="prefsLabel">Status line background:</span>
+         $[colorpicker id="statusBkg"]
+      </nobr>
+   </div>
+   
+   <div class="hr"></div>
+
+   <div class="prefsSection">
+      <nobr>
+         <span class="prefsLabel">Serifed font:</span>
+         $[fontpicker id="serifFont"]
+      </nobr>
+      <br>
+      <nobr>
+         <span class="prefsLabel">Sans-serif font:</span>
+         $[fontpicker id="sansFont"]
+      </nobr>
+      <br>
+      <nobr>
+         <span class="prefsLabel">Cursive/script font:</span>
+         $[fontpicker id="scriptFont"]
+      </nobr>
+      <br>
+      <nobr>
+         <span class="prefsLabel">Typewriter font:</span>
+         $[fontpicker id="ttFont"]
+      </nobr>
+   </div>
+</div>
+
+<div id="fileDialog" style="display: none;">
+   <iframe
+      frameBorder="0"
+      style="position: static; height: 30em;">
+   </iframe><br>
+</div>
+
+<div id="uploadDialog" style="display: none;">
+   <iframe frameBorder="0" style="position: static; height: 10em;">
+   </iframe>
+</div>
+
+<div id="__TADS_swf_div">
+<div> &nbsp; </div>
+<br>
+<span id="__font_test" style="font-size: 48pt;"
+>ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%?</span>
+<br>
+<span id="__font_ref"
+   style="font-family: Comic Sans MS, Times New Roman; font-size: 48pt;"
+>ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%?</span>
+<br>
+</div>
+
+<div id="pageMenuDiv">
+   <div class="pageMenuWrapper">
+      <nobr><a href="#" onclick="javascript:pageMenuClick('prefs');return false;">
+         Customize Display</a></nobr><br>
+      <nobr><a href="#" onclick="javascript:pageMenuClick('errlog');return false;">
+         View Error Log</a></nobr>
+   </div>
+</div>
+
+</body>
+</html>

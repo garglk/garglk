@@ -1,0 +1,25 @@
+	Files to build: 8
+	symbol_export _main.t -> _main.t3s
+	symbol_export bifptr.t -> bifptr.t3s
+	symbol_export dynfunc.t -> dynfunc.t3s
+	compile _main.t -> _main.t3o
+	compile bifptr.t -> bifptr.t3o
+	compile dynfunc.t -> dynfunc.t3o
+	link -> bifptr.t3p
+	preinit -> bifptr.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+f=tadsSay: ifc={ argc=1, optArgc=0, varargs=yes }
+this is a pointer call to tadsSay!!!
+
+obj.m1=tadsSay: ifc={ argc=1, optArgc=0, varargs=yes }
+this is a setMethod call to tadsSay!!!
+
+in DynamicFunc: f=tadsSay: ifc={ argc=1, optArgc=0, varargs=yes }
+DynamicFunc pointer call to tadsSay! x=1234
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

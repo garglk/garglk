@@ -1,0 +1,49 @@
+	symbol_export finalize.t -> finalize.t3s
+	compile finalize.t -> finalize.t3o
+	link -> finalize.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+This is obj1.construct - id == 1
+This is obj1.construct - id == 2
+This is obj1.construct - id == 3
+This is obj1.construct - id == 4
+This is obj1.construct - id == 5
+This is obj1.construct - id == 6
+This is obj1.construct - id == 7
+This is obj1.construct - id == 8
+This is obj1.construct - id == 9
+This is obj1.construct - id == 10
+running garbage collection:  should delete objects 1 - 9...
+This is obj1.finalize - id = 1
+This is obj1.finalize - id = 2
+This is obj1.finalize - id = 3
+This is obj1.finalize - id = 4
+This is obj1.finalize - id = 5
+-- Storing a reference to 'self' in obj2.objptr
+This is obj1.finalize - id = 6
+This is obj1.finalize - id = 7
+This is obj1.finalize - id = 8
+This is obj1.finalize - id = 9
+done running garbage collection!
+running gc again:  should delete object 10...
+This is obj1.finalize - id = 10
+done running gc again!
+Make sure obj2.objptr is still valid - obj2.objptr.id_ = 5
+- id = 4083, gc state = 513
+Creating obj3
+running gc:  should delete obj3...
+This is obj3.finalize - setting self.objptr = new obj4
+done running gc
+running gc:  should delete obj4...
+This is obj4.finalize
+done running gc
+clearing obj2.objptr; running gc:  should delete object id = 5...
+- id = 4083, gc state = 513
+done running gc
+- id = 4083, gc state = 512
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

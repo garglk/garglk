@@ -1,0 +1,15 @@
+gotofin.t(11): error: 'goto' cannot transfer control into a 'finally' block
+gotofin.t(17): error: 'goto' cannot transfer control into a 'finally' block
+gotofin.t(28): error: 'goto' cannot transfer control into a 'finally' block
+Warnings: 0
+Errors:   3
+Longest string: 31, longest list: 0
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+VM Error: file not found
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

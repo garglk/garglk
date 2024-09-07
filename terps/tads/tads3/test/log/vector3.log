@@ -1,0 +1,23 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export vector3.t -> vector3.t3s
+	compile _main.t -> _main.t3o
+	compile vector3.t -> vector3.t3o
+	link -> vector3.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+[1] v = [], length = 0
+[2] v = [10, 9, 8, 7, 6, 5], length = 6
+[3] v = [], length = 0
+[4] v = [10, 9, 8, 7, 6, 5], length = 6
+[5] v = [a, b, c, d, e], length = 5
+[6] v = [a, b, c, d, e, 10, 9, 8, 7, 6, 5], length = 11
+[7] v = [a, b, c, d, e, 10, 9, 8, 7, 6, 5], length = 11
+[8] v = [a, b, c, d, e, 10, 9, 8, 7, 6, 5, 10, 9, 8, 7, 6, 5], length = 17
+[9] v = [a, b, c, d, e, 10, 9, 8, 7, 6, 5, 10, 9, 8, 7, 6, 5], length = 17
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

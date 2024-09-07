@@ -1,0 +1,153 @@
+# TADS 3 makefile
+#
+# Warning: this file was mechanically generated.  You may edit this file
+# manually, but your changes might be modified or discarded when
+# you load this file into a TADS development tool.  The TADS tools
+# generally retain the comment at the start of the file and the
+# comment marked "##sources" below, but other comments might be
+# discarded, the formatting might be changed, and some option
+# settings might be modified.
+
+-o multimethod.t3
+
+##sources
+-lib system
+-source multimethod
+
+# The following is machine-generated - DO NOT EDIT
+[Config:devsys]
+DebugToolbar:rebarWidth:I:483
+*42 src win selrange:c:\tads\build\lib\_main.t:S:0:0,0
+*42 src win selrange:c:\tads\build\lib\_main.t:S:1:1026,1026
+build:ext resfile cnt:I:0
+*45 src win edit mode:c:\tads\build\lib\mmethod.t:S:0:TADS 3
+build:defaults set:I:1
+watch win:pos:R:308,872,600,994
+watch win:vis:I:0
+*43 src win edit mode:c:\tads\build\lib\_main.t:S:0:TADS 3
+SearchToolbar:rebarNewLine:I:0
+log win vis::I:0
+log win pos::R:328,209,1640,850
+MenuBar:rebarVis:I:1
+DocToolbar:rebarIndex:I:4
+*37 src win split:c:\tads\build\lib\tok.t:S:0:0.000000
+DocToolbar:rebarWidth:I:820
+DebugToolbar:rebarVis:I:1
+*35 line wrap:C:\test\tads3proj\proj3.t:S:0:N
+*47 line wrap:C:\tads\tads3\test\data\multimethod.t:S:0:N
+watch win:expression list 0:S:0:_MultiMethodPlaceholder.propDefined(prop)
+build:zipfile:S:0:multimethod_dbg.zip
+build:installer options:S:0:name=multimethod_dbg
+build:installer options:S:1:savext=multimethod_dbg
+search:start at top:I:0
+*37 line wrap:c:\tads\build\lib\mmethod.t:S:0:N
+breakpoints:global:S:0:l
+*42 src win split:c:\tads\build\lib\multmeth.t:S:0:0.000000
+*40 src win selrange:c:\tads\build\lib\tok.t:S:0:0,0
+*40 src win selrange:c:\tads\build\lib\tok.t:S:1:4141,4141
+EditToolbar:rebarNewLine:I:1
+breakpoints:cond-mode:S:0:true
+breakpoints:cond-mode:S:1:true
+proj search:exact case:I:0
+DocToolbar:rebarVis:I:1
+*35 line wrap:c:\tads\build\lib\_main.t:S:0:N
+auto-script:quit sequences:S:0:<nocase>[<]line[>]<space>*q(uit)?<space>*
+auto-script:quit sequences:S:1:<nocase>[<]line[>]<space>*y.*
+SearchToolbar:rebarIndex:I:2
+search:wrap:I:1
+*41 src win edit mode:c:\tads\build\lib\tok.t:S:0:TADS 3
+auto-script:next-id:I:73
+SearchToolbar:rebarWidth:I:619
+*45 src win selrange:c:\tads\build\lib\multmeth.t:S:0:0,0
+*45 src win selrange:c:\tads\build\lib\multmeth.t:S:1:17093,17093
+search:text:S:0:
+search:text:S:1:
+docking config::S:0:CL
+docking config::S:1:W0,270,530,292,235,724,955,D,L,stack win
+docking config::S:2:W0,270,469,2,848,302,998,D,L,project win
+docking config::S:3:W0,270,150,175,848,345,998,D,L,script win
+docking config::S:4:CB
+docking config::S:5:W4,699,170,2,848,302,998,D,B,locals win
+docking config::S:6:W4,906,170,304,848,604,998,D,B,watch win
+docking config::S:7:W-1,170,170,22,24,1342,694,M,R,log win
+locals win:pos:R:6,872,298,994
+locals win:vis:I:0
+main win max::I:0
+breakpoints:file:S:0:c:\tads\build\lib\multmeth.t
+proj search:collapse spaces:I:0
+breakpoints:status:S:0:e
+breakpoints:cond:S:0:
+search:exact case:I:0
+mdi win list::S:0:C:\tads\tads3\test\data\multimethod.t
+mdi win list::S:1:c:\tads\build\lib\multmeth.t
+mdi win list::S:2:C:\test\tads3proj\proj3.t
+mdi win list::S:3:c:\tads\build\lib\_main.t
+mdi win list::S:4:c:\tads\build\lib\tok.t
+breakpoints:line:S:0:399
+build:srczipfile:S:0:multimethod_dbgSource.zip
+main win pos::R:26,33,1763,1160
+proj search:whole word:I:0
+help win vis::I:0
+docsearch win vis::I:0
+build:exe:S:0:multimethod_dbg.exe
+*46 src win edit mode:c:\tads\build\lib\multmeth.t:S:0:TADS 3
+script win:pos:R:32,1001,293,1131
+script win:vis:I:1
+EditToolbar:rebarIndex:I:1
+hist win vis::I:0
+EditToolbar:rebarWidth:I:260
+SearchToolbar:rebarVis:I:1
+MenuBar:rebarNewLine:I:1
+proj search:regex:I:0
+search:whole word:I:0
+*33 line wrap:c:\tads\build\lib\tok.t:S:0:N
+DebugToolbar:rebarNewLine:I:1
+build:debug_image_file:S:0:C:\tads\tads3\test\data\multimethod_dbg.t3
+*39 src win split:C:\test\tads3proj\proj3.t:S:0:0.000000
+*51 src win split:C:\tads\tads3\test\data\multimethod.t:S:0:0.000000
+search:regex:I:0
+*41 src win split:c:\tads\build\lib\mmethod.t:S:0:0.000000
+mdi tab order::S:0:0,3,4,2,1
+*38 line wrap:c:\tads\build\lib\multmeth.t:S:0:N
+build:rlsgam:S:0:multimethod_dbg_rls.t3
+EditToolbar:rebarVis:I:1
+main win mdi max::I:1
+auto-script:default quit sequences set:I:1
+*42 src win selrange:C:\test\tads3proj\proj3.t:S:0:0,0
+*42 src win selrange:C:\test\tads3proj\proj3.t:S:1:0,0
+*54 src win selrange:C:\tads\tads3\test\data\multimethod.t:S:0:0,0
+*54 src win selrange:C:\tads\tads3\test\data\multimethod.t:S:1:1843,1843
+*49 src win pos:C:\tads\tads3\test\data\multimethod.t:R:0,0,1320,688
+DocToolbar:rebarNewLine:I:0
+*39 src win split:c:\tads\build\lib\_main.t:S:0:0.000000
+MenuBar:rebarIndex:I:0
+mdi win title::S:0:C:\tads\tads3\test\data\multimethod.t
+mdi win title::S:1:c:\tads\build\lib\multmeth.t
+mdi win title::S:2:C:\test\tads3proj\proj3.t
+mdi win title::S:3:c:\tads\build\lib\_main.t
+mdi win title::S:4:c:\tads\build\lib\tok.t
+search:dir:I:1
+MenuBar:rebarWidth:I:431
+build:installer prog:S:0:multimethod_dbg_Setup.exe
+*44 src win selrange:c:\tads\build\lib\mmethod.t:S:0:0,0
+*44 src win selrange:c:\tads\build\lib\mmethod.t:S:1:4689,4689
+project win:pos:R:32,159,293,975
+project win:vis:I:1
+stack win pos::R:296,259,720,951
+filesearch win vis::I:0
+stack win vis::I:0
+*43 src win edit mode:C:\test\tads3proj\proj3.t:S:0:TADS 3
+*55 src win edit mode:C:\tads\tads3\test\data\multimethod.t:S:0:TADS 3
+DebugToolbar:rebarIndex:I:3
+searchMode::I:1
+search dlg:old repl text:S:0:tt
+search dlg:old repl text:S:1:oo
+search dlg:old repl text:S:2:test111
+search dlg:old repl text:S:3:baba
+search dlg:old repl text:S:4:Statue.IsPulled
+search dlg:old repl text:S:5:Status.IsPulled
+search dlg:old repl text:S:6:XXXX
+search dlg:old repl text:S:7:
+search dlg:old repl text:S:8:tt
+search dlg:old repl text:S:9:oo
+

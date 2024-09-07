@@ -1,0 +1,13 @@
+body {
+    font: 9pt/12pt Verdana, Arial, Helvetica, Sans-serif;
+    background: #0000ff;
+    color: #ffffff;
+}
+
+div#debugLogDiv {
+}
+
+a:link {
+    color: #ffa0ff;
+}
+

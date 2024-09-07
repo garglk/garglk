@@ -1,0 +1,19 @@
+	Files to build: 5
+	symbol_export funcrep1.t -> funcrep1.t3s
+	symbol_export funcrep2.t -> funcrep2.t3s
+	compile funcrep1.t -> funcrep1.t3o
+	compile funcrep2.t -> funcrep2.t3o
+	link -> funcrep.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Calling f1(123, 456)...
+Replaced f1 - a = 123, b = 456.
+Calling f2(789, 987, 323)...
+This is the replaced version of f2!!!
+a = 789, b = 987, c = 323
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

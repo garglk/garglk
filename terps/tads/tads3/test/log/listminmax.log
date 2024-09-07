@@ -1,0 +1,242 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export listminmax.t -> listminmax.t3s
+	compile _main.t -> _main.t3o
+	compile listminmax.t -> listminmax.t3o
+	link -> listminmax.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+*****
+as list:
+
+-----
+a = [xx]
+
+min(a) = xx
+max(a) = xx
+
+a.indexOfMin() = 1
+a.minVal() = xx
+a.indexOfMax() = 1
+a.maxVal() = xx
+
+a.indexOfMin(length) = 1
+a.minVal(length) = 2
+a.indexOfMax(length) = 1
+a.maxVal(length) = 2
+
+=====
+as vector:
+
+-----
+a = [xx]
+
+min(a) = xx
+max(a) = xx
+
+a.indexOfMin() = 1
+a.minVal() = xx
+a.indexOfMax() = 1
+a.maxVal() = xx
+
+a.indexOfMin(length) = 1
+a.minVal(length) = 2
+a.indexOfMax(length) = 1
+a.maxVal(length) = 2
+
+*****
+as list:
+
+-----
+a = [a, bb, ccc, dddd, eeeee]
+
+min(a) = a
+max(a) = eeeee
+
+a.indexOfMin() = 1
+a.minVal() = a
+a.indexOfMax() = 5
+a.maxVal() = eeeee
+
+a.indexOfMin(length) = 1
+a.minVal(length) = 1
+a.indexOfMax(length) = 5
+a.maxVal(length) = 5
+
+=====
+as vector:
+
+-----
+a = [a, bb, ccc, dddd, eeeee]
+
+min(a) = a
+max(a) = eeeee
+
+a.indexOfMin() = 1
+a.minVal() = a
+a.indexOfMax() = 5
+a.maxVal() = eeeee
+
+a.indexOfMin(length) = 1
+a.minVal(length) = 1
+a.indexOfMax(length) = 5
+a.maxVal(length) = 5
+
+*****
+as list:
+
+-----
+a = [eeeee, dddd, ccc, bb, a]
+
+min(a) = a
+max(a) = eeeee
+
+a.indexOfMin() = 5
+a.minVal() = a
+a.indexOfMax() = 1
+a.maxVal() = eeeee
+
+a.indexOfMin(length) = 5
+a.minVal(length) = 1
+a.indexOfMax(length) = 1
+a.maxVal(length) = 5
+
+=====
+as vector:
+
+-----
+a = [eeeee, dddd, ccc, bb, a]
+
+min(a) = a
+max(a) = eeeee
+
+a.indexOfMin() = 5
+a.minVal() = a
+a.indexOfMax() = 1
+a.maxVal() = eeeee
+
+a.indexOfMin(length) = 5
+a.minVal(length) = 1
+a.indexOfMax(length) = 1
+a.maxVal(length) = 5
+
+*****
+as list:
+
+-----
+a = [aaaaa, bbbb, ccc, dd, e]
+
+min(a) = aaaaa
+max(a) = e
+
+a.indexOfMin() = 1
+a.minVal() = aaaaa
+a.indexOfMax() = 5
+a.maxVal() = e
+
+a.indexOfMin(length) = 5
+a.minVal(length) = 1
+a.indexOfMax(length) = 1
+a.maxVal(length) = 5
+
+=====
+as vector:
+
+-----
+a = [aaaaa, bbbb, ccc, dd, e]
+
+min(a) = aaaaa
+max(a) = e
+
+a.indexOfMin() = 1
+a.minVal() = aaaaa
+a.indexOfMax() = 5
+a.maxVal() = e
+
+a.indexOfMin(length) = 5
+a.minVal(length) = 1
+a.indexOfMax(length) = 1
+a.maxVal(length) = 5
+
+*****
+as list:
+
+-----
+a = [e, dd, ccc, bbbb, aaaaa]
+
+min(a) = aaaaa
+max(a) = e
+
+a.indexOfMin() = 5
+a.minVal() = aaaaa
+a.indexOfMax() = 1
+a.maxVal() = e
+
+a.indexOfMin(length) = 1
+a.minVal(length) = 1
+a.indexOfMax(length) = 5
+a.maxVal(length) = 5
+
+=====
+as vector:
+
+-----
+a = [e, dd, ccc, bbbb, aaaaa]
+
+min(a) = aaaaa
+max(a) = e
+
+a.indexOfMin() = 5
+a.minVal() = aaaaa
+a.indexOfMax() = 1
+a.maxVal() = e
+
+a.indexOfMin(length) = 1
+a.minVal(length) = 1
+a.indexOfMax(length) = 5
+a.maxVal(length) = 5
+
+*****
+as list:
+
+-----
+a = [eE, ddDD, cccCCC, bbbbBBBB, aaaaaAAAAA]
+
+min(a) = aaaaaAAAAA
+max(a) = eE
+
+a.indexOfMin() = 5
+a.minVal() = aaaaaAAAAA
+a.indexOfMax() = 1
+a.maxVal() = eE
+
+a.indexOfMin(length) = 1
+a.minVal(length) = 2
+a.indexOfMax(length) = 5
+a.maxVal(length) = 10
+
+=====
+as vector:
+
+-----
+a = [eE, ddDD, cccCCC, bbbbBBBB, aaaaaAAAAA]
+
+min(a) = aaaaaAAAAA
+max(a) = eE
+
+a.indexOfMin() = 5
+a.minVal() = aaaaaAAAAA
+a.indexOfMax() = 1
+a.maxVal() = eE
+
+a.indexOfMin(length) = 1
+a.minVal(length) = 2
+a.indexOfMax(length) = 5
+a.maxVal(length) = 10
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

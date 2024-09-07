@@ -1,0 +1,13 @@
+-o anon_func_bug.t3
+-nodef
+-D LANGUAGE=en_us
+-D MESSAGESTYLE=neu
+-D INSTRUCTIONS_MENU
+-Fy obj
+-Fo obj
+-w1
+
+##sources
+-lib system
+-lib adv3/adv3
+-source anon_func_bug

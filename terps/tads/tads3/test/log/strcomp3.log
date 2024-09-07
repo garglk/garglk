@@ -1,0 +1,38 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export strcomp3.t -> strcomp3.t3s
+	compile _main.t -> _main.t3o
+	compile strcomp3.t -> strcomp3.t3o
+	link -> strcomp3.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+dict=daﬂ (hash=427), input=daﬂ (hash=427): match=1, expected=1 - OK
+dict=daﬂ (hash=427), input=das (hash=312): match=0, expected=0 - OK
+dict=daﬂ (hash=427), input=dass (hash=427): match=3, expected=3 - OK
+dict=daﬂ (hash=427), input=DAﬂ (hash=427): match=3, expected=3 - OK
+dict=daﬂ (hash=427), input=DAS (hash=312): match=0, expected=0 - OK
+dict=daﬂ (hash=427), input=DASS (hash=427): match=3, expected=3 - OK
+dict=daÁ (hash=427), input=daÁ (hash=427): match=1, expected=1 - OK
+dict=daÁ (hash=427), input=das (hash=312): match=0, expected=0 - OK
+dict=daÁ (hash=427), input=dass (hash=427): match=201, expected=201 - OK
+dict=daÁ (hash=427), input=DAÁ (hash=427): match=3, expected=3 - OK
+dict=daÁ (hash=427), input=DAS (hash=312): match=0, expected=0 - OK
+dict=daÁ (hash=427), input=DASS (hash=427): match=103, expected=103 - OK
+dict=h‡t (hash=317), input=h‡t (hash=317): match=1, expected=1 - OK
+dict=h‡t (hash=317), input=hat (hash=317): match=2001, expected=2001 - OK
+dict=h‡t (hash=317), input=het (hash=321): match=0, expected=0 - OK
+dict=h‡t (hash=317), input=H‡T (hash=317): match=3, expected=3 - OK
+dict=h‡t (hash=317), input=HAT (hash=317): match=1003, expected=1003 - OK
+dict=h‡t (hash=317), input=HET (hash=321): match=0, expected=0 - OK
+dict=h·t (hash=317), input=h·t (hash=317): match=1, expected=1 - OK
+dict=h·t (hash=317), input=hat (hash=317): match=8001, expected=8001 - OK
+dict=h·t (hash=317), input=het (hash=321): match=0, expected=0 - OK
+dict=h·t (hash=317), input=H·T (hash=317): match=3, expected=3 - OK
+dict=h·t (hash=317), input=HAT (hash=317): match=4003, expected=4003 - OK
+dict=h·t (hash=317), input=HET (hash=321): match=0, expected=0 - OK
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

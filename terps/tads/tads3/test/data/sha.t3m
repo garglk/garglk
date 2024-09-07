@@ -1,0 +1,72 @@
+# TADS 3 makefile
+#
+# Warning: this file was mechanically generated.  You may edit this file
+# manually, but your changes might be modified or discarded when
+# you load this file into a TADS development tool.  The TADS tools
+# generally retain the comment at the start of the file and the
+# comment marked "##sources" below, but other comments might be
+# discarded, the formatting might be changed, and some option
+# settings might be modified.
+
+-o sha.t3
+
+##sources
+-source sha
+
+# The following is machine-generated - DO NOT EDIT
+[Config:devsys]
+*37 src win pos:c:\tads\build\lib\_main.t:R:88,96,859,516
+build:ext resfile cnt:I:0
+build:defaults set:I:1
+watch win:vis:I:1
+watch win:pos:R:393,540,912,701
+log win vis::I:1
+log win pos::R:51,45,745,499
+watch win:expression list 0:S:0:w[j]
+build:installer options:S:0:name=sha_dbg
+build:installer options:S:1:savext=sha_dbg
+search:start at top:I:0
+breakpoints:global:S:0:l
+breakpoints:cond-mode:S:0:true
+breakpoints:cond-mode:S:1:true
+search:wrap:I:1
+docking config::S:0:CL
+docking config::S:1:CR
+docking config::S:2:CR
+docking config::S:3:CB
+docking config::S:4:W3,270,170,2,371,302,521,D,locals win
+docking config::S:5:W3,270,170,304,371,604,521,D,watch win
+docking config::S:6:CR
+docking config::S:7:W6,170,170,237,100,753,468,M,stack win
+docking config::S:8:W6,170,170,270,105,972,588,M,log win
+docking config::S:9:CL
+docking config::S:10:W9,170,270,2,371,302,521,D,project win
+search:text:S:0:only has
+locals win:vis:I:1
+locals win:pos:R:-153,540,367,701
+main win max::I:0
+breakpoints:file:S:0:sha.t
+breakpoints:status:S:0:e
+breakpoints:cond:S:0:
+search:exact case:I:0
+breakpoints:line:S:0:21
+main win pos::R:47,12,1141,815
+srcdir::S:0:C:\TADS\build\lib\
+build:exe:S:0:sha_dbg.exe
+src win list::S:0:C:\TADS\tads3\test\data\sha.t
+hist win vis::I:0
+prog_args:args:S:0:abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq
+build:debug_image_file:S:0:C:\TADS\tads3\test\data\sha_dbg.t3
+build:rlsgam:S:0:sha_dbg_rls.t3
+prog_args:cmdfile:S:0:
+main win mdi max::I:0
+prog_args:logfile:S:0:
+*41 src win pos:C:\TADS\tads3\test\data\sha.t:R:84,28,842,383
+search:dir:I:1
+build:installer prog:S:0:sha_dbg_Setup.exe
+project win:vis:I:1
+project win:pos:R:-170,17,-9,531
+stack win pos::R:18,40,526,379
+stack win vis::I:1
+src win title::S:0:C:\TADS\tads3\test\data\sha.t
+

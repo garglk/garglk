@@ -1,0 +1,59 @@
+	Files to build: 8
+	symbol_export _main.t -> _main.t3s
+	symbol_export namedparam.t -> namedparam.t3s
+	symbol_export multmeth.t -> multmeth.t3s
+	compile _main.t -> _main.t3o
+	compile namedparam.t -> namedparam.t3o
+	compile multmeth.t -> multmeth.t3o
+	link -> namedparam.t3p
+	preinit -> namedparam.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Runtime error: missing named argument 'a'
+This is func! a=[A 2], b=[B 2] (all named arguments: a=A 2)
+Runtime error: missing named argument 'a'
+This is func! a=[A 4], b=[B 4] (all named arguments: a=A 4, c=C 4)
+This is func! a=[A 5], b=[B 5] (all named arguments: a=A 5)
+This is func! a=[A 6], b=[B 6] (all named arguments: a=A 6)
+This is func! a=[inherited A 7], b=[B 7] (all named arguments: a=inherited A 7)
+This is h! a=A 8
+This is anonymous! a=A 9 (all named arguments: a=A 9, b=B 9, c=C 9)
+Stack trace:
+{anonymous}()
+j(a:A 9, b:B 9, c:C 9)
+main()
+{anonymous}()
+{anonymous}()
+_main()
+This is anonymous! a=A 10 (all named arguments: c=C from k(), a=A 10, b=B 10)
+Stack trace:
+{anonymous}()
+j(c:C from k())
+k(a:A 10, b:B 10, c:C 10)
+main()
+{anonymous}()
+{anonymous}()
+_main()
+This is mm(Thing): a=thing
+This is mm(Container): a=container
+List.forEach: x=1, a=A 11
+List.forEach: x=2, a=A 11
+List.forEach: x=3, a=A 11
+This is def1: a=10, b=
+This is def1: a=5, b=
+This is def1: a=10, b=7
+This is def1: a=9, b=11
+This is def2: a=10, b=100, c=10000
+This is def2: a=9, b=90, c=9000
+This is def2: a=10, b=99, c=9900
+This is def2: a=10, b=100, c=999
+This is def2: a=8, b=9, c=900
+This is def2: a=11, b=12, c=13
+This is def2: a=14, b=140, c=15
+This is def2: a=10, b=16, c=17
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

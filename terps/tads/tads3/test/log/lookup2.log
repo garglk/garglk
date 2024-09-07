@@ -1,0 +1,23 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export lookup2.t -> lookup2.t3s
+lookup2.t(7): error: missing -> in 3rd element in LookupTable list
+lookup2.t(8): error: unexpected -> found in list (after 2nd element)
+lookup2.t(8): error: unexpected -> found in list (after 4th element)
+lookup2.t(8): error: unexpected -> found in list (after 6th element)
+lookup2.t(9): error: missing -> in 2nd element in LookupTable list
+lookup2.t(9): error: missing -> in 3rd element in LookupTable list
+lookup2.t(9): error: missing -> in 4th element in LookupTable list
+lookup2.t(10): error: LookupTable list must end after default *-> value, but found ","
+lookup2.t(11): error: LookupTable list must end after default *-> value, but found ","
+Errors:   9
+Warnings: 0
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+VM Error: file not found
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
