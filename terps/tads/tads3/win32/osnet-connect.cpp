@@ -366,7 +366,7 @@ int osnet_connect_webui(VMG_ const char *addr, int port, const char *path,
          *   browser.  This is similar to an ordinary browser, but it has a
          *   customized frame (menus, toolbar, etc) that makes it look more
          *   like a regular HTML TADS window, and it has a special control
-         *   channel (via a pipe) that tightly couples it to the intepreter.
+         *   channel (via a pipe) that tightly couples it to the interpreter.
          */
         return launch_tadsweb(vmg_ addr, port, path, errmsg);
     }

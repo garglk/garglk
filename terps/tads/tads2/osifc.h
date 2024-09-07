@@ -1141,7 +1141,7 @@ osfildef *oserrop(const char *arg0);
 /* 
  *   Write a line of text to a text file.  Uses fputs semantics.  
  */
-/* void osfputs(const char *buf, osfildef *fp); */
+/* int osfputs(const char *buf, osfildef *fp); */
 
 /*
  *   Write to a text file.  os_fprintz() takes a null-terminated string,
@@ -1852,8 +1852,8 @@ void os_get_special_path(char *buf, size_t buflen,
  *   TADS 3 interpreter - system configuration files.  This is used for files
  *   that affect all games, and generally all users on the system, so it
  *   should be in a central location.  On Windows, for example, we simply
- *   store these files in the install directory containing the intepreter
- *   binary.  
+ *   store these files in the install directory containing the interpreter
+ *   binary.
  */
 #define OS_GSP_T3_SYSCONFIG  6
 
@@ -2899,6 +2899,10 @@ void os_set_text_attr(int attr);
 /* attribute code: italic */
 #define OS_ATTR_ITALIC   0x0002
 
+/* attribute code: monospace
+ * (Introduced for the Glk port  -- AW 2023-01-20) */
+#define OS_ATTR_MONOSP   0x0004
+
 /*
  *   Abstract attribute codes.  Each platform can choose a custom rendering
  *   for these by #defining them before this point, in the OS-specific header
@@ -3092,11 +3096,11 @@ void os_more_prompt();
 
 /*
  *   Interpreter Class Configuration.
- *   
+ *
  *   If this is a TEXT-ONLY interpreter: DO NOT define USE_HTML.
- *   
- *   If this is a MULTIMEDIA (HTML TADS) intepreter: #define USE_HTML
- *   
+ *
+ *   If this is a MULTIMEDIA (HTML TADS) interpreter: #define USE_HTML
+ *
  *   (This really should be called something like OS_USE_HTML - the USE_ name
  *   is for historical reasons.  This purpose of this macro is to configure
  *   the tads 2 VM-level output formatter's line breaking and MORE mode

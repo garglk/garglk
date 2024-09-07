@@ -141,8 +141,8 @@ extern "C" {
  *   system-specific definitions.  
  */
 
-#ifdef GARGOYLE
-#include "osgarglk.h"
+#ifdef GLK
+#include "osglk.h"
 #else
 
 #ifdef _WIN32
@@ -208,7 +208,7 @@ extern "C" {
 #include "osfrobtads.h"
 #endif
 
-#endif /* GARGOYLE */
+#endif /* GLK */
 
 /* **************** add other systems here **************** */
 

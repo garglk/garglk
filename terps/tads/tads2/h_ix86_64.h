@@ -52,7 +52,7 @@ Modified
  *   maps from C to native.
  */
 
-#ifdef GARGOYLE
+#ifdef GLK
 #define SIZEOF_INT 4
 #define SIZEOF_SHORT 2
 #endif

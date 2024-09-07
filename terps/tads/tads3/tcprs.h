@@ -609,6 +609,9 @@ public:
     /* get the head of the export list */
     class CTcPrsExport *get_exp_head() const { return exp_head_; }
 
+    /* Set the parser's local_symtab */
+    void set_local_symtab(class CTcPrsSymtab *local_symtab);
+
     /*
      *   Parse a function or method body, starting with the formal parameter
      *   list.  If 'eq_before_brace' is set, we expect an '=' before the

@@ -907,6 +907,18 @@ CTPNCodeBody *CTcParser::parse_nested_code_body(
     return code_body;
 }
 
+/*
+ *   Set the outer local symbol table.  If the caller has provided us
+ *   with an explicit pre-constructed local symbol table, use that;
+ *   otherwise, use the global symbol table, since we have no locals
+ *   of our own yet.
+ */
+void CTcParser::set_local_symtab(CTcPrsSymtab *local_symtab) {
+    local_symtab_ = (local_symtab == 0 ? global_symtab_ : local_symtab);
+    enclosing_local_symtab_ = (local_symtab_->get_parent() == 0
+                               ? global_symtab_
+                               : local_symtab_->get_parent());
+}
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -948,16 +960,7 @@ CTPNCodeBody *CTcParser::parse_code_body(
     /* presume we will not need a local variable context object */
     clear_local_ctx();
 
-    /* 
-     *   Set the outer local symbol table.  If the caller has provided us
-     *   with an explicit pre-constructed local symbol table, use that;
-     *   otherwise, use the global symbol table, since we have no locals
-     *   of our own yet.  
-     */
-    local_symtab_ = (local_symtab == 0 ? global_symtab_ : local_symtab);
-    enclosing_local_symtab_ = (local_symtab_->get_parent() == 0
-                               ? global_symtab_
-                               : local_symtab_->get_parent());
+    set_local_symtab(local_symtab);
 
     /* there's no enclosing statement yet */
     enclosing_stm_ = 0;

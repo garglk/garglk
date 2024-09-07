@@ -935,7 +935,7 @@ class TadsThreadList;
  *   Include the appropriate system-specific header 
  */
 
-#if defined(GARGOYLE)
+#if defined(GLK)
 #include "osnetdum.h"
 
 #elif defined(_WIN32)
@@ -1100,7 +1100,7 @@ int osnet_connect_webui(VMG_ const char *addr, int port, const char *path,
  *   close manually.  Explicitly closing the UI is appropriate for debuggers
  *   and other "container" environments where it's reasonable to expect that
  *   closing the container environment would close the UI window as well.
- *   Leaving the UI open is appropriate for a stand-alone intepreter in a GUI
+ *   Leaving the UI open is appropriate for a stand-alone interpreter in a GUI
  *   environment; even though the game engine has terminated, we usually want
  *   to leave the final state of the UI displayed until the user manually
  *   closes it.  This gives the user a chance to read any final messages the

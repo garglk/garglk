@@ -170,7 +170,7 @@ const err_msg_t vm_messages_english[] =
     "intrinsic function set %s, which is not available in this interpreter)",
     VMsg("This image file requires a function set with the identifier "
          "\"%s\", but the function set is not available in this "
-         "intepreter.  This program cannot be executed with this "
+         "interpreter.  This program cannot be executed with this "
          "interpreter.") },
 
     { VMERR_READ_PAST_IMG_END,

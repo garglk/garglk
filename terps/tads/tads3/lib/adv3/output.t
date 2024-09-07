@@ -41,7 +41,7 @@ withQuotes(txt)
  *   
  *   The output manager is transient because we don't want its state to be
  *   saved and restored; the output manager state is essentially part of
- *   the intepreter user interface, which is not affected by save and
+ *   the interpreter user interface, which is not affected by save and
  *   restore.  
  */
 transient outputManager: object

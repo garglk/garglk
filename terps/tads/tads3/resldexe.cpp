@@ -160,7 +160,7 @@ osfildef *CResLoader::open_exe_res(const char *respath,
                  *   the local file instead 
                  */
                 osfcls(exe_fp);
-                exe_fp = osfoprb(res_ifc.get_link_fname(), OSFOPRB);
+                exe_fp = osfoprb(res_ifc.get_link_fname(), OSFTBIN);
             }
             else
             {
@@ -213,7 +213,7 @@ osfildef *CResLoader::open_lib_res(const char *libfile,
              *   local file instead 
              */
             osfcls(fp);
-            fp = osfoprb(res_ifc.get_link_fname(), OSFOPRB);
+            fp = osfoprb(res_ifc.get_link_fname(), OSFTBIN);
         }
         else
         {
