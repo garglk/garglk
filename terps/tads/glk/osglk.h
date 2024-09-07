@@ -35,7 +35,13 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#else
 #include <dirent.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -98,15 +104,32 @@ extern "C" {
  * an exact value. */
 #define OSMALMAX 0xffffffffL
 
+#ifdef _WIN32
+struct Win32Dir {
+    HANDLE hFindFile;
+    char *dirname;
+    WIN32_FIND_DATAA findFileData;
+};
+typedef struct Win32Dir *osdirhdl_t;
+#else
 /* Directory handle for searches via os_open_dir() et al. */
 typedef DIR* osdirhdl_t;
+#endif
 
 /* file type/mode bits */
 #define OSFMODE_FILE    S_IFREG
 #define OSFMODE_DIR     S_IFDIR
 #define OSFMODE_CHAR    S_IFCHR
+#ifdef S_IFBLK
 #define OSFMODE_BLK     S_IFBLK
+#else
+#define OSFMODE_BLK     0
+#endif
+#ifdef S_IFIFO
 #define OSFMODE_PIPE    S_IFIFO
+#else
+#define OSFMODE_PIPE    0
+#endif
 #ifdef S_IFLNK
 #define OSFMODE_LINK    S_IFLNK
 #else
