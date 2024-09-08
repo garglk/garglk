@@ -11,7 +11,7 @@ nproc=$(getconf _NPROCESSORS_ONLN)
 (
 mkdir build-msvc
 cd build-msvc
-cmake .. -DWITH_QT6=ON -DCMAKE_PREFIX_PATH="${qt}" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=Toolchain-msvc.cmake -DSOUND=QT -DWITH_BUNDLED_FMT=ON -DDIST_INSTALL=ON
+cmake .. -DCMAKE_PREFIX_PATH="${qt}" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=Toolchain-msvc.cmake -DSOUND=QT -DWITH_BUNDLED_FMT=ON -DDIST_INSTALL=ON
 make -j${nproc}
 make install
 )
