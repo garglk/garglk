@@ -850,6 +850,9 @@ GotVerb:
 	strcpy(parseerr, word[1]);
 
 	if (Peek(grammaraddr)==XVERB_T) xverb = true;
+	else
+	/* clear xverb if we have specifically declared something else */
+		xverb = false;
 	grammaraddr += 2 + numverbs * 2;
 
 	/*
@@ -915,7 +918,9 @@ NextStructure:
 					domain = 0;
 					odomain = 0;
 					obj_match_state = 0;
-					xverb = 0;
+					/*  we do not want xverb cleared every line or else multi-line
+                                            xverb definitions only properly work for the first line
+					xverb = 0;    */
 					objcount = 0;
 					objstart = 0;
 					break;
@@ -1087,7 +1092,12 @@ int MatchObject(int *wordnum)
 
 				/* definitely not this object */
 				else
+				{
 					SubtractPossibleObject(i);
+					/* clear bestobj if i is the current best object */
+					if (i == bestobj)
+						bestobj = 0;
+				}
 			}
 
 
@@ -2325,7 +2335,7 @@ NotinDictionary:
 					{
 						if (wd[i+1]==PeekWord(synptr+3))
 						{
-							strcat(word[i], word[i+1]);
+							memmove(word[i] + strlen(word[i]), word[i+1], strlen(word[i+1]) + 1);
 							wd[i] = FindWord(word[i]);
 							KillWord(i+1);
 						}
