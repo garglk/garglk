@@ -686,7 +686,15 @@ int GetVal()
 					ioerror = true;
 					retflag = true;
 				}
-				else val = low + high*256;
+				else
+				{
+				 	i = low + high*256;
+#if !defined (MATH_16BIT)
+					if (i > 32767)
+						i -= 65536;
+#endif
+					val = i;
+				}
 			}
 			codeptr++;
 			break;
