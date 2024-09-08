@@ -48,13 +48,11 @@ add_custom_target(frankendrift
 
 if(WIN32)
     # ensure that FrankenDrift gets proper HiDpi support on Windows by embedding the necessary manifest
-    add_custom_target(fd_manifest
-        ALL
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMAND "mt.exe" -nologo -manifest \"${PROJECT_SOURCE_DIR}\\terps\\garglk.manifest\" \"-updateresource:FrankenDrift.GlkRunner.Gargoyle.exe\"
+    add_custom_command(TARGET frankendrift
+        POST_BUILD
+        COMMAND "mt.exe" -nologo -manifest "${PROJECT_SOURCE_DIR}/terps/garglk.manifest" "-updateresource:${CMAKE_CURRENT_BINARY_DIR}/FrankenDrift.GlkRunner.Gargoyle.exe"
         COMMENT "Adding FrankenDrift Manifest file"
     )
-    add_dependencies(fd_manifest frankendrift)
 endif()
 
 add_dependencies(frankendrift garglk)
