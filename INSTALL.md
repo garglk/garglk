@@ -391,7 +391,7 @@ vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo --triplet x64-win
 Invoke cmake as follows (adjust Qt and vcpkg paths accordingly):
 
 ```
-cmake -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link -DINTERFACE=QT -DWITH_QT6=ON -DCMAKE_PREFIX_PATH=D:/Qt/6.5.2/msvc2019_64 -DCMAKE_TOOLCHAIN_FILE=D:/vcpkg/scripts/buildsystems/vcpkg.cmake -DSOUND=QT ..
+cmake -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link -DINTERFACE=QT -DCMAKE_PREFIX_PATH=D:/Qt/6.5.2/msvc2019_64 -DCMAKE_TOOLCHAIN_FILE=D:/vcpkg/scripts/buildsystems/vcpkg.cmake -DSOUND=QT ..
 ```
 
 Building an installer from this configuration is not yet supported.
