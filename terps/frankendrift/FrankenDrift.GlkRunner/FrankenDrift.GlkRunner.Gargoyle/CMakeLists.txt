@@ -56,7 +56,7 @@ add_custom_target(frankendrift
     ALL
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMAND ${COPY_DYLIB}
-    COMMAND ${DOTNET} publish --self-contained -c Release -r "${GARGLK_DOTNET_OS}-${GARGLK_DOTNET_CPU}" -p:GarglkMode=dynamic -o .
+    COMMAND ${DOTNET} publish --self-contained -c Release -r "${GARGLK_DOTNET_OS}-${GARGLK_DOTNET_CPU}" -p:GarglkMode=dynamic "-p:IntermediateOutputPath=${CMAKE_CURRENT_BINARY_DIR}/" -o "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building FrankenDrift with ${DOTNET}"
 )
 
@@ -74,7 +74,7 @@ endif()
 add_dependencies(frankendrift garglk)
 
 if(DIST_INSTALL)
-    install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/FrankenDrift.GlkRunner.Gargoyle${GARGLK_FRANKEN_EXT}" DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
+    install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/FrankenDrift.GlkRunner.Gargoyle${GARGLK_FRANKEN_EXT}" DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
 else()
-    install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/FrankenDrift.GlkRunner.Gargoyle${GARGLK_FRANKEN_EXT}" DESTINATION "${INTERPRETER_INSTALL_DIR}")
+    install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/FrankenDrift.GlkRunner.Gargoyle${GARGLK_FRANKEN_EXT}" DESTINATION "${INTERPRETER_INSTALL_DIR}")
 endif()
