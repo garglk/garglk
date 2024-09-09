@@ -43,7 +43,7 @@ jobs:
       - name: Build Fedora package
         run: |
           echo $(date +"%Y%m%d").$(echo $GITHUB_SHA | cut -b 1-7) > VERSION
-          ./gargoyle-buildrpm.sh -f
+          ./gargoyle-buildrpm.sh
 
       - name: Upload RPM
         if: github.event_name != 'pull_request'
