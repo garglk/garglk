@@ -86,9 +86,9 @@ if [[ "${QT_VERSION}" == "6" ]]
 then
     if [[ -n "${GARGOYLE_MINGW_GCC}" ]]
     then
-        QT6HOME="${HOME}/Qt/6.7.1/mingw_64"
+        QT6HOME="${HOME}/Qt/current/mingw_64"
     else
-        QT6HOME="${HOME}/Qt/6.7.1/llvm-mingw_64"
+        QT6HOME="${HOME}/Qt/current/llvm-mingw_64"
     fi
 
     CMAKE_QT6="-DCMAKE_PREFIX_PATH=${QT6HOME}"
