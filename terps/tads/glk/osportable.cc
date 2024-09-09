@@ -44,7 +44,7 @@
 #endif // RUNTIME
 #endif
 
-#ifdef GARGOYLE
+#ifdef GLK
 #include "osextra.h"
 #include "charmap.h"
 #include <time.h>
@@ -71,7 +71,18 @@
 #define T3_INC_DIR 0
 #define T3_LIB_DIR 0
 #define T3_LOG_FILE 0
-#endif /* GARGOYLE */
+
+#ifdef EMGLKEN
+#include "glk.h"
+#include "glkstart.h"
+#include "emglken.h"
+#include "osemglken.h"
+
+#define getcwd emglken_getcwd
+#define realpath(path, resolved_path) (0)
+#endif/* EMGLKEN */
+
+#endif /* GLK */
 
 
 /* Safe strcpy.
@@ -302,6 +313,15 @@ get_charset_alias( const char* charset )
 osfildef*
 osfoprwt( const char* fname, os_filetype_t )
 {
+#ifdef EMGLKEN
+    frefid_t fref = glkunix_fileref_create_by_name_uncleaned(fileusage_TextMode, fname, 0);
+    if (fref) {
+        osfildef *result = glk_stream_open_file(fref, filemode_ReadWrite, 0);
+        glk_fileref_destroy(fref);
+        return result;
+    }
+    return NULL;
+#else /* EMGLKEN */
 //  assert(fname != 0);
     // Try opening the file in read/write mode.
     osfildef* fp = fopen(fname, "r+");
@@ -309,6 +329,7 @@ osfoprwt( const char* fname, os_filetype_t )
     // exist.  In that case, create a new file in read/write mode.
     if (fp == 0) fp = fopen(fname, "w+");
     return fp;
+#endif /* EMGLKEN */
 }
 
 
@@ -317,10 +338,20 @@ osfoprwt( const char* fname, os_filetype_t )
 osfildef*
 osfoprwb( const char* fname, os_filetype_t )
 {
+#ifdef EMGLKEN
+    frefid_t fref = glkunix_fileref_create_by_name_uncleaned(fileusage_BinaryMode, fname, 0);
+    if (fref) {
+        osfildef *result = glk_stream_open_file(fref, filemode_ReadWrite, 0);
+        glk_fileref_destroy(fref);
+        return result;
+    }
+    return NULL;
+#else /* EMGLKEN */
 //  assert(fname != 0);
     osfildef* fp = fopen(fname, "r+b");
     if (fp == 0) fp = fopen(fname, "w+b");
     return fp;
+#endif /* EMGLKEN */
 }
 
 /* Duplicate a file hand.e
@@ -328,8 +359,6 @@ osfoprwb( const char* fname, os_filetype_t )
 osfildef*
 osfdup(osfildef *orig, const char *mode)
 {
-    char realmode[5];
-    char *p = realmode;
     const char *m;
 
     /* verify that there aren't any unrecognized mode flags */
@@ -338,6 +367,38 @@ osfdup(osfildef *orig, const char *mode)
         if (strchr("rw+bst", *m) == 0)
             return 0;
     }
+
+#ifdef EMGLKEN
+    const char *filename = glkunix_stream_get_filename(orig);
+    glui32 fmode = filemode_Read;
+    glui32 usage = fileusage_TextMode;
+
+    if (mode[0] == 'r') {
+        if (mode[1] == '+') {
+            fmode = filemode_ReadWrite;
+        }
+    }
+    else if (mode[0] == 'w') {
+        // I'm not sure this is right, but the description in osifc.h really isn't specific enough
+        fmode = filemode_WriteAppend;
+    }
+    else {
+        return 0;
+    }
+    if (strchr(mode, 'b') != NULL) {
+        usage = fileusage_BinaryMode;
+    }
+
+    frefid_t fref = glkunix_fileref_create_by_name_uncleaned(usage, filename, 0);
+    if (fref) {
+        osfildef *result = glk_stream_open_file(fref, fmode, 0);
+        glk_fileref_destroy(fref);
+        return result;
+    }
+    return NULL;
+#else /* EMGLKEN */
+    char realmode[5];
+    char *p = realmode;
 
     /* figure the read/write mode - translate r+ and w+ to r+ */
     if ((mode[0] == 'r' || mode[0] == 'w') && mode[1] == '+')
@@ -353,7 +414,9 @@ osfdup(osfildef *orig, const char *mode)
     *p = '\0';
 
     /* duplicate the handle in the given mode */
+    // Shouldn't this be realmode?
     return fdopen(dup(fileno(orig)), mode);
+#endif /* EMGLKEN */
 }
 
 
@@ -572,6 +635,7 @@ int
 osfmode( const char *fname, int follow_links, unsigned long *mode,
          unsigned long* attr )
 {
+    // TODO: Emglken
     os_file_stat_t s;
     int ok;
     if ((ok = os_file_stat(fname, follow_links, &s)) != false) {
@@ -588,6 +652,7 @@ osfmode( const char *fname, int follow_links, unsigned long *mode,
 int
 os_file_stat( const char *fname, int follow_links, os_file_stat_t *s )
 {
+    // TODO: Emglken
     struct stat buf;
     if ((follow_links ? stat(fname, &buf) : lstat(fname, &buf)) != 0)
         return false;
@@ -660,6 +725,7 @@ os_file_stat( const char *fname, int follow_links, os_file_stat_t *s )
 int
 os_resolve_symlink( const char *fname, char *target, size_t target_size )
 {
+    // TODO: Emglken
 #ifdef _WIN32
     return false;
 #else
@@ -951,6 +1017,7 @@ int os_open_dir(const char *dirname, osdirhdl_t *hdl)
     *hdl = dirp;
     return true;
 #else
+    // TODO: Emglken
     return (*hdl = opendir(dirname)) != NULL;
 #endif
 }
@@ -966,13 +1033,14 @@ int os_read_dir(osdirhdl_t hdl, char *buf, size_t buflen)
         if (dirp->hFindFile == INVALID_HANDLE_VALUE)  // nothing found, return failure
             return false;
     } else {  // continue
-        // if we've exhausted the search, return failure
+              // if we've exhausted the search, return failure
         if (FindNextFileA(dirp->hFindFile, &(dirp->findFileData)) == 0)
             return false;
     }
     safe_strcpy(buf, buflen, dirp->findFileData.cFileName);
     return true;
 #else
+    // TODO: Emglken
     // Read the next directory entry - if we've exhausted the search,
     // return failure.
     struct dirent *d = readdir(hdl);
@@ -995,6 +1063,7 @@ void os_close_dir(osdirhdl_t hdl)
     free(hdl->dirname);
     free(hdl);
 #else
+    // TODO: Emglken
     closedir(hdl);
 #endif
 }
@@ -1341,6 +1410,7 @@ os_get_abs_filename( char* buf, size_t buflen, const char* filename )
  */
 size_t os_get_root_dirs(char *buf, size_t buflen)
 {
+    // TODO: Emglken
     static const char ret[] = { '/', 0, 0 };
     
     // if there's room, copy the root string "/" and an extra null

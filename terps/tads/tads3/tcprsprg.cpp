@@ -1623,6 +1623,9 @@ CTPNStmTop *CTcParser::parse_grammar(int *err, int replace, int modify)
         CTcConstVal cval;
         size_t i;
 
+        /* this is in global scope */
+        local_symtab_ = global_symtab_;
+
         /* create the list expression */
         lst = new CTPNList();
 

@@ -284,7 +284,7 @@ os_get_timezone_info( struct os_tzinfo_t *info )
     if (tz != 0 && oss_parse_posix_tz(info, tz, strlen(tz), TRUE))
         return TRUE;
 
-    /* Gargoyle: tm_gmtoff isn't POSIX, and since this clearly isn't a
+    /* GLK: tm_gmtoff isn't POSIX, and since this clearly isn't a
      * critical function (as it returns failure on Windows), don't
      * implement it here.
      */

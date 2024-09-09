@@ -1984,7 +1984,7 @@ void CVmTimeZone::query(vmtzquery *result, int32_t dayno, int32_t daytime,
              *   the transition in terms of the local time that was in effect
              *   up until that moment
              */
-#if 0 /* Gargoyle: Modified from upstream. */
+#if 0 /* GLK: Modified from upstream. */
             result->set(tcur > 0 ? tcur - 1 : tcur);
 #else
             result->set(tcur != 0 ? tcur - 1 : tcur);

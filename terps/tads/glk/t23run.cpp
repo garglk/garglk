@@ -172,7 +172,7 @@ void glk_main(void)
                 "TADS Interpreter by Michael J. Roberts\n"
                 "TADS 2 VM version " TADS_RUNTIME_VERSION "\n"
                 "T3 VM version " T3VM_VSN_STRING "\n"
-                "Gargoyle port by Tor Andersson\n"
+                "GlkTADS port by Tor Andersson\n"
     );
 #endif
 

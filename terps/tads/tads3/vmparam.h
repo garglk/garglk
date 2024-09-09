@@ -129,10 +129,10 @@ Modified
  *   with different sizes or alignment requirements).
  */
 #ifndef VM_UNDO_MAX_RECORDS
-# define VM_UNDO_MAX_RECORDS  4096
+# define VM_UNDO_MAX_RECORDS  65536
 #endif
 #ifndef VM_UNDO_MAX_SAVEPTS
-# define VM_UNDO_MAX_SAVEPTS  64
+# define VM_UNDO_MAX_SAVEPTS  255
 #endif
 
 #endif /* VMPARAM_H */

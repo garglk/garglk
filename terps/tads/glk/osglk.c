@@ -28,13 +28,20 @@
 #include "os.h"
 #include "glk.h"
 
-#ifdef GARGLK
-#include "glkstart.h"
-#endif
-
 /* for version strings */
 #include "trd.h"
 #include "vmvsn.h"
+
+#ifndef gestalt_GarglkText
+// If this isn't defined by the Glk header, then it's very unlikely to be
+// supported, but defining it here makes the code below a bit nicer.
+# define gestalt_GarglkText 0x1100
+#endif
+
+#ifndef gestalt_Stylehints
+// preliminary, likely to change later.
+# define gestalt_Stylehints 0x1101
+#endif
 
 static void redraw_windows(void);
 static void os_status_redraw(void);
@@ -53,6 +60,7 @@ glui32 mainbg;
 glui32 statusfg;
 glui32 statusbg;
 
+static int use_more_text_styling = 0;
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -74,7 +82,7 @@ int os_get_sysinfo(int code, void *param, long *result)
             *result = 1;
             return TRUE;
         case SYSINFO_TEXT_COLORS:
-            *result = SYSINFO_TXC_RGB;
+            *result = SYSINFO_TXC_NONE;
             return TRUE;
 
 #ifdef USE_HTML
@@ -142,6 +150,44 @@ int os_get_sysinfo(int code, void *param, long *result)
 int os_init(int *argc, char *argv[], const char *prompt,
             char *buf, int bufsiz)
 {
+    // If stylehints are supported, set styles to enable us to have all combinations of bold, italic, and monospaced
+    // Some of these might be redundant, but set them just to be safe
+    if (glk_gestalt(gestalt_GarglkText, 0) || glk_gestalt(gestalt_Stylehints, 0)) {
+        use_more_text_styling = 1;
+        // Use Normal for no formatting
+        glk_stylehint_set(wintype_TextBuffer, style_Normal, stylehint_Weight, 0);
+        glk_stylehint_set(wintype_TextBuffer, style_Normal, stylehint_Oblique, 0);
+        glk_stylehint_set(wintype_TextBuffer, style_Normal, stylehint_Proportional, 1);
+        // Use Subheader for bold
+        glk_stylehint_set(wintype_TextBuffer, style_Subheader, stylehint_Weight, 1);
+        glk_stylehint_set(wintype_TextBuffer, style_Subheader, stylehint_Oblique, 0);
+        glk_stylehint_set(wintype_TextBuffer, style_Subheader, stylehint_Proportional, 1);
+        // Use Emphasized for italic
+        glk_stylehint_set(wintype_TextBuffer, style_Emphasized, stylehint_Weight, 0);
+        glk_stylehint_set(wintype_TextBuffer, style_Emphasized, stylehint_Oblique, 1);
+        glk_stylehint_set(wintype_TextBuffer, style_Emphasized, stylehint_Proportional, 1);
+        // Use Alert for bold+italic
+        glk_stylehint_set(wintype_TextBuffer, style_Alert, stylehint_Weight, 1);
+        glk_stylehint_set(wintype_TextBuffer, style_Alert, stylehint_Oblique, 1);
+        glk_stylehint_set(wintype_TextBuffer, style_Alert, stylehint_Proportional, 1);
+        // Use Preformatted for monospace
+        glk_stylehint_set(wintype_TextBuffer, style_Preformatted, stylehint_Weight, 0);
+        glk_stylehint_set(wintype_TextBuffer, style_Preformatted, stylehint_Oblique, 0);
+        glk_stylehint_set(wintype_TextBuffer, style_Preformatted, stylehint_Proportional, 0);
+        // Use User1 for monospace+bold
+        glk_stylehint_set(wintype_TextBuffer, style_User1, stylehint_Weight, 1);
+        glk_stylehint_set(wintype_TextBuffer, style_User1, stylehint_Oblique, 0);
+        glk_stylehint_set(wintype_TextBuffer, style_User1, stylehint_Proportional, 0);
+        // Use User2 for monospace+italic
+        glk_stylehint_set(wintype_TextBuffer, style_User2, stylehint_Weight, 0);
+        glk_stylehint_set(wintype_TextBuffer, style_User2, stylehint_Oblique, 1);
+        glk_stylehint_set(wintype_TextBuffer, style_User2, stylehint_Proportional, 0);
+        // Use Note for monospace+italic+bold
+        glk_stylehint_set(wintype_TextBuffer, style_Note, stylehint_Weight, 1);
+        glk_stylehint_set(wintype_TextBuffer, style_Note, stylehint_Oblique, 1);
+        glk_stylehint_set(wintype_TextBuffer, style_Note, stylehint_Proportional, 0);
+    }
+
     mainwin = glk_window_open(0, 0, 0, wintype_TextBuffer, 0);
 
     if (!mainwin)
@@ -395,6 +441,28 @@ void oscls(void)
     glk_window_clear(mainwin);
 }
 
+// mapping of text attributes to Glk styles
+static const glui32 attr_to_style[] = {
+        style_Normal,  // nothing
+        style_Subheader,  // bold
+        style_Emphasized,  // italic
+        style_Alert,  // italic + bold
+        style_Preformatted,  // everything with monospace bit set maps to monospace
+        style_Preformatted,
+        style_Preformatted,
+        style_Preformatted
+};
+static const glui32 attr_to_style_ext[] = {
+        style_Normal,  // nothing
+        style_Subheader,  // bold
+        style_Emphasized,  // italic
+        style_Alert,  // italic + bold
+        style_Preformatted,  // monospace
+        style_User1,  // monospace + bold
+        style_User2,  // monospace + italic
+        style_Note  // monospace + bold + italic
+};
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Set text attributes.  Text subsequently displayed through os_print() and
@@ -405,15 +473,14 @@ void oscls(void)
  */
 void os_set_text_attr(int attr)
 {
+    // If anyone adds more style attributes in the future, our array lookup
+    // will blow up, so...
+    assert(attr < 8);
     curattr = attr;
-    if (curattr & OS_ATTR_BOLD && curattr & OS_ATTR_ITALIC)
-        glk_set_style(style_Alert);
-    else if (curattr & OS_ATTR_BOLD)
-        glk_set_style(style_Subheader);
-    else if (curattr & OS_ATTR_ITALIC)
-        glk_set_style(style_Emphasized);
+    if (use_more_text_styling)
+        glk_set_style(attr_to_style_ext[curattr]);
     else
-        glk_set_style(style_Normal);
+        glk_set_style(attr_to_style[curattr]);
 }
 
 /*
@@ -521,12 +588,11 @@ void os_more_prompt()
 int os_askfile(const char *prompt, char *fname_buf, int fname_buf_len,
                int prompt_type, os_filetype_t file_type)
 {
+#ifndef GLKUNIX_FILEREF_GET_FILENAME
+    return OS_AFE_FAILURE;
+#else
     frefid_t fileref;
     glui32 gprompt, gusage;
-
-#ifndef GLK_MODULE_FILEREF_GET_NAME
-    return OS_AFE_FAILURE;
-#endif
 
     if (prompt_type == OS_AFP_OPEN)
         gprompt = filemode_Read;
@@ -544,13 +610,12 @@ int os_askfile(const char *prompt, char *fname_buf, int fname_buf_len,
     if (fileref == NULL)
         return OS_AFE_CANCEL;
 
-#ifdef GLKUNIX_FILEREF_GET_FILENAME
     strcpy(fname_buf, glkunix_fileref_get_filename(fileref));
-#endif
 
     glk_fileref_destroy(fileref);
 
     return OS_AFE_SUCCESS;
+#endif
 }
 
 /* 

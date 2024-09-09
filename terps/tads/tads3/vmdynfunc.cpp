@@ -1631,6 +1631,7 @@ vm_obj_id_t CVmDynamicCompiler::compile(
         {
         case DCModeExpression:
             /* parse an expression */
+            G_prs->set_local_symtab(0);
             if ((node = G_prs->parse_expr()) != 0)
             {
                 /* check some extra information for the debugger */
@@ -1700,6 +1701,7 @@ vm_obj_id_t CVmDynamicCompiler::compile(
             else
             {
                 /* parse an expression */
+                G_prs->set_local_symtab(0);
                 if ((node = G_prs->parse_expr()) != 0)
                 {
                     /* wrap it in a 'return' an a zero-argument code body */

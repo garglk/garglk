@@ -290,11 +290,9 @@ void os_banner_styles_reset(osbanid_t banner)
         glk_stylehint_clear(wintype_AllTypes, style_BlockQuote, stylehint_BackColor);
     }
 
-#ifdef GARGLK
     /* reset our default colors with a superfluous hint */
     glk_stylehint_set(wintype_AllTypes, style_Normal, stylehint_TextColor, mainfg);
     glk_stylehint_set(wintype_AllTypes, style_Normal, stylehint_BackColor, mainbg);
-#endif /* GARGLK */
 }
 
 void os_banners_close(osbanid_t banner)

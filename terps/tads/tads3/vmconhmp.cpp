@@ -1458,7 +1458,8 @@ wchar_t CVmFormatter::parse_html_markup(VMG_ wchar_t c,
         else if (CVmCaseFoldStr::wstreq(tagbuf, L"b")
                  || CVmCaseFoldStr::wstreq(tagbuf, L"i")
                  || CVmCaseFoldStr::wstreq(tagbuf, L"em")
-                 || CVmCaseFoldStr::wstreq(tagbuf, L"strong"))
+                 || CVmCaseFoldStr::wstreq(tagbuf, L"strong")
+                 || CVmCaseFoldStr::wstreq(tagbuf, L"tt"))
         {
             /* suppress in ignore mode */
             if (!html_in_ignore_)
@@ -1492,6 +1493,11 @@ wchar_t CVmFormatter::parse_html_markup(VMG_ wchar_t c,
                     case 's':
                     case 'S':
                         attr = OS_ATTR_STRONG;
+                        break;
+
+                    case 't':
+                    case 'T':
+                        attr = OS_ATTR_MONOSP;
                         break;
                     }
 
@@ -1705,16 +1711,16 @@ wchar_t CVmFormatter::parse_html_markup(VMG_ wchar_t c,
         }
         else if (CVmCaseFoldStr::wstreq(tagbuf, L"pre"))
         {
-            /* count the nesting level if starting PRE mode */
-            if (!is_end_tag)
+            if (!is_end_tag) {
                 ++html_pre_level_;
-
-            /* surround the PRE block with blank lines */
-            write_blank_line(vmg0_);
-
-            /* count the nesting level if ending PRE mode */
-            if (is_end_tag && html_pre_level_ != 0)
+                write_blank_line(vmg0_);
+                push_color();
+                cur_color_.attr |= OS_ATTR_MONOSP;
+            } else if (html_pre_level_ > 0){
                 --html_pre_level_;
+                pop_color();
+                write_blank_line(vmg0_);
+            }
         }
 
         /* suppress everything up to the next '>' */
