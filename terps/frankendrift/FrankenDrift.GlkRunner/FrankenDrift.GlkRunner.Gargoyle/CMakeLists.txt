@@ -31,19 +31,25 @@ else()
 endif()
 
 if(APPLE)
-    set(COPY_DYLIB cp "${CMAKE_BINARY_DIR}/garglk/libgarglk.dylib" "${CMAKE_CURRENT_SOURCE_DIR}")
+    set(GARGLK_FRANKEN_DYLIB "${CMAKE_BINARY_DIR}/garglk/libgarglk.dylib")
 elseif(WIN32)
-    set(COPY_DYLIB powershell.exe cp "${CMAKE_BINARY_DIR}/garglk/garglk.lib" "${CMAKE_CURRENT_SOURCE_DIR}")
+    set(GARGLK_FRANKEN_DYLIB "${CMAKE_BINARY_DIR}/garglk/garglk.lib")
 else()
-    set(COPY_DYLIB cp "${CMAKE_BINARY_DIR}/garglk/libgarglk.so" "${CMAKE_CURRENT_SOURCE_DIR}")
+    set(GARGLK_FRANKEN_DYLIB "${CMAKE_BINARY_DIR}/garglk/libgarglk.so")
 endif()
 
 add_custom_target(frankendrift
     ALL
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMAND ${COPY_DYLIB}
+    COMMAND ${CMAKE_COMMAND} -E copy "${GARGLK_FRANKEN_DYLIB}" "${CMAKE_CURRENT_SOURCE_DIR}"
     COMMAND ${DOTNET} publish --self-contained -c Release -r "${GARGLK_DOTNET_RID}" -p:GarglkMode=dynamic "-p:BaseIntermediateOutputPath=${CMAKE_CURRENT_BINARY_DIR}/" "-p:BaseOutputPath=${CMAKE_CURRENT_BINARY_DIR}" -o "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building FrankenDrift with ${DOTNET}"
+)
+
+get_filename_component(GARGLK_FRANKEN_DYLIB_NAME "${GARGLK_FRANKEN_DYLIB}" NAME)
+add_custom_command(TARGET frankendrift
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E rm "${CMAKE_CURRENT_SOURCE_DIR}/${GARGLK_FRANKEN_DYLIB_NAME}"
 )
 
 if(WIN32)
