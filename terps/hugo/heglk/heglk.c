@@ -36,9 +36,7 @@ char just_cleared_screen = false;
 
 #define STAT_UNAVAILABLE (-1)
 
-#ifdef GARGLK
-#include "hemedia.c"	/* gargoyle! */
-#endif
+#include "hemedia.c"
 
 /* glk_main
 
