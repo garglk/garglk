@@ -33,6 +33,14 @@
 
 	I really wish Glk had a smarter resource management facility than Blorb,
 	or that Hugo would use Blorb instead.
+
+	Update as of 2024-02-24:
+
+	There is a new Glk extension GLK_MODULE_GARGLK_FILE_RESOURCES which
+	loads resources from arbitrary files. This allows multimedia to be
+	loaded without littering the filesystem with PIC and SND files. If this
+	extension is available, it will be used; otherwise, option A as
+	described above is used.
 */
 
 #define GRAPHICS_SUPPORTED
