@@ -374,7 +374,7 @@ long FindResource(char *filename, char *resname)
 #else
 	/* Glk implementation */
 #ifdef HUGO_GLKUNIX
-	// Under Gargoyle, use glkunix_stream_open_pathname to directly open a file.
+	// Under Unix Glk, use glkunix_stream_open_pathname to directly open a file.
 	char temp[1024];
 	snprintf(temp, sizeof temp, "%s/%s", hugo_path_to_game, filename);
 	resource_file = glkunix_stream_open_pathname(temp, 0, 0);
