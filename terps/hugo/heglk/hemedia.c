@@ -48,7 +48,9 @@
 #define SETTITLE_SUPPORTED
 
 #ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
+#ifdef GLK_MODULE_GARGLKWINSIZE
 #include <math.h>
+#endif
 
 #include "gi_blorb.h"
 #endif
