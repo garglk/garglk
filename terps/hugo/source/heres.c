@@ -25,7 +25,7 @@
 #include "heheader.h"
 
 #ifdef GARGLK
-#include <glkstart.h>
+#include "glkstart.h"
 #endif
 
 /* Function prototypes: */
