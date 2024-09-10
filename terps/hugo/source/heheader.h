@@ -278,8 +278,6 @@ void arc_colour(unsigned char n, unsigned int c);
 #include "glk.h"
 
 #ifdef GARGLK
-#undef WIN32 /* Gargoyle is not WinGlk */
-
 extern char *hugo_path_to_game;
 #endif
 
