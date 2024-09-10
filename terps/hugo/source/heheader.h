@@ -277,7 +277,7 @@ void arc_colour(unsigned char n, unsigned int c);
 
 #include "glk.h"
 
-#ifdef GARGLK
+#ifdef HUGO_GLKUNIX
 extern char *hugo_path_to_game;
 #endif
 
@@ -355,11 +355,6 @@ void heglk_printfatalerror(char *err);
 #define SEEK_SET	seekmode_Start
 #undef SEEK_END
 #define SEEK_END	seekmode_End
-
-#if defined (_WINDOWS) && !defined(GARGLK)
-#define SETTITLE_SUPPORTED
-#define PRINTFATALERROR_SUPPLIED
-#endif
 
 #endif /* defined (GLK) */
 
@@ -501,7 +496,11 @@ extern FILE *hugo_fopen (char *filename, char *mode);
 	by Kent Tessman
 ---------------------------------------------------------------------------*/
 
-#if defined (WIN32) && !defined (WXWINDOWS)
+// For some reason, CMake defines WIN32 when building with MSVC, even though
+// MSVC itself defines _WIN32, which is sufficient for determining if you're
+// on Windows. All these ports really ought to be mututally exclusive, but
+// for the time being, just don't do Windows-specific stuff here with Glk.
+#if defined (WIN32) && !defined (WXWINDOWS) && !defined (GLK)
 
 #ifdef UNDER_CE
 #define PORT_NAME "WinCE"
