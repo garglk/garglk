@@ -2154,6 +2154,10 @@ LeaveBreak:
 Writevalloop:
 				codeptr++;
 				i = GetValue();
+#if !defined (MATH_16BIT)
+				if (i < 0)
+					i += 65536;
+#endif
 				if (ioblock)
 				{
 					if ((ioblock==2)
