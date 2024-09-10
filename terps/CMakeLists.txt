@@ -293,10 +293,10 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Level9 4.1
+# Level9 5.1
 #
-# Disabled the status bar that just contained a static version string.
-# Added graphics support.
+# The bitmap graphics from the US Macintosh release of Lancelot
+# now display correctly.
 #
 if(WITH_LEVEL9)
     terp(level9
