@@ -288,7 +288,7 @@ int hugo_playsample(HUGO_FILE infile, long reslen, char loop_flag)
 		if (id == 0) {
 			return false;
 		}
-		glk_schannel_play_ext(mchannel, id, loop_flag ? -1 : 1, 0);
+		glk_schannel_play_ext(schannel, id, loop_flag ? -1 : 1, 0);
 #else
 		id = loadres(infile, reslen, SND);
 		if (id < 0)
