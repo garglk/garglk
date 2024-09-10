@@ -222,11 +222,13 @@ void initmusic()
 	mchannel = glk_schannel_create(0);
 }
 
-int hugo_playmusic(HUGO_FILE infile, long reslen, char loop_flag)
+static int hugo_play(HUGO_FILE infile, long reslen, char loop_flag, int is_music)
 {
-	if (!mchannel)
+	if (is_music && !mchannel)
 		initmusic();
-	if (mchannel)
+
+	schanid_t channel = is_music ? mchannel : schannel;
+	if (channel)
 	{
 #ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
 		long offset = ftell(infile);
@@ -240,11 +242,16 @@ int hugo_playmusic(HUGO_FILE infile, long reslen, char loop_flag)
 			fclose(infile);
 			return false;
 		}
-		glk_schannel_play_ext(mchannel, id, loop_flag ? -1 : 1, 0);
+		glk_schannel_play_ext(channel, id, loop_flag ? -1 : 1, 0);
 	}
 
 	fclose(infile);
 	return true;
+}
+
+int hugo_playmusic(HUGO_FILE infile, long reslen, char loop_flag)
+{
+	return hugo_play(infile, reslen, loop_flag, true);
 }
 
 void hugo_musicvolume(int vol)
@@ -263,24 +270,7 @@ void hugo_stopmusic(void)
 
 int hugo_playsample(HUGO_FILE infile, long reslen, char loop_flag)
 {
-	if (schannel)
-	{
-#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
-		glui32 id = garglk_add_resource_from_file(giblorb_ID_Snd, loaded_filename, ftell(infile), reslen);
-		if (id == 0)
-#else
-		int id = loadres(infile, reslen, SND);
-		if (id < 0)
-#endif
-		{
-			fclose(infile);
-			return false;
-		}
-		glk_schannel_play_ext(schannel, id, loop_flag ? -1 : 1, 0);
-	}
-
-	fclose(infile);
-	return true;
+	return hugo_play(infile, reslen, loop_flag, false);
 }
 
 void hugo_samplevolume(int vol)
