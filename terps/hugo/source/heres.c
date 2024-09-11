@@ -24,8 +24,8 @@
 
 #include "heheader.h"
 
-#ifdef GARGLK
-#include <glkstart.h>
+#ifdef HUGO_GLKUNIX
+#include "glkstart.h"
 #endif
 
 /* Function prototypes: */
@@ -373,8 +373,8 @@ long FindResource(char *filename, char *resname)
 		}
 #else
 	/* Glk implementation */
-#ifdef GARGLK
-	// Under Gargoyle, use glkunix_stream_open_pathname to directly open a file.
+#ifdef HUGO_GLKUNIX
+	// Under Unix Glk, use glkunix_stream_open_pathname to directly open a file.
 	char temp[1024];
 	snprintf(temp, sizeof temp, "%s/%s", hugo_path_to_game, filename);
 	resource_file = glkunix_stream_open_pathname(temp, 0, 0);
@@ -483,7 +483,7 @@ NotinResourceFile:
 		}
 #else
 	/* Glk implementation */
-#ifdef GARGLK
+#ifdef HUGO_GLKUNIX
 	snprintf(temp, sizeof temp, "%s/%s", hugo_path_to_game, resname);
 	resource_file = glkunix_stream_open_pathname(temp, 0, 0);
 #else

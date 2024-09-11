@@ -262,7 +262,7 @@ if(WITH_HUGO)
         hugo/source/heexpr.c hugo/source/heobject.c hugo/source/heres.c
         hugo/source/heset.c hugo/source/stringfn.c
         INCLUDE_DIRS hugo/source
-        MACROS GLK COMPILE_V25 NO_KEYPRESS_CURSOR "HUGO_INLINE=static inline")
+        MACROS GLK HUGO_GLKUNIX COMPILE_V25 NO_KEYPRESS_CURSOR "HUGO_INLINE=static inline")
 endif()
 
 # ------------------------------------------------------------------------------

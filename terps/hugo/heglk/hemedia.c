@@ -33,6 +33,14 @@
 
 	I really wish Glk had a smarter resource management facility than Blorb,
 	or that Hugo would use Blorb instead.
+
+	Update as of 2024-02-24:
+
+	There is a new Glk extension GLK_MODULE_GARGLK_FILE_RESOURCES which
+	loads resources from arbitrary files. This allows multimedia to be
+	loaded without littering the filesystem with PIC and SND files. If this
+	extension is available, it will be used; otherwise, option A as
+	described above is used.
 */
 
 #define GRAPHICS_SUPPORTED
@@ -40,7 +48,9 @@
 #define SETTITLE_SUPPORTED
 
 #ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
+#ifdef GLK_MODULE_GARGLKWINSIZE
 #include <math.h>
+#endif
 
 #include "gi_blorb.h"
 #endif
@@ -222,40 +232,36 @@ void initmusic()
 	mchannel = glk_schannel_create(0);
 }
 
-int hugo_playmusic(HUGO_FILE infile, long reslen, char loop_flag)
+static int hugo_play(HUGO_FILE infile, long reslen, char loop_flag, int is_music)
 {
-#ifndef GLK_MODULE_GARGLK_FILE_RESOURCES
-	int id;
-#endif
-
-	if (!mchannel)
+	if (is_music && !mchannel)
 		initmusic();
-	if (mchannel)
+
+	schanid_t channel = is_music ? mchannel : schannel;
+	if (channel)
 	{
 #ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
 		long offset = ftell(infile);
-		fclose(infile);
-
-		glui32 id = garglk_add_resource_from_file(giblorb_ID_Snd, loaded_filename, offset, reslen);
-		if (id == 0) {
-			return false;
-		}
-		glk_schannel_play_ext(mchannel, id, loop_flag ? -1 : 1, 0);
+		glui32 id = garglk_add_resource_from_file(giblorb_ID_Snd, loaded_filename, ftell(infile), reslen);
+		if (id == 0)
 #else
-		id = loadres(infile, reslen, SND);
+		int id = loadres(infile, reslen, SND);
 		if (id < 0)
+#endif
 		{
 			fclose(infile);
 			return false;
 		}
-		glk_schannel_play_ext(mchannel, id, loop_flag ? -1 : 1, 0);
-#endif
+		glk_schannel_play_ext(channel, id, loop_flag ? -1 : 1, 0);
 	}
 
-#ifndef GLK_MODULE_GARGLK_FILE_RESOURCES
 	fclose(infile);
-#endif
 	return true;
+}
+
+int hugo_playmusic(HUGO_FILE infile, long reslen, char loop_flag)
+{
+	return hugo_play(infile, reslen, loop_flag, true);
 }
 
 void hugo_musicvolume(int vol)
@@ -274,36 +280,7 @@ void hugo_stopmusic(void)
 
 int hugo_playsample(HUGO_FILE infile, long reslen, char loop_flag)
 {
-#ifndef GLK_MODULE_GARGLK_FILE_RESOURCES
-	int id;
-#endif
-
-	if (schannel)
-	{
-#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
-		long offset = ftell(infile);
-		fclose(infile);
-
-		glui32 id = garglk_add_resource_from_file(giblorb_ID_Snd, loaded_filename, offset, reslen);
-		if (id == 0) {
-			return false;
-		}
-		glk_schannel_play_ext(mchannel, id, loop_flag ? -1 : 1, 0);
-#else
-		id = loadres(infile, reslen, SND);
-		if (id < 0)
-		{
-			fclose(infile);
-			return false;
-		}
-		glk_schannel_play_ext(schannel, id, loop_flag ? -1 : 1, 0);
-#endif
-	}
-
-#ifndef GLK_MODULE_GARGLK_FILE_RESOURCES
-	fclose(infile);
-#endif
-	return true;
+	return hugo_play(infile, reslen, loop_flag, false);
 }
 
 void hugo_samplevolume(int vol)
