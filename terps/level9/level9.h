@@ -1,11 +1,10 @@
 /***********************************************************************\
 *
 * Level 9 interpreter
-* Version 4.1
-* Copyright (c) 1996 Glen Summers
-* Copyright (c) 2002,2003 Glen Summers and David Kinder
-* Copyright (c) 2005,2007 Glen Summers, David Kinder, Alan Staniforth,
-* Simon Baldwin and Dieter Baron
+* Version 5.1
+* Copyright (c) 1996-2011 Glen Summers and contributors.
+* Contributions from David Kinder, Alan Staniforth, Simon Baldwin,
+* Dieter Baron and Andreas Scherrer.
 *
 * This program is free software; you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -19,7 +18,7 @@
 *
 * You should have received a copy of the GNU General Public License
 * along with this program; if not, write to the Free Software
-* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111, USA.
 *
 \***********************************************************************/
 

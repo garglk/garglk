@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  
  * USA 
  */
 
@@ -1225,7 +1225,7 @@ gln_gameid_lookup_patch (gln_uint16 length, gln_byte checksum,
  * entry of the game in the game table, or NULL if not found.
  *
  * This function uses startdata and FileSize from the core interpreter.
- * These aren't advertised symbols, so be warned.
+ * These aren't advertised symbols, so be warned. 
  */
 static gln_game_tableref_t
 gln_gameid_identify_game (void)
@@ -2451,6 +2451,7 @@ gln_graphics_timeout (void)
   /* Stop graphics; there's no more to be done until something restarts us. */
   gln_graphics_stop ();
 }
+
 
 /*
  * gln_graphics_locate_bitmaps()
@@ -4728,8 +4729,8 @@ gln_command_license (const char *argument)
 
   gln_normal_string ("You should have received a copy of the GNU General"
                       " Public License along with this program; if not, write"
-                      " to the Free Software Foundation, Inc., 51 Franklin"
-                      " Street, Fifth Floor, Boston, MA 02110-1301 USA\n\n");
+                      " to the Free Software Foundation, Inc., 59 Temple"
+                      " Place, Suite 330, Boston, MA  02111-1307 USA\n\n");
 
   gln_normal_string ("Please report any bugs, omissions, or misfeatures to ");
   gln_standout_string ("simon_baldwin@yahoo.com");
