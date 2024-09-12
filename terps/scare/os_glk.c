@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
  * USA
  */
 
@@ -2243,8 +2243,8 @@ gsc_command_license (const char *argument)
 
   gsc_normal_string ("You should have received a copy of the GNU General"
                      " Public License along with this program; if not, write"
-                     " to the Free Software Foundation, Inc., 51 Franklin"
-                     " Street, Fifth Floor, Boston, MA 02110-1301 USA\n\n");
+                     " to the Free Software Foundation, Inc., 59 Temple"
+                     " Place, Suite 330, Boston, MA  02111-1307 USA\n\n");
 
   gsc_normal_string ("Please report any bugs, omissions, or misfeatures to ");
   gsc_standout_string ("simon_baldwin@yahoo.com");
@@ -3629,6 +3629,7 @@ winglk_startup_code (const char *cmdline)
   winglk_window_set_title ("Scare Adrift Interpreter");
   winglk_set_about_text ("Windows Scare 1.3.10");
   winglk_set_gui (IDI_SCARE);
+  glk_stylehint_set (wintype_TextGrid, style_Normal, stylehint_ReverseColor, 1);
 
   /* Open a stream to the game. */
   filename = winglk_get_initial_filename (cmdline,
