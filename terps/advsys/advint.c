@@ -49,6 +49,7 @@ void glk_main()
     glk_put_string("ADVINT v1.2 - Copyright (c) 1986, by David Betz\n"
 		           "GLK Build v0.1 - Copyright (c) 2000  by Zenki\n\n");
 #endif
+
 #ifdef UNIX
     glk_put_string("ADVINT v1.2 - Copyright (c) 1986, by David Betz\n"
                    "GLK Build v0.1 - Copyright(c) 2000 by Zenki\n\n");
