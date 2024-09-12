@@ -140,4 +140,3 @@
 #define V_NDOBJECTS	4	/* number of direct object noun phrases */
 #define V_IOBJECT	5	/* indirect object noun phrase number */
 #define V_OCOUNT	6	/* total object count */
-

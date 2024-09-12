@@ -1,3 +1,6 @@
+
+
+#include "header.h"
 #define UNIX
 #include <stdio.h>
 
@@ -45,79 +48,63 @@ putch(ch,fp)
 #endif
 }
 
-int advsave(hdr,hlen,save,slen)
-  char *hdr; int hlen; char *save; int slen;
+int advsave(char *hdr,int hlen,char *save,int slen)
 {
-    char fname[50];
-    int fd;
+    frefid_t fdref;
+	strid_t fd;
 
-    trm_str("File name? ");
-    trm_get(fname);
+	fdref = glk_fileref_create_by_prompt(fileusage_SavedGame, filemode_Write, 0);
+	fd = glk_stream_open_file(fdref, filemode_Write, 0);
 
-    /* add the extension */
-    strcat(fname,".sav");
-
-    /* create the data file */
-    if ((fd = creat(fname,0666)) == -1)
-	return (0);
-
-    /* write the header */
-    if (write(fd,hdr,hlen) != hlen) {
-	close(fd);
-	return (0);
-    }
-
+    glk_put_buffer_stream(fd,hdr,hlen);
+	
     /* write the data */
-    if (write(fd,save,slen) != slen) {
-	close(fd);
-	return (0);
-    }
+    glk_put_buffer_stream(fd,save,slen);
 
     /* close the file and return successfully */
-    close(fd);
+    glk_stream_close(fd, NULL);
+	glk_fileref_destroy(fdref);
     return (1);
 }
 
-int advrestore(hdr,hlen,save,slen)
-  char *hdr; int hlen; char *save; int slen;
+int advrestore(char *hdr,int hlen,char *save,int slen)
 {
-    char fname[50],hbuf[50],*p;
-    int fd;
+    char hbuf[50],*p;
+	frefid_t fdref;
+	strid_t fd;
+	 
+	
+	if (hlen > 50)
+        error("save file header buffer too small");
 
-    if (hlen > 50)
-	error("save file header buffer too small");
+	fdref = glk_fileref_create_by_prompt(fileusage_SavedGame, filemode_Read, 0);
+	fd = glk_stream_open_file(fdref, filemode_Read, 0);
 
-    trm_str("File name? ");
-    trm_get(fname);
-
-    /* add the extension */
-    strcat(fname,".sav");
-
-    /* create the data file */
-    if ((fd = open(fname,0)) == -1)
-	return (0);
 
     /* read the header */
-    if (read(fd,hbuf,hlen) != hlen) {
-	close(fd);
-	return (0);
+    if (glk_get_buffer_stream(fd,hbuf,hlen) != hlen) {
+        glk_stream_close(fd, NULL);
+		glk_fileref_destroy(fdref);
+        return (0);
     }
 
     /* compare the headers */
     for (p = hbuf; hlen--; )
-	if (*hdr++ != *p++) {
-	    trm_str("This save file does not match the adventure!\n");
-	    return (0);
-	}
+        if (*hdr++ != *p++) {
+            trm_str("This save file does not match the adventure!\n");
+            return (0);
+        }
 
     /* read the data */
-    if (read(fd,save,slen) != slen) {
-	close(fd);
-	return (0);
+    if (glk_get_buffer_stream(fd,save,slen) != slen) {
+        glk_stream_close(fd, NULL);
+		glk_fileref_destroy(fdref);
+        return (0);
     }
 
     /* close the file and return successfully */
-    close(fd);
+    glk_stream_close(fd, NULL);
+	glk_fileref_destroy(fdref);
     return (1);
 }
 

@@ -4,14 +4,11 @@
 	Copyright (c) 1986, by David Michael Betz
 	All rights reserved
 */
-
-#include <stdio.h>
+#include "header.h"
 
 /* cache size */
 #define CSIZE	8
 
-/* external routines */
-extern char *malloc();
 
 /* message block cache */
 static char *mbuffer[CSIZE];	/* message text block cache buffers */
@@ -21,16 +18,22 @@ static int mhead,mtail;		/* head and tail of lru list */
 
 /* message file variables */
 static int mbase;		/* message base block */
-static int mfd;			/* message file descriptor */
+static strid_t mfd;			/* message file descriptor */
 
 /* current message variables */
 static int mblk;		/* current block */
 static char *mbuf;		/* current buffer */
 static int moff;		/* current buffer offset */
 
+
+/* Headers */
+void get_block(unsigned int blk);
+int decode(int ch);
+
+
+
 /* msg_init - initialize the message routines */
-msg_init(fd,base)
-  int fd,base;
+void msg_init(strid_t fd,int base)
 {
     char *p;
     int i;
@@ -41,18 +44,18 @@ msg_init(fd,base)
 
     /* initialize the cache */
     if ((p = malloc(CSIZE * 512)) == NULL)
-	error("insufficient memory");
-    for (i = 0; i < CSIZE; i++) {
-	mbuffer[i] = p; p += 512;
-	mblock[i] = -1;
-	mnext[i] = i+1;
+		error("insufficient memory");
+    
+	for (i = 0; i < CSIZE; i++) {
+		mbuffer[i] = p; p += 512;
+		mblock[i] = -1;
+		mnext[i] = i+1;
     }
     mhead = 0; mtail = CSIZE-1; mnext[mtail] = -1;
 }
 
 /* msg_open - open a message */
-int msg_open(msg)
-  unsigned int msg;
+void msg_open(unsigned int msg)
 {
     /* save the current message block */
     mblk = msg >> 7;
@@ -78,15 +81,13 @@ int msg_byte()
 }
 
 /* decode - decode a character */
-int decode(ch)
-  int ch;
+int decode(int ch)
 {
     return ((ch + 30) & 0xFF);
 }
 
 /* get_block - get a block of message text */
-get_block(blk)
-  unsigned int blk;
+void get_block(unsigned int blk)
 {
     int last,n;
     long loff;
@@ -107,9 +108,9 @@ get_block(blk)
     /* overwrite the least recently used buffer */
     mblock[mtail] = blk;
     loff = ((long) mbase + (long) blk) << 9;
-    lseek(mfd,loff,0);
-    if (read(mfd,mbuffer[mtail],512) != 512)
-	error("error reading message text");
+    glk_stream_set_position(mfd,loff,seekmode_Start);
+    if (glk_get_buffer_stream(mfd,mbuffer[mtail],512) != 512)
+		error("error reading message text");
 
     /* get the block */
     get_block(blk);

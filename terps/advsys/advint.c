@@ -5,80 +5,67 @@
 	All rights reserved
 */
 
+#include "header.h"
+
 #include "advint.h"
 #include "advdbs.h"
-#ifndef MAC
-#include <setjmp.h>
-#endif
+
 
 /* global variables */
 jmp_buf restart;
 
-/* external variables */
-extern int h_init;
-extern int h_update;
-extern int h_before;
-extern int h_after;
-extern int h_error;
+/* CHANGED TO WORK WITH GLK */
+/* Modernize it */
+void play(void);
+int single(void);
+
+/* GLK Specifics */
+winid_t window;
+strid_t screen;
 
 /* main - the main routine */
-main(argc,argv)
-  int argc; char *argv[];
+void glk_main()
 {
     char *fname,*lname;
-    int rows,cols,i;
+    int rows,cols;
 
-#ifdef MAC
-    char name[50];
-    macinit(name);
-    fname = name;
-    lname = NULL;
-    rows = 20;
-    cols = 80;
-#else
-    printf("ADVINT v1.2 - Copyright (c) 1986, by David Betz\n");
+	frefid_t file;
+
+	window = glk_window_open(0, 0, 0, wintype_TextBuffer, WINDOW);
+	screen = glk_window_get_stream(window);
+	glk_stream_set_current(screen);
+
+#ifdef WINDOWS
+    glk_put_string("ADVINT v1.2 - Copyright (c) 1986, by David Betz\n"
+		           "GLK Build v0.1 - Copyright (c) 2000  by Zenki\n\n");
+#endif
+
+#ifdef UNIX
+    glk_put_string("ADVINT v1.2 - Copyright (c) 1986, by David Betz\n"
+                   "GLK Build v0.1 - Copyright(c) 2000 by Zenki\n\n");
+#endif
     fname = NULL;
     lname = NULL;
     rows = 24;
     cols = 80;
 
-    /* parse the command line */
-    for (i = 1; i < argc; i++)
-	if (argv[i][0] == '-')
-	    switch (argv[i][1]) {
-	    case 'r':
-	    case 'R':
-		    rows = atoi(&argv[i][2]);
-		    break;
-	    case 'c':
-	    case 'C':
-		    cols = atoi(&argv[i][2]);
-		    break;
-	    case 'l':
-	    case 'L':
-		    lname = &argv[i][2];
-	    	    break;
-	    }
-	else
-	    fname = argv[i];
-    if (fname == NULL) {
-	printf("usage: advint [-r<rows>] [-c<columns>] [-l<log-file>] <file>\n");
-	exit();
-    }
-#endif
-
     /* initialize terminal i/o */
     trm_init(rows,cols,lname);
 
+	/* Get the file reference. */
+	file = glk_fileref_create_by_prompt(fileusage_BinaryMode, filemode_Read, SOURCEFILE);
+
+/* END OF CHANGES FOR GLK */
+
     /* initialize the database */
-    db_init(fname);
+    db_init(file);
 
     /* play the game */
     play();
 }
 
 /* play - the main loop */
-play()
+void play()
 {
     /* establish the restart point */
     setjmp(restart);
@@ -124,10 +111,9 @@ int single()
 }
 
 /* error - print an error message and exit */
-error(msg)
-  char *msg;
+void error(char *msg)
 {
     trm_str(msg);
     trm_chr('\n');
-    exit();
+    glk_exit();
 }

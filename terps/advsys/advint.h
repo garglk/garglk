@@ -1,4 +1,3 @@
-
 /* advint.h - adventure interpreter definitions */
 /*
 	Copyright (c) 1986, by David Michael Betz

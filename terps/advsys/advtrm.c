@@ -5,7 +5,7 @@
 	All rights reserved
 */
 
-#include <stdio.h>
+#include "header.h"
 
 /* useful definitions */
 #define TRUE	1
@@ -27,8 +27,7 @@ static FILE *logfp = NULL;
 char *trm_line();
 
 /* trm_init - initialize the terminal module */
-trm_init(rows,cols,name)
-  int rows,cols; char *name;
+void trm_init(int rows, int cols, char *name)
 {
     /* initialize the terminal i/o variables */
     maxcol = cols-1; col = 0;
@@ -36,148 +35,73 @@ trm_init(rows,cols,name)
     wptr = word; wcnt = 0;
     scnt = 0;
 
-    /* open the log file */
-    if (name && (logfp = fopen(name,"w")) == NULL)
-	error("can't open log file");
 }
 
 /* trm_done - finish terminal i/o */
-trm_done()
+void trm_done()
 {
-    if (wcnt) trm_word();
-    if (logfp) fclose(logfp);
+	/* Do nothing now */
 }
 
 /* trm_get - get a line */
-char *trm_get(line)
-  char *line;
+char *trm_get(char *line)
 {
-    if (wcnt) trm_word();
-    while (scnt--) putchr(' ');
-    row = col = scnt = 0;
-    return (trm_line(line));
+ 	return (trm_line(line));
 }
 
 /* trm_str - output a string */
-trm_str(str)
-  char *str;
+void trm_str(char *str)
 {
-    while (*str)
-	trm_chr(*str++);
+	glk_put_string(str);
 }
 
 /* trm_xstr - output a string without logging or word wrap */
-trm_xstr(str)
-  char *str;
+void trm_xstr(char *str)
 {
-    while (*str)
-	putch(*str++,stdout);
+	glk_put_string(str);
 }
 
 /* trm_chr - output a character */
-trm_chr(ch)
-  int ch;
+void trm_chr(int ch)
 {
-    switch (ch) {
-    case ' ':
-	    if (wcnt)
-		trm_word();
-	    scnt++;
-	    break;
-    case '\t':
-	    if (wcnt)
-		trm_word();
-	    scnt = (col + 8) & ~7;
-	    break;
-    case '\n':
-	    if (wcnt)
-		trm_word();
-	    trm_eol();
-	    scnt = 0;
-	    break;
-    default:
-	    if (wcnt < WORDMAX) {
-	        *wptr++ = ch;
-	        wcnt++;
-	    }
-	    break;
-    }
+    glk_put_char(ch);
 }
 
 /* trm_word - output the current word */
-trm_word()
+void trm_word()
 {
-    if (col + scnt + wcnt > maxcol)
-	trm_eol();
-    else
-	while (scnt--)
-	    { putchr(' '); col++; }
-    for (wptr = word; wcnt--; col++)
-	putchr(*wptr++);
-    wptr = word;
-    wcnt = 0;
-    scnt = 0;
+	/* Do nothing */
 }
 
 /* trm_eol - end the current line */
-trm_eol()
+void trm_eol()
 {
-    putchr('\n');
-    if (++row >= maxrow)
-	{ trm_wait(); row = 0; }
-    col = 0;
+    glk_put_char('\n');
+
 }
 
 /* trm_wait - wait for the user to type return */
-trm_wait()
+void trm_wait()
 {
-    trm_xstr("  << MORE >>\r");
-    waitch();
-    trm_xstr("            \r");
+    /* Do nothing.  GLK does waiting for us */
 }
 
 /* trm_line - get an input line */
-char *trm_line(line)
-  char *line;
+char *trm_line(char *line)
 {
-    char *p;
-    int ch;
+	event_t event;
 
-    p = line;
-    while ((ch = getchr()) != EOF && ch != '\n')
-	switch (ch) {
-	case '\177':
-	case '\010':
-		if (p != line) {
-		    if (ch != '\010') putchr('\010',stdout);
-		    putchr(' ',stdout);
-		    putchr('\010',stdout);
-		    p--;
-		}
-		break;
-	default:
-		if ((p - line) < LINEMAX)
-		    *p++ = ch;
-		break;
-	}
-    *p = 0;
-    return (ch == EOF ? NULL : line);
+	do {
+		glk_request_line_event(window, line, LINEMAX, 0);
+		glk_select(&event);
+	
+		switch (event.type) {
+		case evtype_LineInput:
+			line[event.val1] = 0;	/* Null terminate it */
+			break;
+		};
+	} while (event.type != evtype_LineInput);
+
+	return line;
 }
 
-/* getchr - input a single character */
-int getchr()
-{
-    int ch;
-
-    if ((ch = getch()) != EOF && logfp)
-	putch(ch,logfp);
-    return (ch);
-}
-
-/* putchr - output a single character */
-putchr(ch)
-  int ch;
-{
-    if (logfp) putch(ch,logfp);
-    putch(ch,stdout);
-}
