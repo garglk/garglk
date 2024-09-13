@@ -35,7 +35,7 @@
 *       correct number of bits on your system !!!
 \*****************************************************************************/
 
-#ifdef GARGLK
+#ifdef MAGNETIC_GLKUNIX
 #include <stdint.h>
 
 typedef uint8_t type8;

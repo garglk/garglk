@@ -6214,7 +6214,7 @@ glk_main (void)
 /*---------------------------------------------------------------------*/
 /*  Glk linkage relevant only to the UNIX platform                     */
 /*---------------------------------------------------------------------*/
-#ifdef GARGLK
+#ifdef MAGNETIC_GLKUNIX
 
 #include "glkstart.h"
 
@@ -6268,7 +6268,7 @@ glkunix_startup_code (glkunix_startup_t * data)
 
   return gms_startup_code (data->argc, data->argv);
 }
-#endif /* _unix */
+#endif /* MAGNETIC_GLKUNIX */
 
 
 /*---------------------------------------------------------------------*/
