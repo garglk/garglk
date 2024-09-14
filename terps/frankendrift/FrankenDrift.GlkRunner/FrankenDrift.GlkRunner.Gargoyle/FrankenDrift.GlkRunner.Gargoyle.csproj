@@ -13,12 +13,12 @@
 		<ProjectReference Include="..\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.csproj" />
 	</ItemGroup>
 
-	<PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
+	<PropertyGroup Condition="'$(FdAotEnabled)' != 'false'">
 		<PublishAot>true</PublishAot>
 		<TrimmerSingleWarn>false</TrimmerSingleWarn>
 	</PropertyGroup>
 
-	<PropertyGroup Condition="'$(GarglkMode)' == ''">
+	<PropertyGroup Condition="'$(GarglkMode)' == '' And '$(FdAotEnabled)' != 'false'">
 		<GarglkMode>runtime</GarglkMode>
 	</PropertyGroup>
 
