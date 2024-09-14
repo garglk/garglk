@@ -52,9 +52,9 @@ if ($withPdbs) {
 }
 
 if ($withFrankendrift) {
-    Copy-Item "$PSScriptRoot\terps\frankendrift\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.Gargoyle\FrankenDrift.GlkRunner.Gargoyle.exe" "$stagedir"
+    Copy-Item "$builddir\terps\frankendrift\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.Gargoyle\FrankenDrift.GlkRunner.Gargoyle.exe" "$stagedir"
     if ($withPdbs) {
-        Copy-Item "$PSScriptRoot\terps\frankendrift\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.Gargoyle\*.pdb" "$stagedir"
+        Copy-Item "$builddir\terps\frankendrift\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.Gargoyle\*.pdb" "$stagedir"
     }
 }
 
