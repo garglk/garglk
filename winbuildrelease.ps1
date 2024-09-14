@@ -60,8 +60,8 @@ if ($withFrankendrift) {
 
 cd "$stagedir"
 if ($withPdbs) {
-    windeployqt --no-opengl-sw --no-compiler-runtime --no-system-d3d-compiler --no-network --no-pdf --pdb garglk.dll
+    windeployqt --no-opengl-sw --no-compiler-runtime --no-system-d3d-compiler --no-pdf --pdb garglk.dll
 } else {
-    windeployqt --no-opengl-sw --no-compiler-runtime --no-system-d3d-compiler --no-network --no-pdf garglk.dll
+    windeployqt --no-opengl-sw --no-compiler-runtime --no-system-d3d-compiler --no-pdf garglk.dll
 }
 cd $loc
