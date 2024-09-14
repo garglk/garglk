@@ -22,8 +22,6 @@ endif()
 # ... but CAN cross-compile for a different CPU architecture:
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|x64)$")
     set(GARGLK_DOTNET_RID "${GARGLK_DOTNET_RID}-x64")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(i386|i686|X86)$")
-    set(GARGLK_DOTNET_RID "${GARGLK_DOTNET_RID}-x86")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|arm64|aarch64|armv8l)$")
     set(GARGLK_DOTNET_RID "${GARGLK_DOTNET_RID}-arm64")
 else()
