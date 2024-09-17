@@ -77,6 +77,7 @@
 #include <cstring>
 #include <ctime>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -345,10 +346,15 @@ void garglk::View::paintEvent(QPaintEvent *event)
     event->accept();
 }
 
-void garglk::Window::start_timer(long ms)
+void garglk::Window::start_timer(unsigned long ms)
 {
     if (m_timer->isActive()) {
         m_timer->stop();
+    }
+
+    // QTimer::setInterval() takes int, so limit to avoid wrapping.
+    if (ms > std::numeric_limits<int>::max()) {
+        ms = std::numeric_limits<int>::max();
     }
 
     if (ms != 0) {

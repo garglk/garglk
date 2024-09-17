@@ -49,7 +49,7 @@ public:
 
     void refresh() { m_view->refresh(); }
 
-    void start_timer(long);
+    void start_timer(unsigned long);
     bool timed_out() const { return m_timed_out; }
     void reset_timeout() { m_timed_out = false; }
 
