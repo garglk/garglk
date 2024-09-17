@@ -32,7 +32,6 @@
 #include "format.h"
 
 #include "garglk.h"
-#include "gi_blorb.h"
 
 std::string gli_program_name = "Unknown";
 std::string gli_program_info;

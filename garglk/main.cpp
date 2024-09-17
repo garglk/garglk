@@ -19,7 +19,6 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 
 #include "glk.h"
 #include "glkstart.h"
