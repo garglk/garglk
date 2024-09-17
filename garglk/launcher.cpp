@@ -42,7 +42,6 @@
 #include "glkstart.h"
 #include "gi_blorb.h"
 #include "garglk.h"
-#include "garversion.h"
 #include "launcher.h"
 
 #define T_ADRIFT    "scare"

@@ -1177,7 +1177,7 @@ int main(int argc, char **argv)
     [pool drain];
 
     // Read the config file here so that the "save_window" settings are available.
-    gli_read_config(argc, argv, true);
+    gli_read_config(argc, argv);
 
     return NSApplicationMain(argc, const_cast<const char **>(argv));
 }

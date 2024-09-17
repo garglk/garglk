@@ -1119,7 +1119,7 @@ extern void gli_select(event_t *event, bool polled);
 extern void gli_tick();
 #endif
 
-void wininit(int *argc, char **argv);
+void wininit();
 void winopen();
 void wintitle();
 void winmore();
@@ -1154,7 +1154,7 @@ void win_graphics_set_background_color(window_graphics_t *dwin, glui32 color);
 bool win_textbuffer_draw_picture(window_textbuffer_t *dwin, glui32 image, glui32 align, bool scaled, glui32 width, glui32 height);
 void win_textbuffer_flow_break(window_textbuffer_t *win);
 
-void gli_read_config(int argc, char **argv, bool quiet);
+void gli_read_config(int argc, char **argv);
 
 // unicode case mapping
 
