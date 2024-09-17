@@ -1119,7 +1119,7 @@ extern void gli_select(event_t *event, bool polled);
 extern void gli_tick();
 #endif
 
-void wininit(int *argc, char **argv);
+void wininit();
 void winopen();
 void wintitle();
 void winmore();

@@ -379,7 +379,7 @@ static void winhandler(int signal)
     }
 }
 
-void wininit(int *argc, char **argv)
+void wininit()
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     gli_backingscalefactor = BACKING_SCALE_FACTOR;

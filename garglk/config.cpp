@@ -1001,7 +1001,7 @@ void garglk_startup(int argc, char *argv[])
 
     initialized = true;
 
-    wininit(&argc, argv);
+    wininit();
 
     if (argc > 1) {
         glkunix_set_base_file(argv[argc - 1]);
