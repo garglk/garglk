@@ -909,7 +909,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
     });
 }
 
-void gli_read_config(int argc, char **argv, bool quiet)
+void gli_read_config(int argc, char **argv)
 {
 #if __cplusplus >= 201703L
     // load argv0 with name of executable without suffix
@@ -995,7 +995,7 @@ void garglk_startup(int argc, char *argv[])
 
     garglk::theme::init();
 
-    gli_read_config(argc, argv, false);
+    gli_read_config(argc, argv);
 
     gli_more_prompt.resize(base_more_prompt.size() + 1);
     gli_more_prompt_len = gli_parse_utf8(reinterpret_cast<const unsigned char *>(base_more_prompt.data()), base_more_prompt.size(), gli_more_prompt.data(), base_more_prompt.size());
