@@ -77,17 +77,12 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 
 int main(int argc, char *argv[])
 {
-    if (argc == 0) {
-        std::cerr << "argv[0] is null, aborting\n";
-        std::exit(EXIT_FAILURE);
-    }
+    garglk_startup(argc, argv);
 
     glkunix_startup_t startdata;
     startdata.argc = argc;
     startdata.argv = new char *[argc];
     std::memcpy(startdata.argv, argv, argc * sizeof(char *));
-
-    garglk_startup(argc, argv);
 
     if (!glkunix_startup_code(&startdata)) {
         glk_exit();

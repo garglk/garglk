@@ -980,6 +980,11 @@ void garglk_startup(int argc, char *argv[])
 {
     static bool initialized = false;
 
+    if (argc == 0) {
+        std::cerr << "argv[0] is null, aborting\n";
+        std::exit(EXIT_FAILURE);
+    }
+
     if (initialized) {
         gli_strict_warning("garglk_startup called multiple times");
         return;
