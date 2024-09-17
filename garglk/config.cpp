@@ -571,9 +571,12 @@ constexpr const T &config_atleast(const T &value, const T &min)
     return value;
 }
 
-static void readoneconfig(const std::string &fname, const std::string &argv0, const std::string &gamefile)
+static void readoneconfig(const std::string &fname, const std::string &argv0, const nonstd::optional<std::string> &gamefile)
 {
-    std::vector<std::string> matches = {argv0, gamefile};
+    std::vector<std::string> matches = {argv0};
+    if (gamefile.has_value()) {
+        matches.push_back(*gamefile);
+    }
 
     garglk::config_entries(fname, true, matches, [&fname](const std::string &cmd, const std::string &arg, int lineno) {
         auto asbool = [](const std::string &arg) {
@@ -919,9 +922,12 @@ void gli_read_config(int argc, char **argv)
         .string();
 
     // load gamefile with basename of last argument
-    std::string gamefile = std::filesystem::path(argv[argc - 1])
-        .filename()
-        .string();
+    nonstd::optional<std::string> gamefile;
+    if (argc > 1) {
+        std::string gamefile = std::filesystem::path(argv[argc - 1])
+            .filename()
+            .string();
+    }
 #else
     auto basename = [](std::string path) {
         auto slash = path.find_last_of("/\\");
@@ -940,11 +946,14 @@ void gli_read_config(int argc, char **argv)
     }
 
     // load gamefile with basename of last argument
-    std::string gamefile = basename(argv[argc - 1]);
+    nonstd::optional<std::string> gamefile;
+    if (argc > 1) {
+        gamefile = basename(argv[argc - 1]);
+    }
 #endif
 
     // load gamepath with the path to the story file itself
-    std::string gamepath;
+    nonstd::optional<std::string> gamepath;
     if (argc > 1) {
         gamepath = argv[argc - 1];
     }
