@@ -980,13 +980,7 @@ void glk_set_terminators_line_event(winid_t win, glui32 *keycodes, glui32 count)
 
 bool gli_window_check_terminator(glui32 ch)
 {
-    if (ch == keycode_Escape) {
-        return true;
-    } else if (ch >= keycode_Func12 && ch <= keycode_Func1) {
-        return true;
-    } else {
-        return false;
-    }
+    return ch == keycode_Escape || (ch >= keycode_Func12 && ch <= keycode_Func1);
 }
 
 void glk_request_mouse_event(window_t *win)

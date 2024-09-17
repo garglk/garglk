@@ -571,9 +571,12 @@ constexpr const T &config_atleast(const T &value, const T &min)
     return value;
 }
 
-static void readoneconfig(const std::string &fname, const std::string &argv0, const std::string &gamefile)
+static void readoneconfig(const std::string &fname, const std::string &argv0, const nonstd::optional<std::string> &gamefile)
 {
-    std::vector<std::string> matches = {argv0, gamefile};
+    std::vector<std::string> matches = {argv0};
+    if (gamefile.has_value()) {
+        matches.push_back(*gamefile);
+    }
 
     garglk::config_entries(fname, true, matches, [&fname](const std::string &cmd, const std::string &arg, int lineno) {
         auto asbool = [](const std::string &arg) {
@@ -909,7 +912,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
     });
 }
 
-void gli_read_config(int argc, char **argv, bool quiet)
+void gli_read_config(int argc, char **argv)
 {
 #if __cplusplus >= 201703L
     // load argv0 with name of executable without suffix
@@ -919,9 +922,12 @@ void gli_read_config(int argc, char **argv, bool quiet)
         .string();
 
     // load gamefile with basename of last argument
-    std::string gamefile = std::filesystem::path(argv[argc - 1])
-        .filename()
-        .string();
+    nonstd::optional<std::string> gamefile;
+    if (argc > 1) {
+        std::string gamefile = std::filesystem::path(argv[argc - 1])
+            .filename()
+            .string();
+    }
 #else
     auto basename = [](std::string path) {
         auto slash = path.find_last_of("/\\");
@@ -940,11 +946,14 @@ void gli_read_config(int argc, char **argv, bool quiet)
     }
 
     // load gamefile with basename of last argument
-    std::string gamefile = basename(argv[argc - 1]);
+    nonstd::optional<std::string> gamefile;
+    if (argc > 1) {
+        gamefile = basename(argv[argc - 1]);
+    }
 #endif
 
     // load gamepath with the path to the story file itself
-    std::string gamepath;
+    nonstd::optional<std::string> gamepath;
     if (argc > 1) {
         gamepath = argv[argc - 1];
     }
@@ -980,6 +989,11 @@ void garglk_startup(int argc, char *argv[])
 {
     static bool initialized = false;
 
+    if (argc == 0) {
+        std::cerr << "argv[0] is null, aborting\n";
+        std::exit(EXIT_FAILURE);
+    }
+
     if (initialized) {
         gli_strict_warning("garglk_startup called multiple times");
         return;
@@ -987,7 +1001,7 @@ void garglk_startup(int argc, char *argv[])
 
     initialized = true;
 
-    wininit(&argc, argv);
+    wininit();
 
     if (argc > 1) {
         glkunix_set_base_file(argv[argc - 1]);
@@ -995,7 +1009,7 @@ void garglk_startup(int argc, char *argv[])
 
     garglk::theme::init();
 
-    gli_read_config(argc, argv, false);
+    gli_read_config(argc, argv);
 
     gli_more_prompt.resize(base_more_prompt.size() + 1);
     gli_more_prompt_len = gli_parse_utf8(reinterpret_cast<const unsigned char *>(base_more_prompt.data()), base_more_prompt.size(), gli_more_prompt.data(), base_more_prompt.size());
