@@ -3566,11 +3566,11 @@ gagt_display_debug (void)
 
       paragraph = line->paragraph;
       sprintf (buffer,
-               "%2d:%2d->%2ld A=%-3d L=%-2d I=%-2d O=%-2d R=%-2d %c%c| ",
+               "%2d:%2d->%2lld A=%-3d L=%-2d I=%-2d O=%-2d R=%-2d %c%c| ",
                paragraph ? paragraph->id + 1 : 0,
                paragraph ? paragraph->line_count : 0,
-               paragraph && paragraph->special
-                   ? paragraph->special - GAGT_SPECIALS + 1 : 0,
+               (long long)(paragraph && paragraph->special
+                   ? paragraph->special - GAGT_SPECIALS + 1 : 0),
                line->buffer.allocation, line->buffer.length,
                line->indent, line->outdent,
                line->real_length,
