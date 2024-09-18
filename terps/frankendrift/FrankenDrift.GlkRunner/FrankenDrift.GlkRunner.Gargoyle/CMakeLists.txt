@@ -24,8 +24,6 @@ endif()
 # ... but CAN cross-compile for a different CPU architecture:
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|x64|amd64)$")
     set(GARGLK_DOTNET_RID "${GARGLK_DOTNET_RID}-x64")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(i386|i686|X86)$")
-    set(GARGLK_DOTNET_RID "${GARGLK_DOTNET_RID}-x86")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|arm64|aarch64|armv8l)$")
     set(GARGLK_DOTNET_RID "${GARGLK_DOTNET_RID}-arm64")
 else()
@@ -44,7 +42,7 @@ add_custom_target(frankendrift
     ALL
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMAND ${CMAKE_COMMAND} -E copy "${GARGLK_FRANKEN_DYLIB}" "${CMAKE_CURRENT_SOURCE_DIR}"
-    COMMAND ${DOTNET} publish --self-contained -c Release -r "${GARGLK_DOTNET_RID}" -p:GarglkMode=dynamic "-p:BaseIntermediateOutputPath=${CMAKE_CURRENT_BINARY_DIR}/" "-p:BaseOutputPath=${CMAKE_CURRENT_BINARY_DIR}" -o "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMAND ${DOTNET} publish --self-contained -c Release -r "${GARGLK_DOTNET_RID}" -p:GarglkMode=dynamic "-p:BaseIntermediateOutputPath=${CMAKE_CURRENT_BINARY_DIR}/obj/" "-p:BaseOutputPath=${CMAKE_CURRENT_BINARY_DIR}/bin/" -o "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building FrankenDrift with ${DOTNET}"
 )
 
