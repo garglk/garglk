@@ -392,7 +392,7 @@ elseif(UNIX)
         install(FILES "gargoyle.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications" RENAME "io.github.garglk.Gargoyle.desktop")
         install(FILES "io.github.garglk.GargoyleEditConfig.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
         install(FILES "gargoyle-house.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons" RENAME "io.github.garglk.Gargoyle.png")
-        install(FILES "interactive-fiction.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/mime/packages")
+        install(FILES "shared-mime-info.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/mime/packages" RENAME "gargoyle.xml")
         install(FILES "io.github.garglk.Gargoyle.appdata.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")
 
         foreach(terp adrift advsys agt alan blorb glulx hugo-image level9 magscroll tads zmachine)

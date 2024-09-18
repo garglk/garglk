@@ -135,7 +135,7 @@ ${frankendrift_spec}
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-zmachine.png
 %{_datarootdir}/man/man6/gargoyle.6.gz
 %{_datarootdir}/metainfo/io.github.garglk.Gargoyle.appdata.xml
-%{_datarootdir}/mime/packages/interactive-fiction.xml
+%{_datarootdir}/mime/packages/gargoyle.xml
 
 %clean
 %if "%{clean}" != ""
