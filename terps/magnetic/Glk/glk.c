@@ -640,11 +640,7 @@ static const int GMS_GRAPHICS_ANIMATION_WAIT = 2,
                  GMS_GRAPHICS_REPAINT_WAIT = 10;
 
 /* Pixel size multiplier for image size scaling. */
-#ifdef GARGLK
 static int GMS_GRAPHICS_PIXEL = 2;
-#else
-static const int GMS_GRAPHICS_PIXEL = 2;
-#endif
 
 /* Proportion of the display to use for graphics. */
 static const glui32 GMS_GRAPHICS_PROPORTION = 60;
@@ -4639,13 +4635,9 @@ gms_command_print_version_number (glui32 version)
   char buffer[64];
 
   sprintf (buffer, "%lu.%lu.%lu",
-#ifdef GARGLK
           (unsigned long) version >> 16,
           (unsigned long) (version >> 8) & 0xff,
           (unsigned long) version & 0xff);
-#else
-           version >> 16, (version >> 8) & 0xff, version & 0xff);
-#endif
   gms_normal_string (buffer);
 }
 
@@ -5583,11 +5575,7 @@ ms_save_file (type8s * name, type8 * ptr, type16 size)
         }
 
       /* Write game state. */
-#ifdef GARGLK
       glk_put_buffer_stream (stream, (char *)ptr, size);
-#else
-      glk_put_buffer_stream (stream, ptr, size);
-#endif
 
       glk_stream_close (stream, NULL);
       glk_fileref_destroy (fileref);
@@ -5670,11 +5658,7 @@ ms_load_file (type8s * name, type8 * ptr, type16 size)
         }
 
       /* Restore saved game data. */
-#ifdef GARGLK
       glk_get_buffer_stream (stream, (char *)ptr, size);
-#else
-      glk_get_buffer_stream (stream, ptr, size);
-#endif
 
       glk_stream_close (stream, NULL);
       glk_fileref_destroy (fileref);
@@ -5930,7 +5914,6 @@ gms_startup_code (int argc, char *argv[])
           gms_prompt_enabled = FALSE;
           continue;
         }
-#ifdef GARGLK
       if (strcmp (argv[argv_index], "-sc") == 0)
         {
           char *endptr;
@@ -5941,7 +5924,6 @@ gms_startup_code (int argc, char *argv[])
             }
           continue;
         }
-#endif
       return FALSE;
     }
 
@@ -6214,7 +6196,7 @@ glk_main (void)
 /*---------------------------------------------------------------------*/
 /*  Glk linkage relevant only to the UNIX platform                     */
 /*---------------------------------------------------------------------*/
-#ifdef GARGLK
+#ifdef MAGNETIC_GLKUNIX
 
 #include "glkstart.h"
 
@@ -6234,10 +6216,8 @@ glkunix_argumentlist_t glkunix_arguments[] = {
    (char *) "-nx        Turn off picture animations"},
   {(char *) "-ne", glkunix_arg_NoValue,
    (char *) "-ne        Turn off additional interpreter prompt"},
-#ifdef GARGLK
   {(char *) "-sc", glkunix_arg_ValueFollows,
    (char *) "-sc        Scale pictures by integer value (1-8)"},
-#endif
   {(char *) "", glkunix_arg_ValueCanFollow,
    (char *) "filename   game to run"},
   {NULL, glkunix_arg_End, NULL}
@@ -6268,7 +6248,7 @@ glkunix_startup_code (glkunix_startup_t * data)
 
   return gms_startup_code (data->argc, data->argv);
 }
-#endif /* _unix */
+#endif /* MAGNETIC_GLKUNIX */
 
 
 /*---------------------------------------------------------------------*/

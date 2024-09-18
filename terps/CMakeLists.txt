@@ -327,7 +327,8 @@ endif()
 if(WITH_MAGNETIC)
     terp(magnetic
         SRCS magnetic/Generic/emu.c magnetic/Glk/glk.c
-        INCLUDE_DIRS magnetic/Generic)
+        INCLUDE_DIRS magnetic/Generic
+        MACROS MAGNETIC_GLKUNIX)
 endif()
 
 # ------------------------------------------------------------------------------
