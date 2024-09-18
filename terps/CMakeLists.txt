@@ -329,6 +329,12 @@ if(WITH_MAGNETIC)
         SRCS magnetic/Generic/emu.c magnetic/Glk/glk.c
         INCLUDE_DIRS magnetic/Generic
         MACROS MAGNETIC_GLKUNIX)
+
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang$")
+        # The alternative to this is lots of casts; ignore this warning
+        # unless it becomes a problem with a more strict compiler.
+        target_compile_options(magnetic PRIVATE "-Wno-pointer-sign")
+    endif()
 endif()
 
 # ------------------------------------------------------------------------------

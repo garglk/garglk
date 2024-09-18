@@ -49,10 +49,6 @@
 
 #include "glk.h"
 
-#if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic ignored "-Wpointer-sign"
-#endif
-
 /*
  * True and false definitions -- usually defined in glkstart.h, but we need
  * them early, so we'll define them here too.  We also need NULL, but that's
