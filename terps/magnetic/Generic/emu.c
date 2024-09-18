@@ -268,10 +268,6 @@
 #include <time.h>
 #include "defs.h"
 
-#if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic ignored "-Wpointer-sign"
-#endif
-
 #if defined(__MSDOS__) && defined(__BORLANDC__)
 
 #include <alloc.h>
