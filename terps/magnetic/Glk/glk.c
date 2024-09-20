@@ -1829,27 +1829,25 @@ break_y_max:
 
 #ifdef GARGLK
 static void
-gms_graphics_paint_everything (winid_t glk_window,
-			glui32 palette[],
-			type8 off_screen[],
-			int x_offset, int y_offset,
-			type16 width, type16 height)
+gms_graphics_paint_everything (winid_t glk_window, glui32 palette[],
+                              type8 off_screen[], int x_offset,
+                              int y_offset, type16 width, type16 height)
 {
-	type8		pixel;			/* Reference pixel color */
-	int		x, y;
+  type8 pixel; /* Reference pixel color */
+  int x, y;
 
-	for (y = 0; y < height; y++)
-	{
-	    for (x = 0; x < width; x ++)
-	    {
-		pixel = off_screen[ y * width + x ];
-		glk_window_fill_rect (glk_window,
-			palette[ pixel ],
-			x * GMS_GRAPHICS_PIXEL + x_offset,
-			y * GMS_GRAPHICS_PIXEL + y_offset,
-			GMS_GRAPHICS_PIXEL, GMS_GRAPHICS_PIXEL);
-	    }
-	}
+  for (y = 0; y < height; y++)
+    {
+      for (x = 0; x < width; x++)
+        {
+          pixel = off_screen[y * width + x];
+          glk_window_fill_rect (glk_window,
+                                palette[pixel],
+                                x * GMS_GRAPHICS_PIXEL + x_offset,
+                                y * GMS_GRAPHICS_PIXEL + y_offset,
+                                GMS_GRAPHICS_PIXEL, GMS_GRAPHICS_PIXEL);
+        }
+    }
 }
 #endif
 
@@ -2145,12 +2143,9 @@ gms_graphics_timeout (void)
   total_regions += regions;
 
 #else
-	gms_graphics_paint_everything
-	    (gms_graphics_window,
-	     palette, off_screen,
-	     x_offset, y_offset,
-	     gms_graphics_width,
-	     gms_graphics_height);
+  gms_graphics_paint_everything (gms_graphics_window, palette, off_screen,
+                                 x_offset, y_offset,
+                                 gms_graphics_width, gms_graphics_height);
 #endif
 
   /*
@@ -2556,10 +2551,9 @@ gms_status_update (void)
       glk_set_window (gms_status_window);
 
 #ifdef GARGLK
-      glk_set_style(style_User1);
-      for (glui32 index = 0; index < width; index++) {
+      glk_set_style (style_User1);
+      for (glui32 index = 0; index < width; index++)
         glk_put_char (' ');
-      }
       glk_window_move_cursor (gms_status_window, 1, 0);
 #endif
 
@@ -5939,13 +5933,13 @@ gms_startup_code (int argc, char *argv[])
       gms_gamefile = argv[argv_index];
       gms_game_message = NULL;
 #ifdef GARGLK
-    {
       char *s;
       s = strrchr(gms_gamefile, '\\');
-      if (s) garglk_set_story_name(s+1);
+      if (s)
+        garglk_set_story_name(s+1);
       s = strrchr(gms_gamefile, '/');
-      if (s) garglk_set_story_name(s+1);
-    }
+      if (s)
+        garglk_set_story_name(s+1);
 #endif
     }
   else
@@ -6238,8 +6232,8 @@ glkunix_startup_code (glkunix_startup_t * data)
   gms_startup_called = TRUE;
 
 #ifdef GARGLK
-  garglk_set_program_name("Magnetic 2.3");
-  garglk_set_program_info(
+  garglk_set_program_name ("Magnetic 2.3");
+  garglk_set_program_info (
       "Magnetic 2.3 by Niclas Karlsson, David Kinder,\n"
       "Stefan Meier, and Paul David Doherty.\n"
       "Glk port by Simon Baldwin.\n"
