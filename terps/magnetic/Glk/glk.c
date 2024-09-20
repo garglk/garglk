@@ -640,10 +640,15 @@ static const int GMS_GRAPHICS_ANIMATION_WAIT = 2,
                  GMS_GRAPHICS_REPAINT_WAIT = 10;
 
 /* Pixel size multiplier for image size scaling. */
-static int GMS_GRAPHICS_PIXEL = 2;
+static int gms_graphics_pixel = 2;
 
 /* Proportion of the display to use for graphics. */
-static const glui32 GMS_GRAPHICS_PROPORTION = 60;
+static glui32 gms_graphics_proportion = 60;
+
+/* Height, in pixels, of the graphics window. Takes precendence over
+ * gms_graphics_pixel. If 0, ignore.
+ */
+static glui32 gms_graphics_height_pixels = 0;
 
 /*
  * Border and shading control.  For cases where we can't detect the back-
@@ -723,11 +728,22 @@ gms_graphics_open (void)
 {
   if (!gms_graphics_window)
     {
-      gms_graphics_window = glk_window_open (gms_main_window,
-                                             winmethod_Above
-                                             | winmethod_Proportional,
-                                             GMS_GRAPHICS_PROPORTION,
-                                             wintype_Graphics, 0);
+      if (gms_graphics_height_pixels > 0)
+        {
+          gms_graphics_window = glk_window_open (gms_main_window,
+                                                winmethod_Above
+                                                | winmethod_Fixed,
+                                                gms_graphics_height_pixels,
+                                                wintype_Graphics, 0);
+        }
+      else
+        {
+          gms_graphics_window = glk_window_open (gms_main_window,
+                                                 winmethod_Above
+                                                 | winmethod_Proportional,
+                                                 gms_graphics_proportion,
+                                                 wintype_Graphics, 0);
+        }
     }
 
   return gms_graphics_window != NULL;
@@ -1843,9 +1859,9 @@ gms_graphics_paint_everything (winid_t glk_window, glui32 palette[],
           pixel = off_screen[y * width + x];
           glk_window_fill_rect (glk_window,
                                 palette[pixel],
-                                x * GMS_GRAPHICS_PIXEL + x_offset,
-                                y * GMS_GRAPHICS_PIXEL + y_offset,
-                                GMS_GRAPHICS_PIXEL, GMS_GRAPHICS_PIXEL);
+                                x * gms_graphics_pixel + x_offset,
+                                y * gms_graphics_pixel + y_offset,
+                                gms_graphics_pixel, gms_graphics_pixel);
         }
     }
 }
@@ -1999,7 +2015,7 @@ gms_graphics_timeout (void)
        * window.
        */
       gms_graphics_position_picture (gms_graphics_window,
-                                     GMS_GRAPHICS_PIXEL,
+                                     gms_graphics_pixel,
                                      gms_graphics_width, gms_graphics_height,
                                      &x_offset, &y_offset);
 
@@ -2031,7 +2047,7 @@ gms_graphics_timeout (void)
       /* Clear the graphics window. */
       gms_graphics_clear_and_border (gms_graphics_window,
                                      x_offset, y_offset,
-                                     GMS_GRAPHICS_PIXEL,
+                                     gms_graphics_pixel,
                                      gms_graphics_width, gms_graphics_height);
 
       /* Start a fresh picture rendering pass. */
@@ -2100,7 +2116,7 @@ gms_graphics_timeout (void)
                                              palette, layers,
                                              off_screen, on_screen,
                                              x, y, x_offset, y_offset,
-                                             GMS_GRAPHICS_PIXEL,
+                                             gms_graphics_pixel,
                                              gms_graphics_width,
                                              gms_graphics_height);
 
@@ -5914,7 +5930,27 @@ gms_startup_code (int argc, char *argv[])
           long scale = strtol(argv[++argv_index], &endptr, 10);
           if (scale >= 1 && scale <= 8 && *endptr == 0)
             {
-              GMS_GRAPHICS_PIXEL = scale;
+              gms_graphics_pixel = scale;
+            }
+          continue;
+        }
+      if (strcmp (argv[argv_index], "-gp") == 0)
+        {
+          char *endptr;
+          long proportion = strtol(argv[++argv_index], &endptr, 10);
+          if (proportion >= 1 && proportion <= 100 && *endptr == 0)
+            {
+              gms_graphics_proportion = proportion;
+            }
+          continue;
+        }
+      if (strcmp (argv[argv_index], "-gx") == 0)
+        {
+          char *endptr;
+          long pixels = strtol(argv[++argv_index], &endptr, 10);
+          if (pixels > 0 && *endptr == 0)
+            {
+              gms_graphics_height_pixels = pixels;
             }
           continue;
         }
