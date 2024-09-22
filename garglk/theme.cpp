@@ -95,7 +95,7 @@ namespace {
 struct ThemeStyles {
     std::array<ColorPair, style_NUMSTYLES> colors;
 
-    void to(std::array<style_t, style_NUMSTYLES> &styles) const {
+    void to(Styles &styles) const {
         for (int i = 0; i < style_NUMSTYLES; i++) {
             styles[i].fg = colors[i].fg;
             styles[i].bg = colors[i].bg;
