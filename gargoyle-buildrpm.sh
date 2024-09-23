@@ -125,13 +125,15 @@ ${frankendrift_spec}
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-adrift.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-advsys.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-agt.png
-%{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-alan.png
+%{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-alan-adventure-game.png
+%{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-alan3-adventure-game.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-blorb.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-glulx.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-hugo-image.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-level9.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-magscroll.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-tads.png
+%{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-t3vm-image.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-zmachine.png
 %{_datarootdir}/man/man6/gargoyle.6.gz
 %{_datarootdir}/metainfo/io.github.garglk.Gargoyle.appdata.xml

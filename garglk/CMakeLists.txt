@@ -395,7 +395,7 @@ elseif(UNIX)
         install(FILES "shared-mime-info.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/mime/packages" RENAME "gargoyle.xml")
         install(FILES "io.github.garglk.Gargoyle.appdata.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")
 
-        foreach(terp adrift advsys agt alan blorb glulx hugo-image level9 magscroll tads zmachine)
+        foreach(terp adrift advsys agt alan-adventure-game alan3-adventure-game blorb glulx hugo-image level9 magscroll tads t3vm-image zmachine)
             install(FILES "gargoyle-docu2.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/32x32/mimetypes" RENAME "application-x-${terp}.png")
         endforeach()
     endif()
