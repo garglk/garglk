@@ -221,7 +221,7 @@ static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned cha
     jerr.error_exit = [](j_common_ptr cinfo) {
         std::array<char, JMSG_LENGTH_MAX> msg;
         cinfo->err->format_message(cinfo, msg.data());
-        throw LoadError("jpeg", msg.data());
+        throw LoadError("jpg", msg.data());
     };
 
     jpeg_create_decompress(&cinfo);
