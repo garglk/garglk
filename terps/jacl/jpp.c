@@ -20,34 +20,15 @@
 #include "language.h"
 #include "types.h"
 #include "prototypes.h"
+#include "encapsulate.h"
 #include <string.h>
 
-extern char			text_buffer[];
-extern char			temp_buffer[];
-extern char			*word[];
-extern short int	quoted[];
-extern short int	punctuated[];
-extern int			wp;
+static int			lines_written;
 
-extern char			user_id[];
-extern char			prefix[];
-extern char			game_path[];
-extern char			game_file[];
-extern char			processed_file[];
+static FILE 	 	*outputFile = NULL;
+static FILE   	    *inputFile = NULL;
 
-extern short int	encrypted;
-
-extern char			include_directory[];
-extern char			temp_directory[];
-
-extern char			error_buffer[];
-
-int					lines_written;
-
-FILE 	 	        *outputFile = NULL;
-FILE   	    		*inputFile = NULL;
-
-char				*stripped_line;
+static char			*stripped_line;
 
 /* INDICATES THAT THE CURRENT '.j2' FILE BEING WORKED 
  * WITH BEING PREPARED FOR RELEASE (DON'T INCLUDE DEBUG LIBARIES) */
@@ -55,11 +36,13 @@ short int			release = FALSE;
 
 /* INDICATES THAT THE CURRENT '.j2' FILE BEING WORKED 
  * SHOULD BE ENCRYPTED */
-short int			do_encrypt = TRUE;
+static short int	do_encrypt = TRUE;
 
 /* INDICATES THAT THE CURRENT '.processed' FILE BRING WRITTEN SHOULD NOW
  * HAVE EACH LINE ENCRYPTED AS THE FIRST NONE COMMENT LINE HAS BEEN HIT */
-short int			encrypting = FALSE;
+static short int	encrypting = FALSE;
+
+static int process_file(const char *sourceFile1, const char *sourceFile2);
 
 int
 jpp()
@@ -134,9 +117,7 @@ jpp()
 }
 
 int
-process_file(sourceFile1, sourceFile2)
-	 char           *sourceFile1;
-	 char           *sourceFile2;
+process_file(const char *sourceFile1, const char *sourceFile2)
 {
 	char            temp_buffer1[1025];
 	char            temp_buffer2[1025];
@@ -195,11 +176,7 @@ process_file(sourceFile1, sourceFile2)
 			if (!encrypting && *stripped_line != '#' && *stripped_line != '\0' && do_encrypt & release) {
 				/* START ENCRYPTING FROM THE FIRST NON-COMMENT LINE IN
 				 * THE SOURCE FILE */
-#ifdef WIN32
-				fputs("#encrypted\r\n", outputFile);
-#else
 				fputs("#encrypted\n", outputFile);
-#endif
 				encrypting = TRUE;
 			} 
 
@@ -212,11 +189,7 @@ process_file(sourceFile1, sourceFile2)
 
 			lines_written++;
 			if (lines_written == 1) {
-#ifdef WIN32
-				sprintf(temp_buffer, "#processed:%d\r\n", INTERPRETER_VERSION);
-#else
 				sprintf(temp_buffer, "#processed:%d\n", INTERPRETER_VERSION);
-#endif
 				fputs(temp_buffer, outputFile);
 			}
 		}
