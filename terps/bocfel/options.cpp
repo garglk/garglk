@@ -474,7 +474,7 @@ std::vector<std::pair<char, OptValue>> Options::sorted_opts()
         unsigned char a = a_.first, b = b_.first;
 
         if (std::tolower(a) == std::tolower(b)) {
-            return static_cast<bool>(std::islower(a));
+            return std::islower(a) && std::isupper(b);
         }
 
         return std::tolower(a) < std::tolower(b);
