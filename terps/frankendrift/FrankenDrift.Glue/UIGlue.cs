@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Net.Sockets;
 
 namespace FrankenDrift.Glue
 {
@@ -27,21 +26,19 @@ namespace FrankenDrift.Glue
 
         public void SetGameName(string name);
 
-        public bool IsTranscriptActive();
-
         // Scrolls to the end of the output window
         public void ScrollToEnd();
 
         public bool AskYesNoQuestion(string question, string title = null);
         public void ShowInfo(string info, string title = null);
 
-        // public string QueryOpenPath();
+
         public string QuerySavePath();
         public string QueryRestorePath();
         public QueryResult QuerySaveBeforeQuit();
 
         public void OutputHTML(string source);
-        // public void ClearOutput();
+
         public void InitInput();
 
         public void ShowCoverArt(byte[] img);
@@ -51,11 +48,6 @@ namespace FrankenDrift.Glue
         public string GetExecutableLocation();
         public string GetExecutablePath();
         public string GetClaimedAdriftVersion();
-    }
-
-    public interface ComboBox
-    {
-        int SelectedItem { get; set; }
     }
 
     public interface frmRunner
@@ -79,8 +71,8 @@ namespace FrankenDrift.Glue
 
     public interface RichTextBox
     {
-        public void Clear(); // => Application.Frontend.ClearOutput();
-        public int TextLength { get; } // => Application.Frontend.GetOutputLength();
+        public void Clear();
+        public int TextLength { get; }
         public string Text { get; set; }
         public string SelectedText { get; set; }
         public int SelectionStart { get; set; }
