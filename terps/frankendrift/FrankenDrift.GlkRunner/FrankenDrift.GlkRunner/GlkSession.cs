@@ -160,12 +160,9 @@ namespace FrankenDrift.GlkRunner
         public void InitInput()
         { }
 
-        public bool IsTranscriptActive() => false;
-
         public void MakeNote(string msg)
         {
-            if (_output is not null)
-                _output.AppendHTML($"ADRIFT Note: {msg}");
+            _output?.AppendHTML($"ADRIFT Note: {msg}");
         }
 
         public void OutputHTML(string source) => _output.AppendHTML(source);
@@ -176,7 +173,7 @@ namespace FrankenDrift.GlkRunner
             if (!fileref.IsValid) return "";
             var result = GlkApi.glkunix_fileref_get_name(fileref);
             GlkApi.glk_fileref_destroy(fileref);
-            return result;
+            return result ?? "";
         }
 
         public QueryResult QuerySaveBeforeQuit()
@@ -209,7 +206,7 @@ namespace FrankenDrift.GlkRunner
             if (!fileref.IsValid) return "";
             var result = GlkApi.glkunix_fileref_get_name(fileref);
             GlkApi.glk_fileref_destroy(fileref);
-            return result;
+            return result ?? "";
         }
 
         public void ReloadMacros() { }
@@ -276,10 +273,29 @@ namespace FrankenDrift.GlkRunner
         internal void SubmitCommand(string cmd)
         {
             cmd = cmd.Trim(' ');
-            if (cmd == "!dumpstyles")
+            if (cmd.StartsWith('!'))
             {
-                _output!.DumpCurrentStyleInfo();
-                return;
+                var metacmd = cmd.ToLower();
+                switch (metacmd)
+                {
+                    case "!dumpstyles":
+                        _output!.DumpCurrentStyleInfo();
+                        return;
+                    case "!transcript":
+                    case "!script":
+                    case "!transcripton":
+                    case "!scripton":
+                        TranscriptOn();
+                        return;
+                    case "!transcriptoff":
+                    case "!scriptoff":
+                        TranscriptOff();
+                        return;
+                    case "!help":
+                    case "!metahelp":
+                        ShowMetaHelp();
+                        return;
+                }
             }
             Adrift.SharedModule.UserSession.Process(cmd);
             Adrift.SharedModule.Adventure.Turns += 1;
@@ -303,7 +319,7 @@ namespace FrankenDrift.GlkRunner
                 score = Adrift.SharedModule.ReplaceALRs(score);
                 user = Adrift.SharedModule.ReplaceALRs(user);
                 var winWidth = _status.Width;
-                var spaces = (winWidth - desc.Length - score.Length - 1) / 2;
+                var spaces = (winWidth - desc.Length - score.Length - user.Length - 1) / 2;
                 if (spaces < 2) spaces = 2;
                 _status.RewriteStatus(desc + new string(' ', spaces) + score + new string(' ', spaces) + user);
             }
@@ -342,6 +358,44 @@ namespace FrankenDrift.GlkRunner
             GlkApi.glk_schannel_stop(_sndChannels[channel]);
             if (_recentlyPlayedSounds.ContainsKey(channel))
                 _recentlyPlayedSounds.Remove(channel);
+        }
+
+        internal void TranscriptOn()
+        {
+            if (_output is null) return;
+            if (_output is { IsEchoing: true })
+            {
+                OutputHTML("<i>Transcript is already on -- use <font face=\"Courier\">!scriptoff</font> to disable it.</i>\n");
+                return;
+            }
+            var fileref = GlkApi.glk_fileref_create_by_prompt(FileUsage.Transcript | FileUsage.TextMode, Glk.FileMode.Write, 0);
+            try
+            {
+                _output.EchoStream = GlkApi.glk_stream_open_file(fileref, Glk.FileMode.Write, 0);
+            }
+            finally
+            {
+                GlkApi.glk_fileref_destroy(fileref);
+            }
+        }
+
+        internal void TranscriptOff()
+        {
+            if (_output is null) return;
+            if (_output is { IsEchoing: false })
+            {
+                OutputHTML("<i>Transcript is not running -- use <font face=\"Courier\">!scripton</font> to start it.</i>\n");
+                return;
+            }
+            StreamResult result = new();
+            GlkApi.glk_stream_close(_output.EchoStream, ref result);
+        }
+
+        internal void ShowMetaHelp()
+        {
+            if (_output is null)
+                return;  // not like anyone could input a meta-command without the output window existing
+            OutputHTML("<i>Meta-Commands understood by FrankenDrift:\n<font face=\"Courier\">!scripton</font> -- start a transcript\n<font face=\"Courier\">!scriptoff</font> -- stop a running transcript\n<font face=\"Courier\">!dumpstyles</font> -- show the Glk style settings</i>\n");
         }
     }
 

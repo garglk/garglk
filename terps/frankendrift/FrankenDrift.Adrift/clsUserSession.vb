@@ -20,7 +20,6 @@ Public Class RunnerSession
     Friend dictMacros As New Generic.Dictionary(Of String, clsMacro)
     Friend bSystemTask As Boolean = False
     Public salCommands As New StringArrayList
-    Public sTranscriptFile As String
     Public bShowShortLocations As Boolean = True
     Friend iPreviousOffset As Integer
     Public sGameFolder As String
@@ -317,31 +316,17 @@ Public Class RunnerSession
             ' Ensure text doesn't get output more than once...
             Dim theText As String = sOutputText
             sOutputText = ""
-            If Not (sText.StartsWith("<c>") AndAlso sText.EndsWith("</c>" & vbCrLf)) Then UnderlineNouns(sOutputText)
             Source2HTML(theText, fRunner.txtOutput, False)
-            If Glue.IsTranscriptActive() Then
-                Try
-                    Dim stmWriter As New IO.StreamWriter(sTranscriptFile, True)
-                    stmWriter.Write(StripCarats(theText).Replace("Ø", ">"))
-                    stmWriter.Close()
-                Catch exIO As IO.IOException
-                    ErrMsg("Unable to output to transcript: " & exIO.Message)
-                End Try
-            End If
 
             If bRecord Then
-                While sOutputText.EndsWith(vbCrLf)
-                    sOutputText = sOutputText.Substring(0, theText.Length - 2)
+                While theText.EndsWith(vbCrLf)
+                    theText = theText.Substring(0, theText.Length - 2)
                 End While
                 sTurnOutput &= theText
             End If
         End If
 
         bDisplaying = False
-    End Sub
-
-    Private Sub UnderlineNouns(ByRef sText As String)
-        Exit Sub
     End Sub
 
     Public Sub LoadDefaults()
