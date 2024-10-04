@@ -61,9 +61,9 @@ protected:
     void moveEvent(QMoveEvent *) override;
 
 private:
-    View *m_view;
-    QTimer *m_timer;
-    QSettings *m_settings;
+    View *const m_view;
+    QTimer *const m_timer;
+    QSettings *const m_settings;
     bool m_timed_out = false;
 };
 

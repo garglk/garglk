@@ -284,7 +284,7 @@ public:
     }
 
 private:
-    unsigned char *m_data;
+    unsigned char *const m_data;
 };
 
 template <std::size_t N>
@@ -305,7 +305,7 @@ public:
     }
 
 private:
-    unsigned char *m_row;
+    unsigned char *const m_row;
 };
 
 template <std::size_t N>
@@ -319,7 +319,7 @@ public:
     }
 
 private:
-    const unsigned char *m_row;
+    const unsigned char *const m_row;
 };
 
 template <std::size_t N>
