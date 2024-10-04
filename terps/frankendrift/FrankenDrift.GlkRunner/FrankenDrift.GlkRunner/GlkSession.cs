@@ -100,12 +100,25 @@ namespace FrankenDrift.GlkRunner
 
         public bool AskYesNoQuestion(string question, string title = null)
         {
-            throw new NotImplementedException();
-        }
-
-        public void ComplainAboutVersionMismatch(string advVer, string terpVer)
-        {
-            throw new NotImplementedException();
+            if (_output is null)
+                _output = new(GlkApi);
+            if (title is not null)
+                _output.AppendHTML($"\n<font color=\"red\"><b>{title}</b></font>");
+            _output.AppendHTML($"\n<font color=\"red\">{question}</font>");
+            while (true)
+            {
+                _output.AppendHTML("\n[yes/no] > ");
+                var result = _output.GetLineInput().ToLower();
+                switch (result)
+                {
+                    case "y":
+                    case "yes":
+                        return true;
+                    case "n":
+                    case "no":
+                        return false;
+                }
+            }
         }
 
         public void DoEvents()

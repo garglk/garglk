@@ -35,10 +35,6 @@ namespace FrankenDrift.Glue
         public bool AskYesNoQuestion(string question, string title = null);
         public void ShowInfo(string info, string title = null);
 
-        // Implements:
-        // UI.ErrMsg("ADRIFT " & advVer & " Adventures are not currently supported in ADRIFT v" & terpVer)
-        public void ComplainAboutVersionMismatch(string advVer, string terpVer);
-
         // public string QueryOpenPath();
         public string QuerySavePath();
         public string QueryRestorePath();
