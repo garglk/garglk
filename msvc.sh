@@ -2,7 +2,7 @@
 
 set -ex
 
-qt="$HOME/Qt/6.6.0/msvc2019_64"
+qt="$HOME/Qt/current/msvc2022_64"
 
 nproc=$(getconf _NPROCESSORS_ONLN)
 
