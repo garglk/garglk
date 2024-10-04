@@ -181,7 +181,26 @@ namespace FrankenDrift.GlkRunner
 
         public QueryResult QuerySaveBeforeQuit()
         {
-            throw new NotImplementedException();
+            if (_output is null)
+                _output = new(GlkApi);
+            _output.AppendHTML("\n<b><font color=\"red\">Would you like to save before quitting?</font></b>");
+            while (true)
+            {
+                _output.AppendHTML("\n[yes/no/cancel] > ");
+                var result = _output.GetLineInput().ToLower();
+                switch (result)
+                {
+                    case "y":
+                    case "yes":
+                        return QueryResult.YES;
+                    case "n":
+                    case "no":
+                        return QueryResult.NO;
+                    case "c":
+                    case "cancel":
+                        return QueryResult.CANCEL;
+                }
+            }
         }
 
         public string QuerySavePath()
@@ -246,7 +265,7 @@ namespace FrankenDrift.GlkRunner
 
         public void ShowInfo(string info, string title = null)
         {
-            throw new NotImplementedException();
+            MakeNote(info);
         }
 
         public void SubmitCommand()
