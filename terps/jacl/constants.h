@@ -53,9 +53,9 @@
 #define TOUCHED         8388608
 #define SCORED          16777216
 #define SITTING         33554432
-#define NPC				67108864
+#define NPC             67108864
 #define DONE            134217728
-#define GAS	            268435456
+#define GAS	         268435456
 #define NO_TAB          536870912
 #define NOT_IMPORTANT   1073741824
 
@@ -102,12 +102,17 @@
 #define MULTI_PREFIX			integer_resolve("multi_prefix")
 #define NOTIFY					integer_resolve("notify")
 #define DEBUG					integer_resolve("debug")
+#define LOCAL					integer_resolve("local")
+#define LOCAL_X				integer_resolve("local_x")
+#define LOCAL_Y				integer_resolve("local_y")
+#define LOCAL_A				integer_resolve("local_a")
 
 /* SYSTEM INTEGER CONSTANTS */
 
 #define SOUND_SUPPORTED			cinteger_resolve("sound_supported")
 #define GRAPHICS_SUPPORTED		cinteger_resolve("graphics_supported")
 #define TIMER_SUPPORTED			cinteger_resolve("timer_supported")
+#define REMOTE_USER_USED			cinteger_resolve("remote_user")
 
 /* ABBREVIATIONS */
 

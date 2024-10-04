@@ -3,6 +3,9 @@
  * according to GNU GPL, see file COPYING for details.
  */
 
+#ifndef __JACL_TYPES_H__
+#define __JACL_TYPES_H__
+
 #include "constants.h"
 
 // THIS STRUCTURE CONTAINS ALL THE INFORMATION THAT NEEDS TO BE 
@@ -33,10 +36,11 @@ struct stack_type {
 	char			override[84];
 	char			scope_criterion[24];
 	char			default_function[84];
-	char			*word[MAX_WORDS];
+	const char		*word[MAX_WORDS];
 	int				quoted[MAX_WORDS];
 	int				wp;
 	int				argcount;
+	int			local, local_x, local_y, local_a;
 	int				*loop_integer;
 	int				*select_integer;
 	int				criterion_value;
@@ -102,7 +106,7 @@ struct attribute_type {
 
 struct string_type {
 	char            name[44];
-	char            value[256];
+	char            value[1025];
 	struct string_type *next_string;
 };
 
@@ -118,6 +122,7 @@ struct function_type {
     int				call_count;
     int				call_count_backup;
 	struct function_type *next_function;
+	int				nosave;
 };
 
 struct command_type {
@@ -164,4 +169,6 @@ struct parameter_type {
 	int             high;
 	struct parameter_type *next_parameter;
 };
+#endif
+
 #endif
