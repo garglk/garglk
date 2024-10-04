@@ -8,14 +8,9 @@
 #include "prototypes.h"
 #include "language.h"
 
-extern char						user_id[];
-extern char						prefix[];
-
 #ifdef __NDS__
 void
-log_error(message, console)
-	char        *message;
-	int			console;
+log_error(const char *message, int console)
 {
 	char 			consoleMessage[256];
 
@@ -26,9 +21,7 @@ log_error(message, console)
 #endif
 #ifdef GLK
 void
-log_error(message, console)
-	char        *message;
-	int			console;
+log_error(const char *message, int console)
 {
 	/* LOG A MESSAGE TO THE CONSOLE */
 
@@ -52,8 +45,7 @@ extern char						error_log[];
 extern char						access_log[];
 
 void
-log_access(message)
-	 char           *message;
+log_access(const char *message)
 {
 	/* LOG A MESSAGE TO THE ACCESS LOG */
 
@@ -67,9 +59,7 @@ log_access(message)
 }
 
 void
-log_error(message, console)
-	char        *message;
-	int			console;
+log_error(const char *message, int console)
 {
 	FILE           *errorLog = fopen(error_log, "a");
 	time_t          tnow;
@@ -103,15 +93,13 @@ log_error(message, console)
 }
 
 void
-log_debug(message, console)
+log_debug(const char *message, int console)
 {
 	log_message(message, console);
 }
 
 void
-log_message(message, console)
-	char        *message;
-	int			console;
+log_message(const char *message, int console)
 {
 	FILE           *errorLog = fopen(error_log, "a");
 	time_t          tnow;
@@ -133,8 +121,9 @@ log_message(message, console)
 	/* SEND THE MESSAGE TO STANDARD ERROR OR STANDARD OUT AS REQUIRED */
 	if (console == 1) {
 		write_text(message);
+		write_text("^");
 	} else if (console == 2) {
-		fprintf(stderr, "%s", message);
+		fprintf(stderr, "%s\n", message);
 		fflush(stderr);
 	}
 }

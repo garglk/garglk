@@ -7,11 +7,7 @@
 #include "language.h"
 #include "types.h"
 #include "prototypes.h"
-
-extern struct function_type		*executing_function;
-extern char           			*word[];
-
-extern char						error_buffer[];
+#include "encapsulate.h"
 
 void
 badparrun()
@@ -29,26 +25,21 @@ notintrun()
 }
 
 void
-unkfunrun(name)
-	 char           *name;
+unkfunrun(const char *name)
 {
 	sprintf(error_buffer, UNKNOWN_FUNCTION_RUN, name);
 	log_error(error_buffer, PLUS_STDOUT);
 }
 
 void
-unkkeyerr(line, wordno)
-	 int             line;
-	 int             wordno;
+unkkeyerr(int line, int wordno)
 {
 	sprintf(error_buffer, UNKNOWN_KEYWORD_ERR, line, word[wordno]);
 	log_error(error_buffer, PLUS_STDERR);
 }
 
 void
-unkatterr(line, wordno)
-	 int             line;
-	 int             wordno;
+unkatterr(int line, int wordno)
 {
 	sprintf(error_buffer, UNKNOWN_ATTRIBUTE_ERR, line,
 			word[wordno]);
@@ -56,9 +47,7 @@ unkatterr(line, wordno)
 }
 
 void
-unkvalerr(line, wordno)
-	 int             line;
-	 int             wordno;
+unkvalerr(int line, int wordno)
 {
 	sprintf(error_buffer, UNKNOWN_VALUE_ERR, line,
 			word[wordno]);
@@ -73,8 +62,7 @@ noproprun()
 }
 
 void
-noobjerr(line)
-	 int             line;
+noobjerr(int line)
 {
 	sprintf(error_buffer, NO_OBJECT_ERR,
 			line, word[0]);
@@ -82,8 +70,7 @@ noobjerr(line)
 }
 
 void
-noproperr(line)
-	 int             line;
+noproperr(int line)
 {
 	sprintf(error_buffer, INSUFFICIENT_PARAMETERS_ERR,
 			line, word[0]);
@@ -91,34 +78,28 @@ noproperr(line)
 }
 
 void
-nongloberr(line)
-	 int             line;
+nongloberr(int line)
 {
 	sprintf(error_buffer, NON_GLOBAL_FIRST, line);
 	log_error(error_buffer, PLUS_STDERR);
 }
 
 void
-nofnamerr(line)
-	 int             line;
+nofnamerr(int line)
 {
 	sprintf(error_buffer, NO_NAME_FUNCTION, line);
 	log_error(error_buffer, PLUS_STDERR);
 }
 
 void
-unkobjerr(line, wordno)
-	 int             line;
-	 int             wordno;
+unkobjerr(int line, int wordno)
 {
 	sprintf(error_buffer, UNDEFINED_ITEM_ERR, line, word[wordno]);
 	log_error(error_buffer, PLUS_STDERR);
 }
 
 void
-maxatterr(line, wordno)
-	 int             line;
-	 int             wordno;
+maxatterr(int line, int wordno)
 {
 	sprintf(error_buffer,
 			MAXIMUM_ATTRIBUTES_ERR, line, word[wordno]);
@@ -126,24 +107,21 @@ maxatterr(line, wordno)
 }
 
 void
-unkobjrun(wordno)
-	 int             wordno;
+unkobjrun(int wordno)
 {
 	sprintf(error_buffer, UNDEFINED_ITEM_RUN, executing_function->name, word[wordno]);
 	log_error(error_buffer, PLUS_STDOUT);
 }
 
 void
-unkattrun(wordno)
-	 int             wordno;
+unkattrun(int wordno)
 {
 	sprintf(error_buffer, UNKNOWN_ATTRIBUTE_RUN, executing_function->name, word[wordno]);
 	log_error(error_buffer, PLUS_STDOUT);
 }
 
 void
-unkdirrun(wordno)
-	 int             wordno;
+unkdirrun(int wordno)
 {
 	sprintf(error_buffer, UNDEFINED_DIRECTION_RUN,
 			executing_function->name, word[wordno]);
@@ -151,56 +129,49 @@ unkdirrun(wordno)
 }
 
 void
-badparun()
+badparun(void)
 {
 	sprintf(error_buffer, BAD_PARENT, executing_function->name);
 	log_error(error_buffer, PLUS_STDOUT);
 }
 
 void
-badplrrun(value)
-	int			value;
+badplrrun(int value)
 {
 	sprintf(error_buffer, BAD_PLAYER, executing_function->name, value);
 	log_error(error_buffer, PLUS_STDOUT);
 }
 
 void
-badptrrun(name, value)
-	char       *name;
-	int			value;
+badptrrun(const char *name, int value)
 {
 	sprintf(error_buffer, BAD_POINTER, executing_function->name, name, value);
 	log_error(error_buffer, PLUS_STDOUT);
 }
 
 void
-unkvarrun(variable)
-	 char           *variable;
+unkvarrun(const char *variable)
 {
 	sprintf(error_buffer, UNDEFINED_CONTAINER_RUN, executing_function->name, arg_text_of(variable));
 	log_error(error_buffer, PLUS_STDOUT);
 }
 
 void
-unkstrrun(variable)
-	 char           *variable;
+unkstrrun(const char *variable)
 {
 	sprintf(error_buffer, UNDEFINED_STRING_RUN, executing_function->name, variable);
 	log_error(error_buffer, PLUS_STDOUT);
 }
 
 void
-unkscorun(scope)
-	 char           *scope;
+unkscorun(const char *scope)
 {
 	sprintf(error_buffer, UNKNOWN_SCOPE_RUN, executing_function->name, scope);
 	log_error(error_buffer, PLUS_STDOUT);
 }
 
 void
-totalerrs(errors)
-	int				errors;
+totalerrs(int errors)
 {
 	if (errors == 1)
 		sprintf(error_buffer, ERROR_DETECTED);
