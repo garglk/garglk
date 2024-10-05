@@ -1,6 +1,7 @@
 ﻿using FrankenDrift.GlkRunner.Glk;
 using FrankenDrift.Glue;
 using FrankenDrift.Glue.Infragistics.Win.UltraWinToolbars;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -75,6 +76,10 @@ namespace FrankenDrift.GlkRunner
 
         public void Run()
         {
+            // Adrift Authors have a habit of immediately clearing the screen on startup, so sneak in our welcome message before the first prompt.
+            var myVersion = Assembly.GetExecutingAssembly().GetName().Version;
+            var backendVersion = Assembly.GetAssembly(typeof(Adrift.SharedModule))?.GetName()?.Version;
+            _output.AppendHTML($"\n<i>(Glk FrankenDrift v{myVersion}({GetClaimedAdriftVersion()}/{backendVersion}) -- type !metahelp for interpreter commands.)</i>\n");
             while (true)
             {
                 _output.AppendHTML("<c>&gt; </c>");
@@ -354,7 +359,7 @@ namespace FrankenDrift.GlkRunner
                     || !Adrift.SharedModule.Adventure.BlorbMappings.TryGetValue(snd, out int theSound))
                 return;
             _recentlyPlayedSounds[channel] = snd;
-            GlkApi.glk_schannel_play_ext(_sndChannels[channel], (uint)theSound, loop ? 0xFFFFFFFF : 1, 0);
+            var success = GlkApi.glk_schannel_play_ext(_sndChannels[channel], (uint)theSound, loop ? 0xFFFFFFFF : 1, 0);
         }
 
         private void UnpauseSound(int channel)
