@@ -1,4 +1,5 @@
 ﻿using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -278,6 +279,9 @@ namespace FrankenDrift.GlkRunner.Glk
         uint glk_gestalt(Gestalt sel, uint val);
         unsafe uint glk_gestalt_ext(Gestalt sel, uint val, uint* arr, uint arrlen);
         void glk_request_timer_events(uint millisecs);
+        // The following is a garglk extension. If your Glk implementation doesn't have this, make it a no-op in your interface and return 0.
+        // Remove the null-terminated c-style unicode string "str" from the end of the output, if present. Return the number of characters removed.
+        uint garglk_unput_string_count_uni(uint[] str);
 
         // And some extra functions we want that could have different implementations
         void SetGameName(string game);
@@ -310,6 +314,12 @@ namespace FrankenDrift.GlkRunner.Glk
             var encoder = Encoding.GetEncoding(Encoding.Latin1.CodePage, EncoderFallback.ReplacementFallback, DecoderFallback.ReplacementFallback);
             var bytes = encoder.GetBytes(msg);
             GlkApi.glk_put_buffer(bytes, (uint)bytes.Length);
+        }
+
+        internal bool UnputChar(uint ch)
+        {
+            var arr = new uint[2] { ch, 0 };
+            return GlkApi.garglk_unput_string_count_uni(arr) > 0;
         }
     }
 }

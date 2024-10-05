@@ -56,6 +56,8 @@ namespace FrankenDrift.GlkRunner
         private uint _hyperlinksSoFar = 1;
         internal bool DoSbAutoHyperlinks => Adrift.SharedModule.Adventure.Title == "Skybreak";
 
+        private string _mostRecentText = "";
+
         static readonly string[] Monospaces = {
             "Andale Mono", "Cascadia Code", "Century Schoolbook Monospace", "Consolas", "Courier", "Courier New",
             "Liberation Mono", "Ubuntu Mono", "DejaVu Sans Mono",
@@ -265,14 +267,26 @@ namespace FrankenDrift.GlkRunner
                     var currentTextStyle = styleHistory.Peek();
                     inToken = false;
                     var tokenLower = currentToken.ToLower();
-                    if (tokenLower == "del" && current.Length > 0)
+                    if (tokenLower == "del")  // Attempt to remove a character from the output.
                     {
-                        // As long as we haven't committed to displaying anything,
-                        // we can remove the last character.
-                        current.Remove(current.Length - 1, 1);
+                        if (current.Length > 0) {
+                            // As long as we haven't committed to displaying anything,
+                            // we can simply remove the last character from the buffer.
+                            // (Will break on characters that don't fit into the Unicode BMP, but alas.)
+                            current.Remove(current.Length - 1, 1);
+                        }
+                        else if (!string.IsNullOrEmpty(_mostRecentText))
+                        {
+                            // Under Garglk, we can still recall a character that has already been output.
+                            // This seems like a potentially expensive operation, but shouldn't happen too often.
+                            if (GlkUtil.UnputChar((uint)_mostRecentText.EnumerateRunes().Last().Value)) {
+                                StringBuilder rebuilder = new(_mostRecentText.Length);
+                                foreach (var rune in _mostRecentText.EnumerateRunes().SkipLast(1))
+                                    rebuilder.Append(rune.ToString());
+                                _mostRecentText = rebuilder.ToString();
+                            }
+                        }
                         continue;
-
-                        // TODO: ask for a garglk extension akin to garglk_unput_string that only needs the number of characters to delete.
                     }
                     OutputStyled(current.ToString(), currentTextStyle);
                     current.Clear();
@@ -497,6 +511,7 @@ namespace FrankenDrift.GlkRunner
             {
                 GlkApi.glk_set_style(Style.Normal);
             }
+            _mostRecentText = txt;
             GlkUtil.OutputString(txt);
         }
 
