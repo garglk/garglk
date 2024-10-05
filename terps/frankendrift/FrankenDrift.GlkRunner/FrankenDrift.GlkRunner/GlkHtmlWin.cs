@@ -495,7 +495,7 @@ namespace FrankenDrift.GlkRunner
             {
                 GlkApi.glk_set_style(Style.BlockQuote);
             }
-            else if ((fi.Ts & (TextStyle.Italic | TextStyle.Bold)) != 0)
+            else if ((fi.Ts & TextStyle.Italic) != 0 && (fi.Ts & TextStyle.Bold) != 0)
             {
                 GlkApi.glk_set_style(Style.Alert);
             }
