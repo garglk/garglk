@@ -181,7 +181,7 @@ namespace FrankenDrift.GlkRunner
         public QueryResult QuerySaveBeforeQuit()
         {
             if (_output is null)
-                _output = new(GlkApi);
+                return QueryResult.NO;  // if there is no output window, no game was loaded, so there is nothing to save.
             _output.AppendHTML("\n<b><font color=\"red\">Would you like to save before quitting?</font></b>");
             while (true)
             {
@@ -308,6 +308,9 @@ namespace FrankenDrift.GlkRunner
                     case "!metahelp":
                         ShowMetaHelp();
                         return;
+                    case "!forcequit":
+                        GlkApi.glk_exit();
+                        return;
                 }
             }
             Adrift.SharedModule.UserSession.Process(cmd);
@@ -418,7 +421,7 @@ namespace FrankenDrift.GlkRunner
         {
             if (_output is null)
                 return;  // not like anyone could input a meta-command without the output window existing
-            OutputHTML("<i>Meta-Commands understood by FrankenDrift:\n<font face=\"Courier\">!scripton</font> -- start a transcript\n<font face=\"Courier\">!scriptoff</font> -- stop a running transcript\n<font face=\"Courier\">!dumpstyles</font> -- show the Glk style settings</i>\n");
+            OutputHTML("<i>Meta-Commands understood by FrankenDrift:\n<font face=\"Courier\">!scripton</font> -- start a transcript\n<font face=\"Courier\">!scriptoff</font> -- stop a running transcript\n<font face=\"Courier\">!dumpstyles</font> -- show the Glk style settings\n<font face=\"Courier\">!forcequit</font> -- immediately terminate the current game session. Unsaved progress will be lost.</i>\n");
         }
     }
 
