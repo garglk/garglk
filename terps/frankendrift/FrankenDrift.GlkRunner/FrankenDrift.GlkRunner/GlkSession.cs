@@ -63,10 +63,11 @@ namespace FrankenDrift.GlkRunner
             Adrift.SharedModule.fRunner = this;
             Glue.Application.SetFrontend(this);
             Adrift.SharedModule.UserSession = new Adrift.RunnerSession { Map = new GlonkMap(), bShowShortLocations = true };
-            for (int i = 1; i <= 8; i++)
-                _sndChannels[i] = GlkApi.glk_schannel_create((uint)i);
-            Adrift.SharedModule.UserSession.OpenAdventure(gameFile);
             _soundSupported = GlkApi.glk_gestalt(Gestalt.Sound2, 0) != 0;
+            if (_soundSupported)
+                for (int i = 1; i <= 8; i++)
+                    _sndChannels[i] = GlkApi.glk_schannel_create((uint)i);
+            Adrift.SharedModule.UserSession.OpenAdventure(gameFile);
             // The underlying Runner wants a tick once per second to trigger real-time-based events
             if (GlkApi.glk_gestalt(Gestalt.Timer, 0) != 0)
                 GlkApi.glk_request_timer_events(1000);
