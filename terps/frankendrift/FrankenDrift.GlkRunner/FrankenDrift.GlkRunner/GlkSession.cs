@@ -22,6 +22,7 @@ namespace FrankenDrift.GlkRunner
 
         private readonly Dictionary<int, SoundChannel> _sndChannels = new();
         private readonly Dictionary<int, string> _recentlyPlayedSounds = new();
+        private bool _showCoverArt = false;
 
         public MainSession(string gameFile, IGlk glk)
         {
@@ -244,8 +245,16 @@ namespace FrankenDrift.GlkRunner
 
             // It is perhaps bad form / unexpected to do this here, but we can't
             // open any windows until after the style hints have been adjusted.
+            // If a window was already opened to ask questions during the loading process, close it.
+            if (_output is { IsDisposed: false })
+            {
+                _output.Dispose();
+            }
             _output = new GlkHtmlWin(GlkApi);
             _status = _output.CreateStatusBar();
+            // show the cover art if available.
+            if (_showCoverArt)
+                _output.DrawImageImmediately(1);
         }
 
         public void SetGameName(string name)
@@ -257,7 +266,10 @@ namespace FrankenDrift.GlkRunner
         {
             // we don't need the image data that the interpreter has provided us,
             // we just need to ask Glk to display image no. 1
-            _output.DrawImageImmediately(1);
+            // (but since the request to display cover art comes early in the blorb loading stage,
+            //  before color information is made available, we can't actually open a window
+            //  to display anything, so we defer this.)
+            _showCoverArt = true;
         }
 
         public void ShowInfo(string info, string title = null)
