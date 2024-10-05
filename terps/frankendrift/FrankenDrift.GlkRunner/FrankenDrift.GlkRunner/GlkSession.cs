@@ -369,9 +369,18 @@ namespace FrankenDrift.GlkRunner
                 return;
             }
             var fileref = GlkApi.glk_fileref_create_by_prompt(FileUsage.Transcript | FileUsage.TextMode, Glk.FileMode.Write, 0);
+            if (!fileref.IsValid)
+            {
+                _output.AppendHTML("<i>Transcript activation canceled.</i>\n");
+                return;
+            }
             try
             {
-                _output.EchoStream = GlkApi.glk_stream_open_file(fileref, Glk.FileMode.Write, 0);
+                var stream = GlkApi.glk_stream_open_file(fileref, Glk.FileMode.Write, 0);
+                if (stream.IsValid)
+                    _output.EchoStream = stream;
+                else
+                    _output.AppendHTML("<i>Transcript activation failed, sorry.</i>\n");
             }
             finally
             {
@@ -389,6 +398,7 @@ namespace FrankenDrift.GlkRunner
             }
             StreamResult result = new();
             GlkApi.glk_stream_close(_output.EchoStream, ref result);
+            _output.AppendHTML("<i>Transcript stopped.</i>\n");
         }
 
         internal void ShowMetaHelp()
