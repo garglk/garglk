@@ -69,6 +69,13 @@ namespace FrankenDrift.GlkRunner
 
         internal StreamHandle Stream => GlkApi.glk_window_get_stream(glkwin_handle);
 
+        internal StreamHandle EchoStream
+        {
+            get => GlkApi.glk_window_get_echo_stream(glkwin_handle);
+            set => GlkApi.glk_window_set_echo_stream(glkwin_handle, value);
+        }
+        internal bool IsEchoing => EchoStream.IsValid;
+
         internal GlkHtmlWin(IGlk glk)
         {
             GlkApi = glk;
@@ -514,8 +521,10 @@ namespace FrankenDrift.GlkRunner
                 // TODO: Nicht verwaltete Ressourcen (nicht verwaltete Objekte) freigeben und Finalizer überschreiben
                 // TODO: Große Felder auf NULL setzen
 
-                // we're not interested in the result, but alas...
+                // we're not interested in the results, but alas...
                 StreamResult r = new();
+                if (IsEchoing)
+                    GlkApi.glk_stream_close(EchoStream, ref r);
                 GlkApi.glk_window_close(glkwin_handle, ref r);
                 glkwin_handle = new(IntPtr.Zero);
             }

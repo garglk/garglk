@@ -259,6 +259,7 @@ namespace FrankenDrift.GlkRunner.Glk
         void glk_set_window(WindowHandle winId);
         StreamHandle glk_stream_open_file(FileRefHandle fileref, FileMode fmode, uint rock);
         unsafe StreamHandle glk_stream_open_memory(byte* buf, uint buflen, FileMode mode, uint rock);
+        void glk_stream_close(StreamHandle stream, ref StreamResult result);
         void glk_stream_set_position(StreamHandle stream, int pos, SeekMode seekMode);
         void glk_stylehint_set(WinType wintype, Style styl, StyleHint hint, int val);
         uint glk_style_measure(WindowHandle winid, Style styl, StyleHint hint, ref uint result);
@@ -269,6 +270,8 @@ namespace FrankenDrift.GlkRunner.Glk
         void glk_window_get_size(WindowHandle winId, out uint width, out uint height);
         StreamHandle glk_window_get_stream(WindowHandle winId);
         void glk_window_move_cursor(WindowHandle winId, uint xpos, uint ypos);
+        void glk_window_set_echo_stream(WindowHandle winId, StreamHandle stream);
+        StreamHandle glk_window_get_echo_stream(WindowHandle winId);
         WindowHandle glk_window_open(WindowHandle split, WinMethod method, uint size, WinType wintype, uint rock);
         void garglk_set_zcolors(uint fg, uint bg);
         string? glkunix_fileref_get_name(FileRefHandle fileref);
