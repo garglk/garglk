@@ -24,56 +24,6 @@
 #include "glkstart.h"
 #include "garglk.h"
 
-
-#if defined(_MSC_VER) && defined(__clang__)
-
-// This is all a bunch of poopy nonsense, but alas...
-
-#define main deputy_main
-int deputy_main(int argc, char *argv[]);
-
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#include <shellapi.h>
-
-int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow) {
-    int argc;
-    char **argv;
-
-    char *myName = new char[MAX_PATH + 1];
-    if (GetModuleFileNameA(0, myName, MAX_PATH + 1) == 0) {
-        MessageBoxA(nullptr, "Unable to determine who I am. Aborting.", "Gargoyle Existential Crisis", MB_ICONERROR);
-        return EXIT_FAILURE;
-    }
-
-    // adapted from: https://stackoverflow.com/a/74999569
-
-    wchar_t **wargv = CommandLineToArgvW(lpCmdLine, &argc);
-    if (!wargv) return -1;
-
-    // Count the number of bytes necessary to store the UTF-8 versions of those strings
-    int argv_strSize = 0;
-    for (int i = 0; i < argc; i++)
-        argv_strSize += WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, nullptr, 0, nullptr, nullptr) + 1;
-
-    argc += 1;  // argv[0] needs to be our executable name, which CommandLineToArgvW does not account for.
-    argv = new char *[argc+1];
-    argv[0] = myName;
-    char *arg = new char[argv_strSize];
-    int used = 0;
-    for (int i = 1; i < argc; i++) {
-        argv[i] = arg + used;
-        used += WideCharToMultiByte(CP_UTF8, 0, wargv[i-1], -1, arg, argv_strSize - used, nullptr, nullptr)+1;
-    }
-    argv[argc] = nullptr;
-
-    LocalFree(wargv);
-    return main(argc, argv);
-}
-
-#endif
-
 int main(int argc, char *argv[])
 {
     garglk_startup(argc, argv);

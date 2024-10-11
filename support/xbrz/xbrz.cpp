@@ -541,12 +541,12 @@ private:
 
 
 template <class Scaler, class ColorDistance, class OobReader> //scaler policy: see "Scaler2x" reference implementation
-void scaleImage(const uint32_t* src, uint32_t* trg, int srcWidth, int srcHeight, const xbrz::ScalerCfg& cfg, int yFirst, int yLast)
+bool scaleImage(const uint32_t* src, uint32_t* trg, int srcWidth, int srcHeight, const xbrz::ScalerCfg& cfg, int yFirst, int yLast)
 {
     yFirst = std::max(yFirst, 0);
     yLast  = std::min(yLast, srcHeight);
     if (yFirst >= yLast || srcWidth <= 0)
-        return;
+        return false;
 
     const int trgWidth = srcWidth * Scaler::scale;
 
@@ -717,6 +717,8 @@ void scaleImage(const uint32_t* src, uint32_t* trg, int srcWidth, int srcHeight,
             }
         }
     }
+
+    return true;
 }
 
 //------------------------------------------------------------------------------------
@@ -1157,12 +1159,16 @@ struct ColorGradientARGB
 }
 
 
-void xbrz::scale(size_t factor, const uint32_t* src, uint32_t* trg, int srcWidth, int srcHeight, ColorFormat colFmt, const xbrz::ScalerCfg& cfg, int yFirst, int yLast)
+bool xbrz::scale(size_t factor, const uint32_t* src, uint32_t* trg, int srcWidth, int srcHeight, ColorFormat colFmt)
 {
+    xbrz::ScalerCfg cfg{};
+    int yFirst = 0;
+    int yLast  = srcHeight;
+
     if (factor == 1)
     {
         std::copy(src + yFirst * srcWidth, src + yLast * srcWidth, trg);
-        return;
+        return true;
     }
 
     static_assert(SCALE_FACTOR_MAX == 6);
@@ -1217,6 +1223,7 @@ void xbrz::scale(size_t factor, const uint32_t* src, uint32_t* trg, int srcWidth
             break;
     }
     assert(false);
+    return false;
 }
 
 

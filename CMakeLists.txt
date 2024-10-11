@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.12)
 
 file(READ "VERSION" GARGOYLE_VERSION)
 string(STRIP "${GARGOYLE_VERSION}" GARGOYLE_VERSION)
@@ -76,6 +76,7 @@ add_subdirectory(garglk)
 # xBRZ requires C++17.
 if(CXX_VERSION EQUAL 17)
     add_subdirectory(support/xbrz)
+    add_subdirectory(support/xbrz-null)
     add_subdirectory(support/hqx)
 endif()
 

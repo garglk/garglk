@@ -15,7 +15,7 @@ option(WITH_SCOTT "Enable the scott interpreter" ON)
 option(WITH_TAYLOR "Enable the taylor interpreter" ON)
 
 function(terp target)
-    set(options POSIX LTO MATH WARNINGS)
+    set(options POSIX LTO MATH WARNINGS GPL2)
     set(oneval CXXSTD)
     set(multival SRCS INCLUDE_DIRS MACROS LIBS)
     cmake_parse_arguments(TERP "${options}" "${oneval}" "${multival}" ${ARGN})
@@ -24,7 +24,13 @@ function(terp target)
     set_target_properties(${target} PROPERTIES OUTPUT_NAME "${GARGLKPRE}${target}")
     target_compile_definitions(${target} PRIVATE GARGLK ${TERP_MACROS})
     target_include_directories(${target} PRIVATE ${TERP_INCLUDE_DIRS})
-    target_link_libraries(${target} PRIVATE garglkmain garglk ${TERP_LIBS})
+    target_link_libraries(${target} PRIVATE garglkmain ${TERP_LIBS})
+
+    if(TERP_GPL2)
+        target_link_libraries(${target} PRIVATE garglk-gpl2)
+    else()
+        target_link_libraries(${target} PRIVATE garglk)
+    endif()
 
     if(MINGW OR MSVC)
         target_sources(${target} PRIVATE "${PROJECT_SOURCE_DIR}/garglk/icons.rc" "${PROJECT_SOURCE_DIR}/terps/garglk.manifest")
@@ -110,7 +116,8 @@ if(WITH_AGILITY)
         agility/exec.c agility/runverb.c agility/metacommand.c agility/savegame.c
         agility/debugcmd.c agility/agil.c agility/token.c agility/disassemble.c
         agility/object.c agility/interface.c agility/os_glk.c
-        MACROS GLK POSIX)
+        MACROS GLK POSIX
+        GPL2)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -277,7 +284,8 @@ if(WITH_JACL)
         jacl/encapsulate.c jacl/libcsv.c
         MACROS GLK
         MATH
-        POSIX)
+        POSIX
+        GPL2)
 
     if(CMAKE_C_COMPILER_ID MATCHES "Clang$")
         # This is a style choice in the code.
@@ -349,7 +357,8 @@ if(WITH_PLUS)
         plus/companionfile.c plus/gameinfo.c plus/graphics.c plus/layouttext.c plus/loaddatabase.c
         plus/parseinput.c plus/pcdraw.c plus/restorestate.c plus/stdetect.c plus/stdraw.c
         INCLUDE_DIRS ${PLUS_INCLUDE_DIRS}
-        LIBS c64diskimage)
+        LIBS c64diskimage
+        GPL2)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -377,7 +386,8 @@ if(WITH_SCARE)
         scare/sclocale.c scare/scmemos.c scare/os_glk.c
         INCLUDE_DIRS ${SCARE_INCLUDE_DIRS}
         LIBS ${SCARE_LIBS}
-        MACROS SCARE_NO_ABBREVIATIONS)
+        MACROS SCARE_NO_ABBREVIATIONS
+        GPL2)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -415,7 +425,8 @@ if(WITH_TAYLOR)
         taylor/layouttext.c taylor/loadtotpicture.c taylor/parseinput.c taylor/player.c
         taylor/restorestate.c taylor/sagadraw.c taylor/ui.c taylor/utility.c
         INCLUDE_DIRS ${TAYLOR_INCLUDE_DIRS}
-        LIBS c64diskimage unp64)
+        LIBS c64diskimage unp64
+        GPL2)
 endif()
 
 if(WITH_FRANKENDRIFT)
