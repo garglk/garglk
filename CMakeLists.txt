@@ -44,6 +44,7 @@ include(Compilers)
 option(WITH_INTERPRETERS "Build the included interpreters" ON)
 option(WITH_BABEL "Display Treaty of Babel-derived author and title if possible" ON)
 option(APPIMAGE "Tweak some settings to aid in AppImage building" OFF)
+option(ENABLE_GPL3 "Build libgarglk code which is GPLv3 only" OFF)
 
 if(MSVC)
     # MSVC defaults to the equivalent of "-fvisibility=hidden", which the code is not set up to support.
@@ -75,7 +76,11 @@ add_subdirectory(garglk)
 
 # xBRZ requires C++17.
 if(CXX_VERSION EQUAL 17)
-    add_subdirectory(support/xbrz)
+    if(ENABLE_GPL3)
+        add_subdirectory(support/xbrz)
+    else()
+        add_subdirectory(support/xbrz-null)
+    endif()
     add_subdirectory(support/hqx)
 endif()
 

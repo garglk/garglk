@@ -123,6 +123,13 @@ In addition, Gargoyle supports the following options:
   will be used in the absence of a user's specified SoundFont, allowing
   distributions to create an out-of-the-box working MIDI experience.
 
+- `ENABLE_GPL3`: While garglk itself is licensed as GPLv2 or later, it can be
+  built with support for the xBRZ scaler, which is GPLv3, meaning libgarglk
+  built with xBRZ support is also GPLv3. Several interpreters are GPLv2 only,
+  so they cannot be distributed if built against a GPLv3 libgarglk. This
+  option, which is false by default, will enable GPLv3 code (which right now
+  is only xBRZ), resulting in a GPLv3 garglk.
+
 As with any standard CMake-based project, DESTDIR can be used to install to a
 staging area:
 

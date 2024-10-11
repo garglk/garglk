@@ -52,7 +52,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DSOUND=QT -DQT_VERSION=5
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DSOUND=QT -DQT_VERSION=5 -DENABLE_GPL3=ON
 
       - name: Build
         run: |
