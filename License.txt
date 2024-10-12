@@ -10,6 +10,9 @@ Alan is copyright (c) Thomas Nilsson. It is released under the terms of the Arti
 
 Bocfel is copyright (c) Chris Spiegel. It is released under the terms of the GNU General Public License.
 
+The FrankenDrift Glk frontend is copyright (c) Adrian Welcker. It is released under the terms of the MIT license.
+ADRIFT 5 (part of FrankenDrift) is copyright (c) Campbell Wild. It is released under the terms of the 3-Clause BSD license.
+
 Git is copyright (c) Iain Merrick. It is released under the terms of the MIT License.
 
 Glulxe is copyright (c) Andrew Plotkin. It is released under the terms of the MIT License.
