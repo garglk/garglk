@@ -70,7 +70,7 @@ if(UNIX AND NOT DIST_INSTALL)
     endif()
 endif()
 
-option(WITH_FRANKENDRIFT "Buld the FrankenDrift interpreter for ADRIFT 5 games (requires the .NET 8 SDK)" OFF)
+option(WITH_FRANKENDRIFT "Build the FrankenDrift interpreter for ADRIFT 5 games (requires the .NET 8 SDK)" OFF)
 add_subdirectory(garglk)
 
 # xBRZ requires C++17.
