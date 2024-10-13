@@ -119,6 +119,8 @@ if(INTERFACE STREQUAL "COCOA")
     target_compile_options(garglk-common PRIVATE "-Wno-deprecated-declarations")
 else()
     target_sources(garglk-common PRIVATE sysqt.cpp)
+    find_package(Threads REQUIRED)
+    target_link_libraries(garglk-common PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 find_package(Freetype REQUIRED)
