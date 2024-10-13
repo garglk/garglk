@@ -16,36 +16,34 @@ development environment (compiler, linker, etc.):
 - libpng (1.6 or newer)
 - zlib
 
-fmt is technically not a requirement, as Gargoyle includes its own
-header-only copy, but using Gargoyle's copy will slow down the build and
-produce a larger binary. By default Gargoyle will use a system fmt if it
-finds one. This can be overridden with the `WITH_BUNDLED_FMT` configure
-option (see below).
+fmt is technically not a requirement, as Gargoyle includes its own header-only
+copy, but using Gargoyle's copy will slow down the build and produce a larger
+binary. By default Gargoyle will use a system fmt if it finds one. This can be
+overridden with the `WITH_BUNDLED_FMT` configure option (see below).
 
-In addition, if you want sound support, there are two backends: SDL and
-Qt. For SDL, you will need SDL2 and SDL2\_mixer. For Qt, you will need
-QtMultimedia, libsndfile (with Vorbis support), mpg123, and libopenmpt.
-In addition, if fluidsynth is installed, it will be used for MIDI in the
-Qt backend, but it is optional.
+In addition, if you want sound support, there are two backends: SDL and Qt. For
+SDL, you will need SDL2 and SDL2\_mixer. For Qt, you will need QtMultimedia,
+libsndfile (with Vorbis support), mpg123, and libopenmpt. In addition, if
+fluidsynth is installed, it will be used for MIDI in the Qt backend, but it is
+optional.
 
-If you want text-to-speech support on Unix, you will need
-speech-dispatcher. Windows and macOS natively provide text-to-speech
-APIs which are used on those platforms.
+If you want text-to-speech support on Unix, you will need speech-dispatcher.
+Windows and macOS natively provide text-to-speech APIs which are used on those
+platforms.
 
-For Qt builds, KDE Frameworks can optionally be used. They are used in
-one place at the moment: discovery of the user's preferred text editor.
-Qt cannot determine a user's text editor, so for editing the config
-file, Gargoyle instructs Qt to open the file, hoping that the user's
-environment will launch it in a text editor. If KDE Frameworks are used,
-the user's preferred text editor will be discovered and used directly to
-open the config file. tHe following KDE Frameworks modules are required:
+For Qt builds, KDE Frameworks can optionally be used. They are used in one place
+at the moment: discovery of the user's preferred text editor. Qt cannot
+determine a user's text editor, so for editing the config file, Gargoyle
+instructs Qt to open the file, hoping that the user's environment will launch it
+in a text editor. If KDE Frameworks are used, the user's preferred text editor
+will be discovered and used directly to open the config file. tHe following KDE
+Frameworks modules are required:
 
 - extra-cmake-modules
 - kio
 - kservice
 
-On Unix, Gargoyle can be built like any standard CMake project.
-Something like:
+On Unix, Gargoyle can be built like any standard CMake project. Something like:
 
     $ mkdir build
     $ cd build
@@ -60,40 +58,39 @@ By default Gargoyle installs to /usr/local. This can be changed by setting
 
 In addition, Gargoyle supports the following options:
 
-- `WITH_BABEL`: If true (the default), use the Treaty of Babel to
-  extract author and title information and display in the window's
-  titlebar
+- `WITH_BABEL`: If true (the default), use the Treaty of Babel to extract author
+  and title information and display in the window's titlebar
 
-- `BUILD_SHARED_LIBS`: If true (the default), a shared libgarglk will be
-  built.  Otherwise, it will be static.
+- `BUILD_SHARED_LIBS`: If true (the default), a shared libgarglk will be built.
+  Otherwise, it will be static.
 
 - `WITH_INTERPRETERS`: If true (the default), interpreters will be built.
 
-- `WITH_LAUNCHER`: If true (the default), the launcher (gargoyle binary)
-  will be built.
+- `WITH_LAUNCHER`: If true (the default), the launcher (gargoyle binary) will be
+  built.
 
 - `QT_VERSION`: Set to the major version of Qt to use: both 5 and 6 are
-  supported, with 6 being the default. This does not have an effect on
-  Mac, which does not currently use Qt.
+  supported, with 6 being the default. This does not have an effect on Mac,
+  which does not currently use Qt.
 
-- `WITH_FREEDESKTOP`: If true (the default), install
-  freedesktop.org-compliant desktop, application, and MIME files. This
-  is available only on non-Apple Unix platforms.
+- `WITH_FREEDESKTOP`: If true (the default), install freedesktop.org-compliant
+  desktop, application, and MIME files. This is available only on non-Apple Unix
+  platforms.
 
 - `WITH_KDE`: If true, KDE Frameworks will be used.
 
 - `WITH_TTS`: Takes one of four values: "ON", "OFF", "AUTO", or "DYNAMIC".
 
-    - If "AUTO" (the default), text-to-speech support is enabled if the
-      build environment supports it, and the resulting binaries will not work
-      unless they're run on a platform that also supports it. Windows and macOS
-      always support TTS, but Unix requires speech-dispatcher to be installed.
-      If the build environment does not support TTS, then it is disabled.
+    - If "AUTO" (the default), text-to-speech support is enabled if the build
+      environment supports it, and the resulting binaries will not work unless
+      they're run on a platform that also supports it. Windows and macOS always
+      support TTS, but Unix requires speech-dispatcher to be installed. If the
+      build environment does not support TTS, then it is disabled.
 
     - If "DYNAMIC", text-to-speech support is always enabled, and the resulting
       binaries will work without platform text-to-speech support. This value is
-      non-default because it may require source-level changes to keep it
-      working on Unix platforms if speech-dispatcher has ABI-breaking changes.
+      non-default because it may require source-level changes to keep it working
+      on Unix platforms if speech-dispatcher has ABI-breaking changes.
 
     - If "ON" (or any true value), TTS support is enabled if the build
       environment supports it; otherwise, CMake will abort. The resulting
@@ -101,9 +98,8 @@ In addition, Gargoyle supports the following options:
 
     - If "OFF" (or any false value), TTS support is disabled.
 
-- `SOUND`: Takes one of three values: "SDL", for SDL sound support,
-  "QT", for Qt sound support, and "none" (or any other value), for no
-  sound support.
+- `SOUND`: Takes one of three values: "SDL", for SDL sound support, "QT", for Qt
+  sound support, and "none" (or any other value), for no sound support.
 
 - `JPEGLIB`: Gargoyle can use either the original libjpeg from the Independent
   JPEG Group (IJG), or libjpeg-turbo. There is no practical difference between
@@ -113,15 +109,15 @@ In addition, Gargoyle supports the following options:
   libjpeg, set it to `IJG`. The default is `AUTO`, which first tries
   libjpeg-turbo, and if that fails, IJG libjpeg.
 
-- `WITH_BUNDLED_FMT`: If true, prefer Gargoyle's bundled fmt library to
-  the system library. Defaults to false.
+- `WITH_BUNDLED_FMT`: If true, prefer Gargoyle's bundled fmt library to the
+  system library. Defaults to false.
 
 - `DEFAULT_SOUNDFONT`: Some MIDI backends require the use of a SoundFont, and
   due to size restrictions, Gargoyle does not ship one. As a result, if a
-  SoundFont is required, and the user hasn't configured one, MIDI support
-  might be disabled. If a full path to a SoundFont is given to this option, it
-  will be used in the absence of a user's specified SoundFont, allowing
-  distributions to create an out-of-the-box working MIDI experience.
+  SoundFont is required, and the user hasn't configured one, MIDI support might
+  be disabled. If a full path to a SoundFont is given to this option, it will be
+  used in the absence of a user's specified SoundFont, allowing distributions to
+  create an out-of-the-box working MIDI experience.
 
 As with any standard CMake-based project, DESTDIR can be used to install to a
 staging area:
@@ -130,10 +126,10 @@ staging area:
 
 Gargoyle will install headers to `${CMAKE_INSTALL_PREFIX}/include/gargoyle` and
 libgarglk to `${CMAKE_INSTALL_PREFIX}/lib`. This allows Glk programs to easily
-build against libgarglk without needing to be integrated with Gargoyle.
-However, note that the shared library makes no promises of API or ABI stability,
-and as such, is not currently versioned. The exception is the Glk API, which
-will remain stable, but any Gargoyle-specific extensions are subject to change
+build against libgarglk without needing to be integrated with Gargoyle. However,
+note that the shared library makes no promises of API or ABI stability, and as
+such, is not currently versioned. The exception is the Glk API, which will
+remain stable, but any Gargoyle-specific extensions are subject to change
 without notice, as is the ABI. In short, if libgarglk is updated, any programs
 linked against libgarglk.so should be rebuilt.
 
@@ -178,11 +174,13 @@ libgarglk and libgarglk-gpl2 is that the latter disables the xBRZ scaler.
 
 ## Building on Fedora GNU/Linux (37, 38): (notes by Andreas Davour, December 2019; updated April 2023)
 
-To build cleanly with CMake, you first need to install the pre-requisite packages:
+To build cleanly with CMake, you first need to install the pre-requisite
+packages:
 
     sudo dnf install cmake fmt-devel fontconfig-devel freetype-devel gcc-c++ libpng-devel qt5-qtbase-devel qt5-qtbase turbojpeg-devel zlib-devel
 
-If you want to compile with SDL support, you also need to install the development packages for that:
+If you want to compile with SDL support, you also need to install the
+development packages for that:
 
     sudo dnf install SDL2 SDL2-devel SDL2_mixer SDL2_mixer-devel
 
@@ -195,10 +193,10 @@ RPM package so that your package manager can track the Gargoyle installation.
 
 ## Building on MacOS: (notes by Andrew Plotkin, April 2017)
 
-The new build script (contributed by Brad Town) can be run on any
-MacOS 10.7 or higher. It requires a set of Unix packages (see below),
-which can be installed with either MacPorts or Homebrew. If you're
-building Gargoyle for your own use, that's all you need to know.
+The new build script (contributed by Brad Town) can be run on any MacOS 10.7 or
+higher. It requires a set of Unix packages (see below), which can be installed
+with either MacPorts or Homebrew. If you're building Gargoyle for your own use,
+that's all you need to know.
 
 For the MacPorts packages you'll need, type:
 
@@ -223,61 +221,58 @@ Once the packages are installed, type:
 
     sh gargoyle_osx.sh
 
-This should create Gargoyle.app, and also build a .DMG file which
-contains the app.
+This should create Gargoyle.app, and also build a .DMG file which contains the
+app.
 
-However, to create a *release build* of Gargoyle.app -- one that can
-be distributed to other people -- requires more care. After some
-struggle, this is what I have learned:
+However, to create a *release build* of Gargoyle.app -- one that can be
+distributed to other people -- requires more care. After some struggle, this is
+what I have learned:
 
-- You need an Intel Mac with the developer tools (Xcode) installed.
-  No surprise there.
+- You need an Intel Mac with the developer tools (Xcode) installed. No surprise
+  there.
 
-- You should compile on the oldest MacOS available. You can build on an
-  old Mac and get the result to run on new Macs. The reverse does not work
-  reliably.
+- You should compile on the oldest MacOS available. You can build on an old Mac
+  and get the result to run on new Macs. The reverse does not work reliably.
 
-Therefore, I did the current build on MacOS 10.7 "Lion". (Support files
-in this package are now set up for 10.7, and the resulting app runs on
-10.7 and up. Unlike previous Gargoyle releases, it does not support the
-PPC architecture.)
+Therefore, I did the current build on MacOS 10.7 "Lion". (Support files in this
+package are now set up for 10.7, and the resulting app runs on 10.7 and up.
+Unlike previous Gargoyle releases, it does not support the PPC architecture.)
 
 - You need to install Unix packages with MacPorts.
 
 Homebrew, sadly, does not support 10.7 any more. (I tried to install the
-necessary packages via Homebrew but ran into hopeless package dependency
-loops.)
+necessary packages via Homebrew but ran into hopeless package dependency loops.)
 
-(Happily, Homebrew and MacPorts can coexist on the same box. I recommend
-doing the build in a shell which can only see the MacPorts world: add
-/opt/local/bin to your PATH and *remove* /usr/local/bin.)
+(Happily, Homebrew and MacPorts can coexist on the same box. I recommend doing
+the build in a shell which can only see the MacPorts world: add /opt/local/bin
+to your PATH and *remove* /usr/local/bin.)
 
 ### Building
 
-To set up your build environment on a fresh Mac, install MacPorts
-via https://www.macports.org/install.php. You want the "pkg" installer
-for Lion (assuming that's your OS).
+To set up your build environment on a fresh Mac, install MacPorts via
+https://www.macports.org/install.php. You want the "pkg" installer for Lion
+(assuming that's your OS).
 
-Once that's set up, run the MacPorts package install commands listed
-above (the "sudo port" ones).
+Once that's set up, run the MacPorts package install commands listed above (the
+"sudo port" ones).
 
 You can then run the build:
 
     sh gargoyle_osx.sh
 
-If you have both Homebrew and MacPorts installed, the build will default
-to Homebrew, which is not what you want. You must set the `MAC_USEHOMEBREW`
-env variable to "no", for example like this:
+If you have both Homebrew and MacPorts installed, the build will default to
+Homebrew, which is not what you want. You must set the `MAC_USEHOMEBREW` env
+variable to "no", for example like this:
 
     sh -c 'MAC_USEHOMEBREW=no; . gargoyle_osx.sh'
 
-You now have build Gargoyle.app, and also the distributable .DMG file
-which contains the app.
+You now have build Gargoyle.app, and also the distributable .DMG file which
+contains the app.
 
 ### Verifying the build
 
-It's useful to know how to check the app for portableness. If you type a
-command like
+It's useful to know how to check the app for portableness. If you type a command
+like
 
     otool -L Gargoyle.app/Contents/MacOS/Gargoyle
     otool -L Gargoyle.app/Contents/PlugIns/glulxe
@@ -289,25 +284,24 @@ These may start with
     /System/Library/Frameworks/...: MacOS standard libs
     /usr/lib/...: more MacOS standard libs
 
-If you see any lines starting with /opt/local or /usr/local, you have a
-problem. That library is trying to load out of MacPorts or Homebrew, and
-the interpreter will fail on most other Macs (which do not have those repos
-installed).
+If you see any lines starting with /opt/local or /usr/local, you have a problem.
+That library is trying to load out of MacPorts or Homebrew, and the interpreter
+will fail on most other Macs (which do not have those repos installed).
 
 ### MacOS code signing and notarization
 
-For a fully accessible build on MacOS 10.15 (Catalina), you need to both
-sign and notarize the app before packaging it up. (Unsigned builds still
-run on 10.15, but you have to right-click and select "Open". The user
-warnings for just launching the app normally are more derisive than before.)
+For a fully accessible build on MacOS 10.15 (Catalina), you need to both sign
+and notarize the app before packaging it up. (Unsigned builds still run on
+10.15, but you have to right-click and select "Open". The user warnings for just
+launching the app normally are more derisive than before.)
 
 To do this:
 
 First, obviously, you need an Apple developer account.
 
-Create an app-specific password with the name "altool". Copy the password
-down once it's created. (You can't re-download it from Apple, you can only
-delete it and create a new one.) The instructions on this are here:
+Create an app-specific password with the name "altool". Copy the password down
+once it's created. (You can't re-download it from Apple, you can only delete it
+and create a new one.) The instructions on this are here:
 
 https://support.apple.com/en-us/HT204397 "Using app-specific passwords"
 
@@ -315,24 +309,24 @@ Verify that this password works:
 
     xcrun altool --list-providers -u "$APPLE_ID"
 
-`APPLE_ID` is the account name (probably an email address) for your
-developer account. This will ask for a password. Use the altool password
-that you just created above. The response will look something like:
+`APPLE_ID` is the account name (probably an email address) for your developer
+account. This will ask for a password. Use the altool password that you just
+created above. The response will look something like:
 
     ProviderName   ProviderShortname      WWDRTeamID
     -------------- ---------------------- ----------
     Andrew Plotkin AndrewPlotkin176400769 BK75QRDQ9E
 
-Build Gargoyle.app using the `gargoyle_osx.sh`. But delete the .dmg file;
-we're going to create a new one later.
+Build Gargoyle.app using the `gargoyle_osx.sh`. But delete the .dmg file; we're
+going to create a new one later.
 
-Code-sign the app: (The "-o runtime" argument specifies that you want
-a "hardened" app, which is a requirement.)
+Code-sign the app: (The "-o runtime" argument specifies that you want a
+"hardened" app, which is a requirement.)
 
     codesign -o runtime --deep --sign "$CERT_NAME" Gargoyle.app
 
-The `CERT_NAME` is the name of your Developer ID Application certificate
-in Keychain-Access. For me, this is:
+The `CERT_NAME` is the name of your Developer ID Application certificate in
+Keychain-Access. For me, this is:
 
 "Developer ID Application: Andrew Plotkin (BK75QRDQ9E)".
 
@@ -352,23 +346,23 @@ If this succeeds, you'll see something like:
     No errors uploading 'Gargoyle.zip'.
     RequestUUID = 4745e9e4-87c2-4509-89cf-d08d84181234
 
-Wait for Apple to send you email about this request. It's supposed to take "up to an hour"; I got a response within a few minutes.
+Wait for Apple to send you email about this request. It's supposed to take "up
+to an hour"; I got a response within a few minutes.
 
 Now look at the response details:
 
     xcrun altool --notarization-info "$REQ_UUID" -u "$APPLE_ID"
 
-This will give a success/failure message, plus a LogFileURL for more
-info. Look at the log file to make sure there are neither errors nor
-warnings.
+This will give a success/failure message, plus a LogFileURL for more info. Look
+at the log file to make sure there are neither errors nor warnings.
 
 If it all looks good, update the app with the notarization info:
 
     xcrun stapler staple Gargoyle.app
 
-(This doesn't need any extra arguments because Apple maintains a
-public database of all successful notarizations. The stapler tool
-looks up all necessary info online.)
+(This doesn't need any extra arguments because Apple maintains a public database
+of all successful notarizations. The stapler tool looks up all necessary info
+online.)
 
 Finally, re-run the command to create the DMG file:
 
@@ -378,21 +372,19 @@ Finally, re-run the command to create the DMG file:
 
 ### MinGW
 
-The only supported method for building a Windows version of Gargoyle is
-to cross compile with MinGW on Linux. In this way, Windows builds are
-treated essentially as though they're Unix builds. As such, MinGW
-versions of all packages listed above are required, as is a MinGW
-toolchain.
+The only supported method for building a Windows version of Gargoyle is to cross
+compile with MinGW on Linux. In this way, Windows builds are treated essentially
+as though they're Unix builds. As such, MinGW versions of all packages listed
+above are required, as is a MinGW toolchain.
 
 To cross compile with CMake, a toolchain file is used:
 
     $ env MINGW_TRIPLE=i686-w64-mingw32 MINGW_LOCATION=/usr cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain.cmake
     $ make -j`nproc`
 
-Releases are created with the `windows.sh` script, which builds Gargoyle
-with MinGW and then creates an installer via the `install.nsi` file.
-This uses the Nullsoft Scriptable Install System, which is available for
-Linux.
+Releases are created with the `windows.sh` script, which builds Gargoyle with
+MinGW and then creates an installer via the `install.nsi` file. This uses the
+Nullsoft Scriptable Install System, which is available for Linux.
 
 ### Clang on Windows
 
@@ -403,8 +395,9 @@ are in PATH, that you want to use Qt6, that you'll use Qt for sound, and that
 the relevant Windows SDKs are also installed (if in doubt, install Visual Studio
 with C++ workloads).
 
-We recommend installing Qt via the official Qt installer, and using [vcpkg](https://vcpkg.io)
-for the remaining dependencies (adjust triplet as needed):
+We recommend installing Qt via the official Qt installer, and using
+[vcpkg](https://vcpkg.io) for the remaining dependencies (adjust triplet as
+needed):
 
 ```
 vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo --triplet x64-windows
@@ -424,9 +417,9 @@ The following packages are needed:
 
     $ pkgman install cmake freetype_devel qt5_devel qt5_tools fontconfig_devel libsndfile_devel mpg123_devel libopenmpt_devel
 
-For sound support, Qt must be used instead of SDL. This looks to be
-because both Qt and SDL create a `BApplication` instance, but there can
-be only one such instance.
+For sound support, Qt must be used instead of SDL. This looks to be because both
+Qt and SDL create a `BApplication` instance, but there can be only one such
+instance.
 
 To compile:
 
@@ -435,7 +428,7 @@ To compile:
     $ cmake .. -DSOUND=QT
     $ make
 
-At the moment there is no installation procedure for Haiku, but
-interpreters can be invividually run out of the build directory, or the
-front-end launcher can be run out of the build directory if
-`GARGLK_INTERPRETER_DIR` is set as described above.
+At the moment there is no installation procedure for Haiku, but interpreters can
+be invividually run out of the build directory, or the front-end launcher can be
+run out of the build directory if `GARGLK_INTERPRETER_DIR` is set as described
+above.

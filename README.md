@@ -158,8 +158,8 @@ settings to still be applied.
 ## Runtime options
 
 Gargoyle generally gets out of the way when running a game, presenting just the
-interpreter. However, there are a few shortcuts available (on Mac, use
-`Command` in place of `Ctrl`):
+interpreter. However, there are a few shortcuts available (on Mac, use `Command`
+in place of `Ctrl`):
 
 * `Ctrl`+`,`: Open Gargoyle's configuration file in a text editor.
 * `Ctrl`+`.`: List the paths to all configuration files Gargoyle consults, as
@@ -167,8 +167,8 @@ interpreter. However, there are a few shortcuts available (on Mac, use
   on color themes).
 * `Ctrl`+`Shift`+`t`: Display a list of all available color themes (see
   THEMES.md for more information on color themes).
-* `Ctrl`+`Shift`+`s`: Save the scrollback buffer to a file, effectively
-  creating an ad hoc transcript.
+* `Ctrl`+`Shift`+`s`: Save the scrollback buffer to a file, effectively creating
+  an ad hoc transcript.
 * `Alt`+`Enter` (or `Command`-`Ctrl`-`f` on Mac): Toggle fullscreen.
 
 In addition, Gargoyle supports many readline/Emacs-style line-editor bindings:
