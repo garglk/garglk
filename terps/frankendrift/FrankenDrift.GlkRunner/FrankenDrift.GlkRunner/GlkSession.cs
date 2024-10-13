@@ -1,6 +1,7 @@
 ﻿using FrankenDrift.GlkRunner.Glk;
 using FrankenDrift.Glue;
 using FrankenDrift.Glue.Infragistics.Win.UltraWinToolbars;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -22,6 +23,7 @@ namespace FrankenDrift.GlkRunner
 
         private readonly Dictionary<int, SoundChannel> _sndChannels = new();
         private readonly Dictionary<int, string> _recentlyPlayedSounds = new();
+        private bool _showCoverArt = false;
 
         public MainSession(string gameFile, IGlk glk)
         {
@@ -62,10 +64,11 @@ namespace FrankenDrift.GlkRunner
             Adrift.SharedModule.fRunner = this;
             Glue.Application.SetFrontend(this);
             Adrift.SharedModule.UserSession = new Adrift.RunnerSession { Map = new GlonkMap(), bShowShortLocations = true };
-            for (int i = 1; i <= 8; i++)
-                _sndChannels[i] = GlkApi.glk_schannel_create((uint)i);
-            Adrift.SharedModule.UserSession.OpenAdventure(gameFile);
             _soundSupported = GlkApi.glk_gestalt(Gestalt.Sound2, 0) != 0;
+            if (_soundSupported)
+                for (int i = 1; i <= 8; i++)
+                    _sndChannels[i] = GlkApi.glk_schannel_create((uint)i);
+            Adrift.SharedModule.UserSession.OpenAdventure(gameFile);
             // The underlying Runner wants a tick once per second to trigger real-time-based events
             if (GlkApi.glk_gestalt(Gestalt.Timer, 0) != 0)
                 GlkApi.glk_request_timer_events(1000);
@@ -73,8 +76,13 @@ namespace FrankenDrift.GlkRunner
 
         public void Run()
         {
+            // Adrift Authors have a habit of immediately clearing the screen on startup, so sneak in our welcome message before the first prompt.
+            var myVersion = Assembly.GetExecutingAssembly().GetName().Version;
+            var backendVersion = Assembly.GetAssembly(typeof(Adrift.SharedModule))?.GetName()?.Version;
+            _output.AppendHTML($"\n<i>(Glk FrankenDrift v{myVersion}({GetClaimedAdriftVersion()}/{backendVersion}) -- type !metahelp for interpreter commands.)</i>\n");
             while (true)
             {
+                _output.AppendHTML("<c>&gt; </c>");
                 var cmd = _output.GetLineInput();
                 SubmitCommand(cmd.Trim());
             }
@@ -100,12 +108,25 @@ namespace FrankenDrift.GlkRunner
 
         public bool AskYesNoQuestion(string question, string title = null)
         {
-            throw new NotImplementedException();
-        }
-
-        public void ComplainAboutVersionMismatch(string advVer, string terpVer)
-        {
-            throw new NotImplementedException();
+            if (_output is null)
+                _output = new(GlkApi);
+            if (title is not null)
+                _output.AppendHTML($"\n<font color=\"red\"><b>{title}</b></font>");
+            _output.AppendHTML($"\n<font color=\"red\">{question}</font>");
+            while (true)
+            {
+                _output.AppendHTML("\n[yes/no] > ");
+                var result = _output.GetLineInput().ToLower();
+                switch (result)
+                {
+                    case "y":
+                    case "yes":
+                        return true;
+                    case "n":
+                    case "no":
+                        return false;
+                }
+            }
         }
 
         public void DoEvents()
@@ -147,12 +168,9 @@ namespace FrankenDrift.GlkRunner
         public void InitInput()
         { }
 
-        public bool IsTranscriptActive() => false;
-
         public void MakeNote(string msg)
         {
-            if (_output is not null)
-                _output.AppendHTML($"ADRIFT Note: {msg}");
+            _output?.AppendHTML($"ADRIFT Note: {msg}");
         }
 
         public void OutputHTML(string source) => _output.AppendHTML(source);
@@ -163,12 +181,31 @@ namespace FrankenDrift.GlkRunner
             if (!fileref.IsValid) return "";
             var result = GlkApi.glkunix_fileref_get_name(fileref);
             GlkApi.glk_fileref_destroy(fileref);
-            return result;
+            return result ?? "";
         }
 
         public QueryResult QuerySaveBeforeQuit()
         {
-            throw new NotImplementedException();
+            if (_output is null)
+                return QueryResult.NO;  // if there is no output window, no game was loaded, so there is nothing to save.
+            _output.AppendHTML("\n<b><font color=\"red\">Would you like to save before quitting?</font></b>");
+            while (true)
+            {
+                _output.AppendHTML("\n[yes/no/cancel] > ");
+                var result = _output.GetLineInput().ToLower();
+                switch (result)
+                {
+                    case "y":
+                    case "yes":
+                        return QueryResult.YES;
+                    case "n":
+                    case "no":
+                        return QueryResult.NO;
+                    case "c":
+                    case "cancel":
+                        return QueryResult.CANCEL;
+                }
+            }
         }
 
         public string QuerySavePath()
@@ -177,7 +214,7 @@ namespace FrankenDrift.GlkRunner
             if (!fileref.IsValid) return "";
             var result = GlkApi.glkunix_fileref_get_name(fileref);
             GlkApi.glk_fileref_destroy(fileref);
-            return result;
+            return result ?? "";
         }
 
         public void ReloadMacros() { }
@@ -215,8 +252,16 @@ namespace FrankenDrift.GlkRunner
 
             // It is perhaps bad form / unexpected to do this here, but we can't
             // open any windows until after the style hints have been adjusted.
+            // If a window was already opened to ask questions during the loading process, close it.
+            if (_output is { IsDisposed: false })
+            {
+                _output.Dispose();
+            }
             _output = new GlkHtmlWin(GlkApi);
             _status = _output.CreateStatusBar();
+            // show the cover art if available.
+            if (_showCoverArt)
+                _output.DrawImageImmediately(1);
         }
 
         public void SetGameName(string name)
@@ -228,12 +273,15 @@ namespace FrankenDrift.GlkRunner
         {
             // we don't need the image data that the interpreter has provided us,
             // we just need to ask Glk to display image no. 1
-            _output.DrawImageImmediately(1);
+            // (but since the request to display cover art comes early in the blorb loading stage,
+            //  before color information is made available, we can't actually open a window
+            //  to display anything, so we defer this.)
+            _showCoverArt = true;
         }
 
         public void ShowInfo(string info, string title = null)
         {
-            throw new NotImplementedException();
+            MakeNote(info);
         }
 
         public void SubmitCommand()
@@ -244,10 +292,32 @@ namespace FrankenDrift.GlkRunner
         internal void SubmitCommand(string cmd)
         {
             cmd = cmd.Trim(' ');
-            if (cmd == "!dumpstyles")
+            if (cmd.StartsWith('!'))
             {
-                _output!.DumpCurrentStyleInfo();
-                return;
+                var metacmd = cmd.ToLower();
+                switch (metacmd)
+                {
+                    case "!dumpstyles":
+                        _output!.DumpCurrentStyleInfo();
+                        return;
+                    case "!transcript":
+                    case "!script":
+                    case "!transcripton":
+                    case "!scripton":
+                        TranscriptOn();
+                        return;
+                    case "!transcriptoff":
+                    case "!scriptoff":
+                        TranscriptOff();
+                        return;
+                    case "!help":
+                    case "!metahelp":
+                        ShowMetaHelp();
+                        return;
+                    case "!forcequit":
+                        GlkApi.glk_exit();
+                        return;
+                }
             }
             Adrift.SharedModule.UserSession.Process(cmd);
             Adrift.SharedModule.Adventure.Turns += 1;
@@ -271,7 +341,7 @@ namespace FrankenDrift.GlkRunner
                 score = Adrift.SharedModule.ReplaceALRs(score);
                 user = Adrift.SharedModule.ReplaceALRs(user);
                 var winWidth = _status.Width;
-                var spaces = (winWidth - desc.Length - score.Length - 1) / 2;
+                var spaces = (winWidth - desc.Length - score.Length - user.Length - 1) / 2;
                 if (spaces < 2) spaces = 2;
                 _status.RewriteStatus(desc + new string(' ', spaces) + score + new string(' ', spaces) + user);
             }
@@ -289,7 +359,7 @@ namespace FrankenDrift.GlkRunner
                     || !Adrift.SharedModule.Adventure.BlorbMappings.TryGetValue(snd, out int theSound))
                 return;
             _recentlyPlayedSounds[channel] = snd;
-            GlkApi.glk_schannel_play_ext(_sndChannels[channel], (uint)theSound, loop ? 0xFFFFFFFF : 1, 0);
+            var success = GlkApi.glk_schannel_play_ext(_sndChannels[channel], (uint)theSound, loop ? 0xFFFFFFFF : 1, 0);
         }
 
         private void UnpauseSound(int channel)
@@ -310,6 +380,54 @@ namespace FrankenDrift.GlkRunner
             GlkApi.glk_schannel_stop(_sndChannels[channel]);
             if (_recentlyPlayedSounds.ContainsKey(channel))
                 _recentlyPlayedSounds.Remove(channel);
+        }
+
+        internal void TranscriptOn()
+        {
+            if (_output is null) return;
+            if (_output is { IsEchoing: true })
+            {
+                OutputHTML("<i>Transcript is already on -- use <font face=\"Courier\">!scriptoff</font> to disable it.</i>\n");
+                return;
+            }
+            var fileref = GlkApi.glk_fileref_create_by_prompt(FileUsage.Transcript | FileUsage.TextMode, Glk.FileMode.Write, 0);
+            if (!fileref.IsValid)
+            {
+                _output.AppendHTML("<i>Transcript activation canceled.</i>\n");
+                return;
+            }
+            try
+            {
+                var stream = GlkApi.glk_stream_open_file(fileref, Glk.FileMode.Write, 0);
+                if (stream.IsValid)
+                    _output.EchoStream = stream;
+                else
+                    _output.AppendHTML("<i>Transcript activation failed, sorry.</i>\n");
+            }
+            finally
+            {
+                GlkApi.glk_fileref_destroy(fileref);
+            }
+        }
+
+        internal void TranscriptOff()
+        {
+            if (_output is null) return;
+            if (_output is { IsEchoing: false })
+            {
+                OutputHTML("<i>Transcript is not running -- use <font face=\"Courier\">!scripton</font> to start it.</i>\n");
+                return;
+            }
+            StreamResult result = new();
+            GlkApi.glk_stream_close(_output.EchoStream, ref result);
+            _output.AppendHTML("<i>Transcript stopped.</i>\n");
+        }
+
+        internal void ShowMetaHelp()
+        {
+            if (_output is null)
+                return;  // not like anyone could input a meta-command without the output window existing
+            OutputHTML("<i>Meta-Commands understood by FrankenDrift:\n<font face=\"Courier\">!scripton</font> -- start a transcript\n<font face=\"Courier\">!scriptoff</font> -- stop a running transcript\n<font face=\"Courier\">!dumpstyles</font> -- show the Glk style settings\n<font face=\"Courier\">!forcequit</font> -- immediately terminate the current game session. Unsaved progress will be lost.</i>\n");
         }
     }
 

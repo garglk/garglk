@@ -1,4 +1,5 @@
 ﻿using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -259,6 +260,7 @@ namespace FrankenDrift.GlkRunner.Glk
         void glk_set_window(WindowHandle winId);
         StreamHandle glk_stream_open_file(FileRefHandle fileref, FileMode fmode, uint rock);
         unsafe StreamHandle glk_stream_open_memory(byte* buf, uint buflen, FileMode mode, uint rock);
+        void glk_stream_close(StreamHandle stream, ref StreamResult result);
         void glk_stream_set_position(StreamHandle stream, int pos, SeekMode seekMode);
         void glk_stylehint_set(WinType wintype, Style styl, StyleHint hint, int val);
         uint glk_style_measure(WindowHandle winid, Style styl, StyleHint hint, ref uint result);
@@ -269,12 +271,17 @@ namespace FrankenDrift.GlkRunner.Glk
         void glk_window_get_size(WindowHandle winId, out uint width, out uint height);
         StreamHandle glk_window_get_stream(WindowHandle winId);
         void glk_window_move_cursor(WindowHandle winId, uint xpos, uint ypos);
+        void glk_window_set_echo_stream(WindowHandle winId, StreamHandle stream);
+        StreamHandle glk_window_get_echo_stream(WindowHandle winId);
         WindowHandle glk_window_open(WindowHandle split, WinMethod method, uint size, WinType wintype, uint rock);
         void garglk_set_zcolors(uint fg, uint bg);
         string? glkunix_fileref_get_name(FileRefHandle fileref);
         uint glk_gestalt(Gestalt sel, uint val);
         unsafe uint glk_gestalt_ext(Gestalt sel, uint val, uint* arr, uint arrlen);
         void glk_request_timer_events(uint millisecs);
+        // The following is a garglk extension. If your Glk implementation doesn't have this, make it a no-op in your interface and return 0.
+        // Remove the null-terminated c-style unicode string "str" from the end of the output, if present. Return the number of characters removed.
+        uint garglk_unput_string_count_uni(uint[] str);
 
         // And some extra functions we want that could have different implementations
         void SetGameName(string game);
@@ -307,6 +314,12 @@ namespace FrankenDrift.GlkRunner.Glk
             var encoder = Encoding.GetEncoding(Encoding.Latin1.CodePage, EncoderFallback.ReplacementFallback, DecoderFallback.ReplacementFallback);
             var bytes = encoder.GetBytes(msg);
             GlkApi.glk_put_buffer(bytes, (uint)bytes.Length);
+        }
+
+        internal bool UnputChar(uint ch)
+        {
+            var arr = new uint[2] { ch, 0 };
+            return GlkApi.garglk_unput_string_count_uni(arr) > 0;
         }
     }
 }

@@ -56,6 +56,8 @@ namespace FrankenDrift.GlkRunner
         private uint _hyperlinksSoFar = 1;
         internal bool DoSbAutoHyperlinks => Adrift.SharedModule.Adventure.Title == "Skybreak";
 
+        private string _mostRecentText = "";
+
         static readonly string[] Monospaces = {
             "Andale Mono", "Cascadia Code", "Century Schoolbook Monospace", "Consolas", "Courier", "Courier New",
             "Liberation Mono", "Ubuntu Mono", "DejaVu Sans Mono",
@@ -68,6 +70,13 @@ namespace FrankenDrift.GlkRunner
         };
 
         internal StreamHandle Stream => GlkApi.glk_window_get_stream(glkwin_handle);
+
+        internal StreamHandle EchoStream
+        {
+            get => GlkApi.glk_window_get_echo_stream(glkwin_handle);
+            set => GlkApi.glk_window_set_echo_stream(glkwin_handle, value);
+        }
+        internal bool IsEchoing => EchoStream.IsValid;
 
         internal GlkHtmlWin(IGlk glk)
         {
@@ -257,18 +266,31 @@ namespace FrankenDrift.GlkRunner
                 {
                     var currentTextStyle = styleHistory.Peek();
                     inToken = false;
-                    if (currentToken == "del" && current.Length > 0)
+                    var tokenLower = currentToken.ToLower();
+                    if (tokenLower == "del")  // Attempt to remove a character from the output.
                     {
-                        // As long as we haven't committed to displaying anything,
-                        // we can remove the last character.
-                        current.Remove(current.Length - 1, 1);
+                        if (current.Length > 0) {
+                            // As long as we haven't committed to displaying anything,
+                            // we can simply remove the last character from the buffer.
+                            // (Will break on characters that don't fit into the Unicode BMP, but alas.)
+                            current.Remove(current.Length - 1, 1);
+                        }
+                        else if (!string.IsNullOrEmpty(_mostRecentText))
+                        {
+                            // Under Garglk, we can still recall a character that has already been output.
+                            // This seems like a potentially expensive operation, but shouldn't happen too often.
+                            if (GlkUtil.UnputChar((uint)_mostRecentText.EnumerateRunes().Last().Value)) {
+                                StringBuilder rebuilder = new(_mostRecentText.Length);
+                                foreach (var rune in _mostRecentText.EnumerateRunes().SkipLast(1))
+                                    rebuilder.Append(rune.ToString());
+                                _mostRecentText = rebuilder.ToString();
+                            }
+                        }
                         continue;
-
-                        // TODO: ask for a garglk extension akin to garglk_unput_string that only needs the number of characters to delete.
                     }
                     OutputStyled(current.ToString(), currentTextStyle);
                     current.Clear();
-                    switch (currentToken)
+                    switch (tokenLower)
                     {
                         case "br":
                             GlkUtil.OutputString("\n");
@@ -305,10 +327,9 @@ namespace FrankenDrift.GlkRunner
                             GetCharInput();
                             break;
                     }
-                    if (currentToken.StartsWith("font"))
+                    if (tokenLower.StartsWith("font"))
                     {
                         var color = currentTextStyle.TextColor;
-                        var tokenLower = currentToken.ToLower();
                         var col = ColorRegex().Match(tokenLower);
                         if (col.Success)
                         {
@@ -369,7 +390,7 @@ namespace FrankenDrift.GlkRunner
 
                         styleHistory.Push(new FontInfo { Ts = currstyle, TextColor = color, TagName = "font" });
                     }
-                    else if (currentToken.StartsWith("img") && _imagesSupported)
+                    else if (tokenLower.StartsWith("img") && _imagesSupported)
                     {
                         var imgPath = SrcRegex().Match(currentToken);
                         if (imgPath.Success && Adrift.SharedModule.Adventure.BlorbMappings is { Count: > 0 }
@@ -378,7 +399,7 @@ namespace FrankenDrift.GlkRunner
                             GlkApi.glk_image_draw(glkwin_handle, (uint)res, (int)ImageAlign.MarginRight, 0);
                         }
                     }
-                    else if (currentToken.StartsWith("audio play"))
+                    else if (tokenLower.StartsWith("audio play"))
                     {
                         var sndPath = SrcRegex().Match(currentToken);
                         if (!sndPath.Success) continue;
@@ -389,10 +410,10 @@ namespace FrankenDrift.GlkRunner
                             channel = int.Parse(chanMatch.Groups[1].Value);
                             if (channel is > 8 or < 1) continue;
                         }
-                        var loop = currentToken.Contains("loop=Y");
+                        var loop = tokenLower.Contains("loop=y");
                         MainSession.Instance!.PlaySound(sndPath.Groups[1].Value, channel, loop);
                     }
-                    else if (currentToken.StartsWith("audio pause"))
+                    else if (tokenLower.StartsWith("audio pause"))
                     {
                         var m = ChannelRegex().Match(currentToken);
                         if (m.Success)
@@ -403,7 +424,7 @@ namespace FrankenDrift.GlkRunner
                         }
                         else MainSession.Instance!.PauseSound(1);
                     }
-                    else if (currentToken.StartsWith("audio stop"))
+                    else if (tokenLower.StartsWith("audio stop"))
                     {
                         var m = ChannelRegex().Match(currentToken);
                         if (m.Success)
@@ -474,7 +495,7 @@ namespace FrankenDrift.GlkRunner
             {
                 GlkApi.glk_set_style(Style.BlockQuote);
             }
-            else if ((fi.Ts & (TextStyle.Italic | TextStyle.Bold)) != 0)
+            else if ((fi.Ts & TextStyle.Italic) != 0 && (fi.Ts & TextStyle.Bold) != 0)
             {
                 GlkApi.glk_set_style(Style.Alert);
             }
@@ -490,6 +511,7 @@ namespace FrankenDrift.GlkRunner
             {
                 GlkApi.glk_set_style(Style.Normal);
             }
+            _mostRecentText = txt;
             GlkUtil.OutputString(txt);
         }
 
@@ -514,8 +536,10 @@ namespace FrankenDrift.GlkRunner
                 // TODO: Nicht verwaltete Ressourcen (nicht verwaltete Objekte) freigeben und Finalizer überschreiben
                 // TODO: Große Felder auf NULL setzen
 
-                // we're not interested in the result, but alas...
+                // we're not interested in the results, but alas...
                 StreamResult r = new();
+                if (IsEchoing)
+                    GlkApi.glk_stream_close(EchoStream, ref r);
                 GlkApi.glk_window_close(glkwin_handle, ref r);
                 glkwin_handle = new(IntPtr.Zero);
             }
@@ -569,15 +593,15 @@ namespace FrankenDrift.GlkRunner
             }
         }
 
-        [GeneratedRegex("src ?= ?\"(.+)\"")]
+        [GeneratedRegex("src ?= ?\"(.+)\"", RegexOptions.IgnoreCase)]
         private static partial Regex SrcRegex();
-        [GeneratedRegex("channel=(\\d)")]
+        [GeneratedRegex("channel=(\\d)", RegexOptions.IgnoreCase)]
         private static partial Regex ChannelRegex();
-        [GeneratedRegex("face ?= ?\"(.*?)\"")]
+        [GeneratedRegex("face ?= ?\"(.*?)\"", RegexOptions.IgnoreCase)]
         private static partial Regex FontFaceRegex();
-        [GeneratedRegex("^([0-9a-zA-Z]+?)\\) .+$", RegexOptions.Multiline)]
+        [GeneratedRegex("^([0-9a-zA-Z]+?)\\) .+$", RegexOptions.Multiline | RegexOptions.IgnoreCase)]
         private static partial Regex LinkTargetRegex();
-        [GeneratedRegex("color ?= ?\"?#?([0-9A-Fa-f]{6})\"?")]
+        [GeneratedRegex("color ?= ?\"?#?([0-9A-Fa-f]{6})\"?", RegexOptions.IgnoreCase)]
         private static partial Regex ColorRegex();
     }
 }
