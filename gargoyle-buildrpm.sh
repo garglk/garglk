@@ -82,6 +82,7 @@ cp -v garglk.ini "%{buildroot}%{_sysconfdir}/"
 %files
 %{_sysconfdir}/garglk.ini
 %{_libdir}/libgarglk.so
+%{_libdir}/libgarglk-gpl2.so
 ${frankendrift_spec}
 %{_libexecdir}/gargoyle/advsys
 %{_libexecdir}/gargoyle/magnetic

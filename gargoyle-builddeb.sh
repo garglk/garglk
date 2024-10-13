@@ -144,7 +144,7 @@ pushd ${DEB_ROOT_DIR}/${PKG_NAME}
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PKG_DIR}/usr/lib/${PROJECT}
 
 #Determine dependencies and write out final control file.
-dpkg-shlibdeps ./debian/tmp/usr/libexec/${PROJECT}/* ./debian/tmp/usr/lib/*/libgarglk.so
+dpkg-shlibdeps ./debian/tmp/usr/libexec/${PROJECT}/* ./debian/tmp/usr/lib/*/libgarglk.so ./debian/tmp/usr/lib/*/libgarglk-gpl2.so
 dpkg-gencontrol -v${VERSION}
 
 #Remove the control template, copy the package contents to final packaging location, remove temp directories as needed.

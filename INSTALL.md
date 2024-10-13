@@ -1,6 +1,6 @@
 # General Instructions
 
-To compile Gargoyle you will need CMake 3.1 or newer, a C11 compiler, and a
+To compile Gargoyle you will need CMake 3.12 or newer, a C11 compiler, and a
 C++14 compiler.
 
 The following are required to build Gargoyle on Unix, in addition to a standard
@@ -151,6 +151,28 @@ For Windows, the only supported build method is MinGW on Linux cross compiling
 for Windows. The "install" target will install all binaries to `build/dist`. See
 `windows.sh` at the top level for a script which is used to build the Windows
 installer.
+
+# Licensing notes
+
+Gargoyle is a collection of multiple projects. The core of Gargoyle is garglk,
+an implementation of the Glk API. It also includes several Glk-enabled
+interactive fiction interpreters, each of which is an independent program which
+links to the garglk library, libgarglk.
+
+Because they are separate entities, the interpreters do not need licenses which
+are compatible with each other, but each interpreter does need to be compatible
+with garglk. Some interpreters are GPLv2 and some are GPLv3; garglk is "GPLv2 or
+later", so is compatible with both. However, there is non-essential GPLv3 code
+which garglk can use, and if that is included, the resulting libgarglk is
+necessarily GPLv3.
+
+To work around this, two versions of libgarglk are built. One is called
+libgarglk, and is GPLv3. The other is libgarglk-gpl2, and is GPLv2. All GPLv2
+interpreters link against the libgarglk-gpl2, while the rest link against
+libgarglk.
+
+At the moment, only the xBRZ scaler is GPLv3, so the only difference between
+libgarglk and libgarglk-gpl2 is that the latter disables the xBRZ scaler.
 
 # System-specific instructions
 

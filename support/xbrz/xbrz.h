@@ -59,11 +59,9 @@ const int SCALE_FACTOR_MAX = 6;
 THREAD-SAFETY: - parts of the same image may be scaled by multiple threads as long as the [yFirst, yLast) ranges do not overlap!
                - there is a minor inefficiency for the first row of a slice, so avoid processing single rows only; suggestion: process at least 8-16 rows
 */
-void scale(size_t factor, //valid range: 2 - SCALE_FACTOR_MAX
+bool scale(size_t factor, //valid range: 2 - SCALE_FACTOR_MAX
            const uint32_t* src, uint32_t* trg, int srcWidth, int srcHeight,
-           ColorFormat colFmt,
-           const ScalerCfg& cfg = ScalerCfg(),
-           int yFirst = 0, int yLast = std::numeric_limits<int>::max()); //slice of source image
+           ColorFormat colFmt);
 
 void bilinearScale(const uint32_t* src, int srcWidth, int srcHeight,
                    /**/  uint32_t* trg, int trgWidth, int trgHeight);

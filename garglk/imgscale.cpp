@@ -84,9 +84,10 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
             scaleby = std::min(scaleby, xbrz::SCALE_FACTOR_MAX);
 
             Canvas<4> scaled_canvas(src->w * scaleby, src->h * scaleby);
-            xbrz::scale(scaleby, reinterpret_cast<const std::uint32_t *>(src->rgba.data()), reinterpret_cast<std::uint32_t *>(scaled_canvas.data()), src->w, src->h, xbrz::ColorFormat::ARGB);
-            dst = std::make_unique<picture_t>(src->id, std::move(scaled_canvas), true);
-            src = dst.get();
+            if (xbrz::scale(scaleby, reinterpret_cast<const std::uint32_t *>(src->rgba.data()), reinterpret_cast<std::uint32_t *>(scaled_canvas.data()), src->w, src->h, xbrz::ColorFormat::ARGB)) {
+                dst = std::make_unique<picture_t>(src->id, std::move(scaled_canvas), true);
+                src = dst.get();
+            }
         }
     }
 

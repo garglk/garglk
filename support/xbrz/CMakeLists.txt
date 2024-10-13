@@ -1,6 +1,6 @@
 # xBRZ 1.8
 
-add_library(xbrz STATIC xbrz.cpp)
+add_library(xbrz OBJECT xbrz.cpp)
 
 cxx_standard(xbrz 17)
 

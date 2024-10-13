@@ -53,7 +53,8 @@ if(WITH_TADS)
         SRCS ${srcs}
         MACROS ${macros}
         CXXSTD 11
-        POSIX)
+        POSIX
+        GPL2)
 
     if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
         # This is a style choice in the code.
