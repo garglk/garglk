@@ -36,7 +36,7 @@ at the moment: discovery of the user's preferred text editor. Qt cannot
 determine a user's text editor, so for editing the config file, Gargoyle
 instructs Qt to open the file, hoping that the user's environment will launch it
 in a text editor. If KDE Frameworks are used, the user's preferred text editor
-will be discovered and used directly to open the config file. tHe following KDE
+will be discovered and used directly to open the config file. The following KDE
 Frameworks modules are required:
 
 - extra-cmake-modules
