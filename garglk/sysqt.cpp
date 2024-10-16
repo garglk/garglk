@@ -643,7 +643,7 @@ void wininit()
     // normal sense, so doesn't need to provide Qt command-line
     // arguments (such as -style). Create static dummy argument data
     // here so it will live the entire life of the program and thus
-    // fulfull QApplication's requirements.
+    // fulfill QApplication's requirements.
     static int argc = 1;
     static char *argv[] = {const_cast<char *>("gargoyle"), nullptr};
     app = new QApplication(argc, argv);
