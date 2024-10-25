@@ -236,6 +236,20 @@ public:
         m_buffer_size = size;
     }
 
+#ifdef HAS_QT6
+    // from the consumer's point of view, SoundSource is a sequential stream of data
+    bool isSequential() const override {
+        return true;
+    }
+
+    // The Windows implementation of QAudioSink uses this to determine whether there is more
+    // audio available to be played. We either claim to have a full buffer available if there
+    // are more loops to be played, or zero bytes if not.
+    qint64 bytesAvailable() const override {
+        return m_plays == 0 ? 0 : m_buffer_size;
+    }
+#endif
+
 private:
     QAudioFormat m_format;
     glui32 m_plays;
@@ -578,8 +592,9 @@ struct glk_schannel_struct {
     }
 
     void set_current_volume() {
+        auto target_volume = static_cast<double>(current_volume) / GLK_MAXVOLUME;
         if (audio) {
-            audio->setVolume(static_cast<double>(current_volume) / GLK_MAXVOLUME);
+            audio->setVolume(target_volume);
         }
     }
 
@@ -995,6 +1010,11 @@ static glui32 gli_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, 
         }
 
         chan->set_current_volume();
+
+#ifdef HAS_QT6
+        // Need to initially provide a little bit of audio or QAudioSink will immediately stop playback.
+        chan->source->set_audio_buffer_size(16384);
+#endif
 
         chan->audio->start(chan->source.get());
         if (chan->audio->error() != QAudio::NoError) {
