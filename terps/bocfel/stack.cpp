@@ -685,7 +685,9 @@ static void write_chunk(IO &io, IFF::TypeID (*writefunc)(IO &savefile, Types... 
     IFF::TypeID type;
 
     chunk_pos = io.tell();
-    io.seek(8, IO::SeekFrom::Current); // skip past type and size
+    // Type and size, to be filled in below.
+    io.write32(0);
+    io.write32(0);
     type = writefunc(io, args...);
     if (type.empty()) {
         io.seek(chunk_pos, IO::SeekFrom::Start);

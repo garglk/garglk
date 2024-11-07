@@ -240,6 +240,19 @@ static void load_resources()
         }
 
         if (set_map(blorb_file)) {
+            try {
+                auto io = std::make_shared<IO>(&blorb_file, IO::Mode::ReadOnly, IO::Purpose::Data);
+                IFF iff(io, IFF::TypeID("IFRS"));
+
+                uint32_t size;
+                if (iff.find(IFF::TypeID("IFhd"), size) && size == 13) {
+                    auto release = io->read16();
+                    io->read_exact(zterp_blorb_expected_serial.data(), 6);
+
+                    zterp_blorb_expected_release = release;
+                }
+            } catch (...) {
+            }
             return;
         }
     }

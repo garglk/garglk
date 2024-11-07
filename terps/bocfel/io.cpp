@@ -40,7 +40,9 @@ extern "C" {
 #error ZTERP_NO_STDIO requires a Unix Glk
 #endif
 
+extern "C" {
 #include <glkstart.h>
+}
 
 #ifndef GLKUNIX_FILEREF_CREATE_UNCLEANED
 #error ZTERP_NO_STDIO requires the extension glkunix_fileref_create_by_name_uncleaned
