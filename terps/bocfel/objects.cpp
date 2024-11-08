@@ -325,11 +325,19 @@ void zput_prop()
     found = find_property(zargs[0], zargs[1], propaddr, proplen);
 
     ZASSERT(found, "broken story: no prop");
-    ZASSERT(proplen == 1 || proplen == 2, "broken story: property too long: %u", static_cast<unsigned int>(proplen));
 
     if (proplen == 1) {
         user_store_byte(propaddr, zargs[2] & 0xff);
+    } else if (proplen == 2) {
+        user_store_word(propaddr, zargs[2]);
     } else {
+        // As with @get_prop below, this is an invalid length, but
+        // Photograph does this. It’s a bug in the game, but it’s pretty
+        // easy to accidentally do in Inform. Modern Inform versions
+        // detect it, but older ones didn’t, so it’s probably a safe
+        // assumption that there are some other older games out there
+        // which will trigger this as well. As with some other
+        // interpreters, store a word for all invalid values.
         user_store_word(propaddr, zargs[2]);
     }
 }

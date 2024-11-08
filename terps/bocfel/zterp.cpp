@@ -79,6 +79,11 @@ Header header;
 
 static bool checksum_verified;
 
+#ifdef ZTERP_GLK_BLORB
+int zterp_blorb_expected_release = -1;
+std::array<uint8_t, 6> zterp_blorb_expected_serial;
+#endif
+
 // The null character in the alphabet table does not actually signify a
 // null character: character 6 from A2 is special in that it specifies
 // that the next two characters form a 10-bit ZSCII character (§3.4).
@@ -981,6 +986,12 @@ static void real_main(int argc, char **argv)
         if (zversion == 6 && options.warn_on_v6) {
             show_message("Version 6 of the Z-machine is only partially supported. Be aware that the game might not function properly.");
         }
+
+#ifdef ZTERP_GLK_BLORB
+        if (zterp_blorb_expected_release != -1 && (header.release != zterp_blorb_expected_release || !std::equal(header.serial, header.serial + 6, zterp_blorb_expected_serial.begin()))) {
+            show_message("Found a Blorb file, but it does not match the story file. Proceeding, but expect odd behavior.");
+        }
+#endif
 
         setup_opcodes();
         process_loop();
