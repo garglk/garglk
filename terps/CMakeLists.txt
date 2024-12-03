@@ -12,6 +12,7 @@ option(WITH_MAGNETIC "Enable the magnetic interpreter" ON)
 option(WITH_PLUS "Enable the plus interpreter" ON)
 option(WITH_SCARE "Enable the scare interpreter" ON)
 option(WITH_SCOTT "Enable the scott interpreter" ON)
+option(WITH_TADS "Enable the tads interpreter" ON)
 option(WITH_TAYLOR "Enable the taylor interpreter" ON)
 
 function(terp target)
@@ -61,8 +62,6 @@ function(terp target)
         install(TARGETS ${target} DESTINATION "${INTERPRETER_INSTALL_DIR}")
     endif()
 endfunction()
-
-add_subdirectory(tads)
 
 # Ideally CMake would allow multiple identical calls to add_subdirectory, but it
 # doesn't, so ensure they're called only once, if needed.
@@ -410,6 +409,86 @@ if(WITH_SCOTT)
         scott/ai_uk/seasofblood.c scott/ti994a/ti99_4a_terp.c
         INCLUDE_DIRS ${SCOTT_INCLUDE_DIRS}
         LIBS c64diskimage unp64)
+endif()
+
+# ------------------------------------------------------------------------------
+#
+# TADS
+#
+if(WITH_TADS)
+    set(srcs tads/glk/memicmp.c tads/glk/osbuffer.c tads/glk/osextra.c
+        tads/glk/osglk.c tads/glk/osglkban.c tads/glk/osmisc.c
+        tads/glk/osparse.c tads/glk/osportable.cc tads/glk/t23run.cpp
+        tads/glk/t2askf.c tads/glk/t2indlg.c tads/glk/t3askf.cpp
+        tads/glk/t3indlg.cpp tads/glk/vmuni_cs.cpp)
+
+    list(APPEND srcs tads/tads2/argize.c tads/tads2/bif.c tads/tads2/bifgdum.c
+        tads/tads2/cmap.c tads/tads2/cmd.c tads/tads2/dat.c tads/tads2/dbgtr.c
+        tads/tads2/errmsg.c tads/tads2/execmd.c tads/tads2/fio.c
+        tads/tads2/fioxor.c tads/tads2/getstr.c tads/tads2/ler.c
+        tads/tads2/linfdum.c tads/tads2/lst.c tads/tads2/mch.c tads/tads2/mcm.c
+        tads/tads2/mcs.c tads/tads2/obj.c tads/tads2/oem.c tads/tads2/os0.c
+        tads/tads2/oserr.c tads/tads2/osifc.c tads/tads2/osnoui.c
+        tads/tads2/osrestad.c tads/tads2/osstzprs.c tads/tads2/ostzposix.c
+        tads/tads2/out.c tads/tads2/output.c tads/tads2/ply.c tads/tads2/qas.c
+        tads/tads2/regex.c tads/tads2/run.c tads/tads2/runstat.c
+        tads/tads2/suprun.c tads/tads2/trd.c tads/tads2/voc.c
+        tads/tads2/vocab.c)
+
+    list(APPEND srcs tads/tads3/charmap.cpp tads/tads3/md5.cpp
+        tads/tads3/resldexe.cpp tads/tads3/resload.cpp tads/tads3/sha2.cpp
+        tads/tads3/std.cpp tads/tads3/tcerr.cpp tads/tads3/tcerrmsg.cpp
+        tads/tads3/tcgen.cpp tads/tads3/tcglob.cpp tads/tads3/tcmain.cpp
+        tads/tads3/tcprs.cpp tads/tads3/tcprs_rt.cpp tads/tads3/tcprsnf.cpp
+        tads/tads3/tcprsnl.cpp tads/tads3/tcprsstm.cpp tads/tads3/tcsrc.cpp
+        tads/tads3/tct3.cpp tads/tads3/tct3_d.cpp tads/tads3/tct3nl.cpp
+        tads/tads3/tct3stm.cpp tads/tads3/tct3unas.cpp tads/tads3/tctok.cpp
+        tads/tads3/utf8.cpp tads/tads3/vmanonfn.cpp tads/tads3/vmbif.cpp
+        tads/tads3/vmbifl.cpp tads/tads3/vmbifreg.cpp tads/tads3/vmbift3.cpp
+        tads/tads3/vmbiftad.cpp tads/tads3/vmbiftio.cpp tads/tads3/vmbignum.cpp
+        tads/tads3/vmbignumlib.cpp tads/tads3/vmbt3_nd.cpp
+        tads/tads3/vmbytarr.cpp tads/tads3/vmcfgmem.cpp tads/tads3/vmcoll.cpp
+        tads/tads3/vmconhmp.cpp tads/tads3/vmconsol.cpp tads/tads3/vmcrc.cpp
+        tads/tads3/vmcset.cpp tads/tads3/vmdate.cpp tads/tads3/vmdict.cpp
+        tads/tads3/vmdynfunc.cpp tads/tads3/vmerr.cpp tads/tads3/vmerrmsg.cpp
+        tads/tads3/vmfile.cpp tads/tads3/vmfilnam.cpp tads/tads3/vmfilobj.cpp
+        tads/tads3/vmfref.cpp tads/tads3/vmfunc.cpp tads/tads3/vmglob.cpp
+        tads/tads3/vmgram.cpp tads/tads3/vmhash.cpp tads/tads3/vmhostsi.cpp
+        tads/tads3/vmhosttx.cpp tads/tads3/vmimage.cpp tads/tads3/vmimg_nd.cpp
+        tads/tads3/vmini_nd.cpp tads/tads3/vminit.cpp tads/tads3/vminitim.cpp
+        tads/tads3/vmintcls.cpp tads/tads3/vmisaac.cpp tads/tads3/vmiter.cpp
+        tads/tads3/vmlog.cpp tads/tads3/vmlookup.cpp tads/tads3/vmlst.cpp
+        tads/tads3/vmmain.cpp tads/tads3/vmmcreg.cpp tads/tads3/vmmeta.cpp
+        tads/tads3/vmnetfillcl.cpp tads/tads3/vmobj.cpp tads/tads3/vmop.cpp
+        tads/tads3/vmpack.cpp tads/tads3/vmpat.cpp tads/tads3/vmpool.cpp
+        tads/tads3/vmpoolim.cpp tads/tads3/vmregex.cpp tads/tads3/vmrun.cpp
+        tads/tads3/vmrunsym.cpp tads/tads3/vmsa.cpp tads/tads3/vmsave.cpp
+        tads/tads3/vmsort.cpp tads/tads3/vmsortv.cpp tads/tads3/vmsrcf.cpp
+        tads/tads3/vmstack.cpp tads/tads3/vmstr.cpp tads/tads3/vmstrbuf.cpp
+        tads/tads3/vmstrcmp.cpp tads/tads3/vmtmpfil.cpp tads/tads3/vmtobj.cpp
+        tads/tads3/vmtype.cpp tads/tads3/vmtypedh.cpp tads/tads3/vmtz.cpp
+        tads/tads3/vmtzobj.cpp tads/tads3/vmundo.cpp tads/tads3/vmvec.cpp)
+
+    list(APPEND srcs tads/tads3/vmconnom.cpp)
+
+    set(macros GLK VMGLOB_STRUCT GLK_UNICODE GLK_TIMERS TC_TARGET_T3 RUNTIME)
+    if(MINGW32 OR MSVC)
+        list(APPEND macros DMSDOS DT_WIN32)
+    endif()
+
+    terp(tadsr
+        SRCS ${srcs}
+        MACROS ${macros}
+        CXXSTD 11
+        POSIX
+        GPL2)
+
+    if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
+        # This is a style choice in the code.
+        target_compile_options(tadsr PRIVATE "-Wno-logical-not-parentheses")
+    endif()
+
+    target_include_directories(tadsr PRIVATE tads/glk tads/tads2 tads/tads3)
 endif()
 
 # ------------------------------------------------------------------------------
