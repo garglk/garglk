@@ -220,8 +220,8 @@ static nonstd::optional<Format> find_adrift_blorb_format(const std::string &game
         f.exceptions(std::ifstream::badbit | std::ifstream::failbit | std::ifstream::eofbit);
 
         auto be32 = [&f]() {
-            std::array<char, 4> bytes;
-            f.read(bytes.data(), bytes.size());
+            std::array<unsigned char, 4> bytes;
+            f.read(reinterpret_cast<char *>(bytes.data()), bytes.size());
 
             return (static_cast<std::uint32_t>(bytes[0]) << 24) |
                    (static_cast<std::uint32_t>(bytes[1]) << 16) |
