@@ -36,9 +36,18 @@
 #endif
 
 #include "format.h"
-#define JSON_DIAGNOSTICS 1
-#include "json.hpp"
 #include "optional.hpp"
+
+#define JSON_DIAGNOSTICS 1
+#ifdef __GNUC__
+// Ignore false positives (see https://github.com/nlohmann/json/issues/3808)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#include "json.hpp"
+#pragma GCC diagnostic pop
+#else
+#include "json.hpp"
+#endif
 
 #include "garglk.h"
 
