@@ -14,6 +14,7 @@
 #define NO_COVER
 
 #include "treaty_builder.h"
+#include "ifiction.h"
 #include <ctype.h>
 #include <stdio.h>
 
@@ -33,7 +34,7 @@ static int32 find_text_in_file(void *story_file, int32 extent, char *str)
     }
     
     for (ix=0; ix<extent-len; ix++) {
-        if (strncasecmp(story_file+ix, str, len) == 0)
+        if (strncasecmp((char *)story_file+ix, str, len) == 0)
             return ix;
     }
 
@@ -43,7 +44,7 @@ static int32 find_text_in_file(void *story_file, int32 extent, char *str)
 /* Same as the above, except that str and str2 can be separated by any text that does not contain "<" or ">". This is a crude way to locate an HTML tag with an attribute.
    Kids, don't parse HTML this way.
  */
-static int32 find_text_pair_in_file(void *story_file, int32 extent, char *str, char *str2)
+static int32 find_text_pair_in_file(char *story_file, int32 extent, char *str, char *str2)
 {
     int len = strlen(str);
     int len2 = strlen(str2);
@@ -69,14 +70,14 @@ static int32 find_text_pair_in_file(void *story_file, int32 extent, char *str, c
     return -1;
 }
 
-static int32 find_attribute_value(void *story_file, int32 extent, char *output, int32 output_extent, int32 pos, char* attribute_prefix) {
-    void *starttag = story_file + pos;
-    void *endtag = memchr(starttag, '>', extent-pos);
+static int32 find_attribute_value(char *story_file, int32 extent, char *output, int32 output_extent, int32 pos, char* attribute_prefix) {
+    char *starttag = story_file + pos;
+    char *endtag = memchr(starttag, '>', extent-pos);
     if (endtag) {
         int32 attrpos = find_text_in_file(starttag, endtag-starttag, attribute_prefix);
         if (attrpos != -1) {
             attrpos += strlen(attribute_prefix);
-            void *endattr = memchr(starttag+attrpos, '"', endtag-(starttag+attrpos));
+            char *endattr = memchr(starttag+attrpos, '"', endtag-(starttag+attrpos));
             if (endattr) {
                 /* Got it. */
                 int32 attrlen = endattr - (starttag+attrpos);
@@ -100,20 +101,9 @@ static int32 get_story_file_IFID(void *story_file, int32 extent, char *output, i
     }
 
     /* UUID style */
-    for (ix=0; ix<extent-7; ix++) {
-        if (memcmp((char *)story_file+ix, "UUID://", 7) == 0) {
-            int32 jx;
-            for (jx=ix+7; jx<extent && ((char *)story_file)[jx]!='/'; jx++);
-            if (jx < extent) {
-                ix += 7;
-                ASSERT_OUTPUT_SIZE(jx-ix+1);
-                memcpy(output, (char *)story_file+ix, jx-ix);
-                output[jx-ix]=0;
-                return VALID_STORY_FILE_RV;
-            }
-            break;
-        }
-    }
+    ix = find_uuid_ifid_marker(story_file, extent, output, output_extent);
+    if (ix == VALID_STORY_FILE_RV || ix == INVALID_USAGE_RV)
+        return ix;
     
     /* Twine 2 */
     pos = find_text_in_file(story_file, extent, "<tw-storydata");

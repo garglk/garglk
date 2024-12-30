@@ -45,6 +45,8 @@ typedef void (*IFErrorHandler)(char *, void *);
 void ifiction_parse(char *md, IFCloseTag close_tag, void *close_ctx, IFErrorHandler error_handler, void *error_ctx);
 int32 ifiction_get_IFID(char *metadata, char *output, int32 output_extent);
 char *ifiction_get_tag(char *md, char *p, char *t, char *from);
+int32 find_uuid_ifid_marker(void *sf, int32 extent, char *output, int32 output_extent);
+    
 #ifdef __cplusplus
 }
 #endif

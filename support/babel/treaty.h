@@ -1,6 +1,6 @@
 /*  treaty.h    Header file for Treaty of Babel compliant format modules
  *  By L. Ross Raszewski
- *  Version 0.5
+ *  Version 0.7
  *
  *  This file is public domain, but please note that derived versions
  *  may not not be compliant with the Treaty of Babel.
@@ -13,8 +13,8 @@
 
 #define TREATY_H
 
-#define TREATY_COMPLIANCE "Treaty of Babel revision 10"
-#define TREATY_VERSION "r10"
+#define TREATY_COMPLIANCE "Treaty of Babel revision 12"
+#define TREATY_VERSION "r12"
 
 /* return codes */
 #define NO_REPLY_RV                    0
