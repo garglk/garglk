@@ -48,9 +48,12 @@ static int32 get_story_file_IFID(void *story_file, int32 extent, char *output, i
     {
       /*
         Alan v3 stores IFIDs in the story file in a format that might differ between versions.
-        So just scan for "UUID://"
+        So just scan for "UUID://".
+        Alan files seem to have lower-case hex in the "UUID://" string,
+        which is not what we want, but we accept it for historic
+        reasons. We therefore don't call find_uuid_ifid_marker().
       */
-      int32 i, j;
+      int32 i, j, k;
 
       for(i=0;i<extent;i++) if (memcmp((char *)story_file+i,"UUID://",7)==0) break;
       if (i<extent) /* Found explicit IFID */
@@ -60,11 +63,16 @@ static int32 get_story_file_IFID(void *story_file, int32 extent, char *output, i
             {
               i+=7;
               ASSERT_OUTPUT_SIZE(j-i);
-              memcpy(output,(char *)story_file+i,j-i);
+              for(k=0;k<j-i;k++)
+                {
+                  output[k]=toupper(((char *)story_file)[i+k]);
+                }
               output[j-i]=0;
               return VALID_STORY_FILE_RV;
             }
         }
+      ASSERT_OUTPUT_SIZE(5);
+      strcpy(output,"ALAN-");
       return INCOMPLETE_REPLY_RV;
     }
 }
@@ -72,12 +80,19 @@ static int32 get_story_file_IFID(void *story_file, int32 extent, char *output, i
 
 static bool crc_is_correct(byte *story_file, int32 size_in_awords) {
   /* Size of AcodeHeader is 50 Awords = 200 bytes */
-  int32 crc = 0;
+  int32 calculated_crc = 0;
+  int32 crc_in_file = read_alan_int_at(story_file+46*4);
 
   for (int i=50*4;i<(size_in_awords*4);i++)
-    crc+=story_file[i];
+    calculated_crc+=story_file[i];
 
-  return (crc == read_alan_int_at(story_file+46*4));
+  /* Some Alan 3 games seem to have added 284 to their internal checksum.
+     We allow this error.
+     (It would be more conservative to only allow this error for a few games:
+     A Very Hairy Fish-Mess, The Ngah Angah School of Forbidden Wisdom,
+     Room 206, IN-D-I-GO SOUL, The Christmas Party. But we're not going
+     to be that fussy.) */
+  return (calculated_crc == crc_in_file || calculated_crc + 284 == crc_in_file);
 }
 
 
@@ -119,8 +134,16 @@ static int32 claim_story_file(void *story_file, int32 extent_in_bytes)
       size_in_awords=read_alan_int_at(sf+3*4); /* hdr.size @ 3 */
 
       if (!crc_is_correct(sf, size_in_awords))
-        return INVALID_STORY_FILE_RV;
-
+        {
+          switch (read_alan_int_at(sf+46*4))
+            {
+              case 1427594: /* Enter The Dark */
+              case 8683866: /* Waldo’s Pie */
+                return VALID_STORY_FILE_RV;
+              default:
+                return INVALID_STORY_FILE_RV;
+            }
+        }
       return VALID_STORY_FILE_RV;
     }
 }
