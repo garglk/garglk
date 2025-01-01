@@ -8,12 +8,12 @@
 
 void *my_malloc(unsigned int size, char *rs)
 {
- void *buf=calloc(size,1);
- if (size && !buf)
-  {
+    void *buf=calloc(size,1);
+    if (size && !buf)
+    {
         fprintf(stderr,"Error: Memory exceeded (%d for %s)!\n",size,rs);
         exit(2);
-   }
-   return buf;
+    }
+    return buf;
 }
 

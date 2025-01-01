@@ -14,6 +14,7 @@
 #define NO_COVER
 
 #include "treaty_builder.h"
+#include "ifiction.h"
 #include <ctype.h>
 #include <stdio.h>
 
@@ -23,40 +24,49 @@ static char amigamagic[] = { 0, 0, 3, 0xe7, 0 };
 static char machomagic[] = { 0xFE, 0xED, 0xFA, 0xCE, 0};
 struct exetype
 {
- char *magic;
- char *name;
- int len;
+    char *magic;
+    char *name;
+    int len;
 };
-static struct exetype magic[]= { { "MZ", "MZ", 2 },
-                                 { elfmagic, "ELF", 4 },
-                                 { javamagic, "JAVA", 4 },
-                                 { amigamagic, "AMIGA", 4 },
-                                 { "#! ", "SCRIPT", 3 },
-                                 { machomagic, "MACHO",4 },
-                                 { "APPL", "MAC",4 },
-                                 { NULL, NULL, 0 } };
+static struct exetype magic[]= {
+    { "MZ", "MZ", 2 },
+    { elfmagic, "ELF", 4 },
+    { javamagic, "JAVA", 4 },
+    { amigamagic, "AMIGA", 4 },
+    { "#!", "SCRIPT", 2 },
+    { machomagic, "MACHO",4 },
+    { "APPL", "MAC",4 },
+    { NULL, NULL, 0 }
+};
 
 static char *deduce_magic(void *sf, int32 extent)
 {
- int i;
- for(i=0;magic[i].magic;i++)
- if (extent >= magic[i].len && memcmp(magic[i].magic,sf,magic[i].len)==0)
-  return magic[i].name;
- return NULL;
+    int i;
+    for(i=0;magic[i].magic;i++) {
+        if (extent >= magic[i].len && memcmp(magic[i].magic,sf,magic[i].len)==0)
+            return magic[i].name;
+    }
+    return NULL;
 }
                                  
 static int32 claim_story_file(void *sf, int32 extent)
 {
- if (deduce_magic(sf,extent)) return VALID_STORY_FILE_RV;
- return NO_REPLY_RV;
+    if (deduce_magic(sf,extent)) return VALID_STORY_FILE_RV;
+    return NO_REPLY_RV;
 }
 static int32 get_story_file_IFID(void *sf, int32 extent, char *output, int32 output_extent)
 {
- char *o;
- o=deduce_magic(sf,extent);
- if (!o) return 0;
- ASSERT_OUTPUT_SIZE((signed) strlen(o)+2);
- strcpy(output,o);
- strcat(output,"-");
- return INCOMPLETE_REPLY_RV;
+    char *o;
+    int32 i;
+
+    i = find_uuid_ifid_marker(sf, extent, output, output_extent);
+    if (i == VALID_STORY_FILE_RV || i == INVALID_USAGE_RV)
+        return i;
+    
+    o=deduce_magic(sf,extent);
+    if (!o) return 0;
+    ASSERT_OUTPUT_SIZE((signed) strlen(o)+2);
+    strcpy(output,o);
+    strcat(output,"-");
+    return INCOMPLETE_REPLY_RV;
 }
