@@ -49,7 +49,7 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
 
     constexpr int SCALE = 4096;
     constexpr int HALFSCALE = 2048;
-    constexpr int maxval = 255;
+    constexpr long maxval = 255;
 
     auto dst = gli_picture_retrieve(src->id, true);
 
@@ -170,27 +170,15 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
                     r = g = b = a;
                 } else {
                     r = rs[col] + fracrowtofill * src->rgba[rowsread - 1][col][0] * alpha;
-                    r /= a;
-                    if (r > maxval) {
-                        r = maxval;
-                    }
+                    r = std::min(r / a, maxval);
 
                     g = gs[col] + fracrowtofill * src->rgba[rowsread - 1][col][1] * alpha;
-                    g /= a;
-                    if (g > maxval) {
-                        g = maxval;
-                    }
+                    g = std::min(g / a, maxval);
 
                     b = bs[col] + fracrowtofill * src->rgba[rowsread - 1][col][2] * alpha;
-                    b /= a;
-                    if (b > maxval) {
-                        b = maxval;
-                    }
+                    b = std::min(b / a, maxval);
 
-                    a /= SCALE;
-                    if (a > maxval) {
-                        a = maxval;
-                    }
+                    a = std::min(a / SCALE, maxval);
                 }
 
                 tempxelrow[col] = Pixel<4>(r, g, b, a);
@@ -235,27 +223,15 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
                         r = g = b = a;
                     } else {
                         r += fraccoltofill * tempxel_blended_r;
-                        r /= a;
-                        if (r > maxval) {
-                            r = maxval;
-                        }
+                        r = std::min(r / a, maxval);
 
                         g += fraccoltofill * tempxel_blended_g;
-                        g /= a;
-                        if (g > maxval) {
-                            g = maxval;
-                        }
+                        g = std::min(g / a, maxval);
 
                         b += fraccoltofill * tempxel_blended_b;
-                        b /= a;
-                        if (b > maxval) {
-                            b = maxval;
-                        }
+                        b = std::min(b / a, maxval);
 
-                        a /= SCALE;
-                        if (a > maxval) {
-                            a = maxval;
-                        }
+                        a = std::min(a / SCALE, maxval);
                     }
 
                     rgba[row][dstcol] = Pixel<4>(r, g, b, a);
@@ -292,22 +268,10 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
                 if (a == 0) {
                     r = g = b = a;
                 } else {
-                    r /= a;
-                    if (r > maxval) {
-                        r = maxval;
-                    }
-                    g /= a;
-                    if (g > maxval) {
-                        g = maxval;
-                    }
-                    b /= a;
-                    if (b > maxval) {
-                        b = maxval;
-                    }
-                    a /= SCALE;
-                    if (a > maxval) {
-                        a = maxval;
-                    }
+                    r = std::min(r / a, maxval);
+                    g = std::min(g / a, maxval);
+                    b = std::min(b / a, maxval);
+                    a = std::min(a / SCALE, maxval);
                 }
 
                 rgba[row][dstcol] = Pixel<4>(r, g, b, a);
