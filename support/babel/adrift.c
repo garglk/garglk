@@ -19,6 +19,8 @@
 #include <limits.h>
 #include <stdlib.h>
 
+#include <strings.h>
+
 /* VB RNG constants */
 #define  VB_RAND1      0x43FD43FD
 #define  VB_RAND2      0x00C39EC3
