@@ -1,18 +1,6 @@
 // Copyright 2010-2021 Chris Spiegel.
 //
-// This file is part of Bocfel.
-//
-// Bocfel is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License, version
-// 2 or 3, as published by the Free Software Foundation.
-//
-// Bocfel is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 #include <ctime>
 #include <string>
