@@ -2,6 +2,49 @@
 
 set -e
 
+fatal() {
+    echo "${@}" >&2
+    exit 1
+}
+
+GARGOYLE_FRANKENDRIFT="OFF"
+GARGOYLE_CMAKE_EXTRAS=""
+
+while getopts "c:f" o
+do
+    case "${o}" in
+        c)
+            GARGOYLE_CROSS="x86_64"
+            ;;
+        f)
+            GARGOYLE_FRANKENDRIFT="ON"
+            ;;
+        *)
+            fatal "Usage: $0 [-a x86_64] [-f]"
+            ;;
+    esac
+done
+
+if [[ "$(uname -m)" == "${GARGOYLE_CROSS}" ]]
+then
+    fatal "Target is already ${GARGOYLE_CROSS}: don't specify cross compiling"
+fi
+
+case "${GARGOYLE_CROSS}" in
+    "")
+        ;;
+    x86_64)
+        # Go on the assumption that Homebrew for x86_64 is installed in
+        # /usr/local; ensure /opt/homebrew is _not_ visible so that, if a package
+        # is missing in /usr/local, the arm64 version isn't picked up instead.
+        export PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin
+        GARGOYLE_CMAKE_EXTRAS="-DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_PREFIX_PATH=/usr/local"
+        ;;
+    *)
+        fatal "Unknown cross-compile target: ${GARGOYLE_CROSS}"
+        ;;
+esac
+
 # XXX Temporary hack for a broken sdl2_mixer or readline package in Homebrew.
 # sdl2_mixer's pkg-config file requires readline, but the readline pkg-config
 # file isn't installed to /usr/local/lib/pkgconfig, meaning it can't be found.
@@ -54,7 +97,7 @@ mkdir -p "$BUNDLE/PlugIns"
 rm -rf $GARGDIST
 mkdir -p build-osx
 cd build-osx
-cmake .. -DBUILD_SHARED_LIBS=ON -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOS_MIN_VER} -DDIST_INSTALL=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_FRAMEWORK=LAST -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DWITH_FRANKENDRIFT=OFF
+cmake .. -DBUILD_SHARED_LIBS=ON -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOS_MIN_VER} -DDIST_INSTALL=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_FRAMEWORK=LAST -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DWITH_FRANKENDRIFT="${GARGOYLE_FRANKENDRIFT}" ${GARGOYLE_CMAKE_EXTRAS}
 make "-j${NUMJOBS}"
 make install
 cd -
