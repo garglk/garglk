@@ -45,19 +45,6 @@ case "${GARGOYLE_CROSS}" in
         ;;
 esac
 
-# XXX Temporary hack for a broken sdl2_mixer or readline package in Homebrew.
-# sdl2_mixer's pkg-config file requires readline, but the readline pkg-config
-# file isn't installed to /usr/local/lib/pkgconfig, meaning it can't be found.
-# I don't know the logic behind what gets symlinked into /usr/local/lib/pkgconfig
-# so I don't know who's at fault here, but the hacky way around it is to set
-# $PKG_CONFIG_PATH to point to readline's pkg-config directory. This only
-# happens if $PKG_CONFIG_PATH isn't already set.
-if ! pkg-config readline --exists; then
-    if [[ -z "${PKG_CONFIG_PATH}" ]]; then
-        export PKG_CONFIG_PATH="$(dirname $(find /usr/local/Cellar/readline -name readline.pc|tail -1))"
-    fi
-fi
-
 # Use Homebrew if available. Alternately, you could just set the variable to
 # either yes or no.
 if [ "${MAC_USEHOMEBREW}" == "" ]; then
@@ -66,9 +53,11 @@ if [ "${MAC_USEHOMEBREW}" == "" ]; then
 fi
 
 if [ "${MAC_USEHOMEBREW}" == "yes" ]; then
+  command -v brew &> /dev/null || fatal "Homebrew requested but not found"
   HOMEBREW_OR_MACPORTS_LOCATION="$(brew --prefix)"
 else
-  HOMEBREW_OR_MACPORTS_LOCATION="$(pushd "$(dirname "$(which port)")/.." > /dev/null ; pwd -P ; popd > /dev/null)"
+  command -v port &> /dev/null || fatal "Neither Homebrew nor MacPorts is available"
+  HOMEBREW_OR_MACPORTS_LOCATION="$(realpath "$(dirname "$(which port)")/..")"
 fi
 
 if [[ "$(sw_vers -productVersion)" =~ ^10\.([0-9]+) && ${BASH_REMATCH[1]} -lt 15 ]]; then
@@ -106,7 +95,7 @@ cd -
 cp "$GARGDIST/gargoyle" "$BUNDLE/MacOS/Gargoyle"
 
 # Copy terps to the PlugIns directory.
-find "${GARGDIST}" -type f -not -name '*.dylib' -not -name 'gargoyle' -print0 | xargs -0 -J @ cp @ "$BUNDLE/PlugIns"
+find "${GARGDIST}" -type f -not -name '*.dylib' -not -name 'gargoyle' -print0 | /usr/bin/xargs -0 -J @ cp @ "$BUNDLE/PlugIns"
 
 # Copy the dylibs built to the Frameworks directory.
 find "${GARGDIST}" -type f -name '*.dylib' -exec cp {} "$BUNDLE/Frameworks" \;
