@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -eu
 
 fatal() {
     echo "${@}" >&2
@@ -10,43 +10,21 @@ fatal() {
 GARGOYLE_FRANKENDRIFT="OFF"
 GARGOYLE_CMAKE_EXTRAS=""
 
-while getopts "c:f" o
+while getopts "f" o
 do
     case "${o}" in
-        c)
-            GARGOYLE_CROSS="x86_64"
-            ;;
         f)
             GARGOYLE_FRANKENDRIFT="ON"
             ;;
         *)
-            fatal "Usage: $0 [-a x86_64] [-f]"
+            fatal "Usage: $0 [-f]"
             ;;
     esac
 done
 
-if [[ "$(uname -m)" == "${GARGOYLE_CROSS}" ]]
-then
-    fatal "Target is already ${GARGOYLE_CROSS}: don't specify cross compiling"
-fi
-
-case "${GARGOYLE_CROSS}" in
-    "")
-        ;;
-    x86_64)
-        # Go on the assumption that Homebrew for x86_64 is installed in
-        # /usr/local; ensure /opt/homebrew is _not_ visible so that, if a package
-        # is missing in /usr/local, the arm64 version isn't picked up instead.
-        export PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin
-        GARGOYLE_CMAKE_EXTRAS="-DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_PREFIX_PATH=/usr/local"
-        ;;
-    *)
-        fatal "Unknown cross-compile target: ${GARGOYLE_CROSS}"
-        ;;
-esac
-
 # Use Homebrew if available. Alternately, you could just set the variable to
 # either yes or no.
+MAC_USEHOMEBREW=${MAC_USEHOMEBREW:-}
 if [ "${MAC_USEHOMEBREW}" == "" ]; then
   MAC_USEHOMEBREW=no
   brew --prefix > /dev/null 2>&1 && MAC_USEHOMEBREW=yes
@@ -57,8 +35,60 @@ if [ "${MAC_USEHOMEBREW}" == "yes" ]; then
   HOMEBREW_OR_MACPORTS_LOCATION="$(brew --prefix)"
 else
   command -v port &> /dev/null || fatal "Neither Homebrew nor MacPorts is available"
-  HOMEBREW_OR_MACPORTS_LOCATION="$(realpath "$(dirname "$(which port)")/..")"
+  HOMEBREW_OR_MACPORTS_LOCATION="$(cd "$(dirname "$(which port)")/.." && pwd)"
 fi
+
+HOST_ARCH="$(uname -m)"
+
+if [[ "${MAC_USEHOMEBREW}" == "yes" ]]
+then
+    echo "Probing Homebrew architecture..."
+    HOMEBREW_ARCH=$(brew config | grep "^macOS:" | cut -d "-" -f2)
+else
+    HOMEBREW_ARCH=""
+fi
+
+# If the Homebrew architecture in $PATH is not the same as the current
+# architecture, assume a cross compile. Cross compiling is currently only
+# supported on Homebrew, and only from arm64 to x86_64.
+case "${HOMEBREW_ARCH}" in
+    # Building for x86_64
+    "x86_64")
+        case "${HOST_ARCH}" in
+            x86_64)
+                ;;
+            arm64)
+                echo "Cross compiling to ${HOMEBREW_ARCH} from ${HOST_ARCH}"
+                GARGOYLE_CMAKE_EXTRAS="-DCMAKE_OSX_ARCHITECTURES=${HOMEBREW_ARCH} -DCMAKE_PREFIX_PATH=${HOMEBREW_OR_MACPORTS_LOCATION}"
+                ;;
+            *)
+                fatal "Don't know how to cross compile for ${TARGET_ARCH} from ${HOST_ARCH}"
+                ;;
+        esac
+
+        TARGET_ARCH="${HOMEBREW_ARCH}"
+        ;;
+
+    # Building for arm64
+    "arm64")
+        [[ "${HOST_ARCH}" != "arm64" ]] && fatal "Don't know how to cross compile to ${HOMEBREW_ARCH} from ${HOST_ARCH}"
+
+        TARGET_ARCH="${HOMEBREW_ARCH}"
+        ;;
+
+    # No support for cross compiling on MacPorts at the moment. Assume the
+    # current archutecture.
+    "")
+        TARGET_ARCH="${HOST_ARCH}"
+        ;;
+
+    *)
+        fatal "Unknown target architecture: ${HOMEBREW_ARCH}"
+        ;;
+esac
+
+# Ensure a sane environment (mainly be certain GNU programs aren't visible).
+export PATH="${HOMEBREW_OR_MACPORTS_LOCATION}/bin:/usr/bin:/bin:/usr/sbin"
 
 if [[ "$(sw_vers -productVersion)" =~ ^10\.([0-9]+) && ${BASH_REMATCH[1]} -lt 15 ]]; then
   MACOS_MIN_VER="10.13"
@@ -74,7 +104,7 @@ NUMJOBS=$(sysctl -n hw.ncpu)
 GARGDIST=build/dist
 BUNDLE=Gargoyle.app/Contents
 
-GARVERSION=$(cat VERSION)
+GARVERSION=$(<VERSION)
 
 rm -rf Gargoyle.app
 mkdir -p "$BUNDLE/MacOS"
@@ -95,7 +125,7 @@ cd -
 cp "$GARGDIST/gargoyle" "$BUNDLE/MacOS/Gargoyle"
 
 # Copy terps to the PlugIns directory.
-find "${GARGDIST}" -type f -not -name '*.dylib' -not -name 'gargoyle' -print0 | /usr/bin/xargs -0 -J @ cp @ "$BUNDLE/PlugIns"
+find "${GARGDIST}" -type f -not -name '*.dylib' -not -name 'gargoyle' -print0 | xargs -0 -J @ cp @ "$BUNDLE/PlugIns"
 
 # Copy the dylibs built to the Frameworks directory.
 find "${GARGDIST}" -type f -name '*.dylib' -exec cp {} "$BUNDLE/Frameworks" \;
@@ -172,6 +202,6 @@ cp themes/*.json $BUNDLE/Resources/themes
 codesign -s - -f --deep Gargoyle.app
 
 echo "Creating DMG..."
-hdiutil create -fs "HFS+J" -ov -srcfolder Gargoyle.app/ "gargoyle-$GARVERSION-mac.dmg"
+hdiutil create -fs "HFS+J" -ov -srcfolder Gargoyle.app/ "gargoyle-$GARVERSION-$TARGET_ARCH.dmg"
 
 echo "Done."
