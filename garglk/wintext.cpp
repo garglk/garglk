@@ -72,7 +72,10 @@ std::vector<char> gli_get_text(window_textbuffer_t *dwin)
                 text.push_back(buf[i]);
             }
         }
-        text.push_back(0x0a); // Unicode linefeed
+        // Only add newline if this was an actual paragraph break, not a wrapped line
+        if (line.newline) {
+            text.push_back(0x0a); // Unicode linefeed
+        }
     }
 
     return text;
@@ -428,8 +431,8 @@ void win_textbuffer_redraw(window_t *win)
                     dwin->copybuf.push_back(ln.chars[tsc]);
                 }
             }
-            // add newline if we reach the end of the line
-            if (ln.len == 0 || ln.len == (rsc + 1)) {
+            // add newline only if this is a real paragraph break, not just a wrapped line
+            if ((ln.len == 0 || ln.len == (rsc + 1)) && ln.newline) {
                 dwin->copybuf.push_back('\n');
             }
         }
