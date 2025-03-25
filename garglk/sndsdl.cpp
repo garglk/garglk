@@ -196,7 +196,7 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
 static void cleanup_channel(schanid_t chan)
 {
     if (chan->sdl_rwops != nullptr) {
-        SDL_FreeRW(chan->sdl_rwops);
+        SDL_RWclose(chan->sdl_rwops);
         chan->sdl_rwops = nullptr;
     }
 
