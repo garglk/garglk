@@ -17,12 +17,11 @@
 // along with Gargoyle; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-#include <cstdlib>
-#include <cstring>
+#include <stdlib.h>
+#include <string.h>
 
 #include "glk.h"
 #include "glkstart.h"
-#include "garglk.h"
 
 int main(int argc, char *argv[])
 {
@@ -30,8 +29,8 @@ int main(int argc, char *argv[])
 
     glkunix_startup_t startdata;
     startdata.argc = argc;
-    startdata.argv = new char *[argc + 1];
-    std::memcpy(startdata.argv, argv, (argc + 1) * sizeof(char *));
+    startdata.argv = malloc((argc + 1) * sizeof(char *));
+    memcpy(startdata.argv, argv, (argc + 1) * sizeof(char *));
 
     if (!glkunix_startup_code(&startdata)) {
         glk_exit();

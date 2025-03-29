@@ -147,8 +147,8 @@ if(MATH_LIBRARY)
     target_link_libraries(garglk-common PRIVATE ${MATH_LIBRARY})
 endif()
 
-add_library(garglkmain STATIC main.cpp)
-cxx_standard(garglkmain ${CXX_VERSION})
+add_library(garglkmain STATIC main.c)
+c_standard(garglkmain 11)
 warnings(garglkmain)
 target_include_directories(garglkmain PRIVATE cheapglk)
 
