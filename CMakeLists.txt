@@ -9,6 +9,11 @@ string(STRIP "${GARGOYLE_VERSION}" GARGOYLE_VERSION)
 # CI builds which include the current Git revision as the version.
 project(garglk)
 
+include(GNUInstallDirs)
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 if(POLICY CMP0069)
     cmake_policy(SET CMP0069 NEW)
     include(CheckIPOSupported)
