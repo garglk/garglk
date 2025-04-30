@@ -6284,6 +6284,7 @@ glkunix_startup_code (glkunix_startup_t * data)
 /*---------------------------------------------------------------------*/
 /*  Glk linkage relevant only to the Mac platform                      */
 /*---------------------------------------------------------------------*/
+#ifndef GARGLK
 #if TARGET_OS_MAC
 
 #include "macglk_startup.h"
@@ -6357,3 +6358,4 @@ macglk_startup_code (macglk_startup_t * data)
   return TRUE;
 }
 #endif /* TARGET_OS_MAC */
+#endif
