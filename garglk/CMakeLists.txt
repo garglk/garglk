@@ -428,7 +428,7 @@ elseif(UNIX)
         set(FONT_DIRECTORY "${CMAKE_INSTALL_BINDIR}")
     else()
         set(FONT_DIRECTORY "${CMAKE_INSTALL_DATADIR}/fonts/gargoyle")
-        target_compile_definitions(garglk PRIVATE "GARGLK_CONFIG_FONT_PATH=\"${CMAKE_INSTALL_FULL_DATADIR}/fonts/gargoyle\"")
+        target_compile_definitions(garglk-common PRIVATE "GARGLK_CONFIG_FONT_PATH=\"${CMAKE_INSTALL_FULL_DATADIR}/fonts/gargoyle\"")
     endif()
 
     install(FILES
