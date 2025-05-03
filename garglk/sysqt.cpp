@@ -753,24 +753,39 @@ nonstd::optional<std::string> garglk::winfontpath(const std::string &filename)
     return Format("{}/{}", QCoreApplication::applicationDirPath().toStdString(), filename);
 }
 
-std::vector<std::string> garglk::winappdata()
+std::string garglk::windatadir()
+{
+#if defined(_WIN32)
+    return garglk::winappdir().value_or(".");
+#elif GARGLK_CONFIG_APPIMAGE
+    // For AppImages, hard-code the "known" path to app data (in this
+    // case that's <binary>/../share/io.github.garglk/Gargoyle).
+    auto dir = QCoreApplication::applicationDirPath().toStdString();
+    return Format("{}/../share/{}/Gargoyle", dir, GARGOYLE_ORGANIZATION);
+#elif defined(GARGLK_CONFIG_DATADIR)
+    return GARGLK_CONFIG_DATADIR;
+#else
+    return ".";
+#endif
+}
+
+std::vector<std::string> garglk::winthemedirs()
 {
     std::vector<std::string> paths;
 
     for (const auto &path : QStandardPaths::standardLocations(QStandardPaths::AppDataLocation)) {
-        paths.push_back(path.toStdString());
+        paths.push_back(path.toStdString() + "/themes");
     }
 
 #ifdef _WIN32
     // On Windows, also search the executable's directory.
-    paths.push_back(QCoreApplication::applicationDirPath().toStdString());
+    paths.push_back(QCoreApplication::applicationDirPath().toStdString() + "/themes");
 #endif
 
     // For AppImages, hard-code the "known" path to app data (in this
     // case that's <binary>/../share/io.github.garglk/Gargoyle).
 #if GARGLK_CONFIG_APPIMAGE
-    auto dir = QCoreApplication::applicationDirPath().toStdString();
-    paths.push_back(Format("{}/../share/{}/Gargoyle", dir, GARGOYLE_ORGANIZATION));
+    paths.push_back(Format("{}/themes", garglk::windatadir()));
 #endif
 
     // QStandardPaths returns higher priority directories first: reverse

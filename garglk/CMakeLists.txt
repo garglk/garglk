@@ -104,6 +104,7 @@ warnings(garglk-common)
 
 if(UNIX AND NOT APPLE)
     target_compile_definitions(garglk-common PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
+    target_compile_definitions(garglk-common PRIVATE "GARGLK_CONFIG_DATADIR=\"${CMAKE_INSTALL_FULL_DATAROOTDIR}/io.github.garglk/Gargoyle\"")
 endif()
 
 if(DEFAULT_SOUNDFONT)

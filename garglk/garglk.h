@@ -167,7 +167,8 @@ void config_entries(const std::string &fname, bool accept_bare, const std::vecto
 std::string user_config();
 bool set_lcdfilter(const std::string &filter);
 nonstd::optional<std::string> winfontpath(const std::string &filename);
-std::vector<std::string> winappdata();
+std::string windatadir();
+std::vector<std::string> winthemedirs();
 nonstd::optional<std::string> winappdir();
 bool winisfullscreen();
 
