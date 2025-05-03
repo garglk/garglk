@@ -248,8 +248,8 @@ std::vector<std::string> garglk::theme::paths()
 {
     std::vector<std::string> theme_paths;
 
-    for (const auto &path : garglk::winappdata()) {
-        theme_paths.push_back(Format("{}/themes", path));
+    for (const auto &path : garglk::winthemedirs()) {
+        theme_paths.push_back(path);
     }
 
     return theme_paths;

@@ -358,13 +358,11 @@ static std::vector<Font> make_substitution_fonts(FontFace fontface)
 
     auto files = gli_conf_glyph_substitution_files[fontface];
 
-    for (const auto &datadir : garglk::winappdata()) {
-        files.push_back(Format("{}/unifont.otf", datadir));
-        files.push_back(Format("{}/unifont_upper.otf", datadir));
-    }
 
-    files.emplace_back("./unifont.otf");
-    files.emplace_back("./unifont_upper.otf");
+    for (const auto &path : {garglk::windatadir(), "."s}) {
+        files.push_back(Format("{}/unifont.otf", path));
+        files.push_back(Format("{}/unifont_upper.otf", path));
+    }
 
     for (const auto &file : files) {
         if (FT_New_Face(ftlib, file.c_str(), 0, &face) == 0) {

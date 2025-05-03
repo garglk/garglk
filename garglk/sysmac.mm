@@ -872,20 +872,31 @@ nonstd::optional<std::string> garglk::winfontpath(const std::string &filename)
     return nonstd::nullopt;
 }
 
-std::vector<std::string> garglk::winappdata()
+std::string garglk::windatadir()
+{
+    char *resources = std::getenv("GARGLK_RESOURCES");
+
+    if (resources != nullptr) {
+        return resources;
+    }
+
+    return ".";
+}
+
+std::vector<std::string> garglk::winthemedirs()
 {
     NSArray *appdir_paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
     char *resources = std::getenv("GARGLK_RESOURCES");
     std::vector<std::string> paths;
 
     if (resources != nullptr) {
-        paths.emplace_back(resources);
+        paths.push_back(Format("{}/themes", resources));
     }
 
     // This is what Qt returns for AppDataLocation (though Qt adds a
     // few more directories that aren't particularly relevant).
     for (NSString *appdir_path in appdir_paths) {
-        paths.push_back(Format("{}/{}/{}", [appdir_path UTF8String], GARGOYLE_ORGANIZATION, GARGOYLE_NAME));
+        paths.push_back(Format("{}/{}/{}/themes", [appdir_path UTF8String], GARGOYLE_ORGANIZATION, GARGOYLE_NAME));
     }
 
     return paths;
