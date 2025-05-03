@@ -425,13 +425,6 @@ elseif(UNIX)
         endforeach()
     endif()
 
-    if(APPIMAGE)
-        set(FONT_DIRECTORY "${CMAKE_INSTALL_BINDIR}")
-    else()
-        set(FONT_DIRECTORY "${CMAKE_INSTALL_DATADIR}/fonts/gargoyle")
-        target_compile_definitions(garglk-common PRIVATE "GARGLK_CONFIG_FONT_PATH=\"${CMAKE_INSTALL_FULL_DATADIR}/fonts/gargoyle\"")
-    endif()
-
     install(FILES
         "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono-Bold-Italic.ttf"
         "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono-Bold.ttf"
@@ -441,9 +434,6 @@ elseif(UNIX)
         "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Bold.ttf"
         "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Italic.ttf"
         "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif.ttf"
-        DESTINATION "${FONT_DIRECTORY}")
-
-    install(FILES
         "${PROJECT_SOURCE_DIR}/fonts/unifont.otf"
         "${PROJECT_SOURCE_DIR}/fonts/unifont_upper.otf"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/io.github.garglk/Gargoyle")
