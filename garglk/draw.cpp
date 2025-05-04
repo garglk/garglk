@@ -254,9 +254,9 @@ FontEntry Font::getglyph(glui32 cid)
 }
 
 // Look in a system-wide location for the fallback Gargoyle fonts; on
-// Unix this is generally somewhere like /usr/share/io.github.garglk/Gargoyle/
-// (although this can be changed at build time), and on Windows it's the
-// install directory (e.g. "C:\Program Files (x86)\Gargoyle").
+// Unix this is generally somewhere like /usr/share/gargoyle (although
+// this can be changed at build time), and on Windows it's the install
+// directory (e.g. "C:\Program Files (x86)\Gargoyle").
 static nonstd::optional<std::string> font_path_fallback_system(const std::string &fallback)
 {
 #ifdef _WIN32

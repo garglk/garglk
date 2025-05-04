@@ -169,6 +169,7 @@ bool set_lcdfilter(const std::string &filter);
 nonstd::optional<std::string> winfontpath(const std::string &filename);
 std::string windatadir();
 std::vector<std::string> winthemedirs();
+nonstd::optional<std::string> winlegacythemedir();
 nonstd::optional<std::string> winappdir();
 bool winisfullscreen();
 

@@ -305,7 +305,27 @@ void garglk::theme::init()
         }
     }
 
-    for (const auto &themedir : garglk::theme::paths()) {
+    auto paths = garglk::theme::paths();
+
+    // Gargoyle used to set an organization of io.github.garglk and a name
+    // of Gargoyle (in Qt), which led to directories of the form
+    // share/io.github.garglk/Gargoyle, which is fairly ridiculous. Gargoyle
+    // now just sets the name to "gargoyle" and leaves the organization
+    // blank, resulting in the more standard "share/gargoyle"; but themes in
+    // earlier releases were stored in the more verbose location. Existing
+    // user themes in these locations should work, but the locations should
+    // _not_ be part of the "standard" theme paths, or they'll be shown to
+    // the user, e.g. in "gargoyle --paths", and users should be discouraged
+    // from using the older names. So, when doing the actual theme loading,
+    // try loading from the legacy location as well, but ensure the legacy
+    // location has the lowest priority (first in the list), so newer themes
+    // with the same name take precedence.
+    auto legacy = garglk::winlegacythemedir();
+    if (legacy.has_value()) {
+        paths.insert(paths.begin(), *legacy);
+    }
+
+    for (const auto &themedir : paths) {
         for (const auto &filename : directory_entries(themedir)) {
             auto dot = filename.find_last_of('.');
             if (dot != std::string::npos && filename.substr(dot) == ".json") {

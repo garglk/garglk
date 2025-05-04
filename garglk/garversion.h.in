@@ -19,8 +19,6 @@
 #ifndef GARGLK_VERSION_H
 #define GARGLK_VERSION_H
 
-#define GARGOYLE_NAME "Gargoyle"
 #define GARGOYLE_VERSION "${GARGOYLE_VERSION}"
-#define GARGOYLE_ORGANIZATION "io.github.garglk"
 
 #endif

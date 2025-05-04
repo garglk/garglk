@@ -45,7 +45,7 @@
 
 #include GARGLKINI_H
 
-static const char *AppName = GARGOYLE_NAME " " GARGOYLE_VERSION;
+static const char *AppName = "Gargoyle " GARGOYLE_VERSION;
 
 namespace {
 
@@ -292,8 +292,7 @@ int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
 
-    QApplication::setOrganizationName(GARGOYLE_ORGANIZATION);
-    QApplication::setApplicationName(GARGOYLE_NAME);
+    QApplication::setApplicationName("gargoyle");
     QApplication::setApplicationVersion(GARGOYLE_VERSION);
 
     auto story = parse_args(app);

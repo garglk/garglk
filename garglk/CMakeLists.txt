@@ -104,7 +104,7 @@ warnings(garglk-common)
 
 if(UNIX AND NOT APPLE)
     target_compile_definitions(garglk-common PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
-    target_compile_definitions(garglk-common PRIVATE "GARGLK_CONFIG_DATADIR=\"${CMAKE_INSTALL_FULL_DATAROOTDIR}/io.github.garglk/Gargoyle\"")
+    target_compile_definitions(garglk-common PRIVATE "GARGLK_CONFIG_DATADIR=\"${CMAKE_INSTALL_FULL_DATAROOTDIR}/gargoyle\"")
 endif()
 
 if(DEFAULT_SOUNDFONT)
@@ -436,7 +436,7 @@ elseif(UNIX)
         "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif.ttf"
         "${PROJECT_SOURCE_DIR}/fonts/unifont.otf"
         "${PROJECT_SOURCE_DIR}/fonts/unifont_upper.otf"
-        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/io.github.garglk/Gargoyle")
+        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/gargoyle")
 
     install(FILES
         "${PROJECT_SOURCE_DIR}/themes/Blue.json"
@@ -448,7 +448,7 @@ elseif(UNIX)
         "${PROJECT_SOURCE_DIR}/themes/Zoom.json"
         "${PROJECT_SOURCE_DIR}/themes/dark.json"
         "${PROJECT_SOURCE_DIR}/themes/light.json"
-        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/io.github.garglk/Gargoyle/themes")
+        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/gargoyle/themes")
 
 endif()
 

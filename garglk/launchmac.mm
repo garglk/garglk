@@ -35,7 +35,7 @@
 
 #define MaxBuffer 1024
 
-static const char *AppName = GARGOYLE_NAME " " GARGOYLE_VERSION;
+static const char *AppName = "Gargoyle " GARGOYLE_VERSION;
 
 static std::string winpath();
 
@@ -550,7 +550,7 @@ static NSURL *get_save_dir(NSString *filename)
         return nil;
     }
 
-    dir = [dir URLByAppendingPathComponent: @"io.github.garglk/Gargoyle/gamedata"];
+    dir = [dir URLByAppendingPathComponent: @"Gargoyle/gamedata"];
     dir = [dir URLByAppendingPathComponent: filename];
     NSFileManager *fm = [NSFileManager defaultManager];
     [fm createDirectoryAtURL: dir withIntermediateDirectories: YES attributes: nil error: &error];
