@@ -248,7 +248,21 @@ static void winclipreceive(QClipboard::Mode mode)
 garglk::Window::Window() :
     m_view(new View(this)),
     m_timer(new QTimer(this)),
-    m_settings(new QSettings(GARGOYLE_ORGANIZATION, GARGOYLE_NAME, this))
+    // Qt programs have an organization and name that can be set, and
+    // Gargoyle used to set these to "io.github.garglk" and "Gargoyle".
+    // The QSettings here followed that. However, Gargoyle now uses an
+    // empty organization and the name "gargoyle" (on Unix) so that
+    // directories are more conventionally-named, e.g. /usr/share/gargoyle
+    // instead of /usr/share/io.github.garglk/Gargoyle. But QSettings
+    // _requires_ an organization name. Given that this is a setting
+    // users aren't ever supposed to see anyhow, and that these exact
+    // names were used in the past, keep them the same so that older
+    // configurations can be loaded. Ideally this would probably just be
+    // "gargoyle" and "gargoyle" but aesthetics are nowhere near as
+    // important as not losing settings; and since nobody is going to
+    // see these names in the normal course of using Gargoyle, it
+    // doesn't really matter anyway.
+    m_settings(new QSettings("io.github.garglk", "Gargoyle", this))
 {
     m_timer->setTimerType(Qt::TimerType::PreciseTimer);
     connect(m_timer, &QTimer::timeout, this, [&]() {
@@ -647,9 +661,17 @@ void wininit()
     static int argc = 1;
     static char *argv[] = {const_cast<char *>("gargoyle"), nullptr};
     app = new QApplication(argc, argv);
-    QApplication::setOrganizationName(GARGOYLE_ORGANIZATION);
-    QApplication::setApplicationName(GARGOYLE_NAME);
     QApplication::setApplicationVersion(GARGOYLE_VERSION);
+
+    // The convention on Windows & Mac is capitalized directories,
+    // whereas on Unix it's all lowercase. Qt uses the application name
+    // when finding paths with QStandardDirectories, so set the expected
+    // name based on operating system.
+#if defined(Q_OS_WIN) || defined(Q_OS_MAC)
+    QApplication::setApplicationName("Gargoyle");
+#else
+    QApplication::setApplicationName("gargoyle");
+#endif
 
     std::thread([]() {
         while (true) {
@@ -759,9 +781,9 @@ std::string garglk::windatadir()
     return garglk::winappdir().value_or(".");
 #elif GARGLK_CONFIG_APPIMAGE
     // For AppImages, hard-code the "known" path to app data (in this
-    // case that's <binary>/../share/io.github.garglk/Gargoyle).
+    // case that's <binary>/../share/gargoyle).
     auto dir = QCoreApplication::applicationDirPath().toStdString();
-    return Format("{}/../share/{}/Gargoyle", dir, GARGOYLE_ORGANIZATION);
+    return Format("{}/../share/gargoyle", dir);
 #elif defined(GARGLK_CONFIG_DATADIR)
     return GARGLK_CONFIG_DATADIR;
 #else
@@ -782,8 +804,6 @@ std::vector<std::string> garglk::winthemedirs()
     paths.push_back(QCoreApplication::applicationDirPath().toStdString() + "/themes");
 #endif
 
-    // For AppImages, hard-code the "known" path to app data (in this
-    // case that's <binary>/../share/io.github.garglk/Gargoyle).
 #if GARGLK_CONFIG_APPIMAGE
     paths.push_back(Format("{}/themes", garglk::windatadir()));
 #endif
@@ -794,6 +814,21 @@ std::vector<std::string> garglk::winthemedirs()
     std::reverse(paths.begin(), paths.end());
 
     return paths;
+}
+
+nonstd::optional<std::string> garglk::winlegacythemedir() {
+#ifdef _WIN32
+    const char *appdata = std::getenv("APPDATA");
+    if (appdata == nullptr) {
+        return nonstd::nullopt;
+    }
+
+    return std::string(appdata) + "\\io.github.garglk\\Gargoyle\\themes";
+#else
+    QString user_share = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+    QDir legacy_themes = QDir(user_share).filePath("io.github.garglk/Gargoyle/themes");
+    return legacy_themes.path().toStdString();
+#endif
 }
 
 nonstd::optional<std::string> garglk::winappdir()

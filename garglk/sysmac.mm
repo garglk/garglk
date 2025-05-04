@@ -896,10 +896,14 @@ std::vector<std::string> garglk::winthemedirs()
     // This is what Qt returns for AppDataLocation (though Qt adds a
     // few more directories that aren't particularly relevant).
     for (NSString *appdir_path in appdir_paths) {
-        paths.push_back(Format("{}/{}/{}/themes", [appdir_path UTF8String], GARGOYLE_ORGANIZATION, GARGOYLE_NAME));
+        paths.push_back(Format("{}/Gargoyle/themes", [appdir_path UTF8String]));
     }
 
     return paths;
+}
+
+nonstd::optional<std::string> garglk::winlegacythemedir() {
+    return [[NSHomeDirectory() stringByAppendingPathComponent: @"Library/Application Support/io.github.garglk/Gargoyle/themes"] UTF8String];
 }
 
 nonstd::optional<std::string> garglk::winappdir()

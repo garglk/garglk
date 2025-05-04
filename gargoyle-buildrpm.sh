@@ -103,25 +103,25 @@ ${frankendrift_spec}
 %{_bindir}/gargoyle
 %{_datarootdir}/applications/io.github.garglk.Gargoyle.desktop
 %{_datarootdir}/applications/io.github.garglk.GargoyleEditConfig.desktop
-%{_datarootdir}/io.github.garglk/Gargoyle/themes/Blue.json
-"%{_datarootdir}/io.github.garglk/Gargoyle/themes/Breeze Darker.json"
-"%{_datarootdir}/io.github.garglk/Gargoyle/themes/Lectrote Dark.json"
-"%{_datarootdir}/io.github.garglk/Gargoyle/themes/Lectrote Sepia.json"
-"%{_datarootdir}/io.github.garglk/Gargoyle/themes/Lectrote Slate.json"
-%{_datarootdir}/io.github.garglk/Gargoyle/Gargoyle-Mono-Bold-Italic.ttf
-%{_datarootdir}/io.github.garglk/Gargoyle/Gargoyle-Mono-Bold.ttf
-%{_datarootdir}/io.github.garglk/Gargoyle/Gargoyle-Mono-Italic.ttf
-%{_datarootdir}/io.github.garglk/Gargoyle/Gargoyle-Mono.ttf
-%{_datarootdir}/io.github.garglk/Gargoyle/Gargoyle-Serif-Bold-Italic.ttf
-%{_datarootdir}/io.github.garglk/Gargoyle/Gargoyle-Serif-Bold.ttf
-%{_datarootdir}/io.github.garglk/Gargoyle/Gargoyle-Serif-Italic.ttf
-%{_datarootdir}/io.github.garglk/Gargoyle/Gargoyle-Serif.ttf
-%{_datarootdir}/io.github.garglk/Gargoyle/themes/Pencil.json
-%{_datarootdir}/io.github.garglk/Gargoyle/themes/Zoom.json
-%{_datarootdir}/io.github.garglk/Gargoyle/themes/dark.json
-%{_datarootdir}/io.github.garglk/Gargoyle/themes/light.json
-%{_datarootdir}/io.github.garglk/Gargoyle/unifont.otf
-%{_datarootdir}/io.github.garglk/Gargoyle/unifont_upper.otf
+%{_datarootdir}/gargoyle/themes/Blue.json
+"%{_datarootdir}/gargoyle/themes/Breeze Darker.json"
+"%{_datarootdir}/gargoyle/themes/Lectrote Dark.json"
+"%{_datarootdir}/gargoyle/themes/Lectrote Sepia.json"
+"%{_datarootdir}/gargoyle/themes/Lectrote Slate.json"
+%{_datarootdir}/gargoyle/Gargoyle-Mono-Bold-Italic.ttf
+%{_datarootdir}/gargoyle/Gargoyle-Mono-Bold.ttf
+%{_datarootdir}/gargoyle/Gargoyle-Mono-Italic.ttf
+%{_datarootdir}/gargoyle/Gargoyle-Mono.ttf
+%{_datarootdir}/gargoyle/Gargoyle-Serif-Bold-Italic.ttf
+%{_datarootdir}/gargoyle/Gargoyle-Serif-Bold.ttf
+%{_datarootdir}/gargoyle/Gargoyle-Serif-Italic.ttf
+%{_datarootdir}/gargoyle/Gargoyle-Serif.ttf
+%{_datarootdir}/gargoyle/themes/Pencil.json
+%{_datarootdir}/gargoyle/themes/Zoom.json
+%{_datarootdir}/gargoyle/themes/dark.json
+%{_datarootdir}/gargoyle/themes/light.json
+%{_datarootdir}/gargoyle/unifont.otf
+%{_datarootdir}/gargoyle/unifont_upper.otf
 %{_datarootdir}/icons/io.github.garglk.Gargoyle.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-adrift.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-advsys.png
