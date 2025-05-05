@@ -12,11 +12,11 @@ jobs:
         version:
           - 20.04
           - 22.04
+          - 24.04
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     container:
       image: amd64/ubuntu:${{ matrix.version }}
-      options: --privileged
 
     steps:
       - name: Checkout

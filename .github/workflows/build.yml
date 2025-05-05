@@ -10,9 +10,9 @@ jobs:
       matrix:
         feature: ["-DWITH_SDL=OFF", "-DWITH_TTS=OFF", "-DWITH_BABEL=OFF", "-DSOUND=QT", "-DWITH_KDE=ON", "-DJPEGLIB=IJG"]
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     container:
-      image: amd64/ubuntu:22.04
+      image: amd64/ubuntu:24.04
       options: --privileged
 
     steps:

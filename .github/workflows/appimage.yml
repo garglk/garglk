@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     container:
       image: amd64/ubuntu:22.04
       # So that fuse works inside the container (needed to run AppImages.)
