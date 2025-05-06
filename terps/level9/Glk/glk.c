@@ -132,6 +132,7 @@ extern void restore (void);
 extern gln_bool Cheating;
 extern gln_byte *startdata;
 extern gln_uint32 FileSize;
+extern int L9V1Game;
 
 /* Forward declarations of event wait and other miscellaneous functions. */
 static void gln_event_wait (glui32 wait_type, event_t * event);
@@ -396,6 +397,7 @@ static const char *gln_gameid_game_name = NULL;
  * file has been reformatted (patchlevel data removed).
  *
  * The version of l9data_d.h used is 050 (22 Oct 2002).
+ * A number of MSX entries have been added on top of that.
  */
 typedef const struct
 {
@@ -406,15 +408,29 @@ typedef const struct
 } gln_game_table_t;
 typedef gln_game_table_t *gln_game_tableref_t;
 
+static gln_game_table_t GLN_V1GAME_TABLE[] = {
+  {0x0001, 0x01, 0x0001, "Colossal Adventure (v1)"},
+  {0x0002, 0x02, 0x0002, "Adventure Quest (v1)"},
+  {0x0003, 0x03, 0x0003, "Dungeon Adventure (v1)"},
+  {0x0004, 0x04, 0x0004, "Lords of Time (v1)"},
+  {0x0005, 0x05, 0x0005, "Snowball (v1)"},
+
+  {0x0000, 0x00, 0x0000, NULL}
+};
+
 static gln_game_table_t GLN_GAME_TABLE[] = {
+  {0x6155, 0xe8, 0xe6f4, "Colossal Adventure (MSX[A])"},
+  {0x616a, 0x90, 0x7482, "Colossal Adventure (MSX[B])"},
+
   {0x5323, 0xb7, 0x8af7, "Adventure Quest (Amstrad CPC/Spectrum)"},
+  {0x5323, 0x11, 0xaf28, "Adventure Quest (MSX)"},
 
   {0x630e, 0x8d, 0x7d7d, "Dungeon Adventure (Amstrad CPC)"},
   {0x630e, 0xbe, 0x3374, "Dungeon Adventure (MSX)"},
 
   {0x5eb9, 0x30, 0xe99a, "Lords of Time (Amstrad CPC)"},
-  {0x5eb9, 0x5d, 0xc098, "Lords of Time (MSX)"},
-  {0x5eb9, 0x6e, 0xc689, "Lords of Time (Spectrum)"},
+  {0x5eb9, 0x5d, 0xc098, "Lords of Time (MSX *corrupt*)"},
+  {0x5eb9, 0x6e, 0xc689, "Lords of Time (Spectrum/MSX *fixed*)"},
 
   {0x5fab, 0x5c, 0xa309, "Snowball (Amstrad CPC)"},
   {0x5fab, 0x2f, 0x8aa2, "Snowball (MSX)"},
@@ -432,16 +448,17 @@ static gln_game_table_t GLN_GAME_TABLE[] = {
   {0x34b3, 0x20, 0xccda, "Erik the Viking (BBC/Commodore 64)"},
   {0x34b3, 0x53, 0x8f00, "Erik the Viking (Spectrum)"},
   {0x34b3, 0xc7, 0x9058, "Erik the Viking (Amstrad CPC)"},
+  {0x34b3, 0xa8, 0x2cf2, "Erik the Viking (MSX *converted*)"},
 
   {0x63be, 0xd6, 0xcf5d,
-   "Emerald Isle (Atari/Commodore 64/Amstrad CPC/Spectrum)"},
+   "Emerald Isle (Atari/Commodore 64/Amstrad CPC/Spectrum/MSX)"},
   {0x63be, 0x0a, 0x21ed, "Emerald Isle (MSX *corrupt*)"},
   {0x378c, 0x8d, 0x3a21, "Emerald Isle (BBC)"},
 
   {0x506c, 0xf0, 0xba72, "Red Moon (BBC/Commodore 64/Amstrad CPC/MSX)"},
   {0x505d, 0x32, 0x2dcf, "Red Moon (Spectrum)"},
 
-  {0x772b, 0xcd, 0xa503, "Worm in Paradise (Spectrum 128)"},
+  {0x772b, 0xcd, 0xa503, "Worm in Paradise (Spectrum 128/MSX)"},
   {0x546c, 0xb7, 0x9420, "Worm in Paradise (Spectrum 48)"},
   {0x6d84, 0xf9, 0x49ae, "Worm in Paradise (Commodore 64 *corrupt*)"},
   {0x6d84, 0xc8, 0x943f, "Worm in Paradise (Commodore 64 *fixed*)"},
@@ -454,6 +471,7 @@ static gln_game_table_t GLN_GAME_TABLE[] = {
   {0x6fc6, 0x14, 0xf9b6, "Price of Magik (Commodore 64)"},
   {0x5aa4, 0xc1, 0xbbf4, "Price of Magik (Amstrad CPC)"},
   {0x5671, 0xbc, 0xff35, "Price of Magik (BBC)"},
+  {0x7334, 0x87, 0x8b5d, "Price of Magik (MSX)"},
 
   {0x76f4, 0x5e, 0x1fe5, "Colossal Adventure /JoD (Amiga/PC)"},
   {0x76f4, 0x5a, 0xcf4b, "Colossal Adventure /JoD (ST)"},
@@ -493,6 +511,10 @@ static gln_game_table_t GLN_GAME_TABLE[] = {
   {0x7d16, 0xe6, 0x5438, "Return to Eden /SD (Amiga/ST)"},
   {0x7cd9, 0x0c, 0x4df1, "Worm in Paradise /SD (Amiga/ST)"},
 
+  {0x6f70, 0x40, 0xbd91, "Colossal Adventure /JoD (MSX)"},
+  {0x6972, 0x55, 0x042e, "Adventure Quest /JoD (MSX)"},
+  {0x6dea, 0x50, 0xe4f7, "Dungeon Adventure /JoD (MSX)"},
+
   {0x7b2f, 0x70, 0x6955, "Snowball /SD (Mac/PC/Spectrum 128)"},
   {0x7b2f, 0x70, 0x6f6c, "Snowball /SD (Amstrad CPC/Spectrum +3)"},
   {0x7d14, 0xe8, 0xfbab, "Return to Eden /SD (PC)"},
@@ -502,9 +524,9 @@ static gln_game_table_t GLN_GAME_TABLE[] = {
   {0x7cd7, 0x0e, 0x4feb,
    "Worm in Paradise /SD (Amstrad CPC/Mac/PC/Spectrum 128/Spectrum +3)"},
 
-  {0x7363, 0x65, 0xa0ab, "Snowball /SD (Commodore 64)"},
-  {0x772f, 0xca, 0x8602, "Return to Eden /SD (Commodore 64)"},
-  {0x788d, 0x72, 0x888a, "Worm in Paradise /SD (Commodore 64)"},
+  {0x7363, 0x65, 0xa0ab, "Snowball /SD (Commodore 64/MSX)"},
+  {0x772f, 0xca, 0x8602, "Return to Eden /SD (Commodore 64/MSX)"},
+  {0x788d, 0x72, 0x888a, "Worm in Paradise /SD (Commodore 64/MSX)"},
 
   {0x6bf8, 0x3f, 0xc9f7, "Snowball /SD (Atari)"},
   {0x60f7, 0x68, 0xc2bc, "Return to Eden /SD (Atari)"},
@@ -543,10 +565,19 @@ static gln_game_table_t GLN_GAME_TABLE[] = {
   {0x39c0, 0x44, 0x89df, "Adrian Mole I, pt. 11 (BBC)"},
   {0x3a12, 0x8f, 0xc2bd, "Adrian Mole I, pt. 12 (BBC)"},
 
-  {0x7931, 0xb9, 0xc51b, "Adrian Mole II, pt. 1 (Commodore 64/Amstrad CPC)"},
-  {0x7cdf, 0xa5, 0x43e3, "Adrian Mole II, pt. 2 (Commodore 64/Amstrad CPC)"},
-  {0x7a0c, 0x97, 0x4bea, "Adrian Mole II, pt. 3 (Commodore 64/Amstrad CPC)"},
-  {0x7883, 0xe2, 0xee0e, "Adrian Mole II, pt. 4 (Commodore 64/Amstrad CPC)"},
+  {0x8324, 0x87, 0xb9ae, "Adrian Mole I, pt. 1 (MSX *corrupt*)"},
+  {0x8324, 0x87, 0x2736, "Adrian Mole I, pt. 1 (MSX *fixed*)"},
+  {0x8442, 0x0f, 0x8e7a, "Adrian Mole I, pt. 2 (MSX *corrupt*)"},
+  {0x8442, 0x0f, 0xe1f7, "Adrian Mole I, pt. 2 (MSX *fixed*)"},
+  {0x823e, 0x5c, 0x82d9, "Adrian Mole I, pt. 3 (MSX)"},
+  {0x824e, 0x77, 0xffa3, "Adrian Mole I, pt. 3 (MSX *reconstructed*)"},
+  {0x7a71, 0xfb, 0x945e, "Adrian Mole I, pt. 4 (MSX)"},
+  {0x7a75, 0xe3, 0x6cee, "Adrian Mole I, pt. 4 (MSX *reconstructed*)"},
+
+  {0x7931, 0xb9, 0xc51b, "Adrian Mole II, pt. 1 (Commodore 64/Amstrad CPC/MSX)"},
+  {0x7cdf, 0xa5, 0x43e3, "Adrian Mole II, pt. 2 (Commodore 64/Amstrad CPC/MSX)"},
+  {0x7a0c, 0x97, 0x4bea, "Adrian Mole II, pt. 3 (Commodore 64/Amstrad CPC/MSX)"},
+  {0x7883, 0xe2, 0xee0e, "Adrian Mole II, pt. 4 (Commodore 64/Amstrad CPC/MSX)"},
 
   {0x6841, 0x4a, 0x94e7, "Adrian Mole II, pt. 1 (Spectrum)"},
   {0x6bc0, 0x62, 0xab3d, "Adrian Mole II, pt. 2 (Spectrum)"},
@@ -558,10 +589,11 @@ static gln_game_table_t GLN_GAME_TABLE[] = {
   {0x5819, 0xcd, 0x1ba0, "Adrian Mole II, pt. 3 (BBC)"},
   {0x579b, 0xad, 0xa723, "Adrian Mole II, pt. 4 (BBC)"},
 
-  {0x765d, 0xcd, 0xfc02, "The Archers, pt. 1 (Commodore 64)"},
+  {0x765d, 0xcd, 0xfc02, "The Archers, pt. 1 (Commodore 64/MSX)"},
   {0x6e58, 0x07, 0xbffc, "The Archers, pt. 2 (Commodore 64)"},
-  {0x7e98, 0x6a, 0x95e5, "The Archers, pt. 3 (Commodore 64)"},
-  {0x81e2, 0xd5, 0xb278, "The Archers, pt. 4 (Commodore 64)"},
+  {0x6e56, 0x17, 0x477d, "The Archers, pt. 2 (MSX)"},
+  {0x7e98, 0x6a, 0x95e5, "The Archers, pt. 3 (Commodore 64/MSX)"},
+  {0x81e2, 0xd5, 0xb278, "The Archers, pt. 4 (Commodore 64/MSX)"},
 
   {0x6ce5, 0x58, 0x46de, "The Archers, pt. 1 (Spectrum)"},
   {0x68da, 0xc1, 0x3b8e, "The Archers, pt. 2 (Spectrum)"},
@@ -654,6 +686,11 @@ static gln_game_table_t GLN_GAME_TABLE[] = {
   {0x8885, 0x22, 0xe293, "Knight Orc, pt. 2 (Spectrum 48)"},
   {0x87e5, 0x0e, 0xdc33, "Knight Orc, pt. 3 (Spectrum 48)"},
 
+  {0xb92d, 0x00, 0x46cc, "Knight Orc, pt. 1 (MSX *corrupt*)"},
+  {0xb92d, 0x25, 0xd86d, "Knight Orc, pt. 1 (MSX)"},
+  {0xb734, 0xbc, 0x6729, "Knight Orc, pt. 2 (MSX)"},
+  {0xba02, 0x5f, 0x2078, "Knight Orc, pt. 3 (MSX)"},
+
   {0xb1a9, 0x80, 0x5fb7, "Gnome Ranger, pt. 1 (Amiga/ST)"},
   {0xab9d, 0x31, 0xbe6d, "Gnome Ranger, pt. 2 (Amiga/ST)"},
   {0xae28, 0x87, 0xb6b6, "Gnome Ranger, pt. 3 (Amiga/ST)"},
@@ -666,9 +703,9 @@ static gln_game_table_t GLN_GAME_TABLE[] = {
   {0xab8b, 0xbf, 0x31e6, "Gnome Ranger, pt. 2 (PC/ST[v2])"},
   {0xae16, 0x81, 0x8741, "Gnome Ranger, pt. 3 (PC/ST[v2])"},
 
-  {0xad41, 0xa8, 0x42c5, "Gnome Ranger, pt. 1 (Commodore 64 TO)"},
-  {0xa735, 0xf7, 0x2e08, "Gnome Ranger, pt. 2 (Commodore 64 TO)"},
-  {0xa9c0, 0x9e, 0x0d70, "Gnome Ranger, pt. 3 (Commodore 64 TO)"},
+  {0xad41, 0xa8, 0x42c5, "Gnome Ranger, pt. 1 (Commodore 64 TO/MSX)"},
+  {0xa735, 0xf7, 0x2e08, "Gnome Ranger, pt. 2 (Commodore 64 TO/MSX)"},
+  {0xa9c0, 0x9e, 0x0d70, "Gnome Ranger, pt. 3 (Commodore 64 TO/MSX)"},
 
   {0x908e, 0x0d, 0x58a7, "Gnome Ranger, pt. 1 (Commodore 64 Gfx)"},
   {0x8f6f, 0x0a, 0x411a, "Gnome Ranger, pt. 2 (Commodore 64 Gfx)"},
@@ -693,6 +730,10 @@ static gln_game_table_t GLN_GAME_TABLE[] = {
   {0xb563, 0x6a, 0x0c5c, "Lords of Time /T&M (Mac)"},
   {0xa67c, 0xb8, 0xff41, "Red Moon /T&M (Mac)"},
   {0xbab2, 0x87, 0x09f5, "Price of Magik /T&M (Mac)"},
+
+  {0xb393, 0x11, 0x25e7, "Lords of Time /T&M (MSX)"},
+  {0xa4d8, 0xd9, 0xb1eb, "Red Moon /T&M (MSX)"},
+  {0xb8b5, 0x27, 0x461a, "Price of Magik /T&M (MSX)"},
 
   {0xb38c, 0x37, 0x9f8e, "Lords of Time /T&M (Commodore 64 TO)"},
   {0xa4e2, 0xa6, 0x016d, "Red Moon /T&M (Commodore 64 TO)"},
@@ -726,9 +767,9 @@ static gln_game_table_t GLN_GAME_TABLE[] = {
   {0xd5d7, 0x99, 0x770b, "Lancelot, pt. 2 (Mac)"},
   {0xbb7d, 0x17, 0xbc42, "Lancelot, pt. 3 (Mac)"},
 
-  {0xb4c9, 0x94, 0xd784, "Lancelot, pt. 1 (Commodore 64 TO)"},
-  {0xb729, 0x51, 0x8ee5, "Lancelot, pt. 2 (Commodore 64 TO)"},
-  {0xb702, 0xe4, 0x1809, "Lancelot, pt. 3 (Commodore 64 TO)"},
+  {0xb4c9, 0x94, 0xd784, "Lancelot, pt. 1 (Commodore 64 TO/MSX)"},
+  {0xb729, 0x51, 0x8ee5, "Lancelot, pt. 2 (Commodore 64 TO/MSX)"},
+  {0xb702, 0xe4, 0x1809, "Lancelot, pt. 3 (Commodore 64 TO/MSX)"},
 
   {0x8feb, 0xba, 0xa800, "Lancelot, pt. 1 (Commodore 64 Gfx)"},
   {0x8f6b, 0xfa, 0x0f7e, "Lancelot, pt. 2 (Commodore 64 Gfx)"},
@@ -770,11 +811,19 @@ static gln_game_table_t GLN_GAME_TABLE[] = {
   {0x8b1e, 0x84, 0x2538, "Ingrid's Back, pt. 2 (Spectrum 48)"},
   {0x8b1c, 0xa8, 0x9262, "Ingrid's Back, pt. 3 (Spectrum 48)"},
 
+  {0xbefa, 0x1e, 0x2cdd, "Ingrid's Back, pt. 1 (MSX)"},
+  {0xbd57, 0x14, 0x7fe7, "Ingrid's Back, pt. 2 (MSX)"},
+  {0xbf4b, 0x9f, 0xad8c, "Ingrid's Back, pt. 3 (MSX)"},
+
   {0xbeab, 0x2d, 0x94d9, "Scapeghost, pt. 1 (Amiga)"},
   {0xc132, 0x14, 0x7adc, "Scapeghost, pt. 1 (Amiga *bak*)"},
   {0xbe94, 0xcc, 0x04b8, "Scapeghost, pt. 1 (PC/ST)"},
   {0x99bd, 0x65, 0x032e, "Scapeghost, pt. 2 (Amiga/PC/ST)"},
   {0xbcb6, 0x7a, 0x7d4f, "Scapeghost, pt. 3 (Amiga/PC/ST)"},
+
+  {0xb613, 0x4c, 0x6311, "Scapeghost, pt. 1 (Commodore 64 TO/MSX *converted*)"},
+  {0x97c0, 0x48, 0xbf7f, "Scapeghost, pt. 2 (Commodore 64 TO/MSX *converted*)"},
+  {0xb60e, 0x6a, 0x7eac, "Scapeghost, pt. 3 (Commodore 64 TO/MSX *converted*)"},
 
   {0x9058, 0xcf, 0x9748, "Scapeghost, pt. 1 (Commodore 64 Gfx)"},
   {0x8f43, 0xc9, 0xeefd, "Scapeghost, pt. 2 (Commodore 64 Gfx)"},
@@ -831,6 +880,9 @@ static gln_patch_table_t GLN_PATCH_TABLE[] = {
 
   /* Price of Magik (Commodore 64) */
   {0x6fc6, 0x14, 0xf9b6, 0x26, 0x3326},
+
+  /* Price of Magik (MSX) */
+  {0x7334, 0x87, 0x8b5d, 0x99, 0x880c},
 
   /* Price of Magik (Spectrum48) */
   {0x5aa4, 0xc1, 0xeda4, 0xd3, 0xed35},
@@ -911,6 +963,18 @@ static gln_patch_table_t GLN_PATCH_TABLE[] = {
   {0x58a3, 0x38, 0x8ce4, 0x37, 0x34c0},
   {0x58a3, 0x38, 0x8ce4, 0x38, 0xa1ee},
 
+  /* Colossal Adventure /JoD (MSX) */
+  {0x6f70, 0x40, 0xbd91, 0xc0, 0xcaba},
+  {0x6f70, 0x40, 0xbd91, 0x40, 0x7f59},
+
+  /* Adventure Quest /JoD (MSX) */
+  {0x6972, 0x55, 0x042e, 0xba, 0x74df},
+  {0x6972, 0x55, 0x042e, 0x55, 0x0933},
+
+  /* Dungeon Adventure /JoD (MSX) */
+  {0x6dea, 0x50, 0xe4f7, 0xa6, 0x0a08},
+  {0x6dea, 0x50, 0xe4f7, 0x50, 0xc951},
+
   /* Snowball /SD (Amiga/ST) */
   {0x7b31, 0x6e, 0x2e2b, 0xe5, 0x6017},
 
@@ -938,14 +1002,17 @@ static gln_patch_table_t GLN_PATCH_TABLE[] = {
   {0x7cd7, 0x0e, 0x4feb, 0x85, 0x4eae},
   {0x7cd7, 0x0e, 0x4feb, 0x0e, 0xb02c},
 
-  /* Snowball /SD (Commodore 64) */
+  /* Snowball /SD (Commodore 64/MSX) */
   {0x7363, 0x65, 0xa0ab, 0xdc, 0xca6a},
+  {0x7363, 0x65, 0xa0ab, 0x65, 0xc017},
 
-  /* Return to Eden /SD (Commodore 64) */
+  /* Return to Eden /SD (Commodore 64/MSX) */
   {0x772f, 0xca, 0x8602, 0x41, 0x9bd0},
+  {0x772f, 0xca, 0x8602, 0xca, 0x150c},
 
-  /* Worm in Paradise /SD (Commodore 64) */
+  /* Worm in Paradise /SD (Commodore 64/MSX) */
   {0x788d, 0x72, 0x888a, 0xe9, 0x4cce},
+  {0x788d, 0x72, 0x888a, 0x72, 0xc3bd},
 
   /* Snowball /SD (Atari) */
   {0x6bf8, 0x3f, 0xc9f7, 0x96, 0x1908},
@@ -998,6 +1065,18 @@ static gln_patch_table_t GLN_PATCH_TABLE[] = {
   /* Knight Orc, pt. 1 (Spectrum48) */
   {0x86d0, 0xb7, 0xadbd, 0x2e, 0x43e1},
 
+  /* Knight Orc, pt. 1 (MSX) */
+  {0xb92d, 0x25, 0xd86d, 0x25, 0xc5d9},
+  {0xb92d, 0x25, 0xd86d, 0x9c, 0xa1e0},
+
+  /* Knight Orc, pt. 2 (MSX) */
+  {0xb734, 0xbc, 0x6729, 0xbc, 0xdacb},
+  {0xb734, 0xbc, 0x6729, 0x33, 0xb851},
+
+  /* Knight Orc, pt. 3 (MSX) */
+  {0xba02, 0x5f, 0x2078, 0x5f, 0x9d9a},
+  {0xba02, 0x5f, 0x2078, 0xd6, 0xfee0},
+
   /* Gnome Ranger, pt. 1 (Amiga/ST) */
   {0xb1a9, 0x80, 0x5fb7, 0xf7, 0x5c6c},
 
@@ -1022,13 +1101,13 @@ static gln_patch_table_t GLN_PATCH_TABLE[] = {
   {0xae16, 0x81, 0x8741, 0xf8, 0x47fb},
   {0xae16, 0x81, 0x8741, 0x81, 0xc8eb},
 
-  /* Gnome Ranger, pt. 1 (Commodore 64 TO) */
+  /* Gnome Ranger, pt. 1 (Commodore 64 TO/MSX) */
   {0xad41, 0xa8, 0x42c5, 0x1f, 0x7d1e},
 
-  /* Gnome Ranger, pt. 2 (Commodore 64 TO) */
+  /* Gnome Ranger, pt. 2 (Commodore 64 TO/MSX) */
   {0xa735, 0xf7, 0x2e08, 0x6e, 0x780e},
 
-  /* Gnome Ranger, pt. 3 (Commodore 64 TO) */
+  /* Gnome Ranger, pt. 3 (Commodore 64 TO/MSX) */
   {0xa9c0, 0x9e, 0x0d70, 0x15, 0x3e6b},
 
   /* Gnome Ranger, pt. 1 (Commodore 64 Gfx) */
@@ -1070,6 +1149,15 @@ static gln_patch_table_t GLN_PATCH_TABLE[] = {
   /* Price of Magik /T&M (Amiga) */
   {0xbaca, 0x3a, 0x221b, 0xb1, 0x55bb},
 
+  /* Lords of Time /T&M (MSX) */
+  {0xb393, 0x11, 0x25e7, 0xea, 0xf09e},
+
+  /* Red Moon /T&M (MSX) */
+  {0xa4d8, 0xd9, 0xb1eb, 0xb1, 0x5eed},
+
+  /* Price of Magik /T&M (MSX) */
+  {0xb8b5, 0x27, 0x461a, 0xde, 0x1f6d},
+
   /* Lords of Time /T&M (Commodore 64 TO) */
   {0xb38c, 0x37, 0x9f8e, 0xae, 0xc6b1},
 
@@ -1108,13 +1196,14 @@ static gln_patch_table_t GLN_PATCH_TABLE[] = {
   /* Lancelot, pt. 3 (Amiga/PC/ST) */
   {0xbb8f, 0x1a, 0x7487, 0x91, 0x877d},
 
-  /* Lancelot, pt. 1 (Commodore 64 TO) */
+  /* Lancelot, pt. 1 (Commodore 64 TO/MSX) */
   {0xb4c9, 0x94, 0xd784, 0x0b, 0x203e},
 
-  /* Lancelot, pt. 2 (Commodore 64 TO) */
+  /* Lancelot, pt. 2 (Commodore 64 TO/MSX) */
+  {0xb729, 0x51, 0x8ee5, 0x6d, 0xba10},
   {0xb729, 0x51, 0x8ee5, 0xc8, 0xf1c9},
 
-  /* Lancelot, pt. 3 (Commodore 64 TO) */
+  /* Lancelot, pt. 3 (Commodore 64 TO/MSX) */
   {0xb702, 0xe4, 0x1809, 0x5b, 0x25b2},
 
   /* Lancelot, pt. 1 (Commodore 64 Gfx) */
@@ -1173,6 +1262,15 @@ static gln_patch_table_t GLN_PATCH_TABLE[] = {
 
   /* Ingrid's Back, pt. 3 (Commodore 64 Gfx) */
   {0x909e, 0x9f, 0xdecc, 0x15, 0xf4da},
+
+  /* Ingrid's Back, pt. 1 (MSX) */
+  {0xbefa, 0x1e, 0x2cdd, 0x95, 0x9915},
+
+  /* Ingrid's Back, pt. 2 (MSX) */
+  {0xbd57, 0x14, 0x7fe7, 0x8b, 0xce6f},
+
+  /* Ingrid's Back, pt. 3 (MSX) */
+  {0xbf4b, 0x9f, 0xad8c, 0x16, 0xd8e5},
 
   {0x0000, 0x00, 0x0000, 0x00, 0x0000},
 };
@@ -1236,6 +1334,12 @@ gln_gameid_identify_game (void)
   gln_game_tableref_t game;
   gln_patch_tableref_t patch;
 
+  /* Handle v1 games */
+  if (L9V1Game >= 0) {
+    assert((unsigned)L9V1Game < sizeof (GLN_V1GAME_TABLE) / sizeof (GLN_V1GAME_TABLE[0]));
+    return &GLN_V1GAME_TABLE[L9V1Game];
+  }
+
   /* If the data file appears too short for a header, give up now. */
   if (FileSize < 30)
     return NULL;
@@ -1244,10 +1348,13 @@ gln_gameid_identify_game (void)
    * Find the version of the game, and the length of game data.  This logic
    * is taken from L9cut, with calcword() replaced by simple byte comparisons.
    * If the length exceeds the available data, fail.
+   * The alternative conditions are exceptional with Colossal Adventure v2 for MSX.
    */
   assert (startdata);
-  is_version2 = startdata[4] == 0x20 && startdata[5] == 0x00
-                && startdata[10] == 0x00 && startdata[11] == 0x80
+  is_version2 = ((startdata[4] == 0x20 && startdata[5] == 0x00)
+                  || (startdata[6] == 0x20 && startdata[7] == 0x00))
+                && ((startdata[10] == 0x00 && startdata[11] == 0x80)
+                     || (startdata[8] == 0x00 && startdata[9] == 0x80))
                 && startdata[20] == startdata[22]
                 && startdata[21] == startdata[23];
 
