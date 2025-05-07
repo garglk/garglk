@@ -517,7 +517,7 @@ long IO::getc(bool limit16)
     auto read_byte = [this] {
         uint8_t b = read8();
 
-        if ((b & 0x80) != 0x80) {
+        if ((b & 0xc0) != 0x80) {
             throw NotUnicode();
         } else {
             return b;

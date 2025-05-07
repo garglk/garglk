@@ -74,12 +74,34 @@ static std::vector<Patch> base_patches = {
     // 0x21 in the header, which is the width of the screen in
     // characters, capped at 255.
     {
+        "Arthur", "890606", 54, 0x8e4a,
+        {
+            {
+                0x9e29, 10,
+                {0xbe, 0x13, 0x5f, 0x01, 0x03, 0x00, 0x77, 0x00, 0x1f, 0x01},
+                {0x10, 0x00, 0x21, 0x01, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4},
+            }
+        }
+    },
+
+    {
+        "Arthur", "890622", 63, 0x45eb,
+        {
+            {
+                0x9e31, 10,
+                {0xbe, 0x13, 0x5f, 0x01, 0x03, 0x00, 0x77, 0x00, 0x1f, 0x01},
+                {0x10, 0x00, 0x21, 0x01, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4}
+            }
+        }
+    },
+
+    {
         "Arthur", "890714", 74, 0xd526,
         {
             {
-                0x9de8, 20,
-                {0xbe, 0x13, 0x5f, 0x01, 0x03, 0x00, 0x77, 0x00, 0x1f, 0x01, 0xd4, 0x1f, 0x41, 0x29, 0x01, 0x05, 0x35, 0x00, 0x01, 0x00},
-                {0xd4, 0x1f, 0x41, 0x29, 0x01, 0x05, 0x10, 0x00, 0x21, 0x00, 0x35, 0x00, 0x00, 0x00, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4}
+                0x9de8, 10,
+                {0xbe, 0x13, 0x5f, 0x01, 0x03, 0x00, 0x77, 0x00, 0x1f, 0x01},
+                {0x10, 0x00, 0x21, 0x01, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4}
             }
         }
     },
@@ -513,80 +535,378 @@ static std::vector<Patch> base_patches = {
 
 // These patches help with the V6 hacks.
 static std::vector<Patch> v6_patches = {
+    // There are two V6 hack patches for Arthur:
+    //
+    // 1. In the intro, two images are shown in immediate succession:
+    //
+    // <RT-CENTER-PIC ,K-PIC-SWORD>
+    // <RT-CENTER-PIC ,K-PIC-SWORD-MERLIN>
+    //
+    // This is presumably under the assmption that drawing is slow, so
+    // it will look like a small animation. On modern systems
+    // K-PIC-SWORD won’t be seen in this sequence, so this patch
+    // rewrites the code to add a 1s sleep call via @read_char. There
+    // are two calls to @set_cursor (to hide the cursor) which have no
+    // effect in Bocfel, giving 8 total bytes to work with, which is
+    // enough to add the new call. The following:
+    //
+    // <RT-CENTER-PIC ,K-PIC-SWORD-MERLIN>     |   call_2n         #19234 #03
+    // <CURSET -1> ;"Make cursor go away."     |   set_cursor      #ffff
+    // <INPUT 1 150 ,RT-STOP-READ>             |   read_char       #01 #96 #11d64 -> -(SP)
+    // <CURSET -2> ;"Make cursor come back."   |   set_cursor      #fffe
+    //
+    // is replaced with:
+    //
+    // <INPUT 1 10 ,RT-STOP-READ>              |   read_char        #01 #0a #11d64 -> -(SP)
+    // <RT-CENTER-PIC ,K-PIC-SWORD-MERLIN>     |   call_2n          #19234 #03
+    // <INPUT 1 150 ,RT-STOP-READ>             |   read_char        #01 #96 #11d64 -> -(SP)
+    // <NOOP>                                  |   nop
+    //
+    // (The routine addresses above represent the 74-890714 version but
+    // the approach is the same for all versions).
+    //
+    // 2. Parser messages are meant to be displayed on the bottom of the
+    // screen, but since Bocfel doesn’t have real V6 window support, the
+    // messages are displayed inline as with most other Infocom games.
+    // However, the messages are printed in reverse video (in fact, the
+    // current color is looked up with @get_wind_prop, @set_colour is
+    // called with the values swapped, the message is printed, and then
+    // @set_colour puts things back). This might look OK with the parser
+    // messages in a separate window, but it’s jarring interleaved with
+    // user input, so this removes the calls to @set_colour entirely.
+    {
+        "Arthur", "890606", 54, 0x8e4a,
+        {
+            // Merlin.
+            {
+                0x11418, 20,
+                {0xda, 0x1f, 0x49, 0xae, 0x03, 0xef, 0x3f, 0xff, 0xff, 0xf6, 0x53, 0x01, 0x96, 0x21, 0xd4, 0x00, 0xef, 0x3f, 0xff, 0xfe},
+                {0xf6, 0x53, 0x01, 0x0a, 0x21, 0xd4, 0x00, 0xda, 0x1f, 0x49, 0xae, 0x03, 0xf6, 0x53, 0x01, 0x96, 0x21, 0xd4, 0x00, 0xb4}
+            },
+
+            // Reverse video.
+            { 0x117bf, 3, {0x7b, 0x0d, 0x0c}, {0xb4, 0xb4, 0xb4} },
+            { 0x117cb, 3, {0x7b, 0x0c, 0x0d}, {0xb4, 0xb4, 0xb4} },
+        }
+    },
+
+    {
+        "Arthur", "890622", 63, 0x45eb,
+        {
+            // Merlin.
+            {
+                0x1147e, 20,
+                {0xda, 0x1f, 0x3f, 0x2e, 0x03, 0xef, 0x3f, 0xff, 0xff, 0xf6, 0x53, 0x01, 0x96, 0x22, 0x04, 0x00, 0xef, 0x3f, 0xff, 0xfe},
+                {0xf6, 0x53, 0x01, 0x0a, 0x22, 0x04, 0x00, 0xda, 0x1f, 0x3f, 0x2e, 0x03, 0xf6, 0x53, 0x01, 0x96, 0x22, 0x04, 0x00, 0xb4}
+            },
+
+            // Reverse video.
+            { 0x11853, 3, {0x7b, 0x0d, 0x0c}, {0xb4, 0xb4, 0xb4} },
+            { 0x1185f, 3, {0x7b, 0x0c, 0x0d}, {0xb4, 0xb4, 0xb4} },
+        }
+    },
+
     {
         "Arthur", "890714", 74, 0xd526,
         {
-            // In the intro to Arthur, two images are shown in immediate
-            // succession:
-            //
-            // <RT-CENTER-PIC ,K-PIC-SWORD>
-            // <RT-CENTER-PIC ,K-PIC-SWORD-MERLIN>
-            //
-            // This is presumably under the assmption that drawing is
-            // slow, so it will look like a small animation. On modern
-            // systems K-PIC-SWORD won't be seen in this sequence, so
-            // this patch rewrites the code to add a 1s sleep call via
-            // @read_char. There are two calls to @set_cursor (to hide
-            // the cursor) which have no effect in Bocfel, giving 8
-            // total bytes to work with, which is enough to add the new
-            // call. The following:
-            //
-            // <RT-CENTER-PIC ,K-PIC-SWORD-MERLIN>     |   call_2n         #19234 #03
-            // <CURSET -1> ;"Make cursor go away."     |   set_cursor      #ffff
-            // <INPUT 1 150 ,RT-STOP-READ>             |   read_char       #01 #96 #11d64 -> -(SP)
-            // <CURSET -2> ;"Make cursor come back."   |   set_cursor      #fffe
-            //
-            // is replaced with:
-            //
-            // <INPUT 1 10 ,RT-STOP-READ>              |   read_char        #01 #0a #11d64 -> -(SP)
-            // <RT-CENTER-PIC ,K-PIC-SWORD-MERLIN>     |   call_2n          #19234 #03
-            // <INPUT 1 150 ,RT-STOP-READ>             |   read_char        #01 #96 #11d64 -> -(SP)
-            // <NOOP>                                  |   nop
+            // Merlin.
             {
                 0x10e76, 20,
                 {0xda, 0x1f, 0x3d, 0xb1, 0x03, 0xef, 0x3f, 0xff, 0xff, 0xf6, 0x53, 0x01, 0x96, 0x20, 0x7d, 0x00, 0xef, 0x3f, 0xff, 0xfe},
                 {0xf6, 0x53, 0x01, 0x0a, 0x20, 0x7d, 0x00, 0xda, 0x1f, 0x3d, 0xb1, 0x03, 0xf6, 0x53, 0x01, 0x96, 0x20, 0x7d, 0x00, 0xb4}
             },
 
-            // Parser messages are meant to be displayed on the bottom
-            // of the screen, but since Bocfel doesn’t have real V6
-            // window support, the messages are displayed inline as with
-            // most other Infocom games. However, the messages are
-            // printed in reverse video (in fact, the current color is
-            // looked up with @get_wind_prop, @set_colour is called with
-            // the values swapped, the message is printed, and then
-            // @set_colour puts things back). This might look OK with
-            // the parser messages in a separate window, but it’s
-            // jarring interleaved with user input, so this removes the
-            // calls to @set_colour entirely.
+            // Reverse video.
             { 0x1124b, 3, {0x7b, 0x0d, 0x0c}, {0xb4, 0xb4, 0xb4} },
             { 0x11257, 3, {0x7b, 0x0c, 0x0d}, {0xb4, 0xb4, 0xb4} },
         },
     },
 
+    // There are several V6 hack patches for Shogun:
+    //
+    // 1. Avoid calling a function that prints too many newlines during
+    // interludes.
+    //
+    // 2. Shogun uses either @set_colour or @set_text_style for reverse
+    // video in the status line, but it only uses @set_text_style on
+    // Amiga. Unconditionally use @set_text_style for better results.
+    //
+    // 3. Shogun clears the window right after printing the title
+    // screen, rendering it invisible without proper V6 support. Ignore
+    // that request.
+    //
+    // 4. Shogun has a GET-FROM-MENU routine which is used to present a
+    // menu (e.g. at the start of the game) from which the user selects
+    // an entry. This menu does not work properly with Glk, so a custom
+    // opcode replacement is used to present a working menu.
+    //
+    // 5. Two Shogun releases split the window for the title screen such
+    // that the actual text displayed is in a tiny main window and hard
+    // to deal with. Without proper V6 support, the split is
+    // problematic, so just don’t do it.
+    {
+        "Shogun", "890314", 292, 0x69b8,
+        {
+            // Newlines.
+            { 0x11ef1, 1, {0xda}, {0xb0} },
+
+            // Reverse video.
+            { 0x11be5, 3, {0x7b, 0xde, 0x2c}, {0xf1, 0x7f, 0x01} },
+
+            // Title clear.
+            { 0x10bcf, 3, {0xed, 0x7f, 0x00}, {0xb4, 0xb4, 0xb4} },
+
+            // Game start menu.
+            {
+                0x10bd5, 5,
+                {0xec, 0x00, 0x7f, 0x15, 0x1c},
+                {0xb4, 0xb4, 0xbe, SHOGUN_MENU_EXT, 0x01},
+            },
+
+            // Game over menu.
+            {
+                0x12914, 4,
+                {0xe0, 0x08, 0x15, 0x1c},
+                {0xb4, 0xbe, SHOGUN_MENU_EXT, 0x23},
+            },
+
+            // End of scene menu.
+            {
+                0x13caf, 4,
+                {0xe0, 0x08, 0x15, 0x1c},
+                {0xb4, 0xbe, SHOGUN_MENU_EXT, 0x23},
+            },
+
+            // Color menu.
+            {
+                0x1750d, 5,
+                {0xec, 0x00, 0xbf, 0x15, 0x1c},
+                {0xb4, 0xb4, 0xbe, SHOGUN_MENU_EXT, 0x02},
+            },
+
+            // Title split.
+            { 0x10bc9, 3, {0xea, 0xbf, 0x00}, {0xb4, 0xb4, 0xb4} },
+        }
+    },
+
+    {
+        "Shogun", "890321", 295, 0x5c0b,
+        {
+            // Newlines.
+            { 0x120a9, 1, {0xda}, {0xb0} },
+
+            // Reverse video.
+            { 0x10a85, 4, {0x41, 0x40, 0x04, 0x46}, {0xf1, 0x7f, 0x01, 0xb0} },
+
+            // Title clear.
+            { 0x10d14, 3, {0xed, 0x7f, 0x00}, {0xb4, 0xb4, 0xb4} },
+
+            // Game start menu.
+            {
+                0x10d1a, 5,
+                {0xec, 0x00, 0x7f, 0x15, 0x66},
+                {0xb4, 0xb4, 0xbe, SHOGUN_MENU_EXT, 0x01},
+            },
+
+            // Game over menu.
+            {
+                0x12acc, 4,
+                {0xe0, 0x08, 0x15, 0x66},
+                {0xb4, 0xbe, SHOGUN_MENU_EXT, 0x23},
+            },
+
+            // End of scene menu.
+            {
+                0x13e6f, 4,
+                {0xe0, 0x08, 0x15, 0x66},
+                {0xb4, 0xbe, SHOGUN_MENU_EXT, 0x23},
+            },
+
+            // Color menu.
+            {
+                0x176e5, 5,
+                {0xec, 0x00, 0xbf, 0x15, 0x66},
+                {0xb4, 0xb4, 0xbe, SHOGUN_MENU_EXT, 0x02},
+            },
+
+            // Title split.
+            { 0x10d0e, 3, {0xea, 0xbf, 0x00}, {0xb4, 0xb4, 0xb4} },
+        }
+    },
+
+    {
+        "Shogun", "890510", 311, 0xe200,
+        {
+            // Newlines.
+            { 0x12625, 1, {0xda}, {0xb0} },
+
+            // Reverse video.
+            { 0x117d1, 4, {0x41, 0x43, 0x04, 0x46}, {0xf1, 0x7f, 0x01, 0xb0} },
+
+            // Title clear.
+            { 0x10cb0, 3, {0xed, 0x7f, 0x00}, {0xb4, 0xb4, 0xb4} },
+
+            // Game start menu.
+            {
+                0x10cb6, 5,
+                {0xec, 0x00, 0x7f, 0x16, 0x95},
+                {0xb4, 0xb4, 0xbe, SHOGUN_MENU_EXT, 0x01},
+            },
+
+            // Game over menu.
+            {
+                0x130ab, 4,
+                {0xe0, 0x00, 0x16, 0x95},
+                {0xb4, 0xbe, SHOGUN_MENU_EXT, 0x03},
+            },
+
+            // End of scene menu.
+            {
+                0x14499, 9,
+                {0xf9, 0x08, 0x16, 0x95, 0x00, 0xc2, 0x00, 0x20, 0x53},
+                {0xbe, SHOGUN_MENU_EXT, 0x23, 0x00, 0xc2, 0x00, 0x20, 0x53, 0x02},
+            },
+
+            // Color menu.
+            {
+                0x17d69, 5,
+                {0xec, 0x00, 0xbf, 0x16, 0x95},
+                {0xb4, 0xb4, 0xbe, SHOGUN_MENU_EXT, 0x02},
+            },
+        }
+    },
+
     {
         "Shogun", "890706", 322, 0x5c88,
         {
-            // Avoid calling a function that prints too many newlines
-            // during interludes.
+            // Newlines.
             { 0x12771, 1, {0xda}, {0xb0} },
 
-            // Shogun uses @set_text_style to switch to reverse video on
-            // Amiga only; otherwise it uses @set_colour. This
-            // unconditionally uses @set_text_style, for better results.
+            // Reverse video.
             { 0x11865, 4, {0x41, 0x43, 0x04, 0x46}, {0xf1, 0x7f, 0x01, 0xb0} },
+
+            // Title clear.
+            { 0x10d44, 3, {0xed, 0x7f, 0x00}, {0xb4, 0xb4, 0xb4} },
+
+            // Game start menu.
+            {
+                0x10d4a, 5,
+                {0xec, 0x00, 0x7f, 0x16, 0xba},
+                {0xb4, 0xb4, 0xbe, SHOGUN_MENU_EXT, 0x01},
+            },
+
+            // Game over menu.
+            {
+                0x131e7, 4,
+                {0xe0, 0x00, 0x16, 0xba},
+                {0xb4, 0xbe, SHOGUN_MENU_EXT, 0x03},
+            },
+
+            // End of scene menu.
+            {
+                0x145e1, 9,
+                {0xf9, 0x08, 0x16, 0xba, 0x00, 0xc2, 0x00, 0x20, 0xa5},
+                {0xbe, SHOGUN_MENU_EXT, 0x23, 0x00, 0xc2, 0x00, 0x20, 0xa5, 0x02},
+            },
+
+            // Color menu.
+            {
+                0x17edd, 5,
+                {0xec, 0x00, 0xbf, 0x16, 0xba},
+                {0xb4, 0xb4, 0xbe, SHOGUN_MENU_EXT, 0x02},
+            },
+        }
+    },
+
+    // There are two V6 hack patches for Journey:
+    //
+    // 1. The DIAL-GRAPHICS routine calls GRAPHIC with the specified
+    // arrow and location; since the same arrows are used for both
+    // dials, the offset for the arrows can’t be determined just by the
+    // picture number. Instead rewrite the calls to a custom
+    // zjourney_dial(), passing 0 for the left arrow, and 1 for the
+    // right.
+    //
+    // 2. When the interpreter number is set to Amiga, Journey draws a
+    // box around the entire screen. This is not possible with Glk (at
+    // least not in a way that wouldn’t require loads of special-
+    // casing); and even worse, Bocfel hacks around some Journey/Glk
+    // issues by pretending the screen height is 6, so that Journey
+    // won’t expand the upper window to extend across the whole screen,
+    // with the side effect that the calculation of the border is
+    // broken, causing an apparent hang that is effectively this, but
+    // slow, since it’s interpreted:
+    //
+    // uint16_t val = 1;
+    // while (val++ != 0) { }
+    //
+    // Border drawing is controlled by the global variable BORDER-FLAG,
+    // which is only set for Amiga. This patch ensures that BORDER-FLAG
+    // is never set, so the game never tries to draw the border.
+    {
+        "Journey", "890316", 26, 0x27cc,
+        {
+            // DIAL-GRAPHICS
+            {
+                0x30095, 6,
+                {0xf9, 0x59, 0xcc, 0x00, 0x00, 0x00},
+                {0xbe, JOURNEY_DIAL_EXT, 0x9f, 0x97, 0x00, 0xb4}
+            },
+            {
+                0x300a3, 6,
+                {0xe0, 0x58, 0xcc, 0x00, 0x00, 0xff},
+                {0xbe, JOURNEY_DIAL_EXT, 0x9f, 0x97, 0x01, 0xb0}
+            },
+
+            // Amiga hang
+            { 0x4b3e, 3, {0x0d, 0xab, 0x01}, {0x0d, 0xab, 0x00} },
+        }
+    },
+
+    {
+        "Journey", "890322", 30, 0x985b,
+        {
+            // DIAL-GRAPHICS
+            {
+                0x30189, 6,
+                {0xf9, 0x59, 0xcc, 0x00, 0x00, 0x00},
+                {0xbe, JOURNEY_DIAL_EXT, 0x9f, 0x97, 0x00, 0xb4}
+            },
+            {
+                0x30197, 6,
+                {0xe0, 0x58, 0xcc, 0x00, 0x00, 0xff},
+                {0xbe, JOURNEY_DIAL_EXT, 0x9f, 0x97, 0x01, 0xb0}
+            },
+
+            // Amiga hang
+            { 0x4bea, 3, {0x0d, 0xaa, 0x01}, {0x0d, 0xaa, 0x00} },
+        }
+    },
+
+    {
+        "Journey", "890616", 77, 0xb136,
+        {
+            // DIAL-GRAPHICS
+            {
+                0x30771, 6,
+                {0xf9, 0x59, 0xf1, 0x00, 0x00, 0x00},
+                {0xbe, JOURNEY_DIAL_EXT, 0x9f, 0x97, 0x00, 0xb4}
+            },
+            {
+                0x3077f, 6,
+                {0xe0, 0x58, 0xf1, 0x00, 0x00, 0xff},
+                {0xbe, JOURNEY_DIAL_EXT, 0x9f, 0x97, 0x01, 0xb0}
+            },
+
+            // Amiga hang
+            { 0x4dcf, 3, {0x0d, 0xad, 0x01}, {0x0d, 0xad, 0x00} },
         }
     },
 
     {
         "Journey", "890706", 83, 0xd2b8,
         {
-            // The DIAL-GRAPHICS routine calls GRAPHICS with the
-            // specified arrow and location; since the same arrows are
-            // used for both dials, the offset for the arrows can’t be
-            // determined just by the picture number. Instead rewrite
-            // the calls to a custom zjourney_dial(), passing 0 for the
-            // left arrow, and 1 for the right.
+            // DIAL-GRAPHICS
             {
                 0x307b9, 6,
                 {0xf9, 0x59, 0xef, 0x00, 0x00, 0x00},
@@ -598,59 +918,69 @@ static std::vector<Patch> v6_patches = {
                 {0xbe, JOURNEY_DIAL_EXT, 0x9f, 0x97, 0x01, 0xb0}
             },
 
-            // The Amiga version of Journey draws a box around the
-            // entire screen. This is not possible with Glk (at least
-            // not in a way that wouldn’t require loads of special-
-            // casing); and even worse, Bocfel hacks around some
-            // Journey/Glk issues by pretending the screen height is 6,
-            // so that Journey won’t expand the upper window to extend
-            // across the whole screen, with the side effect that the
-            // calculation of the border is broken, causing an apparent
-            // hang that is effectively this, but slow, since it’s
-            // interpreted:
-            //
-            // uint16_t val = 1;
-            // while (val++ != 0) { }
-            //
-            // Border drawing is controlled by the global variable
-            // BORDER-FLAG (G9f), which is only set for Amiga. This
-            // patch ensures that BORDER-FLAG is never set, so the game
-            // never tries to draw the border.
+            // Amiga hang
             { 0x4dcf, 3, {0x0d, 0xaf, 0x01}, {0x0d, 0xaf, 0x00} },
         }
+    },
+
+    // There are two V6 hack patches for Zork Zero:
+    //
+    // 1. In Fanucci, Zork Zero displays labels under each card
+    // (DISCARD, 1, 2, 3, 4). This is done in a graphics window, though,
+    // and Glk doesn’t support text in graphics windows. It would
+    // probably be possible to create a new text window just below the
+    // graphics window and put this text in there, but since it’s not
+    // crucial to the game, as you can either use the mouse to click, or
+    // just infer/look up which cards are which, jump over the entire
+    // sequence of moving the cursor and writing text. This is necessary
+    // because, without it, output such as the jester’s commentary is
+    // not visible.
+    //
+    // 2. Zork Zero only allows the compass to be clicked for certain
+    // machine types (interpreter numbers). But the mouse works under
+    // Glk regardless (if the Glk implementation supports mouse clicks).
+    // This bypasses the mouse check, allowing the compass rose to be
+    // clicked no matter which interpreter number is selected.
+    {
+        "Zork Zero", "881019", 296, 0x8c61,
+        {
+            // Fanucci.
+            { 0x2aa6d, 3, {0xef, 0xaf, 0x02}, {0x8c, 0x00, 0x3e} },
+
+            // Compass rose.
+            { 0x1d3cc, 4, {0x41, 0x00, 0x03, 0x62}, {0xb4, 0xb4, 0xb4, 0xb4} },
+        },
+    },
+
+    {
+        "Zork Zero", "890323", 366, 0xc5cd,
+        {
+            // Fanucci.
+            { 0x2964c, 3, {0xef, 0xaf, 0x02}, {0x8c, 0x00, 0x3e} },
+
+            // Compass rose.
+            { 0x1baee, 3, {0xa0, 0x00, 0xce}, {0xb4, 0xb4, 0xb4} },
+        },
+    },
+
+    {
+        "Zork Zero", "890602", 383, 0x6f7f,
+        {
+            // Fanucci.
+            { 0x29e87, 3, {0xef, 0xaf, 0x03}, {0x8c, 0x00, 0x3e} },
+
+            // Compass rose.
+            { 0x1bfa1, 3, {0xa0, 0x00, 0xce}, {0xb4, 0xb4, 0xb4} },
+        },
     },
 
     {
         "Zork Zero", "890714", 393, 0x791c,
         {
-            // In Fanucci, Zork Zero displays labels under each card
-            // (DISCARD, 1, 2, 3, 4). This is done in a graphics window,
-            // though, and Glk doesn’t support text in graphics windows.
-            // It would probably be possible to create a new text window
-            // just below the graphics window and put this text in
-            // there, but since it’s not crucial to the game, as you can
-            // either use the mouse to click, or just infer/look up
-            // which cards are which, replace the entire sequence of
-            // moving the cursor and writing text with @nop.
-            {
-                0x2a127, 63,
-                {0xef, 0xaf, 0x03, 0x04, 0xb2, 0x11, 0x24, 0x38, 0x98, 0x11, 0x04, 0x18, 0x97, 0x91, 0x25, 0xef,
-                 0xaf, 0x03, 0x05, 0xe5, 0x7f, 0x31, 0x74, 0x05, 0x06, 0x00, 0xef, 0xaf, 0x03, 0x00, 0xe5, 0x7f,
-                 0x32, 0x56, 0x06, 0x02, 0x00, 0x74, 0x05, 0x00, 0x00, 0xef, 0xaf, 0x03, 0x00, 0xe5, 0x7f, 0x33,
-                 0x56, 0x06, 0x03, 0x00, 0x74, 0x05, 0x00, 0x00, 0xef, 0xaf, 0x03, 0x00, 0xe5, 0x7f, 0x34},
+            // Fanucci.
+            { 0x2a127, 3, {0xef, 0xaf, 0x03}, {0x8c, 0x00, 0x3e} },
 
-                {0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4,
-                 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4,
-                 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4,
-                 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4}
-            },
-
-            // Zork Zero only allows the compass to be clicked when the
-            // machine is an Apple II, Macintosh, Amiga, or IBM PC. But
-            // the mouse works under Glk regardless (if the Glk
-            // implementation supports mouse clicks). This bypasses the
-            // mouse check, allowing the compass rose to be clicked no
-            // matter which interpreter number is selected.
+            // Compass rose.
             { 0x1c20d, 3, {0xa0, 0x00, 0xce}, {0xb4, 0xb4, 0xb4} },
         },
     },

@@ -6,6 +6,7 @@
 #include <cstdarg>
 #include <functional>
 #include <string>
+#include <type_traits>
 
 #include "types.h"
 
@@ -21,6 +22,17 @@
 #else
 #define zprintflike(f, a)
 #endif
+
+// Allow scoped enums to be used as hash keys.
+// NOTE: Remove when switching to C++17, as C++17 provides this.
+struct EnumClassHash {
+    template <typename T>
+    std::enable_if_t<std::is_enum<T>::value, std::size_t>
+    operator()(T enumValue) const {
+        using UnderlyingType = std::underlying_type_t<T>;
+        return std::hash<UnderlyingType>{}(static_cast<UnderlyingType>(enumValue));
+    }
+};
 
 int16_t as_signed(uint16_t n);
 

@@ -154,5 +154,6 @@ void zmake_menu();
 void zbuffer_screen();
 
 void zjourney_dial();
+void zshogun_menu();
 
 #endif
