@@ -38,9 +38,18 @@ int znargs;
 // interrupt, and so on.
 static int processing_level = 0;
 
+// In general an “internal” call is used for interrupts, and saving is
+// not allowed in an interrupt. But the @shogun_menu hack has to use an
+// internal call as well, and in that call, saving must work. This flag
+// indicates that the current internal call is not actually an
+// interrupt. Theoretically this is insufficient because an interrupt
+// could be called while inside of @shogun_menu’s internal call, but
+// that doesn’t actually happen.
+bool interrupt_override = false;
+
 bool in_interrupt()
 {
-    return processing_level > 1;
+    return processing_level > 1 && !interrupt_override;
 }
 
 // Returns true if decoded, false otherwise (omitted)
@@ -277,8 +286,9 @@ void setup_opcodes()
     setup_single_opcode(5, 6, Opcount::Ext, 0x82, zread_timer);
     setup_single_opcode(5, 6, Opcount::Ext, 0x83, zprint_timer);
 
-    // Journey hack.
+    // V6 hacks.
     setup_single_opcode(6, 6, Opcount::Ext, JOURNEY_DIAL_EXT, zjourney_dial);
+    setup_single_opcode(6, 6, Opcount::Ext, SHOGUN_MENU_EXT, zshogun_menu);
 }
 
 // The main processing loop. This decodes and dispatches instructions.

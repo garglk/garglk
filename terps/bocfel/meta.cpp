@@ -812,7 +812,7 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
         screen_puts("[Meta commands disabled]");
     } else if (command == "say") {
         return {MetaResult::Say, rest};
-    } else if (command == "config") {
+    } else if ZEROARG("config") {
         auto config_file = zterp_os_rcfile(true);
         if (config_file != nullptr) {
             screen_puts("[Editing configuration file]");
@@ -826,7 +826,7 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
         } else {
             screen_puts("[Cannot determine configuration file location]");
         }
-    } else if (command == "fixed") {
+    } else if ZEROARG("fixed") {
         if (screen_toggle_force_fixed()) {
             screen_puts("[Force fixed font on]");
         } else {

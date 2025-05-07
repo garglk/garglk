@@ -794,6 +794,22 @@ static void put_char_base(uint16_t c, bool unicode)
     } else {
         // For screen and transcription, always prefer Unicode.
         if (!unicode) {
+            // Tab (9) and sentence space (11) are defined for output
+            // only in V6 (§3.8.2.3 and §3.8.2.4), but Zork I writes out
+            // a tab, when you read the FCD#3 guidebook. In the DOS
+            // interpreter, this prints out a bullet (CP-437 character
+            // 9); on Apple ][ and C64 it prints nothing; and on
+            // Macintosh and Amiga it prints a space. This was clearly
+            // not intentional, and looks to be a vestige from at least
+            // 1977 MDL Zork, which used tabs to center the guidebook’s
+            // title. Odds are mainframe Zork just printed the tabs out
+            // directly and it worked, and nobody noticed any issues as
+            // it was ported to ZIL. In any case, ignore these ZSCII
+            // characters when not on V6.
+            if (zversion != 6 && (c == 9 || c == 11)) {
+                return;
+            }
+
             c = zscii_to_unicode[c];
         }
 
@@ -1567,7 +1583,7 @@ bool GraphicsWindow::resize(Type type)
             return false;
         }
 
-        static const std::unordered_map<GraphicsWindow::Type, ImageSize> window_sizes = {
+        static const std::unordered_map<GraphicsWindow::Type, ImageSize, EnumClassHash> window_sizes = {
             {GraphicsWindow::Type::ArthurIntro, {292, 196}},
             {GraphicsWindow::Type::ArthurBanner, {320, 96}},
             {GraphicsWindow::Type::ArthurDemon, {254, 164}},
@@ -2253,8 +2269,6 @@ static void request_line(Line &line, glui32 maxlen)
 #ifdef GLK_MODULE_LINE_TERMINATORS
     if (glk_gestalt(gestalt_LineTerminators, 0)) {
         glk_set_terminators_line_event(curwin->id, term_keys.data(), term_keys.size());
-    } else {
-        glk_set_terminators_line_event(curwin->id, nullptr, 0);
     }
 #endif
 
@@ -4767,6 +4781,75 @@ void screen_show_persistent_transcript() {
         zterp_os_show_transcript(transcript);
     } catch (const std::runtime_error &e) {
         screen_printf("[Error showing persistent transcript: %s]\n", e.what());
+    }
+}
+
+// This is a replacement for GET-FROM-MENU, which does not work properly
+// with Glk. zargs[0] is a packed string, which is the prompt for the
+// menu. zargs[1] is an LTABLE representing the menu items. zargs[2] is
+// a routine to call with the selected menu item, which will return true
+// on success or false if the user should be asked to select again.
+// zargs[3] is the default (selected) menu item (1-based).
+void zshogun_menu()
+{
+    // Ordinals are ZSCII 1-9 then a-b. The color menu on Amiga goes to
+    // 11, necessitating the alphabetic characters.
+    std::vector<uint8_t> ordinals = {
+        0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62,
+    };
+
+    auto table = zargs[1];
+    auto nentries = word(table);
+
+    ZASSERT(nentries <= ordinals.size(), "too many menu entries");
+    ordinals.resize(nentries);
+
+    while (true) {
+        put_char(ZSCII_NEWLINE);
+        print_handler(unpack_string(zargs[0]), nullptr);
+        put_char(ZSCII_NEWLINE);
+        put_char(ZSCII_NEWLINE);
+
+        for (int i = 0; i < nentries; i++) {
+            auto addr = word(table + ((i + 1) * 2));
+            int len = byte(addr++);
+            ZASSERT(addr + len < header.static_end, "menu table out of bounds (0x%lx to 0x%lx)", static_cast<unsigned long>(addr), static_cast<unsigned long>(addr + len));
+            std::stringstream ss;
+            ss << static_cast<char>(ordinals.at(i)) << ". ";
+            ss.write(reinterpret_cast<char *>(&memory[addr]), len);
+            if (zargs[3] == i + 1) {
+                ss << "[default]";
+            }
+            for (const auto &c : ss.str()) {
+                put_char(c);
+            }
+            put_char(ZSCII_NEWLINE);
+        }
+
+        Input input;
+
+        input.type = Input::Type::Char;
+
+        get_input(0, 0, input);
+
+        // Have ENTER select the default entry as in the original.
+        auto it = input.key == ZSCII_NEWLINE && zargs[3] != 0 && (zargs[3] - 1) < nentries ?
+            ordinals.begin() + (zargs[3] - 1) :
+            std::find(ordinals.begin(), ordinals.end(), input.key);
+
+        if (it == ordinals.end()) {
+            continue;
+        }
+
+        uint8_t val = (it - ordinals.begin()) + 1;
+
+        interrupt_override = true;
+        auto result = internal_call(zargs[2], {val, zargs[1]});
+        interrupt_override = false;
+        if (result != 0) {
+            store(result);
+            return;
+        }
     }
 }
 

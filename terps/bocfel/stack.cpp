@@ -148,7 +148,7 @@ struct SaveStack {
         states.shrink_to_fit();
     }
 };
-static std::unordered_map<SaveStackType, SaveStack> save_stacks;
+static std::unordered_map<SaveStackType, SaveStack, EnumClassHash> save_stacks;
 
 bool seen_save_undo = false;
 
@@ -318,13 +318,15 @@ void start_v6()
     call(StoreWhere::None);
 }
 
-#ifdef ZTERP_GLK
-uint16_t internal_call(uint16_t routine)
+uint16_t internal_call(uint16_t routine, std::vector<uint16_t> args)
 {
     std::vector<uint16_t> saved_args(zargs.begin(), zargs.begin() + znargs);
 
-    znargs = 1;
+    ZASSERT(args.size() < 8, "internal error: too many arguments");
+
+    znargs = 1 + args.size();
     zargs[0] = routine;
+    std::copy(args.begin(), args.end(), &zargs[1]);
     call(StoreWhere::Push);
 
     process_instructions();
@@ -334,7 +336,6 @@ uint16_t internal_call(uint16_t routine)
 
     return pop_stack();
 }
-#endif
 
 void zcall_store()
 {
@@ -1602,10 +1603,10 @@ void init_stack(bool first_run)
         }
         TOP_OF_STACK = &stack[options.eval_stack_size];
 
-        options.call_stack_size = clamp<size_t>(options.call_stack_size, 1, std::min<size_t>(0xffff, (SIZE_MAX / sizeof *frames) - sizeof *frames));
+        options.call_stack_size = clamp<size_t>(options.call_stack_size, 1, std::min<size_t>(0xffff, (SIZE_MAX / sizeof *frames) - 1));
         try {
-            // One extra to help with saving (thus the subtraction of
-            // sizeof *frames above).
+            // One extra to help with saving (thus the subtraction of 1
+            // above).
             frames = new CallFrame[options.call_stack_size + 1];
         } catch (std::bad_alloc &) {
             die("unable to allocate %lu bytes for the call stack", (options.call_stack_size + 1) * static_cast<unsigned long>(sizeof *frames));

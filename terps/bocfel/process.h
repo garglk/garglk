@@ -10,6 +10,7 @@
 #include "types.h"
 
 static constexpr uint8_t JOURNEY_DIAL_EXT = 0xf0;
+static constexpr uint8_t SHOGUN_MENU_EXT = 0xf1;
 
 namespace Operation {
 // Jump back to the previous round of interpreting. This is used
@@ -43,6 +44,8 @@ extern unsigned long current_instruction;
 
 extern std::array<uint16_t, 8> zargs;
 extern int znargs;
+
+extern bool interrupt_override;
 
 bool in_interrupt();
 void setup_opcodes();

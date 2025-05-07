@@ -24,7 +24,7 @@ private:
 
 extern std::string game_file;
 
-#define ZTERP_VERSION	"2.2.3"
+#define ZTERP_VERSION	"2.2.4"
 
 // v3
 constexpr uint8_t FLAGS1_STATUSTYPE  = 1U << 1;
@@ -79,11 +79,6 @@ struct Header {
 extern int zversion;
 extern Header header;
 extern std::array<uint8_t, 26 * 3> atable;
-
-#ifdef ZTERP_GLK_BLORB
-extern int zterp_blorb_expected_release;
-extern std::array<uint8_t, 6> zterp_blorb_expected_serial;
-#endif
 
 const std::string &get_story_id();
 
