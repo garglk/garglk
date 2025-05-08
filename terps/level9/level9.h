@@ -1,8 +1,8 @@
 /***********************************************************************\
 *
 * Level 9 interpreter
-* Version 5.1
-* Copyright (c) 1996-2011 Glen Summers and contributors.
+* Version 5.2
+* Copyright (c) 1996-2023 Glen Summers and contributors.
 * Contributions from David Kinder, Alan Staniforth, Simon Baldwin,
 * Dieter Baron and Andreas Scherrer.
 *
@@ -118,6 +118,7 @@ void os_drawline(int x1, int y1, int x2, int y2, int colour1, int colour2);
 void os_fill(int x, int y, int colour1, int colour2);
 void os_show_bitmap(int pic, int x, int y);
 FILE* os_open_script_file(void);
+L9BOOL os_find_file(char* NewName);
 
 /* routines provided by level9 interpreter */
 L9BOOL LoadGame(char* filename, char* picname);
@@ -131,11 +132,6 @@ L9BOOL RunGraphics(void);
 /* bitmap routines provided by level9 interpreter */
 BitmapType DetectBitmaps(char* dir);
 Bitmap* DecodeBitmap(char* dir, BitmapType type, int num, int x, int y);
-
-#ifdef NEED_STRICMP_PROTOTYPE
-int stricmp(const char* str1, const char* str2);
-int strnicmp(const char* str1, const char* str2, size_t n);
-#endif
 
 #ifdef __cplusplus
 }

@@ -1,8 +1,8 @@
 /***********************************************************************\
 *
 * Level 9 interpreter
-* Version 5.1
-* Copyright (c) 1996-2011 Glen Summers and contributors.
+* Version 5.2
+* Copyright (c) 1996-2023 Glen Summers and contributors.
 * Contributions from David Kinder, Alan Staniforth, Simon Baldwin,
 * Dieter Baron and Andreas Scherrer.
 *
@@ -32,17 +32,6 @@ extern Bitmap* bitmap;
 
 L9UINT32 filelength(FILE *f);
 void L9Allocate(L9BYTE **ptr,L9UINT32 Size);
-
-L9BOOL bitmap_exists(char* file)
-{
-	FILE* f = fopen(file,"rb");
-	if (f != NULL)
-	{
-		fclose(f);
-		return TRUE;
-	}
-	return FALSE;
-}
 
 L9BYTE* bitmap_load(char* file, L9UINT32* size)
 {
@@ -1486,27 +1475,27 @@ BitmapType DetectBitmaps(char* dir)
 	char file[MAX_PATH];
 
 	bitmap_noext_name(2,dir,file);
-	if (bitmap_exists(file))
+	if (os_find_file(file))
 		return bitmap_noext_type(file);
 
 	bitmap_pc_name(2,dir,file);
-	if (bitmap_exists(file))
+	if (os_find_file(file))
 		return bitmap_pc_type(file);
 
 	bitmap_c64_name(2,dir,file);
-	if (bitmap_exists(file))
+	if (os_find_file(file))
 		return bitmap_c64_type(file);
 
 	bitmap_bbc_name(2,dir,file);
-	if (bitmap_exists(file))
+	if (os_find_file(file))
 		return BBC_BITMAPS;
 
 	bitmap_cpc_name(2,dir,file);
-	if (bitmap_exists(file))
+	if (os_find_file(file))
 		return CPC_BITMAPS;
 
 	bitmap_st2_name(2,dir,file);
-	if (bitmap_exists(file))
+	if (os_find_file(file))
 		return ST2_BITMAPS;
 
 	return NO_BITMAPS;
@@ -1520,56 +1509,83 @@ Bitmap* DecodeBitmap(char* dir, BitmapType type, int num, int x, int y)
 	{
 	case PC1_BITMAPS:
 		bitmap_pc_name(num,dir,file);
-		if (bitmap_pc1_decode(file,x,y))
-			return bitmap;
+		if (os_find_file(file))
+		{
+			if (bitmap_pc1_decode(file,x,y))
+				return bitmap;
+		}
 		break;
 
 	case PC2_BITMAPS:
 		bitmap_pc_name(num,dir,file);
-		if (bitmap_pc2_decode(file,x,y))
-			return bitmap;
+		if (os_find_file(file))
+		{
+			if (bitmap_pc2_decode(file,x,y))
+				return bitmap;
+		}
 		break;
 
 	case AMIGA_BITMAPS:
 		bitmap_noext_name(num,dir,file);
-		if (bitmap_amiga_decode(file,x,y))
-			return bitmap;
+		if (os_find_file(file))
+		{
+			if (bitmap_amiga_decode(file,x,y))
+				return bitmap;
+		}
 		break;
 
 	case C64_BITMAPS:
 		bitmap_c64_name(num,dir,file);
-		if (bitmap_c64_decode(file,type,num))
-			return bitmap;
+		if (os_find_file(file))
+		{
+			if (bitmap_c64_decode(file,type,num))
+				return bitmap;
+		}
 		break;
 
 	case BBC_BITMAPS:
 		bitmap_bbc_name(num,dir,file);
-		if (bitmap_bbc_decode(file,type,num))
-			return bitmap;
+		if (os_find_file(file))
+		{
+			if (bitmap_bbc_decode(file,type,num))
+				return bitmap;
+		}
 		break;
 
 	case CPC_BITMAPS:
 		bitmap_cpc_name(num,dir,file);
-		if (bitmap_c64_decode(file,type,num)) /* Nearly identical to C64 */
-			return bitmap;
+		if (os_find_file(file))
+		{
+			if (bitmap_c64_decode(file,type,num)) /* Nearly identical to C64 */
+				return bitmap;
+		}
 		break;
 
 	case MAC_BITMAPS:
 		bitmap_noext_name(num,dir,file);
-		if (bitmap_mac_decode(file,x,y))
-			return bitmap;
+		if (os_find_file(file))
+		{
+			if (bitmap_mac_decode(file,x,y))
+				return bitmap;
+		}
 		break;
 
 	case ST1_BITMAPS:
 		bitmap_noext_name(num,dir,file);
-		if (bitmap_st1_decode(file,x,y))
-			return bitmap;
+		if (os_find_file(file))
+		{
+			if (bitmap_st1_decode(file,x,y))
+				return bitmap;
+		}
 		break;
 
 	case ST2_BITMAPS:
 		bitmap_st2_name(num,dir,file);
-		if (bitmap_pc2_decode(file,x,y))
-			return bitmap;
+		if (os_find_file(file))
+		{
+			if (bitmap_pc2_decode(file,x,y))
+				return bitmap;
+		}
 		break;
 	}
 
