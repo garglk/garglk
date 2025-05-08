@@ -1,6 +1,6 @@
 
 Level 9 interpreter
-Version 5.1
+Version 5.2
 
 This guide is by David Kinder.
 
@@ -232,6 +232,15 @@ void os_show_bitmap(int pic, int x, int y)
 	The interpreter source code provides a decoder that understands
 	most Level 9 bitmap formats. The decoder is accessed by calling
 	DecodeBitmap(), which is discussed below.
+
+L9BOOL os_find_file(char* NewName)
+
+	Return whether the given file exists or not. On case sensitive
+	file systems, the interpreter should check whether the file
+	exists as all uppercase and all lowercase. If it does, the
+	routine should return TRUE, with the string pointed to by
+	NewName changed to match the file name as it appears in the
+	file system.
 
 
 int main(int argc, char** argv)

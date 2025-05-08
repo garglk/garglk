@@ -84,7 +84,7 @@ To build standalone binary version of Glk Level 9, use
 
 To build the IFP plugin, use
 
-	make -f Makefile.glk level9-5.1.so
+	make -f Makefile.glk level9-5.2.so
 
 To clean up and delete everything in the case of a build error, use
 
