@@ -3,6 +3,7 @@ name: macOS (Qt)
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build:

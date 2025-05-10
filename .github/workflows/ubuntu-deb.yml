@@ -3,6 +3,7 @@ name: Ubuntu package
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
