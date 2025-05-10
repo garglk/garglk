@@ -33,7 +33,7 @@ function(terp target)
         target_link_libraries(${target} PRIVATE garglk)
     endif()
 
-    if(MINGW OR MSVC)
+    if(WIN32)
         target_sources(${target} PRIVATE "${PROJECT_SOURCE_DIR}/garglk/icons.rc" "${PROJECT_SOURCE_DIR}/terps/garglk.manifest")
     endif()
 
@@ -177,7 +177,7 @@ if(WITH_BOCFEL)
     set(BOCFEL_MACROS ZTERP_GLK ZTERP_GLK_BLORB ZTERP_GLK_UNIX "ZTERP_STATIC_PATCH_FILE=\"static-patches.h\"")
     if(UNIX)
         list(APPEND BOCFEL_MACROS ZTERP_OS_UNIX)
-    elseif(MINGW)
+    elseif(WIN32)
         list(APPEND BOCFEL_MACROS ZTERP_OS_WIN32)
     endif()
 
@@ -241,7 +241,7 @@ if(WITH_GLULXE)
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             list(APPEND GLULXE_MACROS UNIX_RAND_GETRANDOM)
         endif()
-    elseif(MINGW OR MSVC)
+    elseif(WIN32)
         list(APPEND GLULXE_MACROS OS_WINDOWS)
     endif()
 
@@ -365,16 +365,9 @@ endif()
 # SCARE 1.3.10 for Adrift 4 games
 #
 if(WITH_SCARE)
-    if(UNIX OR MINGW OR MSVC)
-        find_package(ZLIB REQUIRED)
-        set(SCARE_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
-        set(SCARE_LIBS ${ZLIB_LIBRARIES})
-    elseif(MINGW)
-        set(SCARE_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/support/zlib)
-        set(SCARE_LIBS ${PROJECT_SOURCE_DIR}/support/zlib/zlib1.dll)
-    else()
-        message(FATAL_ERROR "Unknown platform: cannot build scare because zlib is required")
-    endif()
+    find_package(ZLIB REQUIRED)
+    set(SCARE_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
+    set(SCARE_LIBS ${ZLIB_LIBRARIES})
 
     terp(scare
         SRCS scare/sctafpar.c scare/sctaffil.c scare/scprops.c scare/scvars.c
@@ -472,7 +465,7 @@ if(WITH_TADS)
     list(APPEND srcs tads/tads3/vmconnom.cpp)
 
     set(macros GLK VMGLOB_STRUCT GLK_UNICODE GLK_TIMERS TC_TARGET_T3 RUNTIME)
-    if(MINGW32 OR MSVC)
+    if(WIN32)
         list(APPEND macros DMSDOS DT_WIN32)
     endif()
 
