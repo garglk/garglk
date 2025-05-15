@@ -182,10 +182,10 @@ struct Theme {
     }
 
 private:
-    static ThemeStyles get_user_styles(const json &j, const std::string &color)
+    static ThemeStyles get_user_styles(const json &j, const std::string &wintype)
     {
         std::array<nonstd::optional<ColorPair>, style_NUMSTYLES> possible_colors;
-        std::unordered_map<std::string, json> styles = j.at(color);
+        std::unordered_map<std::string, json> styles = j.at(wintype);
 
         static const std::unordered_map<std::string, int> stylemap = {
             {"normal", 0},
@@ -218,7 +218,7 @@ private:
             try {
                 parse_colors(style.second, stylemap.at(style.first));
             } catch (const std::out_of_range &) {
-                throw std::runtime_error(Format("invalid style in {}: {}", color, style.first));
+                throw std::runtime_error(Format("invalid style in {}: {}", wintype, style.first));
             }
         }
 
@@ -233,7 +233,7 @@ private:
         }
 
         if (!missing.empty()) {
-            throw std::runtime_error(Format("{} is missing the following styles: {}", color, garglk::join(missing, ", ")));
+            throw std::runtime_error(Format("{} is missing the following styles: {}", wintype, garglk::join(missing, ", ")));
         }
 
         return {colors};
