@@ -1078,16 +1078,11 @@ static void maybe_set_save_dir(NSSavePanel *panel, NSString *savedir)
 
 - (IBAction) toggle: (id) sender
 {
-    NSFileManager *fm = [NSFileManager defaultManager];
-    NSString *home = [NSString stringWithFormat: @"%@/%@", [[[NSProcessInfo processInfo] environment] objectForKey: @"HOME"], @"garglk.ini"];
-    NSString *main = [NSString stringWithFormat: @"%@/%@", [[NSBundle mainBundle] resourcePath], @"garglk.ini"];
-
-    if (![fm isWritableFileAtPath: home] && [fm isReadableFileAtPath: main]) {
-        [fm createFileAtPath: home contents: [NSData dataWithContentsOfFile: main] attributes: nullptr];
-    }
-
-    [[NSWorkspace sharedWorkspace] openFile: home
-                            withApplication: @"TextEdit"];
+    auto config = [NSString stringWithUTF8String: garglk::user_config().c_str()];
+    NSTask *task = [[NSTask alloc] init];
+    task.launchPath = @"/usr/bin/open";
+    task.arguments = @[@"-t", config];
+    [task launch];
 }
 
 @end
