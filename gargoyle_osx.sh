@@ -7,14 +7,22 @@ fatal() {
     exit 1
 }
 
+GARGOYLE_CLEAN=
 GARGOYLE_FRANKENDRIFT="OFF"
+GARGOYLE_NO_DMG=
 GARGOYLE_CMAKE_EXTRAS=""
 
-while getopts "f" o
+while getopts "cfn" o
 do
     case "${o}" in
+        c)
+            GARGOYLE_CLEAN=1
+            ;;
         f)
             GARGOYLE_FRANKENDRIFT="ON"
+            ;;
+        n)
+            GARGOYLE_NO_DMG=1
             ;;
         *)
             fatal "Usage: $0 [-f]"
@@ -113,6 +121,8 @@ mkdir -p "$BUNDLE/Resources/Fonts"
 mkdir -p "$BUNDLE/Resources/themes"
 mkdir -p "$BUNDLE/PlugIns"
 
+[[ -n "${GARGOYLE_CLEAN}" ]] && rm -rf build-osx build/dist
+
 rm -rf $GARGDIST
 mkdir -p build-osx
 cd build-osx
@@ -201,7 +211,10 @@ cp themes/*.json $BUNDLE/Resources/themes
 
 codesign -s - -f --deep Gargoyle.app
 
-echo "Creating DMG..."
-hdiutil create -fs "HFS+J" -ov -srcfolder Gargoyle.app/ "gargoyle-$GARVERSION-$TARGET_ARCH.dmg"
+if [[ -z "${GARGOYLE_NO_DMG}" ]]
+then
+    echo "Creating DMG..."
+    hdiutil create -fs "HFS+J" -ov -srcfolder Gargoyle.app/ "gargoyle-$GARVERSION-$TARGET_ARCH.dmg"
+fi
 
 echo "Done."
