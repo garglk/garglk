@@ -1078,11 +1078,15 @@ static void maybe_set_save_dir(NSSavePanel *panel, NSString *savedir)
 
 - (IBAction) toggle: (id) sender
 {
-    auto config = [NSString stringWithUTF8String: garglk::user_config().c_str()];
-    NSTask *task = [[NSTask alloc] init];
-    task.launchPath = @"/usr/bin/open";
-    task.arguments = @[@"-t", config];
-    [task launch];
+    try {
+        auto config = [NSString stringWithUTF8String: garglk::user_config().c_str()];
+        NSTask *task = [[NSTask alloc] init];
+        task.launchPath = @"/usr/bin/open";
+        task.arguments = @[@"-t", config];
+        [task launch];
+    } catch (const std::runtime_error &e) {
+        garglk::winwarning("Warning", e.what());
+    }
 }
 
 @end
