@@ -28,7 +28,6 @@
     It is distributed under the MIT license; see the "LICENSE" file.
 */
 
-#include <array>
 #include <cstdio>
 #include <vector>
 
