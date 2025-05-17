@@ -56,11 +56,7 @@ done
 GARGOYLE_ARCH=${GARGOYLE_ARCH:-"i686"}
 
 case "${GARGOYLE_ARCH}" in
-    i686)
-        libgcc=dw2
-        ;;
-    x86_64)
-        libgcc=seh
+    i686|x86_64)
         ;;
     aarch64|armv7)
         GARGOYLE_NO_INSTALLER=1
@@ -113,9 +109,8 @@ then
     cp "/usr/lib/gcc/${target}/${ver}/libstdc++-6.dll" "build/dist"
     cp "${mingw_location}/${target}/lib/libwinpthread-1.dll" "build/dist"
 
-    libgccpath="/usr/lib/gcc/${target}/${ver}/libgcc_s_${libgcc}-1.dll"
-    [[ -e "${libgccpath}" ]] || libgccpath=/usr/lib/gcc/${target}/${ver}/libgcc_s_*-1.dll
-    cp ${libgccpath} "build/dist"
+    libgcc=$(objdump -p build/dist/gargoyle.exe | grep "DLL Name: libgcc" | awk '{print $NF}')
+    cp "/usr/lib/gcc/${target}/${ver}/${libgcc}" "build/dist"
 else
     cp "${mingw_location}/${target}/bin/libc++.dll" "build/dist"
     cp "${mingw_location}/${target}/bin/libunwind.dll" "build/dist"
