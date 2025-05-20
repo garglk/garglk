@@ -30,14 +30,11 @@
 #import <Cocoa/Cocoa.h>
 #import <OpenGL/gl.h>
 #import <OpenGL/glu.h>
-#include <mach-o/dyld.h>
+#include <libproc.h>
+#include <unistd.h>
 #import "sysmac.h"
 
-#define MaxBuffer 1024
-
 static const char *AppName = "Gargoyle " GARGOYLE_VERSION;
-
-static std::string winpath();
 
 // Qt's origin is the top-left, but Mac's is bottom left, so translate,
 // since the config format is determined by Qt.
@@ -1100,12 +1097,9 @@ void garglk::winmsg(const std::string &msg)
 
 static std::string winpath()
 {
-    char tmp[MaxBuffer];
-    std::uint32_t exelen = sizeof tmp;
-    char exepath[MaxBuffer];
+    char exepath[PROC_PIDPATHINFO_MAXSIZE];
 
-    if (_NSGetExecutablePath(tmp, &exelen) != 0 ||
-        realpath(tmp, exepath) == nullptr) {
+    if (proc_pidpath(getpid(), exepath, sizeof exepath) == -1) {
         garglk::winmsg("Unable to locate executable path");
     }
 
