@@ -13,10 +13,6 @@ do
         n)
             operation="notarize"
             ;;
-        s)
-            operation="status"
-            req_uuid="${OPTARG}"
-            ;;
         v)
             operation="verify"
             ;;
@@ -40,15 +36,12 @@ case "${operation}" in
     "notarize")
         codesign -f -o runtime --deep --sign "${CERT_NAME}" Gargoyle.app
         ditto -c -k --keepParent Gargoyle.app Gargoyle.zip
-        xcrun altool --notarize-app --primary-bundle-id 'com.googlecode.garglk.Launcher' --username "${APPLE_ID}" --asc-provider "${PROV_SHORT_NAME}" --file Gargoyle.zip
+        xcrun notarytool submit Gargoyle.zip --apple-id "${APPLE_ID}" --team-id "${APPLE_TEAM_ID}" --wait
         ;;
     "bundle")
         xcrun stapler staple Gargoyle.app
         rm -f gargoyle-2023.1-mac.dmg
         hdiutil create -fs "HFS+J" -ov -srcfolder Gargoyle.app/ gargoyle-2023.1-mac.dmg
-        ;;
-    "status")
-        xcrun altool --notarization-info "${req_uuid}" -u "${APPLE_ID}"
         ;;
     "verify")
         codesign -d --verbose=4 Gargoyle.app
