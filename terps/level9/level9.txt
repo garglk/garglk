@@ -3,7 +3,7 @@
         An interpreter for Level 9 games in any format,
         including Spectrum snapshots.
 
-        Copyright (c) 1996-2023 Glen Summers and contributors.
+        Copyright (c) 1996-2025 Glen Summers and contributors.
         Contributions from David Kinder, Alan Staniforth,
         Simon Baldwin, Dieter Baron and Andreas Scherrer.
 
@@ -238,6 +238,9 @@ History
         the same case as expected on case sensitive file systems, e.g.
         "1.PIC" will be found on Unix, when before "1.pic" was
         required.
+        The GTK front-end has been updated to GTK3.
+        The Glk front-end has improved detection for MSX releases of
+        the games.
 
   v5.1  The bitmap graphics from the US Macintosh release of Lancelot
         now display correctly.
