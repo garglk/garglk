@@ -479,8 +479,6 @@ static gln_game_table_t GLN_GAME_TABLE[] = {
   {0x6e5c, 0xf6, 0xd356, "Adventure Quest /JoD (ST)"},
   {0x6f0c, 0x95, 0x1f64, "Dungeon Adventure /JoD (Amiga/PC/ST)"},
 
-  {0x6f70, 0x40, 0xbd91, "Colossal Adventure /JoD (MSX)"},
-
   {0x6f6e, 0x78, 0x28cd, "Colossal Adventure /JoD (Spectrum 128)"},
   {0x6970, 0xd6, 0xa820, "Adventure Quest /JoD (Spectrum 128)"},
   {0x6de8, 0x4c, 0xd795, "Dungeon Adventure /JoD (Spectrum 128)"},
