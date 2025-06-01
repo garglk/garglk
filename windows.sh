@@ -29,7 +29,7 @@ fatal() {
 QT_VERSION="5"
 GARGOYLE_SOUND="SDL"
 
-while getopts "6a:bgq" o
+while getopts "6a:bcgq" o
 do
     case "${o}" in
         6)
@@ -40,6 +40,9 @@ do
             ;;
         b)
             GARGOYLE_BUILD_ONLY=1
+            ;;
+        c)
+            GARGOYLE_CLEAN=1
             ;;
         g)
             GARGOYLE_MINGW_GCC=1
@@ -68,6 +71,8 @@ case "${GARGOYLE_ARCH}" in
 esac
 
 target="${GARGOYLE_ARCH}-w64-mingw32"
+
+[[ -n "${GARGOYLE_CLEAN}" ]] && rm -rf build-mingw build/dist
 
 [[ -e build/dist ]] && exit 1
 

@@ -8,9 +8,12 @@ set -ex
 
 frankendrift="OFF"
 
-while getopts "f" o
+while getopts "cf" o
 do
     case "${o}" in
+        c)
+            clean=1
+            ;;
         f)
             frankendrift="ON"
             ;;
@@ -19,6 +22,8 @@ do
             ;;
     esac
 done
+
+[[ -n "${clean}" ]] && rm -rf build-appimage build/dist
 
 mkdir build-appimage
 cd build-appimage
