@@ -531,8 +531,10 @@ void glk_window_get_size(window_t *win, glui32 *width, glui32 *height)
         hgt = hgt / gli_cellh;
         break;
     case wintype_TextBuffer:
-        wid = win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2;
-        hgt = win->bbox.y1 - win->bbox.y0 - gli_tmarginy * 2;
+        wid = win->bbox.x1 - win->bbox.x0;
+        wid -= std::min<glui32>(wid, gli_tmarginx * 2);
+        hgt = win->bbox.y1 - win->bbox.y0;
+        hgt -= std::min<glui32>(hgt, gli_tmarginy * 2);
         wid = wid / gli_cellw;
         hgt = hgt / gli_cellh;
         break;

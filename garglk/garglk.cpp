@@ -115,8 +115,10 @@ void garglk_window_get_size_pixels(window_t *win, glui32 *width, glui32 *height)
         wid = win->bbox.x1 - win->bbox.x0;
         hgt = win->bbox.y1 - win->bbox.y0;
     } else if (win->type == wintype_TextBuffer) {
-        wid = win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2;
-        hgt = win->bbox.y1 - win->bbox.y0 - gli_tmarginy * 2;
+        wid = win->bbox.x1 - win->bbox.x0;
+        wid -= std::min<glui32>(wid, gli_tmarginx * 2);
+        hgt = win->bbox.y1 - win->bbox.y0;
+        hgt -= std::min<glui32>(hgt, gli_tmarginy * 2);
     }
 
     if (width != nullptr) {
