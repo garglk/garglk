@@ -1146,14 +1146,13 @@ void win_graphics_rearrange(window_t *win, rect_t *box);
 void win_graphics_redraw(window_t *win);
 void win_graphics_click(window_graphics_t *dwin, int x, int y);
 
-bool win_graphics_draw_picture(window_graphics_t *dwin,
-  glui32 image, glsi32 xpos, glsi32 ypos,
-  bool scale, glui32 imagewidth, glui32 imageheight);
+bool win_graphics_draw_picture(std::shared_ptr<picture_t> pic, window_graphics_t *dwin,
+  glsi32 xpos, glsi32 ypos, glui32 imagewidth, glui32 imageheight);
 void win_graphics_erase_rect(window_graphics_t *dwin, bool whole, glsi32 x0, glsi32 y0, glui32 width, glui32 height);
 void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color, glsi32 x0, glsi32 y0, glui32 width, glui32 height);
 void win_graphics_set_background_color(window_graphics_t *dwin, glui32 color);
 
-bool win_textbuffer_draw_picture(window_textbuffer_t *dwin, glui32 image, glui32 align, bool scaled, glui32 width, glui32 height);
+bool win_textbuffer_draw_picture(std::shared_ptr<picture_t> pic, window_textbuffer_t *dwin, glui32 window_width, glui32 align, glui32 width, glui32 height, glui32 maxwidth);
 void win_textbuffer_flow_break(window_textbuffer_t *win);
 
 void gli_read_config(int argc, char **argv);

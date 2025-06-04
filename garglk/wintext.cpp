@@ -1598,27 +1598,21 @@ static bool put_picture(window_textbuffer_t *dwin, const std::shared_ptr<picture
     return true;
 }
 
-bool win_textbuffer_draw_picture(window_textbuffer_t *dwin,
-    glui32 image, glui32 align, bool scaled, glui32 width, glui32 height)
+bool win_textbuffer_draw_picture(std::shared_ptr<picture_t> pic, window_textbuffer_t *dwin, glui32 window_width,
+    glui32 align, glui32 width, glui32 height, glui32 maxwidth)
 {
     glui32 hyperlink;
 
-    auto pic = gli_picture_load(image);
-
-    if (!pic) {
-        return false;
+    if (maxwidth != 0) {
+        auto limit = window_width * (maxwidth / 65536.0);
+        if (width > limit) {
+            double scaleby = static_cast<double>(limit) / width;
+            width *= scaleby;
+            height *= scaleby;
+        }
     }
 
-    if (!dwin->owner->image_loaded) {
-        gli_piclist_increment();
-        dwin->owner->image_loaded = true;
-    }
-
-    if (scaled) {
-        pic = gli_picture_scale(pic.get(), width, height);
-    } else {
-        pic = gli_picture_scale(pic.get(), gli_zoom_int(pic->w), gli_zoom_int(pic->h));
-    }
+    pic = gli_picture_scale(pic.get(), gli_zoom_int(width), gli_zoom_int(height));
 
     hyperlink = dwin->owner->attr.hyper;
 

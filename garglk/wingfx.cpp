@@ -121,29 +121,14 @@ void win_graphics_click(window_graphics_t *dwin, int sx, int sy)
     }
 }
 
-bool win_graphics_draw_picture(window_graphics_t *dwin,
-    glui32 image,
+bool win_graphics_draw_picture(std::shared_ptr<picture_t> pic, window_graphics_t *dwin,
     glsi32 xpos, glsi32 ypos,
-    bool scale, glui32 imagewidth, glui32 imageheight)
+    glui32 imagewidth, glui32 imageheight)
 {
-    auto pic = gli_picture_load(image);
     glui32 hyperlink = dwin->owner->attr.hyper;
     xpos = gli_zoom_int(xpos);
     ypos = gli_zoom_int(ypos);
 
-    if (!pic) {
-        return false;
-    }
-
-    if (!dwin->owner->image_loaded) {
-        gli_piclist_increment();
-        dwin->owner->image_loaded = true;
-    }
-
-    if (!scale) {
-        imagewidth = pic->w;
-        imageheight = pic->h;
-    }
     imagewidth = gli_zoom_int(imagewidth);
     imageheight = gli_zoom_int(imageheight);
 
