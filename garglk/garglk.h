@@ -19,7 +19,7 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 // Private header file for the Gargoyle Implementation of the Glk API.
-// Glk API which this implements: version 0.7.5.
+// Glk API which this implements: version 0.7.6.
 // Glk designed by Andrew Plotkin <erkyrath@eblong.com>
 // http://www.eblong.com/zarf/glk/index.html
 
@@ -433,6 +433,11 @@ private:
 };
 
 extern Bleeps gli_bleeps;
+
+/* Get the pathname for data chunk num (as specified in command-line arguments,
+   if any).
+*/
+extern int gli_get_dataresource_info(int num, void **ptr, glui32 *len, int *isbinary);
 
 // Callbacks necessary for the dispatch layer.
 

@@ -52,8 +52,8 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
     switch (id) {
         
         case gestalt_Version:
-            /* This implements Glk spec version 0.7.5. */
-            return 0x00000705;
+            /* This implements Glk spec version 0.7.6. */
+            return 0x00000706;
         
         case gestalt_LineInput:
 #ifdef GARGLK
@@ -127,6 +127,7 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
             return FALSE;
             
         case gestalt_DrawImage:
+        case gestalt_DrawImageScale:
 #ifdef GARGLK
             if (val == wintype_TextBuffer)
                 return gli_conf_graphics;

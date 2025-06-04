@@ -1203,6 +1203,12 @@ void glk_window_move_cursor(window_t *win, glui32 xpos, glui32 ypos)
 
 // Graphics and Image drawing
 
+glui32 glk_image_draw_scaled_ext(winid_t win, glui32 image, glsi32 val1, glsi32 val2, glui32 width, glui32 height, glui32 imagerule, glui32 maxwidth)
+{
+    gli_strict_warning("image_draw_scaled_ext: graphics not supported.");
+    return false;
+}
+
 glui32 glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2)
 {
     if (win == nullptr) {

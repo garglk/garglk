@@ -70,8 +70,8 @@ static time_t timegm(struct tm *tm);
 /* Some alterations to make this code work on Windows, in case that's helpful
    to you. */
 #define mktime(tm) gli_mktime(tm)
-static time_t timegm(struct tm *tm);
-static time_t gli_mktime(struct tm *timeptr);
+extern time_t timegm(struct tm *tm);
+extern time_t gli_mktime(struct tm *timeptr);
 static struct tm *gmtime_r(const time_t *timer, struct tm *result);
 static struct tm *localtime_r(const time_t *timer, struct tm *result);
 
@@ -180,13 +180,15 @@ static glsi32 gli_simplify_time(time_t timestamp, glui32 factor)
 void glk_current_time(glktimeval_t *time)
 {
 #ifndef _MSC_VER
-    struct timeval tv;
-    if (gettimeofday(&tv, NULL)) {
+    struct timespec ts;
+
+    if (!timespec_get(&ts, TIME_UTC)) {
         gli_timestamp_to_time(0, 0, time);
-        gli_strict_warning("current_time: gettimeofday() failed.");
+        gli_strict_warning("current_time: timespec_get() failed.");
         return;
     }
-    gli_timestamp_to_time(tv.tv_sec, tv.tv_usec, time);
+
+    gli_timestamp_to_time(ts.tv_sec, ts.tv_nsec/1000, time);
 #else
     struct timespec ts;
     if (!timespec_get(&ts, TIME_UTC)) {
@@ -200,18 +202,20 @@ void glk_current_time(glktimeval_t *time)
 
 glsi32 glk_current_simple_time(glui32 factor)
 {
+#ifndef _MSC_VER
+    struct timespec ts;
+
     if (factor == 0) {
         gli_strict_warning("current_simple_time: factor cannot be zero.");
         return 0;
     }
 
-#ifndef _MSC_VER
-    struct timeval tv;
-    if (gettimeofday(&tv, NULL)) {
-        gli_strict_warning("current_simple_time: gettimeofday() failed.");
+    if (!timespec_get(&ts, TIME_UTC)) {
+        gli_strict_warning("current_simple_time: timespec_get() failed.");
         return 0;
     }
-    return gli_simplify_time(tv.tv_sec, factor);
+
+    return gli_simplify_time(ts.tv_sec, factor);
 #else
     struct timespec ts;
     if (!timespec_get(&ts, TIME_UTC)) {
