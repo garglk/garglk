@@ -1,8 +1,8 @@
-/* gi_dispa.c: Dispatch layer for Glk API, version 0.7.5.
+/* gi_dispa.c: Dispatch layer for Glk API, version 0.7.6.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://eblong.com/zarf/glk/
 
-    This file is copyright 1998-2017 by Andrew Plotkin. It is
+    This file is copyright 1998-2025 by Andrew Plotkin. It is
     distributed under the MIT license; see the "LICENSE" file.
 */
 
@@ -66,6 +66,7 @@ static gidispatch_intconst_t intconstant_table[] = {
     { "gestalt_CharOutput_ExactPrint", (2) },
     { "gestalt_DateTime", (20) },
     { "gestalt_DrawImage", (7) },
+    { "gestalt_DrawImageScale", (24) },
     { "gestalt_Graphics", (6) },
     { "gestalt_GraphicsCharInput", (23) },
     { "gestalt_GraphicsTransparency", (14) },
@@ -89,9 +90,18 @@ static gidispatch_intconst_t intconstant_table[] = {
 
     { "imagealign_InlineCenter",  (0x03) },
     { "imagealign_InlineDown",  (0x02) },
+    { "imagealign_InlineUp",  (0x01) },
     { "imagealign_MarginLeft",  (0x04) },
     { "imagealign_MarginRight",  (0x05) },
-    { "imagealign_InlineUp",  (0x01) },
+
+    { "imagerule_AspectRatio", (0x0C) },
+    { "imagerule_HeightFixed", (0x08) },
+    { "imagerule_HeightMask", (0x0C) },
+    { "imagerule_HeightOrig", (0x04) },
+    { "imagerule_WidthFixed", (0x02) },
+    { "imagerule_WidthMask", (0x03) },
+    { "imagerule_WidthOrig", (0x01) },
+    { "imagerule_WidthRatio", (0x03) },
 
     { "keycode_Delete",   (0xfffffff9) },
     { "keycode_Down",     (0xfffffffb) },
@@ -205,6 +215,9 @@ static gidispatch_function_t function_table[] = {
     { 0x0046, glk_stream_get_position, "stream_get_position" },
     { 0x0047, glk_stream_set_current, "stream_set_current" },
     { 0x0048, glk_stream_get_current, "stream_get_current" },
+#ifdef GLK_MODULE_RESOURCE_STREAM
+    { 0x0049, glk_stream_open_resource, "stream_open_resource" },
+#endif /* GLK_MODULE_RESOURCE_STREAM */
     { 0x0060, glk_fileref_create_temp, "fileref_create_temp" },
     { 0x0061, glk_fileref_create_by_name, "fileref_create_by_name" },
     { 0x0062, glk_fileref_create_by_prompt, "fileref_create_by_prompt" },
@@ -248,24 +261,29 @@ static gidispatch_function_t function_table[] = {
     { 0x00E9, glk_window_erase_rect, "window_erase_rect" },
     { 0x00EA, glk_window_fill_rect, "window_fill_rect" },
     { 0x00EB, glk_window_set_background_color, "window_set_background_color" },
+  #ifdef GLK_MODULE_IMAGE2
+    { 0x00EC, glk_image_draw_scaled_ext, "image_draw_scaled_ext" },
+  #endif /* GLK_MODULE_IMAGE2 */
 #endif /* GLK_MODULE_IMAGE */
 #ifdef GLK_MODULE_SOUND
     { 0x00F0, glk_schannel_iterate, "schannel_iterate" },
     { 0x00F1, glk_schannel_get_rock, "schannel_get_rock" },
     { 0x00F2, glk_schannel_create, "schannel_create" },
     { 0x00F3, glk_schannel_destroy, "schannel_destroy" },
+  #ifdef GLK_MODULE_SOUND2
+    { 0x00F4, glk_schannel_create_ext, "schannel_create_ext" },
+    { 0x00F7, glk_schannel_play_multi, "schannel_play_multi" },
+  #endif /* GLK_MODULE_SOUND2 */
     { 0x00F8, glk_schannel_play, "schannel_play" },
     { 0x00F9, glk_schannel_play_ext, "schannel_play_ext" },
     { 0x00FA, glk_schannel_stop, "schannel_stop" },
     { 0x00FB, glk_schannel_set_volume, "schannel_set_volume" },
     { 0x00FC, glk_sound_load_hint, "sound_load_hint" },
-#ifdef GLK_MODULE_SOUND2
-    { 0x00F4, glk_schannel_create_ext, "schannel_create_ext" },
-    { 0x00F7, glk_schannel_play_multi, "schannel_play_multi" },
+  #ifdef GLK_MODULE_SOUND2
     { 0x00FD, glk_schannel_set_volume_ext, "schannel_set_volume_ext" },
     { 0x00FE, glk_schannel_pause, "schannel_pause" },
     { 0x00FF, glk_schannel_unpause, "schannel_unpause" },
-#endif /* GLK_MODULE_SOUND2 */
+  #endif /* GLK_MODULE_SOUND2 */
 #endif /* GLK_MODULE_SOUND */
 #ifdef GLK_MODULE_HYPERLINKS
     { 0x0100, glk_set_hyperlink, "set_hyperlink" },
@@ -277,6 +295,10 @@ static gidispatch_function_t function_table[] = {
     { 0x0120, glk_buffer_to_lower_case_uni, "buffer_to_lower_case_uni" },
     { 0x0121, glk_buffer_to_upper_case_uni, "buffer_to_upper_case_uni" },
     { 0x0122, glk_buffer_to_title_case_uni, "buffer_to_title_case_uni" },
+  #ifdef GLK_MODULE_UNICODE_NORM
+    { 0x0123, glk_buffer_canon_decompose_uni, "buffer_canon_decompose_uni" },
+    { 0x0124, glk_buffer_canon_normalize_uni, "buffer_canon_normalize_uni" },
+  #endif /* GLK_MODULE_UNICODE_NORM */
     { 0x0128, glk_put_char_uni, "put_char_uni" },
     { 0x0129, glk_put_string_uni, "put_string_uni" },
     { 0x012A, glk_put_buffer_uni, "put_buffer_uni" },
@@ -288,13 +310,12 @@ static gidispatch_function_t function_table[] = {
     { 0x0132, glk_get_line_stream_uni, "get_line_stream_uni" },
     { 0x0138, glk_stream_open_file_uni, "stream_open_file_uni" },
     { 0x0139, glk_stream_open_memory_uni, "stream_open_memory_uni" },
+  #ifdef GLK_MODULE_RESOURCE_STREAM
+    { 0x013A, glk_stream_open_resource_uni, "stream_open_resource_uni" },
+  #endif /* GLK_MODULE_RESOURCE_STREAM */
     { 0x0140, glk_request_char_event_uni, "request_char_event_uni" },
     { 0x0141, glk_request_line_event_uni, "request_line_event_uni" },
 #endif /* GLK_MODULE_UNICODE */
-#ifdef GLK_MODULE_UNICODE_NORM
-    { 0x0123, glk_buffer_canon_decompose_uni, "buffer_canon_decompose_uni" },
-    { 0x0124, glk_buffer_canon_normalize_uni, "buffer_canon_normalize_uni" },
-#endif /* GLK_MODULE_UNICODE_NORM */
 #ifdef GLK_MODULE_LINE_ECHO
     { 0x0150, glk_set_echo_line_event, "set_echo_line_event" },
 #endif /* GLK_MODULE_LINE_ECHO */
@@ -313,10 +334,6 @@ static gidispatch_function_t function_table[] = {
     { 0x016E, glk_date_to_simple_time_utc, "date_to_simple_time_utc" },
     { 0x016F, glk_date_to_simple_time_local, "date_to_simple_time_local" },
 #endif /* GLK_MODULE_DATETIME */
-#ifdef GLK_MODULE_RESOURCE_STREAM
-    { 0x0049, glk_stream_open_resource, "stream_open_resource" },
-    { 0x013A, glk_stream_open_resource_uni, "stream_open_resource_uni" },
-#endif /* GLK_MODULE_RESOURCE_STREAM */
 };
 
 glui32 gidispatch_count_classes()
@@ -533,6 +550,10 @@ char *gidispatch_prototype(glui32 funcnum)
             return "6QaIuIsIsIuIu:";
         case 0x00EB: /* window_set_background_color */
             return "2QaIu:";
+#ifdef GLK_MODULE_IMAGE2
+        case 0x00EC: /* image_draw_scaled_ext */
+            return "9QaIuIsIsIuIuIuIu:Iu";
+#endif /* GLK_MODULE_IMAGE2 */
 #endif /* GLK_MODULE_IMAGE */
 
 #ifdef GLK_MODULE_SOUND
@@ -1081,6 +1102,17 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
         case 0x00EB: /* window_set_background_color */
             glk_window_set_background_color(arglist[0].opaqueref, arglist[1].uint);
             break;
+
+#ifdef GLK_MODULE_IMAGE2
+        case 0x00EC: /* image_draw_scaled_ext */
+            arglist[9].uint = glk_image_draw_scaled_ext(arglist[0].opaqueref, 
+                arglist[1].uint,
+                arglist[2].sint, arglist[3].sint,
+                arglist[4].uint, arglist[5].uint,
+                arglist[6].uint, arglist[7].uint);
+            break;
+#endif /* GLK_MODULE_IMAGE2 */
+
 #endif /* GLK_MODULE_IMAGE */
 
 #ifdef GLK_MODULE_SOUND
