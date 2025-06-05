@@ -122,11 +122,11 @@ void garglk_window_get_size_pixels(window_t *win, glui32 *width, glui32 *height)
     }
 
     if (width != nullptr) {
-        *width = wid;
+        *width = wid / gli_zoom;
     }
 
     if (height != nullptr) {
-        *height = hgt;
+        *height = hgt / gli_zoom;
     }
 }
 
