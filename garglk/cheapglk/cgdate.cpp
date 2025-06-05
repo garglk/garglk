@@ -179,7 +179,13 @@ static glsi32 gli_simplify_time(time_t timestamp, glui32 factor)
 
 void glk_current_time(glktimeval_t *time)
 {
-#ifndef _MSC_VER
+    // TIME_UTC is C++17 so maintain the earlier version where
+    // necessary; and while Gargoyle will soon be switching to C++17,
+    // even with C++17, MinGW doesn't provide TIME_UTC with MSVCRT (it
+    // seems to with UCRT, but version of Windows older than 10 don't
+    // support UCRT out of the box, so we'll need to continue checking
+    // whether TIME_UTC is defined, even in C++17).
+#if __cplusplus >= 201703L && defined(TIME_UTC)
     struct timespec ts;
 
     if (!timespec_get(&ts, TIME_UTC)) {
@@ -190,26 +196,28 @@ void glk_current_time(glktimeval_t *time)
 
     gli_timestamp_to_time(ts.tv_sec, ts.tv_nsec/1000, time);
 #else
-    struct timespec ts;
-    if (!timespec_get(&ts, TIME_UTC)) {
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL)) {
         gli_timestamp_to_time(0, 0, time);
-        gli_strict_warning("current_time: timespec_get() failed.");
+        gli_strict_warning("current_time: gettimeofday() failed.");
         return;
     }
-    gli_timestamp_to_time(ts.tv_sec, ts.tv_nsec / 1000, time);
+    gli_timestamp_to_time(tv.tv_sec, tv.tv_usec, time);
 #endif
 }
 
 glsi32 glk_current_simple_time(glui32 factor)
 {
-#ifndef _MSC_VER
+#if __cplusplus >= 201703L && defined(TIME_UTC)
     struct timespec ts;
+#endif
 
     if (factor == 0) {
         gli_strict_warning("current_simple_time: factor cannot be zero.");
         return 0;
     }
 
+#if __cplusplus >= 201703L && defined(TIME_UTC)
     if (!timespec_get(&ts, TIME_UTC)) {
         gli_strict_warning("current_simple_time: timespec_get() failed.");
         return 0;
@@ -217,12 +225,12 @@ glsi32 glk_current_simple_time(glui32 factor)
 
     return gli_simplify_time(ts.tv_sec, factor);
 #else
-    struct timespec ts;
-    if (!timespec_get(&ts, TIME_UTC)) {
-        gli_strict_warning("current_simple_time: timespec_get() failed.");
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL)) {
+        gli_strict_warning("current_simple_time: gettimeofday() failed.");
         return 0;
     }
-    return gli_simplify_time(ts.tv_sec, factor);
+    return gli_simplify_time(tv.tv_sec, factor);
 #endif
 }
 
