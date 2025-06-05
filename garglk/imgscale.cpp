@@ -67,7 +67,18 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
 
     dst.reset();
 
-    if (scaleby > 1) {
+    // Don't apply a scaler to 1x1 images. Ideally scaling a 1x1 image
+    // would result in, for example, a 4x4 grid of the original pixel.
+    // But xBRZ adds alpha channels regardless of the input size, and if
+    // a 1x1 image is scaled by xBRZ here, then blown up below to a
+    // large size, it looks completely wrong. This is visible in
+    // Counterfeit Monkey's map, at the very least. Users should disable
+    // scalers for all but Infocom games, but that's not forced, nor
+    // should it be, so at least catch one known-bad case. The same
+    // issues will apply to other small images, but how to scale them is
+    // ambiguous. Scaling a 1x1 image by simply duplicating the pixel is
+    // obviously the correct approach.
+    if (scaleby > 1 && (src->w > 1 || src->h > 1)) {
         if (gli_conf_scaler == Scaler::HQX) {
             scaleby = std::min(scaleby, 4);
 
