@@ -51,13 +51,14 @@ std::shared_ptr<picture_t> gli_picture_scale(const picture_t *src, int newcols, 
     constexpr int HALFSCALE = 2048;
     constexpr long maxval = 255;
 
-    if (newcols == 0 || newrows == 0) {
-        return nullptr;
+    auto dst = gli_picture_retrieve(src->id, true);
+    if (dst != nullptr && dst->w == newcols && dst->h == newrows) {
+        return dst;
     }
 
-    auto dst = gli_picture_retrieve(src->id, true);
-
-    if (dst && dst->w == newcols && dst->h == newrows) {
+    if (newcols == 0 || newrows == 0) {
+        dst = std::make_shared<picture_t>(src->id, Canvas<4>{}, true);
+        gli_picture_store(dst);
         return dst;
     }
 
