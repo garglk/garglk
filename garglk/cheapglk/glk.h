@@ -27,11 +27,11 @@
 extern "C" {
 #endif
 
-/* glk.h: Header file for Glk API, version 0.7.5.
+/* glk.h: Header file for Glk API, version 0.7.6.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://eblong.com/zarf/glk/
 
-    This file is copyright 1998-2017 by Andrew Plotkin. It is
+    This file is copyright 1998-2025 by Andrew Plotkin. It is
     distributed under the MIT license; see the "LICENSE" file.
 */
 
@@ -52,6 +52,7 @@ typedef int32_t glsi32;
 #define GLK_MODULE_UNICODE
 #define GLK_MODULE_UNICODE_NORM
 #define GLK_MODULE_IMAGE
+#define GLK_MODULE_IMAGE2
 #define GLK_MODULE_SOUND
 #define GLK_MODULE_SOUND2
 #define GLK_MODULE_HYPERLINKS
@@ -110,6 +111,7 @@ typedef struct glk_schannel_struct *schanid_t;
 #define gestalt_Sound2 (21)
 #define gestalt_ResourceStream (22)
 #define gestalt_GraphicsCharInput (23)
+#define gestalt_DrawImageScale (24)
 #define gestalt_GarglkText (0x1100)
 
 #define evtype_None (0)
@@ -398,6 +400,24 @@ extern void glk_window_fill_rect(winid_t win, glui32 color,
     glsi32 left, glsi32 top, glui32 width, glui32 height);
 extern void glk_window_set_background_color(winid_t win, glui32 color);
 
+#ifdef GLK_MODULE_IMAGE2
+/* Note that this section is nested inside the #ifdef GLK_MODULE_IMAGE.
+   GLK_MODULE_IMAGE must be defined if GLK_MODULE_IMAGE2 is. */
+
+#define imagerule_WidthOrig (0x01)
+#define imagerule_WidthFixed (0x02)
+#define imagerule_WidthRatio (0x03)
+#define imagerule_WidthMask (0x03)
+#define imagerule_HeightOrig (0x04)
+#define imagerule_HeightFixed (0x08)
+#define imagerule_AspectRatio (0x0C)
+#define imagerule_HeightMask (0x0C)
+
+extern glui32 glk_image_draw_scaled_ext(winid_t win, glui32 image,
+    glsi32 val1, glsi32 val2, glui32 width, glui32 height,
+    glui32 imagerule, glui32 maxwidth);
+
+#endif /* GLK_MODULE_IMAGE2 */
 #endif /* GLK_MODULE_IMAGE */
 
 #ifdef GLK_MODULE_SOUND

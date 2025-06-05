@@ -18,6 +18,7 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm>
+#include <cmath>
 #include <new>
 
 #include "optional.hpp"
@@ -1203,7 +1204,7 @@ void glk_window_move_cursor(window_t *win, glui32 xpos, glui32 ypos)
 
 // Graphics and Image drawing
 
-glui32 glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2)
+glui32 glk_image_draw_scaled_ext(winid_t win, glui32 image, glsi32 val1, glsi32 val2, glui32 width, glui32 height, glui32 imagerule, glui32 maxwidth)
 {
     if (win == nullptr) {
         gli_strict_warning("image_draw: invalid ref");
@@ -1214,39 +1215,67 @@ glui32 glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2)
         return false;
     }
 
+    auto pic = gli_picture_load(image);
+    if (pic == nullptr) {
+        return false;
+    }
+
+    if (!win->image_loaded) {
+        gli_piclist_increment();
+        win->image_loaded = true;
+    }
+
+    glui32 window_width = std::round((win->bbox.x1 - win->bbox.x0) / gli_zoom);
+
+    switch (imagerule & imagerule_WidthMask) {
+    case imagerule_WidthOrig:
+        width = pic->w;
+        break;
+    case imagerule_WidthFixed:
+        // width is used as-is.
+        break;
+    case imagerule_WidthRatio:
+        width = std::round(window_width * (width / 65536.0));
+        break;
+    default:
+        return false;
+    }
+
+    switch (imagerule & imagerule_HeightMask) {
+    case imagerule_HeightOrig:
+        height = pic->h;
+        break;
+    case imagerule_HeightFixed:
+        // height is used as-is.
+        break;
+    case imagerule_AspectRatio: {
+        double aspect = static_cast<double>(pic->h) / pic->w;
+        height = std::round(width * aspect * (height / 65536.0));
+        break;
+    }
+    default:
+        return false;
+    }
+
     switch (win->type) {
     case wintype_TextBuffer:
-        return win_textbuffer_draw_picture(win->winbuffer(), image, val1,
-                                           false, 0, 0);
+        return win_textbuffer_draw_picture(pic, win->winbuffer(), window_width, val1, width, height, maxwidth);
     case wintype_Graphics:
-        return win_graphics_draw_picture(win->wingraphics(), image, val1, val2,
-                                         false, 0, 0);
+        return win_graphics_draw_picture(pic, win->wingraphics(), val1, val2, width, height);
     }
+
     return false;
+}
+
+glui32 glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2)
+{
+    return glk_image_draw_scaled_ext(win, image, val1, val2, 0, 0, imagerule_WidthOrig | imagerule_HeightOrig, 0x10000);
 }
 
 glui32 glk_image_draw_scaled(winid_t win, glui32 image,
         glsi32 val1, glsi32 val2, glui32 width, glui32 height)
 {
-    if (win == nullptr) {
-        gli_strict_warning("image_draw_scaled: invalid ref");
-        return false;
-    }
-
-    if (!gli_conf_graphics) {
-        return false;
-    }
-
-    switch (win->type) {
-    case wintype_TextBuffer:
-        return win_textbuffer_draw_picture(win->winbuffer(), image, val1,
-                                           true, width, height);
-    case wintype_Graphics:
-        return win_graphics_draw_picture(win->wingraphics(), image, val1, val2,
-                                         true, width, height);
-    }
-
-    return false;
+    return glk_image_draw_scaled_ext(win, image, val1, val2, width, height, imagerule_WidthFixed | imagerule_HeightFixed, 0x10000);
 }
 
 glui32 glk_image_get_info(glui32 image, glui32 *width, glui32 *height)

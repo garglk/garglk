@@ -70,8 +70,8 @@ static time_t timegm(struct tm *tm);
 /* Some alterations to make this code work on Windows, in case that's helpful
    to you. */
 #define mktime(tm) gli_mktime(tm)
-static time_t timegm(struct tm *tm);
-static time_t gli_mktime(struct tm *timeptr);
+extern time_t timegm(struct tm *tm);
+extern time_t gli_mktime(struct tm *timeptr);
 static struct tm *gmtime_r(const time_t *timer, struct tm *result);
 static struct tm *localtime_r(const time_t *timer, struct tm *result);
 
@@ -179,7 +179,23 @@ static glsi32 gli_simplify_time(time_t timestamp, glui32 factor)
 
 void glk_current_time(glktimeval_t *time)
 {
-#ifndef _MSC_VER
+    // TIME_UTC is C++17 so maintain the earlier version where
+    // necessary; and while Gargoyle will soon be switching to C++17,
+    // even with C++17, MinGW doesn't provide TIME_UTC with MSVCRT (it
+    // seems to with UCRT, but version of Windows older than 10 don't
+    // support UCRT out of the box, so we'll need to continue checking
+    // whether TIME_UTC is defined, even in C++17).
+#if __cplusplus >= 201703L && defined(TIME_UTC)
+    struct timespec ts;
+
+    if (!timespec_get(&ts, TIME_UTC)) {
+        gli_timestamp_to_time(0, 0, time);
+        gli_strict_warning("current_time: timespec_get() failed.");
+        return;
+    }
+
+    gli_timestamp_to_time(ts.tv_sec, ts.tv_nsec/1000, time);
+#else
     struct timeval tv;
     if (gettimeofday(&tv, NULL)) {
         gli_timestamp_to_time(0, 0, time);
@@ -187,38 +203,34 @@ void glk_current_time(glktimeval_t *time)
         return;
     }
     gli_timestamp_to_time(tv.tv_sec, tv.tv_usec, time);
-#else
-    struct timespec ts;
-    if (!timespec_get(&ts, TIME_UTC)) {
-        gli_timestamp_to_time(0, 0, time);
-        gli_strict_warning("current_time: timespec_get() failed.");
-        return;
-    }
-    gli_timestamp_to_time(ts.tv_sec, ts.tv_nsec / 1000, time);
 #endif
 }
 
 glsi32 glk_current_simple_time(glui32 factor)
 {
+#if __cplusplus >= 201703L && defined(TIME_UTC)
+    struct timespec ts;
+#endif
+
     if (factor == 0) {
         gli_strict_warning("current_simple_time: factor cannot be zero.");
         return 0;
     }
 
-#ifndef _MSC_VER
+#if __cplusplus >= 201703L && defined(TIME_UTC)
+    if (!timespec_get(&ts, TIME_UTC)) {
+        gli_strict_warning("current_simple_time: timespec_get() failed.");
+        return 0;
+    }
+
+    return gli_simplify_time(ts.tv_sec, factor);
+#else
     struct timeval tv;
     if (gettimeofday(&tv, NULL)) {
         gli_strict_warning("current_simple_time: gettimeofday() failed.");
         return 0;
     }
     return gli_simplify_time(tv.tv_sec, factor);
-#else
-    struct timespec ts;
-    if (!timespec_get(&ts, TIME_UTC)) {
-        gli_strict_warning("current_simple_time: timespec_get() failed.");
-        return 0;
-    }
-    return gli_simplify_time(ts.tv_sec, factor);
 #endif
 }
 
