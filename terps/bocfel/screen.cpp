@@ -286,6 +286,7 @@ public:
         ArthurDemon,
         ZorkZeroBorder,
         ZorkZero320,
+        ZorkZeroGame,
         ShogunMaze,
         Mysterious,
         MysteriousSeparator,
@@ -1594,6 +1595,15 @@ bool GraphicsWindow::resize(Type type)
             return false;
         }
 
+        // The images for games (Tower of Bozbar, Peggleboz, Snarfem,
+        // and Double Fanucci) are 320x200, but the bottom ≅83 pixels
+        // are a box intended to hold all the text on the screen; and
+        // since Glk doesn’t support text in graphics windows, the text
+        // will go below the entire image. That’s a complete waste of
+        // space and requires a tall window to fit both the original
+        // 320x200 (or 320x240 in aspect-correct mode) image, as well as
+        // all the text. So instead, pretend the image is 320x117,
+        // preventing the bottom 83 pixels from appearing.
         static const std::unordered_map<GraphicsWindow::Type, ImageSize, EnumClassHash> window_sizes = {
             {GraphicsWindow::Type::ArthurIntro, {292, 196}},
             {GraphicsWindow::Type::ArthurBanner, {314, 84}},
@@ -1601,6 +1611,7 @@ bool GraphicsWindow::resize(Type type)
             {GraphicsWindow::Type::ArthurDemon, {254, 164}},
             {GraphicsWindow::Type::ZorkZeroBorder, {320, 39}},
             {GraphicsWindow::Type::ZorkZero320, {320, 200}},
+            {GraphicsWindow::Type::ZorkZeroGame, {320, 117}},
             {GraphicsWindow::Type::ShogunMaze, {274, 140}},
             {GraphicsWindow::Type::Mysterious, {512, 208}},
             {GraphicsWindow::Type::MysteriousSeparator, {512, 16}},
@@ -2715,9 +2726,12 @@ static bool get_input(uint16_t timer, uint16_t routine, Input &input)
     case Input::Type::Line:
 #ifdef ZTERP_GLK_GRAPHICS
         // When in borderless mode, there’s no direct way to detect when
-        // the game is finished with a 320x200 window, so infer it from
-        // line input being requested.
-        if (hack == Hack::ZorkZero && graphics_window.type() == GraphicsWindow::Type::ZorkZero320 && !zorkzero_has_border()) {
+        // the game is finished with a 320x200/Game window, so infer
+        // it from line input being requested.
+        if (hack == Hack::ZorkZero &&
+            !zorkzero_has_border() &&
+            (graphics_window.type() == GraphicsWindow::Type::ZorkZero320 || graphics_window.type() == GraphicsWindow::Type::ZorkZeroGame))
+        {
             graphics_window.destroy();
         }
 #endif
@@ -3901,10 +3915,16 @@ static bool draw_zorkzero(glui32 pic, glui32 w, glui32 h, double x, double y)
         graphics_window.clear();
     }
 
-    // Infer 320x200 mode via the background (title, encyclopedia,
-    // towers, peggleboz, snarfem, fanucci, map, rebus).
-    if (pic == 1 || pic == 25 || pic == 41 || pic == 49 || pic == 73 || pic == 99 || pic == 163 || (pic >= 34 && pic <= 40)) {
+    // Infer 320x200 mode via the background (title, encyclopedia, map, rebus).
+    if (pic == 1 || pic == 25 || pic == 163 || (pic >= 34 && pic <= 40)) {
         if (!graphics_window.resize(GraphicsWindow::Type::ZorkZero320)) {
+            return true;
+        }
+    }
+
+    // Tower of Bozbar, Peggleboz, Snarfem, Double Fanucci.
+    if (pic == 41 || pic == 49 || pic == 73 || pic == 99) {
+        if (!graphics_window.resize(GraphicsWindow::Type::ZorkZeroGame)) {
             return true;
         }
     }
@@ -3914,7 +3934,7 @@ static bool draw_zorkzero(glui32 pic, glui32 w, glui32 h, double x, double y)
     // directions. Track which mode we’re in via the graphics window,
     // and if map mode, assume the game’s got its geometry correct,
     // and plot the pictures just as they’re requested.
-    if (graphics_window.type() == GraphicsWindow::Type::ZorkZero320) {
+    if (graphics_window.type() == GraphicsWindow::Type::ZorkZero320 || graphics_window.type() == GraphicsWindow::Type::ZorkZeroGame) {
         ImageGeometry geom{x - 1, y - 1};
         graphics_window.draw(pic, geom, w, h);
         return true;
