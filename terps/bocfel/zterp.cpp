@@ -1,4 +1,4 @@
-// Copyright 2009-2021 Chris Spiegel.
+// Copyright 2009-2024 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <iomanip>
 #include <ios>
 #include <iostream>
@@ -57,11 +58,7 @@ const std::string &get_story_id()
 //
 // Z-machine versions 7 and 8 are identical to version 5 but for a
 // couple of tiny details. They are thus classified as version 5.
-//
-// zwhich stores the actual version (1–8) for the few rare times where
-// this knowledge is necessary.
 int zversion;
-static int zwhich;
 
 Header header;
 
@@ -91,12 +88,12 @@ static unsigned long unpack_multiplier;
 
 uint32_t unpack_routine(uint16_t addr)
 {
-    return (addr * unpack_multiplier) + header.R_O;
+    return (addr * unpack_multiplier) + header.routines_offset;
 }
 
 uint32_t unpack_string(uint16_t addr)
 {
-    return (addr * unpack_multiplier) + header.S_O;
+    return (addr * unpack_multiplier) + header.strings_offset;
 }
 
 void store(uint16_t v)
@@ -137,6 +134,7 @@ static void initialize_games()
         { Game::Shogun, { "292-890314", "295-890321", "311-890510", "322-890706" } },
         { Game::Stationfall, { "1-861017", "63-870218", "87-870326", "107-870430" } },
         { Game::ZorkZero, { "296-881019", "366-890323", "383-890602", "393-890714" } },
+        { Game::ZorkZeroDOS, { "393-890714" } },
         { Game::MysteriousAdventures, mysterious },
     };
 
@@ -188,9 +186,7 @@ static bool have_upperwin  = false;
 
 static void write_flags1()
 {
-    uint8_t flags1;
-
-    flags1 = byte(0x01);
+    uint8_t flags1 = byte(0x01);
 
     if (zversion == 3) {
         flags1 |= FLAGS1_NOSTATUS;
@@ -452,22 +448,26 @@ static void process_story(IO &io, long offset)
     }
 
     try {
-        io.read_exact(memory, memory_size);
+        io.read_exact(memory.data(), memory_size);
     } catch (const IO::IOError &) {
         die("unable to read from story file");
     }
 
     zversion = byte(0x00);
-    if (zversion < 1 || zversion > 8) {
-        die("only z-code versions 1-8 are supported");
-    }
 
-    zwhich = zversion;
+    // The actual Z-machine version (differentiating 7 and 8 from 5) is
+    // only needed in this function, and only for 3 things:
+    //
+    // • The unpack multiplier
+    // • File length
+    // • Routine & string offsets for V6/7
+    auto actual_zversion = zversion;
+
     if (zversion == 7 || zversion == 8) {
         zversion = 5;
     }
 
-    switch (zwhich) {
+    switch (actual_zversion) {
     case 1: case 2: case 3:
         unpack_multiplier = 2;
         break;
@@ -478,7 +478,7 @@ static void process_story(IO &io, long offset)
         unpack_multiplier = 8;
         break;
     default:
-        die("unhandled z-machine version: %d", zwhich);
+        die("only z-code versions 1-8 are supported");
     }
 
     header.pc = word(0x06);
@@ -541,7 +541,7 @@ static void process_story(IO &io, long offset)
         die("corrupted story: abbreviation table out of range");
     }
 
-    header.file_length = word(0x1a) * (zwhich <= 3 ? 2UL : zwhich <= 5 ? 4UL : 8UL);
+    header.file_length = word(0x1a) * (actual_zversion <= 3 ? 2UL : actual_zversion <= 5 ? 4UL : 8UL);
     if (header.file_length > memory_size) {
         die("story's reported size (%lu) greater than file size (%lu)", static_cast<unsigned long>(header.file_length), static_cast<unsigned long>(memory_size));
     }
@@ -550,22 +550,19 @@ static void process_story(IO &io, long offset)
 
     calculate_checksum(io, offset);
 
-    if (zwhich == 6 || zwhich == 7) {
-        header.R_O = word(0x28) * 8UL;
-        header.S_O = word(0x2a) * 8UL;
+    if (actual_zversion == 6 || actual_zversion == 7) {
+        header.routines_offset = word(0x28) * 8UL;
+        header.strings_offset = word(0x2a) * 8UL;
     }
 
     if (zversion >= 5 && !options.disable_term_keys) {
         header.terminating_characters_table = word(0x2e);
     }
 
-    if (dynamic_memory == nullptr) {
-        try {
-            dynamic_memory = new uint8_t[header.static_start];
-        } catch (const std::bad_alloc &) {
-            die("unable to allocate memory for dynamic memory");
-        }
-        std::memcpy(dynamic_memory, memory, header.static_start);
+    try {
+        dynamic_memory.assign(memory.begin(), memory.begin() + header.static_start);
+    } catch (const std::bad_alloc &) {
+        die("unable to allocate memory for dynamic memory");
     }
 
     process_alphabet_table();
@@ -637,7 +634,6 @@ static void process_story(IO &io, long offset)
 
 void start_story()
 {
-    uint16_t flags2;
     static bool first_run = true;
 
     pc = header.pc;
@@ -647,8 +643,8 @@ void start_story()
     // used at the initial program start, but Flags2 should be preserved
     // there, as well: the pictures bit and the transcript bit might
     // have been set during story processing, and those should persist.
-    flags2 = word(0x10);
-    std::memcpy(memory, dynamic_memory, header.static_start);
+    uint16_t flags2 = word(0x10);
+    std::copy(dynamic_memory.begin(), dynamic_memory.begin() + header.static_start, memory.begin());
     store_word(0x10, flags2);
 
     write_header();
@@ -802,13 +798,6 @@ static void real_main(int argc, char **argv)
         long offset = 0;
     } story;
 
-    // It’s too early to properly set up all tables (neither the alphabet
-    // nor Unicode table has been read from the story file), but it’s
-    // possible for messages to be displayed to the user before a story is
-    // even loaded, so at least the basic tables need to be created so
-    // that non-Unicode platforms have proper translations available.
-    setup_tables();
-
 #ifdef ZTERP_GLK
     if (!create_mainwin()) {
         return;
@@ -885,7 +874,7 @@ static void real_main(int argc, char **argv)
 
         const auto *chunk = blorb.find(Blorb::Usage::Exec, 0);
         if (chunk == nullptr) {
-            die("no EXEC resource found");
+            die("no Exec resource found");
         }
         if (chunk->type != IFF::TypeID("ZCOD")) {
             if (chunk->type == IFF::TypeID("GLUL")) {
@@ -945,14 +934,13 @@ static void real_main(int argc, char **argv)
     // 2OP, requiring two more bytes to be read. At this point the opcode
     // will be looked up, resulting in an illegal instruction error.
     try {
-        memory = new uint8_t[memory_size + 22];
+        memory.resize(memory_size + 22);
     } catch (const std::bad_alloc &) {
         die("unable to allocate memory for story file");
     }
-    std::memset(memory + memory_size, 0, 22);
+    std::fill(memory.begin() + memory_size, memory.begin() + memory_size + 22, 0);
 
     process_story(*story.io, story.offset);
-
 
     if (options.show_id) {
 #ifdef ZTERP_GLK
@@ -981,24 +969,29 @@ void glk_main()
 int main(int argc, char **argv)
 #endif
 {
+    std::set_terminate([]() {
+        try {
+            std::rethrow_exception(std::current_exception());
+        } catch (const std::exception &e) {
+            std::cerr << "Unhandled exception: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "Unhandled exception" << std::endl;
+        }
+
+        std::abort();
+    });
+
 #ifdef ZTERP_GLK
     try {
         real_main();
     } catch (const Exit &) {
+    }
 #else
     try {
         real_main(argc, argv);
         return 0;
     } catch (const Exit &exit) {
         return exit.code();
-#endif
-    } catch (const std::exception &e) {
-        std::cerr << "Unhandled exception: " << e.what() << std::endl;
-    } catch (...) {
-        std::cerr << "Unhandled exception" << std::endl;
     }
-
-#ifndef ZTERP_GLK
-    return EXIT_FAILURE;
 #endif
 }

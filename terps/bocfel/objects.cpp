@@ -1,4 +1,4 @@
-// Copyright 2009-2021 Chris Spiegel.
+// Copyright 2009-2024 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
@@ -142,10 +142,7 @@ static uint8_t property_number(uint16_t propaddr)
 
 static uint16_t advance_prop_addr(uint16_t propaddr)
 {
-    uint8_t size;
-
-    size = user_byte(propaddr++);
-
+    uint8_t size = user_byte(propaddr++);
     if (size == 0) {
         return 0;
     }
@@ -308,9 +305,7 @@ void zput_prop()
     check_propnum(zargs[1]);
 
     uint16_t propaddr, proplen;
-    bool found;
-
-    found = find_property(zargs[0], zargs[1], propaddr, proplen);
+    bool found = find_property(zargs[0], zargs[1], propaddr, proplen);
 
     ZASSERT(found, "broken story: no prop");
 
@@ -349,9 +344,7 @@ void zget_prop()
             store(user_word(propaddr));
         }
     } else {
-        uint16_t i;
-
-        i = header.objects + (2 * (zargs[1] - 1));
+        uint16_t i = header.objects + (2 * (zargs[1] - 1));
         store(word(i));
     }
 }

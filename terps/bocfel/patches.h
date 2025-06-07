@@ -4,10 +4,14 @@
 #define ZTERP_PATCHES_H
 
 #include <exception>
+#include <stdexcept>
 #include <string>
 
 namespace PatchStatus {
-    class SyntaxError : public std::exception {
+    class SyntaxError : public std::runtime_error {
+    public:
+        explicit SyntaxError(const std::string &what) : std::runtime_error(what) {
+        }
     };
     class NotFound : public std::exception {
     };

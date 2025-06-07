@@ -1,4 +1,4 @@
-// Copyright 2010-2021 Chris Spiegel.
+// Copyright 2010-2024 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
@@ -72,9 +72,7 @@ int glkunix_startup_code(glkunix_startup_t *data)
 
         garglk_set_story_name(story_name.c_str());
     } else {
-        frefid_t ref;
-
-        ref = glk_fileref_create_by_prompt(fileusage_Data | fileusage_BinaryMode, filemode_Read, 0);
+        frefid_t ref = glk_fileref_create_by_prompt(fileusage_Data | fileusage_BinaryMode, filemode_Read, 0);
         if (ref != nullptr) {
             const char *filename = glkunix_fileref_get_filename(ref);
             if (filename != nullptr) {

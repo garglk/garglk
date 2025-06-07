@@ -1,7 +1,8 @@
-// Copyright 2010-2021 Chris Spiegel.
+// Copyright 2010-2025 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
+#include <cerrno>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -90,12 +91,15 @@ void die(const char *fmt, ...)
 
 long parseint(const std::string &s, int base, bool &valid)
 {
-    long ret;
     char *endptr;
     const char *cstr = s.c_str();
 
-    ret = std::strtol(cstr, &endptr, base);
-    valid = endptr != cstr && *endptr == 0;
+    errno = 0;
+    long ret = std::strtol(cstr, &endptr, base);
+    valid =
+        endptr != cstr &&
+        *endptr == 0 &&
+        errno != ERANGE;
 
     return ret;
 }
@@ -104,11 +108,10 @@ std::string vstring(const char *fmt, std::va_list ap)
 {
     std::va_list ap_copy;
     std::string s;
-    int n;
 
     va_copy(ap_copy, ap);
 
-    n = std::vsnprintf(nullptr, 0, fmt, ap);
+    int n = std::vsnprintf(nullptr, 0, fmt, ap);
     if (n < 0) {
         die("error processing format string");
     }

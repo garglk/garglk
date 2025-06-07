@@ -1,4 +1,4 @@
-// Copyright 2010-2021 Chris Spiegel.
+// Copyright 2010-2025 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
@@ -31,7 +31,7 @@
 //
 // In other saves (normal and meta), the state of the PRNG is never
 // stored. Doing so portably would be impossible since different
-// interpreters use different PRNGs, and intepreters may even be using
+// interpreters use different PRNGs, and interpreters may even be using
 // non-deterministic RNGs, e.g. /dev/urandom on Linux. Even if a private
 // chunk were used (such as that used for autosaves), Infocom never
 // intended for seeds to be stored anyway: per the EZIP documentation:
@@ -51,17 +51,39 @@ static enum class Mode {
     Predictable,
 } mode = Mode::Random;
 
-// The PRNG used here is Xorshift32.
-static uint32_t xstate;
+class Xorshift32 {
+public:
+    void srand(uint32_t s) {
+        if (s == 0) {
+            s = 1;
+        }
 
-static void zterp_srand(uint32_t s)
-{
-    if (s == 0) {
-        s = 1;
+        m_state = s;
     }
 
-    xstate = s;
-}
+    uint32_t rand() {
+        m_state ^= m_state << 13;
+        m_state ^= m_state >> 17;
+        m_state ^= m_state <<  5;
+
+        return m_state;
+    }
+
+    uint32_t state() const {
+        return m_state;
+    }
+
+    void set_state(uint32_t state) {
+        if (state != 0) {
+            m_state = state;
+        }
+    }
+
+private:
+    uint32_t m_state = 1;
+};
+
+static Xorshift32 xorshift32;
 
 static std::ifstream random_file;
 
@@ -78,11 +100,7 @@ static uint32_t zterp_rand()
         }
     }
 
-    xstate ^= xstate << 13;
-    xstate ^= xstate >> 17;
-    xstate ^= xstate <<  5;
-
-    return xstate;
+    return xorshift32.rand();
 }
 
 // Called with 0, set the PRNG to random mode. Then seed it with either
@@ -107,19 +125,19 @@ static void seed_random(uint32_t seed)
                 s = s * (UCHAR_MAX + 2U) + p[i];
             }
 
-            zterp_srand(s);
+            xorshift32.srand(s);
         } else {
-            zterp_srand(*options.random_seed);
+            xorshift32.srand(*options.random_seed);
         }
     } else {
         mode = Mode::Predictable;
 
-        zterp_srand(seed);
+        xorshift32.srand(seed);
     }
 }
 
 enum class RNGType {
-    XORShift32 = 0,
+    Xorshift32 = 0,
 };
 
 IFF::TypeID random_write_rand(IO &io)
@@ -128,8 +146,8 @@ IFF::TypeID random_write_rand(IO &io)
         return IFF::TypeID();
     }
 
-    io.write16(static_cast<uint16_t>(RNGType::XORShift32));
-    io.write32(xstate);
+    io.write16(static_cast<uint16_t>(RNGType::Xorshift32));
+    io.write32(xorshift32.state());
 
     return IFF::TypeID("Rand");
 }
@@ -146,8 +164,8 @@ void random_read_rand(IO &io)
         return;
     }
 
-    if (rng_type == static_cast<uint16_t>(RNGType::XORShift32) && state != 0) {
-        xstate = state;
+    if (rng_type == static_cast<uint16_t>(RNGType::Xorshift32) && state != 0) {
+        xorshift32.set_state(state);
         mode = Mode::Predictable;
     }
 }
@@ -156,12 +174,12 @@ class RandomStasher : public Stasher {
 public:
     void backup() override {
         m_mode = mode;
-        m_xstate = xstate;
+        m_xorshift32 = xorshift32;
     }
 
     bool restore() override {
         mode = m_mode;
-        xstate = m_xstate;
+        xorshift32 = m_xorshift32;
 
         return true;
     }
@@ -171,7 +189,7 @@ public:
 
 private:
     Mode m_mode = Mode::Random;
-    uint32_t m_xstate = 0;
+    Xorshift32 m_xorshift32;
 };
 
 void init_random(bool first_run)
@@ -195,7 +213,9 @@ void zrandom()
     int16_t v = as_signed(zargs[0]);
 
     if (v <= 0) {
-        seed_random(-v);
+        // Cast to long for the pathological case of -32768 and 16-bit
+        // int: 32768 isn’t representable in an int, so -v is undefined.
+        seed_random(-static_cast<long>(v));
         store(0);
     } else {
         store(zterp_rand() % zargs[0] + 1);

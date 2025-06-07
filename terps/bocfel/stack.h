@@ -4,7 +4,6 @@
 #define ZTERP_STACK_H
 
 #include <stdexcept>
-#include <string>
 #include <vector>
 
 #include "types.h"
@@ -23,7 +22,6 @@ void init_stack(bool first_run);
 
 uint16_t variable(uint16_t var);
 void store_variable(uint16_t var, uint16_t n);
-uint16_t *stack_top_element();
 
 void start_v6();
 uint16_t internal_call(uint16_t routine, std::vector<uint16_t> args = {});

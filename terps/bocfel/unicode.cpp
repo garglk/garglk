@@ -1,4 +1,4 @@
-// Copyright 2010-2021 Chris Spiegel.
+// Copyright 2010-2023 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
@@ -69,19 +69,15 @@ std::array<uint16_t, UINT8_MAX + 1> zscii_to_unicode;
 //
 // The first table will translate invalid Unicode characters to zero;
 // the second, to a question mark.
-std::array<uint8_t, UINT16_MAX + 1> unicode_to_zscii;
-std::array<uint8_t, UINT16_MAX + 1> unicode_to_zscii_q;
-
-// Convenience table: pass through all values 0–255, but yield a question mark
-// for others.
-std::array<uint8_t, UINT16_MAX + 1> unicode_to_latin1;
+std::array<uint8_t, UINT16_MAX + 1UL> unicode_to_zscii;
+std::array<uint8_t, UINT16_MAX + 1UL> unicode_to_zscii_q;
 
 // Convert ZSCII to Unicode line-drawing/rune characters.
 std::array<uint16_t, UINT8_MAX + 1> zscii_to_font3;
 
 // Lookup table to see if a character is in the alphabet table. Key is
 // the character, value is the index in the alphabet table, or -1.
-std::array<int, UINT8_MAX + 1> atable_pos;
+std::array<int8_t, UINT8_MAX + 1> atable_pos;
 
 static void build_zscii_to_unicode_table()
 {
@@ -133,14 +129,6 @@ static void build_unicode_to_zscii_tables()
     // Properly translate a newline.
     unicode_to_zscii  [UNICODE_LINEFEED] = ZSCII_NEWLINE;
     unicode_to_zscii_q[UNICODE_LINEFEED] = ZSCII_NEWLINE;
-}
-
-static void build_unicode_to_latin1_table()
-{
-    unicode_to_latin1.fill(LATIN1_QUESTIONMARK);
-    for (int i = 0; i < 256; i++) {
-        unicode_to_latin1[i] = i;
-    }
 }
 
 // Not all fonts provide all characters, so there
@@ -287,7 +275,6 @@ void setup_tables()
 {
     build_zscii_to_unicode_table();
     build_unicode_to_zscii_tables();
-    build_unicode_to_latin1_table();
     build_zscii_to_character_graphics_table();
     build_alphabet_table();
 }

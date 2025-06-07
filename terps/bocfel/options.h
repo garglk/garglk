@@ -4,7 +4,9 @@
 #define ZTERP_CONFIG_H
 
 #include <bitset>
+#include <cctype>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -67,6 +69,8 @@ struct Options {
     bool redirect_v6_windows = true;
     bool disable_v6_hacks = false;
     double v6_hack_max_scale = 4.0;
+    bool v6_borders = true;
+    bool aspect_correction = false;
 
     void read_config();
     void process_arguments(int argc, char **argv);
@@ -77,14 +81,25 @@ struct Options {
     }
 
 private:
+    struct OptCompare {
+        bool operator()(const unsigned char &a, const unsigned char &b) const {
+            if (std::tolower(a) == std::tolower(b)) {
+                return std::islower(a) && std::isupper(b);
+            }
+
+            return std::tolower(a) < std::tolower(b);
+        }
+    };
+
     std::unordered_map<std::string, Parser> m_from_config;
-    std::unordered_map<char, OptValue> m_opts;
+    std::map<char, OptValue, OptCompare> m_opts;
     std::vector<std::string> m_errors;
 
+    static bool m_initialized;
 
     int getopt(int argc, char *const argv[]);
-    void add_parser(char flag, std::string desc, bool use_config, std::string name, const Parser &parser, OptValue::Type type);
-    std::vector<std::pair<char, OptValue>> sorted_opts();
+    void add_parser(char opt, std::string desc, bool use_config, std::string name, const Parser &parser, OptValue::Type type);
+    const decltype(m_opts) &opts() const { return m_opts; }
 };
 
 // BadOption means an invalid option was provided (i.e. one that does

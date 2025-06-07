@@ -1,10 +1,9 @@
-// Copyright 2009-2023 Chris Spiegel.
+// Copyright 2009-2024 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
 #include <algorithm>
 #include <bitset>
-#include <cctype>
 #include <cerrno>
 #include <climits>
 #include <cmath>
@@ -147,12 +146,19 @@ static Parser color_helper(int num)
 }
 #endif
 
+// Define options that can be set from the command-line or the config file.
 #define BOOL(opt, desc, from_config, name)		add_parser(opt, desc, from_config, #name, bool_helper(name), OptValue::Type::Flag)
 #define NUMBER(opt, desc, from_config, name, range)	add_parser(opt, desc, from_config, #name, number_helper<unsigned long>(range, name, [](unsigned long n) { return n; }), OptValue::Type::Number)
 #define OPTNUM(opt, desc, from_config, name, range)	add_parser(opt, desc, from_config, #name, number_helper<std::unique_ptr<unsigned long>>(range, name, [](unsigned long n) { return std::make_unique<unsigned long>(n); }), OptValue::Type::Number)
 #define FLOAT(opt, desc, from_config, name)		add_parser(opt, desc, from_config, #name, float_helper(name), OptValue::Type::Value)
 #define STRING(opt, desc, from_config, name)		add_parser(opt, desc, from_config, #name, [this](const std::string &val) { name = std::make_unique<std::string>(val); }, OptValue::Type::Value)
 #define CHAR(opt, desc, from_config, name)		add_parser(opt, desc, from_config, #name, char_helper(name), OptValue::Type::Value)
+
+// Define options that can be set from the config file only.
+#define CONFIG_BOOL(name)				BOOL(0, "", true, name)
+#define CONFIG_STRING(name)				STRING(0, "", true, name)
+#define CONFIG_FLOAT(name)				FLOAT(0, "", true, name)
+
 #ifdef GLK_MODULE_GARGLKTEXT
 #define COLOR(name, num)				add_parser(0, "", true, "color_" #name, color_helper(num), OptValue::Type::Value)
 #else
@@ -166,6 +172,12 @@ static Parser color_helper(int num)
 // for options which are valid in some builds but not others.
 
 Options::Options() {
+    if (m_initialized) {
+        throw std::runtime_error("internal error: Options created multiple times");
+    }
+
+    m_initialized = true;
+
     NUMBER('a', "Set the evaluation stack size", true, eval_stack_size, Range());
     NUMBER('A', "Set the call stack size", true, call_stack_size, Range(0, 65535));
     BOOL  ('c', "Disable colors", true, disable_color);
@@ -202,13 +214,15 @@ Options::Options() {
     OPTNUM('z', "Provide a seed for the PRNG", true, random_seed, Range(0, UINT32_MAX));
     STRING('Z', "Provide a file/device from which 32 bits will be read as a seed", true, random_device);
 
-    BOOL  (0, "", true, autosave);
-    BOOL  (0, "", true, persistent_transcript);
-    STRING(0, "", true, editor);
-    BOOL  (0, "", true, warn_on_v6);
-    BOOL  (0, "", true, redirect_v6_windows);
-    BOOL  (0, "", true, disable_v6_hacks);
-    FLOAT (0, "", true, v6_hack_max_scale);
+    CONFIG_BOOL  (autosave);
+    CONFIG_BOOL  (persistent_transcript);
+    CONFIG_STRING(editor);
+    CONFIG_BOOL  (warn_on_v6);
+    CONFIG_BOOL  (redirect_v6_windows);
+    CONFIG_BOOL  (disable_v6_hacks);
+    CONFIG_FLOAT (v6_hack_max_scale);
+    CONFIG_BOOL  (v6_borders);
+    CONFIG_BOOL  (aspect_correction);
 
     COLOR(black,   2);
     COLOR(red,     3);
@@ -219,37 +233,28 @@ Options::Options() {
     COLOR(cyan,    8);
     COLOR(white,   9);
 
-    m_from_config.insert({"cheat", [](const std::string &val) {
+    m_from_config.emplace("cheat", [](const std::string &val) {
 #ifndef ZTERP_NO_CHEAT
         if (!cheat_add(val, false)) {
             throw ParseError("syntax error");
         }
 #endif
-    }});
+    });
 
-    m_from_config.insert({"patch", [](const std::string &val) {
+    m_from_config.emplace("patch", [](const std::string &val) {
         try {
             apply_user_patch(val);
-        } catch (const PatchStatus::SyntaxError &) {
-            throw ParseError("syntax error");
+        } catch (const PatchStatus::SyntaxError &e) {
+            throw ParseError("syntax error: "s + e.what());
         } catch (const PatchStatus::NotFound &) {
             throw ParseError("does not apply to this story");
         }
 
         return false;
-    }});
+    });
 
 #ifdef ZTERP_GLK_UNIX
     int i = 0;
-
-    // This constructor is only ever called once, at startup, but to be
-    // proper, delete any allocated strings. If, at some point, this
-    // class winds up being constructed multiple times, this will avoid
-    // memory leaks.
-    for (i = 0; glkunix_arguments[i].argtype != glkunix_arg_End; i++) {
-        delete [] glkunix_arguments[i].name;
-        delete [] glkunix_arguments[i].desc;
-    }
 
     // glkunix_argumentlist_t is “meant” to be filled with string
     // literals, whose lifetime is that of the program. But here the
@@ -257,7 +262,7 @@ Options::Options() {
     // themselves need to be generated here, so lifetime issues must be
     // taken into account. This is ugly, but just allocate space with
     // “new”.
-    for (const auto &opt : sorted_opts()) {
+    for (const auto &opt : options.opts()) {
         glkunix_argumentlist_t arg{new char[3], glkunix_arg_NoValue, new char[opt.second.desc.size() + 1]};
 
         arg.name[0] = '-';
@@ -287,13 +292,15 @@ Options::Options() {
 #undef CHAR
 #undef COLOR
 
+bool Options::m_initialized = false;
+
 void Options::add_parser(char opt, std::string desc, bool use_config, std::string name, const Parser &parser, OptValue::Type type) {
     if (opt != 0) {
         m_opts.insert({opt, {type, std::move(desc), parser}});
     }
 
     if (use_config) {
-        m_from_config.insert({std::move(name), parser});
+        m_from_config.emplace(std::move(name), parser);
     }
 }
 
@@ -435,7 +442,7 @@ void Options::help()
 #endif
 
     screen_puts("Usage: bocfel [args] filename");
-    for (const auto &opt : sorted_opts()) {
+    for (const auto &opt : options.opts()) {
         std::string typestr;
 
         if (opt.second.type == OptValue::Type::Number) {
@@ -448,25 +455,4 @@ void Options::help()
         ss << "-" << opt.first << " " << std::setw(12) << std::left << typestr << opt.second.desc;
         screen_puts(ss.str());
     }
-}
-
-std::vector<std::pair<char, OptValue>> Options::sorted_opts()
-{
-    std::vector<std::pair<char, OptValue>> sorted;
-
-    for (const auto &pair : m_opts) {
-        sorted.emplace_back(pair);
-    }
-
-    std::sort(sorted.begin(), sorted.end(), [](const std::pair<char, OptValue> &a_, const std::pair<char, OptValue> &b_) {
-        unsigned char a = a_.first, b = b_.first;
-
-        if (std::tolower(a) == std::tolower(b)) {
-            return std::islower(a) && std::isupper(b);
-        }
-
-        return std::tolower(a) < std::tolower(b);
-    });
-
-    return sorted;
 }

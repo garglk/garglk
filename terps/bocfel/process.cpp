@@ -1,4 +1,4 @@
-// Copyright 2010-2021 Chris Spiegel.
+// Copyright 2010-2025 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
@@ -34,8 +34,8 @@ std::array<uint16_t, 8> zargs;
 int znargs;
 
 // Track the current processing level: 1 for the “main” loop, 2 if
-// inside of an interrupt, 3 if inside of an interrupt inside of an
-// interrupt, and so on.
+// inside of an internal call, 3 if inside of an internal call inside of
+// an internal call, and so on.
 static int processing_level = 0;
 
 // In general an “internal” call is used for interrupts, and saving is
@@ -75,9 +75,8 @@ static bool decode_base(uint8_t type, uint16_t &loc)
 
 static void decode_var(uint8_t types)
 {
-    uint16_t ret;
-
     for (int i = 6; i >= 0; i -= 2) {
+        uint16_t ret;
         if (!decode_base((types >> i) & 0x03, ret)) {
             return;
         }
@@ -96,17 +95,14 @@ enum class Opcount {
     Ext,
 };
 
-#define op_call(opcode)		opcodes[opcode]()
-#define extended_call(opcode)	ext_opcodes[opcode]()
-
 // This nifty trick is from Frotz.
 static void zextended()
 {
-    uint8_t opnumber = byte(pc++);
+    uint8_t opcode = byte(pc++);
 
     decode_var(byte(pc++));
 
-    extended_call(opnumber);
+    ext_opcodes[opcode]();
 }
 
 [[noreturn]]
@@ -292,8 +288,7 @@ void setup_opcodes()
 }
 
 // The main processing loop. This decodes and dispatches instructions.
-// It will be called both at program start and whenever a @read or
-// @read_char interrupt routine is called.
+// It will be called both at program start and on an internal call.
 void process_instructions()
 {
     static bool handled_autosave = false;
@@ -312,14 +307,12 @@ void process_instructions()
     processing_level++;
 
     while (true) {
-        uint8_t opcode;
-
 #ifdef ZTERP_GLK_TICK
         glk_tick();
 #endif
 
         current_instruction = pc;
-        opcode = byte(pc++);
+        uint8_t opcode = byte(pc++);
 
         if (opcode < 0x80) { // long 2OP
             znargs = 2;
@@ -349,12 +342,10 @@ void process_instructions()
         } else if (opcode < 0xc0) { // short 0OP (plus EXT)
             znargs = 0;
         } else if (opcode == 0xec || opcode == 0xfa) { // Double variable VAR
-            uint8_t types1, types2;
+            uint8_t types1 = byte(pc++);
+            uint8_t types2 = byte(pc++);
 
             znargs = 0;
-
-            types1 = byte(pc++);
-            types2 = byte(pc++);
             decode_var(types1);
             decode_var(types2);
         } else { // variable 2OP and VAR
@@ -364,7 +355,7 @@ void process_instructions()
         }
 
         try {
-            op_call(opcode);
+            opcodes[opcode]();
         } catch (const Operation::Return &) {
             processing_level--;
             return;

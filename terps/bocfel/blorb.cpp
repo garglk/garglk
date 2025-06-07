@@ -1,4 +1,4 @@
-// Copyright 2010-2021 Chris Spiegel.
+// Copyright 2010-2023 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
@@ -20,7 +20,6 @@ static constexpr uint32_t DATA = 0x44617461;
 Blorb::Blorb(const std::shared_ptr<IO> &io)
 {
     uint32_t size;
-    uint32_t nresources;
     std::unique_ptr<IFF> iff;
 
     try {
@@ -34,20 +33,18 @@ Blorb::Blorb(const std::shared_ptr<IO> &io)
     }
 
     try {
-        nresources = iff->io()->read32();
+        uint32_t nresources = iff->io()->read32();
 
         if ((nresources * 12) + 4 != size) {
             throw InvalidFile();
         }
 
         for (uint32_t i = 0; i < nresources; i++) {
-            uint32_t usage_, number, start, type_;
             Usage usage;
-            long saved;
 
-            usage_ = iff->io()->read32();
-            number = iff->io()->read32();
-            start = iff->io()->read32();
+            uint32_t usage_ = iff->io()->read32();
+            uint32_t number = iff->io()->read32();
+            uint32_t start = iff->io()->read32();
 
             try {
                 static const std::unordered_map<uint32_t, Usage> usages = {
@@ -62,13 +59,11 @@ Blorb::Blorb(const std::shared_ptr<IO> &io)
                 continue;
             }
 
-            saved = iff->io()->tell();
+            long saved = iff->io()->tell();
             iff->io()->seek(start, IO::SeekFrom::Start);
-            type_ = iff->io()->read32();
+            IFF::TypeID type(iff->io()->read32());
             size = iff->io()->read32();
             iff->io()->seek(saved, IO::SeekFrom::Start);
-
-            IFF::TypeID type(type_);
 
             if (type == IFF::TypeID("FORM")) {
                 start -= 8;

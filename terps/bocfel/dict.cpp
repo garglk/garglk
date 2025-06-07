@@ -1,4 +1,4 @@
-// Copyright 2009-2021 Chris Spiegel.
+// Copyright 2009-2023 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
@@ -70,9 +70,7 @@ static std::array<uint8_t, 6> encode_string(const uint8_t *s, size_t len)
     std::array<uint8_t, 12> chars;
 
     for (size_t i = 0; i < len && n < max; i++) {
-        int pos;
-
-        pos = atable_pos[s[i]];
+        int pos = atable_pos[s[i]];
         if (pos >= 0) {
             int shift = pos / 26;
             int c = pos % 26;
@@ -94,7 +92,7 @@ static std::array<uint8_t, 6> encode_string(const uint8_t *s, size_t len)
     }
 
     std::array<uint8_t, 6> encoded;
-    auto p = encoded.begin();
+    auto *p = encoded.begin();
 
     // §3.2:
     // --first byte-------   --second byte---
@@ -145,9 +143,7 @@ uint16_t Dictionary::find(const uint8_t *token, size_t len) const {
 
 static uint16_t lookup_replacement(uint16_t original, const std::vector<uint8_t> &replacement, const Dictionary &dictionary)
 {
-    uint16_t d;
-
-    d = dictionary.find(replacement.data(), replacement.size());
+    uint16_t d = dictionary.find(replacement.data(), replacement.size());
 
     if (d == 0) {
         return original;
@@ -216,8 +212,7 @@ static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, 
 // • The final byte is the offset in the string of the token.
 void tokenize(uint16_t text, uint16_t parse, uint16_t dictaddr, bool ignore_unknown)
 {
-    const uint8_t *p, *lastp;
-    const uint8_t *string;
+    const uint8_t *p;
     uint32_t text_len = 0;
     const int maxwords = user_byte(parse);
     bool in_word = false;
@@ -242,11 +237,11 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictaddr, bool ignore_unkn
 
     ZASSERT(text + 1 + (zversion >= 5) + text_len < memory_size, "attempt to tokenize out-of-bounds string");
 
-    string = &memory[text + 1 + (zversion >= 5 ? 1 : 0)];
+    const uint8_t *string = &memory[text + 1 + (zversion >= 5 ? 1 : 0)];
 
     for (p = string; p - string < text_len && *p == ZSCII_SPACE; p++) {
     }
-    lastp = p;
+    const uint8_t *lastp = p;
 
     text_len -= (p - string);
 
