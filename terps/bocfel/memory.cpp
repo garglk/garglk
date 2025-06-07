@@ -1,4 +1,4 @@
-// Copyright 2010-2021 Chris Spiegel.
+// Copyright 2010-2024 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
@@ -7,6 +7,7 @@
 #include <ios>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "memory.h"
 #include "branch.h"
@@ -24,7 +25,7 @@
 // The standard isn’t exactly clear on the issue, and this appears to be
 // the most sensible way to deal with the problem.
 
-uint8_t *memory, *dynamic_memory;
+std::vector<uint8_t> memory, dynamic_memory;
 uint32_t memory_size;
 
 bool in_globals(uint16_t addr)

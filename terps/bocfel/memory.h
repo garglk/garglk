@@ -4,10 +4,11 @@
 #define ZTERP_MEMORY_H
 
 #include <string>
+#include <vector>
 
 #include "types.h"
 
-extern uint8_t *memory, *dynamic_memory;
+extern std::vector<uint8_t> memory, dynamic_memory;
 extern uint32_t memory_size;
 
 bool in_globals(uint16_t addr);

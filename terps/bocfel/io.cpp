@@ -1,4 +1,4 @@
-// Copyright 2010-2021 Chris Spiegel.
+// Copyright 2010-2025 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
@@ -146,9 +146,7 @@ IO::IO(const std::string *filename, Mode mode, Purpose purpose) :
 #ifdef ZTERP_GLK
 void IO::open_as_glk(const std::function<frefid_t(glui32 usage, glui32 filemode)> &create_fref)
 {
-    frefid_t ref;
-    glui32 usage, filemode;
-    usage = fileusage_BinaryMode;
+    glui32 usage = fileusage_BinaryMode, filemode;
 
     switch (m_purpose) {
     case Purpose::Data:
@@ -181,7 +179,7 @@ void IO::open_as_glk(const std::function<frefid_t(glui32 usage, glui32 filemode)
         throw OpenError();
     }
 
-    ref = create_fref(usage, filemode);
+    frefid_t ref = create_fref(usage, filemode);
     if (ref == nullptr) {
         throw OpenError();
     }
@@ -203,16 +201,15 @@ void IO::open_as_glk(const std::function<frefid_t(glui32 usage, glui32 filemode)
 // eliminates the need for code duplication.
 //
 // The I/O object starts out with the contents of the passed-in buffer,
-// which may be empty. The offset always starts at 0.
+// which may be empty.
 IO::IO(std::vector<uint8_t> buf, Mode mode) :
     m_file(File(std::move(buf))),
     m_type(Type::Memory),
     m_mode(mode),
     m_purpose(Purpose::Data)
 {
-    // Append isn’t used with memory-backed I/O, so it’s not supported.
-    if (m_mode != Mode::ReadOnly && m_mode != Mode::WriteOnly) {
-        throw OpenError();
+    if (mode == Mode::Append) {
+        m_file.backing.offset = m_file.backing.memory.size();
     }
 }
 
@@ -398,7 +395,7 @@ size_t IO::write(const void *buf, size_t n)
         Backing *b = &m_file.backing;
         auto remaining = b->memory.size() - b->offset;
 
-        if (m_mode != Mode::WriteOnly) {
+        if (m_mode != Mode::WriteOnly && m_mode != Mode::Append) {
             return 0;
         }
 
@@ -465,7 +462,7 @@ uint32_t IO::read32()
 
 void IO::write8(uint8_t v)
 {
-    return write_exact(&v, sizeof v);
+    write_exact(&v, sizeof v);
 }
 
 void IO::write16(uint16_t v)
@@ -475,7 +472,7 @@ void IO::write16(uint16_t v)
     buf[0] = v >> 8;
     buf[1] = v & 0xff;
 
-    return write_exact(buf, sizeof buf);
+    write_exact(buf, sizeof buf);
 }
 
 void IO::write32(uint32_t v)
@@ -487,7 +484,7 @@ void IO::write32(uint32_t v)
     buf[2] = (v >>  8) & 0xff;
     buf[3] = (v >>  0) & 0xff;
 
-    return write_exact(buf, sizeof buf);
+    write_exact(buf, sizeof buf);
 }
 
 // getc() and putc() are meant to operate in terms of characters, not

@@ -1,4 +1,4 @@
-// Copyright 2010-2021 Chris Spiegel.
+// Copyright 2010-2022 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
@@ -11,16 +11,13 @@
 
 void branch_if(bool do_branch)
 {
-    uint8_t branch;
-    uint16_t offset;
-
-    branch = byte(pc++);
+    uint8_t branch = byte(pc++);
 
     if (!do_branch) {
         branch ^= 0x80;
     }
 
-    offset = branch & 0x3f;
+    uint16_t offset = branch & 0x3f;
 
     if ((branch & 0x40) == 0) {
         offset = (offset << 8) | byte(pc++);

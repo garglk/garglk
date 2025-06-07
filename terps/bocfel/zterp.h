@@ -24,7 +24,7 @@ private:
 
 extern std::string game_file;
 
-#define ZTERP_VERSION	"2.2.4"
+#define ZTERP_VERSION	"2.3"
 
 // v3
 constexpr uint8_t FLAGS1_STATUSTYPE  = 1U << 1;
@@ -69,8 +69,8 @@ struct Header {
     uint32_t file_length;
     uint8_t  serial[6];
     uint16_t checksum;
-    uint32_t R_O;
-    uint32_t S_O;
+    uint32_t routines_offset;
+    uint32_t strings_offset;
     uint16_t terminating_characters_table;
     uint16_t extension_table;
     uint16_t extension_entries;
@@ -91,6 +91,7 @@ enum class Game {
     Shogun,
     Stationfall,
     ZorkZero,
+    ZorkZeroDOS,
     MysteriousAdventures,
 };
 

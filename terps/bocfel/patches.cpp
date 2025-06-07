@@ -1,4 +1,4 @@
-// Copyright 2017-2021 Chris Spiegel.
+// Copyright 2017-2025 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
@@ -418,9 +418,9 @@ static std::vector<Patch> base_patches = {
 
     // Journey doubles up the word “essence” when examining Praxix’s
     // pouch: originally the game printed short descriptions when the
-    // screen was narrow enough, which didn't include the word
+    // screen was narrow enough, which didn’t include the word
     // “essence”, so it always just printed out an extra “essence”,
-    // knowing that it wasn't shown. However, release 51 changed this so
+    // knowing that it wasn’t shown. However, release 51 changed this so
     // that the long descriptions, which included “essence”, were
     // unconditionally printed in this circumstance; but the extra
     // “essence” remained. This patches out the printing of that extra
@@ -444,6 +444,35 @@ static std::vector<Patch> base_patches = {
     {
         "Journey", "890706", 83, 0xd2b8,
         {{ 0xa0ef, 3, {0xb2, 0x80, 0x3e}, {0xb4, 0xb4, 0xb4} }},
+    },
+
+    // Journey has a CHANGE-FONT routine it uses to change the font, but
+    // it only supports fonts 3 and 4, so when it wants to set the font
+    // back to 1, nothing happens. This is worked around here by,
+    // instead of executing RFALSE when the font is unsupported, jumping
+    // to the <FONT 1> call at the end of the routine.
+    //
+    // This fix was created by Petter Sjölund.
+
+    {
+        "Journey", "890522", 51, 0x4f59,
+        {{ 0x471f, 1, {0x40}, {0x4b} }},
+    },
+    {
+        "Journey", "890526", 54, 0x5707,
+        {{ 0x4727, 1, {0x40}, {0x4b} }},
+    },
+    {
+        "Journey", "890616", 77, 0xb136,
+        {{ 0x474f, 1, {0x40}, {0x4b} }},
+    },
+    {
+        "Journey", "890627", 79, 0xff04,
+        {{ 0x4757, 1, {0x40}, {0x4b} }},
+    },
+    {
+        "Journey", "890706", 83, 0xd2b8,
+        {{ 0x4757, 1, {0x40}, {0x4b} }},
     },
 
     // This is in a routine which iterates over all attributes of an
@@ -1000,16 +1029,48 @@ static bool apply_patch(const Replacement &r)
     return false;
 }
 
+static bool sanity_check(const Patch &patch)
+{
+    bool ok = true;
+
+    for (const auto &replacement : patch.replacements) {
+        if (replacement.in.size() != replacement.n ||
+            replacement.out.size() != replacement.n)
+        {
+            std::ostringstream ss;
+            ss << "patch consistency error: " <<
+                patch.title << " (" <<
+                patch.release << "-" << patch.serial <<
+                " @0x" << std::hex << replacement.addr <<
+                ")";
+
+            std::cerr << ss.str() << std::endl;
+            ok = false;
+        }
+    }
+
+    return ok;
+}
+
 static void apply_patches(const std::vector<Patch> &patches)
 {
     for (const auto &patch : patches) {
-        if (std::memcmp(patch.serial, header.serial, sizeof header.serial) == 0 &&
+        if (sanity_check(patch) &&
+            std::memcmp(patch.serial, header.serial, sizeof header.serial) == 0 &&
             patch.release == header.release &&
             patch.checksum == header.checksum) {
 
             for (const auto &replacement : patch.replacements) {
                 if (replacement.active()) {
-                    apply_patch(replacement);
+                    if (!apply_patch(replacement)) {
+                        std::ostringstream ss;
+                        ss << "internal patch error: patch for " <<
+                            patch.title << " (" <<
+                            patch.release << "-" << patch.serial <<
+                            " @0x" << std::hex << replacement.addr <<
+                            ") is not valid: byte sequence not found";
+                        std::cerr << ss.str() << std::endl;
+                    }
                 }
             }
         }
@@ -1052,7 +1113,7 @@ void apply_user_patch(std::string patchstr)
     if (!(ss >> std::hex >> addr) ||
         !(ss >> std::dec >> count))
     {
-        throw PatchStatus::SyntaxError();
+        throw PatchStatus::SyntaxError("unable to read address and count");
     }
 
     ss >> std::hex;
@@ -1060,8 +1121,11 @@ void apply_user_patch(std::string patchstr)
     auto read_into = [&count, &ss](std::vector<uint8_t> &vec){
         for (uint32_t i = 0; i < count; i++) {
             unsigned int byte;
-            if (!(ss >> byte) || byte > 255) {
-                throw PatchStatus::SyntaxError();
+            if (!(ss >> byte)) {
+                throw PatchStatus::SyntaxError("not enough bytes");
+            }
+            if (byte > 255) {
+                throw PatchStatus::SyntaxError("invalid byte: must be 0-255");
             }
             vec.push_back(byte);
         }
@@ -1071,7 +1135,7 @@ void apply_user_patch(std::string patchstr)
     read_into(out);
 
     if (ss.peek() != std::char_traits<char>::eof()) {
-        throw PatchStatus::SyntaxError();
+        throw PatchStatus::SyntaxError("unexpected characters at end");
     }
 
     Replacement replacement = {
@@ -1107,8 +1171,8 @@ void patch_load_file(const std::string &file)
     parse_grouped_file(f, [&file](const std::string &line, int lineno) {
         try {
             apply_user_patch(line);
-        } catch (const PatchStatus::SyntaxError &) {
-            std::cerr << file << ":" << lineno << ": patch file syntax error" << std::endl;
+        } catch (const PatchStatus::SyntaxError &e) {
+            std::cerr << file << ":" << lineno << ": patch file syntax error" << ": " << e.what() << std::endl;
         } catch (const PatchStatus::NotFound &) {
             std::cerr << file << ":" << lineno << ": patch file byte sequence not found" << std::endl;
         }

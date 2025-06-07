@@ -1,4 +1,4 @@
-// Copyright 2011-2021 Chris Spiegel.
+// Copyright 2011-2025 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
@@ -121,7 +121,7 @@ void init_sound()
         if (giblorb_load_chunk_by_type(map, giblorb_method_Memory, &res, chunktype, 0) == giblorb_err_None) {
             for (size_t i = 0; i < res.length; i += 8) {
                 auto read32 = [&res](size_t offset) {
-                    const auto *p = static_cast<const char *>(res.data.ptr) + offset;
+                    const auto *p = static_cast<unsigned char *>(res.data.ptr) + offset;
                     return (static_cast<uint32_t>(p[0]) << 24) |
                            (static_cast<uint32_t>(p[1]) << 16) |
                            (static_cast<uint32_t>(p[2]) <<  8) |
@@ -152,7 +152,7 @@ bool sound_loaded()
 #ifdef GLK_MODULE_SOUND2
 static void start_sound(glui32 chantype, Channel *channel, uint16_t number, uint8_t repeats, uint8_t volume)
 {
-    const std::array<uint32_t, 8> vols = {
+    static const std::array<uint32_t, 8> vols = {
         0x02000, 0x04000, 0x06000, 0x08000,
         0x0a000, 0x0c000, 0x0e000, 0x10000
     };

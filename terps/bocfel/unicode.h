@@ -54,11 +54,10 @@ constexpr uint8_t ZSCII_CLICK_DOUBLE = 253;
 constexpr uint8_t ZSCII_CLICK_SINGLE = 254;
 
 extern std::array<uint16_t, UINT8_MAX + 1> zscii_to_unicode;
-extern std::array<uint8_t, UINT16_MAX + 1> unicode_to_zscii;
-extern std::array<uint8_t, UINT16_MAX + 1> unicode_to_zscii_q;
-extern std::array<uint8_t, UINT16_MAX + 1> unicode_to_latin1;
+extern std::array<uint8_t, UINT16_MAX + 1UL> unicode_to_zscii;
+extern std::array<uint8_t, UINT16_MAX + 1UL> unicode_to_zscii_q;
 extern std::array<uint16_t, UINT8_MAX + 1> zscii_to_font3;
-extern std::array<int, UINT8_MAX + 1> atable_pos;
+extern std::array<int8_t, UINT8_MAX + 1> atable_pos;
 
 void parse_unicode_table(uint16_t utable);
 void setup_tables();

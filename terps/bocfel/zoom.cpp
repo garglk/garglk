@@ -1,4 +1,4 @@
-// Copyright 2010-2021 Chris Spiegel.
+// Copyright 2010-2022 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 

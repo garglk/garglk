@@ -1,4 +1,4 @@
-// Copyright 2010-2021 Chris Spiegel.
+// Copyright 2010-2025 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
@@ -186,9 +186,8 @@ static std::vector<char> read_file(const std::string &filename)
 
     try {
         IO io(&filename, IO::Mode::ReadOnly, IO::Purpose::Data);
-        long size;
 
-        size = io.filesize();
+        long size = io.filesize();
         if (size == -1) {
             throw std::exception();
         }
@@ -211,9 +210,6 @@ static std::vector<char> read_file(const std::string &filename)
 // ║ Unix functions                                                               ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 #ifdef ZTERP_OS_UNIX
-#include <cstring>
-#include <vector>
-
 #include <spawn.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -549,8 +545,18 @@ std::pair<unsigned int, unsigned int> zterp_os_get_screen_size()
 #define have_zterp_os_get_screen_size
 #endif
 
+static const char *capstr(const char *cap)
+{
+    char *ret = tigetstr(const_cast<char *>(cap));
+    if (ret == nullptr || ret == reinterpret_cast<char *>(-1)) {
+        return nullptr;
+    }
+
+    return ret;
+}
+
 static const char *ital = nullptr, *rev = nullptr, *bold = nullptr, *none = nullptr;
-static char *fg_string = nullptr, *bg_string = nullptr;
+static const char *fg_string = nullptr, *bg_string = nullptr;
 static bool have_colors = false;
 static bool have_24bit_rgb = false;
 void zterp_os_init_term()
@@ -560,16 +566,16 @@ void zterp_os_init_term()
     }
 
     // prefer italics over underline for emphasized text
-    ital = tgetstr(const_cast<char *>("ZH"), nullptr);
+    ital = capstr("sitm");
     if (ital == nullptr) {
-        ital = tgetstr(const_cast<char *>("us"), nullptr);
+        ital = capstr("smul");
     }
-    rev  = tgetstr(const_cast<char *>("mr"), nullptr);
-    bold = tgetstr(const_cast<char *>("md"), nullptr);
-    none = tgetstr(const_cast<char *>("me"), nullptr);
+    rev  = capstr("rev");
+    bold = capstr("bold");
+    none = capstr("sgr0");
 
-    fg_string = tgetstr(const_cast<char *>("AF"), nullptr);
-    bg_string = tgetstr(const_cast<char *>("AB"), nullptr);
+    fg_string = capstr("setaf");
+    bg_string = capstr("setab");
 
     have_colors = none != nullptr && fg_string != nullptr && bg_string != nullptr;
 

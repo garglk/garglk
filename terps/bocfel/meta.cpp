@@ -1,9 +1,9 @@
-// Copyright 2013-2021 Chris Spiegel.
+// Copyright 2013-2024 Chris Spiegel.
 //
 // SPDX-License-Identifier: MIT
 
-#include <array>
 #include <cstring>
+#include <map>
 #include <memory>
 #include <new>
 #include <set>
@@ -79,7 +79,7 @@ static std::set<uint16_t> debug_change_invalid;
 
 static void meta_debug_change_start()
 {
-    debug_change_memory.assign(memory, memory + header.static_start);
+    debug_change_memory.assign(memory.begin(), memory.begin() + header.static_start);
     debug_change_invalid.clear();
     screen_puts("[Debug change reset]");
 }
@@ -118,7 +118,7 @@ static void meta_debug_change_inc_dec(const std::string &string)
             screen_puts("[No changes]");
         }
 
-        std::memcpy(debug_change_memory.data(), memory, header.static_start);
+        std::copy(memory.begin(), memory.begin() + header.static_start, debug_change_memory.begin());
     }
 }
 
@@ -151,10 +151,8 @@ static bool meta_debug_scan(const std::string &string)
             }
         }
     } else if (uni_isdigit(string[0]) || (string[0] == '-' && uni_isdigit(string[1]))) {
-        long value;
         bool valid;
-
-        value = parseint(string, 0, valid);
+        long value = parseint(string, 0, valid);
         if (!valid) {
             return false;
         }
@@ -217,10 +215,8 @@ static bool validate_address(long addr, bool print)
 
 static bool meta_debug_print(const std::string &string)
 {
-    long addr;
     bool valid;
-
-    addr = parse_address(string, valid);
+    long addr = parse_address(string, valid);
 
     if (!valid) {
         return false;
@@ -235,9 +231,8 @@ static bool meta_debug_print(const std::string &string)
 }
 
 #ifndef ZTERP_NO_CHEAT
-// This is a lookup table of pairs (frozen, value), where the specified
-// address (as the index) is frozen to “value” if “frozen” is true.
-static std::array<std::pair<bool, uint16_t>, UINT16_MAX + 1> frozen_addresses;
+// Map addresses to frozen values.
+static std::map<uint16_t, uint16_t> frozen_addresses;
 
 bool cheat_add(const std::string &how, bool print)
 {
@@ -276,7 +271,7 @@ bool cheat_add(const std::string &how, bool print)
             return true;
         }
 
-        frozen_addresses[addr] = {true, value};
+        frozen_addresses[addr] = value;
     } else {
         return false;
     }
@@ -290,21 +285,17 @@ bool cheat_add(const std::string &how, bool print)
 
 static bool cheat_remove(uint16_t addr)
 {
-    if (!frozen_addresses[addr].first) {
-        return false;
-    }
-
-    frozen_addresses[addr] = {false, 0};
-    return true;
+    return frozen_addresses.erase(addr) > 0;
 }
 
 bool cheat_find_freeze(uint32_t addr, uint16_t &val)
 {
-    if (addr > UINT16_MAX || !frozen_addresses[addr].first) {
+    auto found = frozen_addresses.find(addr);
+    if (found == frozen_addresses.end()) {
         return false;
     }
 
-    val = frozen_addresses[addr].second;
+    val = found->second;
 
     return true;
 }
@@ -327,10 +318,8 @@ static bool meta_debug_freeze(const std::string &string)
 
 static bool meta_debug_unfreeze(const std::string &string)
 {
-    long addr;
     bool valid;
-
-    addr = parse_address(string, valid);
+    long addr = parse_address(string, valid);
     if (!valid) {
         return false;
     }
@@ -349,17 +338,12 @@ static bool meta_debug_unfreeze(const std::string &string)
 
 static bool meta_debug_show_freeze()
 {
-    bool any_frozen = false;
-
-    for (size_t addr = 0; addr < frozen_addresses.size(); addr++) {
-        if (frozen_addresses[addr].first) {
-            any_frozen = true;
-            screen_printf("%s: %lu\n", addrstring(addr).c_str(), static_cast<unsigned long>(frozen_addresses[addr].second));
-        }
-    }
-
-    if (!any_frozen) {
+    if (frozen_addresses.empty()) {
         screen_puts("[No frozen values]");
+    } else {
+        for (const auto &pair : frozen_addresses) {
+            screen_printf("%s: %lu\n", addrstring(pair.first).c_str(), static_cast<unsigned long>(pair.second));
+        }
     }
 
     return true;
@@ -367,36 +351,33 @@ static bool meta_debug_show_freeze()
 #endif
 
 #ifndef ZTERP_NO_WATCHPOINTS
-static std::array<bool, UINT16_MAX + 1> watch_addresses;
+static std::set<uint16_t> watch_addresses;
 
 static void watch_add(uint16_t addr)
 {
-    watch_addresses[addr] = true;
+    watch_addresses.insert(addr);
 }
 
 static void watch_all()
 {
-    watch_addresses.fill(true);
+    for (unsigned long addr = 0; addr < UINT16_MAX + 1UL; addr++) {
+        watch_addresses.insert(addr);
+    }
 }
 
 static bool watch_remove(uint16_t addr)
 {
-    if (watch_addresses[addr]) {
-        watch_addresses[addr] = false;
-        return true;
-    } else {
-        return false;
-    }
+    return watch_addresses.erase(addr) == 1;
 }
 
 static void watch_none()
 {
-    watch_addresses.fill(false);
+    watch_addresses.clear();
 }
 
 void watch_check(uint16_t addr, unsigned long oldval, unsigned long newval)
 {
-    if (watch_addresses[addr] && oldval != newval) {
+    if (watch_addresses.find(addr) != watch_addresses.end() && oldval != newval) {
         screen_printf("[%s changed: %lu -> %lu (pc = 0x%lx)]\n", addrstring(addr).c_str(), oldval, newval, current_instruction);
     }
 }
@@ -412,10 +393,8 @@ static bool meta_debug_watch_helper(const std::string &string, bool do_watch)
             screen_puts("[Not watching any addresses for changes]");
         }
     } else {
-        long addr;
         bool valid;
-
-        addr = parse_address(string, valid);
+        long addr = parse_address(string, valid);
 
         if (!valid) {
             return false;
@@ -451,17 +430,12 @@ static bool meta_debug_unwatch(const std::string &string)
 
 static bool meta_debug_show_watch()
 {
-    bool any_watched = false;
-
-    for (size_t addr = 0; addr < watch_addresses.size(); addr++) {
-        if (watch_addresses[addr]) {
-            any_watched = true;
+    if (watch_addresses.empty()) {
+        screen_puts("[No watched values]");
+    } else {
+        for (const auto &addr : watch_addresses) {
             screen_puts(addrstring(addr));
         }
-    }
-
-    if (!any_watched) {
-        screen_puts("[No watched values]");
     }
 
     return true;
@@ -734,10 +708,8 @@ std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, u
         } else if (rest[0] == 0) {
             restore_or_drop(0);
         } else {
-            long saveno;
             bool valid;
-
-            saveno = parseint(rest, 10, valid);
+            long saveno = parseint(rest, 10, valid);
             if (!valid || saveno < 1) {
                 screen_puts("[Invalid index]");
                 return {MetaResult::Rerequest, ""};
