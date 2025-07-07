@@ -1291,6 +1291,8 @@ void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)
     win->char_request = false;
     win->char_request_uni = false;
     gli_event_store(evtype_CharInput, win, key, 0);
+
+    gli_input_guess_focus();
 }
 
 // Return or enter, during line input. Ends line input.
@@ -1389,6 +1391,8 @@ static void acceptline(window_t *win, glui32 keycode)
         dwin->numchars = dwin->infence;
         touch(dwin, 0);
     }
+
+    gli_input_guess_focus();
 
     if (gli_unregister_arr != nullptr) {
         const char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");

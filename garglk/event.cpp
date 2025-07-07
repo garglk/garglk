@@ -37,7 +37,6 @@ static std::mutex event_mutex;
 
 static std::list<event_t> gli_events;
 
-static void gli_input_guess_focus();
 static void gli_input_more_focus();
 static void gli_input_next_focus();
 static void gli_input_scroll_focus();
@@ -235,7 +234,7 @@ void glk_select_poll(event_t *event)
 
 // Pick first window which might want input.
 // This is called after every keystroke.
-static void gli_input_guess_focus()
+void gli_input_guess_focus()
 {
     window_t *altwin = gli_focuswin;
 

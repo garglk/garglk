@@ -850,8 +850,13 @@ void glk_request_char_event(window_t *win)
 
     switch (win->type) {
     case wintype_TextBuffer:
+        win->char_request = true;
+        gli_focuswin = win;
+        break;
     case wintype_TextGrid:
         win->char_request = true;
+        win_textgrid_init_char(win);
+        gli_focuswin = win;
         break;
     default:
         gli_strict_warning("request_char_event: window does not support keyboard input");
@@ -873,8 +878,13 @@ void glk_request_char_event_uni(window_t *win)
 
     switch (win->type) {
     case wintype_TextBuffer:
+        win->char_request_uni = true;
+        gli_focuswin = win;
+        break;
     case wintype_TextGrid:
         win->char_request_uni = true;
+        win_textgrid_init_char(win);
+        gli_focuswin = win;
         break;
     default:
         gli_strict_warning("request_char_event_uni: window does not support keyboard input");
@@ -899,10 +909,12 @@ void glk_request_line_event(window_t *win, char *buf, glui32 maxlen,
     case wintype_TextBuffer:
         win->line_request = true;
         win_textbuffer_init_line(win, buf, maxlen, initlen);
+        gli_focuswin = win;
         break;
     case wintype_TextGrid:
         win->line_request = true;
         win_textgrid_init_line(win, buf, maxlen, initlen);
+        gli_focuswin = win;
         break;
     default:
         gli_strict_warning("request_line_event: window does not support keyboard input");
@@ -927,10 +939,12 @@ void glk_request_line_event_uni(window_t *win, glui32 *buf, glui32 maxlen,
     case wintype_TextBuffer:
         win->line_request_uni = true;
         win_textbuffer_init_line_uni(win, buf, maxlen, initlen);
+        gli_focuswin = win;
         break;
     case wintype_TextGrid:
         win->line_request_uni = true;
         win_textgrid_init_line_uni(win, buf, maxlen, initlen);
+        gli_focuswin = win;
         break;
     default:
         gli_strict_warning("request_line_event_uni: window does not support keyboard input");
@@ -1032,9 +1046,15 @@ void glk_cancel_char_event(window_t *win)
 
     switch (win->type) {
     case wintype_TextBuffer:
+        win->char_request = false;
+        win->char_request_uni = false;
+        gli_input_guess_focus();
+        break;
     case wintype_TextGrid:
         win->char_request = false;
         win->char_request_uni = false;
+        win_textgrid_cancel_char(win);
+        gli_input_guess_focus();
         break;
     default:
         // do nothing
@@ -1062,11 +1082,13 @@ void glk_cancel_line_event(window_t *win, event_t *ev)
         if (win->line_request || win->line_request_uni) {
             win_textbuffer_cancel_line(win, ev);
         }
+        gli_input_guess_focus();
         break;
     case wintype_TextGrid:
         if (win->line_request || win->line_request_uni) {
             win_textgrid_cancel_line(win, ev);
         }
+        gli_input_guess_focus();
         break;
     default:
         // do nothing
