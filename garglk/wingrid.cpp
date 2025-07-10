@@ -67,76 +67,56 @@ void win_textgrid_rearrange(window_t *win, rect_t *box)
     }
 }
 
-void win_textgrid_redraw(window_t *win)
-{
+void win_textgrid_redraw(window_t *win) {
     window_textgrid_t *dwin = win->wingrid();
-    tgline_t *ln;
-    int x0, y0;
-    int x, y, w;
-    int i, a, b, k, o;
-    glui32 link;
+    int x0 = win->bbox.x0;
+    int y0 = win->bbox.y0;
 
-    x0 = win->bbox.x0;
-    y0 = win->bbox.y0;
+    // Draw a run of identically-styled cells over the interval [start,end) at (x,y).
+    // Return the width of the drawn area.
+    auto draw_run = [&dwin](const tgline_t *ln, int start, int end, int x, int y) -> int {
+        glui32 link    = ln->attrs[start].hyper;
+        auto   font    = ln->attrs[start].font(dwin->styles);
+        Color  fgcolor = link != 0 ? gli_link_color
+                                   : ln->attrs[start].fg(dwin->styles);
+        Color  bgcolor = ln->attrs[start].bg(dwin->styles);
+        int    w       = (end - start) * gli_cellw;
 
-    for (i = 0; i < dwin->height; i++) {
-        ln = &dwin->lines[i];
-        if (ln->dirty || gli_force_redraw) {
-            ln->dirty = false;
+        gli_draw_rect(x, y, w, gli_leading, bgcolor);
 
-            x = x0;
-            y = y0 + i * gli_leading;
-
-            // clear any stored hyperlink coordinates
-            gli_put_hyperlink(0, x0, y, x0 + gli_cellw * dwin->width, y + gli_leading);
-
-            a = 0;
-            for (b = 0; b < dwin->width; b++) {
-                if (ln->attrs[a] != ln->attrs[b]) {
-                    link = ln->attrs[a].hyper;
-                    auto font = ln->attrs[a].font(dwin->styles);
-                    Color fgcolor = link != 0 ? gli_link_color : ln->attrs[a].fg(dwin->styles);
-                    Color bgcolor = ln->attrs[a].bg(dwin->styles);
-                    w = (b - a) * gli_cellw;
-                    gli_draw_rect(x, y, w, gli_leading, bgcolor);
-                    o = x;
-                    for (k = a; k < b; k++) {
-                        gli_draw_string_uni(o * GLI_SUBPIX,
-                                y + gli_baseline, font, fgcolor,
-                                &ln->chars[k], 1, -1);
-                        o += gli_cellw;
-                    }
-                    if (link != 0) {
-                        if (gli_underline_hyperlinks) {
-                            gli_draw_rect(x, y + gli_baseline + 1, w,
-                                        1, gli_link_color);
-                        }
-                        gli_put_hyperlink(link, x, y, x + w, y + gli_leading);
-                    }
-                    x += w;
-                    a = b;
-                }
+        if (link != 0) {
+            if (gli_underline_hyperlinks) {
+                gli_draw_rect(x, y + gli_baseline + 1, w, 1, gli_link_color);
             }
-            link = ln->attrs[a].hyper;
-            auto font = ln->attrs[a].font(dwin->styles);
-            Color fgcolor = link != 0 ? gli_link_color : ln->attrs[a].fg(dwin->styles);
-            Color bgcolor = ln->attrs[a].bg(dwin->styles);
-            w = (b - a) * gli_cellw;
-            w += win->bbox.x1 - (x + w);
-            gli_draw_rect(x, y, w, gli_leading, bgcolor);
-            o = x;
-            for (k = a; k < b; k++) {
-                gli_draw_string_uni(o * GLI_SUBPIX,
-                                    y + gli_baseline, font, fgcolor,
-                                    &ln->chars[k], 1, -1);
-                o += gli_cellw;
-            }
-            if (link != 0) {
-                if (gli_underline_hyperlinks) {
-                    gli_draw_rect(x, y + gli_baseline + 1, w,
-                                1, gli_link_color);
-                }
-                gli_put_hyperlink(link, x, y, x + w, y + gli_leading);
+            gli_put_hyperlink(link, x, y, x + w, y + gli_leading);
+        }
+
+        for (int i = start; i < end; i++) {
+            gli_draw_string_uni(x * GLI_SUBPIX, y + gli_baseline, font, fgcolor, &ln->chars[i], 1, -1);
+            x += gli_cellw;
+        }
+
+        return w;
+    };
+
+    for (int i = 0; i < dwin->height; i++) {
+        tgline_t *ln = &dwin->lines[i];
+        if (!ln->dirty && !gli_force_redraw) {
+            continue;
+        }
+        ln->dirty = false;
+
+        int x = x0;
+        int y = y0 + i * gli_leading;
+
+        // Clear any stored hyperlink coordinates.
+        gli_put_hyperlink(0, x0, y, x0 + gli_cellw * dwin->width, y + gli_leading);
+
+        // Draw runs of contiguous cells that share the same styling.
+        for (int start = 0, end = 1; end <= dwin->width; end++) {
+            if (end == dwin->width || ln->attrs[end] != ln->attrs[start]) {
+                x += draw_run(ln, start, end, x, y);
+                start = end;
             }
         }
     }
