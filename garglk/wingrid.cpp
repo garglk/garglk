@@ -470,7 +470,11 @@ static void acceptline(window_t *win, glui32 keycode)
 
     if (!inunicode) {
         for (ix = 0; ix < dwin->inlen; ix++) {
-            (static_cast<char *>(inbuf))[ix] = static_cast<char>(ln->chars[dwin->inorgx + ix]);
+            glui32 ch = ln->chars[dwin->inorgx + ix];
+            if (ch > 0xff) {
+                ch = '?';
+            }
+            (static_cast<char *>(inbuf))[ix] = ch;
         }
         if (win->echostr != nullptr) {
             gli_stream_echo_line(win->echostr, static_cast<char *>(inbuf), dwin->inlen);
@@ -612,7 +616,7 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
             return;
         }
 
-        if (arg < 32 || arg > 0xff) {
+        if (arg < 32 || arg > 0x10ffff) {
             return;
         }
 
