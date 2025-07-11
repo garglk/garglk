@@ -776,24 +776,24 @@ int gli_string_width_uni(FontFace face, const glui32 *text, int len, int spacewi
     return gli_string_impl(0, face, text, len, spacewidth, [](int, const std::array<Bitmap, GLI_SUBPIX> &) {});
 }
 
-void gli_draw_caret(int x, int y)
+void gli_draw_caret(int x, int y, Color color)
 {
     x = x / GLI_SUBPIX;
     if (gli_caret_shape == 0) {
-        gli_draw_rect(x + 0, y + 1, 1, 1, gli_caret_color);
-        gli_draw_rect(x - 1, y + 2, 3, 1, gli_caret_color);
-        gli_draw_rect(x - 2, y + 3, 5, 1, gli_caret_color);
+        gli_draw_rect(x + 0, y + 1, 1, 1, color);
+        gli_draw_rect(x - 1, y + 2, 3, 1, color);
+        gli_draw_rect(x - 2, y + 3, 5, 1, color);
     } else if (gli_caret_shape == 1) {
-        gli_draw_rect(x + 0, y + 1, 1, 1, gli_caret_color);
-        gli_draw_rect(x - 1, y + 2, 3, 1, gli_caret_color);
-        gli_draw_rect(x - 2, y + 3, 5, 1, gli_caret_color);
-        gli_draw_rect(x - 3, y + 4, 7, 1, gli_caret_color);
+        gli_draw_rect(x + 0, y + 1, 1, 1, color);
+        gli_draw_rect(x - 1, y + 2, 3, 1, color);
+        gli_draw_rect(x - 2, y + 3, 5, 1, color);
+        gli_draw_rect(x - 3, y + 4, 7, 1, color);
     } else if (gli_caret_shape == 2) {
-        gli_draw_rect(x + 0, y - gli_baseline + 1, 1, gli_leading - 2, gli_caret_color);
+        gli_draw_rect(x + 0, y - gli_baseline + 1, 1, gli_leading - 2, color);
     } else if (gli_caret_shape == 3) {
-        gli_draw_rect(x + 0, y - gli_baseline + 1, 2, gli_leading - 2, gli_caret_color);
+        gli_draw_rect(x + 0, y - gli_baseline + 1, 2, gli_leading - 2, color);
     } else {
-        gli_draw_rect(x + 0, y - gli_baseline + 1, gli_cellw, gli_leading - 2, gli_caret_color);
+        gli_draw_rect(x + 0, y - gli_baseline + 1, gli_cellw, gli_leading - 2, color);
     }
 }
 

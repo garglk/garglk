@@ -120,6 +120,49 @@ void win_textgrid_redraw(window_t *win) {
             }
         }
     }
+
+    // Draw the input caret.
+    //
+    // Unlike text buffer windows, this will draw a caret for char input
+    // as well as line input. That is because games sometimes use char
+    // input to simulate line input (see "Bureaucracy"). Some games look
+    // worse (see "Zokoban"), but given that worse-looking games tend to
+    // be Z-machine novelties, and an actual Infocom game is affected,
+    // the tradeoff is worth it. In any case, the grid window caret can
+    // be disabled via the config file.
+    if (gli_textgrid_caret && gli_focuswin == win &&
+        (win->line_request || win->line_request_uni || win->char_request || win->char_request_uni))
+    {
+        // If the caret color is the same as the background color, draw
+        // it in reverse. This is useful for games like "My Angel".
+        const auto &ln = dwin->lines[dwin->inorgy];
+        auto attr = ln.attrs[dwin->inorgx];
+        auto caret_color = gli_caret_color;
+        if (gli_caret_color == attr.bg(dwin->styles)) {
+            caret_color = attr.fg(dwin->styles);
+        }
+
+        int x = x0 + (dwin->inorgx + dwin->incurs) * gli_cellw;
+        int y = y0 + dwin->inorgy * gli_leading;
+        if (dwin->cury < dwin->height) {
+            gli_draw_caret(x * GLI_SUBPIX, y + gli_baseline, caret_color);
+        }
+    }
+}
+
+void win_textgrid_init_char(window_t *win)
+{
+    auto *dwin = win->wingrid();
+    dwin->inorgx = dwin->curx;
+    dwin->inorgy = dwin->cury;
+}
+
+void win_textgrid_cancel_char(window_t *win)
+{
+    auto *dwin = win->wingrid();
+    touch(dwin, dwin->inorgy);
+    dwin->inorgx = 0;
+    dwin->inorgy = 0;
 }
 
 void win_textgrid_putchar_uni(window_t *win, glui32 ch)
@@ -276,6 +319,25 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
     }
 }
 
+// Update an existing attribute to be styled for input. In addition to
+// setting the Input style, this will preserve the existing reverse
+// video setting and clear any hyperlinks.
+static void set_input_style(attr_t &attr)
+{
+    // Try to look nice while still honoring the user's input style. If
+    // the grid window is reversed (e.g. in "My Angel"), and the user
+    // has a "normal" setup of non-reversed input styling, it will look
+    // bad: the input text will be dark-on-light while the grid is
+    // light-on-dark (or the opposite way around, depending on the
+    // theme). It looks better when the input text matches the reversed
+    // grid, so even though this technically goes against the user's
+    // settings, the end result is nicer.
+    auto rev = attr.reverse;
+    attr.set(style_Input);
+    attr.reverse = rev;
+    attr.hyper = 0;
+}
+
 // Prepare the window for line input.
 static void win_textgrid_init_impl(window_t *win, void *buf, int maxlen, int initlen, bool unicode)
 {
@@ -305,7 +367,7 @@ static void win_textgrid_init_impl(window_t *win, void *buf, int maxlen, int ini
         tgline_t *ln = &(dwin->lines[dwin->inorgy]);
 
         for (ix = 0; ix < initlen; ix++) {
-            ln->attrs[dwin->inorgx + ix].set(style_Input);
+            set_input_style(ln->attrs[dwin->inorgx + ix]);
             if (unicode) {
                 ln->chars[dwin->inorgx + ix] = (static_cast<glui32 *>(buf))[ix];
             } else {
@@ -375,6 +437,10 @@ static void accept_or_cancel(window_t *win, event_t *ev, bool echo)
         }
     }
 
+    if (gli_textgrid_caret) {
+        touch(dwin, dwin->inorgy);
+    }
+
     dwin->cury = dwin->inorgy + 1;
     dwin->curx = 0;
     win->attr = dwin->origattr;
@@ -391,6 +457,8 @@ static void accept_or_cancel(window_t *win, event_t *ev, bool echo)
     dwin->inmax = 0;
     dwin->inorgx = 0;
     dwin->inorgy = 0;
+
+    gli_input_guess_focus();
 
     if (gli_unregister_arr != nullptr) {
         const char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
@@ -428,9 +496,14 @@ void gcmd_grid_accept_readchar(window_t *win, glui32 arg)
         }
     }
 
+    auto *dwin = win->wingrid();
+    touch(dwin, dwin->inorgy);
+
     win->char_request = false;
     win->char_request_uni = false;
     gli_event_store(evtype_CharInput, win, key, 0);
+
+    gli_input_guess_focus();
 }
 
 // Return or enter, during line input. Ends line input.
@@ -539,6 +612,24 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
         dwin->incurs = dwin->inlen;
         break;
 
+    case keycode_SkipWordLeft:
+        while (dwin->incurs > 0 && ln->chars[dwin->inorgx + dwin->incurs - 1] == ' ') {
+            dwin->incurs--;
+        }
+        while (dwin->incurs > 0 && ln->chars[dwin->inorgx + dwin->incurs - 1] != ' ') {
+            dwin->incurs--;
+        }
+        break;
+
+    case keycode_SkipWordRight:
+        while (dwin->incurs < dwin->inlen && ln->chars[dwin->inorgx + dwin->incurs] != ' ') {
+            dwin->incurs++;
+        }
+        while (dwin->incurs < dwin->inlen && ln->chars[dwin->inorgx + dwin->incurs] == ' ') {
+            dwin->incurs++;
+        }
+        break;
+
     case keycode_Return:
         acceptline(win, arg);
         return;
@@ -559,7 +650,7 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
         for (ix = dwin->inlen; ix > dwin->incurs; ix--) {
             ln->chars[dwin->inorgx + ix] = ln->chars[dwin->inorgx + ix - 1];
         }
-        ln->attrs[dwin->inorgx + dwin->inlen].set(style_Input);
+        set_input_style(ln->attrs[dwin->inorgx + dwin->inlen]);
         ln->chars[dwin->inorgx + dwin->incurs] = arg;
 
         dwin->incurs++;

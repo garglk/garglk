@@ -571,8 +571,9 @@ extern nonstd::optional<Color> gli_override_fg;
 extern nonstd::optional<Color> gli_override_bg;
 extern bool gli_override_reverse;
 
-extern bool gli_underline_hyperlinks;
 extern int gli_caret_shape;
+extern bool gli_underline_hyperlinks;
+extern bool gli_textgrid_caret;
 extern int gli_wborderx;
 extern int gli_wbordery;
 
@@ -1042,6 +1043,8 @@ extern void win_pair_click(window_pair_t *dwin, int x, int y);
 
 extern void win_textgrid_rearrange(window_t *win, rect_t *box);
 extern void win_textgrid_redraw(window_t *win);
+extern void win_textgrid_init_char(window_t *win);
+extern void win_textgrid_cancel_char(window_t *win);
 extern void win_textgrid_putchar_uni(window_t *win, glui32 ch);
 extern bool win_textgrid_unputchar_uni(window_t *win, glui32 ch);
 extern void win_textgrid_clear(window_t *win);
@@ -1089,6 +1092,7 @@ extern void gli_window_click(window_t *win, int x, int y);
 
 void gli_redraw_rect(int x0, int y0, int x1, int y1);
 
+void gli_input_guess_focus();
 void gli_input_handle_key(glui32 key);
 void gli_input_handle_key_paste(glui32 key);
 void gli_input_handle_click(int x, int y);
@@ -1113,7 +1117,7 @@ void gli_draw_clear(const Color &rgb);
 void gli_draw_rect(int x, int y, int w, int h, const Color &rgb);
 int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb, const glui32 *text, int len, int spacewidth);
 int gli_string_width_uni(FontFace face, const glui32 *text, int len, int spacewidth);
-void gli_draw_caret(int x, int y);
+void gli_draw_caret(int x, int y, Color color = gli_caret_color);
 void gli_draw_picture(const picture_t *pic, int x0, int y0, int dx0, int dy0, int dx1, int dy1);
 
 extern void gli_select(event_t *event, bool polled);

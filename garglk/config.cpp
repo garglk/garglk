@@ -177,6 +177,7 @@ int gli_scroll_width = 0;
 
 int gli_caret_shape = 2;
 bool gli_underline_hyperlinks = true;
+bool gli_textgrid_caret = true;
 
 bool gli_conf_lcd = true;
 std::array<unsigned char, 5> gli_conf_lcd_weights = {28, 56, 85, 56, 28};
@@ -731,6 +732,8 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 gli_caret_shape = config_range(parse_int(arg), 0, 4);
             } else if (cmd == "linkstyle") {
                 gli_underline_hyperlinks = asbool(arg);
+            } else if (cmd == "gridcaret") {
+                gli_textgrid_caret = asbool(arg);
             } else if (cmd == "scrollwidth") {
                 gli_scroll_width = config_atleast(parse_int(arg), 0);
             } else if (cmd == "scrollbg") {
