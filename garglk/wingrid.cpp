@@ -336,8 +336,7 @@ void win_textgrid_init_line_uni(window_t *win, glui32 *buf, int maxlen, int init
     win_textgrid_init_impl(win, buf, maxlen, initlen, true);
 }
 
-// Abort line input, storing whatever's been typed so far.
-void win_textgrid_cancel_line(window_t *win, event_t *ev)
+static void accept_or_cancel(window_t *win, event_t *ev, bool echo)
 {
     int ix;
     void *inbuf;
@@ -364,14 +363,14 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
             }
             (static_cast<char *>(inbuf))[ix] = static_cast<char>(ch);
         }
-        if (win->echostr != nullptr) {
+        if (echo && win->echostr != nullptr) {
             gli_stream_echo_line(win->echostr, static_cast<char *>(inbuf), dwin->inlen);
         }
     } else {
         for (ix = 0; ix < dwin->inlen; ix++) {
             (static_cast<glui32 *>(inbuf))[ix] = ln->chars[dwin->inorgx + ix];
         }
-        if (win->echostr != nullptr) {
+        if (echo && win->echostr != nullptr) {
             gli_stream_echo_line_uni(win->echostr, static_cast<glui32 *>(inbuf), dwin->inlen);
         }
     }
@@ -397,6 +396,12 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
         const char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
         (*gli_unregister_arr)(inbuf, inoriglen, const_cast<char *>(typedesc), inarrayrock);
     }
+}
+
+// Abort line input, storing whatever's been typed so far.
+void win_textgrid_cancel_line(window_t *win, event_t *ev)
+{
+    accept_or_cancel(win, ev, false);
 }
 
 // Keybinding functions.
@@ -431,68 +436,15 @@ void gcmd_grid_accept_readchar(window_t *win, glui32 arg)
 // Return or enter, during line input. Ends line input.
 static void acceptline(window_t *win, glui32 keycode)
 {
-    int ix;
-    void *inbuf;
-    int inoriglen;
-    bool inunicode;
-    gidispatch_rock_t inarrayrock;
-    window_textgrid_t *dwin = win->wingrid();
-    tgline_t *ln = &(dwin->lines[dwin->inorgy]);
+    event_t ev;
 
-    if (dwin->inbuf == nullptr) {
-        return;
+    accept_or_cancel(win, &ev, true);
+
+    if (!win->line_terminators.empty() && keycode != keycode_Return) {
+        ev.val2 = keycode;
     }
 
-    inbuf = dwin->inbuf;
-    inoriglen = dwin->inoriglen;
-    inarrayrock = dwin->inarrayrock;
-    inunicode = dwin->inunicode;
-
-    if (!inunicode) {
-        for (ix = 0; ix < dwin->inlen; ix++) {
-            glui32 ch = ln->chars[dwin->inorgx + ix];
-            if (ch > 0xff) {
-                ch = '?';
-            }
-            (static_cast<char *>(inbuf))[ix] = ch;
-        }
-        if (win->echostr != nullptr) {
-            gli_stream_echo_line(win->echostr, static_cast<char *>(inbuf), dwin->inlen);
-        }
-    } else {
-        for (ix = 0; ix < dwin->inlen; ix++) {
-            (static_cast<glui32 *>(inbuf))[ix] = ln->chars[dwin->inorgx + ix];
-        }
-        if (win->echostr != nullptr) {
-            gli_stream_echo_line_uni(win->echostr, static_cast<glui32 *>(inbuf), dwin->inlen);
-        }
-    }
-
-    dwin->cury = dwin->inorgy + 1;
-    dwin->curx = 0;
-    win->attr = dwin->origattr;
-
-    if (!win->line_terminators.empty()) {
-        glui32 val2 = keycode;
-        if (val2 == keycode_Return) {
-            val2 = 0;
-        }
-        gli_event_store(evtype_LineInput, win, dwin->inlen, val2);
-    } else {
-        gli_event_store(evtype_LineInput, win, dwin->inlen, 0);
-    }
-    win->line_request = false;
-    win->line_request_uni = false;
-    dwin->inbuf = nullptr;
-    dwin->inoriglen = 0;
-    dwin->inmax = 0;
-    dwin->inorgx = 0;
-    dwin->inorgy = 0;
-
-    if (gli_unregister_arr != nullptr) {
-        const char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
-        (*gli_unregister_arr)(inbuf, inoriglen, const_cast<char *>(typedesc), inarrayrock);
-    }
+    gli_event_store(ev.type, ev.win, ev.val1, ev.val2);
 }
 
 // Any regular key, during line input.
