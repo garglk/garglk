@@ -1957,6 +1957,11 @@ static glui32 gli_unput_buffer_uni(stream_t *str, const glui32 *buf, glui32 len)
         return 0;
     }
 
+    if (str->win->line_request || str->win->line_request_uni) {
+        gli_strict_warning("unput_buffer: window has pending line request");
+        return 0;
+    }
+
     if (str->type == strtype_Window) {
         if (str->win->line_request || str->win->line_request_uni) {
             if (gli_conf_safeclicks && gli_forceclick) {
