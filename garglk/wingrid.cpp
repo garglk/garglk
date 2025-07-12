@@ -133,12 +133,34 @@ void win_textgrid_redraw(window_t *win) {
     if (gli_textgrid_caret && gli_focuswin == win &&
         (win->line_request || win->line_request_uni || win->char_request || win->char_request_uni))
     {
+        // The caret color setting was created when grid windows had no
+        // carets. If grid windows have the same color scheme as buffer
+        // windows, then the caret looks fine. However, if grid windows
+        // have a different color scheme, then the caret, intended for
+        // use with buffer window colors, might look "off": Gargoyle's
+        // light theme suffers from this. Buffer windows are black on
+        // white, but text grids are gray on white. A black cursor in a
+        // sea of gray doesn't look good.
+        //
+        // Which is to say that a global caret color setting isn't
+        // really sufficient now that grids have carets; but adding yet
+        // another configuration option to Gargoyle isn't ideal, either.
+        // Instead, Gargoyle tries to infer the proper caret color for
+        // grid windows. If the caret color is the same as the text
+        // buffer foreground, then assume the expectation of the caret
+        // matching the text, and use the text grid foreground color as
+        // the caret. Otherwise, assume the user wants a specific caret
+        // color and keep it as-is.
+        auto caret_color = gli_caret_color;
+        if (caret_color == gli_tstyles[style_Normal].fg) {
+            caret_color = dwin->styles[style_Normal].fg;
+        }
+
         // If the caret color is the same as the background color, draw
         // it in reverse. This is useful for games like "My Angel".
         const auto &ln = dwin->lines[dwin->inorgy];
         auto attr = ln.attrs[dwin->inorgx];
-        auto caret_color = gli_caret_color;
-        if (gli_caret_color == attr.bg(dwin->styles)) {
+        if (caret_color == attr.bg(dwin->styles)) {
             caret_color = attr.fg(dwin->styles);
         }
 
