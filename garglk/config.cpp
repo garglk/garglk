@@ -122,8 +122,8 @@ Styles gli_gstyles{{
     {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, // User2
 }};
 
-const Styles gli_tstyles_def = gli_tstyles;
-const Styles gli_gstyles_def = gli_gstyles;
+Styles gli_tstyles_def = gli_tstyles;
+Styles gli_gstyles_def = gli_gstyles;
 
 std::vector<garglk::ConfigFile> garglk::all_configs;
 
@@ -910,6 +910,9 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             warn(Format("{}: {}", cmd, e.message));
         }
     });
+
+    gli_tstyles_def = gli_tstyles;
+    gli_gstyles_def = gli_gstyles;
 }
 
 void gli_read_config(int argc, char **argv)

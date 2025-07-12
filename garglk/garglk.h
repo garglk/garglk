@@ -552,8 +552,8 @@ extern nonstd::optional<std::string> gli_workfile;
 extern Styles gli_tstyles;
 extern Styles gli_gstyles;
 
-extern const Styles gli_tstyles_def;
-extern const Styles gli_gstyles_def;
+extern Styles gli_tstyles_def;
+extern Styles gli_gstyles_def;
 
 extern Color gli_window_color;
 extern Color gli_border_color;
