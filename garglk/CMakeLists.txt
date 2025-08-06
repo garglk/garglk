@@ -52,7 +52,7 @@ else()
     )
 endif()
 
-set_property(SOURCE config.cpp launchqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLKINI_H="${GARGLKINI_H}")
+set_property(SOURCE config.cpp launchqt.cpp APPEND PROPERTY COMPILE_DEFINITIONS GARGLKINI_H="${GARGLKINI_H}")
 
 vtk_encode_string(
     INPUT ../themes/dark.json
@@ -68,14 +68,14 @@ vtk_encode_string(
     SOURCE_OUTPUT THEME_LIGHT_CXX
 )
 
-set_property(SOURCE theme.cpp PROPERTY COMPILE_DEFINITIONS THEME_DARK_H="${THEME_DARK_H}" THEME_LIGHT_H="${THEME_LIGHT_H}")
+set_property(SOURCE theme.cpp APPEND PROPERTY COMPILE_DEFINITIONS THEME_DARK_H="${THEME_DARK_H}" THEME_LIGHT_H="${THEME_LIGHT_H}")
 
 if(INTERFACE STREQUAL "QT")
     set(CMAKE_AUTOMOC ON)
     set_property(SOURCE ${GARGLKINI_CXX} ${THEME_DARK_CXX} ${THEME_DARK_H} ${THEME_LIGHT_CXX} ${THEME_LIGHT_H} PROPERTY SKIP_AUTOMOC ON)
 
     if(NOT WITH_NATIVE_FILE_DIALOGS)
-        set_property(SOURCE sysqt.cpp launchqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLK_CONFIG_NO_NATIVE_FILE_DIALOGS)
+        set_property(SOURCE sysqt.cpp launchqt.cpp APPEND PROPERTY COMPILE_DEFINITIONS GARGLK_CONFIG_NO_NATIVE_FILE_DIALOGS)
     endif()
 endif()
 
@@ -222,7 +222,7 @@ else()
         # just fine.
         find_package(KF${QT_VERSION} REQUIRED COMPONENTS KIO Service)
         target_link_libraries(garglk-common PRIVATE KF${QT_VERSION}::KIOWidgets KF${QT_VERSION}::Service)
-        set_property(SOURCE sysqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLK_CONFIG_KDE)
+        set_property(SOURCE sysqt.cpp APPEND PROPERTY COMPILE_DEFINITIONS GARGLK_CONFIG_KDE)
     endif()
 
     if(WITH_LAUNCHER)
