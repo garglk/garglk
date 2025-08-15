@@ -27,6 +27,8 @@
 #include <fstream>
 #include <functional>
 #include <iomanip>
+#include <ios>
+#include <locale>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -520,35 +522,57 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
 }
 
 template <typename T>
-T parse_number(const std::string &s, std::function<T(const std::string &, std::size_t *)> parser)
+T parse_number(const std::string &s)
 {
-    try {
-        std::size_t pos;
-        auto val = parser(s, &pos);
-        if (pos != s.size()) {
-            throw std::invalid_argument(s);
-        }
-        return val;
-    } catch (const std::out_of_range &) {
-        throw ConfigError(Format("out of range: {}", s));
-    } catch (const std::invalid_argument &) {
+    // C++17: std::from_chars; but check compatibility, as it seems some
+    // C++17 implementations didn't (initially) support doubles.
+    std::istringstream ss(s);
+    ss.imbue(std::locale::classic());
+
+    T val;
+
+    // Force decimal: this is for end-users, not programmers. If a user
+    // types 09, he probably expects 9, not an error; or 010 to mean 10
+    // rather than 8. And in the config file, there's no place where hex
+    // is the "natural" representation.
+    ss >> std::dec >> val;
+
+    // This check isn't completely perfect; a string like "+" will be
+    // considered out of range rather than invalid. istringstream
+    // doesn't have discrete enough error reporting to disginguish "all
+    // valid characters but not a complete number" from "all valid
+    // characters but out of range". This will be fixed with
+    // std::from_chars, if that's ever implemented, but at least an
+    // error will be given, even if it's slightly misleading.
+    if (s.empty() || !ss.eof()) {
         throw ConfigError(Format("invalid number: {}", s));
+    } else if (ss.fail() && ss.eof()) {
+        throw ConfigError(Format("out of range: {}", s));
     }
+
+    return val;
 }
 
-double parse_double(const std::string &s)
+double parse_double(std::string s)
 {
-    return parse_number<double>(s, [](const std::string &str, std::size_t *idx) {
-        if (str.find_first_of("eE") != std::string::npos) {
-            throw std::invalid_argument(str);
-        }
-        return std::stod(str, idx);
-    });
+    // Earlier versions of Gargoyle used std::stod which is locale
+    // aware; and while Gargoyle doesn't call setlocale(), it can't stop
+    // libraries from doing so, meaning the user's locale was consulted
+    // for the decimal separator character. The default config uses a
+    // period no matter what, meaning parse errors for users whose
+    // locale prefers a comma as the separator.
+    //
+    // Now parsing is always done in the classic (C) locale, but since
+    // config files out there might contain commas (and just because
+    // it's more user friendly in general), treat commas as periods.
+    std::replace(s.begin(), s.end(), ',', '.');
+
+    return parse_number<double>(s);
 }
 
 int parse_int(const std::string &s)
 {
-    return parse_number<int>(s, [](const std::string &str, std::size_t *idx) { return std::stoi(str, idx); });
+    return parse_number<int>(s);
 }
 
 template <typename T>
