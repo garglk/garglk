@@ -37,6 +37,8 @@ static void
 put_text_uni(window_textbuffer_t *dwin, glui32 *buf, int len, int pos, int oldlen);
 static bool
 put_picture(window_textbuffer_t *dwin, const std::shared_ptr<picture_t> &pic, glui32 align, glui32 linkval);
+static void
+scrolloneline(window_textbuffer_t *dwin, bool forced, bool flow_break);
 
 static void touch(window_textbuffer_t *dwin, int line)
 {
@@ -88,7 +90,7 @@ static void reflow(window_t *win)
     attr_t curattr;
     attr_t oldattr;
     int i, k, p, s;
-    int x;
+    int x, f;
 
     if (dwin->height < 4 || dwin->width < 20) {
         return;
@@ -102,6 +104,7 @@ static void reflow(window_t *win)
     std::vector<std::shared_ptr<picture_t>> pictbuf;
     std::vector<glui32> hyperbuf;
     std::vector<int> offsetbuf;
+    std::vector<int> flowbreakbuf;
 
     // allocate temp buffers
     try {
@@ -111,6 +114,7 @@ static void reflow(window_t *win)
         pictbuf.resize(SCROLLBACK);
         hyperbuf.resize(SCROLLBACK);
         offsetbuf.resize(SCROLLBACK);
+        flowbreakbuf.resize(SCROLLBACK);
     } catch (const std::bad_alloc &) {
         return;
     }
@@ -121,6 +125,7 @@ static void reflow(window_t *win)
     curattr.clear();
 
     x = 0;
+    f = 0;
     p = 0;
     s = dwin->scrollmax < SCROLLBACK ? dwin->scrollmax : SCROLLBACK - 1;
 
@@ -145,6 +150,12 @@ static void reflow(window_t *win)
             x++;
         }
 
+        auto flow_break_pos = dwin->lines[k].flow_break_pos;
+        if (flow_break_pos >= 0) {
+            flowbreakbuf[f] = p + flow_break_pos;
+            f++;
+        }
+
         for (i = 0; i < dwin->lines[k].len; i++) {
             attrbuf[p] = curattr = dwin->lines[k].attrs[i];
             charbuf[p] = dwin->lines[k].chars[i];
@@ -167,6 +178,7 @@ static void reflow(window_t *win)
     // and dump text back
 
     x = 0;
+    f = 0;
     for (i = 0; i < p; i++) {
         if (i == inputbyte) {
             break;
@@ -176,6 +188,11 @@ static void reflow(window_t *win)
         if (offsetbuf[x] == i) {
             put_picture(dwin, pictbuf[x], alignbuf[x], hyperbuf[x]);
             x++;
+        }
+
+        if (flowbreakbuf[f] == i) {
+            scrolloneline(dwin, false, true);
+            f++;
         }
 
         win_textbuffer_putchar_uni(win, charbuf[i]);
@@ -684,6 +701,7 @@ static void scrollresize(window_textbuffer_t *dwin)
         dwin->lines[i].lhyper = 0;
         dwin->lines[i].rhyper = 0;
         dwin->lines[i].len = 0;
+        dwin->lines[i].flow_break_pos = -1;
         dwin->lines[i].newline = false;
         dwin->lines[i].chars.fill(' ');
         dwin->lines[i].attrs.fill(attr_t{});
@@ -692,42 +710,62 @@ static void scrollresize(window_textbuffer_t *dwin)
     dwin->scrollback += SCROLLBACK;
 }
 
-static void scrolloneline(window_textbuffer_t *dwin, bool forced)
+static void scrolloneline(window_textbuffer_t *dwin, bool forced, bool flow_break = false)
 {
     int i;
+    int lines_to_scroll = 1;
 
-    dwin->lastseen++;
-    dwin->scrollmax++;
+    if (flow_break) {
+        if (dwin->ladjn == 0 && dwin->radjn == 0) {
+            auto &line = dwin->lines[0];
+            line.flow_break_pos = line.len;
+            return;
+        }
 
-    if (dwin->scrollmax > dwin->scrollback - 1
-            || dwin->lastseen > dwin->scrollback - 1) {
+        lines_to_scroll = std::max(dwin->ladjn, dwin->radjn);
+    }
+
+    dwin->lastseen += lines_to_scroll;
+    dwin->scrollmax += lines_to_scroll;
+
+    if (dwin->scrollmax > dwin->scrollback - lines_to_scroll
+            || dwin->lastseen > dwin->scrollback - lines_to_scroll) {
         scrollresize(dwin);
     }
 
     if (dwin->lastseen >= dwin->height) {
-        dwin->scrollpos++;
+        dwin->scrollpos += lines_to_scroll;
     }
 
-    if (dwin->scrollpos > dwin->scrollmax - dwin->height + 1) {
-        dwin->scrollpos = dwin->scrollmax - dwin->height + 1;
+    if (dwin->scrollpos > dwin->scrollmax - dwin->height + lines_to_scroll) {
+        dwin->scrollpos = dwin->scrollmax - dwin->height + lines_to_scroll;
     }
     if (dwin->scrollpos < 0) {
         dwin->scrollpos = 0;
     }
 
-    if (forced) {
+    if (forced || flow_break) {
         dwin->dashed = 0;
     }
     dwin->spaced = 0;
 
-    dwin->lines[0].len = dwin->numchars;
-    dwin->lines[0].newline = forced;
+    auto &line_0 = dwin->lines[0];
+    line_0.len = dwin->numchars;
+    line_0.newline = forced;
+    if (flow_break) {
+        line_0.flow_break_pos = line_0.len;
+    }
 
-    for (i = dwin->scrollback - 1; i > 0; i--) {
-        dwin->lines[i] = dwin->lines[i - 1];
+    for (i = dwin->scrollback - 1; i > lines_to_scroll - 1; i--) {
+        dwin->lines[i] = dwin->lines[i - lines_to_scroll];
         if (i < dwin->height) {
             touch(dwin, i);
         }
+    }
+
+    if (flow_break) {
+        dwin->radjn = 0;
+        dwin->ladjn = 0;
     }
 
     if (dwin->radjn != 0) {
@@ -743,17 +781,20 @@ static void scrolloneline(window_textbuffer_t *dwin, bool forced)
         dwin->ladjw = 0;
     }
 
-    touch(dwin, 0);
-    dwin->lines[0].len = 0;
-    dwin->lines[0].newline = false;
-    dwin->lines[0].lm = dwin->ladjw;
-    dwin->lines[0].rm = dwin->radjw;
-    dwin->lines[0].lpic.reset();
-    dwin->lines[0].rpic.reset();
-    dwin->lines[0].lhyper = 0;
-    dwin->lines[0].rhyper = 0;
-    dwin->lines[0].chars.fill(' ');
-    dwin->lines[0].attrs.fill(attr_t{});
+    for (i = 0; i < lines_to_scroll; i++) {
+        touch(dwin, i);
+        dwin->lines[i].len = 0;
+        dwin->lines[i].flow_break_pos = -1;
+        dwin->lines[i].newline = false;
+        dwin->lines[i].lm = dwin->ladjw;
+        dwin->lines[i].rm = dwin->radjw;
+        dwin->lines[i].lpic.reset();
+        dwin->lines[i].rpic.reset();
+        dwin->lines[i].lhyper = 0;
+        dwin->lines[i].rhyper = 0;
+        dwin->lines[i].chars.fill(' ');
+        dwin->lines[i].attrs.fill(attr_t{});
+    }
 
     dwin->numchars = 0;
 
@@ -1055,6 +1096,7 @@ void win_textbuffer_clear(window_t *win)
 
     for (i = 0; i < dwin->scrollback; i++) {
         dwin->lines[i].len = 0;
+        dwin->lines[i].flow_break_pos = -1;
 
         dwin->lines[i].lpic.reset();
         dwin->lines[i].rpic.reset();
@@ -1570,9 +1612,11 @@ static bool put_picture(window_textbuffer_t *dwin, const std::shared_ptr<picture
 
         dwin->radjw = (pic->w + gli_tmarginx) * GLI_SUBPIX;
         dwin->radjn = (pic->h + gli_cellh - 1) / gli_cellh;
-        dwin->lines[0].rpic = pic;
-        dwin->lines[0].rm = dwin->radjw;
-        dwin->lines[0].rhyper = linkval;
+        auto &line = dwin->lines[0];
+        line.rpic = pic;
+        line.rm = dwin->radjw;
+        line.rhyper = linkval;
+        line.flow_break_pos = -1;
     }
 
     else {
@@ -1586,9 +1630,11 @@ static bool put_picture(window_textbuffer_t *dwin, const std::shared_ptr<picture
 
         dwin->ladjw = (pic->w + gli_tmarginx) * GLI_SUBPIX;
         dwin->ladjn = (pic->h + gli_cellh - 1) / gli_cellh;
-        dwin->lines[0].lpic = pic;
-        dwin->lines[0].lm = dwin->ladjw;
-        dwin->lines[0].lhyper = linkval;
+        auto &line = dwin->lines[0];
+        line.lpic = pic;
+        line.lm = dwin->ladjw;
+        line.lhyper = linkval;
+        line.flow_break_pos = -1;
 
         if (align != imagealign_MarginLeft) {
             win_textbuffer_flow_break(dwin);
@@ -1621,9 +1667,7 @@ bool win_textbuffer_draw_picture(std::shared_ptr<picture_t> pic, window_textbuff
 
 void win_textbuffer_flow_break(window_textbuffer_t *dwin)
 {
-    while (dwin->ladjn != 0 || dwin->radjn != 0) {
-        win_textbuffer_putchar_uni(dwin->owner, '\n');
-    }
+    scrolloneline(dwin, false, true);
 }
 
 void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
