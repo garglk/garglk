@@ -933,6 +933,7 @@ struct tbline_t {
         chars.fill(' ');
     }
     int len = 0;
+    int flow_break_pos = -1;
     bool newline = false, dirty = false, repaint = false;
     std::shared_ptr<picture_t> lpic, rpic;
     glui32 lhyper = 0, rhyper = 0;
