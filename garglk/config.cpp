@@ -184,7 +184,9 @@ bool gli_conf_lcd = true;
 std::array<unsigned char, 5> gli_conf_lcd_weights = {28, 56, 85, 56, 28};
 
 int gli_wmarginx = 20;
+int gli_wmarginx_save = gli_wmarginx;
 int gli_wmarginy = 20;
+int gli_wmarginy_save = gli_wmarginy;
 int gli_wpaddingx = 0;
 int gli_wpaddingy = 0;
 int gli_wborderx = 0;
@@ -192,8 +194,6 @@ int gli_wbordery = 0;
 int gli_tmarginx = 0;
 int gli_tmarginy = 7;
 
-int gli_wmarginx_save = 15;
-int gli_wmarginy_save = 15;
 
 int gli_cols = 60;
 int gli_rows = 25;
