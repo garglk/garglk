@@ -686,6 +686,8 @@ void winopen()
 {
     window = new garglk::Window();
 
+    window->setMinimumSize(gli_wmarginx * 2, gli_wmarginy * 2);
+
     int defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
     int defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
     QSize size(defw, defh);
