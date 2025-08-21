@@ -722,6 +722,8 @@ static void maybe_set_save_dir(NSSavePanel *panel, NSString *savedir)
                                                                  process: processID
                                                          backgroundColor: backgroundColor];
 
+    [window setMinSize:NSMakeSize(gli_wmarginx * 2, gli_wmarginy * 2)];
+
     [window makeKeyAndOrderFront: window];
     if (move) {
         rect = NSMakeRect(x, coord_flip(window) - y, width, height);
