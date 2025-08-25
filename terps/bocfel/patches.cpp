@@ -557,6 +557,52 @@ static std::vector<Patch> base_patches = {
         {{ 0x1f910, 1, {0xbc}, {0xb4} }},
     },
 
+    // Two Zork Zero beta releases, 242-880830 and 242-880901, target an
+    // earlier, unreleased version 6 Z-machine whose @get_wind_prop
+    // (WINGET) opcode takes three operands instead of two, one of which
+    // being a table to write the result to. But the table only has one
+    // element, and all calls to WINGET go through a wrapper that
+    // effectively simulates the standard WINGET opcode:
+    //
+    // <CONSTANT WTBL <LTABLE 0>>
+    //
+    // <ROUTINE WINPROP (WIN PROP)
+    // 	 <WINGET .WIN ,WTBL .PROP>
+    // 	 <GET ,WTBL 1>>
+    //
+    // Rewrite this routine to:
+    //
+    // <ROUTINE WINPROP (WIN PROP)
+    // 	 <WINGET .WIN .PROP>>
+    //
+    // i.e. convert the non-standard WINGET call to the standard version.
+    //
+    // WINPUT/@put_wind_prop is non-standard in a similar way, but since
+    // that opcode is unsupported by Bocfel, and because it decodes just
+    // fine, there’s currently no need to patch it.
+    //
+    // See https://intfiction.org/t/illegal-use-of-parameters-in-opcode-get-wind-prop-zork0-242/75353
+    {
+        "Zork Zero", "880830", 242, 0xbf47,
+        {
+            {
+                0x1cc2b, 5,
+                {0x8b, 0x01, 0x70, 0x8b, 0x02},
+                {0xaf, 0x01, 0x02, 0x00, 0xb8},
+            },
+        },
+    },
+    {
+        "Zork Zero", "880901", 242, 0xbbab,
+        {
+            {
+                0x1cc2b, 5,
+                {0x8b, 0x01, 0x70, 0x8b, 0x02},
+                {0xaf, 0x01, 0x02, 0x00, 0xb8},
+            },
+        },
+    },
+
 #ifdef ZTERP_STATIC_PATCH_FILE
 #include ZTERP_STATIC_PATCH_FILE
 #endif
@@ -673,6 +719,11 @@ static std::vector<Patch> v6_patches = {
     // that the actual text displayed is in a tiny main window and hard
     // to deal with. Without proper V6 support, the split is
     // problematic, so just don’t do it.
+    //
+    // 6. The same two Shogun releases try to calculate offsets into a
+    // window to draw the maze; but with Glk windows, the maze should
+    // always be offset by 0 (which is then adjusted by the block width
+    // of 7). Overwrite the assignment to these offsets with @nop.
     {
         "Shogun", "890314", 292, 0x69b8,
         {
@@ -715,6 +766,10 @@ static std::vector<Patch> v6_patches = {
 
             // Title split.
             { 0x10bc9, 3, {0xea, 0xbf, 0x00}, {0xb4, 0xb4, 0xb4} },
+
+            // Maze offset.
+            { 0x3d7b1, 4, {0x57, 0x00, 0x02, 0xb6}, {0xb4, 0xb4, 0xb4, 0xb4 } },
+            { 0x3d7c3, 4, {0x57, 0x00, 0x02, 0x6d}, {0xb4, 0xb4, 0xb4, 0xb4 } },
         }
     },
 
@@ -760,6 +815,10 @@ static std::vector<Patch> v6_patches = {
 
             // Title split.
             { 0x10d0e, 3, {0xea, 0xbf, 0x00}, {0xb4, 0xb4, 0xb4} },
+
+            // Maze offset.
+            { 0x3d999, 4, {0x57, 0x00, 0x02, 0xb8}, {0xb4, 0xb4, 0xb4, 0xb4 } },
+            { 0x3d9ab, 4, {0x57, 0x00, 0x02, 0x6e}, {0xb4, 0xb4, 0xb4, 0xb4 } },
         }
     },
 

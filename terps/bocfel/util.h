@@ -5,6 +5,7 @@
 
 #include <cstdarg>
 #include <functional>
+#include <memory>
 #include <string>
 #include <type_traits>
 
@@ -60,5 +61,6 @@ std::string fstring(const char *fmt, ...);
 std::string ltrim(const std::string &s);
 std::string rtrim(const std::string &s);
 void parse_grouped_file(std::ifstream &f, const std::function<void(const std::string &line, int lineno)> &callback);
+std::unique_ptr<std::string> zterp_getenv(const std::string &name);
 
 #endif

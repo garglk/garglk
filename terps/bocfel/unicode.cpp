@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 #include <array>
+#include <vector>
 
 #ifdef ZTERP_ICU
 #include <unicode/uchar.h>
@@ -15,6 +16,8 @@
 #include "util.h"
 #include "zterp.h"
 
+#define MAX_UNICODE_TABLE_SIZE	97
+
 // The index is the ZSCII value, minus 155 (so entry 0 refers to ZSCII
 // value 155); and the value at the index is the Unicode character that
 // the ZSCII value maps to. Because Latin-1 and Unicode are equivalent
@@ -22,9 +25,7 @@
 // caveat that values greater than 255 should be considered invalid in
 // Latin-1, and are translated as a question mark below in
 // setup_tables() where appropriate.
-#define UNICODE_TABLE_SIZE	97
-static int unicode_entries = 69;
-static std::array<uint16_t, UNICODE_TABLE_SIZE> unicode_table = {
+static std::vector<uint16_t> unicode_table = {
     0x00e4, 0x00f6, 0x00fc, 0x00c4, 0x00d6, 0x00dc, 0x00df, 0x00bb, 0x00ab,
     0x00eb, 0x00ef, 0x00ff, 0x00cb, 0x00cf, 0x00e1, 0x00e9, 0x00ed, 0x00f3,
     0x00fa, 0x00fd, 0x00c1, 0x00c9, 0x00cd, 0x00d3, 0x00da, 0x00dd, 0x00e0,
@@ -43,15 +44,15 @@ void parse_unicode_table(uint16_t utable)
         die("corrupted story: unicode table out of range");
     }
 
-    unicode_entries = byte(utable++);
-
-    if (unicode_entries > UNICODE_TABLE_SIZE) {
+    auto unicode_entries = byte(utable++);
+    if (unicode_entries > MAX_UNICODE_TABLE_SIZE) {
         die("corrupted story: too many entries in the unicode table");
     }
-    if (utable + (2 * unicode_entries) > memory_size) {
+    if (utable + (2UL * unicode_entries) > memory_size) {
         die("corrupted story: unicode table out of range");
     }
 
+    unicode_table.resize(unicode_entries);
     for (int i = 0; i < unicode_entries; i++) {
         unicode_table[i] = word(utable + (2 * i));
     }
@@ -93,7 +94,7 @@ static void build_zscii_to_unicode_table()
     for (int i = 32; i < 127; i++) {
         zscii_to_unicode[i] = i;
     }
-    for (int i = 0; i < unicode_entries; i++) {
+    for (int i = 0; i < unicode_table.size(); i++) {
         uint16_t c = unicode_table[i];
 
         if (!valid_unicode(c)) {
@@ -111,7 +112,7 @@ static void build_unicode_to_zscii_tables()
     unicode_to_zscii_q.fill(ZSCII_QUESTIONMARK);
 
     // First fill up the entries found in the Unicode table.
-    for (int i = 0; i < unicode_entries; i++) {
+    for (int i = 0; i < unicode_table.size(); i++) {
         uint16_t c = unicode_table[i];
 
         if (valid_unicode(c)) {
