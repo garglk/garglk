@@ -24,8 +24,13 @@ extern "C" {
 #include "util.h"
 
 #ifdef ZTERP_NO_STDIO
+#pragma message("warning: macro ZTERP_NO_STDIO is deprecated in favor of ZTERP_GLK_NO_STDIO")
+#define ZTERP_GLK_NO_STDIO
+#endif
+
+#ifdef ZTERP_GLK_NO_STDIO
 #ifndef ZTERP_GLK_UNIX
-#error ZTERP_NO_STDIO requires a Unix Glk
+#error ZTERP_GLK_NO_STDIO requires a Unix Glk
 #endif
 
 extern "C" {
@@ -33,7 +38,7 @@ extern "C" {
 }
 
 #ifndef GLKUNIX_FILEREF_CREATE_UNCLEANED
-#error ZTERP_NO_STDIO requires the extension glkunix_fileref_create_by_name_uncleaned
+#error ZTERP_GLK_NO_STDIO requires the extension glkunix_fileref_create_by_name_uncleaned
 // Prototype so that usage of this function doesn’t cause a compile error.
 frefid_t glkunix_fileref_create_by_name_uncleaned(glui32 usage, const char *name, glui32 rock);
 #endif
@@ -70,12 +75,12 @@ bool IO::textmode() const {
 // prompt. This is a headache.
 //
 // Prompting is assumed to be necessary if “filename” is null.
-IO::IO(const std::string *filename, Mode mode, Purpose purpose) :
+IO::IO(const std::string *filename, Mode mode, Purpose purpose, StreamRock namedglkrock) :
     m_mode(mode),
     m_purpose(purpose)
 {
 
-#if !defined(ZTERP_GLK) || !defined(ZTERP_NO_STDIO)
+#if !defined(ZTERP_GLK) || !defined(ZTERP_GLK_NO_STDIO)
     char smode[] = "wb";
 
     if (m_mode == Mode::ReadOnly) {
@@ -91,24 +96,34 @@ IO::IO(const std::string *filename, Mode mode, Purpose purpose) :
 
     // No need to prompt.
     if (filename != nullptr) {
-        // Use stdio in non-Glk mode always, and in Glk mode unless
-        // non-stdio mode is requested.
-#if !defined(ZTERP_GLK) || !defined(ZTERP_NO_STDIO)
-        m_type = Type::StandardIO;
-        m_file = File(std::fopen(filename->c_str(), smode), true);
-        if (m_file.stdio == nullptr) {
-            throw OpenError();
-        }
-#else
+        // In no-stdio mode, always use Glk. Otherwise, if Glk is
+        // enabled, use Glk I/O if a rock is provided. If no rock is
+        // provided, use stdio.
+#ifdef ZTERP_GLK_NO_STDIO
         open_as_glk([&filename](glui32 usage, glui32) {
             return glkunix_fileref_create_by_name_uncleaned(usage, filename->c_str(), 0);
-        });
+        }, namedglkrock);
+#else
+#if defined(ZTERP_GLK)
+        if (namedglkrock != StreamRock::None) {
+            open_as_glk([&filename](glui32 usage, glui32 filemode) {
+                return glk_fileref_create_by_name(usage, const_cast<char *>(filename->c_str()), 0);
+            }, namedglkrock);
+        } else
+#endif
+        {
+            m_type = Type::StandardIO;
+            m_file = File(std::fopen(filename->c_str(), smode), true);
+            if (m_file.stdio == nullptr) {
+                throw OpenError();
+            }
+        }
 #endif
     } else { // Prompt.
 #ifdef ZTERP_GLK
         open_as_glk([](glui32 usage, glui32 filemode) {
             return glk_fileref_create_by_prompt(usage, filemode, 0);
-        });
+        }, namedglkrock);
 #else
         std::string fn, prompt;
 
@@ -144,7 +159,7 @@ IO::IO(const std::string *filename, Mode mode, Purpose purpose) :
 }
 
 #ifdef ZTERP_GLK
-void IO::open_as_glk(const std::function<frefid_t(glui32 usage, glui32 filemode)> &create_fref)
+void IO::open_as_glk(const std::function<frefid_t(glui32 usage, glui32 filemode)> &create_fref, StreamRock rock)
 {
     glui32 usage = fileusage_BinaryMode, filemode;
 
@@ -185,7 +200,7 @@ void IO::open_as_glk(const std::function<frefid_t(glui32 usage, glui32 filemode)
     }
 
     m_type = Type::Glk;
-    m_file = File(glk_stream_open_file(ref, filemode, 0));
+    m_file = File(glk_stream_open_file(ref, filemode, static_cast<glui32>(rock)));
     glk_fileref_destroy(ref);
     if (m_file.glk == nullptr) {
         throw OpenError();

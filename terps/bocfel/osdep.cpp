@@ -141,18 +141,6 @@ using namespace std::literals;
 // ╔══════════════════════════════════════════════════════════════════════════════╗
 // ║ Shared functions                                                             ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
-#if defined(ZTERP_OS_UNIX) || defined(ZTERP_OS_WIN32)
-static std::unique_ptr<std::string> env(const std::string &name)
-{
-    const char *val = std::getenv(name.c_str());
-    if (val == nullptr) {
-        return nullptr;
-    }
-
-    return std::make_unique<std::string>(val);
-}
-#endif
-
 #if (defined(ZTERP_OS_WIN32) || defined(ZTERP_OS_DOS)) && !defined(ZTERP_GLK)
 static void ansi_set_style(const Style &style, const Color &fg, const Color &bg)
 {
@@ -277,7 +265,7 @@ std::unique_ptr<std::string> zterp_os_rcfile(bool create_parent)
 
     config_file = std::make_unique<std::string>(std::string(settings_dir) + "/bocfel/bocfelrc");
 #else
-    auto home = env("HOME");
+    auto home = zterp_getenv("HOME");
     if (home != nullptr) {
         // This is the legacy location of the config file.
         auto s = *home + "/.bocfelrc";
@@ -286,7 +274,7 @@ std::unique_ptr<std::string> zterp_os_rcfile(bool create_parent)
         }
     }
 
-    auto config_home = env("XDG_CONFIG_HOME");
+    auto config_home = zterp_getenv("XDG_CONFIG_HOME");
     if (config_home != nullptr && config_home->find('/') == 0) {
         config_file = std::make_unique<std::string>(*config_home + "/bocfel/bocfelrc");
     } else if (home != nullptr) {
@@ -317,11 +305,11 @@ static std::unique_ptr<std::string> data_file(const std::string &filename)
 #else
     std::unique_ptr<std::string> name;
 
-    auto data_home = env("XDG_DATA_HOME");
+    auto data_home = zterp_getenv("XDG_DATA_HOME");
     if (data_home != nullptr && (*data_home)[0] == '/') {
         name = std::make_unique<std::string>(*data_home + "/bocfel/" + filename);
     } else {
-        auto home = env("HOME");
+        auto home = zterp_getenv("HOME");
         if (home == nullptr) {
             return nullptr;
         }
@@ -338,9 +326,16 @@ static std::unique_ptr<std::string> data_file(const std::string &filename)
 
 std::unique_ptr<std::string> zterp_os_autosave_name()
 {
-    std::string filename = "autosave/"s + unique_name();
-
-    return data_file(filename);
+    if (options.autosave_directory != nullptr) {
+        std::string filename = *options.autosave_directory + "/"s + unique_name();
+        if (!mkdir_p(filename)) {
+            return nullptr;
+        }
+        return std::make_unique<std::string>(filename);
+    } else {
+        std::string filename = "autosave/"s + unique_name();
+        return data_file(filename);
+    }
 }
 #define have_zterp_os_autosave_name
 
@@ -464,7 +459,7 @@ class TempFile {
 public:
     explicit TempFile(const std::string &tmpl)
     {
-        auto tmpdir = env("TMPDIR");
+        auto tmpdir = zterp_getenv("TMPDIR");
         if (tmpdir == nullptr) {
             tmpdir = std::make_unique<std::string>("/tmp");
         }
@@ -682,6 +677,10 @@ void zterp_os_set_style(const Style &style, const Color &fg, const Color &bg)
 #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
 #endif
 
+#ifdef _MSC_VER
+#pragma comment(lib, "shell32.lib")
+#endif
+
 long zterp_os_filesize(std::FILE *fp)
 {
     struct _stat st;
@@ -722,7 +721,7 @@ static bool mkdir_p(const std::string &filename)
 
 std::unique_ptr<std::string> zterp_os_rcfile(bool create_parent)
 {
-    auto appdata = env("APPDATA");
+    auto appdata = zterp_getenv("APPDATA");
     if (appdata == nullptr) {
         return nullptr;
     }
@@ -750,7 +749,7 @@ std::unique_ptr<std::string> unique_name()
 
 static std::unique_ptr<std::string> data_file(const std::string &filename)
 {
-    auto appdata = env("APPDATA");
+    auto appdata = zterp_getenv("APPDATA");
     if (appdata == nullptr) {
         return nullptr;
     }

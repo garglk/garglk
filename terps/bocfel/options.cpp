@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <bitset>
+#include <cctype>
 #include <cerrno>
 #include <climits>
 #include <cmath>
@@ -215,6 +216,9 @@ Options::Options() {
     STRING('Z', "Provide a file/device from which 32 bits will be read as a seed", true, random_device);
 
     CONFIG_BOOL  (autosave);
+    CONFIG_BOOL  (skip_autorestore);
+    CONFIG_STRING(autosave_directory);
+    CONFIG_BOOL  (autosave_librarystate);
     CONFIG_BOOL  (persistent_transcript);
     CONFIG_STRING(editor);
     CONFIG_BOOL  (warn_on_v6);
@@ -365,6 +369,22 @@ void Options::read_config()
             errmsg("invalid value for " + key + ": " + e.what());
         }
     });
+}
+
+void Options::read_envvars()
+{
+    for (const auto &pair : m_from_config) {
+        std::ostringstream ss;
+        ss << "BOCFEL_";
+        for (unsigned char ch : pair.first) {
+            ss << static_cast<char>(std::toupper(ch));
+        }
+
+        auto val = zterp_getenv(ss.str());
+        if (val != nullptr) {
+            pair.second(*val);
+        }
+    }
 }
 
 int Options::getopt(int argc, char *const argv[])

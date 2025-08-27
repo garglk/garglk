@@ -20,6 +20,12 @@ extern "C" {
 
 #include "types.h"
 
+enum class StreamRock : uint32_t {
+    None = 0,
+    BlorbStream = 1,
+    TranscriptStream = 2,
+};
+
 class IO {
 public:
     class Error : public std::exception {
@@ -53,8 +59,13 @@ public:
         Current,
     };
 
-    IO(const std::string *filename, Mode mode, Purpose purpose);
+    IO(const std::string *filename, Mode mode, Purpose purpose, StreamRock namedglkrock = StreamRock::None);
     IO(std::vector<uint8_t> buf, Mode mode);
+#ifdef ZTERP_GLK
+    IO(Mode mode, Purpose purpose, strid_t stream) : m_file(stream), m_type(Type::Glk), m_mode(mode), m_purpose(purpose) {
+    }
+#endif
+
     void operator=(IO const &) = delete;
     IO(const IO &) = delete;
     IO(IO &&) = default;
@@ -140,7 +151,7 @@ private:
     bool textmode() const;
 
 #ifdef ZTERP_GLK
-    void open_as_glk(const std::function<frefid_t(glui32 usage, glui32 filemode)> &create_fref);
+    void open_as_glk(const std::function<frefid_t(glui32 usage, glui32 filemode)> &create_fref, StreamRock rock);
 #endif
 
     File m_file;

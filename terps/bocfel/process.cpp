@@ -293,13 +293,16 @@ void process_instructions()
 {
     static bool handled_autosave = false;
 
-    if (options.autosave && !handled_autosave) {
+    if (options.autosave && !options.skip_autorestore && !handled_autosave) {
         SaveOpcode saveopcode;
+        SaveType savetype = options.autosave_librarystate ? SaveType::AutosaveLib : SaveType::Autosave;
 
         handled_autosave = true;
 
-        if (do_restore(SaveType::Autosave, saveopcode)) {
-            show_message("Continuing last session from autosave");
+        if (do_restore(savetype, saveopcode)) {
+            if (savetype == SaveType::Autosave) {
+                show_message("Continuing last session from autosave");
+            }
             throw Operation::Restore(saveopcode);
         }
     }
@@ -381,10 +384,30 @@ void process_loop()
         } catch (const Operation::Restart &) {
             start_story();
         } catch (const Operation::Restore &restore) {
-            if (restore.saveopcode == SaveOpcode::Read) {
+            switch (restore.saveopcode) {
+            case SaveOpcode::None:
+                synthetic_call = nullptr;
+                break;
+            case SaveOpcode::Read:
                 synthetic_call = zread;
-            } else if (restore.saveopcode == SaveOpcode::ReadChar) {
+                break;
+            case SaveOpcode::ReadChar:
                 synthetic_call = zread_char;
+                break;
+            case SaveOpcode::Save:
+                if (zversion < 5) {
+                    synthetic_call = zsave;
+                } else {
+                    synthetic_call = zsave5;
+                }
+                break;
+            case SaveOpcode::Restore:
+                if (zversion < 5) {
+                    synthetic_call = zrestore;
+                } else {
+                    synthetic_call = zrestore5;
+                }
+                break;
             }
         } catch (const Operation::Quit &) {
             break;

@@ -575,6 +575,7 @@ static void process_story(IO &io, long offset)
     if (!options.disable_config) {
         options.read_config();
     }
+    options.read_envvars();
 
     // Most options directly set their respective variables, but a few
     // require intervention. Delay that intervention until here so that

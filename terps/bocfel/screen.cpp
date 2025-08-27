@@ -25,6 +25,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -117,7 +118,9 @@ struct Window {
 
 #ifdef ZTERP_GLK
     winid_t id = nullptr;
-    long x = 0, y = 0; // Only meaningful for window 1
+    // In general these are only meaningful for window 1, except that
+    // Arthur uses them in window 2 as well.
+    uint16_t x = 0, y = 0;
     bool has_echo = false;
 #endif
 };
@@ -138,11 +141,72 @@ struct Line {
 
 static Window *upperwin = &windows[1];
 static Window statuswin;
-static long upper_window_height = 0;
-static long upper_window_width = 0;
+static uint16_t upper_window_height = 0;
+static uint16_t upper_window_width = 0;
 static winid_t errorwin;
 
+enum class WindowRock : glui32 {
+    None = 0,
+    MainWin = 1,
+    UpperWin = 2,
+    // windows[2-7] are going to be copies of mainwin if they are used at all
+    StatusWin = 3,
+    ErrorWin = 4,
+    // graphics windows are not currently managed by this scheme
+};
+
+void screen_recover_glk_windows()
+{
+    glui32 tmpwid, tmphgt;
+
+    statuswin.id = nullptr;
+    errorwin = nullptr;
+    for (auto &win : windows) {
+        win.id = nullptr;
+    }
+
+    glui32 rock = 0;
+    for (auto win = glk_window_iterate(nullptr, &rock); win != nullptr; win = glk_window_iterate(win, &rock)) {
+        switch (static_cast<WindowRock>(rock)) {
+        case WindowRock::None:
+            break;
+        case WindowRock::MainWin:
+            mainwin->id = win;
+            break;
+        case WindowRock::UpperWin:
+            upperwin->id = win;
+            glk_window_get_size(upperwin->id, &tmpwid, &tmphgt);
+            upper_window_width = tmpwid;
+            upper_window_height = tmphgt;
+            break;
+        case WindowRock::StatusWin:
+            statuswin.id = win;
+            break;
+        case WindowRock::ErrorWin:
+            errorwin = win;
+            break;
+        }
+    }
+
+    ZASSERT(mainwin->id != nullptr, "no main window after recovery");
+
+    // Redirect windows 2-7 -- see note in init_screen().
+    if (options.redirect_v6_windows) {
+        for (int i = 2; i < 8; i++) {
+            windows[i].id = windows[0].id;
+        }
+    }
+}
+
 #ifdef ZTERP_GLK_GRAPHICS
+// Arthur uses window 2 for the larger upper window (room graphics,
+// inventory, etc). Graphics are intercepted and drawn separately with
+// GraphicsWindow (using Glk’s graphics window). For text mode, use a
+// separate Glk text buffer, since Glk doesn’t support the kind of mixed
+// graphics and text V6 needs; but if you give Arthur a text buffer
+// window as window 2, it just generally works, when in text mode
+// (inventory, score, room description).
+static Window *arthurwin = &windows[2];
 
 static double aspect_scale() {
     return options.aspect_correction ? 1.2 : 1.0;
@@ -287,6 +351,8 @@ public:
         ZorkZeroBorder,
         ZorkZero320,
         ZorkZeroGame,
+        ShogunTitle,
+        ShogunNormal,
         ShogunMaze,
         Mysterious,
         MysteriousSeparator,
@@ -303,6 +369,7 @@ public:
     void clear();
     void draw(glui32 pic, const ImageGeometry &geom, glui32 w, glui32 h) const;
     void draw_border(Type type, Border border, glui32 pic) const;
+    void draw_shogun_borders() const;
     glui32 get_window_width() const;
 
     winid_t id() const { return m_id; }
@@ -365,6 +432,41 @@ static Window *style_window()
 
 static std::bitset<5> streams;
 static std::unique_ptr<IO> scriptio, transio, perstransio;
+
+#ifdef ZTERP_GLK_UNIX
+
+void screen_clean_up_glk_streams()
+{
+    // transio may or may not be a Glk stream, but it’s safest to clean
+    // it up.
+    transio = nullptr;
+}
+
+#endif
+
+#ifdef ZTERP_GLK
+
+void screen_recover_glk_streams()
+{
+    transio = nullptr;
+    streams.reset(OSTREAM_TRANSCRIPT);
+
+    glui32 rock = 0;
+    for (auto str = glk_stream_iterate(nullptr, &rock); str != nullptr; str = glk_stream_iterate(str, &rock)) {
+        switch (static_cast<StreamRock>(rock)) {
+        case StreamRock::None:
+            break;
+        case StreamRock::TranscriptStream:
+            transio = std::make_unique<IO>(IO::Mode::Append, IO::Purpose::Transcript, str);
+            streams.set(OSTREAM_TRANSCRIPT);
+            break;
+        default:
+            break;
+        }
+    }
+}
+
+#endif
 
 class StreamTables {
 public:
@@ -877,6 +979,20 @@ static void put_char_base(uint16_t c, bool unicode)
                         upperwin->x++;
                         xglk_put_char(c);
                     }
+#ifdef ZTERP_GLK_GRAPHICS
+                } else if (hack == Hack::Arthur && curwin == arthurwin && arthurwin->id != nullptr) {
+                    // In “room description” mode, this should perform
+                    // line breaking, but it currently does not.
+                    glui32 w;
+                    glk_window_get_size(arthurwin->id, &w, nullptr);
+                    if (c == UNICODE_LINEFEED || curwin->x == w) {
+                        curwin->x = 0;
+                        curwin->y++;
+                    } else {
+                        curwin->x++;
+                    }
+                    xglk_put_char(c);
+#endif
                 } else {
                     xglk_put_char(c);
                 }
@@ -1044,7 +1160,7 @@ void show_message(const char *fmt, ...)
 
         glk_put_char_stream(glk_window_get_stream(errorwin), LATIN1_LINEFEED);
     } else {
-        errorwin = glk_window_open(mainwin->id, winmethod_Below | winmethod_Fixed, error_lines = 2, wintype_TextBuffer, 0);
+        errorwin = glk_window_open(mainwin->id, winmethod_Below | winmethod_Fixed, error_lines = 2, wintype_TextBuffer, static_cast<glui32>(WindowRock::ErrorWin));
     }
 
     // If windows are not supported (e.g. in cheapglk or no Glk), messages
@@ -1098,7 +1214,9 @@ static bool output_stream(int16_t number, uint16_t table, bool formatted)
         store_word(0x10, word(0x10) | FLAGS2_TRANSCRIPT);
         if (transio == nullptr) {
             try {
-                transio = std::make_unique<IO>(options.transcript_name.get(), options.overwrite_transcript ? IO::Mode::WriteOnly : IO::Mode::Append, IO::Purpose::Transcript);
+                // If autosave_librarystate, we open this as a Glk stream so
+                // that it will be part of the librarystate.
+                transio = std::make_unique<IO>(options.transcript_name.get(), options.overwrite_transcript ? IO::Mode::WriteOnly : IO::Mode::Append, IO::Purpose::Transcript, options.autosave_librarystate ? StreamRock::TranscriptStream : StreamRock::None);
             } catch (const IO::OpenError &) {
                 store_word(0x10, word(0x10) & ~FLAGS2_TRANSCRIPT);
                 streams.reset(OSTREAM_TRANSCRIPT);
@@ -1107,6 +1225,11 @@ static bool output_stream(int16_t number, uint16_t table, bool formatted)
         }
     } else if (number == -2) {
         store_word(0x10, word(0x10) & ~FLAGS2_TRANSCRIPT);
+        // If autosave_librarystate, we close the stream. (Keeping it open in
+        // the background is unnecessary work.)
+        if (options.transcript_name != nullptr && options.autosave_librarystate) {
+            transio = nullptr;
+        }
     }
 
     if (number == 3) {
@@ -1206,7 +1329,7 @@ static Window *find_window(uint16_t window)
 }
 
 #ifdef ZTERP_GLK
-static void perform_upper_window_resize(long new_height)
+static void perform_upper_window_resize(glui32 new_height)
 {
     glui32 actual_height;
 
@@ -1223,7 +1346,7 @@ static void perform_upper_window_resize(long new_height)
     if (actual_height != upper_window_height) {
         // This message probably won’t be seen in a window since the upper
         // window is likely covering everything, but try anyway.
-        show_message("Unable to fulfill window size request: wanted %ld, got %lu", new_height, static_cast<unsigned long>(actual_height));
+        show_message("Unable to fulfill window size request: wanted %lu, got %lu", static_cast<unsigned long>(new_height), static_cast<unsigned long>(actual_height));
         upper_window_height = actual_height;
     }
 }
@@ -1264,14 +1387,14 @@ static void clear_window(Window *window)
 }
 #endif
 
-static void resize_upper_window(long nlines, bool from_game)
+static void resize_upper_window(uint32_t nlines, bool from_game)
 {
 #ifdef ZTERP_GLK
     if (upperwin->id == nullptr) {
         return;
     }
 
-    long previous_height = upper_window_height;
+    glui32 previous_height = upper_window_height;
 
     if (from_game) {
         delayed_window_shrink = nlines;
@@ -1595,12 +1718,12 @@ bool GraphicsWindow::resize(Type type)
             return false;
         }
 
-        // The images for games (Tower of Bozbar, Peggleboz, Snarfem,
-        // and Double Fanucci) are 320x200, but the bottom ≅83 pixels
-        // are a box intended to hold all the text on the screen; and
-        // since Glk doesn’t support text in graphics windows, the text
-        // will go below the entire image. That’s a complete waste of
-        // space and requires a tall window to fit both the original
+        // The images for Zork Zero games (Tower of Bozbar, Peggleboz,
+        // Snarfem, and Double Fanucci) are 320x200, but the bottom ≅83
+        // pixels are a box intended to hold all the text on the screen;
+        // and since Glk doesn’t support text in graphics windows, the
+        // text will go below the entire image. That’s a complete waste
+        // of space and requires a tall window to fit both the original
         // 320x200 (or 320x240 in aspect-correct mode) image, as well as
         // all the text. So instead, pretend the image is 320x117,
         // preventing the bottom 83 pixels from appearing.
@@ -1612,6 +1735,8 @@ bool GraphicsWindow::resize(Type type)
             {GraphicsWindow::Type::ZorkZeroBorder, {320, 39}},
             {GraphicsWindow::Type::ZorkZero320, {320, 200}},
             {GraphicsWindow::Type::ZorkZeroGame, {320, 117}},
+            {GraphicsWindow::Type::ShogunTitle, {320, 200}},
+            {GraphicsWindow::Type::ShogunNormal, {320, 0}},
             {GraphicsWindow::Type::ShogunMaze, {274, 140}},
             {GraphicsWindow::Type::Mysterious, {512, 208}},
             {GraphicsWindow::Type::MysteriousSeparator, {512, 16}},
@@ -1643,14 +1768,27 @@ bool GraphicsWindow::resize(Type type)
             m_right_border = nullptr;
         }
 
-        if (type == Type::ZorkZeroBorder || type == Type::ArthurBanner) {
+        if (type == Type::ZorkZeroBorder ||
+            type == Type::ArthurBanner ||
+            type == Type::ShogunNormal ||
+            type == Type::ShogunMaze)
+        {
+            int left, right;
+
             // Zork Zero border images vary in widths (from 36 to 43
             // pixels for the left border, and 36 to 42 for the right);
             // to simplify things, create each border window as the max
-            // possible size for that size. For Arthur, the staffs are
-            // always 2 pixels wide.
-            auto left = type == Type::ZorkZeroBorder ? 43 : 2;
-            auto right = type == Type::ZorkZeroBorder ? 42 : 2;
+            // possible size for that side. For Arthur, the staffs are
+            // always 2 pixels wide, and for Shogun, the decorations are
+            // always 23 pixels wide.
+            if (type == Type::ZorkZeroBorder) {
+                left = 43;
+                right = 42;
+            } else if (type == Type::ArthurBanner) {
+                left = right = 2;
+            } else {
+                left = right = 23;
+            }
 
             m_left_border = glk_window_open(glk_window_get_parent(mainwin->id), winmethod_Left | winmethod_Fixed, left * ratio(), wintype_Graphics, 0);
             if (m_left_border != nullptr) {
@@ -1719,7 +1857,21 @@ glui32 GraphicsWindow::get_window_width() const
 
 static bool zorkzero_has_border()
 {
-    return variable(0x83 + 0x10) != 0;
+    // Whether in bordered or borderless mode (controlled by the MODE
+    // game command) is tracked via a global variable, which differs for
+    // each version of Zork Zero.
+    static const std::unordered_map<std::string, uint8_t> gvars = {
+        {"296-881019", 0x9f},
+        {"366-890323", 0x7f},
+        {"383-890602", 0x82},
+        {"393-890714", 0x83},
+    };
+
+    try {
+        return variable(gvars.at(get_story_id()) + 0x10) != 0;
+    } catch (const std::out_of_range &) {
+        return false;
+    }
 }
 
 struct JourneyStamp {
@@ -1850,6 +2002,67 @@ static bool draw_journey(glui32 pic, glui32 w, glui32 h)
     return draw_journey_background(pic, w, h);
 }
 
+static bool draw_shogun(glui32 pic, glui32 w, glui32 h, glui32 x, glui32 y)
+{
+    if (hack != Hack::Shogun) {
+        return false;
+    }
+
+    if (pic == 1) {
+        if (!graphics_window.resize(GraphicsWindow::Type::ShogunTitle)) {
+            return false;
+        }
+        graphics_window.draw(1, ImageGeometry{0, 0}, w, h);
+        return true;
+    }
+
+    // Different releases of Shogun did the borders differently, as in
+    // Zork Zero: DOS split them up, and Blorbs are for DOS, so whenever
+    // a drawing request comes in for the left border, unconditionally
+    // draw the right as well. 59 is the right border, requested only
+    // when the interpreter and game file are both DOS; ignore such
+    // requests because it will have already been drawn by
+    // graphics_window.draw_shogun_borders().
+    if (pic == 3) {
+        if (!graphics_window.resize(GraphicsWindow::Type::ShogunNormal)) {
+            return false;
+        }
+        graphics_window.draw_shogun_borders();
+        return true;
+    } else if (pic == 59) {
+        return true;
+    }
+
+    // Shogun calculates coordinates (for the maze) correctly.
+    if (pic >= 38 && pic <= 44) {
+        if (!graphics_window.resize(GraphicsWindow::Type::ShogunMaze)) {
+            return false;
+        }
+        graphics_window.draw_shogun_borders();
+
+        // The maze itself is offset one block from the background (so
+        // it’s centered), but to calculate this, it uses the maze
+        // window size, which isn’t currently tracked by Bocfel, so its
+        // calculating is incorrect. However, since we know the
+        // invisible picture size (7x7), it’s simple enough to manually
+        // add this to the offsets for the maze pieces. Eventually, if
+        // window sizes are properly tracked, this should not be
+        // necessary.
+        x--;
+        y--;
+        if (pic != 44) {
+            x += SHOGUN_MAZE_BLOCK_WIDTH;
+            y += SHOGUN_MAZE_BLOCK_HEIGHT;
+        }
+
+        ImageGeometry geom(x, y);
+        graphics_window.draw(pic, geom, w, h);
+        return true;
+    }
+
+    return false;
+}
+
 static bool draw_mysterious(glui32 pic, glui32 w, glui32 h, double x, double y)
 {
     if (hack != Hack::MysteriousAdventures ||
@@ -1860,7 +2073,7 @@ static bool draw_mysterious(glui32 pic, glui32 w, glui32 h, double x, double y)
     }
 
     if (!graphics_window.resize(GraphicsWindow::Type::Mysterious)) {
-        return true;
+        return false;
     }
 
     // Delay creation till here, to ensure the upper window is created
@@ -1880,61 +2093,6 @@ static bool draw_mysterious(glui32 pic, glui32 w, glui32 h, double x, double y)
 
     return true;
 }
-
-class ShogunBorders {
-public:
-    void destroy() {
-        if (m_left_border != nullptr) {
-            glk_window_close(m_left_border, nullptr);
-            m_left_border = nullptr;
-        }
-
-        if (m_right_border != nullptr) {
-            glk_window_close(m_right_border, nullptr);
-            m_right_border = nullptr;
-        }
-    }
-
-    void draw() {
-        destroy();
-
-        glui32 width, height;
-#ifdef GLK_MODULE_GARGLKWINSIZE
-        garglk_window_get_size_pixels(mainwin->id, &width, &height);
-#else
-        width = full_window_width;
-        height = full_window_height;
-#endif
-
-        double ratio = width / 320.0;
-        m_left_border = glk_window_open(glk_window_get_parent(mainwin->id), winmethod_Left | winmethod_Fixed, 23 * ratio, wintype_Graphics, 0);
-        if (m_left_border == nullptr) {
-            return;
-        }
-
-        m_right_border = glk_window_open(glk_window_get_parent(mainwin->id), winmethod_Right | winmethod_Fixed, 23 * ratio, wintype_Graphics, 0);
-        if (m_right_border == nullptr) {
-            glk_window_close(m_left_border, nullptr);
-            return;
-        }
-
-        glk_window_get_size(m_left_border, nullptr, &height);
-
-        glk_image_draw_scaled(m_left_border, 3, 0, 0, 23 * ratio, height);
-        glk_image_draw_scaled(m_right_border, 59, 0, 0, 23 * ratio, height);
-
-        if (upperwin->id != nullptr) {
-            glk_window_get_size(upperwin->id, &width, nullptr);
-            upper_window_width = width;
-        }
-    }
-
-private:
-    winid_t m_left_border = nullptr;
-    winid_t m_right_border = nullptr;
-};
-
-static ShogunBorders shogun_borders;
 #endif
 
 void zjourney_dial()
@@ -1959,22 +2117,6 @@ void zjourney_dial()
 void zerase_window()
 {
 #ifdef ZTERP_GLK
-
-#ifdef ZTERP_GLK_GRAPHICS
-    // Special case for the intro.
-    if (hack == Hack::Arthur && (current_instruction == 0x10c3b || current_instruction == 0x10c61 || current_instruction == 0x10e8a)) {
-        graphics_window.destroy();
-        return;
-    }
-
-    // In Arthur, the banner/map window is 2, so hijack this call to
-    // clear the graphics window.
-    if (hack == Hack::Arthur && zargs[0] == 2) {
-        graphics_window.clear();
-        return;
-    }
-#endif
-
     switch (as_signed(zargs[0])) {
     case -2:
         for (auto &window : windows) {
@@ -1983,6 +2125,9 @@ void zerase_window()
         break;
     case -1:
         close_upper_window();
+#ifdef ZTERP_GLK_GRAPHICS
+        graphics_window.destroy();
+#endif
         // fallthrough
     case 0:
         // 8.7.3.2.1 says V5+ should have the cursor set to 1, 1 of the
@@ -1992,18 +2137,22 @@ void zerase_window()
         // call glk_window_clear().
         clear_window(mainwin);
 
-#ifdef ZTERP_GLK_GRAPHICS
-        // This is in the routine handler for “mode”: if switching to
-        // borders off, close the graphics window.
-        if (hack == Hack::ZorkZero && current_instruction == 0x1414d && zorkzero_has_border()) {
-            graphics_window.destroy();
-        }
-#endif
-
         break;
     case 1:
         clear_window(upperwin);
         break;
+    case 2:
+#ifdef ZTERP_GLK_GRAPHICS
+        // In Arthur, the banner/map window is 2, which is represented
+        // by the graphics window.
+        if (hack == Hack::Arthur) {
+            graphics_window.clear();
+            if (arthurwin->id != nullptr) {
+                glk_window_clear(arthurwin->id);
+            }
+        }
+        break;
+#endif
     default:
         break;
     }
@@ -2016,12 +2165,37 @@ void zerase_window()
 void zerase_line()
 {
 #ifdef ZTERP_GLK
+#ifdef ZTERP_GLK_GRAPHICS
+    // Selectively handle @erase_line for version 6 games.
+    if (hack == Hack::Journey && curwin == upperwin && upperwin->id != nullptr && zargs[0] > 1) {
+        for (glui32 i = upperwin->x; i < std::min<glui32>(upper_window_width, curwin->x + (zargs[0] - 1)); i++) {
+            xglk_put_char(UNICODE_SPACE);
+        }
+
+        glk_window_move_cursor(curwin->id, curwin->x, curwin->y);
+
+        return;
+    } else if (hack == Hack::Arthur && curwin == arthurwin && arthurwin->id != nullptr && zargs[0] > 0) {
+        glui32 window_width;
+        glk_window_get_size(arthurwin->id, &window_width, nullptr);
+        auto erase_end = zargs[0] == 1 ? window_width : curwin->x + (zargs[0] - 1);
+        auto *stream = glk_window_get_stream(arthurwin->id);
+        for (glui32 i = curwin->x; i < std::min(window_width, erase_end); i++) {
+            glk_put_char_stream(stream, ' ');
+        }
+
+        glk_window_move_cursor(curwin->id, curwin->x, curwin->y);
+
+        return;
+    }
+#endif
+
     // XXX V6 does pixel handling here.
     if (zargs[0] != 1 || curwin != upperwin || upperwin->id == nullptr) {
         return;
     }
 
-    for (long i = upperwin->x; i < upper_window_width; i++) {
+    for (uint16_t i = upperwin->x; i < upper_window_width; i++) {
         xglk_put_char(UNICODE_SPACE);
     }
 
@@ -2033,9 +2207,19 @@ void zerase_line()
 static void set_cursor(uint16_t y, uint16_t x)
 {
 #ifdef ZTERP_GLK
-    // All the windows in V6 can have their cursor positioned; if V6 ever
-    // comes about this should be fixed.
+    // All the windows in V6 can have their cursor positioned; if full
+    // V6 ever comes about this should be fixed. For now just hardcode
+    // some Arthur handling: with Arthur, the cursor can be set in
+    // either the upper window (as normal) or window 2; window 2 is the
+    // window used for text/graphics above the game, e.g. room images,
+    // map, inventory, etc.
+#ifdef ZTERP_GLK_GRAPHICS
+    if ((hack == Hack::Arthur && curwin != upperwin && curwin != arthurwin) ||
+        (hack != Hack::Arthur && curwin != upperwin))
+    {
+#else
     if (curwin != upperwin) {
+#endif
         return;
     }
 
@@ -2060,15 +2244,21 @@ static void set_cursor(uint16_t y, uint16_t x)
     }
 
     // This is actually illegal, but some games (e.g. Beyond Zork) expect it to work.
-    if (y > upper_window_height) {
+    if (curwin == upperwin && y > upper_window_height) {
         resize_upper_window(y, true);
     }
 
-    if (upperwin->id != nullptr) {
-        upperwin->x = x - 1;
-        upperwin->y = y - 1;
+#ifdef ZTERP_GLK_GRAPHICS
+    auto *cursorwin = (hack == Hack::Arthur && curwin == arthurwin) ? curwin : upperwin;
+#else
+    auto *cursorwin = upperwin;
+#endif
 
-        glk_window_move_cursor(upperwin->id, x - 1, y - 1);
+    if (cursorwin->id != nullptr) {
+        cursorwin->x = x - 1;
+        cursorwin->y = y - 1;
+
+        glk_window_move_cursor(cursorwin->id, x - 1, y - 1);
     }
 #endif
 }
@@ -2297,10 +2487,11 @@ void zset_window()
 static void window_change()
 {
 #ifdef ZTERP_GLK_GRAPHICS
+    auto current_type = graphics_window.type();
+
     graphics_window.destroy();
     close_journey_window();
     mysterious_separator.destroy();
-    shogun_borders.destroy();
 #endif
 
     // When a textgrid (the upper window) in Gargoyle is rearranged, it
@@ -2320,8 +2511,9 @@ static void window_change()
     // the main window _without_ borders, so it’s sandwiched between the
     // “destroy” and “draw” calls.
 #ifdef ZTERP_GLK_GRAPHICS
-    if (hack == Hack::Shogun && options.v6_borders) {
-        shogun_borders.draw();
+    if (hack == Hack::Shogun) {
+        graphics_window.resize(current_type);
+        graphics_window.draw_shogun_borders();
     }
 #endif
 
@@ -2740,7 +2932,7 @@ static bool get_input(uint16_t timer, uint16_t routine, Input &input)
             if (have_unicode) {
                 line.unicode[i] = input.line[i];
             } else {
-                line.latin1 [i] = input.line[i];
+                line.latin1 [i] = input.line[i] > 255 ? LATIN1_QUESTIONMARK : input.line[i];
             }
         }
 
@@ -2915,7 +3107,16 @@ static bool get_input(uint16_t timer, uint16_t routine, Input &input)
                 zterp_mouse_click(ev.val1 + 1, ev.val2 + 1);
 #ifdef ZTERP_GLK_GRAPHICS
             } else if (ev.win == graphics_window.id()) {
-                zterp_mouse_click(ev.val1 / graphics_window.ratio(), ev.val2 / graphics_window.ratio());
+                glui32 x = std::round(ev.val1 / graphics_window.ratio());
+                glui32 y = std::round(ev.val2 / graphics_window.ratio());
+
+                // Compensate for the maze being offset one block.
+                if (hack == Hack::Shogun) {
+                    x -= SHOGUN_MAZE_BLOCK_WIDTH;
+                    y -= SHOGUN_MAZE_BLOCK_HEIGHT;
+                }
+
+                zterp_mouse_click(x, y);
 #endif
             }
             status = InputStatus::Received;
@@ -3004,8 +3205,24 @@ static bool get_input(uint16_t timer, uint16_t routine, Input &input)
         }
 
 #ifdef ZTERP_GLK_GRAPHICS
-        if (hack == Hack::Arthur && input.term == ZSCII_F6) {
-            graphics_window.destroy();
+        if (hack == Hack::Arthur) {
+            switch (input.term) {
+            // Switching to graphics: close the text window.
+            case ZSCII_F1: case ZSCII_F2:
+                glk_window_set_arrangement(glk_window_get_parent(arthurwin->id), winmethod_Above | winmethod_Fixed, 0, arthurwin->id);
+                break;
+            // Switching to text: close the graphics window and open the
+            // text window.
+            case ZSCII_F3: case ZSCII_F4: case ZSCII_F5:
+                graphics_window.destroy();
+                glk_window_set_arrangement(glk_window_get_parent(arthurwin->id), winmethod_Above | winmethod_Fixed, 12, arthurwin->id);
+                break;
+            // Switching to no window. Close graphics and text.
+            case ZSCII_F6:
+                graphics_window.destroy();
+                glk_window_set_arrangement(glk_window_get_parent(arthurwin->id), winmethod_Above | winmethod_Fixed, 0, arthurwin->id);
+                break;
+            }
         }
 #endif
     }
@@ -3083,7 +3300,8 @@ void zread_char()
     input.type = Input::Type::Char;
 
     if (options.autosave && !in_interrupt()) {
-        do_save(SaveType::Autosave, SaveOpcode::ReadChar);
+        SaveType savetype = options.autosave_librarystate ? SaveType::AutosaveLib : SaveType::Autosave;
+        do_save(savetype, SaveOpcode::ReadChar);
     }
 
     if (zversion >= 4 && znargs > 1) {
@@ -3220,7 +3438,8 @@ static bool read_handler()
     uint16_t routine = zargs[3];
 
     if (options.autosave && !in_interrupt()) {
-        do_save(SaveType::Autosave, SaveOpcode::Read);
+        SaveType savetype = options.autosave_librarystate ? SaveType::AutosaveLib : SaveType::Autosave;
+        do_save(savetype, SaveOpcode::Read);
     }
 
 #ifdef ZTERP_GLK
@@ -3291,8 +3510,8 @@ static bool read_handler()
             // be allowed. At least by keeping the cursor on the second line,
             // proper user input will occur.
             if (curwin == upperwin) {
-                long max = input.preloaded > upperwin->x ? upperwin->x : input.preloaded;
-                long start = input.preloaded - max;
+                uint16_t max = std::min<uint16_t>(input.preloaded, upperwin->x);
+                uint8_t start = input.preloaded - max;
                 glui32 unput = garglk_unput_string_count_uni(&line32[start]);
 
                 // Since the preloaded text might not have been on the screen
@@ -3805,7 +4024,7 @@ void GraphicsWindow::draw(glui32 pic, const ImageGeometry &geom, glui32 w, glui3
     x += (m_width - (m_ratio * m_base_width)) / 2;
     glk_image_draw_scaled(m_id, pic, std::round(x), std::round(m_ratio * geom.y * aspect_scale()), std::round(m_ratio * w), std::round(m_ratio * h * aspect_scale()));
 
-    if (hack == Hack::ZorkZero && !is_game(Game::ZorkZeroDOS) && options.v6_borders) {
+    if (hack == Hack::ZorkZero && !is_game(Game::ZorkZeroDOS)) {
         // Only the DOS version splits the border into a top and sides,
         // and the DOS version is what the “official” Blorb file is
         // meant to be used with. For all other Zork Zero releases, when
@@ -3850,10 +4069,34 @@ void GraphicsWindow::draw_border(Type type, Border border, glui32 pic) const
     glk_image_draw_scaled(id, pic, offset * ratio(), 0, width * ratio(), height);
 }
 
-static bool draw_arthur(glui32 pic, glui32 w, glui32 h)
+void GraphicsWindow::draw_shogun_borders() const
+{
+    draw_border(Type::ShogunNormal, Border::Left, 3);
+    draw_border(Type::ShogunNormal, Border::Right, 59);
+}
+
+static bool draw_arthur(glui32 pic, glui32 w, glui32 h, glui32 x, glui32 y)
 {
     if (hack != Hack::Arthur) {
         return false;
+    }
+
+    // These are the border staffs. Similar to the banner, Arthur does
+    // not draw these frequently, instead drawing them once and
+    // expecting them to remain on the screen. To get around this, when
+    // room images are drawn, Bocfel unconditionally draws the staffs as
+    // well, ensuring they both exist and are drawn in the correct
+    // palette. As such, ignore any requests from the game to draw them.
+    if (pic == 170 || pic == 171) {
+        return true;
+    }
+
+    // Arthur calculates map coordinates basically correctly; just need
+    // to scale and offset the X axis a bit.
+    if (pic >= 106 && pic <= 136) {
+        ImageGeometry geom(x + 14, y);
+        graphics_window.draw(pic, geom, w, h);
+        return true;
     }
 
     auto type = pic == 1 || pic == 2 || pic == 3 || pic == 84 ? GraphicsWindow::Type::ArthurIntro :
@@ -3904,13 +4147,32 @@ static bool draw_zorkzero(glui32 pic, glui32 w, glui32 h, double x, double y)
         return false;
     }
 
+    static const std::unordered_map<glui32, GraphicsWindow::Border> borders = {
+        {170, GraphicsWindow::Border::Left},
+        {171, GraphicsWindow::Border::Right},
+        {497, GraphicsWindow::Border::Left},
+        {498, GraphicsWindow::Border::Right},
+        {499, GraphicsWindow::Border::Left},
+        {500, GraphicsWindow::Border::Right},
+        {501, GraphicsWindow::Border::Left},
+        {502, GraphicsWindow::Border::Right},
+        {503, GraphicsWindow::Border::Left},
+        {504, GraphicsWindow::Border::Right},
+    };
+
+    auto border = borders.find(pic);
+    if (border != borders.end()) {
+        graphics_window.draw_border(GraphicsWindow::Type::ZorkZeroBorder, border->second, pic);
+        return true;
+    }
+
     // 5, 6, and 7 are the borders. If a request comes in for one of
     // them, ensure the graphics window is the right size, and clear it
     // first: different borders are different sizes, so drawing on top
     // of each other causes the previous image to leak through.
     if (pic == 5 || pic == 6 || pic == 7) {
         if (!graphics_window.resize(GraphicsWindow::Type::ZorkZeroBorder)) {
-            return true;
+            return false;
         }
         graphics_window.clear();
     }
@@ -3918,21 +4180,21 @@ static bool draw_zorkzero(glui32 pic, glui32 w, glui32 h, double x, double y)
     // Infer 320x200 mode via the background (title, encyclopedia, map, rebus).
     if (pic == 1 || pic == 25 || pic == 163 || (pic >= 34 && pic <= 40)) {
         if (!graphics_window.resize(GraphicsWindow::Type::ZorkZero320)) {
-            return true;
+            return false;
         }
     }
 
     // Tower of Bozbar, Peggleboz, Snarfem, Double Fanucci.
     if (pic == 41 || pic == 49 || pic == 73 || pic == 99) {
         if (!graphics_window.resize(GraphicsWindow::Type::ZorkZeroGame)) {
-            return true;
+            return false;
         }
     }
 
     // The picture number can’t be used to determine whether this is a
     // map or border request, because some overlap, e.g. the compass
     // directions. Track which mode we’re in via the graphics window,
-    // and if map mode, assume the game’s got its geometry correct,
+    // and if 320/game mode, assume the game’s got its geometry correct,
     // and plot the pictures just as they’re requested.
     if (graphics_window.type() == GraphicsWindow::Type::ZorkZero320 || graphics_window.type() == GraphicsWindow::Type::ZorkZeroGame) {
         ImageGeometry geom{x - 1, y - 1};
@@ -3999,138 +4261,56 @@ static uint16_t scale_picture(uint32_t num, uint16_t val)
 void zdraw_picture()
 {
 #ifdef ZTERP_GLK_GRAPHICS
-    if (!glk_gestalt(gestalt_Graphics, 0) || !glk_gestalt(gestalt_DrawImage, wintype_TextBuffer)) {
-        return;
-    }
-
     uint16_t pic = zargs[0], scale_pic = zargs[0];
     uint16_t x = zargs[2];
     uint16_t y = zargs[1];
 
-    // These are the border staffs. Similar to the banner, Arthur does
-    // not draw these frequently, instead drawing them once and
-    // expecting them to remain on thescreen. To get around this, when
-    // room images are drawn, Bocfel unconditionally draws the staffs as
-    // well, ensuring they both exist and are drawn in the correct
-    // palette. As such, ignore any requests from the game to draw them.
-    if (hack == Hack::Arthur && (pic == 170 || pic == 171)) {
+    glui32 w, h;
+    if (!glk_gestalt(gestalt_Graphics, 0) || !glk_image_get_info(pic, &w, &h)) {
         return;
     }
 
-    if (hack == Hack::Shogun) {
-        // Different releases of Shogun did the borders differently, as
-        // in Zork Zero: DOS split them up, and Blorbs are for DOS, so
-        // whenever a drawing request comes in for the left border,
-        // unconditionally draw the right as well. 59 is the right
-        // border, requested only when the interpreter and game file are
-        // both DOS; ignore such requests because it will have already
-        // been draw by shogun_borders.draw().
-        if (pic == 3) {
-            if (options.v6_borders) {
-                shogun_borders.draw();
-            }
-            return;
-        } else if (pic == 59) {
-            return;
-        }
+    // These functions take care of drawing in graphics windows; if they
+    // fail to draw, assume a marginal image. These will also fail if V6
+    // hacks are turned off, effectively making _all_ images marginal.
+    if (draw_arthur(pic, w, h, x, y) ||
+        draw_zorkzero(pic, w, h, x, y) ||
+        draw_journey(pic, w, h) ||
+        draw_shogun(pic, w, h, x, y) ||
+        draw_mysterious(pic, w, h, x, y)) {
+        return;
     }
+
+    if (!glk_gestalt(gestalt_DrawImage, wintype_TextBuffer)) {
+        return;
+    }
+
+    glui32 align = imagealign_InlineUp;
 
     if (hack == Hack::ZorkZero) {
-        static const std::unordered_map<glui32, GraphicsWindow::Border> borders = {
-            {170, GraphicsWindow::Border::Left},
-            {171, GraphicsWindow::Border::Right},
-            {497, GraphicsWindow::Border::Left},
-            {498, GraphicsWindow::Border::Right},
-            {499, GraphicsWindow::Border::Left},
-            {500, GraphicsWindow::Border::Right},
-            {501, GraphicsWindow::Border::Left},
-            {502, GraphicsWindow::Border::Right},
-            {503, GraphicsWindow::Border::Left},
-            {504, GraphicsWindow::Border::Right},
-        };
-
-        auto border = borders.find(pic);
-        if (border != borders.end()) {
-            if (options.v6_borders) {
-                graphics_window.draw_border(GraphicsWindow::Type::ZorkZeroBorder, border->second, pic);
-            }
-            return;
+        if (pic == 2 || pic == 3 || pic == 4 || (pic >= 204 && pic <= 329) || pic == 440) {
+            align = imagealign_MarginLeft;
         }
     }
 
-    glui32 w, h;
-    if (glk_image_get_info(pic, &w, &h)) {
-        glui32 align = imagealign_InlineUp;
+    if (hack == Hack::Shogun) {
+        static const std::unordered_set<glui32> right = {7, 8, 9, 10, 11, 12, 13, 14, 22, 24, 25, 26, 28, 30, 32, 37};
+        static const std::unordered_set<glui32> left = {15, 17, 20, 27, 29, 33, 36};
 
-        // Arthur calculates map coordinates basically correctly; just
-        // need to scale and offset the X axis a bit.
-        if (hack == Hack::Arthur && pic >= 106 && pic <= 136) {
-            ImageGeometry geom(x + 14, y);
-            graphics_window.draw(pic, geom, w, h);
-            return;
+        if (right.find(pic) != right.end()) {
+            align = imagealign_MarginRight;
+        } else if (left.find(pic) != left.end()) {
+            align = imagealign_MarginLeft;
         }
+    }
 
-        // Shogun also calculates coordinates (for the maze) correctly.
-        if (hack == Hack::Shogun && pic >= 38 && pic <= 44) {
-            graphics_window.resize(GraphicsWindow::Type::ShogunMaze);
+    auto paletted_image = get_paletted_image(pic);
+    if (paletted_image != nullptr) {
+        pic = paletted_image->id;
+        scale_pic = paletted_image->parent;
+    }
 
-            // The maze itself is offset one block from the background
-            // (so it’s centered), but to calculate this, it uses the
-            // maze window size, which isn’t currently tracked by
-            // Bocfel, so its calculating is incorrect. However, since
-            // we know the invisible picture size (7x7), it’s simple
-            // enough to manually add this to the offsets for the maze
-            // pieces. Eventually, if window sizes are properly tracked,
-            // this should not be necessary.
-            x--;
-            y--;
-            if (pic != 44) {
-                x += SHOGUN_MAZE_BLOCK_WIDTH;
-                y += SHOGUN_MAZE_BLOCK_HEIGHT;
-            }
-
-            ImageGeometry geom(x, y);
-            graphics_window.draw(pic, geom, w, h);
-            return;
-        }
-
-        if (draw_arthur(pic, w, h) ||
-            draw_zorkzero(pic, w, h, x, y) ||
-            draw_journey(pic, w, h) ||
-            draw_mysterious(pic, w, h, x, y)) {
-            return;
-        }
-
-        if (hack == Hack::ZorkZero) {
-            if (pic == 2 || pic == 3 || pic == 4 || (pic >= 204 && pic <= 329) || pic == 440) {
-                align = imagealign_MarginLeft;
-            }
-        }
-
-        if (hack == Hack::Shogun) {
-            static const std::set<glui32> right = {7, 8, 9, 10, 11, 12, 13, 14, 22, 24, 25, 26, 28, 30, 32, 37};
-            static const std::set<glui32> left = {15, 17, 20, 27, 29, 33, 36};
-
-            if (right.find(pic) != right.end()) {
-                align = imagealign_MarginRight;
-            } else if (left.find(pic) != left.end()) {
-                align = imagealign_MarginLeft;
-            } else if (pic == 44) {
-                if (graphics_window.resize(GraphicsWindow::Type::ShogunMaze)) {
-                    ImageGeometry maze_geom{0, 0};
-                    graphics_window.draw(pic, maze_geom, w, h);
-                }
-
-                return;
-            }
-        }
-
-        auto paletted_image = get_paletted_image(pic);
-        if (paletted_image != nullptr) {
-            pic = paletted_image->id;
-            scale_pic = paletted_image->parent;
-        }
-
+    if (curwin->id != nullptr) {
         glk_image_draw_scaled(curwin->id, pic, align, 0, scale_picture(scale_pic, w), scale_picture(scale_pic, h) * aspect_scale());
     }
 #endif
@@ -4200,32 +4380,48 @@ void zpicture_data()
                 // The following are very hacky, and hopefully will be
                 // fixed up at some point.
                 if (zargs[0] == 1) {
-                    // Trick Zork Zero into creating a zero-height upper
-                    // window when displaying the title screen.
+                    // Title screen (P-TITLE). Zork Zero wants to split
+                    // the window based on the height of the title
+                    // screen, but V6 screen splitting isn’t supported,
+                    // so return the size as 0; the split won’t occur,
+                    // and the title will appear as intended.
                     user_store_word(zargs[1] + 0, 0);
                     user_store_word(zargs[1] + 2, 0);
                     branch_if(true);
                     return;
                 } else if (zargs[0] == 382) {
-                    // Combined with 383, ensure a half-decent display
-                    // for the status line.
+                    // This is HERE-LOC, which is meant to return where
+                    // to draw, for the status line, the name of the
+                    // current room, plus moves. Since the status line
+                    // here is just a text grid, it should be drawn at
+                    // 0,0. Zork Zero adds 1 to the values returned
+                    // here, so zeros are correct.
                     user_store_word(zargs[1] + 0, 0);
                     user_store_word(zargs[1] + 2, 0);
                     branch_if(true);
                     return;
                 } else if (zargs[0] == 383) {
+                    // This is REGION-LOC, which is meant to return
+                    // where to draw, for the status line, the name of
+                    // the current region (Flatheadia, Antharia, etc),
+                    // plus moves. As with HERE-LOC above, this is drawn
+                    // in a text grid, and Zork Zero expects this to be
+                    // the very right-hand side of the region area, as
+                    // it calculates the actual location based on the
+                    // width of the region text; so returning the whole
+                    // width of the upper window is correct.
                     user_store_word(zargs[1] + 0, 0);
                     user_store_word(zargs[1] + 2, upper_window_width);
                     branch_if(true);
                     return;
                 } else if (zargs[0] == 384) {
-                    // Fanucci menu location.
+                    // Fanucci menu location (F-MENU-LOC).
                     user_store_word(zargs[1] + 0, 0);
                     user_store_word(zargs[1] + 2, 0);
                     branch_if(true);
                     return;
                 } else if (zargs[0] == 385) {
-                    // Fanucci score location.
+                    // Fanucci score location (J-SCORE-LOC).
                     user_store_word(zargs[1] + 0, 4);
                     user_store_word(zargs[1] + 2, 0);
                     branch_if(true);
@@ -4260,15 +4456,29 @@ void zget_wind_prop()
     uint16_t val;
 
 #ifdef ZTERP_GLK_GRAPHICS
-    // This is the start of LEAVE-MAZE. This maybe should occur instead
-    // during SETUP-TEXT-AND-STATUS but that would have to deal with
-    // WINDEF which doesn’t currently get called with good information
-    // (likely because there’s some discrepancy in what Bocfel reports
-    // to the game regarding font size, display size, etc). For now,
-    // it’s enough to “know” that this instruction is part of a routine
-    // that handles leaving the maze, and erase the maze screen.
-    if (hack == Hack::Shogun && current_instruction == 0x3d8a5) {
-        graphics_window.destroy();
+    if (hack == Hack::Shogun && zargs[0] == 0 && zargs[1] == 4) {
+        // Check if this is the start of LEAVE-MAZE. This maybe should
+        // occur instead during SETUP-TEXT-AND-STATUS but that would
+        // have to deal with WINDEF which doesn’t currently get called
+        // with good information (likely because there’s some
+        // discrepancy in what Bocfel reports to the game regarding font
+        // size, display size, etc). For now, it’s enough to “know” that
+        // this instruction is part of a routine that handles leaving
+        // the maze, and erase the maze screen.
+        static const std::set<std::pair<std::string, unsigned long>> leave_maze = {
+            {"292-890314", 0x3d4a9},
+            {"295-890321", 0x3d691},
+            {"311-890510", 0x3d63d},
+            {"322-890706", 0x3d8a5},
+        };
+
+        if (leave_maze.find({get_story_id(), current_instruction}) != leave_maze.end()) {
+            graphics_window.destroy();
+            // Force a redraw of the borders.
+            if (graphics_window.resize(GraphicsWindow::Type::ShogunNormal)) {
+                graphics_window.draw_shogun_borders();
+            }
+        }
     }
 #endif
 
@@ -4289,10 +4499,18 @@ void zget_wind_prop()
         val = word(0x22) * font_width;
         break;
     case 4:  // y cursor
-        val = 0;
+#ifdef ZTERP_GLK
+        val = curwin->y + 1;
+#else
+        val = 1;
+#endif
         break;
     case 5:  // x cursor
-        val = 0;
+#ifdef ZTERP_GLK
+        val = curwin->x + 1;
+#else
+        val = 1;
+#endif
         break;
     case 6: // left margin size
         val = 0;
@@ -4435,7 +4653,7 @@ bool create_mainwin()
     find_window_size(nullptr);
 #endif
 
-    mainwin->id = glk_window_open(nullptr, 0, 0, wintype_TextBuffer, 1);
+    mainwin->id = glk_window_open(nullptr, 0, 0, wintype_TextBuffer, static_cast<glui32>(WindowRock::MainWin));
     if (mainwin->id == nullptr) {
         return false;
     }
@@ -4457,7 +4675,7 @@ bool create_mainwin()
 bool create_statuswin()
 {
 #ifdef ZTERP_GLK
-    statuswin.id = glk_window_open(mainwin->id, winmethod_Above | winmethod_Fixed, 1, wintype_TextGrid, 0);
+    statuswin.id = glk_window_open(mainwin->id, winmethod_Above | winmethod_Fixed, 1, wintype_TextGrid, static_cast<glui32>(WindowRock::StatusWin));
     return statuswin.id != nullptr;
 #else
     return false;
@@ -4473,7 +4691,7 @@ bool create_upperwin()
             winmethod_Below :
             winmethod_Above;
 
-        upperwin->id = glk_window_open(mainwin->id, location | winmethod_Fixed, 0, wintype_TextGrid, 0);
+        upperwin->id = glk_window_open(mainwin->id, location | winmethod_Fixed, 0, wintype_TextGrid, static_cast<glui32>(WindowRock::UpperWin));
         upperwin->x = upperwin->y = 0;
         upper_window_height = 0;
 
@@ -4491,23 +4709,17 @@ bool create_upperwin()
     }
 
 #ifdef ZTERP_GLK_GRAPHICS
-    // If this is Zork Zero, create the graphics window early so that
-    // the border windows can be created. Zork Zero asks for the size of
-    // the upper window before it does any graphics, which means
-    // resize() is called after the upper window size request. But the
-    // size of the upper window changes when the graphics window is
-    // resized and borders are added, meaning it’s too late by then to
-    // grab the updated size. By resizing here, the upper window is
-    // resized early enough to be reported properly to Zork Zero.
-    if (hack == Hack::ZorkZero && options.v6_borders) {
+    // For the “bordered” graphics games (Arthur, Zork Zero, and
+    // Shogun), resize the graphics window before starting: the games
+    // request the upper window size early on and store it, meaning the
+    // border windows must already exist or else the upper window size
+    // will be reported as larger than it will become.
+    if (hack == Hack::ZorkZero) {
         graphics_window.resize(GraphicsWindow::Type::ZorkZeroBorder);
-    }
-
-    // As with Zork Zero above, create border windows early to ensure
-    // the upper window’s actual width is used when Shogun draws the
-    // status line.
-    if (hack == Hack::Shogun && options.v6_borders) {
-        shogun_borders.draw();
+    } else if (hack == Hack::Shogun) {
+        graphics_window.resize(GraphicsWindow::Type::ShogunNormal);
+    } else if (hack == Hack::Arthur) {
+        graphics_window.resize(GraphicsWindow::Type::ArthurBanner);
     }
 #endif
 
@@ -5091,6 +5303,7 @@ void create_graphicswin()
         {
             if (is_game(Game::Arthur)) {
                 hack = Hack::Arthur;
+                arthurwin->id = glk_window_open(mainwin->id, winmethod_Fixed | winmethod_Above, 0, wintype_TextGrid, 0);
             } else if (is_game(Game::ZorkZero)) {
                 hack = Hack::ZorkZero;
             } else if (is_game(Game::Shogun)) {
@@ -5107,6 +5320,11 @@ void create_graphicswin()
         } else if (is_game(Game::Journey)) {
             hack = Hack::Journey;
         }
+    }
+
+    // Redirecting windows is unnecessary when a “supported” game is running.
+    if (hack != Hack::None) {
+        options.redirect_v6_windows = false;
     }
 #endif
 }

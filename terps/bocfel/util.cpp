@@ -9,6 +9,7 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <string>
 
 #include "util.h"
@@ -189,4 +190,14 @@ void parse_grouped_file(std::ifstream &f, const std::function<void(const std::st
 
         callback(line, lineno);
     }
+}
+
+std::unique_ptr<std::string> zterp_getenv(const std::string &name)
+{
+    const char *val = std::getenv(name.c_str());
+    if (val == nullptr) {
+        return nullptr;
+    }
+
+    return std::make_unique<std::string>(val);
 }

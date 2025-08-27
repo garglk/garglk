@@ -35,6 +35,10 @@
 #include "util.h"
 #include "zterp.h"
 
+#ifdef ZTERP_GLK
+#include "glkautosave.h"
+#endif
+
 using namespace std::literals;
 
 enum class StoreWhere {
@@ -694,7 +698,7 @@ static void write_chunk(IO &io, IFF::TypeID (*writefunc)(IO &savefile, Types... 
 static bool save_quetzal(IO &savefile, SaveType savetype, SaveOpcode saveopcode, bool on_save_stack)
 {
     try {
-        bool is_bfzs = savetype == SaveType::Meta || savetype == SaveType::Autosave;
+        bool is_bfzs = savetype == SaveType::Meta || savetype == SaveType::Autosave || savetype == SaveType::AutosaveLib;
 
         savefile.write_exact("FORM", 4);
         savefile.write32(0); // to be filled in
@@ -732,7 +736,7 @@ static bool save_quetzal(IO &savefile, SaveType savetype, SaveOpcode saveopcode,
             write_chunk(savefile, screen_write_scrn);
         }
 
-        if (savetype == SaveType::Autosave) {
+        if (savetype == SaveType::Autosave || savetype == SaveType::AutosaveLib) {
             write_chunk(savefile, write_undo);
             write_chunk(savefile, write_msav);
             write_chunk(savefile, random_write_rand);
@@ -884,15 +888,23 @@ static void read_args(IFF &iff, SaveOpcode &saveopcode)
 
     // @read takes between 1 and 4 operands, @read_char takes
     // between 1 and 3.
+    // @save and @restore take none. (Args are possible in z5,
+    // but I haven’t implemented that yet.)
     switch (saveopcode) {
     case SaveOpcode::Read:
         if (size != 2 && size != 4 && size != 6 && size != 8) {
-            throw RestoreError(fstring("invalid Args size: %lu", static_cast<unsigned long>(size)));
+            throw RestoreError(fstring("invalid Args size for %d: %lu", static_cast<int>(saveopcode), static_cast<unsigned long>(size)));
         }
         break;
     case SaveOpcode::ReadChar:
         if (size != 2 && size != 4 && size != 6) {
-            throw RestoreError(fstring("invalid Args size: %lu", static_cast<unsigned long>(size)));
+            throw RestoreError(fstring("invalid Args size for %d: %lu", static_cast<int>(saveopcode), static_cast<unsigned long>(size)));
+        }
+        break;
+    case SaveOpcode::Save:
+    case SaveOpcode::Restore:
+        if (size != 0) {
+            throw RestoreError(fstring("invalid Args size for %d: %lu", static_cast<int>(saveopcode), static_cast<unsigned long>(size)));
         }
         break;
     default:
@@ -916,7 +928,9 @@ static void read_bfzs_specific(IFF &iff, SaveType savetype, SaveOpcode &saveopco
 
     read_args(iff, saveopcode);
 
-    if (savetype == SaveType::Autosave && iff.find(IFF::TypeID("Rand"), size)) {
+    if ((savetype == SaveType::Autosave || savetype == SaveType::AutosaveLib) &&
+        iff.find(IFF::TypeID("Rand"), size))
+    {
         random_read_rand(*iff.io());
     }
 
@@ -1057,7 +1071,7 @@ static bool restore_quetzal(const std::shared_ptr<IO> &savefile, SaveType savety
     uint32_t size;
     uint8_t ifhd[13];
     uint32_t newpc;
-    bool is_bfzs = savetype == SaveType::Meta || savetype == SaveType::Autosave;
+    bool is_bfzs = savetype == SaveType::Meta || savetype == SaveType::Autosave || savetype == SaveType::AutosaveLib;
     bool is_bfms = false;
     Stash stash;
     uint16_t flags2 = word(0x10);
@@ -1111,7 +1125,7 @@ static bool restore_quetzal(const std::shared_ptr<IO> &savefile, SaveType savety
             throw RestoreError("detected incompatible meta save: please file a bug report at https://bocfel.org/issues");
         }
 
-        if (is_bfzs && savetype == SaveType::Autosave) {
+        if (is_bfzs && (savetype == SaveType::Autosave || savetype == SaveType::AutosaveLib)) {
             if (iff->find(IFF::TypeID("Undo"), size)) {
                 read_undo(*iff->io(), size);
             }
@@ -1131,6 +1145,10 @@ static bool restore_quetzal(const std::shared_ptr<IO> &savefile, SaveType savety
         }
 
         if (iff->find(IFF::TypeID("Bfhs"), size)) {
+            // In the regular restore case, we display the history (from
+            // the save file) unless this is disabled by the -H option.
+            // We always redisplay after an autosave, unless we’re doing
+            // a library-state autosave, in which case we don’t need to.
             if (savetype == SaveType::Autosave || !options.disable_history_playback) {
                 try {
                     long start = iff->io()->tell();
@@ -1174,7 +1192,7 @@ static bool restore_quetzal(const std::shared_ptr<IO> &savefile, SaveType savety
         // before anything happens, it is guaranteed that the stacks were
         // empty before the restore process started. This is faster and
         // simpler than stashing.
-        if (is_bfzs && savetype == SaveType::Autosave) {
+        if (is_bfzs && (savetype == SaveType::Autosave || savetype == SaveType::AutosaveLib)) {
             save_stacks[SaveStackType::Game].clear();
             save_stacks[SaveStackType::User].clear();
         }
@@ -1185,7 +1203,8 @@ static bool restore_quetzal(const std::shared_ptr<IO> &savefile, SaveType savety
     pc = newpc;
 
     // §8.6.1.3
-    if (close_window && zversion == 3) {
+    // Except that for AutosaveLib, we’ll restore the upper window.
+    if (close_window && zversion == 3 && savetype != SaveType::AutosaveLib) {
         close_upper_window();
     }
 
@@ -1197,6 +1216,14 @@ static bool restore_quetzal(const std::shared_ptr<IO> &savefile, SaveType savety
     // checks it.
     if (zversion >= 4 && (savetype == SaveType::Autosave || savetype == SaveType::Meta)) {
         flags2 |= FLAGS2_STATUS;
+    }
+
+    if (savetype == SaveType::AutosaveLib) {
+        // Use the save file’s FLAGS2_TRANSCRIPT.
+        if (word(0x10) & FLAGS2_TRANSCRIPT)
+            flags2 |= FLAGS2_TRANSCRIPT;
+        else
+            flags2 &= ~FLAGS2_TRANSCRIPT;
     }
 
     // §6.1.2.2: The save might be from a different interpreter with
@@ -1221,7 +1248,7 @@ static std::shared_ptr<IO> open_savefile(SaveType savetype, IO::Mode mode)
 {
     std::unique_ptr<std::string> filename;
 
-    if (savetype == SaveType::Autosave) {
+    if (savetype == SaveType::Autosave || savetype == SaveType::AutosaveLib) {
         filename = zterp_os_autosave_name();
         if (filename == nullptr) {
             return nullptr;
@@ -1231,7 +1258,7 @@ static std::shared_ptr<IO> open_savefile(SaveType savetype, IO::Mode mode)
     try {
         return std::make_shared<IO>(filename.get(), mode, IO::Purpose::Save);
     } catch (const IO::OpenError &) {
-        if (savetype != SaveType::Autosave) {
+        if (!(savetype == SaveType::Autosave || savetype == SaveType::AutosaveLib)) {
             warning("unable to open save file");
         }
 
@@ -1253,6 +1280,14 @@ bool do_save(SaveType savetype, SaveOpcode saveopcode)
         return false;
     }
 
+#ifdef ZTERP_GLK
+    if (savetype == SaveType::AutosaveLib) {
+        if (!glkautosave_library_autosave()) {
+            return false;
+        }
+    }
+#endif
+
     return true;
 }
 
@@ -1264,6 +1299,20 @@ void zsave()
     if (in_interrupt()) {
         store(0);
         return;
+    }
+
+    // Autosave before blocking on the fileref prompt. (Which will
+    // certainly happen down in the guts of do_save(), because there
+    // is no suggested filename.)
+    //
+    // Yes, it’s goofy to call do_save() before do_save(), but that’s
+    // what happens if you want to autosave every time the Z-machine
+    // waits for input.
+    //
+    // (Note that we might have arrived here from zsave5().)
+    //
+    if (options.autosave && options.autosave_librarystate) {
+        do_save(SaveType::AutosaveLib, SaveOpcode::Save);
     }
 
     bool success = do_save(SaveType::Normal, SaveOpcode::None);
@@ -1281,6 +1330,14 @@ void zsave()
 // this is.
 bool do_restore(SaveType savetype, SaveOpcode &saveopcode)
 {
+#ifdef ZTERP_GLK
+    if (savetype == SaveType::AutosaveLib) {
+        if (!glkautosave_library_autorestore()) {
+            return false;
+        }
+    }
+#endif
+
     auto savefile = open_savefile(savetype, IO::Mode::ReadOnly);
     if (savefile == nullptr) {
         return false;
@@ -1291,6 +1348,16 @@ bool do_restore(SaveType savetype, SaveOpcode &saveopcode)
 
 void zrestore()
 {
+    // Autosave before blocking on the fileref prompt. (Which will
+    // certainly happen down in the guts of do_restore(), because there
+    // is no suggested filename.)
+    //
+    // (Note that we might have arrived here from restore5().)
+    //
+    if (options.autosave && options.autosave_librarystate) {
+        do_save(SaveType::AutosaveLib, SaveOpcode::Restore);
+    }
+
     SaveOpcode saveopcode;
     bool success = do_restore(SaveType::Normal, saveopcode);
 
