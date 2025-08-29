@@ -300,7 +300,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Level9 5.1
+# Level9 5.2
 #
 # Disabled the status bar that just contained a static version string.
 # Added graphics support.
