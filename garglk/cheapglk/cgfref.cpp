@@ -44,7 +44,9 @@
 #ifdef _WIN32
 #define _CRT_INTERNAL_NONSTDC_NAMES 1
 #define WIN32_LEAN_AND_MEAN
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #endif
 #if !defined(S_ISREG) && defined(S_IFMT) && defined(S_IFREG)
