@@ -50,18 +50,96 @@
     <url type="bugtracker">https://github.com/garglk/garglk/issues</url>
     <launchable type="desktop-id">io.github.garglk.Gargoyle.desktop</launchable>
     <releases>
-        <release version="2023.1" date="2023-02-20"/>
-        <release version="2022.1" date="2022-01-30"/>
-        <release version="2019.1.1" date="2019-11-19"/>
-        <release version="2019.1" date="2019-11-03"/>
-        <release version="2011.1" date="2011-10-19"/>
+        <release version="2023.1" date="2023-02-20">
+            <description>
+                <ul>
+                    <li>$HOME/garglk.ini is loaded on macOS again.</li>
+                    <li>Fallback fonts work on macOS again.</li>
+                    <li>Better support for non-ASCII filenames on Windows.</li>
+                    <li>Transcripts update in real time again.</li>
+                    <li>Fixed some cases where Agility save/restore prompts didn’t work on macOS.</li>
+                    <li>Fixed media loading in JACL and Hugo.</li>
+                    <li>Avoided potential crash with newer versions of SDL2_mixer.</li>
+                    <li>Readline-style shortcuts are now available on macOS.</li>
+                    <li>Interpreter updates: Agility 1.1.2, Alan3 3.0beta8, Bocfel 2.1.1, Git 1.3.7, Glulxe 0.6.0.</li>
+                    <li>New interpreters: Taylormade and Plus, supporting more Scott Adams-style games. ScottFree updated to support graphics. Thanks to Petter Sjölund.</li>
+                    <li>Support for glkunix_fileref_get_filename().</li>
+                    <li>Color theme support with automatic light/dark following.</li>
+                    <li>Optional KDE Frameworks integration to improve text editor behavior.</li>
+                    <li>Window size and location can now be saved/restored between sessions.</li>
+                    <li>Proper monospace font usage in the Agility interpreter.</li>
+                    <li>Z-machine bleeps are now supported.</li>
+                    <li>Unifont is used to look up missing glyphs.</li>
+                </ul>
+            </description>
+        </release>
+        <release version="2022.1" date="2022-01-30">
+            <description>
+                <ul>
+                    <li>Implements Glk version 0.7.5.</li>
+                    <li>Various interpreter updates.</li>
+                    <li>Unix and Windows UI now use Qt.</li>
+                    <li>New sound backend based on Qt.</li>
+                    <li>Experimental Haiku OS support.</li>
+                    <li>Migrated from SDL1 to SDL2 (thanks to Manuel Stoeckl).</li>
+                    <li>Removed built-in fonts due to licensing issues.</li>
+                    <li>Default proportional font is now Charis SIL ("Gargoyle Serif"); default monospace is still Go Mono ("Gargoyle Mono").</li>
+                    <li>Improved font rendering with FreeType tuning (thanks to Tynach).</li>
+                    <li>Improved Fontconfig lookup to avoid wrong styles.</li>
+                    <li>HiDPI support on macOS.</li>
+                </ul>
+            </description>
+        </release>
+        <release version="2019.1.1" date="2019-11-19">
+            <description>
+                <ul>
+                    <li>Fixed font selection on Windows.</li>
+                    <li>Fixed interpreter locating on FreeBSD.</li>
+                </ul>
+            </description>
+        </release>
+        <release version="2019.1" date="2019-11-03">
+            <description>
+                <ul>
+                    <li>Updated many interpreters.</li>
+                    <li>Added text-to-speech support.</li>
+                    <li>Built-in fonts support a wider range of Unicode.</li>
+                    <li>Full-screen support added.</li>
+                    <li>Various accumulated small fixes and updates.</li>
+                </ul>
+            </description>
+        </release>
+        <release version="2011.1" date="2011-10-19">
+            <description>
+                <ul>
+                    <li>Native ports are now available for Enlightenment and Open Inkpot.</li>
+                    <li>Added Glk 0.7.1 features: line input echo and terminators, window border hint, Unicode decomposition and normalization.</li>
+                    <li>Added Glk 0.7.2 features: date and time functions.</li>
+                    <li>Added support for Treaty of Babel metadata.</li>
+                    <li>Very small text buffers now scroll properly.</li>
+                    <li>Hyperlinks are now stored with all 32 bits.</li>
+                    <li>The background color in grid windows is now fully applied.</li>
+                    <li>Scrollback buffer is truncated on window resize to improve responsiveness.</li>
+                    <li>Fixed game launch hangs on OS X 10.7 (Lion).</li>
+                    <li>Bundled Liberation Mono fonts were incorrectly marked as proportional; this has been corrected.</li>
+                    <li>Added Bocfel 0.6.0 for Z-machine stories; Bocfel is now the default Z-machine interpreter.</li>
+                    <li>Glulxe is now the default Glulx interpreter for Superglús story files.</li>
+                    <li>Added ScottFree 1.14 for SAGA stories.</li>
+                    <li>Interpreter command-line flags are now supported in <code>garglk.ini</code>.</li>
+                    <li>Interpreter updates: Alan3 3.0b2, JACL 2.8.5, Glulxe 0.4.7, Git 1.2.9, Level9 5.1.</li>
+                    <li>Frotz fixes: correctly handles the fixed-width bit in the header and repositions the cursor after writing to the final grid column.</li>
+                    <li>Geas now displays menus correctly.</li>
+                    <li>TADS improvements: implements the banner API, supports Unicode, and allows timer events during line and character input.</li>
+                </ul>
+            </description>
+        </release>
     </releases>
     <provides>
         <binary>gargoyle</binary>
     </provides>
     <project_license>Artistic-2.0 AND BSD-2-Clause AND BSD-3-Clause AND GPL-2.0-only AND GPL-3.0-only AND MIT</project_license>
     <content_rating type="oars-1.1" />
-    <developer id="io.github.garglk.Gargoyle">
+    <developer id="io.github.cspiegel">
         <name>Chris Spiegel</name>
     </developer>
 </component>

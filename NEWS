@@ -48,3 +48,27 @@
 • The built-in fonts support a much wider range of Unicode.
 • Full screen support.
 • Various accumulated small fixes and updates.
+
+2011.1:
+• Native ports are now available for Enlightenment and Open Inkpot.
+• Added Glk 0.7.1 features - line input echo and terminators, window border hint, Unicode decomposition and normalization.
+• Added Glk 0.7.2 features - date and time functions.
+• Added support for Treaty of Babel metadata.
+• Very small text buffers will now scroll properly.
+• Hyperlinks are now stored with all 32 bits.
+• The background color in grid windows will be fully applied.
+• The scrollback buffer will be truncated on window resize to improve responsiveness.
+• Games will no longer hang after launch under OS X 10.7 (Lion).
+• The bundled Liberation Mono fonts were incorrectly marked as proportional and have been updated.
+• Bocfel 0.6.0 added for Z-Machine stories.
+• Bocfel is now the default Z-Machine interpreter.
+• Glulxe is now the default Glulx interpreter for Superglús story files.
+• ScottFree 1.14 added for SAGA stories.
+• Command line flags for interpreters are now supported in garglk.ini
+• Interpreter updates: Alan 3 3.0b2, JACL 2.8.5, Glulxe 0.4.7, Git 1.2.9, Level9 5.1.
+• Frotz now handles the fixed width bit in the header correctly.
+• Frotz now repositions the cursor after writing to the final grid column.
+• Geas now displays menus correctly.
+• TADS now implements the banner API.
+• TADS now supports Unicode.
+• TADS now allows timer events during line and character input.
