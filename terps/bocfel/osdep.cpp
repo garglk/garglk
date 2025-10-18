@@ -1003,6 +1003,28 @@ void zterp_os_set_style(const Style &style, const Color &fg, const Color &bg)
 #define have_zterp_os_set_style
 #endif
 
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║ ZTERP_GLK_NO_STDIO                                                           ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+
+#elif defined(ZTERP_GLK_NO_STDIO)
+
+extern "C" {
+#include <glkstart.h>
+}
+
+std::unique_ptr<std::string> zterp_os_aux_file(const std::string &filename)
+{
+    frefid_t fref = glk_fileref_create_by_name(fileusage_Data | fileusage_BinaryMode, const_cast<char *>(filename.c_str()), 0);
+    if (fref != nullptr) {
+        auto result = std::make_unique<std::string>(glkunix_fileref_get_filename(fref));
+        glk_fileref_destroy(fref);
+        return result;
+    }
+    return nullptr;
+}
+#define have_zterp_os_aux_file
+
 #endif
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
