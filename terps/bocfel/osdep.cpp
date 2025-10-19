@@ -1042,8 +1042,23 @@ std::unique_ptr<std::string> zterp_os_autosave_name()
 #endif
 
 #ifndef have_zterp_os_aux_file
-std::unique_ptr<std::string> zterp_os_aux_file(const std::string &)
+
+#ifdef ZTERP_GLK_UNIX
+extern "C" {
+#include <glkstart.h>
+}
+#endif
+
+std::unique_ptr<std::string> zterp_os_aux_file(const std::string &filename)
 {
+#if defined(ZTERP_GLK_UNIX) && defined(GLKUNIX_FILEREF_GET_FILENAME)
+    frefid_t fref = glk_fileref_create_by_name(fileusage_Data | fileusage_BinaryMode, const_cast<char *>(filename.c_str()), 0);
+    if (fref != nullptr) {
+        auto result = std::make_unique<std::string>(glkunix_fileref_get_filename(fref));
+        glk_fileref_destroy(fref);
+        return result;
+    }
+#endif
     return nullptr;
 }
 #endif
