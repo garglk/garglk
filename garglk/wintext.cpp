@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <new>
@@ -403,6 +404,10 @@ void win_textbuffer_redraw(window_t *win)
         }
     }
 
+    // Remember selections confined to the current line input.
+    std::optional<std::pair<int, int>> input_selection;
+    bool selected_noninput = false;
+
     for (i = dwin->scrollpos + dwin->height - 1; i >= dwin->scrollpos; i--) {
         // top of line
         y = y0 + (dwin->height - (i - dwin->scrollpos) - 1) * gli_leading;
@@ -523,6 +528,12 @@ void win_textbuffer_redraw(window_t *win)
                 for (tsc = lsc; tsc <= rsc; tsc++) {
                     ln.attrs[tsc].reverse = !ln.attrs[tsc].reverse;
                     dwin->copybuf.push_back(ln.chars[tsc]);
+                }
+
+                if (i == 0 && dwin->inbuf != nullptr && lsc >= dwin->infence) {
+                    input_selection = {{lsc, rsc}};
+                } else {
+                    selected_noninput = true;
                 }
             }
             // add newline only if this is a real paragraph break, not just a wrapped line
@@ -787,6 +798,10 @@ void win_textbuffer_redraw(window_t *win)
                     i * 2, 1, gli_scroll_fg);
         }
     }
+
+    dwin->input_selection = selected_noninput
+        ? std::nullopt
+        : input_selection;
 
     // send selected text to clipboard
     if (selbuf && !dwin->copybuf.empty()) {
@@ -1577,6 +1592,22 @@ static void acceptline(window_t *win, glui32 keycode)
     }
 }
 
+// Delete a completed selection confined to the current line input. The
+// deletion clears the selection by way of touch(), so the same range
+// cannot be deleted twice.
+static bool delete_input_selection(window_textbuffer_t *dwin)
+{
+    if (!gli_selection_active() || !dwin->input_selection.has_value()) {
+        return false;
+    }
+
+    auto [start, end] = *dwin->input_selection;
+
+    put_text_uni(dwin, nullptr, 0, start, end - start + 1);
+
+    return true;
+}
+
 // Any key, during line input.
 void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
 {
@@ -1709,6 +1740,9 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
     // Delete keys, during line input.
 
     case keycode_Delete:
+        if (delete_input_selection(dwin)) {
+            break;
+        }
         if (dwin->incurs <= dwin->infence) {
             return;
         }
@@ -1716,6 +1750,9 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
         break;
 
     case keycode_Erase:
+        if (delete_input_selection(dwin)) {
+            break;
+        }
         if (dwin->incurs >= dwin->numchars) {
             return;
         }
@@ -1737,6 +1774,7 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
 
     default:
         if (arg >= 32 && arg <= 0x10FFFF) {
+            delete_input_selection(dwin);
             if (dwin->numchars - dwin->infence >= dwin->inmax) {
                 return;
             }
@@ -1818,6 +1856,48 @@ void win_textbuffer_flow_break(window_textbuffer_t *dwin)
     scrolloneline(dwin, false, true);
 }
 
+// Move the input cursor to the caret position nearest the click.
+static void position_input_cursor(window_textbuffer_t *dwin, int sx, int sy)
+{
+    window_t *win = dwin->owner;
+
+    if ((!win->line_request && !win->line_request_uni) || dwin->scrollpos != 0) {
+        return;
+    }
+
+    int liney = win->bbox.y0 + gli_tmarginy + (dwin->height - 1) * gli_leading;
+    if (sy < liney || sy >= liney + gli_leading) {
+        return;
+    }
+
+    int x0 = (win->bbox.x0 + gli_tmarginx) * GLI_SUBPIX;
+    int x1 = (win->bbox.x1 - gli_tmarginx - gli_scroll_width) * GLI_SUBPIX;
+    const tbline_t &ln = dwin->lines[0];
+    int linelen = dwin->numchars;
+
+    // Input lines are never fully justified.
+    int click_x = sx * GLI_SUBPIX - line_text_x0(dwin, ln, linelen, x0, x1, -1);
+
+    // Ignore cursor positions scrolled off the left.
+    int first = dwin->inview;
+    int lo = std::max(static_cast<int>(dwin->infence), first);
+
+    int curs = lo;
+    int best = std::abs(click_x - calcwidth(dwin, ln.chars, ln.attrs, first, curs, -1));
+
+    for (int i = lo + 1; i <= dwin->numchars; i++) {
+        int dist = std::abs(click_x - calcwidth(dwin, ln.chars, ln.attrs, first, i, -1));
+        if (dist >= best) {
+            break;
+        }
+        best = dist;
+        curs = i;
+    }
+
+    dwin->incurs = curs;
+    touch(dwin, 0);
+}
+
 void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
 {
     window_t *win = dwin->owner;
@@ -1856,6 +1936,8 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
     }
 
     if (!gh && !gs) {
+        position_input_cursor(dwin, sx, sy);
+
         gli_copyselect = true;
         gli_start_selection(sx, sy);
     }

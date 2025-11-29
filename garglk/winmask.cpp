@@ -179,6 +179,13 @@ void gli_clear_selection()
     gli_claimselect = false;
 }
 
+// A selection is complete once both endpoints are set.
+bool gli_selection_active()
+{
+    return gli_mask.select.x0 != 0 && gli_mask.select.x1 != 0
+        && gli_mask.select.y0 != 0 && gli_mask.select.y1 != 0;
+}
+
 bool gli_check_selection(int x0, int y0,
         int x1, int y1)
 {
