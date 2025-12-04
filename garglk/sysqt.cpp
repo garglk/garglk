@@ -464,27 +464,50 @@ static void show_themes()
     box.exec();
 }
 
+// On Mac, Qt::ControlModifier means the command key. But for Emacs
+// keys, we need the actual control key.
+#ifdef Q_OS_MAC
+static constexpr Qt::KeyboardModifier RealCtrl = Qt::MetaModifier;
+#else
+static constexpr Qt::KeyboardModifier RealCtrl = Qt::ControlModifier;
+#endif
+
 void garglk::View::keyPressEvent(QKeyEvent *event)
 {
     Qt::KeyboardModifiers modmasked = event->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier);
 
     refresh_needed = true;
 
+    static const std::map<QKeySequence::StandardKey, std::function<void()>> sequences = {
+        {QKeySequence::Cut,                []{ winclipsend(QClipboard::Clipboard); }},
+        {QKeySequence::Copy,               []{ winclipsend(QClipboard::Clipboard); }},
+        {QKeySequence::Paste,              []{ winclipreceive(QClipboard::Clipboard); }},
+        {QKeySequence::MoveToPreviousWord, []{ gli_input_handle_key(keycode_SkipWordLeft); }},
+        {QKeySequence::MoveToNextWord,     []{ gli_input_handle_key(keycode_SkipWordRight); }},
+        {QKeySequence::Quit,               []{ gli_exit(0); }},
+        {QKeySequence::Delete,             []{ gli_input_handle_key(keycode_Erase); }},
+        {QKeySequence::MoveToStartOfLine,  []{ gli_input_handle_key(keycode_Home); }},
+        {QKeySequence::MoveToEndOfLine,    []{ gli_input_handle_key(keycode_End); }},
+        {QKeySequence::MoveToPreviousPage, []{ gli_input_handle_key(keycode_PageUp); }},
+        {QKeySequence::MoveToNextPage,     []{ gli_input_handle_key(keycode_PageDown); }},
+    };
+
     static const std::map<std::pair<decltype(modmasked), decltype(event->key())>, std::function<void()>> keys = {
-        {{Qt::ControlModifier, Qt::Key_A},     []{ gli_input_handle_key(keycode_Home); }},
-        {{Qt::ControlModifier, Qt::Key_B},     []{ gli_input_handle_key(keycode_Left); }},
-        {{Qt::ControlModifier, Qt::Key_C},     []{ winclipsend(QClipboard::Clipboard); }},
-        {{Qt::ControlModifier, Qt::Key_D},     []{ gli_input_handle_key(keycode_Erase); }},
-        {{Qt::ControlModifier, Qt::Key_E},     []{ gli_input_handle_key(keycode_End); }},
-        {{Qt::ControlModifier, Qt::Key_F},     []{ gli_input_handle_key(keycode_Right); }},
-        {{Qt::ControlModifier, Qt::Key_H},     []{ gli_input_handle_key(keycode_Delete); }},
-        {{Qt::ControlModifier, Qt::Key_N},     []{ gli_input_handle_key(keycode_Down); }},
-        {{Qt::ControlModifier, Qt::Key_P},     []{ gli_input_handle_key(keycode_Up); }},
-        {{Qt::ControlModifier, Qt::Key_U},     []{ gli_input_handle_key(keycode_Escape); }},
-        {{Qt::ControlModifier, Qt::Key_V},     []{ winclipreceive(QClipboard::Clipboard); }},
-        {{Qt::ControlModifier, Qt::Key_X},     []{ winclipsend(QClipboard::Clipboard); }},
-        {{Qt::ControlModifier, Qt::Key_Left},  []{ gli_input_handle_key(keycode_SkipWordLeft); }},
-        {{Qt::ControlModifier, Qt::Key_Right}, []{ gli_input_handle_key(keycode_SkipWordRight); }},
+        // Emacs keys.
+        {{RealCtrl, Qt::Key_A}, []{ gli_input_handle_key(keycode_Home); }},
+        {{RealCtrl, Qt::Key_B}, []{ gli_input_handle_key(keycode_Left); }},
+        {{RealCtrl, Qt::Key_D}, []{ gli_input_handle_key(keycode_Erase); }},
+        {{RealCtrl, Qt::Key_E}, []{ gli_input_handle_key(keycode_End); }},
+        {{RealCtrl, Qt::Key_F}, []{ gli_input_handle_key(keycode_Right); }},
+        {{RealCtrl, Qt::Key_H}, []{ gli_input_handle_key(keycode_Delete); }},
+        {{RealCtrl, Qt::Key_N}, []{ gli_input_handle_key(keycode_Down); }},
+        {{RealCtrl, Qt::Key_P}, []{ gli_input_handle_key(keycode_Up); }},
+        {{RealCtrl, Qt::Key_U}, []{ gli_input_handle_key(keycode_Escape); }},
+
+#ifdef Q_OS_WIN
+        // Qt doesn't assign Ctrl-Q to QKeySequence::Quit on Windows.
+        {{Qt::ControlModifier, Qt::Key_Q}, []{ gli_exit(0); }},
+#endif
 
 #ifdef __HAIKU__
         // For some reason, on Haiku, the "shifted" versions of comma/period are
@@ -508,17 +531,12 @@ void garglk::View::keyPressEvent(QKeyEvent *event)
         {{Qt::NoModifier, Qt::Key_Escape},    []{ gli_input_handle_key(keycode_Escape); }},
         {{Qt::NoModifier, Qt::Key_Tab},       []{ gli_input_handle_key(keycode_Tab); }},
         {{Qt::NoModifier, Qt::Key_Backspace}, []{ gli_input_handle_key(keycode_Delete); }},
-        {{Qt::NoModifier, Qt::Key_Delete},    []{ gli_input_handle_key(keycode_Erase); }},
         {{Qt::NoModifier, Qt::Key_Return},    []{ gli_input_handle_key(keycode_Return); }},
         {{Qt::NoModifier, Qt::Key_Enter},     []{ gli_input_handle_key(keycode_Return); }},
-        {{Qt::NoModifier, Qt::Key_Home},      []{ gli_input_handle_key(keycode_Home); }},
-        {{Qt::NoModifier, Qt::Key_End},       []{ gli_input_handle_key(keycode_End); }},
         {{Qt::NoModifier, Qt::Key_Left},      []{ gli_input_handle_key(keycode_Left); }},
         {{Qt::NoModifier, Qt::Key_Up},        []{ gli_input_handle_key(keycode_Up); }},
         {{Qt::NoModifier, Qt::Key_Right},     []{ gli_input_handle_key(keycode_Right); }},
         {{Qt::NoModifier, Qt::Key_Down},      []{ gli_input_handle_key(keycode_Down); }},
-        {{Qt::NoModifier, Qt::Key_PageUp},    []{ gli_input_handle_key(keycode_PageUp); }},
-        {{Qt::NoModifier, Qt::Key_PageDown},  []{ gli_input_handle_key(keycode_PageDown); }},
         {{Qt::NoModifier, Qt::Key_F1},        []{ gli_input_handle_key(keycode_Func1); }},
         {{Qt::NoModifier, Qt::Key_F2},        []{ gli_input_handle_key(keycode_Func2); }},
         {{Qt::NoModifier, Qt::Key_F3},        []{ gli_input_handle_key(keycode_Func3); }},
@@ -552,7 +570,16 @@ void garglk::View::keyPressEvent(QKeyEvent *event)
             }
         }},
 
+        // Don't use QKeySequence::FullScreen here, as that takes over
+        // F11 on X, and F11 can be bound by Glk; and it doesn't bind
+        // Alt-Enter on X, either, meaning the existing behavior would
+        // change. For Mac, use Meta+Ctrl+F, and Alt-Enter everywhere
+        // else.
+#ifdef Q_OS_MAC
+        {{Qt::MetaModifier | Qt::ControlModifier, Qt::Key_F}, [this]{
+#else
         {{Qt::AltModifier, Qt::Key_Return}, [this]{
+#endif
             if (::window->isFullScreen()) {
                 if (m_fullscreen_from_maximized) {
                     ::window->showMaximized();
@@ -565,6 +592,13 @@ void garglk::View::keyPressEvent(QKeyEvent *event)
             }
         }},
     };
+
+    for (const auto &pair : sequences) {
+        if (event->matches(pair.first)) {
+            pair.second();
+            return;
+        }
+    }
 
     try {
         keys.at(std::make_pair(modmasked, event->key()))();
