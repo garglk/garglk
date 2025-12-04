@@ -512,7 +512,7 @@ static int detect_format(const std::vector<unsigned char> &buf)
         auto format = entry.second;
 
         if (std::any_of(magics.begin(), magics.end(), [&offset, &buf](const auto &magic) {
-            return offset + magic.size() < buf.size() &&
+            return offset + magic.size() <= buf.size() &&
                     std::memcmp(buf.data() + offset, magic.data(), magic.size()) == 0;
         }))
         {
@@ -572,12 +572,12 @@ static glui32 play_sound(schanid_t chan)
     SDL_LockAudio();
     chan->status = CHANNEL_SOUND;
     chan->sdl_channel = Mix_GroupAvailable(FREE);
-    Mix_GroupChannel(chan->sdl_channel, BUSY);
-    SDL_UnlockAudio();
-    chan->sample = Mix_LoadWAV_RW(chan->sdl_rwops, false);
     if (chan->sdl_channel < 0) {
         gli_strict_warning("No available sound channels");
     }
+    Mix_GroupChannel(chan->sdl_channel, BUSY);
+    SDL_UnlockAudio();
+    chan->sample = Mix_LoadWAV_RW(chan->sdl_rwops, false);
     if (chan->sdl_channel >= 0 && chan->sample != nullptr) {
         SDL_LockAudio();
         sound_channels[chan->sdl_channel] = chan;
@@ -749,7 +749,6 @@ void glk_schannel_stop(schanid_t chan)
         return;
     }
     SDL_LockAudio();
-    chan->paused = false;
     glk_schannel_unpause(chan);
     SDL_UnlockAudio();
     switch (chan->status) {
