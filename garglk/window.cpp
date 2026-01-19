@@ -666,7 +666,7 @@ winid_t glk_window_get_sibling(window_t *win)
 glui32 glk_window_get_type(window_t *win)
 {
     if (win == nullptr) {
-        gli_strict_warning("window_get_parent: invalid ref");
+        gli_strict_warning("window_get_type: invalid ref");
         return 0;
     }
     return win->type;
