@@ -155,7 +155,7 @@ std::string rtrim(const std::string &s)
     if (pos != std::string::npos) {
         return s.substr(0, pos + 1);
     } else {
-        return s;
+        return "";
     }
 }
 

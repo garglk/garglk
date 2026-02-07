@@ -36,7 +36,7 @@ static bool uni_isdigit(char c)
 
 static bool uni_isxdigit(char c)
 {
-    return "0123456789abcdefg"s.find(c) != std::string::npos;
+    return "0123456789abcdef"s.find(c) != std::string::npos;
 }
 
 static void try_user_save(const char *desc)

@@ -48,6 +48,7 @@ frefid_t glkunix_fileref_create_by_name_uncleaned(glui32 usage, const char *name
 // that an enum class actually contains a valid value. When checking the
 // value of the I/O object’s type, this method is used as a sort of
 // run-time type checker.
+[[noreturn]]
 void IO::bad_type() const {
     die("internal error: unknown IO type %d", static_cast<int>(m_type));
 }
@@ -656,6 +657,8 @@ long IO::filesize() const
         return size;
     }
 #endif
+    default:
+        bad_type();
     }
 
     return -1;

@@ -235,6 +235,9 @@ void zpull()
         } else {
             uint16_t slots = user_word(zargs[0]) + 1;
 
+            ZASSERT(slots != 0, "user stack counter overflow");
+            ZASSERT(zargs[0] + (2UL * slots) <= header.static_end - 2, "user stack access out of bounds");
+
             v = user_word(zargs[0] + (2 * slots));
 
             user_store_word(zargs[0], slots);
@@ -420,6 +423,7 @@ void zcheck_arg_count()
     branch_if(zargs[0] <= CURRENT_FRAME->nargs);
 }
 
+#ifndef ZTERP_NO_V6
 void zpop_stack()
 {
     if (znargs == 1) {
@@ -445,6 +449,7 @@ void zpush_stack()
 
     branch_if(true);
 }
+#endif
 
 // Compress dynamic memory according to Quetzal. On failure,
 // std::bad_alloc is thrown.

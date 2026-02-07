@@ -37,6 +37,10 @@ extern "C" {
 
 using namespace std::literals;
 
+Options options;
+std::bitset<3> arg_status;
+
+#ifndef ZTERP_NO_OPTIONS
 struct ParseError : public std::runtime_error {
     using std::runtime_error::runtime_error;
 };
@@ -59,10 +63,7 @@ struct Range {
     unsigned long max = 1000000000UL;
 };
 
-Options options;
-std::bitset<3> arg_status;
-
-static Parser bool_helper(bool &target)
+static Options::Parser bool_helper(bool &target)
 {
     return [&target](const std::string &val) {
         if (val == "0") {
@@ -76,7 +77,7 @@ static Parser bool_helper(bool &target)
 }
 
 template <typename T>
-static Parser number_helper(Range range, T &target, std::function<T(unsigned long)> wrapper)
+static Options::Parser number_helper(Range range, T &target, std::function<T(unsigned long)> wrapper)
 {
     return [range, &target, wrapper = std::move(wrapper)](const std::string &val) {
         char *endptr;
@@ -93,7 +94,7 @@ static Parser number_helper(Range range, T &target, std::function<T(unsigned lon
     };
 }
 
-static Parser float_helper(double &target)
+static Options::Parser float_helper(double &target)
 {
     return [&target](const std::string &val) {
         char *endptr;
@@ -121,7 +122,7 @@ static Parser float_helper(double &target)
     };
 }
 
-static Parser char_helper(unsigned char &target)
+static Options::Parser char_helper(unsigned char &target)
 {
     return [&target](const std::string &val) {
         if (val.size() != 1) {
@@ -133,7 +134,7 @@ static Parser char_helper(unsigned char &target)
 }
 
 #ifdef GLK_MODULE_GARGLKTEXT
-static Parser color_helper(int num)
+static Options::Parser color_helper(int num)
 {
     return [num](const std::string &val) {
         char *endptr;
@@ -476,3 +477,11 @@ void Options::help()
         screen_puts(ss.str());
     }
 }
+#else
+void Options::process_arguments(int argc, char **argv)
+{
+    if (argc > 1) {
+        game_file = argv[1];
+    }
+}
+#endif
