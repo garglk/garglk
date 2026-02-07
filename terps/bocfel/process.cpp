@@ -24,8 +24,11 @@ extern "C" {
 #include "stack.h"
 #include "types.h"
 #include "util.h"
-#include "zoom.h"
 #include "zterp.h"
+
+#ifdef ZTERP_ZOOM_OPCODES
+#include "zoom.h"
+#endif
 
 unsigned long pc;
 unsigned long current_instruction;
@@ -252,15 +255,18 @@ void setup_opcodes()
     setup_single_opcode(5, 6, Opcount::Ext, 0x02, zlog_shift);
     setup_single_opcode(5, 6, Opcount::Ext, 0x03, zart_shift);
     setup_single_opcode(5, 6, Opcount::Ext, 0x04, zset_font);
+#ifndef ZTERP_NO_V6
     setup_single_opcode(6, 6, Opcount::Ext, 0x05, zdraw_picture);
     setup_single_opcode(6, 6, Opcount::Ext, 0x06, zpicture_data);
     setup_single_opcode(6, 6, Opcount::Ext, 0x07, znop); // XXX erase_picture
     setup_single_opcode(6, 6, Opcount::Ext, 0x08, znop); // XXX set_margins
+#endif
     setup_single_opcode(5, 6, Opcount::Ext, 0x09, zsave_undo);
     setup_single_opcode(5, 6, Opcount::Ext, 0x0a, zrestore_undo);
     setup_single_opcode(5, 6, Opcount::Ext, 0x0b, zprint_unicode);
     setup_single_opcode(5, 6, Opcount::Ext, 0x0c, zcheck_unicode);
     setup_single_opcode(5, 6, Opcount::Ext, 0x0d, zset_true_colour);
+#ifndef ZTERP_NO_V6
     setup_single_opcode(6, 6, Opcount::Ext, 0x10, znop); // XXX move_window
     setup_single_opcode(6, 6, Opcount::Ext, 0x11, znop); // XXX window_size
     setup_single_opcode(6, 6, Opcount::Ext, 0x12, znop); // XXX window_style
@@ -275,16 +281,21 @@ void setup_opcodes()
     setup_single_opcode(6, 6, Opcount::Ext, 0x1b, zmake_menu);
     setup_single_opcode(6, 6, Opcount::Ext, 0x1c, znop); // XXX picture_table
     setup_single_opcode(6, 6, Opcount::Ext, 0x1d, zbuffer_screen);
+#endif
 
+#ifdef ZTERP_ZOOM_OPCODES
     // Zoom extensions.
     setup_single_opcode(5, 6, Opcount::Ext, 0x80, zstart_timer);
     setup_single_opcode(5, 6, Opcount::Ext, 0x81, zstop_timer);
     setup_single_opcode(5, 6, Opcount::Ext, 0x82, zread_timer);
     setup_single_opcode(5, 6, Opcount::Ext, 0x83, zprint_timer);
+#endif
 
+#ifndef ZTERP_NO_V6
     // V6 hacks.
     setup_single_opcode(6, 6, Opcount::Ext, JOURNEY_DIAL_EXT, zjourney_dial);
     setup_single_opcode(6, 6, Opcount::Ext, SHOGUN_MENU_EXT, zshogun_menu);
+#endif
 }
 
 // The main processing loop. This decodes and dispatches instructions.

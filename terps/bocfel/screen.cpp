@@ -34,7 +34,7 @@ extern "C" {
 #include <glk.h>
 }
 
-#if defined(GLK_MODULE_IMAGE) && defined(ZTERP_GLK_BLORB)
+#if defined(GLK_MODULE_IMAGE) && defined(ZTERP_GLK_BLORB) && !defined(ZTERP_NO_V6)
 #define ZTERP_GLK_GRAPHICS
 
 extern "C" {
@@ -1584,7 +1584,7 @@ static int print_zcode(uint32_t addr, bool in_abbr, void (*outc)(uint8_t))
     int current_alphabet = 0;
 
     do {
-        ZASSERT(counter < memory_size - 1, "string runs beyond the end of memory");
+        ZASSERT(counter < memory_size - 1, "string (@0x%lx) runs beyond the end of memory", static_cast<unsigned long>(addr));
 
         w = word(counter);
 
@@ -2094,25 +2094,6 @@ static bool draw_mysterious(glui32 pic, glui32 w, glui32 h, double x, double y)
     return true;
 }
 #endif
-
-void zjourney_dial()
-{
-#ifdef ZTERP_GLK_GRAPHICS
-    if (hack != Hack::Journey || journey_window == nullptr) {
-        return;
-    }
-
-    glui32 w, h;
-    if (!glk_image_get_info(zargs[0], &w, &h)) {
-        return;
-    }
-
-    auto stamp = zargs[1] == 0 ? JourneyStamp{150, ImageGeometry(0, 0)} :
-                                 JourneyStamp{150, ImageGeometry(52, 0)};
-
-    draw_journey_stamp(zargs[0], w, h, stamp);
-#endif
-}
 
 void zerase_window()
 {
@@ -4213,13 +4194,11 @@ static bool draw_zorkzero(glui32 pic, glui32 w, glui32 h, double x, double y)
 
     return false;
 }
-#endif
 
 // If this has to reduce the scaled value to UINT16_MAX, the image will
 // almost certainly be squashed horizontally or vertically (meaning this
 // will not take into account the original aspect ratio of the image),
 // but that’s really not something to worry about.
-#ifdef ZTERP_GLK_GRAPHICS
 static uint16_t scale_picture(uint32_t num, uint16_t val)
 {
     double r = 1.0;
@@ -4258,6 +4237,7 @@ static uint16_t scale_picture(uint32_t num, uint16_t val)
 }
 #endif
 
+#ifndef ZTERP_NO_V6
 void zdraw_picture()
 {
 #ifdef ZTERP_GLK_GRAPHICS
@@ -4593,6 +4573,95 @@ void zbuffer_screen()
 {
     store(0);
 }
+
+void zjourney_dial()
+{
+#ifdef ZTERP_GLK_GRAPHICS
+    if (hack != Hack::Journey || journey_window == nullptr) {
+        return;
+    }
+
+    glui32 w, h;
+    if (!glk_image_get_info(zargs[0], &w, &h)) {
+        return;
+    }
+
+    auto stamp = zargs[1] == 0 ? JourneyStamp{150, ImageGeometry(0, 0)} :
+                                 JourneyStamp{150, ImageGeometry(52, 0)};
+
+    draw_journey_stamp(zargs[0], w, h, stamp);
+#endif
+}
+
+// This is a replacement for GET-FROM-MENU, which does not work properly
+// with Glk. zargs[0] is a packed string, which is the prompt for the
+// menu. zargs[1] is an LTABLE representing the menu items. zargs[2] is
+// a routine to call with the selected menu item, which will return true
+// on success or false if the user should be asked to select again.
+// zargs[3] is the default (selected) menu item (1-based).
+void zshogun_menu()
+{
+    // Ordinals are ZSCII 1-9 then a-b. The color menu on Amiga goes to
+    // 11, necessitating the alphabetic characters.
+    std::vector<uint8_t> ordinals = {
+        0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62,
+    };
+
+    auto table = zargs[1];
+    auto nentries = word(table);
+
+    ZASSERT(nentries <= ordinals.size(), "too many menu entries");
+    ordinals.resize(nentries);
+
+    while (true) {
+        put_char(ZSCII_NEWLINE);
+        print_handler(unpack_string(zargs[0]), nullptr);
+        put_char(ZSCII_NEWLINE);
+        put_char(ZSCII_NEWLINE);
+
+        for (int i = 0; i < nentries; i++) {
+            auto addr = word(table + ((i + 1) * 2));
+            int len = byte(addr++);
+            ZASSERT(addr + len < header.static_end, "menu table out of bounds (0x%lx to 0x%lx)", static_cast<unsigned long>(addr), static_cast<unsigned long>(addr + len));
+            std::stringstream ss;
+            ss << static_cast<char>(ordinals.at(i)) << ". ";
+            ss.write(reinterpret_cast<char *>(&memory[addr]), len);
+            if (zargs[3] == i + 1) {
+                ss << "[default]";
+            }
+            for (const auto &c : ss.str()) {
+                put_char(c);
+            }
+            put_char(ZSCII_NEWLINE);
+        }
+
+        Input input;
+
+        input.type = Input::Type::Char;
+
+        get_input(0, 0, input);
+
+        // Have ENTER select the default entry as in the original.
+        auto it = input.key == ZSCII_NEWLINE && zargs[3] != 0 && (zargs[3] - 1) < nentries ?
+            ordinals.begin() + (zargs[3] - 1) :
+            std::find(ordinals.begin(), ordinals.end(), input.key);
+
+        if (it == ordinals.end()) {
+            continue;
+        }
+
+        uint8_t val = (it - ordinals.begin()) + 1;
+
+        interrupt_override = true;
+        auto result = internal_call(zargs[2], {val, zargs[1]});
+        interrupt_override = false;
+        if (result != 0) {
+            store(result);
+            return;
+        }
+    }
+}
+#endif
 
 #ifdef GLK_MODULE_GARGLKTEXT
 // Glk does not guarantee great control over how various styles are
@@ -5218,75 +5287,6 @@ void screen_show_persistent_transcript() {
         zterp_os_show_transcript(transcript);
     } catch (const std::runtime_error &e) {
         screen_printf("[Error showing persistent transcript: %s]\n", e.what());
-    }
-}
-
-// This is a replacement for GET-FROM-MENU, which does not work properly
-// with Glk. zargs[0] is a packed string, which is the prompt for the
-// menu. zargs[1] is an LTABLE representing the menu items. zargs[2] is
-// a routine to call with the selected menu item, which will return true
-// on success or false if the user should be asked to select again.
-// zargs[3] is the default (selected) menu item (1-based).
-void zshogun_menu()
-{
-    // Ordinals are ZSCII 1-9 then a-b. The color menu on Amiga goes to
-    // 11, necessitating the alphabetic characters.
-    std::vector<uint8_t> ordinals = {
-        0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62,
-    };
-
-    auto table = zargs[1];
-    auto nentries = word(table);
-
-    ZASSERT(nentries <= ordinals.size(), "too many menu entries");
-    ordinals.resize(nentries);
-
-    while (true) {
-        put_char(ZSCII_NEWLINE);
-        print_handler(unpack_string(zargs[0]), nullptr);
-        put_char(ZSCII_NEWLINE);
-        put_char(ZSCII_NEWLINE);
-
-        for (int i = 0; i < nentries; i++) {
-            auto addr = word(table + ((i + 1) * 2));
-            int len = byte(addr++);
-            ZASSERT(addr + len < header.static_end, "menu table out of bounds (0x%lx to 0x%lx)", static_cast<unsigned long>(addr), static_cast<unsigned long>(addr + len));
-            std::stringstream ss;
-            ss << static_cast<char>(ordinals.at(i)) << ". ";
-            ss.write(reinterpret_cast<char *>(&memory[addr]), len);
-            if (zargs[3] == i + 1) {
-                ss << "[default]";
-            }
-            for (const auto &c : ss.str()) {
-                put_char(c);
-            }
-            put_char(ZSCII_NEWLINE);
-        }
-
-        Input input;
-
-        input.type = Input::Type::Char;
-
-        get_input(0, 0, input);
-
-        // Have ENTER select the default entry as in the original.
-        auto it = input.key == ZSCII_NEWLINE && zargs[3] != 0 && (zargs[3] - 1) < nentries ?
-            ordinals.begin() + (zargs[3] - 1) :
-            std::find(ordinals.begin(), ordinals.end(), input.key);
-
-        if (it == ordinals.end()) {
-            continue;
-        }
-
-        uint8_t val = (it - ordinals.begin()) + 1;
-
-        interrupt_override = true;
-        auto result = internal_call(zargs[2], {val, zargs[1]});
-        interrupt_override = false;
-        if (result != 0) {
-            store(result);
-            return;
-        }
     }
 }
 

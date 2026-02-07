@@ -709,7 +709,7 @@ static bool mkdir_p(const std::string &filename)
             *p = 0;
             std::string component = std::string(drive) + path;
             _mkdir(component.c_str());
-            if (_stat(component.c_str(), &st) == -1 || (st.st_mode & _S_IFDIR) != S_IFDIR) {
+            if (_stat(component.c_str(), &st) == -1 || (st.st_mode & S_IFDIR) != S_IFDIR) {
                 return false;
             }
             *p = slash;

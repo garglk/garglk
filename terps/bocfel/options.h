@@ -15,17 +15,7 @@
 
 #include "stack.h"
 
-using Parser = std::function<void(const std::string &)>;
-
-struct OptValue {
-    enum class Type { Flag, Number, Value } type;
-    std::string desc;
-    Parser parser;
-};
-
 struct Options {
-    Options();
-
     unsigned long eval_stack_size = DEFAULT_STACK_SIZE;
     unsigned long call_stack_size = DEFAULT_CALL_DEPTH;
     bool disable_color = false;
@@ -75,14 +65,25 @@ struct Options {
     bool v6_borders = true;
     bool aspect_correction = false;
 
+    void process_arguments(int argc, char **argv);
+
+#ifndef ZTERP_NO_OPTIONS
+    Options();
     void read_config();
     void read_envvars();
-    void process_arguments(int argc, char **argv);
     void help();
 
-    std::vector<std::string> &errors() {
+    const std::vector<std::string> &errors() {
         return m_errors;
     }
+
+    using Parser = std::function<void(const std::string &)>;
+
+    struct OptValue {
+        enum class Type { Flag, Number, Value } type;
+        std::string desc;
+        Parser parser;
+    };
 
 private:
     struct OptCompare {
@@ -104,6 +105,7 @@ private:
     int getopt(int argc, char *const argv[]);
     void add_parser(char opt, std::string desc, bool use_config, std::string name, const Parser &parser, OptValue::Type type);
     const decltype(m_opts) &opts() const { return m_opts; }
+#endif
 };
 
 // BadOption means an invalid option was provided (i.e. one that does

@@ -455,6 +455,12 @@ static void process_story(IO &io, long offset)
 
     zversion = byte(0x00);
 
+#ifdef ZTERP_NO_V6
+    if (zversion == 6) {
+        die("support for version 6 has been disabled in this build");
+    }
+#endif
+
     // The actual Z-machine version (differentiating 7 and 8 from 5) is
     // only needed in this function, and only for 3 things:
     //
@@ -572,10 +578,12 @@ static void process_story(IO &io, long offset)
     // story is known, and the ID of the current story is not known until
     // the file has been processed; so do both of those here.
     find_id();
+#ifndef ZTERP_NO_OPTIONS
     if (!options.disable_config) {
         options.read_config();
     }
     options.read_envvars();
+#endif
 
     // Most options directly set their respective variables, but a few
     // require intervention. Delay that intervention until here so that
@@ -813,6 +821,8 @@ static void real_main(int argc, char **argv)
 #ifdef ZTERP_GLK
         glk_set_style(style_Preformatted);
 #endif
+
+#ifndef ZTERP_NO_OPTIONS
         for (const auto &error : options.errors()) {
             screen_puts(error);
         }
@@ -824,14 +834,17 @@ static void real_main(int argc, char **argv)
 
             options.help();
         }
+#endif
 
         throw Exit(EXIT_FAILURE);
     }
 
+#ifndef ZTERP_NO_OPTIONS
     if (options.show_help) {
         options.help();
         throw Exit(0);
     }
+#endif
 
 #ifndef ZTERP_GLK
     zterp_os_init_term();

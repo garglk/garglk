@@ -69,7 +69,7 @@ public:
         // interrupt each other, but that’s better than no music.
         try {
             m_channels.emplace(Music, std::make_shared<Channel>());
-        } catch (const std::exception &) {
+        } catch (const Channel::Error &) {
             m_channels.emplace(Music, m_channels.at(Effects));
         }
     };

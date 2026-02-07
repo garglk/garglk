@@ -190,7 +190,7 @@ if(WITH_BOCFEL)
         bocfel/io.cpp bocfel/mathop.cpp bocfel/meta.cpp bocfel/memory.cpp bocfel/objects.cpp
         bocfel/options.cpp bocfel/osdep.cpp bocfel/patches.cpp bocfel/process.cpp
         bocfel/random.cpp bocfel/screen.cpp bocfel/sound.cpp bocfel/stack.cpp
-        bocfel/stash.cpp bocfel/unicode.cpp bocfel/util.cpp bocfel/zoom.cpp bocfel/zterp.cpp
+        bocfel/stash.cpp bocfel/unicode.cpp bocfel/util.cpp bocfel/zterp.cpp
         bocfel/glkstart.cpp bocfel/glkautosave.cpp
         CXXSTD 14
         MACROS ${BOCFEL_MACROS}

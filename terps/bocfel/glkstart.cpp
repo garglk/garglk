@@ -138,7 +138,7 @@ static void startup()
     }
 
     if (game_file.empty()) {
-        const std::string patterns = "*.z1;*.z2;*.z3;*.z4;*.z5;*.z6;*.z7.*.z8;*.zblorb;*.zlb;*.blorb;*.blb";
+        const std::string patterns = "*.z1;*.z2;*.z3;*.z4;*.z5;*.z6;*.z7;*.z8;*.zblorb;*.zlb;*.blorb;*.blb";
         std::string filter;
         const char *filename;
 
