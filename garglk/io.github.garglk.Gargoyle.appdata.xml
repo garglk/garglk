@@ -50,6 +50,13 @@
     <url type="bugtracker">https://github.com/garglk/garglk/issues</url>
     <launchable type="desktop-id">io.github.garglk.Gargoyle.desktop</launchable>
     <releases>
+        <release version="2026.1.1" date="2026-02-07">
+            <description>
+                <ul>
+                    <li>Fix loading of per-game config options.</li>
+                </ul>
+            </description>
+        </release>
         <release version="2026.1" date="2026-02-07">
             <description>
                 <ul>

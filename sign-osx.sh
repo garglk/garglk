@@ -40,8 +40,8 @@ case "${operation}" in
         ;;
     "bundle")
         xcrun stapler staple Gargoyle.app
-        rm -f gargoyle-2026.1-mac.dmg
-        hdiutil create -fs "HFS+J" -ov -srcfolder Gargoyle.app/ gargoyle-2026.1-mac.dmg
+        rm -f gargoyle-2026.1.1-mac.dmg
+        hdiutil create -fs "HFS+J" -ov -srcfolder Gargoyle.app/ gargoyle-2026.1.1-mac.dmg
         ;;
     "verify")
         codesign -d --verbose=4 Gargoyle.app

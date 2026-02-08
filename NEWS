@@ -1,3 +1,6 @@
+2026.1.1:
+• Fix loading of per-game config options.
+
 2026.1:
 • Gargoyle now implements Glk version 0.7.6.
 • Infocom’s graphical games are now playable, with some visual quirks.
