@@ -953,7 +953,7 @@ void gli_read_config(int argc, char **argv)
     // load gamefile with basename of last argument
     nonstd::optional<std::string> gamefile;
     if (argc > 1) {
-        std::string gamefile = std::filesystem::path(argv[argc - 1])
+        gamefile = std::filesystem::path(argv[argc - 1])
             .filename()
             .string();
     }
