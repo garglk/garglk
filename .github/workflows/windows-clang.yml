@@ -62,7 +62,6 @@ jobs:
           cp cmake-build\*.ttf gargoyle-staging
           cp cmake-build\*.otf gargoyle-staging
           cp cmake-build\terps\*.exe gargoyle-staging
-          cp cmake-build\terps\tads\tadsr.exe gargoyle-staging
           cp cmake-build\terps\frankendrift\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.Gargoyle\FrankenDrift.GlkRunner.Gargoyle.exe gargoyle-staging
 
       - name: Deploy Qt files
