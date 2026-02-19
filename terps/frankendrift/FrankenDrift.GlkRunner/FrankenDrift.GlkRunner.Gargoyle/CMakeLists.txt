@@ -16,13 +16,7 @@ else()
     message(FATAL_ERROR "FrankenDrift is currently not supported on this platform")
 endif()
 
-# Cannot cross-compile FrankenDrift for another OS ...
-if(NOT CMAKE_SYSTEM_NAME STREQUAL CMAKE_HOST_SYSTEM_NAME)
-    message(FATAL_ERROR "Cross-compiling to another OS is not supported for FrankenDrift.")
-endif()
-
-# ... but CAN cross-compile for a different CPU architecture:
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|x64|amd64)$")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(X86_64|x86_64|AMD64|x64|amd64)$")
     set(GARGLK_DOTNET_RID "${GARGLK_DOTNET_RID}-x64")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|arm64|aarch64|armv8l)$")
     set(GARGLK_DOTNET_RID "${GARGLK_DOTNET_RID}-arm64")
@@ -38,11 +32,24 @@ else()
     set(GARGLK_FRANKEN_DYLIB "${CMAKE_BINARY_DIR}/garglk/libgarglk.so")
 endif()
 
+if(WIN32 AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    # Cross-compiling for Windows from Linux: use the native lld-link and
+    # Windows SDK library paths so NativeAOT can link without Visual Studio.
+    set(GARGLK_DOTNET_AOT_FLAGS
+        -p:DisableUnsupportedError=true
+        -p:CppLinker=lld-link
+        -p:IlcUseEnvironmentalTools=true
+        "-p:GarglkSdkLibDir=${CMAKE_FIND_ROOT_PATH}/winsdk/sdk/lib/um/x64"
+        "-p:GarglkUcrtLibDir=${CMAKE_FIND_ROOT_PATH}/winsdk/sdk/lib/ucrt/x64"
+        "-p:GarglkCrtLibDir=${CMAKE_FIND_ROOT_PATH}/winsdk/crt/lib/x64"
+    )
+endif()
+
 add_custom_target(frankendrift
     ALL
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMAND ${CMAKE_COMMAND} -E copy "${GARGLK_FRANKEN_DYLIB}" "${CMAKE_CURRENT_SOURCE_DIR}"
-    COMMAND ${DOTNET} publish --self-contained -c Release -r "${GARGLK_DOTNET_RID}" -p:GarglkMode=dynamic "-p:BaseIntermediateOutputPath=${CMAKE_CURRENT_BINARY_DIR}/obj/" "-p:BaseOutputPath=${CMAKE_CURRENT_BINARY_DIR}/bin/" -o "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMAND ${DOTNET} publish --self-contained -c Release -r "${GARGLK_DOTNET_RID}" -p:GarglkMode=dynamic "-p:GarglkBuildDir=${CMAKE_CURRENT_BINARY_DIR}" "-p:BaseOutputPath=${CMAKE_CURRENT_BINARY_DIR}/bin/" "-p:GarglkLibDir=${CMAKE_BINARY_DIR}/garglk" ${GARGLK_DOTNET_AOT_FLAGS} -o "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building FrankenDrift with ${DOTNET}"
 )
 

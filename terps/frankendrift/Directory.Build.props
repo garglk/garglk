@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup Condition="'$(GarglkBuildDir)' != ''">
+    <BaseIntermediateOutputPath>$(GarglkBuildDir)\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>
