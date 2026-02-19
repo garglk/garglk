@@ -320,6 +320,8 @@ void wintitle()
 
 void winresize()
 {
+    static bool first_resize = true;
+
     NSRect viewRect = [gargoyle updateBackingSize: processID];
     float textureFactor = BACKING_SCALE_FACTOR / [gargoyle getBackingScaleFactor: processID];
 
@@ -330,10 +332,13 @@ void winresize()
         return;
     }
 
-    gli_windows_size_change(vw, vh, true);
+    // On startup, a resize occurs before the Glk program even starts,
+    // so shouldn't create an arrange event.
+    gli_windows_size_change(vw, vh, !first_resize);
 
     // redraw window content
     gli_refresh_needed = true;
+    first_resize = false;
 }
 
 static mach_port_t gli_signal_port = 0;
