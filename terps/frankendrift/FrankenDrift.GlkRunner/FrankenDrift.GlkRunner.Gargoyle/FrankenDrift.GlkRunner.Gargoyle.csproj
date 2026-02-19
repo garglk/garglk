@@ -8,6 +8,10 @@
 		<StartupObject>FrankenDrift.GlkRunner.Gargoyle.GarGlkRunner</StartupObject>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>
+
+	<PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('win'))">
+		<ApplicationManifest>../../../garglk.manifest</ApplicationManifest>
+	</PropertyGroup>
 	
 	<ItemGroup>
 		<ProjectReference Include="..\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.csproj" />
