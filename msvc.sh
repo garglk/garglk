@@ -16,20 +16,34 @@ make -j${nproc}
 make install
 )
 
-for dll in libpng16.dll sndfile.dll turbojpeg.dll zlib1.dll
-do
-    cp "/usr/x86_64-pc-windows-msvc/bin/${dll}" build/dist
-done
-
-for dll in Qt6Core.dll Qt6Gui.dll Qt6Multimedia.dll Qt6Network.dll Qt6Widgets.dll
-do
-    cp "${qt}/bin/${dll}" build/dist
-done
-
+# Qt plugins are runtime-loaded (not in import tables), so copy explicitly.
 mkdir -p "build/dist/plugins/platforms"
 cp "${qt}/plugins/platforms/qwindows.dll" "build/dist/plugins/platforms"
 mkdir -p "build/dist/plugins/multimedia"
 cp "${qt}/plugins/multimedia/windowsmediaplugin.dll" "build/dist/plugins/multimedia"
+
+# Recursively discover and copy DLL dependencies from all PE files in
+# build/dist (including plugins). Search paths are the MSVC sysroot and
+# the Qt bin directory. System DLLs (provided by Windows) are skipped.
+dll_search_paths=("/usr/x86_64-pc-windows-msvc/bin" "${qt}/bin")
+while true
+do
+    changed=false
+    while IFS= read -r dll
+    do
+        [[ -e "build/dist/${dll}" ]] && continue
+        for dir in "${dll_search_paths[@]}"
+        do
+            if [[ -e "${dir}/${dll}" ]]
+            then
+                cp "${dir}/${dll}" build/dist
+                changed=true
+                break
+            fi
+        done
+    done < <(find build/dist \( -iname "*.exe" -o -iname "*.dll" \) -exec objdump -p {} + 2>/dev/null | sed -n "s/.*DLL Name: //p" | sort -u)
+    $changed || break
+done
 
 cp licenses/*.txt build/dist
 cp fonts/Gargoyle*.ttf build/dist
