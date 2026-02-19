@@ -9,8 +9,8 @@ set -eux
 # -a: Build an AppImage (x86_64) on Linux.
 # -m: Build both x86_64 and ARM DMG on Mac.
 # -n: Notarize the resulting binary (Mac only).
-# -w: Build i686 and x86_64 Windows installers and standalone ZIPs,
-#     and aarch64 and armv7 Windows standalone ZIPs via MinGW.
+# -w: Build Windows releases. MSVC is used for x86_64 and aarch64
+#     (Qt 6, FrankenDrift), MinGW for i686 and armv7 (Qt 5).
 
 fatal() {
     echo "${@}" >&2
@@ -87,6 +87,14 @@ if [[ "${build_windows}" ]]
 then
     for arch in i686 x86_64 aarch64 armv7
     do
-        ./windows.sh -cq -a "${arch}"
+        case "${arch}" in
+            x86_64|aarch64)
+                ./msvc.sh -c -a "${arch}"
+                ;;
+            *)
+                ./windows.sh -cq -a "${arch}"
+                ;;
+        esac
+        ./package-windows.sh "${arch}"
     done
 fi
