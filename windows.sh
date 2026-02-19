@@ -2,10 +2,12 @@
 
 set -ex
 
-# This script will cross compile Gargoyle for Windows using MinGW, and
-# build an installer for it using NSIS. This script makes assumptions
-# about the location of MinGW, so may need to be tweaked to get it to
-# properly work.
+# This script will cross compile Gargoyle for Windows using MinGW,
+# populating build/dist with binaries and DLLs. Use package-windows.sh
+# afterward to copy assets and create installers/ZIPs.
+#
+# This script makes assumptions about the location of MinGW, so may
+# need to be tweaked to get it to properly work.
 #
 # By default LLVM MinGW (assumed to be in /usr/llvm-mingw) is used. To
 # use gcc MinGW (assumed to be in /usr), pass the -g flag.
@@ -17,9 +19,6 @@ set -ex
 # x86_64
 # aarch64 (LLVM only)
 # armv7 (LLVM only)
-#
-# An installer (if available) and standalone ZIP are created. To build
-# without creating installers/ZIPs, pass the -b flag.
 
 fatal() {
     echo "${@}" >&2
@@ -29,7 +28,7 @@ fatal() {
 QT_VERSION="5"
 GARGOYLE_SOUND="SDL"
 
-while getopts "6a:bcgq" o
+while getopts "6a:cgq" o
 do
     case "${o}" in
         6)
@@ -37,9 +36,6 @@ do
             ;;
         a)
             GARGOYLE_ARCH="${OPTARG}"
-            ;;
-        b)
-            GARGOYLE_BUILD_ONLY=1
             ;;
         c)
             GARGOYLE_CLEAN=1
@@ -51,7 +47,7 @@ do
             GARGOYLE_SOUND="QT"
             ;;
         *)
-            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-b] [-g] [-q]"
+            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-g] [-q]"
             ;;
     esac
 done
@@ -62,7 +58,6 @@ case "${GARGOYLE_ARCH}" in
     i686|x86_64)
         ;;
     aarch64|armv7)
-        GARGOYLE_NO_INSTALLER=1
         [[ -n "${GARGOYLE_MINGW_GCC}" ]] && fatal "Unsupported arch on MinGW GCC: ${GARGOYLE_ARCH}"
         ;;
     *)
@@ -161,22 +156,3 @@ then
         cp "${QT6HOME}/plugins/multimedia/windowsmediaplugin.dll" "build/dist/plugins/multimedia"
     fi
 fi
-
-[[ "${GARGOYLE_BUILD_ONLY}" ]] && exit
-
-if [[ -z "${GARGOYLE_NO_INSTALLER}" ]]
-then
-    export GARGOYLE_ARCH
-    makensis -V4 installer.nsi
-fi
-
-cp licenses/*.txt build/dist
-cp fonts/Gargoyle*.ttf build/dist
-cp fonts/unifont*.otf build/dist
-mkdir build/dist/themes
-cp themes/*.json build/dist/themes
-unix2dos -n garglk/garglk.ini build/dist/garglk.ini
-
-zip=gargoyle-$(<VERSION)-windows-${GARGOYLE_ARCH}.zip
-rm -f ${zip}
-(cd build/dist && zip -r ../../${zip} *)

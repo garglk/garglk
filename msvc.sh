@@ -2,7 +2,38 @@
 
 set -ex
 
-arch="${1:-x86_64}"
+# This script will cross compile Gargoyle for Windows using clang-cl
+# and the MSVC toolchain, populating build/dist with binaries and DLLs.
+# Use package-windows.sh afterward to copy assets and create
+# installers/ZIPs.
+#
+# x86_64 is built by default. To select another architecture, use the
+# -a option. Valid values:
+#
+# x86_64
+# aarch64
+
+fatal() {
+    echo "${@}" >&2
+    exit 1
+}
+
+while getopts "a:c" o
+do
+    case "${o}" in
+        a)
+            GARGOYLE_ARCH="${OPTARG}"
+            ;;
+        c)
+            GARGOYLE_CLEAN=1
+            ;;
+        *)
+            fatal "Usage: $0 [-a x86_64|aarch64] [-c]"
+            ;;
+    esac
+done
+
+arch="${GARGOYLE_ARCH:-x86_64}"
 
 case "$arch" in
     x86_64)
@@ -16,8 +47,7 @@ case "$arch" in
         sysroot="/usr/aarch64-pc-windows-msvc"
         ;;
     *)
-        echo "Unknown architecture: $arch" >&2
-        exit 1
+        fatal "Unsupported arch: $arch"
         ;;
 esac
 
@@ -29,6 +59,8 @@ esac
 [[ "$qt" != "$qt_host" ]] && qt_host_arg=(-DQT_HOST_PATH="${qt_host}") || qt_host_arg=()
 
 nproc=$(getconf _NPROCESSORS_ONLN)
+
+[[ -n "${GARGOYLE_CLEAN}" ]] && rm -rf build-msvc build/dist
 
 [[ -e build/dist ]] && exit 1
 
@@ -68,10 +100,3 @@ do
     done < <(find build/dist \( -iname "*.exe" -o -iname "*.dll" \) -exec objdump -p {} + 2>/dev/null | sed -n "s/.*DLL Name: //p" | sort -u)
     $changed || break
 done
-
-cp licenses/*.txt build/dist
-cp fonts/Gargoyle*.ttf build/dist
-cp fonts/unifont*.otf build/dist
-mkdir build/dist/themes
-cp themes/*.json build/dist/themes
-unix2dos -n garglk/garglk.ini build/dist/garglk.ini
