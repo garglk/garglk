@@ -2,7 +2,31 @@
 
 set -ex
 
-qt="$HOME/Qt/current/msvc2022_64"
+arch="${1:-x86_64}"
+
+case "$arch" in
+    x86_64)
+        qt="$HOME/Qt/current/msvc2022_64"
+        toolchain="Toolchain-msvc-x86_64.cmake"
+        sysroot="/usr/x86_64-pc-windows-msvc"
+        ;;
+    aarch64)
+        qt="$HOME/Qt/current/msvc2022_arm64"
+        toolchain="Toolchain-msvc-arm64.cmake"
+        sysroot="/usr/aarch64-pc-windows-msvc"
+        ;;
+    *)
+        echo "Unknown architecture: $arch" >&2
+        exit 1
+        ;;
+esac
+
+host_arch=$(uname -m)
+case "$host_arch" in
+    x86_64)  qt_host="$HOME/Qt/current/msvc2022_64" ;;
+    aarch64) qt_host="$HOME/Qt/current/msvc2022_arm64" ;;
+esac
+[[ "$qt" != "$qt_host" ]] && qt_host_arg=(-DQT_HOST_PATH="${qt_host}") || qt_host_arg=()
 
 nproc=$(getconf _NPROCESSORS_ONLN)
 
@@ -11,7 +35,7 @@ nproc=$(getconf _NPROCESSORS_ONLN)
 (
 mkdir build-msvc
 cd build-msvc
-cmake .. -DCMAKE_PREFIX_PATH="${qt}" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=Toolchain-msvc.cmake -DSOUND=QT -DWITH_BUNDLED_FMT=ON -DDIST_INSTALL=ON -DWITH_FRANKENDRIFT=ON
+cmake .. -DCMAKE_PREFIX_PATH="${qt}" "${qt_host_arg[@]}" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${toolchain}" -DSOUND=QT -DWITH_BUNDLED_FMT=ON -DDIST_INSTALL=ON -DWITH_FRANKENDRIFT=ON
 make -j${nproc}
 make install
 )
@@ -25,7 +49,7 @@ cp "${qt}/plugins/multimedia/windowsmediaplugin.dll" "build/dist/plugins/multime
 # Recursively discover and copy DLL dependencies from all PE files in
 # build/dist (including plugins). Search paths are the MSVC sysroot and
 # the Qt bin directory. System DLLs (provided by Windows) are skipped.
-dll_search_paths=("/usr/x86_64-pc-windows-msvc/bin" "${qt}/bin")
+dll_search_paths=("${sysroot}/bin" "${qt}/bin")
 while true
 do
     changed=false

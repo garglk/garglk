@@ -35,13 +35,18 @@ endif()
 if(WIN32 AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
     # Cross-compiling for Windows from Linux: use the native lld-link and
     # Windows SDK library paths so NativeAOT can link without Visual Studio.
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|arm64|aarch64|armv8l)$")
+        set(GARGLK_WINSDK_LIBARCH "arm64")
+    else()
+        set(GARGLK_WINSDK_LIBARCH "x64")
+    endif()
     set(GARGLK_DOTNET_AOT_FLAGS
         -p:DisableUnsupportedError=true
         -p:CppLinker=lld-link
         -p:IlcUseEnvironmentalTools=true
-        "-p:GarglkSdkLibDir=${CMAKE_FIND_ROOT_PATH}/winsdk/sdk/lib/um/x64"
-        "-p:GarglkUcrtLibDir=${CMAKE_FIND_ROOT_PATH}/winsdk/sdk/lib/ucrt/x64"
-        "-p:GarglkCrtLibDir=${CMAKE_FIND_ROOT_PATH}/winsdk/crt/lib/x64"
+        "-p:GarglkSdkLibDir=${CMAKE_FIND_ROOT_PATH}/winsdk/sdk/lib/um/${GARGLK_WINSDK_LIBARCH}"
+        "-p:GarglkUcrtLibDir=${CMAKE_FIND_ROOT_PATH}/winsdk/sdk/lib/ucrt/${GARGLK_WINSDK_LIBARCH}"
+        "-p:GarglkCrtLibDir=${CMAKE_FIND_ROOT_PATH}/winsdk/crt/lib/${GARGLK_WINSDK_LIBARCH}"
     )
 endif()
 

@@ -10,7 +10,7 @@ set(CMAKE_RC_COMPILER "llvm-rc")
 set(MSVC_SYSROOT "/usr/x86_64-pc-windows-msvc")
 set(WINSDK "${MSVC_SYSROOT}/winsdk")
 
-set(CMAKE_C_FLAGS_INIT "-D_CRT_SECURE_NO_WARNINGS -fuse-ld=lld-link /vctoolsdir \"${WINSDK}/crt\" /winsdkdir \"${WINSDK}/sdk\"")
+set(CMAKE_C_FLAGS_INIT "--target=x86_64-pc-windows-msvc -D_CRT_SECURE_NO_WARNINGS -fuse-ld=lld-link /vctoolsdir \"${WINSDK}/crt\" /winsdkdir \"${WINSDK}/sdk\"")
 set(CMAKE_CXX_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} /EHsc")
 
 set(CMAKE_EXE_LINKER_FLAGS_INIT "/winsdkdir:${WINSDK}/sdk /vctoolsdir:${WINSDK}/crt /libpath:${WINSDK}/sdk/lib/um/x64")
