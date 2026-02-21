@@ -30,8 +30,8 @@ jobs:
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.7.*'
-          arch: win64_msvc2019_${{ fromJSON('{"x86-64":"64","arm64":"arm64"}')[matrix.arch] || matrix.arch }}
+          version: '6.10.*'
+          arch: win64_msvc2022_${{ fromJSON('{"x86-64":"64","arm64":"arm64"}')[matrix.arch] || matrix.arch }}
           modules: 'qtmultimedia'
 
       - name: Install other packages
