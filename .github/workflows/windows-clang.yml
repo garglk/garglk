@@ -5,6 +5,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  packages: write
+
 jobs:
   build:
     strategy:
@@ -15,23 +18,32 @@ jobs:
 
     runs-on: windows-2022
 
+    env:
+      VCPKG_BINARY_SOURCES: "clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,readwrite"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache VCPKG
-        uses: actions/cache@v3
-        with:
-          path: |
-            C:\vcpkg\packages
-            C:\vcpkg\installed
-          key: vcpkg-${{ matrix.arch }}
+      - name: Configure vcpkg binary caching
+        shell: pwsh
+        run: |
+          &$(C:\vcpkg\vcpkg.exe fetch nuget | Select-Object -Last 1) `
+            sources add `
+            -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" `
+            -StorePasswordInClearText `
+            -Name GitHubPackages `
+            -UserName "${{ github.repository_owner }}" `
+            -Password "${{ secrets.GITHUB_TOKEN }}"
+          &$(C:\vcpkg\vcpkg.exe fetch nuget | Select-Object -Last 1) `
+            setapikey "${{ secrets.GITHUB_TOKEN }}" `
+            -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.7.*'
-          arch: win64_msvc2019_${{ fromJSON('{"x86-64":"64","arm64":"arm64"}')[matrix.arch] || matrix.arch }}
+          version: '6.10.*'
+          arch: win64_msvc2022_${{ fromJSON('{"x86-64":"64","arm64":"arm64"}')[matrix.arch] || matrix.arch }}
           modules: 'qtmultimedia'
 
       - name: Install other packages
@@ -67,7 +79,7 @@ jobs:
       - name: Deploy Qt files
         run: |
           cd gargoyle-staging
-          windeployqt --no-quick-import --no-compiler-runtime --no-system-d3d-compiler --no-network garglk.dll
+          windeployqt --no-quick-import --no-compiler-runtime --no-system-d3d-compiler garglk.dll
 
       - name: Compress
         run: Compress-Archive -Path gargoyle-staging -DestinationPath gargoyle-win-clang-fd-${{ matrix.arch }}.zip
