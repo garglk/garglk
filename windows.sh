@@ -99,7 +99,7 @@ mkdir build-mingw
 
 (
 cd build-mingw
-env MINGW_TRIPLE=${target} MINGW_LOCATION=${mingw_location} cmake .. ${CMAKE_QT6} -DCMAKE_TOOLCHAIN_FILE=../Toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DSOUND=${GARGOYLE_SOUND} -DQT_VERSION=${QT_VERSION}
+env MINGW_TRIPLE=${target} MINGW_LOCATION=${mingw_location} cmake .. ${CMAKE_QT6} -DCMAKE_TOOLCHAIN_FILE=../Toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DSOUND=${GARGOYLE_SOUND} -DQT_VERSION=${QT_VERSION} -DDIST_INSTALL=ON
 make -j${nproc}
 make install
 )

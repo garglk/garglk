@@ -44,6 +44,7 @@ include(Compilers)
 option(WITH_INTERPRETERS "Build the included interpreters" ON)
 option(WITH_BABEL "Display Treaty of Babel-derived author and title if possible" ON)
 option(APPIMAGE "Tweak some settings to aid in AppImage building" OFF)
+option(DIST_INSTALL "Install to ${PROJECT_SOURCE_DIR}/build/dist for packaging" OFF)
 
 if(MSVC)
     # MSVC defaults to the equivalent of "-fvisibility=hidden", which the code is not set up to support.
@@ -53,12 +54,6 @@ if(MSVC)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         add_compile_options("-Wno-everything" "-Wall" "-Wextra" "-ferror-limit=100")
     endif()
-endif()
-
-if(APPLE)
-    option(DIST_INSTALL "Install to ${PROJECT_SOURCE_DIR}/build/dist for packaging" OFF)
-elseif(MINGW)
-    set(DIST_INSTALL ON)
 endif()
 
 if(UNIX AND NOT DIST_INSTALL)
