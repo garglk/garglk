@@ -6,6 +6,11 @@ set -ex
 # https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage
 # https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
 
+fatal() {
+    echo "${@}" >&2
+    exit 1
+}
+
 frankendrift="OFF"
 
 while getopts "cf" o
@@ -18,12 +23,12 @@ do
             frankendrift="ON"
             ;;
         *)
-            fatal "Usage: $0 [-f]"
+            fatal "Usage: $0 [-cf]"
             ;;
     esac
 done
 
-[[ -n "${clean}" ]] && rm -rf build-appimage build/dist
+[[ -n "${clean}" ]] && rm -rf build-appimage
 
 mkdir build-appimage
 cd build-appimage

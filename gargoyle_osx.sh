@@ -25,7 +25,7 @@ do
             GARGOYLE_NO_DMG=1
             ;;
         *)
-            fatal "Usage: $0 [-f]"
+            fatal "Usage: $0 [-cfn]"
             ;;
     esac
 done
@@ -70,7 +70,7 @@ case "${HOMEBREW_ARCH}" in
                 GARGOYLE_CMAKE_EXTRAS="-DCMAKE_OSX_ARCHITECTURES=${HOMEBREW_ARCH} -DCMAKE_PREFIX_PATH=${HOMEBREW_OR_MACPORTS_LOCATION}"
                 ;;
             *)
-                fatal "Don't know how to cross compile for ${TARGET_ARCH} from ${HOST_ARCH}"
+                fatal "Don't know how to cross compile for ${HOMEBREW_ARCH} from ${HOST_ARCH}"
                 ;;
         esac
 
@@ -85,7 +85,7 @@ case "${HOMEBREW_ARCH}" in
         ;;
 
     # No support for cross compiling on MacPorts at the moment. Assume the
-    # current archutecture.
+    # current architecture.
     "")
         TARGET_ARCH="${HOST_ARCH}"
         ;;
@@ -161,7 +161,6 @@ copy_new_dylibs() {
   fi
 
   cp "${UNIQUE_DYLIB_PATHS}" "${PREVIOUS_UNIQUE_DYLIB_PATHS}"
-  diff "${PREVIOUS_UNIQUE_DYLIB_PATHS}" "${UNIQUE_DYLIB_PATHS}"
 
   # Copy dylibs to the Frameworks directory.
   while IFS= read -r dylib

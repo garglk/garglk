@@ -47,7 +47,7 @@ do
             GARGOYLE_SOUND="QT"
             ;;
         *)
-            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-g] [-q]"
+            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-6cgq]"
             ;;
     esac
 done
@@ -93,7 +93,6 @@ fi
 export PATH="${mingw_location}/bin:${PATH}"
 
 nproc=$(getconf _NPROCESSORS_ONLN)
-ver=$(${target}-gcc --version | head -1 | awk '{print $3}')
 
 mkdir build-mingw
 
@@ -106,6 +105,7 @@ make install
 
 if [[ -n "${GARGOYLE_MINGW_GCC}" ]]
 then
+    ver=$(${target}-gcc --version | head -1 | awk '{print $3}')
     cp "/usr/lib/gcc/${target}/${ver}/libstdc++-6.dll" "build/dist"
     cp "${mingw_location}/${target}/lib/libwinpthread-1.dll" "build/dist"
 
