@@ -12,7 +12,7 @@ set -ex
 # By default LLVM MinGW (assumed to be in /usr/llvm-mingw) is used. To
 # use gcc MinGW (assumed to be in /usr), pass the -g flag.
 #
-# i686 is built by default. To select another architecture, use the -a
+# x86_64 is built by default. To select another architecture, use the -a
 # option. Valid values:
 #
 # i686
@@ -52,7 +52,7 @@ do
     esac
 done
 
-GARGOYLE_ARCH=${GARGOYLE_ARCH:-"i686"}
+GARGOYLE_ARCH=${GARGOYLE_ARCH:-"x86_64"}
 
 case "${GARGOYLE_ARCH}" in
     i686|x86_64)
