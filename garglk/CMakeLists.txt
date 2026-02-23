@@ -393,30 +393,32 @@ if(DIST_INSTALL)
         install(TARGETS garglk-gpl2 DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
     endif()
 
-    install(FILES
-        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono-Bold-Italic.ttf"
-        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono-Bold.ttf"
-        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono-Italic.ttf"
-        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono.ttf"
-        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Bold-Italic.ttf"
-        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Bold.ttf"
-        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Italic.ttf"
-        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif.ttf"
-        "${PROJECT_SOURCE_DIR}/fonts/unifont.otf"
-        "${PROJECT_SOURCE_DIR}/fonts/unifont_upper.otf"
-        DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
+    if(NOT APPLE)
+        install(FILES
+            "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono-Bold-Italic.ttf"
+            "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono-Bold.ttf"
+            "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono-Italic.ttf"
+            "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono.ttf"
+            "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Bold-Italic.ttf"
+            "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Bold.ttf"
+            "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Italic.ttf"
+            "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif.ttf"
+            "${PROJECT_SOURCE_DIR}/fonts/unifont.otf"
+            "${PROJECT_SOURCE_DIR}/fonts/unifont_upper.otf"
+            DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
 
-    install(FILES
-        "${PROJECT_SOURCE_DIR}/themes/Blue.json"
-        "${PROJECT_SOURCE_DIR}/themes/Breeze Darker.json"
-        "${PROJECT_SOURCE_DIR}/themes/Lectrote Dark.json"
-        "${PROJECT_SOURCE_DIR}/themes/Lectrote Sepia.json"
-        "${PROJECT_SOURCE_DIR}/themes/Lectrote Slate.json"
-        "${PROJECT_SOURCE_DIR}/themes/Pencil.json"
-        "${PROJECT_SOURCE_DIR}/themes/Zoom.json"
-        "${PROJECT_SOURCE_DIR}/themes/dark.json"
-        "${PROJECT_SOURCE_DIR}/themes/light.json"
-        DESTINATION "${PROJECT_SOURCE_DIR}/build/dist/themes")
+        install(FILES
+            "${PROJECT_SOURCE_DIR}/themes/Blue.json"
+            "${PROJECT_SOURCE_DIR}/themes/Breeze Darker.json"
+            "${PROJECT_SOURCE_DIR}/themes/Lectrote Dark.json"
+            "${PROJECT_SOURCE_DIR}/themes/Lectrote Sepia.json"
+            "${PROJECT_SOURCE_DIR}/themes/Lectrote Slate.json"
+            "${PROJECT_SOURCE_DIR}/themes/Pencil.json"
+            "${PROJECT_SOURCE_DIR}/themes/Zoom.json"
+            "${PROJECT_SOURCE_DIR}/themes/dark.json"
+            "${PROJECT_SOURCE_DIR}/themes/light.json"
+            DESTINATION "${PROJECT_SOURCE_DIR}/build/dist/themes")
+    endif()
 elseif(UNIX)
     if(WITH_LAUNCHER)
         install(TARGETS gargoyle DESTINATION "${CMAKE_INSTALL_BINDIR}")

@@ -57,9 +57,9 @@ then
     fi
 
     rm -rf Gargoyle.app Gargoyle-x86_64.app
-    PATH=/usr/local/bin:$PATH ./gargoyle_osx.sh -c -n
+    PATH=/usr/local/bin:$PATH ./gargoyle_osx.sh -cfn
     mv Gargoyle.app Gargoyle-x86_64.app
-    PATH=/opt/homebrew/bin:$PATH ./gargoyle_osx.sh -c -n
+    PATH=/opt/homebrew/bin:$PATH ./gargoyle_osx.sh -cfn
 
     binaries=(Gargoyle.app/Contents/Frameworks/*.dylib Gargoyle.app/Contents/PlugIns/* Gargoyle.app/Contents/MacOS/Gargoyle)
 
