@@ -52,7 +52,16 @@ if(MSVC)
     include_directories("win32compat")
     add_compile_definitions("_CRT_SECURE_NO_WARNINGS")
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        add_compile_options("-Wno-everything" "-Wall" "-Wextra" "-ferror-limit=100")
+        add_compile_options("-Wno-everything" "-Wall" "-Wextra" "-ferror-limit=100"
+            "-Wno-unused-parameter"
+            "-Wno-sign-compare"
+            "-Wno-missing-field-initializers"
+            "-Wno-ignored-qualifiers"
+            "-Wno-null-pointer-subtraction"
+            "-Wno-unterminated-string-initialization"
+            "-Wno-deprecated-copy-with-user-provided-copy"
+            "-Wno-string-concatenation"
+        )
     endif()
 endif()
 
