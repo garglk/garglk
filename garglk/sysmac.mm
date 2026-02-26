@@ -542,6 +542,124 @@ void winrefresh()
     gli_refresh_needed = !refreshed;
 }
 
+void garglk::show_game_info(const garglk::GameInfo &info, bool show_once)
+{
+    if (show_once && info.ifid.has_value()) {
+        auto path = get_qt_plist_path();
+        if (path != nil) {
+            NSMutableDictionary *config = [NSMutableDictionary dictionaryWithContentsOfFile: path] ?: [NSMutableDictionary dictionary];
+            NSMutableArray *seen = [NSMutableArray arrayWithArray: config[@"games.info_shown"] ?: @[]];
+            NSString *nsifid = [NSString stringWithUTF8String: info.ifid->c_str()];
+            if ([seen containsObject: nsifid]) {
+                return;
+            }
+            [seen addObject: nsifid];
+            config[@"games.info_shown"] = seen;
+            [config writeToFile: path atomically: YES];
+        }
+    }
+
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+    NSAlert *alert = [[NSAlert alloc] init];
+    alert.alertStyle = NSAlertStyleInformational;
+    alert.messageText = @"";
+    alert.window.level = NSModalPanelWindowLevel;
+
+    NSScreen *screen = [NSScreen mainScreen];
+    CGFloat third_screen = screen.frame.size.width / 3.0;
+
+    // Build attributed string: bold title, then headline/author/description
+    NSMutableAttributedString *attr_text = [[NSMutableAttributedString alloc] init];
+    NSColor *text_color = [NSColor labelColor];
+    NSFont *bold_font = [NSFont boldSystemFontOfSize: [NSFont systemFontSize] * 1.2];
+    NSFont *italic_font = [[NSFontManager sharedFontManager] convertFont: [NSFont systemFontOfSize: [NSFont systemFontSize]]
+                                                             toHaveTrait: NSItalicFontMask];
+    NSFont *body_font = [NSFont systemFontOfSize: [NSFont systemFontSize]];
+
+    [attr_text appendAttributedString: [[NSAttributedString alloc]
+        initWithString: [NSString stringWithUTF8String: info.title.c_str()]
+            attributes: @{NSFontAttributeName: bold_font, NSForegroundColorAttributeName: text_color}]];
+
+    if (info.headline.has_value()) {
+        [attr_text appendAttributedString: [[NSAttributedString alloc]
+            initWithString: [@"\n" stringByAppendingString: [NSString stringWithUTF8String: info.headline->c_str()]]
+                attributes: @{NSFontAttributeName: italic_font, NSForegroundColorAttributeName: text_color}]];
+    }
+
+    [attr_text appendAttributedString: [[NSAttributedString alloc]
+        initWithString: [@"\nby " stringByAppendingString: [NSString stringWithUTF8String: info.author.c_str()]]
+            attributes: @{NSFontAttributeName: body_font, NSForegroundColorAttributeName: text_color}]];
+
+    for (const auto &paragraph : info.description) {
+        [attr_text appendAttributedString: [[NSAttributedString alloc]
+            initWithString: [@"\n\n" stringByAppendingString: [NSString stringWithUTF8String: paragraph.c_str()]]
+                attributes: @{NSFontAttributeName: body_font, NSForegroundColorAttributeName: text_color}]];
+    }
+
+    // Build a side-by-side accessory view: cover art left, text right
+    NSImage *image = nil;
+    CGFloat image_width = 0;
+    CGFloat image_height = 0;
+
+    if (info.cover.has_value()) {
+        NSData *image_data = [NSData dataWithBytes: info.cover->data()
+                                            length: info.cover->size()];
+        image = [[NSImage alloc] initWithData: image_data];
+        if (image != nil) {
+            CGFloat ratio = third_screen / image.size.width;
+            image_width = image.size.width * ratio;
+            image_height = image.size.height * ratio;
+        }
+    }
+
+    // Use NSTextView inside NSScrollView for scrollable rich text
+    NSTextView *text_view = [[NSTextView alloc] initWithFrame: NSMakeRect(0, 0, third_screen, 0)];
+    [text_view setEditable: NO];
+    [text_view setDrawsBackground: NO];
+    [[text_view textStorage] setAttributedString: attr_text];
+    [attr_text release];
+    [text_view setHorizontallyResizable: NO];
+    [text_view setVerticallyResizable: YES];
+    [text_view sizeToFit];
+
+    CGFloat text_height = text_view.frame.size.height;
+    CGFloat max_height = screen.frame.size.height * 2.0 / 3.0;
+    CGFloat total_width = image_width + third_screen;
+    CGFloat total_height = std::min(std::max(image_height, text_height), max_height);
+
+    NSScrollView *scroll_view = [[NSScrollView alloc] initWithFrame: NSMakeRect(0, 0, third_screen, total_height)];
+    [scroll_view setDocumentView: text_view];
+    [scroll_view setHasVerticalScroller: text_height > total_height];
+    [scroll_view setBorderType: NSNoBorder];
+    [scroll_view setDrawsBackground: NO];
+    [text_view release];
+
+    NSView *accessory = [[NSView alloc] initWithFrame: NSMakeRect(0, 0, total_width, total_height)];
+
+    if (image != nil) {
+        NSImageView *image_view = [[NSImageView alloc] initWithFrame:
+            NSMakeRect(0, total_height - image_height, image_width, image_height)];
+        image_view.image = image;
+        image_view.imageScaling = NSImageScaleProportionallyUpOrDown;
+        [accessory addSubview: image_view];
+        [image_view release];
+        [image release];
+    }
+
+    scroll_view.frame = NSMakeRect(image_width, 0, third_screen, total_height);
+    [accessory addSubview: scroll_view];
+    [scroll_view release];
+
+    alert.accessoryView = accessory;
+    [accessory release];
+
+    [alert runModal];
+    [alert release];
+
+    [pool drain];
+}
+
 static void show_alert(NSAlertStyle style, NSString *title, const std::string &text)
 {
     NSAlert *alert = [[NSAlert alloc] init];

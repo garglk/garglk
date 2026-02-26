@@ -246,6 +246,8 @@ GamedataLocation gli_conf_gamedata_location = GamedataLocation::Default;
 
 Scaler gli_conf_scaler = Scaler::None;
 
+GameInfoShow gli_conf_game_info = GameInfoShow::Once;
+
 std::string garglk::downcase(const std::string &string)
 {
     std::string lowered;
@@ -888,6 +890,16 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                     gli_conf_gamedata_location = GamedataLocation::Gamedir;
                 } else {
                     throw ConfigError(Format("unknown gamedata location: {}", arg));
+                }
+            } else if (cmd == "game_info") {
+                if (arg == "never") {
+                    gli_conf_game_info = GameInfoShow::Never;
+                } else if (arg == "once") {
+                    gli_conf_game_info = GameInfoShow::Once;
+                } else if (arg == "always") {
+                    gli_conf_game_info = GameInfoShow::Always;
+                } else {
+                    throw ConfigError(Format("invalid value: {} (must be one of never, once, always)", arg));
                 }
             } else if (cmd == "redraw_hack") {
                 gli_conf_redraw_hack = asbool(arg);

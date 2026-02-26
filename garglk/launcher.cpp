@@ -186,7 +186,18 @@ static bool call_winterp(const Interpreter &interpreter, const std::string &game
 static bool call_winterp(Format format, const std::string &game)
 {
     try {
-        return call_winterp(interpreters.at(format), game);
+        const auto &interpreter = interpreters.at(format);
+
+        // Now that we've found an interpreter and are pretty confident
+        // the game will run, display a game info dialog, if possible.
+        if (gli_conf_game_info != GameInfoShow::Never) {
+            auto info = garglk::get_game_info(game);
+            if (info.has_value() && (info->cover.has_value() || !info->description.empty())) {
+                garglk::show_game_info(*info, gli_conf_game_info == GameInfoShow::Once);
+            }
+        }
+
+        return call_winterp(interpreter, game);
     } catch (const std::out_of_range &) {
         // The FrankenDrift interpreter for Adrift 5 games is not supported on all
         // platforms. Let the user know when this is the case.

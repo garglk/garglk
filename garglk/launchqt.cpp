@@ -305,6 +305,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    gli_read_config(argc, argv);
+
     // run story file
     return garglk::rungame(story.toStdString()) ? 0 : 1;
 }

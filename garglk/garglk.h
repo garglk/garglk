@@ -51,6 +51,16 @@
 #include "glk.h"
 #include "gi_dispa.h"
 
+#ifdef _MSC_VER
+#ifdef garglk_EXPORTS
+#define GARGLK_API __declspec(dllexport)
+#else
+#define GARGLK_API __declspec(dllimport)
+#endif
+#else
+#define GARGLK_API
+#endif
+
 // This function is called whenever the library code catches an error
 // or illegal operation from the game program.
 inline void gli_strict_warning(const std::string &msg)
@@ -112,6 +122,15 @@ struct hash<std::pair<FontFace, glui32>> {
 
 namespace garglk {
 
+struct GameInfo {
+    std::string title;
+    std::string author;
+    nonstd::optional<std::string> headline;
+    nonstd::optional<std::string> ifid;
+    std::vector<std::string> description; // paragraphs, split on <br/>
+    nonstd::optional<std::vector<std::uint8_t>> cover; // raw image data (PNG/JPEG)
+};
+
 // This represents a possible configuration file (garglk.ini).
 struct ConfigFile {
     enum class Type {
@@ -160,6 +179,8 @@ std::string winsavefile(const char *prompt, FileFilter filter);
 [[noreturn]]
 void winabort(const std::string &msg);
 void winwarning(const std::string &title, const std::string &msg);
+void show_game_info(const GameInfo &info, bool show_once);
+nonstd::optional<GameInfo> get_game_info(const std::string &filename);
 std::string downcase(const std::string &string);
 bool fontreplace(const std::string &font, FontType type);
 std::vector<ConfigFile> configs(const nonstd::optional<std::string> &gamepath);
@@ -683,6 +704,13 @@ enum class Scaler {
     XBRZ,
 };
 extern Scaler gli_conf_scaler;
+
+enum class GameInfoShow {
+    Never,
+    Once,
+    Always,
+};
+extern GARGLK_API GameInfoShow gli_conf_game_info;
 
 extern std::unordered_map<FontFace, std::vector<std::string>> gli_conf_glyph_substitution_files;
 

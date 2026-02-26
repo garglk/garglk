@@ -141,7 +141,7 @@ char *blorb_chunk_for_name(char *name)
     int j;
     for(j=0;TranslateExec[j];j+=2)
         if (strcmp(name,TranslateExec[j+1])==0) return TranslateExec[j];
-    for(j=0;j<4 && name[j];j++) buffer[j]=toupper(buffer[j]);
+    for(j=0;j<4 && name[j];j++) buffer[j]=toupper(name[j]);
     while(j<4) buffer[j++]=' ';
     buffer[4]=0;
     return buffer;
