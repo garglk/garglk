@@ -23,10 +23,14 @@
 #include <QClipboard>
 #include <QCursor>
 #include <QDesktopServices>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFrame>
 #include <QGraphicsView>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QList>
 #include <QMainWindow>
@@ -35,14 +39,18 @@
 #include <QObject>
 #include <QPainter>
 #include <QPalette>
+#include <QPixmap>
 #include <QProcess>
 #include <QResizeEvent>
+#include <QScreen>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QTextBrowser>
 #include <QString>
 #include <QStringList>
 #include <QTimer>
 #include <QUrl>
+#include <QVBoxLayout>
 #include <QWidget>
 #include <QtGlobal>
 
@@ -923,4 +931,79 @@ void gli_select(event_t *event, bool polled)
     }
 
     process_events.store(false, std::memory_order_relaxed);
+}
+
+void garglk::show_game_info(const garglk::GameInfo &info, bool show_once)
+{
+    if (show_once && info.ifid.has_value()) {
+        QSettings settings("io.github.garglk", "Gargoyle");
+        auto seen = settings.value("games/info_shown").toStringList();
+        auto qifid = QString::fromStdString(*info.ifid);
+        if (seen.contains(qifid)) {
+            return;
+        }
+        seen.append(qifid);
+        settings.setValue("games/info_shown", seen);
+    }
+
+    auto title = QString::fromStdString(info.title);
+    auto author = QString::fromStdString(info.author);
+
+    QDialog dialog;
+    dialog.setWindowTitle(title);
+
+    auto *outer_layout = new QVBoxLayout(&dialog);
+    auto *content_layout = new QHBoxLayout;
+
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+    auto screen_geometry = dialog.screen()->availableGeometry();
+#else
+    auto screen_geometry = QGuiApplication::primaryScreen()->availableGeometry();
+#endif
+    int third_screen = screen_geometry.width() / 3;
+
+    // Cover art on the left, scaled to 1/3 screen width
+    if (info.cover.has_value()) {
+        QPixmap pixmap;
+        if (pixmap.loadFromData(info.cover->data(), static_cast<uint>(info.cover->size()))) {
+            double ratio = static_cast<double>(third_screen) / pixmap.width();
+            auto *image_label = new QLabel;
+            image_label->setPixmap(pixmap.scaled(
+                pixmap.width() * ratio,
+                pixmap.height() * ratio,
+                Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            image_label->setAlignment(Qt::AlignTop);
+            content_layout->addWidget(image_label);
+        }
+    }
+
+    QString html;
+    html += QString("<b style='font-size: large;'>%1</b><br/>").arg(title.toHtmlEscaped());
+    if (info.headline.has_value()) {
+        html += QString("<i>%1</i><br/>").arg(QString::fromStdString(*info.headline).toHtmlEscaped());
+    }
+    html += QString("by %1").arg(author.toHtmlEscaped());
+    for (const auto &paragraph : info.description) {
+        html += QString("<p>%1</p>").arg(QString::fromStdString(paragraph).toHtmlEscaped());
+    }
+
+    auto *text_view = new QTextBrowser;
+    text_view->setHtml(html);
+    text_view->setReadOnly(true);
+    text_view->setOpenExternalLinks(false);
+    text_view->setFrameShape(QFrame::NoFrame);
+    text_view->setFixedWidth(third_screen);
+    content_layout->addWidget(text_view, 1);
+
+    outer_layout->addLayout(content_layout, 1);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    outer_layout->addWidget(buttons);
+
+    int max_height = screen_geometry.height() * 2 / 3;
+    dialog.setMaximumHeight(max_height);
+    dialog.adjustSize();
+    dialog.setFixedSize(dialog.size());
+    dialog.exec();
 }
