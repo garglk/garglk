@@ -16,7 +16,7 @@ jobs:
         run: brew update
 
       - name: Install packages
-        run: brew install fmt jpeg-turbo pkg-config sdl2 sdl2_mixer
+        run: brew install fmt jpeg-turbo pkg-config sdl3 fluid-synth libopenmpt libsndfile libvorbis mpg123
 
       - name: Build
         run: |

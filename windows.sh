@@ -15,6 +15,9 @@ set -ex
 # Images are loaded via Qt by default. To use system image libraries
 # (libpng/libturbojpeg) instead, pass the -s flag.
 #
+# Sound uses SDL3 by default. To use SDL2 instead, pass the -2 flag; to
+# use Qt for sound, pass the -q flag.
+#
 # x86_64 is built by default. To select another architecture, use the -a
 # option. Valid values:
 #
@@ -31,12 +34,15 @@ fatal() {
 }
 
 QT_VERSION="5"
-GARGOYLE_SOUND="SDL"
+GARGOYLE_SOUND="SDL3"
 GARGOYLE_IMAGES="QT"
 
-while getopts "6a:cgqs" o
+while getopts "26a:cgqs" o
 do
     case "${o}" in
+        2)
+            GARGOYLE_SOUND="SDL2"
+            ;;
         6)
             QT_VERSION="6"
             ;;
@@ -56,7 +62,7 @@ do
             GARGOYLE_IMAGES="SYSTEM"
             ;;
         *)
-            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-6cgqs]"
+            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-26cgqs]"
             ;;
     esac
 done

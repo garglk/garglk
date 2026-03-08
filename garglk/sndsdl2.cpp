@@ -25,7 +25,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cmath>
 #include <cstring>
 #include <functional>
 #include <stdexcept>
@@ -43,6 +42,8 @@
 
 #include "gi_blorb.h"
 
+#include "sndsdl-common.h"
+
 #define giblorb_ID_MOD  (giblorb_make_id('M', 'O', 'D', ' '))
 #define giblorb_ID_OGG  (giblorb_make_id('O', 'G', 'G', 'V'))
 #define giblorb_ID_FORM (giblorb_make_id('F', 'O', 'R', 'M'))
@@ -54,14 +55,10 @@
 #define giblorb_ID_MIDI (giblorb_make_id('M', 'I', 'D', 'I'))
 
 #define SDL_CHANNELS 64
-#define GLK_MAXVOLUME 0x10000
-#define FADE_GRANULARITY 100
-
-#define GLK_VOLUME_TO_SDL_VOLUME(x) ((x) < GLK_MAXVOLUME ? (std::round(std::pow(((double)x) / GLK_MAXVOLUME, std::log(4)) * MIX_MAX_VOLUME)) : (MIX_MAX_VOLUME))
 
 enum { CHANNEL_IDLE, CHANNEL_SOUND, CHANNEL_MUSIC };
 
-struct glk_schannel_struct {
+struct glk_schannel_struct : SdlSoundChannel {
     glui32 rock;
 
     Mix_Chunk *sample;
@@ -74,22 +71,21 @@ struct glk_schannel_struct {
     int resid; // for notifies
     int status;
     int channel;
-    int volume;
     glui32 loop;
     int notify;
 
     bool paused;
 
-    // for volume fades
-    int volume_notify;
-    int volume_timeout;
-    int target_volume;
-    double float_volume;
-    double volume_delta;
-    SDL_TimerID timer;
-
     gidispatch_rock_t disprock;
     channel_t *chain_next, *chain_prev;
+
+    void apply_volume() override {
+        if (status == CHANNEL_SOUND) {
+            Mix_Volume(sdl_channel, volume);
+        } else if (status == CHANNEL_MUSIC) {
+            Mix_VolumeMusic(volume);
+        }
+    }
 };
 
 static channel_t *gli_channellist = nullptr;
@@ -221,11 +217,9 @@ static void cleanup_channel(schanid_t chan)
     chan->sdl_channel = -1;
     chan->music = nullptr;
 
-    if (chan->timer != 0) {
-        SDL_RemoveTimer(chan->timer);
-    }
-
-    chan->timer = 0;
+    // Stop any fade and untrack the channel (waiting out an in-flight fade
+    // callback) so nothing touches it after this returns.
+    cancel_fade(chan);
 }
 
 void glk_schannel_destroy(schanid_t chan)
@@ -313,92 +307,6 @@ void glk_sound_load_hint(glui32 snd, glui32 flag)
     // nop
 }
 
-// Make an incremental volume change when the fade timer fires
-Uint32 volume_timer_callback(Uint32 interval, void *param)
-{
-    schanid_t chan = static_cast<schanid_t>(param);
-
-    if (chan == nullptr) {
-        gli_strict_warning("volume_timer_callback: invalid channel.");
-        return 0;
-    }
-
-    chan->float_volume += chan->volume_delta;
-
-    if (chan->float_volume < 0) {
-        chan->float_volume = 0;
-    }
-
-    if (static_cast<int>(chan->float_volume) != chan->volume) {
-        chan->volume = static_cast<int>(chan->float_volume);
-
-        if (chan->status == CHANNEL_SOUND) {
-            Mix_Volume(chan->sdl_channel, chan->volume);
-        } else if (chan->status == CHANNEL_MUSIC) {
-            Mix_VolumeMusic(chan->volume);
-        }
-    }
-
-    chan->volume_timeout--;
-
-    // If the timer has fired FADE_GRANULARITY times, kill it
-    if (chan->volume_timeout <= 0) {
-        if (chan->volume_notify != 0) {
-            gli_event_store(evtype_VolumeNotify, nullptr,
-                0, chan->volume_notify);
-            gli_notification_waiting();
-        }
-
-        if (chan->timer == 0) {
-            gli_strict_warning("volume_timer_callback: invalid timer.");
-            return 0;
-        }
-        SDL_RemoveTimer(chan->timer);
-        chan->timer = 0;
-
-        if (chan->volume != chan->target_volume) {
-            chan->volume = chan->target_volume;
-            if (chan->status == CHANNEL_SOUND) {
-                Mix_Volume(chan->sdl_channel, chan->volume);
-            } else if (chan->status == CHANNEL_MUSIC) {
-                Mix_VolumeMusic(chan->volume);
-            }
-        }
-        return 0;
-    }
-
-    return interval;
-}
-
-// Start a fade timer
-void init_fade(schanid_t chan, int vol, int duration, int notify)
-{
-    if (chan == nullptr) {
-        gli_strict_warning("init_fade: invalid channel.");
-        return;
-    }
-
-    chan->volume_notify = notify;
-
-    chan->target_volume = GLK_VOLUME_TO_SDL_VOLUME(vol);
-
-    chan->float_volume = static_cast<double>(chan->volume);
-    chan->volume_delta = static_cast<double>(chan->target_volume - chan->volume) / FADE_GRANULARITY;
-
-    chan->volume_timeout = FADE_GRANULARITY;
-
-    if (chan->timer != 0) {
-        SDL_RemoveTimer(chan->timer);
-    }
-
-    chan->timer = SDL_AddTimer(static_cast<Uint32>(duration / FADE_GRANULARITY), volume_timer_callback, chan);
-
-    if (chan->timer == 0) {
-        gli_strict_warning("init_fade: failed to create volume change timer.");
-        return;
-    }
-}
-
 void glk_schannel_set_volume(schanid_t chan, glui32 vol)
 {
     glk_schannel_set_volume_ext(chan, vol, 0, 0);
@@ -413,19 +321,11 @@ void glk_schannel_set_volume_ext(schanid_t chan, glui32 vol,
     }
 
     if (duration == 0) {
+        // An immediate volume set overrides any in-progress fade.
+        cancel_fade(chan);
 
         chan->volume = GLK_VOLUME_TO_SDL_VOLUME(vol);
-
-        switch (chan->status) {
-        case CHANNEL_IDLE:
-            break;
-        case CHANNEL_SOUND:
-            Mix_Volume(chan->sdl_channel, chan->volume);
-            break;
-        case CHANNEL_MUSIC:
-            Mix_VolumeMusic(chan->volume);
-            break;
-        }
+        chan->apply_volume();
     } else {
         init_fade(chan, vol, duration, notify);
     }

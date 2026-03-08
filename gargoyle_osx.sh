@@ -10,11 +10,15 @@ fatal() {
 GARGOYLE_CLEAN=
 GARGOYLE_FRANKENDRIFT="OFF"
 GARGOYLE_NO_DMG=
+GARGOYLE_SOUND="SDL3"
 GARGOYLE_CMAKE_EXTRAS=""
 
-while getopts "cfn" o
+while getopts "2cfn" o
 do
     case "${o}" in
+        2)
+            GARGOYLE_SOUND="SDL2"
+            ;;
         c)
             GARGOYLE_CLEAN=1
             ;;
@@ -25,7 +29,7 @@ do
             GARGOYLE_NO_DMG=1
             ;;
         *)
-            fatal "Usage: $0 [-cfn]"
+            fatal "Usage: $0 [-2cfn]"
             ;;
     esac
 done
@@ -122,7 +126,7 @@ mkdir -p "$BUNDLE/PlugIns"
 rm -rf $GARGDIST
 mkdir -p build-osx
 cd build-osx
-cmake .. -DBUILD_SHARED_LIBS=ON -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOS_MIN_VER} -DDIST_INSTALL=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_FRAMEWORK=LAST -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DWITH_FRANKENDRIFT="${GARGOYLE_FRANKENDRIFT}" ${GARGOYLE_CMAKE_EXTRAS}
+cmake .. -DBUILD_SHARED_LIBS=ON -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOS_MIN_VER} -DDIST_INSTALL=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_FRAMEWORK=LAST -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DSOUND="${GARGOYLE_SOUND}" -DWITH_FRANKENDRIFT="${GARGOYLE_FRANKENDRIFT}" ${GARGOYLE_CMAKE_EXTRAS}
 make "-j${NUMJOBS}"
 make install
 cd -
