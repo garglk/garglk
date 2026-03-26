@@ -1,5 +1,5 @@
 // Copyright (C) 1998-2016 by Andrew Plotkin.
-// Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.
+// Copyright (C) 2006-2009 by Tor Andersson, Tara McGrew.
 // Copyright (C) 2010 by Ben Cressey, Chris Spiegel.
 //
 // This file is part of Gargoyle.

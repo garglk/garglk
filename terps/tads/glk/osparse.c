@@ -1,6 +1,6 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (C) 2006-2009 by Andrew Plotkin, Jesse McGrew.                   *
+ * Copyright (C) 2006-2009 by Andrew Plotkin, Tara McGrew.                    *
  * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
