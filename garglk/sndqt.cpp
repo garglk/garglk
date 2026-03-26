@@ -941,20 +941,20 @@ static glui32 gli_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, 
         try {
             switch (type) {
             case giblorb_ID_MOD:
-                source.reset(new OpenMPTSource(data, repeats));
+                source = std::make_shared<OpenMPTSource>(data, repeats);
                 break;
             case giblorb_ID_AIFF:
             case giblorb_ID_FORM:
             case giblorb_ID_OGG:
             case giblorb_ID_WAVE:
-                source.reset(new SndfileSource(data, repeats));
+                source = std::make_shared<SndfileSource>(data, repeats);
                 break;
             case giblorb_ID_MP3:
-                source.reset(new Mpg123Source(data, repeats));
+                source = std::make_shared<Mpg123Source>(data, repeats);
                 break;
 #ifdef GARGLK_HAS_FLUIDSYNTH
             case giblorb_ID_MIDI:
-                source.reset(new FluidSynthSource(data, repeats));
+                source = std::make_shared<FluidSynthSource>(data, repeats);
                 break;
 #endif
             default:
@@ -1083,7 +1083,7 @@ void glk_schannel_stop(schanid_t chan)
     if (!gli_exiting) {
         chan->audio->stop();
         chan->timer.stop();
-        chan->audio.reset(nullptr);
+        chan->audio.reset();
     }
 }
 
