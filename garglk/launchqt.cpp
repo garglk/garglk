@@ -277,7 +277,6 @@ static QString parse_args(const QApplication &app)
 
         std::exit(0);
     } else if (parser.isSet("t")) {
-        garglk::theme::init();
         for (const auto &theme_name : garglk::theme::names()) {
             std::cout << theme_name << std::endl;
         }
@@ -294,6 +293,8 @@ int main(int argc, char **argv)
 
     QApplication::setApplicationName("gargoyle");
     QApplication::setApplicationVersion(GARGOYLE_VERSION);
+
+    garglk::theme::init();
 
     auto story = parse_args(app);
 
