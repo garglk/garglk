@@ -30,14 +30,20 @@
 #include "garglk.h"
 
 static ISpVoice *voice = nullptr;
+static bool tts_initialized = false;
 #define TXTSIZE 4096
 static std::array<WCHAR, TXTSIZE + 1> txtbuf;
 static std::size_t txtlen;
 
 void gli_initialize_tts()
 {
+    if (tts_initialized) {
+        return;
+    }
+
     if (gli_conf_speak) {
-        if (CoInitialize(nullptr) == S_OK) {
+        if (SUCCEEDED(CoInitialize(nullptr))) {
+            tts_initialized = true;
             CoCreateInstance(
                     CLSID_SpVoice,		// rclsid
                     nullptr,			// aggregate
@@ -98,6 +104,11 @@ void gli_free_tts()
 {
     if (voice != nullptr) {
         voice->Release();
+        voice = nullptr;
+    }
+
+    if (tts_initialized) {
         CoUninitialize();
+        tts_initialized = false;
     }
 }
