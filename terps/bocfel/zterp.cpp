@@ -163,9 +163,12 @@ static void find_id()
     // must only check for A–Z, a–z, and 0–9. Because ASCII (or a
     // compatible charset) is required, testing against 'a', 'z', etc.
     // is OK.
-    std::copy_if(header.serial, header.serial + 6, serial.begin(), [](auto c) {
-        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
-    });
+    for (int i = 0; i < 6; i++) {
+        auto c = header.serial[i];
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+            serial[i] = c;
+        }
+    }
 
     std::ostringstream ss;
     ss << header.release << "-" << serial;
@@ -519,13 +522,6 @@ static void process_story(IO &io, long offset)
     std::memcpy(header.serial, &memory[0x12], sizeof header.serial);
 
     unsigned long propsize = zversion <= 3 ? 62 : 126;
-
-    // There must be at least enough room in dynamic memory for the header
-    // (64 bytes), the global variables table (480 bytes), and the
-    // property defaults table (62 or 126 bytes).
-    if (header.static_start < 64UL + 480UL + propsize) {
-        die("corrupted story: dynamic memory too small (%d bytes)", static_cast<int>(header.static_start));
-    }
 
     if (header.static_start >= memory_size) {
         die("corrupted story: static memory out of range");
