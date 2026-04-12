@@ -383,7 +383,11 @@ void Options::read_envvars()
 
         auto val = zterp_getenv(ss.str());
         if (val != nullptr) {
-            pair.second(*val);
+            try {
+                pair.second(*val);
+            } catch (const ParseError &e) {
+                std::cerr << "invalid value for $" << ss.str() << ": " << e.what() << std::endl;
+            }
         }
     }
 }
@@ -478,6 +482,12 @@ void Options::help()
     }
 }
 #else
+Options::Options()
+{
+    glkunix_arguments[0] = glkunix_argumentlist_t{const_cast<char *>(""), glkunix_arg_ValueFollows, const_cast<char *>("file to load")};
+    glkunix_arguments[1] = glkunix_argumentlist_t{nullptr, glkunix_arg_End, nullptr};
+}
+
 void Options::process_arguments(int argc, char **argv)
 {
     if (argc > 1) {

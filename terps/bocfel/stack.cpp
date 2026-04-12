@@ -791,7 +791,7 @@ static void read_mem(IFF &iff)
         }
         try {
             iff.io()->read_exact(memory.data(), header.static_start);
-        } catch (const IO::OpenError &) {
+        } catch (const IO::IOError &) {
             throw RestoreError("unexpected eof reading memory");
         }
     } else {

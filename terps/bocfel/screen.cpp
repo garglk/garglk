@@ -2473,6 +2473,25 @@ static void window_change()
     graphics_window.destroy();
     close_journey_window();
     mysterious_separator.destroy();
+
+    // This calls V-$REFRESH, i.e. the “refresh” or “$refresh” verb.
+    auto zorkzero_refresh = [](){
+        static const std::map<std::string, uint32_t> refresh_addrs = {
+            {"296-881019", 0x150b8},
+            {"366-890323", 0x133fc},
+            {"383-890602", 0x134d8},
+            {"393-890714", 0x13614},
+        };
+
+        auto addr = refresh_addrs.find(get_story_id());
+        if (addr != refresh_addrs.end()) {
+            // The “1” argument means “don't clear”. Whether clearing
+            // would be good or not is immaterial: Glk doesn’t allow
+            // windows to be erased when there's line input pending, and
+            // most of the time, that will be the case.
+            internal_call((addr->second - header.routines_offset) / 4, {1});
+        }
+    };
 #endif
 
     // When a textgrid (the upper window) in Gargoyle is rearranged, it
@@ -2496,9 +2515,20 @@ static void window_change()
         graphics_window.resize(current_type);
         graphics_window.draw_shogun_borders();
     }
+
+    // As with Shogun, borders aren’t redrawn on resize in Zork Zero.
+    // But Zork Zero’s graphics are much more complicated: there are
+    // borders, a compass, games, the rebus, encyclopedia, etc. And
+    // unlike Arthur, Zork Zero doesn’t redraw on room change. To get it
+    // to redraw, call V-$REFRESH.
+    if (hack == Hack::ZorkZero) {
+        zorkzero_refresh();
+    }
 #endif
 
-    // Track the new size of the upper window.
+    // Track the new size of the upper window. This has to come after
+    // the Shogun/Zork Zero redraws above to ensure the window size is
+    // properly calculated with borders in mind.
     if (zversion >= 3 && upperwin->id != nullptr) {
         glui32 w, h;
 
@@ -2508,6 +2538,46 @@ static void window_change()
 
         resize_upper_window(h, false);
     }
+
+#ifdef ZTERP_GLK_GRAPHICS
+    if (hack == Hack::ZorkZero) {
+        // Zork Zero calls “@picture_data 383” to figure out how wide
+        // the status bar is. Bocfel hijacks this call to return the
+        // upper window width, which is where the status will actually
+        // be drawn. But starting in release 383 (coincidentally), Zork
+        // Zero caches this value so as not to keep calling
+        // @picture_data as earlier versions did. That means the width
+        // is wrong after a resize. Zork Zero stores cached values in a
+        // table called SL-LOC-TBL, and the 3rd word in that table is
+        // the width of the window, i.e. the cached value we care about.
+        // If necessary, find the address of SL-LOC-TBL and update the
+        // relevant cached entry.
+        static const std::unordered_map<std::string, uint16_t> sl_loc_tbl = {
+            {"383-890602", 0x70a3},
+            {"393-890714", 0x70a5},
+        };
+
+        auto addr = sl_loc_tbl.find(get_story_id());
+        if (addr != sl_loc_tbl.end()) {
+            store_word(addr->second + 6, upper_window_width);
+        }
+
+        // If the window is widened, there will be artifacts from the
+        // previous status bar, so clear them. Then force another
+        // refresh. Refresh must be called twice:
+        //
+        // The first refresh causes the border to be redrawn, which
+        // resizes the upper window. The upper window width is then
+        // calculated and stored in SL-LOC-TBL. With the actual value
+        // now available, the second refresh causes the status bar to
+        // properly be drawn.
+        //
+        // In short, the first refresh is for the border, the second is
+        // for the status bar.
+        clear_window(upperwin);
+        zorkzero_refresh();
+    }
+#endif
 
     // §8.4
     // Only 0x20 and 0x21 are mentioned; what of 0x22 and 0x24? Zoom and
@@ -2705,7 +2775,7 @@ void screen_flush()
 template <typename T>
 static bool special_zscii(T c)
 {
-    return c > 129 && c < 154;
+    return c >= 129 && c <= 154;
 }
 
 // This is called when input stream 1 (read from file) is selected. If
@@ -3093,8 +3163,13 @@ static bool get_input(uint16_t timer, uint16_t routine, Input &input)
 
                 // Compensate for the maze being offset one block.
                 if (hack == Hack::Shogun) {
-                    x -= SHOGUN_MAZE_BLOCK_WIDTH;
-                    y -= SHOGUN_MAZE_BLOCK_HEIGHT;
+                    if (x >= SHOGUN_MAZE_BLOCK_WIDTH) {
+                        x -= SHOGUN_MAZE_BLOCK_WIDTH;
+                    }
+
+                    if (y >= SHOGUN_MAZE_BLOCK_HEIGHT) {
+                        y -= SHOGUN_MAZE_BLOCK_HEIGHT;
+                    }
                 }
 
                 zterp_mouse_click(x, y);
@@ -3728,9 +3803,7 @@ void zcheck_unicode()
     store(res);
 }
 
-#ifdef ZTERP_GLK_BLORB
-
-#ifdef GLK_MODULE_IMAGE
+#ifdef ZTERP_GLK_GRAPHICS
 static uint16_t blorb_reln;
 
 struct ScaleInfo {
@@ -3747,7 +3820,7 @@ static std::map<uint32_t, ScaleInfo> picture_scale;
 // Errors here aren’t fatal, since the images will just be drawn in
 // their original resolution if scale data can’t be loaded.
 void screen_load_scale_info(const std::string &blorb_file) {
-#ifdef GLK_MODULE_IMAGE
+#ifdef ZTERP_GLK_GRAPHICS
     if (!glk_gestalt(gestalt_Graphics, 0) || !glk_gestalt(gestalt_DrawImage, wintype_TextBuffer)) {
         return;
     }
@@ -3800,10 +3873,8 @@ void screen_load_scale_info(const std::string &blorb_file) {
     } catch (...) {
         picture_scale.clear();
     }
-#else
 #endif
 }
-#endif
 
 #ifdef ZTERP_GLK_GRAPHICS
 // Map a pair of (palette image, requested image) to the ID of a
@@ -3839,6 +3910,8 @@ static void build_palette_map()
         } else {
             show_message("Invalid BPal chunk detected; proceeding without adaptive palette");
         }
+    } else if (hack == Hack::Arthur || hack == Hack::ZorkZero) {
+        show_message("Blorb file is missing a BPal chunk: some colors will be wrong");
     }
 }
 
@@ -3865,7 +3938,7 @@ static std::unique_ptr<ImageGeometry> arthur_geom(glui32 pic)
     case 58:  case 59:  case 60:  case 61:  case 62:  case 63:  case 64:  case 65:
     case 66:  case 67:  case 68:  case 69:  case 70:  case 71:  case 72:  case 73:
     case 74:  case 75:  case 76:  case 77:  case 78:  case 81:  case 86:  case 89:
-    case 101: case 102: case 154: case 157: case 162: case 165: case 166:
+    case 101: case 102: case 154: case 157: case 162: case 165: case 166: case 167:
         return std::make_unique<ImageGeometry>(92, 7);
     case 6: // sword in stone
         return std::make_unique<ImageGeometry>(131, 54);
@@ -3978,7 +4051,7 @@ void GraphicsWindow::draw(glui32 pic, const ImageGeometry &geom, glui32 w, glui3
         case 58:  case 59:  case 60:  case 61:  case 62:  case 63:  case 64:  case 65:
         case 66:  case 67:  case 68:  case 69:  case 70:  case 71:  case 72:  case 73:
         case 74:  case 75:  case 76:  case 77:  case 78:  case 81:  case 86:  case 89:
-        case 101: case 102: case 154: case 157: case 162: case 165: case 166:
+        case 101: case 102: case 154: case 157: case 162: case 165: case 166: case 167:
 
         // Parade area and flying
         case 17:  case 163:
@@ -4129,8 +4202,6 @@ static bool draw_zorkzero(glui32 pic, glui32 w, glui32 h, double x, double y)
     }
 
     static const std::unordered_map<glui32, GraphicsWindow::Border> borders = {
-        {170, GraphicsWindow::Border::Left},
-        {171, GraphicsWindow::Border::Right},
         {497, GraphicsWindow::Border::Left},
         {498, GraphicsWindow::Border::Right},
         {499, GraphicsWindow::Border::Left},
@@ -4147,11 +4218,11 @@ static bool draw_zorkzero(glui32 pic, glui32 w, glui32 h, double x, double y)
         return true;
     }
 
-    // 5, 6, and 7 are the borders. If a request comes in for one of
+    // 5, 6, 7, and 8 are the banners. If a request comes in for one of
     // them, ensure the graphics window is the right size, and clear it
     // first: different borders are different sizes, so drawing on top
     // of each other causes the previous image to leak through.
-    if (pic == 5 || pic == 6 || pic == 7) {
+    if (pic >= 5 && pic <= 8) {
         if (!graphics_window.resize(GraphicsWindow::Type::ZorkZeroBorder)) {
             return false;
         }
@@ -4183,9 +4254,9 @@ static bool draw_zorkzero(glui32 pic, glui32 w, glui32 h, double x, double y)
         return true;
     }
 
-    if (pic == 5 || pic == 6 || pic == 7 || // Banner
-       (pic >= 9 && pic <= 24) ||           // Compass directions
-       (pic >= 479 && pic <= 481))          // Up & down
+    if ((pic >= 5 && pic <= 8)  ||  // Banner
+        (pic >= 9 && pic <= 24) ||  // Compass directions
+        (pic >= 479 && pic <= 481)) // Up & down
     {
         ImageGeometry geom{x - 1, y - 1};
         graphics_window.draw(pic, geom, w, h);
@@ -4274,8 +4345,8 @@ void zdraw_picture()
     }
 
     if (hack == Hack::Shogun) {
-        static const std::unordered_set<glui32> right = {7, 8, 9, 10, 11, 12, 13, 14, 22, 24, 25, 26, 28, 30, 32, 37};
-        static const std::unordered_set<glui32> left = {15, 17, 20, 27, 29, 33, 36};
+        static const std::unordered_set<glui32> right = {7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 22, 24, 25, 26, 28, 31, 32, 34, 35, 37};
+        static const std::unordered_set<glui32> left = {15, 17, 20, 27, 29, 30, 33, 36};
 
         if (right.find(pic) != right.end()) {
             align = imagealign_MarginRight;
@@ -5162,6 +5233,7 @@ void screen_read_bfts(IO &io, uint32_t size)
 
     if (size < 4) {
         show_message("Corrupted Bfts entry (too small)");
+        return;
     }
 
     try {
