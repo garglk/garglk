@@ -26,6 +26,12 @@
 #include <iterator>
 #include <string>
 
+#ifdef _WIN32
+#include <cstdio>
+
+#include <windows.h>
+#endif
+
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
@@ -289,6 +295,17 @@ static QString parse_args(const QApplication &app)
 
 int main(int argc, char **argv)
 {
+#ifdef _WIN32
+    // The WIN32 CMake flag builds a GUI subsystem executable, which has
+    // no console attached. If running from a terminal (cmd, PowerShell),
+    // attach to it so that stdout/stderr output from --help, --paths,
+    // etc. is visible.
+    if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+        std::freopen("CONOUT$", "w", stdout);
+        std::freopen("CONOUT$", "w", stderr);
+    }
+#endif
+
     QApplication app(argc, argv);
 
     QApplication::setApplicationName("gargoyle");
