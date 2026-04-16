@@ -77,6 +77,10 @@ endif()
 option(WITH_FRANKENDRIFT "Build the FrankenDrift interpreter for ADRIFT 5 games (requires the .NET 8 SDK)" OFF)
 add_subdirectory(garglk)
 
+if(WITH_FRANKENDRIFT AND NOT BUILD_SHARED_LIBS)
+    message(FATAL_ERROR "Frankendrift requires a shared libgarglk")
+endif()
+
 # xBRZ requires C++17.
 if(CXX_VERSION EQUAL 17)
     add_subdirectory(support/xbrz)
