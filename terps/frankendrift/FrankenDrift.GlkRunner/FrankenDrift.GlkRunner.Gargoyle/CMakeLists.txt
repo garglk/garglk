@@ -71,4 +71,20 @@ if(DIST_INSTALL)
     install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/FrankenDrift.GlkRunner.Gargoyle${GARGLK_FRANKEN_EXT}" DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
 else()
     install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/FrankenDrift.GlkRunner.Gargoyle${GARGLK_FRANKEN_EXT}" DESTINATION "${INTERPRETER_INSTALL_DIR}")
+    if(APPIMAGE AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # The .NET-published binary ships with rpath "$ORIGIN", but libgarglk.so
+        # is installed to ../lib. Retarget it so linuxdeploy can resolve the
+        # dependency inside the AppDir. file(RPATH_CHANGE) can't grow the rpath
+        # string in place, so use patchelf which rewrites the ELF.
+        find_program(PATCHELF patchelf REQUIRED)
+        install(CODE "
+            execute_process(
+                COMMAND \"${PATCHELF}\" --set-rpath \"\$ORIGIN/../lib\"
+                    \"\$ENV{DESTDIR}${INTERPRETER_INSTALL_DIR}/FrankenDrift.GlkRunner.Gargoyle\"
+                RESULT_VARIABLE _rc)
+            if(NOT _rc EQUAL 0)
+                message(FATAL_ERROR \"patchelf failed on FrankenDrift.GlkRunner.Gargoyle\")
+            endif()
+        ")
+    endif()
 endif()
