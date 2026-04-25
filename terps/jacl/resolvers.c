@@ -711,7 +711,8 @@ expand_function(const char *name)
 	int             delimiter = 0;
 	char            expression[84];
 
-	strncpy(expression, name, 80);
+	strncpy(expression, name, 83);
+	expression[83] = 0;
 
 	counter = strlen(expression);
 

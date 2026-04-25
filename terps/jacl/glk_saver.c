@@ -12,7 +12,6 @@
 static void write_integer(strid_t stream, int x);
 static void write_long(strid_t stream, long x);
 static int  read_integer(strid_t stream);
-static long read_long(strid_t stream);
 
 int
 save_game(frefid_t saveref)
@@ -231,13 +230,4 @@ write_long(strid_t stream, long x)
     glk_put_char_stream(stream, c);
 }
 
-long 
-read_long(strid_t stream)
-{
-    long a, b, c, d;
-    a = (long) glk_get_char_stream(stream);
-    b = (long) glk_get_char_stream(stream);
-    c = (long) glk_get_char_stream(stream);
-    d = (long) glk_get_char_stream(stream);
-    return a | (b << 8) | (c << 16) | (d << 24);
-}
+

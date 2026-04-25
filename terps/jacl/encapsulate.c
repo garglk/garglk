@@ -61,14 +61,13 @@ encapsulate()
 			break;
 		case '"':
 			index++;
-			/* NEED TO REMEMBER THAT THIS WORD WAS ENCLOSED IN QUOTES FOR 
-			 * THE COMMAND 'write'*/	
-			quoted[position] = 1;	
-
-			word[position] = &text_buffer[index];
-
-			if (position < MAX_WORDS)
+			/* NEED TO REMEMBER THAT THIS WORD WAS ENCLOSED IN QUOTES FOR
+			 * THE COMMAND 'write'*/
+			if (position < MAX_WORDS) {
+				quoted[position] = 1;
+				word[position] = &text_buffer[index];
 				position++;
+			}
 
 			/* IF A WORD IS ENCLOSED IN QUOTES, KEEP GOING UNTIL THE END
 			 * OF THE LINE OR A CLOSING QUOTE IS FOUND, NOT BREAKING AT
@@ -87,14 +86,17 @@ encapsulate()
 			break;
 		default:
 			if (new_word) {
-                if (text_buffer[index] == '%' && text_buffer[index+1] != ' ' && text_buffer[index+1] != '\t') {
+                if (position < MAX_WORDS && text_buffer[index] == '%' && text_buffer[index+1] != ' ' && text_buffer[index+1] != '\t') {
 					percented[position]++;
                     break;
 				}
-				word[position] = &text_buffer[index];
-				new_word = FALSE;
-				if (position < MAX_WORDS)
+				if (position < MAX_WORDS) {
+					word[position] = &text_buffer[index];
+					new_word = FALSE;
 					position++;
+				} else {
+					new_word = FALSE;
+				}
 			}
 			break;
 		}
@@ -142,9 +144,10 @@ command_encapsulate()
 			// SET THIS WORD TO POINT TO A STRING CONSTANT OF 'comma' AS THE
 			// COMMA ITSELF WILL BE NULLED OUT TO TERMINATE THE PRECEEDING
 			// WORD IN THE COMMAND.
-			word[position] = comma;
-			if (position < MAX_WORDS)
+			if (position < MAX_WORDS) {
+				word[position] = comma;
 				position++;
+			}
 			new_word = TRUE;
 			break;
 		case '.':
@@ -152,9 +155,10 @@ command_encapsulate()
 			// SET THIS WORD TO POINT TO A STRING CONSTANT OF 'comma' AS THE
 			// COMMA ITSELF WILL BE NULLED OUT TO TERMINATE THE PRECEEDING
 			// WORD IN THE COMMAND
-			word[position] = then;
-			if (position < MAX_WORDS)
+			if (position < MAX_WORDS) {
+				word[position] = then;
 				position++;
+			}
 			new_word = TRUE;
 			break;
 		case ';':
@@ -167,14 +171,13 @@ command_encapsulate()
 			break;
 		case '"':
 			index++;
-			// NEED TO REMEMBER THAT THIS WORD WAS ENCLOSED IN QUOTES FOR 
-			// THE COMMAND 'write'	
-			quoted[position] = 1;	
-
-			word[position] = &text_buffer[index];
-
-			if (position < MAX_WORDS)
+			// NEED TO REMEMBER THAT THIS WORD WAS ENCLOSED IN QUOTES FOR
+			// THE COMMAND 'write'
+			if (position < MAX_WORDS) {
+				quoted[position] = 1;
+				word[position] = &text_buffer[index];
 				position++;
+			}
 
 			// IF A WORD IS ENCLOSED IN QUOTES, KEEP GOING UNTIL THE END
 			// OF THE LINE OR A CLOSING QUOTE IS FOUND, NOT BREAKING AT
@@ -193,10 +196,13 @@ command_encapsulate()
 			break;
 		default:
 			if (new_word) {
-				word[position] = &text_buffer[index];
-				new_word = FALSE;
-				if (position < MAX_WORDS)
+				if (position < MAX_WORDS) {
+					word[position] = &text_buffer[index];
+					new_word = FALSE;
 					position++;
+				} else {
+					new_word = FALSE;
+				}
 			}
 			break;
 		}

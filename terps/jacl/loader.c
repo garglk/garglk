@@ -44,7 +44,7 @@ static void create_string(const char *name, const char *value);
 static void create_integer(const char *name, int value);
 static void create_cinteger(const char *name, int value);
 
-void
+int
 read_gamefile()
 {
     int            index,
@@ -60,18 +60,12 @@ read_gamefile()
     int            is_static = FALSE;
 
     long           start_of_file = 0;
-#ifdef GLK
-    glui32         current_file_position;
-#else
-    long         current_file_position;
-#endif
 
     long           bit_mask;
 
     struct filter_type *current_filter = NULL;
     struct filter_type *new_filter = NULL;
     struct attribute_type *current_attribute = NULL;
-    struct attribute_type *new_attribute = NULL;
     struct cinteger_type *resolved_cinteger = NULL;
     struct synonym_type *current_synonym = NULL;
     struct synonym_type *new_synonym = NULL;
@@ -86,6 +80,7 @@ read_gamefile()
     // TO THE INTERPRETER AS JACL FUNCTION CAN ONLY RETURN
     // AN INTEGER
     create_string ("return_value", "");
+    create_string ("pending_target", "");
 
     create_cstring ("function_name", "JACL*Internal");
 
@@ -135,6 +130,9 @@ read_gamefile()
     create_integer ("local_y", 0);
     create_integer ("local_a", 0);
     create_integer ("linebreaks", 1);
+    create_integer ("pending_question_type", 0);
+    create_integer ("pending_number_low", 0);
+    create_integer ("pending_number_high", 0);
 
     // CREATE DEFAULT ATTRIBUTE FOR BACKWARDS COMPATIBILITY
     create_attribute("FIRST");
@@ -607,7 +605,7 @@ read_gamefile()
 
     if (errors) {
         totalerrs(errors);
-        terminate(48);
+        return errors;
     }
 
 /*************************************************************************
@@ -994,10 +992,8 @@ read_gamefile()
         }
 
 #ifdef GLK
-        current_file_position = glk_stream_get_position(game_stream);
         result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
 #else
-        current_file_position = ftell(file);
         fgets(text_buffer, 1024, file);
 #endif
         line++;
@@ -1027,8 +1023,10 @@ read_gamefile()
 
     if (errors) {
         totalerrs(errors);
-        terminate(48);
+        return errors;
     }
+
+    return 0;
 }
 
 void
@@ -1380,7 +1378,9 @@ restart_game()
     free_from(grammar_table);
     grammar_table = NULL;
 
-    read_gamefile();
+    if (read_gamefile()) {
+        log_error("Game reload failed due to errors, keeping previous state.", PLUS_STDERR);
+    }
 }
 
 void
@@ -1407,7 +1407,6 @@ void
 create_attribute(const char *name) 
 {
     struct attribute_type *new_attribute = NULL;
-    int index;
 
   if ((new_attribute = (struct attribute_type *)
      malloc(sizeof(struct attribute_type))) == NULL) {

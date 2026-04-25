@@ -30,7 +30,9 @@ int								max_size[4];
  * noun2 EXCEPTIONS	: 3
  */
 
+#if defined(GLK) || defined(__NDS__)
 static int             			selection;
+#endif
 
 static int				        matches = 0;
 static int            			highest_confidence = 0;
@@ -40,7 +42,9 @@ static int             			backup_pointer = 0;
 static int						everything = 0;
 
 static int             			confidence[MAX_OBJECTS];
+#if defined(GLK) || defined(__NDS__)
 static int						possible_objects[MAX_OBJECTS];
+#endif
 
 int								it;
 int								them[MAX_OBJECTS];
@@ -1626,13 +1630,13 @@ noun_resolve(struct word_type *scope_word, int finding_from, int noun_number)
 	/* AN AMBIGUOUS REFERENCE WAS MADE. ATTEMPT TO CALL ALL THE disambiguate
 	 * FUNCTIONS TO SEE IF ANY OF THE OBJECT WANTS TO TAKE PREFERENCE IN
 	 * THIS CIRCUMSTANCE */
+	/*
 	int situation = noun_number;
 
 	if (finding_from) {
 		situation += 4;
 	}
 
-	/* 
 	for (index = 1; index <= objects; index++) {
 		if (confidence[index] != FALSE) {
 			strcpy(function_name, "disambiguate");

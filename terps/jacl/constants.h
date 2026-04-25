@@ -107,6 +107,11 @@
 #define LOCAL_Y				integer_resolve("local_y")
 #define LOCAL_A				integer_resolve("local_a")
 
+/* PENDING QUESTION STATE (for web interpreter getyesorno/getnumber) */
+#define PENDING_QUESTION_TYPE	integer_resolve("pending_question_type")
+#define PENDING_NUMBER_LOW		integer_resolve("pending_number_low")
+#define PENDING_NUMBER_HIGH		integer_resolve("pending_number_high")
+
 /* SYSTEM INTEGER CONSTANTS */
 
 #define SOUND_SUPPORTED			cinteger_resolve("sound_supported")

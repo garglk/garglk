@@ -52,27 +52,6 @@ qIsEmpty(Queue *q)
 }
 
 static void
-qDebug(Queue *q)
-{
-	printf("Queue:");
-
-	if (q->head == NULL)
-	{
-		printf(" empty");
-	}
-	else
-	{
-		QueueNode *node;
-		for (node = q->head;node != NULL;node = node->next)
-		{
-			printf(" %d (%d)", node->val, node->val2);
-		}
-	}
-
-	putchar('\n');
-}
-
-static void
 qAppend(Queue *q, int val, int val2)
 {
 	QueueNode *node = (QueueNode*) malloc(sizeof(QueueNode));
@@ -107,44 +86,6 @@ qPop(Queue *q, int *val, int *val2)
 	{
 		q->head = q->head->next;
 	}
-}
-
-static void
-qTest(void)
-{
-	int val, val2;
-	Queue q;
-
-	qInit(&q);
-	qDebug(&q);
-
-	printf("\nAdd 3, 0\n");
-	qAppend(&q, 3, 0);
-	qDebug(&q);
-
-	printf("\nAdd 4, 2\n");
-	qAppend(&q, 4, 2);
-	qDebug(&q);
-
-	printf("\nAdd 5, 1\n");
-	qAppend(&q, 5, 1);
-	qDebug(&q);
-
-	qPop(&q, &val, &val2);
-	printf("\nPop %d, %d\n", val, val2);
-	qDebug(&q);
-
-	qPop(&q, &val, &val2);
-	printf("\nPop %d, %d\n", val, val2);
-	qDebug(&q);
-
-	printf("\nAdd 6, 3\n");
-	qAppend(&q, 6, 3);
-	qDebug(&q);
-
-	printf("\nDelete all\n");
-	qDelete(&q);
-	qDebug(&q);
 }
 
 /**************************************/
@@ -195,26 +136,6 @@ setDelete(Set *set)
 	}
 }
 
-static void
-setDebug(Set *set)
-{
-	int n;
-
-	printf("Set:");
-
-	for (n = 0;n < SET_HASHSIZE;n++)
-	{
-		SetNode *node;
-
-		for (node = set->node[n];node != NULL;node = node->next)
-		{
-			printf(" %d", node->val);
-		}
-	}
-
-	putchar('\n');
-}
-
 static int
 setHash(int val)
 {
@@ -254,38 +175,6 @@ setContains(Set *set, int val)
 	}
 
 	return 0;
-}
-
-static void setTest(void)
-{
-	Set s;
-
-	setInit(&s);
-	setDebug(&s);
-
-	printf("\nAdd 34\n");
-	setAdd(&s, 34);
-	setDebug(&s);
-
-	printf("\nAdd 56\n");
-	setAdd(&s, 56);
-	setDebug(&s);
-
-	printf("\nAdd 34 again\n");
-	setAdd(&s, 34);
-	setDebug(&s);
-
-	printf("\nAdd %d\n", 34 + SET_HASHSIZE);
-	setAdd(&s, 34 + SET_HASHSIZE);
-	setDebug(&s);
-
-	printf("\nAdd 78\n");
-	setAdd(&s, 78);
-	setDebug(&s);
-
-	printf("\nDelete all\n");
-	setDelete(&s);
-	setDebug(&s);
 }
 
 /**************************************/

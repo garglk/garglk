@@ -101,24 +101,12 @@ log_debug(const char *message, int console)
 void
 log_message(const char *message, int console)
 {
-	FILE           *errorLog = fopen(error_log, "a");
-	time_t          tnow;
-	char 			consoleMessage[256];
-	char 			temp_buffer[256];
+	/* Informational/debug messages are NOT written to error.log; that
+	 * file is reserved for critical errors raised via log_error(). On a
+	 * busy CGI host the per-request startup traffic was filling the disk.
+	 * Stderr/stdout output is still honoured so log_message() remains a
+	 * useful surface for interactive/console diagnostics. */
 
-	/* MAKE THE LOG MESSAGE WITH GAME PREFIX */
-	sprintf(temp_buffer, "%s - %s - %s\n", strip_return(ctime(&tnow)), prefix, message);
-
-	/* MAKE THE MESSAGE FOR STDERR AND STDOUT WITH ERROR PREFIX */
-	sprintf(consoleMessage, "%s: %s\n", prefix, message);
-
-	if (errorLog != NULL) {
-		fputs(temp_buffer, errorLog);
-		fflush(errorLog);
-		fclose(errorLog);
-	} 
-
-	/* SEND THE MESSAGE TO STANDARD ERROR OR STANDARD OUT AS REQUIRED */
 	if (console == 1) {
 		write_text(message);
 		write_text("^");
