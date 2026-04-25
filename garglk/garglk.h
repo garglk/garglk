@@ -180,7 +180,7 @@ std::string winsavefile(const char *prompt, FileFilter filter);
 void winabort(const std::string &msg);
 void winwarning(const std::string &title, const std::string &msg);
 void show_game_info(const GameInfo &info, bool show_once);
-nonstd::optional<GameInfo> get_game_info(const std::string &filename);
+nonstd::optional<GameInfo> get_game_info(std::string filename);
 std::string downcase(const std::string &string);
 bool fontreplace(const std::string &font, FontType type);
 std::vector<ConfigFile> configs(const nonstd::optional<std::string> &gamepath);
@@ -1099,7 +1099,7 @@ extern bool gcmd_accept_scroll(window_t *win, glui32 arg);
 
 extern void gli_initialize_misc();
 extern void gli_initialize_windows();
-extern void gli_initialize_babel(const std::string &filename);
+extern void gli_initialize_babel(std::string filename);
 
 extern window_t *gli_window_iterate_treeorder(window_t *win);
 
