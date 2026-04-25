@@ -16,6 +16,8 @@
 // along with Gargoyle; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+// NOTE: For C++17, switch from &x[0] to x.data()
+
 #include <string>
 
 #include "glk.h"
@@ -60,13 +62,13 @@ static std::string xml_unescape(const std::string &s)
     return result;
 }
 
-static nonstd::optional<std::string> get_tag(const std::string &metadata, const std::string &key)
+static nonstd::optional<std::string> get_tag(std::string metadata, std::string key)
 {
     auto value = garglk::unique(
         ifiction_get_tag(
-            const_cast<char *>(metadata.c_str()),
+            &metadata[0],
             const_cast<char *>("bibliographic"),
-            const_cast<char *>(key.c_str()),
+            &key[0],
             nullptr),
         [](void *p) { std::free(p); });
 
@@ -152,10 +154,10 @@ static nonstd::optional<garglk::GameInfo> parse_ifiction(const std::string &meta
     return info;
 }
 
-nonstd::optional<garglk::GameInfo> garglk::get_game_info(const std::string &filename)
+nonstd::optional<garglk::GameInfo> garglk::get_game_info(std::string filename)
 {
     auto ctx = garglk::unique(get_babel_ctx(), release_babel_ctx);
-    if (babel_init_ctx(const_cast<char *>(filename.c_str()), ctx.get()) == nullptr) {
+    if (babel_init_ctx(&filename[0], ctx.get()) == nullptr) {
         babel_release_ctx(ctx.get());
         return nonstd::nullopt;
     }
@@ -201,10 +203,10 @@ nonstd::optional<garglk::GameInfo> garglk::get_game_info(const std::string &file
     return info;
 }
 
-void gli_initialize_babel(const std::string &filename)
+void gli_initialize_babel(std::string filename)
 {
     auto ctx = garglk::unique(get_babel_ctx(), release_babel_ctx);
-    if (babel_init_ctx(const_cast<char *>(filename.c_str()), ctx.get()) != nullptr) {
+    if (babel_init_ctx(&filename[0], ctx.get()) != nullptr) {
         int meta_size = babel_treaty_ctx(GET_STORY_FILE_METADATA_EXTENT_SEL, nullptr, 0, ctx.get());
         if (meta_size > 0) {
             try {
@@ -225,12 +227,12 @@ void gli_initialize_babel(const std::string &filename)
 
 #else
 
-nonstd::optional<garglk::GameInfo> garglk::get_game_info(const std::string &)
+nonstd::optional<garglk::GameInfo> garglk::get_game_info(std::string)
 {
     return nonstd::nullopt;
 }
 
-void gli_initialize_babel(const std::string &)
+void gli_initialize_babel(std::string)
 {
 }
 
