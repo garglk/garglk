@@ -79,8 +79,10 @@ static int            read_fd;
 static struct flock    write_lck;
 static int            write_fd;
 
+#ifndef GLK
 static char *url_encode(const char *str);
 static char to_hex(char code);
+#endif
 
 static const char * const location_attributes[] = {
  "VISITED ", "DARK ", "ON_WATER ", "UNDER_WATER ", "WITHOUT_AIR ", "OUTDOORS ",
@@ -121,7 +123,9 @@ static struct stack_type        backup[STACK_SIZE];
 static struct proxy_type        proxy_backup[STACK_SIZE];
 
 static struct function_type *resolved_function = NULL;
+#if defined(GLK) || defined(__NDS__)
 static struct string_type *resolved_string = NULL;
+#endif
 
 static struct string_type *new_string = NULL;
 struct string_type *current_cstring = NULL;
@@ -148,7 +152,9 @@ static int                        criterion_type = 0;
 static int                        criterion_negate = FALSE;
 static int                         current_level;
 static int                         execution_level;
+#if defined(GLK) || defined(__NDS__)
 static int                         *ask_integer;
+#endif
 static int                        new_x;
 static int                        new_y;
 
@@ -317,7 +323,6 @@ execute(const char *funcname)
     /* THESE ARE USED AS FILE POINTER OFFSETS TO RETURN TO FIXED
      * POINTS IN THE GAME FILE */
 #ifdef GLK
-    int                result;
     glsi32            before_command = 0;
 #else
     long            before_command = 0;
@@ -363,7 +368,12 @@ execute(const char *funcname)
     // SET function_name TO THE CORE NAME STORED IN THE FUNCTION OBJECT
     // LEAVING called_name TO CONTAIN THE FULL ARGUMENT LIST
     strncpy (function_name, executing_function->name, 80);
-    strncpy (cstring_resolve("function_name")->value, executing_function->name, 80);
+    function_name[80] = 0;
+    {
+        struct string_type *fname_cstring = cstring_resolve("function_name");
+        strncpy (fname_cstring->value, executing_function->name, 80);
+        fname_cstring->value[80] = 0;
+    }
 
     //sprintf(temp_buffer, "--- starting to execute %s^", function_name);
     //write_text(temp_buffer);
@@ -372,7 +382,7 @@ execute(const char *funcname)
 #ifdef GLK
     glk_stream_set_position(game_stream, executing_function->position, seekmode_Start);
     before_command = executing_function->position;
-    result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+    glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
 #else
     fseek(file, executing_function->position, SEEK_SET);
     before_command = executing_function->position;
@@ -530,17 +540,23 @@ execute(const char *funcname)
 
                 top_of_iterate = before_command;
 
-                // infile REMAINS OPEN DURING THE ITERATION, ONLY NEEDS 
+                // infile REMAINS OPEN DURING THE ITERATION, ONLY NEEDS
                 // OPENING THE FIRST TIME
                 if (infile == NULL) {
                     strcpy (temp_buffer, data_directory);
-                    strcat (temp_buffer, prefix);
-                    strcat (temp_buffer, "-");
-                    strcat (temp_buffer, text_of_word(1));
-                    strcat (temp_buffer, ".csv");
+                    if (strstr(text_of_word(1), ".csv") != NULL) {
+                        // NAME CONTAINS .csv, USE AS-IS (GLOBAL FILE)
+                        strcat (temp_buffer, text_of_word(1));
+                    } else {
+                        // PREFIX WITH GAME NAME (PER-GAME FILE)
+                        strcat (temp_buffer, prefix);
+                        strcat (temp_buffer, "-");
+                        strcat (temp_buffer, text_of_word(1));
+                        strcat (temp_buffer, ".csv");
+                    }
 
                     infile = fopen(temp_buffer, "rb");
-    
+
                     if (word[2] != NULL && !strcmp(word[2], "skip_header")) {
                         fgets(csv_buffer, 2048, infile);
                     }
@@ -606,10 +622,14 @@ execute(const char *funcname)
                 // OPENING THE FIRST TIME
                 if (infile == NULL) {
                     strcpy (in_name, data_directory);
-                    strcat (in_name, prefix);
-                    strcat (in_name, "-");
-                    strcat (in_name, text_of_word(1));
-                    strcat (in_name, ".csv");
+                    if (strstr(text_of_word(1), ".csv") != NULL) {
+                        strcat (in_name, text_of_word(1));
+                    } else {
+                        strcat (in_name, prefix);
+                        strcat (in_name, "-");
+                        strcat (in_name, text_of_word(1));
+                        strcat (in_name, ".csv");
+                    }
 
                     infile = fopen(in_name, "rb");
                 }
@@ -617,12 +637,21 @@ execute(const char *funcname)
                 if (outfile == NULL) {
                     // OPEN A TEMPORARY OUTPUT FILE TO WRITE THE MODIFICATIONS TO
                     strcpy (out_name, data_directory);
-                    strcat (out_name, prefix);
-                    strcat (out_name, "-");
-                    strcat (out_name, text_of_word(1));
-                    strcat (out_name, "-");
-                    strcat (out_name, user_id);
-                    strcat (out_name, ".csv");
+                    if (strstr(text_of_word(1), ".csv") != NULL) {
+                        // STRIP .csv AND ADD -<user_id>.csv
+                        strcat (out_name, text_of_word(1));
+                        out_name[strlen(out_name) - 4] = 0;
+                        strcat (out_name, "-");
+                        strcat (out_name, user_id);
+                        strcat (out_name, ".csv");
+                    } else {
+                        strcat (out_name, prefix);
+                        strcat (out_name, "-");
+                        strcat (out_name, text_of_word(1));
+                        strcat (out_name, "-");
+                        strcat (out_name, user_id);
+                        strcat (out_name, ".csv");
+                    }
 
                     outfile = fopen(out_name, "wb");
                 }
@@ -827,7 +856,8 @@ execute(const char *funcname)
                             || !strcmp(argument_buffer, "*anywhere")
                             || !strcmp(argument_buffer, "*present")) {
                     criterion_type = CRI_SCOPE;
-                    strncpy(scope_criterion, argument_buffer, 20);
+                    strncpy(scope_criterion, argument_buffer, 23);
+                    scope_criterion[23] = 0;
                 } else if ((criterion_value = attribute_resolve(argument_buffer))) {
                     criterion_type = CRI_ATTRIBUTE;
                 } else if ((criterion_value = user_attribute_resolve(argument_buffer))) {
@@ -1387,28 +1417,32 @@ execute(const char *funcname)
                         encoded = text_of_word(2);
                     }
 
-                    if (word[3] == NULL) {
-                        if (REMOTE_USER_USED->value == TRUE) {
-                            sprintf (string_buffer, "<a href=\"?command=%s\">", encoded);
+                    {
+                        struct cinteger_type *remote_user = REMOTE_USER_USED;
+                        int use_user_id = (remote_user == NULL || remote_user->value == FALSE);
+
+                        if (word[3] == NULL) {
+                            if (use_user_id) {
+                                sprintf (string_buffer, "<a href=\"?command=%s&amp;user_id=%s\">", encoded, user_id);
+                            } else {
+                                sprintf (string_buffer, "<a href=\"?command=%s\">", encoded);
+                            }
+                            strcat (string_buffer, text_of_word(1));
+                            strcat (string_buffer, "</a>");
                         } else {
-                            sprintf (string_buffer, "<a href=\"?command=%s&amp;user_id=%s\">", encoded, user_id);
-                        }
-                        strcat (string_buffer, text_of_word(1));
-                        strcat (string_buffer, "</a>");
-                    } else {
-                        sprintf (string_buffer, "<a class=\"%s\" href=\"?command=", text_of_word(3));
-                        strcat (string_buffer, encoded);
-                        if (REMOTE_USER_USED->value == FALSE) {
-                            sprintf (option_buffer, "&amp;user_id=%s\">%s</a>", user_id, text_of_word(1));
-                            strcat (string_buffer, option_buffer);
-                        } else {
-                            sprintf (option_buffer, "\">%s</a>", text_of_word(1));
+                            sprintf (string_buffer, "<a class=\"%s\" href=\"?command=", text_of_word(3));
+                            strcat (string_buffer, encoded);
+                            if (use_user_id) {
+                                sprintf (option_buffer, "&amp;user_id=%s\">%s</a>", user_id, text_of_word(1));
+                            } else {
+                                sprintf (option_buffer, "\">%s</a>", text_of_word(1));
+                            }
                             strcat (string_buffer, option_buffer);
                         }
                     }
 
                     if (!strcmp(word[0], "hyperlink")) {
-                            free (encoded); 
+                            free ((void *)encoded);
                     }
 
                     write_text(string_buffer);
@@ -1520,8 +1554,50 @@ execute(const char *funcname)
             } else if (!strcmp(word[0], "timer")) {
             } else if (!strcmp(word[0], "volume")) {
             } else if (!strcmp(word[0], "askstring") || !strcmp(word[0], "getstring")) {
+                if (word[1] != NULL) {
+                    struct integer_type *ptype = PENDING_QUESTION_TYPE;
+                    struct string_type *ptarget = string_resolve("pending_target");
+                    if (ptype != NULL && ptarget != NULL) {
+                        if (!strcmp(word[0], "getstring")) {
+                            ptype->value = 4;
+                        } else {
+                            ptype->value = 5;
+                        }
+                        strncpy(ptarget->value, word[1], 1023);
+                        ptarget->value[1023] = 0;
+                        return(exit_function(TRUE));
+                    }
+                }
             } else if (!strcmp(word[0], "asknumber") || !strcmp(word[0], "getnumber")) {
+                if (word[3] != NULL) {
+                    struct integer_type *ptype = PENDING_QUESTION_TYPE;
+                    struct integer_type *plow = PENDING_NUMBER_LOW;
+                    struct integer_type *phigh = PENDING_NUMBER_HIGH;
+                    struct string_type *ptarget = string_resolve("pending_target");
+                    if (ptype != NULL && plow != NULL && phigh != NULL && ptarget != NULL) {
+                        if (!strcmp(word[0], "getnumber")) {
+                            ptype->value = 2;
+                        } else {
+                            ptype->value = 3;
+                        }
+                        plow->value = value_of(word[2], TRUE);
+                        phigh->value = value_of(word[3], TRUE);
+                        strncpy(ptarget->value, var_text_of_word(1), 1023);
+                        ptarget->value[1023] = 0;
+                        return(exit_function(TRUE));
+                    }
+                }
             } else if (!strcmp(word[0], "getyesorno")) {
+                if (word[1] != NULL) {
+                    struct integer_type *ptype = PENDING_QUESTION_TYPE;
+                    struct string_type *ptarget = string_resolve("pending_target");
+                    if (ptype != NULL && ptarget != NULL) {
+                        ptype->value = 1;
+                        strncpy(ptarget->value, var_text_of_word(1), 1023);
+                        ptarget->value[1023] = 0;
+                        return(exit_function(TRUE));
+                    }
+                }
             } else if (!strcmp(word[0], "clear")) {
             } else if (!strcmp(word[0], "more")) {
             } else if (!strcmp(word[0], "terminate")) {
@@ -1898,6 +1974,7 @@ execute(const char *funcname)
                      * IT INTO THE STRING */
                     if (!strcmp(word[0], "setstring")) {
                         strncpy (resolved_setstring->value, setstring_buffer, 1023);
+                        resolved_setstring->value[1023] = 0;
                     } else {
                         /* CALCULATE HOW MUCH SPACE IS LEFT IN THE STRING */
                         counter = 1023 - strlen(resolved_setstring->value);
@@ -1930,6 +2007,7 @@ execute(const char *funcname)
                     /* setstring_buffer IS NOW FILLED, COPY THE UP TO 1023 BYTES OF
                      * IT INTO THE STRING */
                     strncpy (resolved_setstring->value, setstring_buffer, 1023);
+                    resolved_setstring->value[1023] = 0;
                 }
             } else if (!strcmp(word[0], "return")) {
                 /* RETURN FROM THIS FUNCTION, POSSIBLY RETURNING AN INTEGER VALUE */
@@ -2704,12 +2782,14 @@ pop_stack()
     /* RESTORE THE CONTENTS OF called_name */
     //for (counter = 0; counter < 256; counter++)
     //called_name[counter] = backup[stack].called_name[counter];
-    strncpy(called_name, backup[stack].called_name, 1024);
+    strncpy(called_name, backup[stack].called_name, 1023);
+    called_name[1023] = 0;
 
     /* RESTORE THE CONTENTS OF scope_criterion */
     //for (counter = 0; counter < 21; counter++)
     //    scope_criterion[counter] = backup[stack].scope_criterion[counter];
-    strncpy(scope_criterion, backup[stack].scope_criterion, 20);
+    strncpy(scope_criterion, backup[stack].scope_criterion, 23);
+    scope_criterion[23] = 0;
 
     /* RESTORE THE STORED FUNCTION NAMES THAT ARE USED WHEN AN
      * 'override' COMMAND IS ENCOUNTERED IN THE CURRENT FUNCTION */
@@ -2725,8 +2805,12 @@ pop_stack()
     executing_function = backup[stack].function;
 
     if (executing_function != NULL) {
+        struct string_type *fname_cstring;
         strncpy (function_name, executing_function->name, 80);
-        strncpy (cstring_resolve("function_name")->value, executing_function->name, 80);
+        function_name[80] = 0;
+        fname_cstring = cstring_resolve("function_name");
+        strncpy (fname_cstring->value, executing_function->name, 80);
+        fname_cstring->value[80] = 0;
     }
 
     wp = backup[stack].wp;
@@ -2804,10 +2888,12 @@ push_stack(long file_pointer)
             backup[stack].text_buffer[counter] = text_buffer[counter];
 
         /* MAKE A COPY OF THE CURRENT CONTENTS OF called_name */
-        strncpy(backup[stack].called_name, called_name, 1024);
+        strncpy(backup[stack].called_name, called_name, 1023);
+        backup[stack].called_name[1023] = 0;
 
         // MAKE A COPY OF THE CURRENT CONTENTS OF scope_criterion
-        strncpy(backup[stack].scope_criterion, scope_criterion, 20);
+        strncpy(backup[stack].scope_criterion, scope_criterion, 23);
+        backup[stack].scope_criterion[23] = 0;
 
         /* COPY THE STORED FUNCTION NAMES THAT ARE USED WHEN AN
          * 'override' COMMAND IS ENCOUNTERED IN THE CURRENT FUNCTION */
@@ -2845,7 +2931,9 @@ push_stack(long file_pointer)
         if (current_cstring != NULL) {
             do {
                 if (!strcmp(current_cstring->name, "string_arg")) {
-                    strncpy(backup[stack].str_arguments[index++], current_cstring->value, 1023);
+                    strncpy(backup[stack].str_arguments[index], current_cstring->value, 255);
+                    backup[stack].str_arguments[index][255] = 0;
+                    index++;
                 }
 
                 current_cstring = current_cstring->next_string;
@@ -2957,11 +3045,13 @@ push_proxy()
         if (current_cstring != NULL) {
             do {
                 if (!strcmp(current_cstring->name, "$string")) {
-                    strncpy(proxy_backup[proxy_stack].text[text++], current_cstring->value, 254);
-                    proxy_backup[proxy_stack].text[counter++][255] = 0;
+                    strncpy(proxy_backup[proxy_stack].text[text], current_cstring->value, 255);
+                    proxy_backup[proxy_stack].text[text][255] = 0;
+                    text++;
                 } else if (!strcmp(current_cstring->name, "$word")) {
-                    strncpy(proxy_backup[proxy_stack].command[command++], current_cstring->value, 254);
-                    proxy_backup[proxy_stack].command[command++][255] = 0;
+                    strncpy(proxy_backup[proxy_stack].command[command], current_cstring->value, 255);
+                    proxy_backup[proxy_stack].command[command][255] = 0;
+                    command++;
                 }
 
                 current_cstring = current_cstring->next_string;
@@ -3534,6 +3624,7 @@ select_next()
     return (FALSE);
 }
 
+#ifndef GLK
 /* Converts an integer value to its hex character*/
 char to_hex(char code) {
     static char hex[] = "0123456789abcdef";
@@ -3546,9 +3637,9 @@ char *url_encode(const char *str) {
     const char *pstr = str;
     char *buf = malloc(strlen(str) * 3 + 1), *pbuf = buf;
     while (*pstr) {
-        if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~') 
+        if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~')
             *pbuf++ = *pstr;
-        else if (*pstr == ' ') 
+        else if (*pstr == ' ')
             *pbuf++ = '+';
         else {
             *pbuf++ = '%'; *pbuf++ = to_hex(*pstr >> 4); *pbuf++ = to_hex(*pstr & 15);
@@ -3558,3 +3649,4 @@ char *url_encode(const char *str) {
     *pbuf = '\0';
     return buf;
 }
+#endif

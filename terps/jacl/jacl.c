@@ -112,7 +112,7 @@ int             player = 0;
 static int      noun3_backup;
 static int      player_backup = 0;
 
-static int      variable_contents;
+
 int             oec;
 int            *object_element_address,
 			   *object_backup_address;
@@ -263,7 +263,9 @@ glk_main(void)
 	csv_init(&parser_csv, CSV_APPEND_NULL);
   
 	/* NO PREPROCESSOR ERRORS, LOAD THE GAME FILE */
-	read_gamefile();
+	if (read_gamefile()) {
+		terminate(48);
+	}
 
 	execute ("+bootstrap");
 
@@ -892,8 +894,6 @@ newline()
 void
 more(const char* message)
 {
-	int character;
-
 	jacl_set_window(inputwin);
 
 	if (inputwin == promptwin) {
@@ -905,7 +905,7 @@ more(const char* message)
 	write_text(message);
 	glk_set_style(style_Normal);
 
-	character = get_key();
+	get_key();
 
 	if (inputwin == mainwin) newline();
 }
@@ -1038,6 +1038,7 @@ get_string(char *string_buffer)
 
 	// COPY UP TO 255 BYTES OF THE ENTERED TEXT INTO THE SUPPLIED STRING
 	strncpy (string_buffer, cx, 255);
+	string_buffer[255] = 0;
 }
 
 int
