@@ -108,7 +108,7 @@ void clear_cstring(const char *name);
 void add_cinteger(const char *name, int value);
 void clear_cinteger(const char *name);
 void restart_game(void);
-void read_gamefile(void);
+int read_gamefile(void);
 void unkvalerr(int line, int wordno);
 void totalerrs(int errors);
 void unkatterr(int line, int wordno);
