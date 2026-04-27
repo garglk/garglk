@@ -170,6 +170,7 @@ static void reflow(window_t *win)
     }
 
     offsetbuf[x] = -1;
+    flowbreakbuf[f] = -1;
 
     // clear window
 
