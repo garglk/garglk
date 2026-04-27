@@ -1,10 +1,10 @@
 #include <cmath>
 #include <cstdint>
 #include <fstream>
+#include <map>
+#include <optional>
 #include <string>
 #include <vector>
-
-#include "optional.hpp"
 
 #include "garglk.h"
 
@@ -42,7 +42,7 @@ void Bleeps::update(int number, double duration, int frequency)
     std::size_t frames = duration * samplerate;
 
     if (frames == 0) {
-        m_bleeps[number] = nonstd::nullopt;
+        m_bleeps[number] = std::nullopt;
         return;
     }
 
@@ -122,7 +122,7 @@ std::vector<std::uint8_t> &Bleeps::at(int number)
 {
     try {
         return m_bleeps.at(number - 1).value();
-    } catch (const nonstd::bad_optional_access &) {
+    } catch (const std::bad_optional_access &) {
         throw Empty();
     }
 }

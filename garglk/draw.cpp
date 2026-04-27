@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <functional>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -30,7 +31,6 @@
 #include <vector>
 
 #include "format.h"
-#include "optional.hpp"
 
 #include "glk.h"
 #include "garglk.h"
@@ -257,13 +257,13 @@ FontEntry Font::getglyph(glui32 cid)
 // Unix this is generally somewhere like /usr/share/gargoyle (although
 // this can be changed at build time), and on Windows it's the install
 // directory (e.g. "C:\Program Files (x86)\Gargoyle").
-static nonstd::optional<std::string> font_path_fallback_system(const std::string &fallback)
+static std::optional<std::string> font_path_fallback_system(const std::string &fallback)
 {
 #ifdef _WIN32
     char directory[256];
     DWORD dsize = sizeof directory;
     if (RegGetValueA(HKEY_LOCAL_MACHINE, "Software\\Tor Andersson\\Gargoyle", "Directory", RRF_RT_REG_SZ, nullptr, directory, &dsize) != ERROR_SUCCESS) {
-        return nonstd::nullopt;
+        return std::nullopt;
     }
 
     return Format("{}\\{}", directory, fallback);
@@ -275,13 +275,13 @@ static nonstd::optional<std::string> font_path_fallback_system(const std::string
 // Look in a platform-specific location for the fonts. This is typically
 // the same directory that the executable is in, but can be anything the
 // platform code deems appropriate.
-static nonstd::optional<std::string> font_path_fallback_platform(const std::string &fallback)
+static std::optional<std::string> font_path_fallback_platform(const std::string &fallback)
 {
     return garglk::winfontpath(fallback);
 }
 
 // As a last-ditch effort, look in the current directory for the fonts.
-static nonstd::optional<std::string> font_path_fallback_local(const std::string &fallback)
+static std::optional<std::string> font_path_fallback_local(const std::string &fallback)
 {
     return fallback;
 }
@@ -299,7 +299,7 @@ static std::string fontface_to_name(FontFace fontface)
 
 static Font make_font(FontFace fontface, const std::string &fallback, std::vector<std::string> &problem_fonts)
 {
-    std::vector<std::function<nonstd::optional<std::string>(const std::string &fallback)>> font_paths = {
+    std::vector<std::function<std::optional<std::string>(const std::string &fallback)>> font_paths = {
         font_path_fallback_system,
         font_path_fallback_platform,
         font_path_fallback_local,
@@ -322,7 +322,7 @@ static Font make_font(FontFace fontface, const std::string &fallback, std::vecto
     // First look for a user-specified font. This will be either based
     // on a font family (propfont or monofont), or specific font files
     // (e.g. propr, monor, etc).
-    nonstd::optional<Font::LoadError> error;
+    std::optional<Font::LoadError> error;
     FT_Face face;
     if (path.has_value() && FT_New_Face(ftlib, path->c_str(), 0, &face) == 0) {
         try {
@@ -484,7 +484,7 @@ void gli_initialize_fonts()
     ftmat.yy = 0x10000L;
 
     auto make_entry = [&problem_fonts](FontFace face, const std::string &fallback) {
-        return std::make_pair(face, make_font(face, fallback, problem_fonts));
+        return std::pair(face, make_font(face, fallback, problem_fonts));
     };
 
     try {
@@ -612,10 +612,10 @@ void gli_draw_rect(int x0, int y0, int w, int h, const Color &rgb)
     int y1 = y0 + h;
     int y;
 
-    x0 = garglk::clamp(x0, 0, gli_image_rgb.width());
-    y0 = garglk::clamp(y0, 0, gli_image_rgb.height());
-    x1 = garglk::clamp(x1, 0, gli_image_rgb.width());
-    y1 = garglk::clamp(y1, 0, gli_image_rgb.height());
+    x0 = std::clamp(x0, 0, gli_image_rgb.width());
+    y0 = std::clamp(y0, 0, gli_image_rgb.height());
+    x1 = std::clamp(x1, 0, gli_image_rgb.width());
+    y1 = std::clamp(y1, 0, gli_image_rgb.height());
 
     for (y = y0; y < y1; y++) {
         gli_image_rgb[y].fill(rgb, x0, x1);
@@ -706,7 +706,7 @@ static int gli_string_impl(int x, FontFace fontface, const glui32 *s, std::size_
         auto glyph = [&f, &fontface](glui32 c) -> const FontEntry & {
             static std::unordered_map<std::pair<FontFace, glui32>, FontEntry> fallback_cache;
 
-            auto key = std::make_pair(fontface, c);
+            auto key = std::pair(fontface, c);
 
             auto it = fallback_cache.find(key);
             if (it == fallback_cache.end()) {

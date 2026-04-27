@@ -17,6 +17,7 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <ios>
 #include <map>
@@ -24,10 +25,6 @@
 #include <string>
 #include <tuple>
 #include <utility>
-
-#if __cplusplus >= 201703L
-#include <filesystem>
-#endif
 
 #include "format.h"
 
@@ -160,21 +157,9 @@ glui32 garglk_add_resource_from_file(glui32 usage, const char *filename_, glui32
 {
     std::string filename(filename_);
 
-#if __cplusplus >= 201703L
     if (std::filesystem::path(filename).has_parent_path()) {
         return 0;
     }
-#else
-#ifdef _WIN32
-    std::string sep = "/\\";
-#else
-    std::string sep = "/";
-#endif
-
-    if (filename.find_first_of(sep) != std::string::npos) {
-        return 0;
-    }
-#endif
 
 #ifdef _WIN32
     static const std::vector<std::string> reserved_names = {

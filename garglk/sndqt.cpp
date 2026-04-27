@@ -21,13 +21,13 @@
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <functional>
 #include <memory>
 #include <new>
 #include <set>
 #include <stdexcept>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -51,7 +51,7 @@
 #include <QSysInfo>
 #endif
 
-#include <libopenmpt/libopenmpt.h>
+#include <libopenmpt/libopenmpt.hpp>
 #include <mpg123.h>
 #include <sndfile.hh>
 
@@ -101,7 +101,7 @@ public:
         return m_buf.size();
     }
 
-    off_t tell() const {
+    [[nodiscard]] off_t tell() const {
         return m_offset;
     }
 
@@ -257,32 +257,29 @@ private:
     qint64 m_written = 0;
 };
 
-// The C++ API requires C++17, so until Gargoyle switches from C++14 to
-// C++17, use the C API.
 class OpenMPTSource : public SoundSource {
 public:
-    OpenMPTSource(const std::vector<unsigned char> &buf, int plays) :
+    OpenMPTSource(const std::vector<unsigned char> &buf, int plays)
+        try :
         SoundSource(plays),
-        m_mod(openmpt_module_create_from_memory2(buf.data(), buf.size(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr), openmpt_module_destroy)
+        m_mod(buf)
     {
-        if (!m_mod) {
-            throw SoundError("can't parse MOD file");
-        }
-
         set_format(48000, 2);
+    } catch (const openmpt::exception &) {
+        throw SoundError("can't parse MOD file");
     }
 
 protected:
     qint64 source_read(void *data, qint64 max) override {
-        return 8 * openmpt_module_read_interleaved_float_stereo(m_mod.get(), format().sampleRate(), max / 8, reinterpret_cast<float *>(data));
+        return 8 * m_mod.read_interleaved_stereo(format().sampleRate(), max / 8, reinterpret_cast<float *>(data));
     }
 
     void source_rewind() override {
-        openmpt_module_set_position_seconds(m_mod.get(), 0);
+        m_mod.set_position_seconds(0);
     }
 
 private:
-    std::unique_ptr<openmpt_module, decltype(&openmpt_module_destroy)> m_mod;
+    openmpt::module m_mod;
 };
 
 class SndfileSource : public SoundSource {
@@ -808,7 +805,7 @@ static int detect_format(const std::vector<unsigned char> &data)
 {
     struct Magic {
         virtual ~Magic() = default;
-        virtual bool matches(const std::vector<unsigned char> &data) const = 0;
+        [[nodiscard]] virtual bool matches(const std::vector<unsigned char> &data) const = 0;
     };
 
     struct MagicString : public Magic {
@@ -818,7 +815,7 @@ static int detect_format(const std::vector<unsigned char> &data)
         {
         }
 
-        bool matches(const std::vector<unsigned char> &data) const override {
+        [[nodiscard]] bool matches(const std::vector<unsigned char> &data) const override {
             if (m_offset + m_string.size() > data.size()) {
                 return false;
             }
@@ -832,12 +829,16 @@ static int detect_format(const std::vector<unsigned char> &data)
     };
 
     struct MagicMod : public Magic {
-        bool matches(const std::vector<unsigned char> &data) const override {
-            std::size_t size = std::min(openmpt_probe_file_header_get_recommended_size(), static_cast<std::size_t>(data.size()));
+        [[nodiscard]] bool matches(const std::vector<unsigned char> &data) const override {
+            std::size_t size = std::min(openmpt::probe_file_header_get_recommended_size(), static_cast<std::size_t>(data.size()));
 
-            return openmpt_probe_file_header(OPENMPT_PROBE_FILE_HEADER_FLAGS_DEFAULT,
-                    data.data(), size, data.size(),
-                    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr) == OPENMPT_PROBE_FILE_HEADER_RESULT_SUCCESS;
+#ifdef GARGLK_CONFIG_OLD_LIBOPENMPT
+            std::uint64_t flags = openmpt::probe_file_header_flags_default;
+#else
+            std::uint64_t flags = openmpt::probe_file_header_flags_default2;
+#endif
+
+            return openmpt::probe_file_header(flags, data.data(), size) == openmpt::probe_file_header_result_success;
         }
     };
 
@@ -867,9 +868,9 @@ static int detect_format(const std::vector<unsigned char> &data)
         {std::make_shared<MagicString>(0, "\xff\xfb"), giblorb_ID_MP3},
     };
 
-    for (const auto &pair : magics) {
-        if (pair.first->matches(data)) {
-            return pair.second;
+    for (const auto &[magic, type] : magics) {
+        if (magic->matches(data)) {
+            return type;
         }
     }
 
@@ -897,7 +898,7 @@ static std::pair<int, std::vector<unsigned char>> load_sound_resource(glui32 snd
             throw SoundError("can't get blorb resource");
         }
 
-        return std::make_pair(type, data);
+        return {type, data};
     } else {
         const auto &resource_map = gli_get_resource_map(giblorb_ID_Snd);
         if (!resource_map.empty()) {
@@ -933,10 +934,7 @@ static glui32 gli_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, 
 
     std::shared_ptr<SoundSource> source;
     try {
-        int type;
-        std::vector<unsigned char> data;
-
-        std::tie(type, data) = load_resource(snd);
+        auto [type, data] = load_resource(snd);
 
         try {
             switch (type) {

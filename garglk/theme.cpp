@@ -19,8 +19,10 @@
 #include <algorithm>
 #include <array>
 #include <exception>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <regex>
 #include <stdexcept>
 #include <string>
@@ -28,15 +30,7 @@
 #include <utility>
 #include <vector>
 
-#if __cplusplus >= 201703L
-#include <filesystem>
-#else
-#include <dirent.h>
-#include <sys/types.h>
-#endif
-
 #include "format.h"
-#include "optional.hpp"
 
 #define JSON_DIAGNOSTICS 1
 #ifdef __GNUC__
@@ -184,7 +178,7 @@ struct Theme {
 private:
     static ThemeStyles get_user_styles(const json &j, const std::string &wintype)
     {
-        std::array<nonstd::optional<ColorPair>, style_NUMSTYLES> possible_colors;
+        std::array<std::optional<ColorPair>, style_NUMSTYLES> possible_colors;
         std::unordered_map<std::string, json> styles = j.at(wintype);
 
         static const std::unordered_map<std::string, int> stylemap = {
@@ -207,28 +201,28 @@ private:
             possible_colors[i] = ColorPair{fg, bg};
         };
 
-        if (styles.find("default") != styles.end()) {
+        if (auto it = styles.find("default"); it != styles.end()) {
             for (int i = 0; i < style_NUMSTYLES; i++) {
-                parse_colors(styles["default"], i);
+                parse_colors(it->second, i);
             }
         }
 
         styles.erase("default");
-        for (const auto &style : styles) {
+        for (const auto &[style, color] : styles) {
             try {
-                parse_colors(style.second, stylemap.at(style.first));
+                parse_colors(color, stylemap.at(style));
             } catch (const std::out_of_range &) {
-                throw std::runtime_error(Format("invalid style in {}: {}", wintype, style.first));
+                throw std::runtime_error(Format("invalid style in {}: {}", wintype, style));
             }
         }
 
         auto colors = make_array<style_NUMSTYLES>(ColorPair{white, black});
         std::vector<std::string> missing;
-        for (const auto &s : stylemap) {
+        for (const auto &[style, val] : stylemap) {
             try {
-                colors[s.second] = possible_colors[s.second].value();
-            } catch (const nonstd::bad_optional_access &) {
-                missing.push_back(s.first);
+                colors[val] = possible_colors[val].value();
+            } catch (const std::bad_optional_access &) {
+                missing.push_back(style);
             }
         }
 
@@ -255,7 +249,6 @@ std::vector<std::string> garglk::theme::paths()
     return theme_paths;
 }
 
-#if __cplusplus >= 201703
 static std::vector<std::string> directory_entries(const std::string &dir)
 {
     std::vector<std::string> entries;
@@ -269,23 +262,6 @@ static std::vector<std::string> directory_entries(const std::string &dir)
 
     return entries;
 }
-#else
-static std::vector<std::string> directory_entries(const std::string &dir)
-{
-    auto d = garglk::unique(opendir(dir.c_str()), closedir);
-    if (d == nullptr) {
-        return {};
-    }
-
-    std::vector<std::string> entries;
-    dirent *de;
-    while ((de = readdir(d.get())) != nullptr) {
-        entries.push_back(Format("{}/{}", dir, de->d_name));
-    }
-
-    return entries;
-}
-#endif
 
 void garglk::theme::init()
 {
@@ -296,11 +272,11 @@ void garglk::theme::init()
 
     themes.clear();
 
-    for (const auto &pair : builtin) {
+    for (const auto &[name, theme] : builtin) {
         try {
-            themes.insert({pair.first, Theme::from_string(pair.second)});
+            themes.insert({name, Theme::from_string(theme)});
         } catch (std::exception &e) {
-            std::cerr << "garglk: fatal error parsing internal " << pair.first << " theme: " << e.what() << std::endl;
+            std::cerr << "garglk: fatal error parsing internal " << name << " theme: " << e.what() << std::endl;
             std::exit(1);
         }
     }
@@ -331,11 +307,7 @@ void garglk::theme::init()
             if (dot != std::string::npos && filename.substr(dot) == ".json") {
                 try {
                     auto theme = Theme::from_file(filename);
-                    // C++17: use insert_or_assign()
-                    const auto result = themes.insert({theme.name, theme});
-                    if (!result.second) {
-                        result.first->second = theme;
-                    }
+                    themes.insert_or_assign(theme.name, theme);
                 } catch (const std::exception &e) {
                     std::cerr << "garglk: error parsing theme " << filename << ": " << e.what() << std::endl;
                 }
@@ -369,8 +341,8 @@ std::vector<std::string> garglk::theme::names()
 {
     std::vector<std::string> theme_names;
 
-    for (const auto &theme : themes) {
-        theme_names.push_back(theme.first);
+    for (const auto &[name, _] : themes) {
+        theme_names.push_back(name);
     }
 
     theme_names.push_back(Format("system ({})", system_theme_name()));

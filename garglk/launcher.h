@@ -21,10 +21,9 @@
 #ifndef GARGLK_LAUNCHER_H
 #define GARGLK_LAUNCHER_H
 
+#include <optional>
 #include <string>
 #include <vector>
-
-#include "optional.hpp"
 
 namespace garglk {
 

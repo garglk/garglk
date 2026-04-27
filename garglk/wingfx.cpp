@@ -212,10 +212,10 @@ void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color,
                  (color >> 8) & 0xff,
                  (color >> 0) & 0xff);
 
-    x0 = garglk::clamp(x0, 0, dwin->w);
-    y0 = garglk::clamp(y0, 0, dwin->h);
-    x1 = garglk::clamp(x1, 0, dwin->w);
-    y1 = garglk::clamp(y1, 0, dwin->h);
+    x0 = std::clamp(x0, 0, dwin->w);
+    y0 = std::clamp(y0, 0, dwin->h);
+    x1 = std::clamp(x1, 0, dwin->w);
+    y1 = std::clamp(y1, 0, dwin->h);
 
     hx0 = dwin->owner->bbox.x0 + x0;
     hx1 = dwin->owner->bbox.x0 + x1;

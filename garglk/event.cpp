@@ -58,7 +58,7 @@ void gli_dispatch_event(event_t *event, bool polled)
     }
 
 #ifdef GARGLK_CONFIG_SDL
-    std::lock_guard<std::mutex> guard(event_mutex);
+    std::lock_guard guard(event_mutex);
 #endif
 
     if (!polled) {
@@ -91,7 +91,7 @@ void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2)
     store.val2 = val2;
 
 #ifdef GARGLK_CONFIG_SDL
-    std::lock_guard<std::mutex> guard(event_mutex);
+    std::lock_guard guard(event_mutex);
 #endif
     gli_events.push_back(store);
 }

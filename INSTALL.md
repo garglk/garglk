@@ -1,7 +1,7 @@
 # General Instructions
 
 To compile Gargoyle you will need CMake 3.12 or newer, a C11 compiler, and a
-C++14 compiler.
+C++17 compiler.
 
 The following are required to build Gargoyle on Unix, in addition to a standard
 development environment (compiler, linker, etc.):

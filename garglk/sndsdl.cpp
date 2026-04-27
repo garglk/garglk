@@ -506,10 +506,10 @@ static int detect_format(const std::vector<unsigned char> &buf)
         {{0, {"\xff\xfb"}}, giblorb_ID_MP3},
     };
 
-    for (const auto &entry : formats) {
-        auto offset = entry.first.first;
-        const auto &magics = entry.first.second;
-        auto format = entry.second;
+    for (const auto &[key, format] : formats) {
+        // C++20: lambdas can capture structured bindings.
+        auto offset = key.first;
+        const auto &magics = key.second;
 
         if (std::any_of(magics.begin(), magics.end(), [&offset, &buf](const auto &magic) {
             return offset + magic.size() <= buf.size() &&

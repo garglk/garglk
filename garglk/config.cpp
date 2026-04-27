@@ -24,20 +24,18 @@
 #include <cstdio>
 #include <cstdlib>
 #include <deque>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iomanip>
 #include <ios>
 #include <locale>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#if __cplusplus >= 201703L
-#include <filesystem>
-#endif
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -54,7 +52,6 @@
 #endif
 
 #include "format.h"
-#include "optional.hpp"
 
 #include "glk.h"
 #include "glkstart.h"
@@ -165,8 +162,8 @@ Color gli_border_save(0x00, 0x00, 0x00);
 Color gli_more_save(0x00, 0x60, 0x00);
 Color gli_link_save(0x00, 0x00, 0x60);
 
-nonstd::optional<Color> gli_override_fg;
-nonstd::optional<Color> gli_override_bg;
+std::optional<Color> gli_override_fg;
+std::optional<Color> gli_override_bg;
 bool gli_override_reverse = false;
 
 static std::string base_more_prompt = "— more —";
@@ -289,11 +286,10 @@ static void parsecolor(const std::string &str, Color &rgb)
 // 6. <directory containing gargoyle/interpreter executable>/garglk.ini (Windows only)
 //
 // gamepath is the path to the game file being run
-std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::string> &gamepath = nonstd::nullopt)
+std::vector<garglk::ConfigFile> garglk::configs(const std::optional<std::string> &gamepath = std::nullopt)
 {
     std::vector<ConfigFile> configs;
     if (gamepath.has_value()) {
-#if __cplusplus >= 201703L
         // game file .ini
         std::filesystem::path config(*gamepath);
         config.replace_extension(".ini");
@@ -303,31 +299,6 @@ std::vector<garglk::ConfigFile> garglk::configs(const nonstd::optional<std::stri
         config = *gamepath;
         config = config.parent_path() / "garglk.ini";
         configs.emplace_back(config.string(), ConfigFile::Type::PerGame);
-#else
-        std::string config;
-
-        // game file .ini
-        config = *gamepath;
-        auto dot = config.rfind('.');
-        if (dot != std::string::npos) {
-            config.replace(dot, std::string::npos, ".ini");
-        } else {
-            config += ".ini";
-        }
-
-        configs.emplace_back(config, ConfigFile::Type::PerGame);
-
-        // game directory .ini
-        config = *gamepath;
-        auto slash = config.find_last_of("/\\");
-        if (slash != std::string::npos) {
-            config.replace(slash + 1, std::string::npos, "garglk.ini");
-        } else {
-            config = "garglk.ini";
-        }
-
-        configs.emplace_back(config, ConfigFile::Type::PerGame);
-#endif
     }
 
 #if defined(__HAIKU__)
@@ -432,9 +403,6 @@ std::string garglk::user_config()
     // No config exists, so create the highest-priority config.
     auto path = cfgs.front().path;
 
-    // If building with C++17, ensure the parent directory exists. This
-    // is difficult to do portably before C++17, so just don't do it.
-#if __cplusplus >= 201703L
     std::filesystem::path fspath(path);
     try {
         if (!fspath.parent_path().empty()) {
@@ -443,7 +411,6 @@ std::string garglk::user_config()
     } catch (const std::runtime_error &e) {
         throw std::runtime_error(Format("Unable to create parent directory for configuration file {}: {}", path, e.what()));
     }
-#endif
 
     std::ofstream f(path);
     if (!f.is_open()) {
@@ -599,7 +566,7 @@ constexpr const T &config_atleast(const T &value, const T &min)
     return value;
 }
 
-static void readoneconfig(const std::string &fname, const std::string &argv0, const nonstd::optional<std::string> &gamefile)
+static void readoneconfig(const std::string &fname, const std::string &argv0, const std::optional<std::string> &gamefile)
 {
     std::vector<std::string> matches = {argv0};
     if (gamefile.has_value()) {
@@ -955,7 +922,6 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
 
 void gli_read_config(int argc, char **argv)
 {
-#if __cplusplus >= 201703L
     // load argv0 with name of executable without suffix
     std::string argv0 = std::filesystem::path(argv[0])
         .filename()
@@ -963,38 +929,15 @@ void gli_read_config(int argc, char **argv)
         .string();
 
     // load gamefile with basename of last argument
-    nonstd::optional<std::string> gamefile;
+    std::optional<std::string> gamefile;
     if (argc > 1) {
         gamefile = std::filesystem::path(argv[argc - 1])
             .filename()
             .string();
     }
-#else
-    auto basename = [](std::string path) {
-        auto slash = path.find_last_of("/\\");
-        if (slash != std::string::npos) {
-            path.erase(0, slash + 1);
-        }
-
-        return path;
-    };
-
-    // load argv0 with name of executable without suffix
-    std::string argv0 = basename(argv[0]);
-    auto dot = argv0.rfind('.');
-    if (dot != std::string::npos) {
-        argv0.erase(dot);
-    }
-
-    // load gamefile with basename of last argument
-    nonstd::optional<std::string> gamefile;
-    if (argc > 1) {
-        gamefile = basename(argv[argc - 1]);
-    }
-#endif
 
     // load gamepath with the path to the story file itself
-    nonstd::optional<std::string> gamepath;
+    std::optional<std::string> gamepath;
     if (argc > 1) {
         gamepath = argv[argc - 1];
     }
