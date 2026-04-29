@@ -156,11 +156,11 @@ Color gli_border_color(0x00, 0x00, 0x00);
 Color gli_more_color(0x00, 0x60, 0x00);
 Color gli_link_color(0x00, 0x00, 0x60);
 
-Color gli_window_save(0xff, 0xff, 0xff);
-Color gli_caret_save(0x00, 0x00, 0x00);
-Color gli_border_save(0x00, 0x00, 0x00);
-Color gli_more_save(0x00, 0x60, 0x00);
-Color gli_link_save(0x00, 0x00, 0x60);
+Color gli_window_save(gli_window_color);
+Color gli_caret_save(gli_caret_color);
+Color gli_border_save(gli_border_color);
+Color gli_more_save(gli_more_color);
+Color gli_link_save(gli_link_color);
 
 std::optional<Color> gli_override_fg;
 std::optional<Color> gli_override_bg;
