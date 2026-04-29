@@ -302,6 +302,7 @@ bool gli_wait_on_quit = true;
 
 bool gli_conf_stylehint = true;
 bool gli_conf_safeclicks = false;
+int gli_conf_unread_marker = 1;
 
 bool gli_conf_per_game_config = true;
 
@@ -886,6 +887,8 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 gli_conf_stylehint = asbool(arg);
             } else if (cmd == "safeclicks") {
                 gli_conf_safeclicks = asbool(arg);
+            } else if (cmd == "unreadmarker") {
+                gli_conf_unread_marker = config_range(parse_int(arg), 0, 2);
             } else if (cmd == "theme") {
                 if (!garglk::theme::set(arg)) {
                     throw ConfigError(Format("unknown theme: {}", arg));

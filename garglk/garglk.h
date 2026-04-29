@@ -624,6 +624,7 @@ extern std::string gli_conf_speak_language;
 
 extern bool gli_conf_stylehint;
 extern bool gli_conf_safeclicks;
+extern int gli_conf_unread_marker;
 
 extern bool gli_conf_justify;
 extern int gli_conf_quotes;
@@ -1011,6 +1012,11 @@ struct window_textbuffer_t {
     int lastseen = 0;
     int scrollpos = 0;
     int scrollmax = 0;
+
+    // Buffer line at the unread boundary; the previous value is kept
+    // so a moved marker can be erased.
+    std::optional<int> unread_marker_line;
+    std::optional<int> prev_unread_marker_line;
 
     // for line input
     void *inbuf = nullptr; // unsigned char* for latin1, glui32* for unicode
