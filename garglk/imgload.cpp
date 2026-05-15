@@ -22,12 +22,14 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #ifdef GARGLK_CONFIG_JPEG_TURBO
 #include <turbojpeg.h>
 #else
 #include <array>
+#include <csetjmp>
 #include <cstdio>
 
 // jpeglib.h requires these to be defined.
@@ -160,7 +162,7 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
         }
     }
 
-    const std::unordered_map<int, std::function<std::shared_ptr<picture_t>(const std::vector<unsigned char> &, unsigned long)>> loaders = {
+    static const std::unordered_map<int, std::function<std::shared_ptr<picture_t>(const std::vector<unsigned char> &, unsigned long)>> loaders = {
         {giblorb_ID_PNG, load_image_png},
         {giblorb_ID_JPEG, load_image_jpeg},
     };
@@ -211,22 +213,32 @@ static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned cha
         }
     }
 
-    return std::make_shared<picture_t>(id, rgba, false);
+    return std::make_shared<picture_t>(id, std::move(rgba), false);
 #else
-    jpeg_decompress_struct cinfo;
-    jpeg_error_mgr jerr;
-    std::array<JSAMPROW, 1> rowarray;
-
-    cinfo.err = jpeg_std_error(&jerr);
-    jerr.error_exit = [](j_common_ptr cinfo) {
-        std::array<char, JMSG_LENGTH_MAX> msg;
-        cinfo->err->format_message(cinfo, msg.data());
-        throw LoadError("jpg", msg.data());
+    struct error_mgr {
+        jpeg_error_mgr pub;
+        std::jmp_buf jbuf;
+        char msg[JMSG_LENGTH_MAX];
     };
 
-    jpeg_create_decompress(&cinfo);
+    jpeg_decompress_struct cinfo{};
+    error_mgr jerr;
+    std::array<JSAMPROW, 1> rowarray;
+
+    cinfo.err = jpeg_std_error(&jerr.pub);
+    jerr.pub.error_exit = [](j_common_ptr cinfo) {
+        auto *err = reinterpret_cast<error_mgr *>(cinfo->err);
+        cinfo->err->format_message(cinfo, err->msg);
+        std::longjmp(err->jbuf, 1);
+    };
+
     auto jpeg_free = garglk::unique(&cinfo, jpeg_destroy_decompress);
 
+    if (setjmp(jerr.jbuf) != 0) {
+        throw LoadError("jpg", jerr.msg);
+    }
+
+    jpeg_create_decompress(&cinfo);
     jpeg_mem_src(&cinfo, buf.data(), buf.size());
     jpeg_read_header(&cinfo, TRUE);
     jpeg_start_decompress(&cinfo);
@@ -242,6 +254,13 @@ static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned cha
 
     std::vector<JSAMPLE> row(cinfo.output_width * cinfo.output_components);
     rowarray[0] = row.data();
+
+    // Reset, because types with non-trivial destructors have been
+    // created since the last setjmp(), and longjmping over them is
+    // undefined behavior.
+    if (setjmp(jerr.jbuf) != 0) {
+        throw LoadError("jpg", jerr.msg);
+    }
 
     while (cinfo.output_scanline < cinfo.output_height) {
         JDIMENSION y = cinfo.output_scanline;
@@ -268,16 +287,15 @@ static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned cha
 
     jpeg_finish_decompress(&cinfo);
 
-    return std::make_shared<picture_t>(id, rgba, false);
+    return std::make_shared<picture_t>(id, std::move(rgba), false);
 #endif
 }
 
 static std::shared_ptr<picture_t> load_image_png(const std::vector<unsigned char> &buf, unsigned long id)
 {
-    png_image image;
+    png_image image{};
 
     image.version = PNG_IMAGE_VERSION;
-    image.opaque = nullptr;
     auto free_png = garglk::unique(&image, png_image_free);
 
     if (png_image_begin_read_from_memory(&image, buf.data(), buf.size()) == 0) {
@@ -291,7 +309,5 @@ static std::shared_ptr<picture_t> load_image_png(const std::vector<unsigned char
         throw LoadError("png", image.message);
     }
 
-    auto pic = std::make_shared<picture_t>(id, rgba, false);
-
-    return pic;
+    return std::make_shared<picture_t>(id, std::move(rgba), false);
 }
