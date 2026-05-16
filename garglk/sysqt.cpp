@@ -41,6 +41,7 @@
 #include <QPalette>
 #include <QPixmap>
 #include <QProcess>
+#include <QPushButton>
 #include <QResizeEvent>
 #include <QScreen>
 #include <QSettings>
@@ -1000,6 +1001,7 @@ void garglk::show_game_info(const garglk::GameInfo &info, bool show_once)
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     outer_layout->addWidget(buttons);
+    buttons->button(QDialogButtonBox::Ok)->setFocus();
 
     int max_height = screen_geometry.height() * 2 / 3;
     dialog.setMaximumHeight(max_height);
