@@ -17,56 +17,45 @@
 // along with Gargoyle; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+#include <algorithm>
+#include <array>
 #include <functional>
 #include <memory>
 #include <stdexcept>
-#include <string>
 #include <unordered_map>
-#include <utility>
-#include <vector>
-
-#ifdef GARGLK_CONFIG_JPEG_TURBO
-#include <turbojpeg.h>
-#else
-#include <array>
-#include <csetjmp>
-#include <cstdio>
-
-// jpeglib.h requires these to be defined.
-using std::size_t;
-using std::FILE;
-
-#include <jpeglib.h>
-#endif
-
-#include <png.h>
 
 #include "format.h"
+#include "imgload.h"
 
-#include "glk.h"
 #include "garglk.h"
 #include "gi_blorb.h"
 
-static std::shared_ptr<picture_t> load_image_png(const std::vector<unsigned char> &buf, unsigned long id);
-static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned char> &buf, unsigned long id);
-
 namespace {
-
-struct LoadError : public std::runtime_error {
-    LoadError(const std::string &format, const std::string &msg) : std::runtime_error(Format("{} [{}]", msg, format)) {
-    }
-};
 
 struct PicturePair {
     std::shared_ptr<picture_t> picture;
     std::shared_ptr<picture_t> scaled;
 };
 
+std::unordered_map<unsigned long, PicturePair> picstore;
+
+int gli_piclist_refcount = 0; // count references to loaded pictures
+
+void gli_picture_store_original(const std::shared_ptr<picture_t> &pic)
+{
+    picstore[pic->id] = PicturePair{pic, nullptr};
 }
 
-static std::unordered_map<unsigned long, PicturePair> picstore;
+void gli_picture_store_scaled(const std::shared_ptr<picture_t> &pic)
+{
+    try {
+        auto &picpair = picstore.at(pic->id);
+        picpair.scaled = pic;
+    } catch (const std::out_of_range &) {
+    }
+}
 
-static int gli_piclist_refcount = 0; // count references to loaded pictures
+}
 
 void gli_piclist_increment()
 {
@@ -77,20 +66,6 @@ void gli_piclist_decrement()
 {
     if (gli_piclist_refcount > 0 && --gli_piclist_refcount == 0) {
         picstore.clear();
-    }
-}
-
-static void gli_picture_store_original(const std::shared_ptr<picture_t> &pic)
-{
-    picstore[pic->id] = PicturePair{pic, nullptr};
-}
-
-static void gli_picture_store_scaled(const std::shared_ptr<picture_t> &pic)
-{
-    try {
-        auto &picpair = picstore.at(pic->id);
-        picpair.scaled = pic;
-    } catch (const std::out_of_range &) {
     }
 }
 
@@ -152,162 +127,35 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
             return nullptr;
         }
 
-        if (png_sig_cmp(buf.data(), 0, 8) == 0) {
+        static constexpr std::array<unsigned char, 8> png_sig{
+            137, 80, 78, 71, 13, 10, 26, 10
+        };
+
+        if (std::equal(png_sig.begin(), png_sig.end(), buf.begin())) {
             chunktype = giblorb_ID_PNG;
         } else if (buf[0] == 0xFF && buf[1] == 0xD8 && buf[2] == 0xFF) {
             chunktype = giblorb_ID_JPEG;
         } else {
             // Not a readable file. Forget it.
+            gli_strict_warning(Format("unable to load image {}: unknown format", id));
             return nullptr;
         }
     }
 
-    static const std::unordered_map<int, std::function<std::shared_ptr<picture_t>(const std::vector<unsigned char> &, unsigned long)>> loaders = {
-        {giblorb_ID_PNG, load_image_png},
-        {giblorb_ID_JPEG, load_image_jpeg},
+    static const std::unordered_map<int, std::function<Canvas<4>(const std::vector<unsigned char> &)>> loaders = {
+        {giblorb_ID_PNG, gli_load_image_png},
+        {giblorb_ID_JPEG, gli_load_image_jpeg},
     };
 
     try {
-        pic = loaders.at(chunktype)(buf, id);
-        if (pic != nullptr) {
-            gli_picture_store(pic);
-            return pic;
-        }
-    } catch (const LoadError &e) {
+        auto rgba = loaders.at(chunktype)(buf);
+        auto pic = std::make_shared<picture_t>(id, std::move(rgba), false);
+        gli_picture_store(pic);
+        return pic;
+    } catch (const ImageLoadError &e) {
         gli_strict_warning(Format("unable to load image {}: {}", id, e.what()));
     } catch (const std::out_of_range &) {
     }
 
     return nullptr;
-}
-
-static std::shared_ptr<picture_t> load_image_jpeg(const std::vector<unsigned char> &buf, unsigned long id)
-{
-#ifdef GARGLK_CONFIG_JPEG_TURBO
-    auto tj = garglk::unique(tjInitDecompress(), tjDestroy);
-
-    int w, h, subsamp, colorspace;
-
-    if (tjDecompressHeader3(tj.get(), buf.data(), buf.size(), &w, &h, &subsamp, &colorspace) != 0) {
-        throw LoadError("jpg", tjGetErrorStr2(tj.get()));
-    }
-
-    Canvas<4> rgba(w, h);
-
-    if (colorspace == TJCS_CMYK || colorspace == TJCS_YCCK) {
-        if (tjDecompress2(tj.get(), buf.data(), buf.size(), rgba.data(), w, w * tjPixelSize[TJPF_CMYK], h, TJPF_CMYK, TJFLAG_ACCURATEDCT) != 0) {
-            throw LoadError("jpg", tjGetErrorStr2(tj.get()));
-        }
-
-        auto *p = rgba.data();
-        for (int i = 0; i < w * h; i++) {
-            double K = p[i * 4 + 3];
-            p[i * 4 + 0] = p[i * 4 + 0] * K / 255.0;
-            p[i * 4 + 1] = p[i * 4 + 1] * K / 255.0;
-            p[i * 4 + 2] = p[i * 4 + 2] * K / 255.0;
-            p[i * 4 + 3] = 0xff;
-        }
-    } else {
-        if (tjDecompress2(tj.get(), buf.data(), buf.size(), rgba.data(), w, w * tjPixelSize[TJPF_RGBA], h, TJPF_RGBA, TJFLAG_ACCURATEDCT) != 0) {
-            throw LoadError("jpg", tjGetErrorStr2(tj.get()));
-        }
-    }
-
-    return std::make_shared<picture_t>(id, std::move(rgba), false);
-#else
-    struct error_mgr {
-        jpeg_error_mgr pub;
-        std::jmp_buf jbuf;
-        char msg[JMSG_LENGTH_MAX];
-    };
-
-    jpeg_decompress_struct cinfo{};
-    error_mgr jerr;
-    std::array<JSAMPROW, 1> rowarray;
-
-    cinfo.err = jpeg_std_error(&jerr.pub);
-    jerr.pub.error_exit = [](j_common_ptr cinfo) {
-        auto *err = reinterpret_cast<error_mgr *>(cinfo->err);
-        cinfo->err->format_message(cinfo, err->msg);
-        std::longjmp(err->jbuf, 1);
-    };
-
-    auto jpeg_free = garglk::unique(&cinfo, jpeg_destroy_decompress);
-
-    if (setjmp(jerr.jbuf) != 0) {
-        throw LoadError("jpg", jerr.msg);
-    }
-
-    jpeg_create_decompress(&cinfo);
-    jpeg_mem_src(&cinfo, buf.data(), buf.size());
-    jpeg_read_header(&cinfo, TRUE);
-    jpeg_start_decompress(&cinfo);
-
-    if (cinfo.out_color_space != JCS_GRAYSCALE &&
-        cinfo.out_color_space != JCS_RGB &&
-        cinfo.out_color_space != JCS_CMYK) {
-
-        return nullptr;
-    }
-
-    Canvas<4> rgba(cinfo.output_width, cinfo.output_height);
-
-    std::vector<JSAMPLE> row(cinfo.output_width * cinfo.output_components);
-    rowarray[0] = row.data();
-
-    // Reset, because types with non-trivial destructors have been
-    // created since the last setjmp(), and longjmping over them is
-    // undefined behavior.
-    if (setjmp(jerr.jbuf) != 0) {
-        throw LoadError("jpg", jerr.msg);
-    }
-
-    while (cinfo.output_scanline < cinfo.output_height) {
-        JDIMENSION y = cinfo.output_scanline;
-        jpeg_read_scanlines(&cinfo, rowarray.data(), 1);
-        if (cinfo.out_color_space == JCS_GRAYSCALE) {
-            for (int i = 0; i < rgba.width(); i++) {
-                rgba[y][i] = Pixel<4>(row[i], row[i], row[i], 0xff);
-            }
-        } else if (cinfo.out_color_space == JCS_RGB) {
-            for (int i = 0; i < rgba.width(); i++) {
-                rgba[y][i] = Pixel<4>(row[i * 3 + 0], row[i * 3 + 1], row[i * 3 + 2], 0xff);
-            }
-        } else if (cinfo.out_color_space == JCS_CMYK) {
-            for (int i = 0; i < rgba.width(); i++) {
-                double K = row[i * 4 + 3];
-                rgba[y][i] = Pixel<4>(
-                        row[i * 4 + 0] * K / 255.0,
-                        row[i * 4 + 1] * K / 255.0,
-                        row[i * 4 + 2] * K / 255.0,
-                        0xff);
-            }
-        }
-    }
-
-    jpeg_finish_decompress(&cinfo);
-
-    return std::make_shared<picture_t>(id, std::move(rgba), false);
-#endif
-}
-
-static std::shared_ptr<picture_t> load_image_png(const std::vector<unsigned char> &buf, unsigned long id)
-{
-    png_image image{};
-
-    image.version = PNG_IMAGE_VERSION;
-    auto free_png = garglk::unique(&image, png_image_free);
-
-    if (png_image_begin_read_from_memory(&image, buf.data(), buf.size()) == 0) {
-        throw LoadError("png", image.message);
-    }
-
-    image.format = PNG_FORMAT_RGBA;
-    Canvas<4> rgba(image.width, image.height);
-
-    if (png_image_finish_read(&image, nullptr, rgba.data(), 0, nullptr) == 0) {
-        throw LoadError("png", image.message);
-    }
-
-    return std::make_shared<picture_t>(id, std::move(rgba), false);
 }
