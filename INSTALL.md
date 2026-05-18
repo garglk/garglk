@@ -12,8 +12,8 @@ development environment (compiler, linker, etc.):
 - fmt
 - Fontconfig
 - FreeType
-- libjpeg (8 or newer) or libjpeg-turbo (2.0 or newer)
-- libpng (1.6 or newer)
+- libjpeg (8 or newer) or libjpeg-turbo (2.0 or newer) (only required with `IMAGES=SYSTEM`; see below)
+- libpng (1.6 or newer) (only required with `IMAGES=SYSTEM`; see below)
 - zlib
 
 fmt is technically not a requirement, as Gargoyle includes its own header-only
@@ -69,12 +69,27 @@ In addition, Gargoyle supports the following options:
 - `WITH_LAUNCHER`: If true (the default), the launcher (gargoyle binary) will be
   built.
 
+- `WITH_FRANKENDRIFT`: If true, build the FrankenDrift interpreter for ADRIFT 5
+  games. Defaults to false. Requires the .NET 8 SDK and a shared libgarglk (i.e.
+  `BUILD_SHARED_LIBS` must be true, which it is by default).
+
+- `INTERFACE`: Selects the GUI toolkit. On Apple, this defaults to `COCOA` and
+  may be set to `QT` instead. On all other platforms `QT` is always used; the
+  option has no effect there.
+
 - `QT_VERSION`: Set to the major version of Qt to use: both 5 and 6 are
   supported, with 6 being the default. This does not have an effect on Mac,
   which does not currently use Qt.
 
+- `WITH_NATIVE_FILE_DIALOGS`: If true (the default), use the platform's native
+  file dialogs rather than Qt's. Only relevant for `INTERFACE=QT`.
+
 - `WITH_FREEDESKTOP`: If true (the default), install freedesktop.org-compliant
   desktop, application, and MIME files. This is available only on non-Apple Unix
+  platforms.
+
+- `INSTALL_GARGLKINI`: If true, install an example `garglk.ini` to the system
+  configuration directory. Defaults to false. Available only on non-Apple Unix
   platforms.
 
 - `WITH_KDE`: If true, KDE Frameworks will be used.
@@ -101,13 +116,18 @@ In addition, Gargoyle supports the following options:
 - `SOUND`: Takes one of three values: "SDL", for SDL sound support, "QT", for Qt
   sound support, and "none" (or any other value), for no sound support.
 
+- `IMAGES`: Selects the backend for image loading. `SYSTEM` uses libpng and
+  libjpeg; `QT` uses Qt's built-in image loaders, which drops the libpng and
+  libjpeg dependencies. The default is `QT` when `INTERFACE=QT`, and `SYSTEM`
+  otherwise. `IMAGES=QT` requires `INTERFACE=QT`.
+
 - `JPEGLIB`: Gargoyle can use either the original libjpeg from the Independent
   JPEG Group (IJG), or libjpeg-turbo. There is no practical difference between
   the two for Gargoye's purposes, but Gargoyle does make use of features
   introduced in version 8 of IJG's library, which may not be available on all
   systems. To force libjpeg-turbo, set this value to `TURBO`. To force IJG
   libjpeg, set it to `IJG`. The default is `AUTO`, which first tries
-  libjpeg-turbo, and if that fails, IJG libjpeg.
+  libjpeg-turbo, and if that fails, IJG libjpeg. Ignored when `IMAGES=QT`.
 
 - `WITH_BUNDLED_FMT`: If true, prefer Gargoyle's bundled fmt library to the
   system library. Defaults to false.
