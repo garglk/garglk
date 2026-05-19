@@ -12,6 +12,9 @@ set -ex
 # By default LLVM MinGW (assumed to be in /usr/llvm-mingw) is used. To
 # use gcc MinGW (assumed to be in /usr), pass the -g flag.
 #
+# Images are loaded via Qt by default. To use system image libraries
+# (libpng/libturbojpeg) instead, pass the -s flag.
+#
 # x86_64 is built by default. To select another architecture, use the -a
 # option. Valid values:
 #
@@ -20,6 +23,8 @@ set -ex
 # aarch64 (LLVM only)
 # armv7 (LLVM only)
 
+. "$(dirname "$0")/libwin.sh"
+
 fatal() {
     echo "${@}" >&2
     exit 1
@@ -27,8 +32,9 @@ fatal() {
 
 QT_VERSION="5"
 GARGOYLE_SOUND="SDL"
+GARGOYLE_IMAGES="QT"
 
-while getopts "6a:cgq" o
+while getopts "6a:cgqs" o
 do
     case "${o}" in
         6)
@@ -46,8 +52,11 @@ do
         q)
             GARGOYLE_SOUND="QT"
             ;;
+        s)
+            GARGOYLE_IMAGES="SYSTEM"
+            ;;
         *)
-            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-6cgq]"
+            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-6cgqs]"
             ;;
     esac
 done
@@ -98,61 +107,46 @@ mkdir build-mingw
 
 (
 cd build-mingw
-env MINGW_TRIPLE=${target} MINGW_LOCATION=${mingw_location} cmake .. ${CMAKE_QT6} -DCMAKE_TOOLCHAIN_FILE=../Toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DSOUND=${GARGOYLE_SOUND} -DQT_VERSION=${QT_VERSION} -DDIST_INSTALL=ON
+env MINGW_TRIPLE=${target} MINGW_LOCATION=${mingw_location} cmake .. ${CMAKE_QT6} -DCMAKE_TOOLCHAIN_FILE=../Toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DSOUND=${GARGOYLE_SOUND} -DIMAGES=${GARGOYLE_IMAGES} -DQT_VERSION=${QT_VERSION} -DDIST_INSTALL=ON
 make -j${nproc}
 make install
 )
 
-if [[ -n "${GARGOYLE_MINGW_GCC}" ]]
-then
-    ver=$(${target}-gcc --version | head -1 | awk '{print $3}')
-    cp "/usr/lib/gcc/${target}/${ver}/libstdc++-6.dll" "build/dist"
-    cp "${mingw_location}/${target}/lib/libwinpthread-1.dll" "build/dist"
-
-    libgcc=$(objdump -p build/dist/gargoyle.exe | grep "DLL Name: libgcc" | awk '{print $NF}')
-    cp "/usr/lib/gcc/${target}/${ver}/${libgcc}" "build/dist"
-else
-    cp "${mingw_location}/${target}/bin/libc++.dll" "build/dist"
-    cp "${mingw_location}/${target}/bin/libunwind.dll" "build/dist"
-fi
-
-case ${GARGOYLE_SOUND} in
-    QT)
-        SOUND_DLLS="Qt${QT_VERSION}Multimedia Qt${QT_VERSION}Network libfluidsynth-3 libglib-2.0-0 libintl-8 libmpg123-0 libogg-0 libopenmpt-0 libpcre2-8-0 libsndfile libvorbis-0 libvorbisenc-2 libvorbisfile-3"
-        ;;
-    SDL)
-        SOUND_DLLS="SDL2 SDL2_mixer libmodplug-1 libmpg123-0 libogg-0 libopenmpt-0 libvorbis-0 libvorbisfile-3"
-        ;;
-esac
-
-for dll in Qt${QT_VERSION}Core Qt${QT_VERSION}Gui Qt${QT_VERSION}Widgets libfmt libfreetype-6 libpng16-16 libturbojpeg zlib1 ${SOUND_DLLS}
-do
-    if [[ "${dll}" =~ ^Qt6 ]]
-    then
-        cp "${QT6HOME}/bin/${dll}.dll" "build/dist"
-    else
-        cp "${mingw_location}/${target}/bin/${dll}.dll" "build/dist"
-    fi
-done
-
-find build/dist \( -name '*.exe' -o -name '*.dll' \) -exec ${target}-strip --strip-unneeded {} \;
-
-mkdir -p "build/dist/plugins/platforms"
 if [[ "${QT_VERSION}" == "5" ]]
 then
-    cp "${mingw_location}/${target}/plugins/platforms/qwindows.dll" "build/dist/plugins/platforms"
+    qt_plugins="${mingw_location}/${target}/plugins"
 else
-    cp "${QT6HOME}/plugins/platforms/qwindows.dll" "build/dist/plugins/platforms"
+    qt_plugins="${QT6HOME}/plugins"
+fi
+
+# Qt plugins are runtime-loaded (not in import tables), so copy them
+# explicitly. Plugins are copied before copy_dll_deps so their own
+# imports get picked up transitively.
+copy_plugin "${qt_plugins}" "platforms/qwindows"
+
+if [[ "${GARGOYLE_IMAGES}" == "QT" ]]
+then
+    copy_plugin "${qt_plugins}" "imageformats/qjpeg"
 fi
 
 if [[ "${GARGOYLE_SOUND}" == "QT" ]]
 then
     if [[ "${QT_VERSION}" == "5" ]]
     then
-        mkdir -p build/dist/plugins/audio
-        cp "${mingw_location}/${target}/plugins/audio/qtaudio_windows.dll" "build/dist/plugins/audio"
+        copy_plugin "${qt_plugins}" "audio/qtaudio_windows"
     else
-        mkdir -p build/dist/plugins/multimedia
-        cp "${QT6HOME}/plugins/multimedia/windowsmediaplugin.dll" "build/dist/plugins/multimedia"
+        copy_plugin "${qt_plugins}" "multimedia/windowsmediaplugin"
     fi
 fi
+
+dll_search_paths=("${mingw_location}/${target}/bin")
+[[ "${QT_VERSION}" == "6" ]] && dll_search_paths+=("${QT6HOME}/bin")
+if [[ -n "${GARGOYLE_MINGW_GCC}" ]]
+then
+    ver=$(${target}-gcc --version | head -1 | awk '{print $3}')
+    dll_search_paths+=("/usr/lib/gcc/${target}/${ver}" "${mingw_location}/${target}/lib")
+fi
+
+copy_dll_deps "${dll_search_paths[@]}"
+
+find build/dist \( -name '*.exe' -o -name '*.dll' \) -exec ${target}-strip --strip-unneeded {} \;

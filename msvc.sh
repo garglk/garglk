@@ -13,6 +13,8 @@ set -ex
 # x86_64
 # aarch64
 
+. "$(dirname "$0")/libwin.sh"
+
 fatal() {
     echo "${@}" >&2
     exit 1
@@ -72,31 +74,10 @@ make -j${nproc}
 make install
 )
 
-# Qt plugins are runtime-loaded (not in import tables), so copy explicitly.
-mkdir -p "build/dist/plugins/platforms"
-cp "${qt}/plugins/platforms/qwindows.dll" "build/dist/plugins/platforms"
-mkdir -p "build/dist/plugins/multimedia"
-cp "${qt}/plugins/multimedia/windowsmediaplugin.dll" "build/dist/plugins/multimedia"
+# Qt plugins are runtime-loaded (not in import tables), so copy them
+# explicitly. Plugins are copied before copy_dll_deps so their own
+# imports get picked up transitively.
+copy_plugin "${qt}/plugins" "platforms/qwindows"
+copy_plugin "${qt}/plugins" "multimedia/windowsmediaplugin"
 
-# Recursively discover and copy DLL dependencies from all PE files in
-# build/dist (including plugins). Search paths are the MSVC sysroot and
-# the Qt bin directory. System DLLs (provided by Windows) are skipped.
-dll_search_paths=("${sysroot}/bin" "${qt}/bin")
-while true
-do
-    changed=false
-    while IFS= read -r dll
-    do
-        [[ -e "build/dist/${dll}" ]] && continue
-        for dir in "${dll_search_paths[@]}"
-        do
-            if [[ -e "${dir}/${dll}" ]]
-            then
-                cp "${dir}/${dll}" build/dist
-                changed=true
-                break
-            fi
-        done
-    done < <(find build/dist \( -iname "*.exe" -o -iname "*.dll" \) -exec objdump -p {} + 2>/dev/null | sed -n "s/.*DLL Name: //p" | sort -u)
-    $changed || break
-done
+copy_dll_deps "${sysroot}/bin" "${qt}/bin"
