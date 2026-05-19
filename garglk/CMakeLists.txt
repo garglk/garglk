@@ -255,18 +255,25 @@ endif()
 
 if("${SOUND}" STREQUAL "QT")
     find_package(Qt${QT_VERSION} COMPONENTS Multimedia REQUIRED CONFIG)
-    if(MSVC)  # pkg-config on Windows does not work when cross-compiling for Windows-on-ARM
+    if(MSVC AND CMAKE_HOST_WIN32)  # native MSVC build on Windows: pkg-config is unreliable, fall back to find_library/find_path
         find_library(SNDFILE sndfile REQUIRED)
         find_library(MPG123 NAMES mpg123 libmpg123 REQUIRED)
         find_library(OPENMPT NAMES openmpt libopenmpt REQUIRED)
+        find_path(SNDFILE_INCLUDE_DIR sndfile.hh REQUIRED)
+        find_path(MPG123_INCLUDE_DIR mpg123.h REQUIRED)
+        find_path(OPENMPT_INCLUDE_DIR libopenmpt/libopenmpt.hpp REQUIRED)
+        target_include_directories(garglk-common PRIVATE
+            ${SNDFILE_INCLUDE_DIR} ${MPG123_INCLUDE_DIR} ${OPENMPT_INCLUDE_DIR})
         target_link_libraries(garglk-common PRIVATE Qt${QT_VERSION}::Multimedia ${SNDFILE} ${MPG123} ${OPENMPT})
 
         find_library(FLUIDSYNTH NAMES fluidsynth libfluidsynth)
         if(FLUIDSYNTH)
+            find_path(FLUIDSYNTH_INCLUDE_DIR fluidsynth.h REQUIRED)
             target_compile_definitions(garglk-common PRIVATE GARGLK_HAS_FLUIDSYNTH)
+            target_include_directories(garglk-common PRIVATE ${FLUIDSYNTH_INCLUDE_DIR})
             target_link_libraries(garglk-common PRIVATE ${FLUIDSYNTH})
         endif()
-    else()  # regular compile (on Linux/Mac/...)
+    else()  # Linux/Mac native, or Linux/Mac cross-compiling to MSVC: use pkg-config
         find_package(PkgConfig REQUIRED)
         pkg_check_modules(SOUND REQUIRED IMPORTED_TARGET sndfile libmpg123 libopenmpt)
 
