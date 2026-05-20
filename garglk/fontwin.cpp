@@ -37,7 +37,14 @@ static bool find_font_file(const std::string &facename, std::string &filepath);
 
 static HDC hdc;
 
-static int CALLBACK font_cb(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *, int, LPARAM filler_)
+// Must use the A-suffixed variants explicitly: EnumFontFamiliesExA
+// fills the A-version struct, but ENUMLOGFONTEX / NEWTEXTMETRICEX
+// resolve to the W-versions whenever UNICODE is defined (which Qt6's
+// CMake imported targets propagate via INTERFACE_COMPILE_DEFINITIONS).
+// Without the explicit A, the struct layout the callback sees would
+// not match the data Windows wrote, and elfFullName / elfStyle would
+// be read from the wrong offsets.
+static int CALLBACK font_cb(ENUMLOGFONTEXA *lpelfe, NEWTEXTMETRICEXA *, int, LPARAM filler_)
 {
     FontFiller *filler = reinterpret_cast<FontFiller *>(filler_);
     std::string filepath;
