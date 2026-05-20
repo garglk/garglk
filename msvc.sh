@@ -78,6 +78,9 @@ make install
 # explicitly. Plugins are copied before copy_dll_deps so their own
 # imports get picked up transitively.
 copy_plugin "${qt}/plugins" "platforms/qwindows"
+copy_plugin "${qt}/plugins" "imageformats/qjpeg"
 copy_plugin "${qt}/plugins" "multimedia/windowsmediaplugin"
 
-copy_dll_deps "${sysroot}/bin" "${qt}/bin"
+# ${sysroot}/lib is searched in addition to ${sysroot}/bin because
+# locally-built DLLs land in lib/ alongside their import libs.
+copy_dll_deps "${sysroot}/bin" "${sysroot}/lib" "${qt}/bin"
