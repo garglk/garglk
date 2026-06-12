@@ -50,11 +50,24 @@ if(WIN32 AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
     )
 endif()
 
+# Keep dotnet from leaving daemons behind. They inherit make's file
+# descriptors, and Apple's patched GNU make hands its jobserver pipe
+# to every recipe child (not just submakes), so the daemons hold the
+# pipe open and "make -j" hangs at the end of the build until their
+# idle timeouts expire (~15 minutes). Hence, in the publish command:
+#
+# -nodeReuse:false: MSBuild normally keeps its worker node processes
+#   alive after the build to speed up future builds; this makes them
+#   exit when the build does.
+#
+# -p:UseSharedCompilation=false: the Roslyn compilers normally run in
+#   a long-lived VBCSCompiler server process; this compiles in-process
+#   instead.
 add_custom_target(frankendrift
     ALL
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMAND ${CMAKE_COMMAND} -E copy "${GARGLK_FRANKEN_DYLIB}" "${CMAKE_CURRENT_SOURCE_DIR}"
-    COMMAND ${DOTNET} publish --self-contained -c Release -r "${GARGLK_DOTNET_RID}" -p:GarglkMode=dynamic "-p:GarglkBuildDir=${CMAKE_CURRENT_BINARY_DIR}" "-p:BaseOutputPath=${CMAKE_CURRENT_BINARY_DIR}/bin/" "-p:GarglkLibDir=${CMAKE_BINARY_DIR}/garglk" ${GARGLK_DOTNET_AOT_FLAGS} -o "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMAND ${DOTNET} publish --self-contained -c Release -r "${GARGLK_DOTNET_RID}" -nodeReuse:false -p:UseSharedCompilation=false -p:GarglkMode=dynamic "-p:GarglkBuildDir=${CMAKE_CURRENT_BINARY_DIR}" "-p:BaseOutputPath=${CMAKE_CURRENT_BINARY_DIR}/bin/" "-p:GarglkLibDir=${CMAKE_BINARY_DIR}/garglk" ${GARGLK_DOTNET_AOT_FLAGS} -o "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building FrankenDrift with ${DOTNET}"
 )
 
