@@ -85,6 +85,27 @@ std::string garglk::ConfigFile::format_type() const {
     }
 }
 
+// Auto-detecting the display scale factor is not currently done
+// because Qt on Wayland reports the integer buffer scale (e.g. 2.0
+// for 125%) rather than the true fractional scale. The Wayland
+// protocol wl_output::scale is integer-only, and while
+// wp_fractional_scale_v1 provides the true fractional scale, Qt does
+// not expose it through QScreen or QWindow devicePixelRatio().
+//
+// Therefore gli_backingscalefactor remains at its default 1.0
+// on non-macOS platforms. Users on HiDPI displays can set zoom
+// manually in garglk.ini.
+//
+// Note:
+//   - QScreen::devicePixelRatio() — returns 2.0 for 1.25x scaling.
+//   - QWindow::devicePixelRatio() on a temporary window — also
+//     returns 2.0.
+//
+// To get the true scale, we would need to use the native Wayland
+// protocol (wp_fractional_scale_v1) directly, or we could try computing
+// the scale from `QScreen::logicalDotsPerInch() / 96.0` but if Qt also
+// rounds DPI to match the integer buffer scale, we'd get 192 (2.0)
+// and still be wrong.
 double gli_backingscalefactor = 1.0;
 double gli_zoom = 1.0;
 
