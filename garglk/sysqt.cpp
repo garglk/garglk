@@ -82,6 +82,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -295,7 +296,16 @@ void garglk::Window::resizeEvent(QResizeEvent *event)
     int newwid = event->size().width();
     int newhgt = event->size().height();
 
-    if (newwid == gli_image_rgb.width() && newhgt == gli_image_rgb.height()) {
+    // Qt reports window sizes in **logical** pixels. The compositor then
+    // upscales the window surface by the DPR. So we size the
+    // internal buffer to **physical** pixels (`logical × dpr`), matching
+    // the actual surface resolution, to avoid blur.
+    double dpr = m_view->devicePixelRatioF();
+
+    int physwid = std::round(newwid * dpr);
+    int physhgt = std::round(newhgt * dpr);
+
+    if (physwid == gli_image_rgb.width() && physhgt == gli_image_rgb.height()) {
         return;
     }
 
@@ -304,7 +314,7 @@ void garglk::Window::resizeEvent(QResizeEvent *event)
     // On startup, Qt posts a resize event as the window is created.
     // This resize occurs before the Glk program even starts, so
     // shouldn't create an arrange event.
-    gli_windows_size_change(newwid, newhgt, !first_resize);
+    gli_windows_size_change(physwid, physhgt, !first_resize);
 
     if (gli_conf_save_window_size) {
         m_settings->setValue("window/size", event->size());
@@ -364,6 +374,13 @@ void garglk::View::refresh()
 void garglk::View::paintEvent(QPaintEvent *event)
 {
     QImage image(gli_image_rgb.data(), gli_image_rgb.width(), gli_image_rgb.height(), gli_image_rgb.stride(), QImage::Format_RGB888);
+    double dpr = devicePixelRatioF();
+    // The `QImage` we blit to the widget is sized in **physical**
+    // pixels (e.g. 1000×750), but the widget itself is sized in
+    // **logical** pixels (e.g. 800×600).  Setting the DPR tells Qt
+    // "this image is already at physical resolution" so it maps 1:1
+    // to the backing store.
+    image.setDevicePixelRatio(dpr);
     QPainter painter(this);
     painter.drawImage(QPoint(0, 0), image);
     event->accept();
@@ -620,12 +637,20 @@ void garglk::View::keyPressEvent(QKeyEvent *event)
 
 void garglk::View::mouseMoveEvent(QMouseEvent *event)
 {
+    // Mouse events report **logical** pixel coordinates
+    // (e.g. 400, 300), but the internal `gli_image_rgb` buffer is
+    // in **physical** pixels (e.g. 500, 375 at 1.25×) so position
+    // needs to be scaled
+    double dpr = devicePixelRatioF();
+    int x = std::round(event->pos().x() * dpr);
+    int y = std::round(event->pos().y() * dpr);
+
     // hyperlinks and selection
     if (gli_copyselect) {
         setCursor(Qt::IBeamCursor);
-        gli_move_selection(event->pos().x(), event->pos().y());
+        gli_move_selection(x, y);
     } else {
-        if (gli_get_hyperlink(event->pos().x(), event->pos().y()) != 0) {
+        if (gli_get_hyperlink(x, y) != 0) {
             setCursor(Qt::PointingHandCursor);
         } else {
             unsetCursor();
@@ -637,8 +662,14 @@ void garglk::View::mouseMoveEvent(QMouseEvent *event)
 
 void garglk::View::mousePressEvent(QMouseEvent *event)
 {
+    // Mouse events report **logical** pixel coordinates
+    // (e.g. 400, 300), but the internal `gli_image_rgb` buffer is
+    // in **physical** pixels (e.g. 500, 375 at 1.25×) so position
+    // needs to be scaled
+    double dpr = devicePixelRatioF();
+
     if (event->button() == Qt::LeftButton) {
-        gli_input_handle_click(event->pos().x(), event->pos().y());
+        gli_input_handle_click(std::round(event->pos().x() * dpr), std::round(event->pos().y() * dpr));
     } else if (event->button() == Qt::MiddleButton) {
         winclipreceive(QClipboard::Selection);
     }
@@ -703,6 +734,15 @@ void wininit()
     // fulfill QApplication's requirements.
     static int argc = 1;
     static char *argv[] = {const_cast<char *>("gargoyle"), nullptr};
+
+    // Qt 5 defaults to disabling high-DPI scaling unless this attribute
+    // is set. Without it, Qt 5 on a scaled display creates a 1× surface
+    // and the compositor upscales, which destroys subpixel rendering.
+    // Qt 6 enables it by default, so this is conditional.
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+#endif
+
     app = new QApplication(argc, argv);
     QApplication::setApplicationVersion(GARGOYLE_VERSION);
 
