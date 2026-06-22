@@ -642,13 +642,15 @@ void garglk::View::mouseMoveEvent(QMouseEvent *event)
     // in **physical** pixels (e.g. 500, 375 at 1.25×) so position
     // needs to be scaled
     double dpr = devicePixelRatioF();
+    int x = std::round(event->pos().x() * dpr);
+    int y = std::round(event->pos().y() * dpr);
 
     // hyperlinks and selection
     if (gli_copyselect) {
         setCursor(Qt::IBeamCursor);
-        gli_move_selection(event->pos().x() * dpr, event->pos().y() * dpr);
+        gli_move_selection(x, y);
     } else {
-        if (gli_get_hyperlink(event->pos().x() * dpr, event->pos().y() * dpr) != 0) {
+        if (gli_get_hyperlink(x, y) != 0) {
             setCursor(Qt::PointingHandCursor);
         } else {
             unsetCursor();
@@ -667,7 +669,7 @@ void garglk::View::mousePressEvent(QMouseEvent *event)
     double dpr = devicePixelRatioF();
 
     if (event->button() == Qt::LeftButton) {
-        gli_input_handle_click(event->pos().x() * dpr, event->pos().y() * dpr);
+        gli_input_handle_click(std::round(event->pos().x() * dpr), std::round(event->pos().y() * dpr));
     } else if (event->button() == Qt::MiddleButton) {
         winclipreceive(QClipboard::Selection);
     }
