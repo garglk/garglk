@@ -300,12 +300,7 @@ void garglk::Window::resizeEvent(QResizeEvent *event)
     // upscales the window surface by the DPR. So we size the
     // internal buffer to **physical** pixels (`logical × dpr`), matching
     // the actual surface resolution, to avoid blur.
-    double dpr;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    dpr = m_view->devicePixelRatio();
-#else
-    dpr = m_view->devicePixelRatioF();
-#endif
+    double dpr = m_view->devicePixelRatioF();
 
     int physwid = std::round(newwid * dpr);
     int physhgt = std::round(newhgt * dpr);
@@ -379,12 +374,7 @@ void garglk::View::refresh()
 void garglk::View::paintEvent(QPaintEvent *event)
 {
     QImage image(gli_image_rgb.data(), gli_image_rgb.width(), gli_image_rgb.height(), gli_image_rgb.stride(), QImage::Format_RGB888);
-    double dpr;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    dpr = devicePixelRatio();
-#else
-    dpr = devicePixelRatioF();
-#endif
+    double dpr = devicePixelRatioF();
     // The `QImage` we blit to the widget is sized in **physical**
     // pixels (e.g. 1000×750), but the widget itself is sized in
     // **logical** pixels (e.g. 800×600).  Setting the DPR tells Qt
@@ -651,12 +641,7 @@ void garglk::View::mouseMoveEvent(QMouseEvent *event)
     // (e.g. 400, 300), but the internal `gli_image_rgb` buffer is
     // in **physical** pixels (e.g. 500, 375 at 1.25×) so position
     // needs to be scaled
-    double dpr;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    dpr = devicePixelRatio();
-#else
-    dpr = devicePixelRatioF();
-#endif
+    double dpr = devicePixelRatioF();
 
     // hyperlinks and selection
     if (gli_copyselect) {
@@ -679,12 +664,7 @@ void garglk::View::mousePressEvent(QMouseEvent *event)
     // (e.g. 400, 300), but the internal `gli_image_rgb` buffer is
     // in **physical** pixels (e.g. 500, 375 at 1.25×) so position
     // needs to be scaled
-    double dpr;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    dpr = devicePixelRatio();
-#else
-    dpr = devicePixelRatioF();
-#endif
+    double dpr = devicePixelRatioF();
 
     if (event->button() == Qt::LeftButton) {
         gli_input_handle_click(event->pos().x() * dpr, event->pos().y() * dpr);
