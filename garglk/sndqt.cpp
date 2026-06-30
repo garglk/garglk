@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -589,9 +590,11 @@ struct glk_schannel_struct {
     }
 
     void set_current_volume() {
-        auto target_volume = static_cast<double>(current_volume) / GLK_MAXVOLUME;
+        // QAudioSink's volume is a raw linear gain; map through a perceptual
+        // curve so the volume control behaves evenly across its range.
+        auto gain = std::pow(static_cast<double>(current_volume) / GLK_MAXVOLUME, std::log(4));
         if (audio) {
-            audio->setVolume(target_volume);
+            audio->setVolume(gain);
         }
     }
 
