@@ -42,6 +42,20 @@
 static std::mutex fade_timer_mutex;
 static std::set<SdlSoundChannel *> fade_timer_channels;
 
+namespace {
+
+// RAII wrapper for the backend's audio-device lock. The fade callback takes it
+// before fade_timer_mutex (see gli_sound_backend_lock in sndsdl-common.h) so
+// the timer thread and the teardown paths agree on lock order.
+struct BackendLock {
+    BackendLock() { gli_sound_backend_lock(); }
+    ~BackendLock() { gli_sound_backend_unlock(); }
+    BackendLock(const BackendLock &) = delete;
+    BackendLock &operator=(const BackendLock &) = delete;
+};
+
+}
+
 // Make an incremental volume change when the fade timer fires.
 #ifdef GARGLK_CONFIG_SDL3
 static Uint32 volume_timer_callback(void *param, SDL_TimerID id, Uint32 interval)
@@ -56,12 +70,18 @@ static Uint32 volume_timer_callback(Uint32 interval, void *param)
         return 0;
     }
 
-    // Held for the whole body so the teardown path can wait out an in-flight
-    // callback before freeing the channel. If the channel is gone from the
-    // registry it has been (or is being) destroyed; bail without touching it.
-    // Only the pointer value is compared here, never dereferenced, so this is
-    // safe even if chan was already freed.
+    // Lock order: backend device lock first, then fade_timer_mutex. The
+    // teardown paths take the device lock before this mutex, and apply_volume()
+    // (SDL2) re-enters the device lock, so the timer thread must match that
+    // order to avoid a deadlock. Neither lock is dropped until the body is done,
+    // so the teardown path can also wait out an in-flight callback before
+    // freeing the channel.
+    BackendLock backend_lock;
     std::lock_guard<std::mutex> guard(fade_timer_mutex);
+
+    // If the channel is gone from the registry it has been (or is being)
+    // destroyed; bail without touching it. Only the pointer value is compared
+    // here, never dereferenced, so this is safe even if chan was already freed.
     if (fade_timer_channels.find(chan) == fade_timer_channels.end()) {
         return 0;
     }

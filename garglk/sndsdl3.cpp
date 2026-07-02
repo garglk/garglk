@@ -94,6 +94,17 @@ gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
     return chan->disprock;
 }
 
+// SDL3 mixes streams without a single global audio-device lock (each stream has
+// its own lock, and the fade path never needs it), so the lock-order hooks the
+// fade timer uses are no-ops here; see sndsdl-common.h.
+void gli_sound_backend_lock()
+{
+}
+
+void gli_sound_backend_unlock()
+{
+}
+
 // Pull decoded PCM for one channel. SDL calls this from its audio thread while
 // holding the stream's lock, and mixes the result with the other bound streams.
 static void SDLCALL stream_callback(void *userdata, SDL_AudioStream *stream, int additional_amount, int /* total_amount */)
