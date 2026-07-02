@@ -21,10 +21,11 @@ copy, but using Gargoyle's copy will slow down the build and produce a larger
 binary. By default Gargoyle will use a system fmt if it finds one. This can be
 overridden with the `WITH_BUNDLED_FMT` configure option (see below).
 
-In addition, if you want sound support, there are two backends: SDL and Qt. For
-SDL, you will need SDL2 and SDL2\_mixer. For Qt, you will need QtMultimedia,
-libsndfile (with Vorbis support), mpg123, and libopenmpt. In addition, if
-fluidsynth is installed, it will be used for MIDI in the Qt backend, but it is
+If you want sound support, there are three backends: SDL2, SDL3, and Qt. For
+SDL2, you will need SDL2 and SDL2_mixer. For both SDL3 and Qt you will need
+libsndfile (with Vorbis support), mpg123, and libopenmpt. SDL3 requires only
+SDL3 (no SDL3_mixer), and Qt requires QtMultimedia. In addition, if fluidsynth
+is installed, it will be used for MIDI in the SDL3 and Qt backends, but it is
 optional.
 
 If you want text-to-speech support on Unix, you will need speech-dispatcher.
@@ -113,8 +114,9 @@ In addition, Gargoyle supports the following options:
 
     - If "OFF" (or any false value), TTS support is disabled.
 
-- `SOUND`: Takes one of three values: "SDL", for SDL sound support, "QT", for Qt
-  sound support, and "none" (or any other value), for no sound support.
+- `SOUND`: Takes one of four values: "SDL2", for SDL2 sound support, "SDL3",
+  for SDL3 sound support, "QT", for Qt sound support, and "NONE", for no sound
+  support. "SDL" is accepted as a backward-compatible alias for "SDL2".
 
 - `IMAGES`: Selects the backend for image loading. `SYSTEM` uses libpng and
   libjpeg; `QT` uses Qt's built-in image loaders, which drops the libpng and
