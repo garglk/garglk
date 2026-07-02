@@ -156,6 +156,16 @@ void init_fade(SdlSoundChannel *chan, int vol, int duration, int notify)
     chan->volume_delta = static_cast<double>(chan->target_volume - chan->volume) / FADE_GRANULARITY;
     chan->volume_timeout = FADE_GRANULARITY;
 
+    // A fade shorter than FADE_GRANULARITY ms would otherwise give a zero
+    // interval, and the callback returns its interval to reschedule, so a zero
+    // interval cancels the timer after a single tick, stalling the fade partway
+    // (and never firing the completion VolumeNotify). Clamp to 1 ms so the fade
+    // still runs to completion (it just takes a little longer than requested).
+    Uint32 interval = static_cast<Uint32>(duration / FADE_GRANULARITY);
+    if (interval == 0) {
+        interval = 1;
+    }
+
     // Hold the mutex across both the registry insert and the timer arm. The
     // callback can fire (and check fade_timer_channels) before SDL_AddTimer even
     // returns, and it reads chan->timer under this same mutex, so the assignment
@@ -165,7 +175,7 @@ void init_fade(SdlSoundChannel *chan, int vol, int duration, int notify)
     {
         std::lock_guard<std::mutex> guard(fade_timer_mutex);
         fade_timer_channels.insert(chan);
-        chan->timer = SDL_AddTimer(static_cast<Uint32>(duration / FADE_GRANULARITY), volume_timer_callback, chan);
+        chan->timer = SDL_AddTimer(interval, volume_timer_callback, chan);
         if (chan->timer == 0) {
             fade_timer_channels.erase(chan);
             failed = true;
