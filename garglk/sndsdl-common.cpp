@@ -156,19 +156,23 @@ void init_fade(SdlSoundChannel *chan, int vol, int duration, int notify)
     chan->volume_delta = static_cast<double>(chan->target_volume - chan->volume) / FADE_GRANULARITY;
     chan->volume_timeout = FADE_GRANULARITY;
 
-    // Register the channel before arming the timer: the callback can fire (and
-    // check fade_timer_channels) before SDL_AddTimer even returns.
+    // Hold the mutex across both the registry insert and the timer arm. The
+    // callback can fire (and check fade_timer_channels) before SDL_AddTimer even
+    // returns, and it reads chan->timer under this same mutex, so the assignment
+    // must happen under the lock too. An in-flight callback that fires here
+    // simply blocks until chan->timer is set and the channel is registered.
+    bool failed = false;
     {
         std::lock_guard<std::mutex> guard(fade_timer_mutex);
         fade_timer_channels.insert(chan);
+        chan->timer = SDL_AddTimer(static_cast<Uint32>(duration / FADE_GRANULARITY), volume_timer_callback, chan);
+        if (chan->timer == 0) {
+            fade_timer_channels.erase(chan);
+            failed = true;
+        }
     }
 
-    chan->timer = SDL_AddTimer(static_cast<Uint32>(duration / FADE_GRANULARITY), volume_timer_callback, chan);
-
-    if (chan->timer == 0) {
-        std::lock_guard<std::mutex> guard(fade_timer_mutex);
-        fade_timer_channels.erase(chan);
+    if (failed) {
         gli_strict_warning("init_fade: failed to create volume change timer.");
-        return;
     }
 }
