@@ -102,6 +102,19 @@ gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
     return chan->disprock;
 }
 
+// The fade timer holds this around its critical section to keep a consistent
+// lock order with the teardown paths; see sndsdl-common.h. This is the mixer's
+// audio-device lock, which apply_volume() (via Mix_VolumeMusic) also takes.
+void gli_sound_backend_lock()
+{
+    SDL_LockAudio();
+}
+
+void gli_sound_backend_unlock()
+{
+    SDL_UnlockAudio();
+}
+
 void gli_initialize_sound()
 {
     if (gli_conf_sound) {
@@ -189,6 +202,11 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
 
 static void cleanup_channel(schanid_t chan)
 {
+    // Stop any fade first (waiting out an in-flight fade callback and untracking
+    // the channel) so no fade tick can call apply_volume() against the channel
+    // while the fields it reads (status, sdl_channel) are torn down below.
+    cancel_fade(chan);
+
     if (chan->sdl_rwops != nullptr) {
         SDL_RWclose(chan->sdl_rwops);
         chan->sdl_rwops = nullptr;
@@ -216,10 +234,6 @@ static void cleanup_channel(schanid_t chan)
     chan->status = CHANNEL_IDLE;
     chan->sdl_channel = -1;
     chan->music = nullptr;
-
-    // Stop any fade and untrack the channel (waiting out an in-flight fade
-    // callback) so nothing touches it after this returns.
-    cancel_fade(chan);
 }
 
 void glk_schannel_destroy(schanid_t chan)

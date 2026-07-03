@@ -64,6 +64,18 @@ struct SdlSoundChannel {
     virtual void apply_volume() = 0;
 };
 
+// The fade timer runs apply_volume() on SDL's timer thread. In the SDL2 backend
+// apply_volume() calls into SDL_mixer, which takes the audio-device lock, and
+// every teardown path already holds that device lock when it stops a fade. To
+// keep a single, consistent lock order (device lock, then fade mutex) the timer
+// callback acquires the backend's device lock before the fade mutex via these
+// hooks; without that the timer thread (fade mutex -> device lock) and a
+// teardown (device lock -> fade mutex) can deadlock. Each backend provides an
+// implementation: SDL2 locks the mixer's device, SDL3 has no such global lock
+// and implements them as no-ops.
+void gli_sound_backend_lock();
+void gli_sound_backend_unlock();
+
 // Fade chan to Glk volume vol over duration ms, firing a VolumeNotify carrying
 // notify when complete. Any fade already running on the channel is cancelled.
 void init_fade(SdlSoundChannel *chan, int vol, int duration, int notify);

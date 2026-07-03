@@ -94,6 +94,17 @@ gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
     return chan->disprock;
 }
 
+// SDL3 mixes streams without a single global audio-device lock (each stream has
+// its own lock, and the fade path never needs it), so the lock-order hooks the
+// fade timer uses are no-ops here; see sndsdl-common.h.
+void gli_sound_backend_lock()
+{
+}
+
+void gli_sound_backend_unlock()
+{
+}
+
 // Pull decoded PCM for one channel. SDL calls this from its audio thread while
 // holding the stream's lock, and mixes the result with the other bound streams.
 static void SDLCALL stream_callback(void *userdata, SDL_AudioStream *stream, int additional_amount, int /* total_amount */)
@@ -104,17 +115,25 @@ static void SDLCALL stream_callback(void *userdata, SDL_AudioStream *stream, int
         return;
     }
 
-    // A paused channel simply supplies no data, so it mixes as silence while
-    // its decode position holds.
-    if (!chan->paused && additional_amount > 0 && !chan->decoder->finished()) {
-        if (chan->buffer.size() < static_cast<std::size_t>(additional_amount)) {
-            chan->buffer.resize(additional_amount);
-        }
+    // SDL calls this from its audio thread across a C ABI boundary, so an
+    // exception must not escape (that would terminate). The buffer resize below
+    // can throw bad_alloc, and a decoder could throw on a decode error; on
+    // either, just supply no data this cycle (silence) rather than propagate.
+    try {
+        // A paused channel simply supplies no data, so it mixes as silence while
+        // its decode position holds.
+        if (!chan->paused && additional_amount > 0 && !chan->decoder->finished()) {
+            if (chan->buffer.size() < static_cast<std::size_t>(additional_amount)) {
+                chan->buffer.resize(additional_amount);
+            }
 
-        std::size_t n = chan->decoder->read(chan->buffer.data(), additional_amount);
-        if (n > 0) {
-            SDL_PutAudioStreamData(stream, chan->buffer.data(), static_cast<int>(n));
+            std::size_t n = chan->decoder->read(chan->buffer.data(), additional_amount);
+            if (n > 0) {
+                SDL_PutAudioStreamData(stream, chan->buffer.data(), static_cast<int>(n));
+            }
         }
+    } catch (...) {
+        return;
     }
 
     // Fire the notify once the decoder is exhausted and the buffered tail has
