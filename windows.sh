@@ -18,6 +18,12 @@ set -ex
 # Sound uses SDL3 by default. To use SDL2 instead, pass the -2 flag; to
 # use Qt for sound, pass the -q flag.
 #
+# Qt comes from the system (the native cross-compiled Qt in the MinGW
+# sysroot) by default. To build against an official Qt install instead,
+# pass -Q with the path to the Qt version directory (e.g. -Q
+# "$HOME/Qt/6.11.1"); the compiler-specific subdir (llvm-mingw_64, or
+# mingw_64 with -g) is appended automatically.
+#
 # x86_64 is built by default. To select another architecture, use the -a
 # option. Valid values:
 #
@@ -36,8 +42,9 @@ fatal() {
 QT_VERSION="5"
 GARGOYLE_SOUND="SDL3"
 GARGOYLE_IMAGES="QT"
+GARGOYLE_QT_HOME=""
 
-while getopts "26a:cgqs" o
+while getopts "26a:cgQ:qs" o
 do
     case "${o}" in
         2)
@@ -55,6 +62,9 @@ do
         g)
             GARGOYLE_MINGW_GCC=1
             ;;
+        Q)
+            GARGOYLE_QT_HOME="${OPTARG}"
+            ;;
         q)
             GARGOYLE_SOUND="QT"
             ;;
@@ -62,7 +72,7 @@ do
             GARGOYLE_IMAGES="SYSTEM"
             ;;
         *)
-            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-26cgqs]"
+            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-26cgqs] [-Q /path/to/Qt]"
             ;;
     esac
 done
@@ -93,16 +103,16 @@ else
     mingw_location=/usr/llvm-mingw
 fi
 
-if [[ "${QT_VERSION}" == "6" ]]
+if [[ -n "${GARGOYLE_QT_HOME}" ]]
 then
     if [[ -n "${GARGOYLE_MINGW_GCC}" ]]
     then
-        QT6HOME="${HOME}/Qt/current/mingw_64"
+        GARGOYLE_QT_HOME="${GARGOYLE_QT_HOME}/mingw_64"
     else
-        QT6HOME="${HOME}/Qt/current/llvm-mingw_64"
+        GARGOYLE_QT_HOME="${GARGOYLE_QT_HOME}/llvm-mingw_64"
     fi
 
-    CMAKE_QT6="-DCMAKE_PREFIX_PATH=${QT6HOME}"
+    CMAKE_QT6="-DCMAKE_PREFIX_PATH=${GARGOYLE_QT_HOME}"
 fi
 
 export PATH="${mingw_location}/bin:${PATH}"
@@ -118,11 +128,11 @@ make -j${nproc}
 make install
 )
 
-if [[ "${QT_VERSION}" == "5" ]]
+if [[ -n "${GARGOYLE_QT_HOME}" ]]
 then
-    qt_plugins="${mingw_location}/${target}/plugins"
+    qt_plugins="${GARGOYLE_QT_HOME}/plugins"
 else
-    qt_plugins="${QT6HOME}/plugins"
+    qt_plugins="${mingw_location}/${target}/plugins"
 fi
 
 # Qt plugins are runtime-loaded (not in import tables), so copy them
@@ -145,14 +155,17 @@ then
     fi
 fi
 
+# Qt* DLLs are taken from the explicit -Q Qt (if any), everything else from
+# the sysroot; see copy_dll_deps for why.
+qt_bin=""
+[[ -n "${GARGOYLE_QT_HOME}" ]] && qt_bin="${GARGOYLE_QT_HOME}/bin"
 dll_search_paths=("${mingw_location}/${target}/bin")
-[[ "${QT_VERSION}" == "6" ]] && dll_search_paths+=("${QT6HOME}/bin")
 if [[ -n "${GARGOYLE_MINGW_GCC}" ]]
 then
     ver=$(${target}-gcc --version | head -1 | awk '{print $3}')
     dll_search_paths+=("/usr/lib/gcc/${target}/${ver}" "${mingw_location}/${target}/lib")
 fi
 
-copy_dll_deps "${dll_search_paths[@]}"
+copy_dll_deps "${qt_bin}" "${dll_search_paths[@]}"
 
 find build/dist \( -name '*.exe' -o -name '*.dll' \) -exec ${target}-strip --strip-unneeded {} \;

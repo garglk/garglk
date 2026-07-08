@@ -21,13 +21,25 @@ copy_plugin() {
 
 # Recursively discover and copy DLL dependencies from all PE files in
 # build/dist (binaries and plugins). For each DLL named in any import
-# table, search the given paths in order; if found, copy it into
-# build/dist and continue scanning. DLLs not found in any search path
-# are assumed to be provided by Windows itself and silently skipped.
+# table, search for it and copy it into build/dist, then continue
+# scanning. DLLs not found in any search path are assumed to be provided
+# by Windows itself and silently skipped.
+#
+# The first argument is an explicit-Qt bin directory (from -Q), or empty
+# for a system build. Qt* DLLs are taken from there first so a plugin's
+# Qt libraries match the exact Qt build the plugin came from (Qt plugins
+# rely on private symbols). Every other DLL (libc++, zlib, …) prefers
+# the sysroot; otherwise a Qt-bundled stale libc++.dll would shadow the
+# sysroot's and break code using newer symbols. The Qt dir is still a
+# last-resort fallback for non-Qt deps that a Qt build ships
+# but the sysroot lacks.
 #
 # Args:
-#   $1..: directories to search for DLLs
+#   $1:   explicit-Qt bin dir, or "" for a system build
+#   $2..: sysroot directories to search for DLLs
 copy_dll_deps() {
+    local qt_dir="$1"
+    shift
     local search_paths=("$@")
     while true
     do
@@ -36,8 +48,18 @@ copy_dll_deps() {
         while IFS= read -r dll
         do
             [[ -e "build/dist/${dll}" ]] && continue
+            local dirs
+            if [[ -n "${qt_dir}" && "${dll}" == Qt*.dll ]]
+            then
+                dirs=("${qt_dir}" "${search_paths[@]}")
+            elif [[ -n "${qt_dir}" ]]
+            then
+                dirs=("${search_paths[@]}" "${qt_dir}")
+            else
+                dirs=("${search_paths[@]}")
+            fi
             local dir
-            for dir in "${search_paths[@]}"
+            for dir in "${dirs[@]}"
             do
                 if [[ -e "${dir}/${dll}" ]]
                 then
