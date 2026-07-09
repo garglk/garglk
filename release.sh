@@ -92,7 +92,7 @@ then
                 ./msvc.sh -c -a "${arch}"
                 ;;
             *)
-                ./windows.sh -cq -a "${arch}"
+                ./windows.sh -6cq -a "${arch}"
                 ;;
         esac
         ./package-windows.sh "${arch}"
