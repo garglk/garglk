@@ -65,7 +65,7 @@ jobs:
       - name: Build
         run: |
           echo $(date +"%Y%m%d").$(echo $GITHUB_SHA | cut -b 1-7) > VERSION
-          ./windows.sh -qa ${{ matrix.arch }}
+          ./windows.sh -5a ${{ matrix.arch }}
 
       - name: Upload installer
         uses: actions/upload-artifact@v4

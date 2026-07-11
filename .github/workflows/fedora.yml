@@ -28,16 +28,19 @@ jobs:
 
       - name: Install packages
         run: yum -y install
-          SDL2-devel
-          SDL2_mixer-devel
           cmake
           dotnet-sdk-8.0
+          fluidsynth-devel
           fmt-devel
           fontconfig-devel
           freetype-devel
           libjpeg-turbo-devel
+          libmpg123-devel
+          libopenmpt-devel
           libpng-devel
+          libsndfile-devel
           qt6-qtbase-devel
+          qt6-qtmultimedia-devel
           rpm-build
           turbojpeg-devel
 

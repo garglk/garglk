@@ -15,8 +15,11 @@ set -ex
 # Images are loaded via Qt by default. To use system image libraries
 # (libpng/libturbojpeg) instead, pass the -s flag.
 #
-# Sound uses SDL3 by default. To use SDL2 instead, pass the -2 flag; to
-# use Qt for sound, pass the -q flag.
+# Sound uses Qt by default. To use SDL2 instead, pass the -2 flag; to
+# use SDL3, pass the -3 flag.
+#
+# Qt 6 is used by default. To build against Qt 5 instead, pass the -5
+# flag.
 #
 # Qt comes from the system (the native cross-compiled Qt in the MinGW
 # sysroot) by default. To build against an official Qt install instead,
@@ -39,19 +42,22 @@ fatal() {
     exit 1
 }
 
-QT_VERSION="5"
-GARGOYLE_SOUND="SDL3"
+QT_VERSION="6"
+GARGOYLE_SOUND="QT"
 GARGOYLE_IMAGES="QT"
 GARGOYLE_QT_HOME=""
 
-while getopts "26a:cgQ:qs" o
+while getopts "235a:cgQ:s" o
 do
     case "${o}" in
         2)
             GARGOYLE_SOUND="SDL2"
             ;;
-        6)
-            QT_VERSION="6"
+        3)
+            GARGOYLE_SOUND="SDL3"
+            ;;
+        5)
+            QT_VERSION="5"
             ;;
         a)
             GARGOYLE_ARCH="${OPTARG}"
@@ -65,14 +71,11 @@ do
         Q)
             GARGOYLE_QT_HOME="${OPTARG}"
             ;;
-        q)
-            GARGOYLE_SOUND="QT"
-            ;;
         s)
             GARGOYLE_IMAGES="SYSTEM"
             ;;
         *)
-            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-26cgqs] [-Q /path/to/Qt]"
+            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-235cgs] [-Q /path/to/Qt]"
             ;;
     esac
 done

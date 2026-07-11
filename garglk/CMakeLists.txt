@@ -21,26 +21,28 @@ else()
     set(INTERFACE "QT")
 endif()
 
+if(INTERFACE STREQUAL "QT")
+    set(SOUND_DEFAULT "QT")
+    set(IMAGES_DEFAULT "QT")
+    option(WITH_NATIVE_FILE_DIALOGS "Use native dialogs instead of Qt dialogs" ON)
+else()
+    set(SOUND_DEFAULT "SDL3")
+    set(IMAGES_DEFAULT "SYSTEM")
+endif()
+
 set(WITH_TTS "AUTO" CACHE STRING "Enable text-to-speech support (ON/OFF/AUTO/DYNAMIC)")
 set(GARGLKPRE "" CACHE STRING "Binary prefix")
-set(SOUND "SDL2" CACHE STRING "Backend to use for sound (SDL2, SDL3, QT, or NONE)")
+
+set(SOUND "${SOUND_DEFAULT}" CACHE STRING "Backend to use for sound (SDL2, SDL3, QT, or NONE)")
 # "SDL" was the name of the sole SDL backend before the SDL2/SDL3 split; keep
 # accepting it as an alias for SDL2 so existing build scripts keep working.
 if(SOUND STREQUAL "SDL")
     set(SOUND "SDL2")
 endif()
-if(INTERFACE STREQUAL "QT")
-    set(IMAGES_DEFAULT "QT")
-else()
-    set(IMAGES_DEFAULT "SYSTEM")
-endif()
+
 set(IMAGES "${IMAGES_DEFAULT}" CACHE STRING "Backend to use for image loading (SYSTEM {for system libraries} or QT)")
 set_property(CACHE IMAGES PROPERTY STRINGS SYSTEM QT)
 set(JPEGLIB "AUTO" CACHE STRING "JPEG library to use (TURBO, IJG, or AUTO); ignored if IMAGES set to QT")
-
-if(INTERFACE STREQUAL "QT")
-    option(WITH_NATIVE_FILE_DIALOGS "Use native dialogs instead of Qt dialogs" ON)
-endif()
 
 if(NOT IMAGES STREQUAL "SYSTEM" AND NOT IMAGES STREQUAL "QT")
     message(FATAL_ERROR "IMAGES must be either SYSTEM or QT")

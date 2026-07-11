@@ -25,16 +25,20 @@ jobs:
           fuse
           git
           grep
+          libfluidsynth-dev
           libfmt-dev
           libfontconfig1-dev
           libfreetype-dev
           libjpeg-turbo8-dev
-          libsdl2-mixer-dev
+          libmpg123-dev
+          libopenmpt-dev
+          libsndfile-dev
           libspeechd-dev
           libturbojpeg0-dev
           patchelf
           qt6-base-dev
           qt6-base-dev-tools
+          qt6-multimedia-dev
           wget
 
       - uses: actions/checkout@v4
