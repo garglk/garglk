@@ -71,6 +71,16 @@ void glk_stylehint_set(glui32 wintype, glui32 styl, glui32 hint, glsi32 val)
         case stylehint_Oblique:
             style.font.italic = val != 0;
             break;
+
+        case stylehint_Justification:
+            if (wintype == wintype_TextBuffer &&
+                    (val == stylehint_just_LeftFlush ||
+                     val == stylehint_just_LeftRight ||
+                     val == stylehint_just_Centered ||
+                     val == stylehint_just_RightFlush)) {
+                style.justification = val;
+            }
+            break;
         }
 
         if (wintype == wintype_TextBuffer &&
@@ -130,6 +140,10 @@ void glk_stylehint_clear(glui32 wintype, glui32 styl, glui32 hint)
         case stylehint_Oblique:
             style.font = def.font;
             break;
+
+        case stylehint_Justification:
+            style.justification = def.justification;
+            break;
         }
     } catch (const std::out_of_range &) {
     }
@@ -169,7 +183,7 @@ glui32 glk_style_measure(winid_t win, glui32 styl, glui32 hint, glui32 *result)
             return true;
 
         case stylehint_Justification:
-            *result = stylehint_just_LeftFlush;
+            *result = style.justification;
             return true;
 
         case stylehint_Size:

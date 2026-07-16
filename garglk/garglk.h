@@ -538,12 +538,14 @@ struct style_t {
     Color bg;
     Color fg;
     bool reverse;
+    glui32 justification = stylehint_just_LeftFlush;
 
     bool operator==(const style_t &other) const {
         return font == other.font &&
                bg == other.bg &&
                fg == other.fg &&
-               reverse == other.reverse;
+               reverse == other.reverse &&
+               justification == other.justification;
     }
 
     bool operator!=(const style_t &other) const {

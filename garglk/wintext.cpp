@@ -285,6 +285,34 @@ static int calcwidth(window_textbuffer_t *dwin,
     return calcwidth(dwin, chars.data(), attrs.data(), startchar, numchars, spw);
 }
 
+// Horizontal origin for a line's text, honoring Justification stylehints.
+static int line_text_x0(window_textbuffer_t *dwin, const tbline_t &ln,
+    int linelen, int x0, int x1, int spw)
+{
+    int text_x0 = x0 + SLOP + ln.lm;
+
+    if (linelen <= 0) {
+        return text_x0;
+    }
+
+    glui32 just = dwin->styles[ln.attrs[0].style].justification;
+    if (just != stylehint_just_Centered && just != stylehint_just_RightFlush) {
+        return text_x0;
+    }
+
+    int textw = calcwidth(dwin, ln.chars, ln.attrs, 0, linelen, spw);
+    int avail = x1 - x0 - ln.lm - ln.rm - 2 * SLOP;
+    if (textw >= avail) {
+        return text_x0;
+    }
+
+    if (just == stylehint_just_Centered) {
+        return text_x0 + (avail - textw) / 2;
+    }
+
+    return text_x0 + (avail - textw);
+}
+
 void win_textbuffer_redraw(window_t *win)
 {
     window_textbuffer_t *dwin = win->winbuffer();
@@ -379,8 +407,15 @@ void win_textbuffer_redraw(window_t *win)
             linelen--;
         }
 
-        // count spaces and width for justification
-        if (gli_conf_justify && !ln.newline && i > 0) {
+        // count spaces and width for full (left-right) justification
+        glui32 line_just = linelen > 0
+            ? dwin->styles[ln.attrs[0].style].justification
+            : stylehint_just_LeftFlush;
+        bool full_justify = (gli_conf_justify || line_just == stylehint_just_LeftRight)
+            && line_just != stylehint_just_Centered
+            && line_just != stylehint_just_RightFlush
+            && !ln.newline && i > 0;
+        if (full_justify) {
             for (a = 0, nsp = 0; a < linelen; a++) {
                 if (ln.chars[a] == ' ') {
                     nsp++;
@@ -395,6 +430,8 @@ void win_textbuffer_redraw(window_t *win)
         } else {
             spw = -1;
         }
+
+        int text_x0 = line_text_x0(dwin, ln, linelen, x0, x1, spw);
 
         // find and highlight selected characters
         if (selrow && !gli_claimselect) {
@@ -412,7 +449,7 @@ void win_textbuffer_redraw(window_t *win)
                     selchar = ((calcwidth(dwin, ln.chars, ln.attrs, lsc, tsc, spw) / GLI_SUBPIX) != 0);
                 } else {
                     // find the substring contained by the selection
-                    tx = (x0 + SLOP + ln.lm) / GLI_SUBPIX;
+                    tx = text_x0 / GLI_SUBPIX;
                     // measure string widths until we find left char
                     for (tsc = 0; tsc < linelen; tsc++) {
                         tsw = calcwidth(dwin, ln.chars, ln.attrs, 0, tsc, spw) / GLI_SUBPIX;
@@ -465,7 +502,7 @@ void win_textbuffer_redraw(window_t *win)
                 (x1 - x0) / GLI_SUBPIX, gli_leading,
                 color);
 
-        x = x0 + SLOP + ln.lm;
+        x = text_x0;
         a = 0;
         for (b = 0; b < linelen; b++) {
             if (ln.attrs[a] != ln.attrs[b]) {
@@ -520,7 +557,7 @@ void win_textbuffer_redraw(window_t *win)
         if (gli_focuswin == win && i == 0 && (win->line_request || win->line_request_uni)) {
             w = calcwidth(dwin, dwin->chars, dwin->attrs, 0, dwin->incurs, spw);
             if (w < pw - gli_caret_shape * 2 * GLI_SUBPIX) {
-                gli_draw_caret(x0 + SLOP + ln.lm + w, y + gli_baseline);
+                gli_draw_caret(text_x0 + w, y + gli_baseline);
             }
         }
 
@@ -528,7 +565,7 @@ void win_textbuffer_redraw(window_t *win)
         // draw text
         //
 
-        x = x0 + SLOP + ln.lm;
+        x = text_x0;
         a = 0;
         for (b = 0; b < linelen; b++) {
             if (ln.attrs[a] != ln.attrs[b]) {
