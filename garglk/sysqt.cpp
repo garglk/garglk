@@ -280,21 +280,35 @@ garglk::Window::Window() :
     });
 }
 
+void garglk::Window::showEvent(QShowEvent *event)
+{
+    QMainWindow::showEvent(event);
+
+    // On Wayland, the very first resizeEvent() (and thus the very first
+    // updateBufferSize() call) typically fires *before* the compositor's
+    // async wp-fractional-scale-v1 preferred_scale event has arrived, so
+    // devicePixelRatioF() is still reporting a default/rounded value at
+    // that point (confirmed while debugging this: devicePixelRatioF()
+    // reports the correct fractional value, e.g. 1.25, on every call
+    // *after* the first - it just hasn't updated yet on that very first
+    // one). That bakes a wrong physical buffer size in permanently,
+    // since later calls with the same *logical* size are otherwise a
+    // no-op. Force one more buffer-size recompute shortly after the
+    // window is first shown, by which point the true scale has reliably
+    // arrived.
+    QTimer::singleShot(50, this, [this]() {
+        updateBufferSize(size());
+    });
+}
+
 void garglk::Window::closeEvent(QCloseEvent *)
 {
     gli_exit(0);
 }
 
-void garglk::Window::resizeEvent(QResizeEvent *event)
+void garglk::Window::updateBufferSize(const QSize &logicalSize)
 {
-    static bool first_resize = true;
-
-    QMainWindow::resizeEvent(event);
-
-    m_view->resize(event->size());
-
-    int newwid = event->size().width();
-    int newhgt = event->size().height();
+    static bool first_call = true;
 
     // Qt reports window sizes in **logical** pixels. The compositor then
     // upscales the window surface by the DPR. So we size the
@@ -302,8 +316,8 @@ void garglk::Window::resizeEvent(QResizeEvent *event)
     // the actual surface resolution, to avoid blur.
     double dpr = m_view->devicePixelRatioF();
 
-    int physwid = std::round(newwid * dpr);
-    int physhgt = std::round(newhgt * dpr);
+    int physwid = std::round(logicalSize.width() * dpr);
+    int physhgt = std::round(logicalSize.height() * dpr);
 
     if (physwid == gli_image_rgb.width() && physhgt == gli_image_rgb.height()) {
         return;
@@ -314,19 +328,28 @@ void garglk::Window::resizeEvent(QResizeEvent *event)
     // On startup, Qt posts a resize event as the window is created.
     // This resize occurs before the Glk program even starts, so
     // shouldn't create an arrange event.
-    gli_windows_size_change(physwid, physhgt, !first_resize);
+    gli_windows_size_change(physwid, physhgt, !first_call);
 
     if (gli_conf_save_window_size) {
-        m_settings->setValue("window/size", event->size());
+        m_settings->setValue("window/size", logicalSize);
     }
 
     if (gli_conf_save_window_location || gli_conf_save_window_size) {
         m_settings->setValue("window/fullscreen", ::window->isFullScreen());
     }
 
-    event->accept();
+    first_call = false;
+}
 
-    first_resize = false;
+void garglk::Window::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+
+    m_view->resize(event->size());
+
+    updateBufferSize(event->size());
+
+    event->accept();
 }
 
 void garglk::Window::moveEvent(QMoveEvent *event)
