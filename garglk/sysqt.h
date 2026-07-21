@@ -61,6 +61,9 @@ protected:
     void closeEvent(QCloseEvent *) override;
     void resizeEvent(QResizeEvent *) override;
     void moveEvent(QMoveEvent *) override;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+    bool event(QEvent *) override;
+#endif
 
 private:
     // Resizes gli_image_rgb to the physical-pixel size for the given

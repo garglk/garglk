@@ -284,6 +284,7 @@ void garglk::Window::showEvent(QShowEvent *event)
 {
     QMainWindow::showEvent(event);
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
     // On Wayland, the very first resizeEvent() (and thus the very first
     // updateBufferSize() call) typically fires *before* the compositor's
     // async wp-fractional-scale-v1 preferred_scale event has arrived, so
@@ -293,13 +294,30 @@ void garglk::Window::showEvent(QShowEvent *event)
     // *after* the first - it just hasn't updated yet on that very first
     // one). That bakes a wrong physical buffer size in permanently,
     // since later calls with the same *logical* size are otherwise a
-    // no-op. Force one more buffer-size recompute shortly after the
+    // no-op. Qt 6.6 added QEvent::DevicePixelRatioChange, delivered
+    // exactly when this happens (see event() below) - that's used in
+    // preference to this timer where available, since a fixed delay is
+    // inherently racy (the real value could in principle arrive later
+    // than 50ms on a slow/loaded compositor). This is the fallback for
+    // older Qt: force one more buffer-size recompute shortly after the
     // window is first shown, by which point the true scale has reliably
-    // arrived.
+    // arrived in practice.
     QTimer::singleShot(50, this, [this]() {
         updateBufferSize(size());
     });
+#endif
 }
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+bool garglk::Window::event(QEvent *event)
+{
+    if (event->type() == QEvent::DevicePixelRatioChange) {
+        updateBufferSize(size());
+    }
+
+    return QMainWindow::event(event);
+}
+#endif
 
 void garglk::Window::closeEvent(QCloseEvent *)
 {
