@@ -67,9 +67,9 @@ protected:
 
 private:
     // Resizes gli_image_rgb to the physical-pixel size for the given
-    // logical size at the view's *current* effective_dpr(). Shared by
-    // resizeEvent() and the delayed call in showEvent() - see the
-    // comment there for why a second call is needed.
+    // logical size at the view's current devicePixelRatioF(). Shared by
+    // resizeEvent() and the extra call triggered from showEvent()/
+    // event(), see the comments there for why a second call is needed.
     void updateBufferSize(const QSize &logicalSize);
 
     View *const m_view;
