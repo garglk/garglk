@@ -9,6 +9,7 @@
 #include <QPaintEvent>
 #include <QResizeEvent>
 #include <QSettings>
+#include <QShowEvent>
 #include <QTimer>
 #include <QWheelEvent>
 #include <QWidget>
@@ -56,11 +57,21 @@ public:
     const QSettings *settings() { return m_settings; }
 
 protected:
+    void showEvent(QShowEvent *) override;
     void closeEvent(QCloseEvent *) override;
     void resizeEvent(QResizeEvent *) override;
     void moveEvent(QMoveEvent *) override;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+    bool event(QEvent *) override;
+#endif
 
 private:
+    // Resizes gli_image_rgb to the physical-pixel size for the given
+    // logical size at the view's current devicePixelRatioF(). Shared by
+    // resizeEvent() and the extra call triggered from showEvent()/
+    // event(), see the comments there for why a second call is needed.
+    void updateBufferSize(const QSize &logicalSize);
+
     View *const m_view;
     QTimer *const m_timer;
     QSettings *const m_settings;
