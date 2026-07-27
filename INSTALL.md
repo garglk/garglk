@@ -118,6 +118,22 @@ In addition, Gargoyle supports the following options:
   for SDL3 sound support, "QT", for Qt sound support, and "NONE", for no sound
   support. "SDL" is accepted as a backward-compatible alias for "SDL2".
 
+- `WITH_CONTROLLER`: If true, enable gamepad/Steam Controller input support,
+  using SDL2. Defaults to false. Can be disabled at runtime, without a
+  rebuild, via the `controller` configuration file option.
+
+    - Not currently supported together with `SOUND=SDL3`, since SDL2 and
+      SDL3 cannot safely be linked into the same process; use `SOUND=SDL2`,
+      `QT`, or `NONE` instead, or leave this option off.
+
+    - Only takes effect with `INTERFACE=QT` (the only choice on Windows and
+      Linux, and optional on Apple). With `INTERFACE=COCOA`, the SDL
+      controller subsystem still initializes, but nothing polls it, so
+      gamepad input is silently inert rather than broken. Extending this to
+      Cocoa would mean wiring a poll into its distinct, IPC-based windowing
+      setup (`sysmac.mm`) rather than a simple timer addition, and hasn't
+      been done.
+
 - `IMAGES`: Selects the backend for image loading. `SYSTEM` uses libpng and
   libjpeg; `QT` uses Qt's built-in image loaders, which drops the libpng and
   libjpeg dependencies. The default is `QT` when `INTERFACE=QT`, and `SYSTEM`
