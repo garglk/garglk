@@ -777,9 +777,26 @@ void wininit()
     // so it's owned here at the same app-wide lifetime as "app" itself
     // rather than per-Window. Only created when WITH_CONTROLLER is on,
     // so builds without it don't pay for an idle timer.
+    //
+    // Only polls while a window belonging to this app has OS focus --
+    // real keyboard input never reaches keyPressEvent() when
+    // Gargoyle isn't focused (Qt simply doesn't deliver it), and
+    // gamepad input, having no such natural gate, needs an explicit
+    // one to match: otherwise a controller left connected while the
+    // user has alt-tabbed away could still inject input.
+    //
+    // gli_input_handle_key(), which gli_controller_poll() may call,
+    // has no way to signal "something happened, repaint" the way
+    // View::keyPressEvent() does (it unconditionally sets
+    // refresh_needed, a variable private to this file) -- so do that
+    // here instead, but only when a key was actually dispatched.
     auto *controller_timer = new QTimer(app);
     controller_timer->setTimerType(Qt::TimerType::PreciseTimer);
-    QObject::connect(controller_timer, &QTimer::timeout, app, gli_controller_poll);
+    QObject::connect(controller_timer, &QTimer::timeout, app, []() {
+        if (QApplication::activeWindow() != nullptr && gli_controller_poll()) {
+            refresh_needed = true;
+        }
+    });
     controller_timer->start(CONTROLLER_POLL_PERIOD_MILLIS);
 #endif
 }
