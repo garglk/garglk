@@ -1130,6 +1130,7 @@ void garglk_startup(int argc, char *argv[])
     gli_initialize_fonts();
     gli_initialize_windows();
     gli_initialize_sound();
+    gli_initialize_controller();
 
     winopen();
 

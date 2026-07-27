@@ -6,6 +6,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 option(WITH_LAUNCHER "Build the launcher (i.e. the gargoyle executable)" ON)
 option(BUILD_SHARED_LIBS "Build a shared libgarglk instead of a static library" ON)
 option(WITH_BUNDLED_FMT "Use Gargoyle's bundled fmt library instead of the system's fmt library" OFF)
+option(WITH_CONTROLLER "Enable gamepad/Steam Controller input support (requires SDL2)" OFF)
 
 if(UNIX AND NOT APPLE)
     option(WITH_FREEDESKTOP "Install freedesktop.org application, icon, and MIME files" ON)
@@ -327,6 +328,24 @@ elseif("${SOUND}" STREQUAL "NONE")
     target_compile_definitions(garglk-common PRIVATE GARGLK_CONFIG_NO_SOUND)
 else()
     message(FATAL_ERROR "Unknown SOUND backend \"${SOUND}\"; valid values are SDL2, SDL3, QT, or NONE (\"SDL\" is accepted as an alias for SDL2).")
+endif()
+
+if(WITH_CONTROLLER)
+    if(SOUND STREQUAL "SDL3")
+        # SDL2 and SDL3 export colliding SDL_-prefixed symbol names, so
+        # linking both into the same process is not safe.
+        message(FATAL_ERROR "WITH_CONTROLLER is not currently supported together with SOUND=SDL3, since SDL2 and SDL3 cannot safely be linked into the same process. Use SOUND=SDL2, QT, or NONE, or disable WITH_CONTROLLER.")
+    elseif(NOT SOUND STREQUAL "SDL2")
+        # SDL2 isn't already linked in (SOUND is QT or NONE); find our own copy.
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(SDL2_CONTROLLER REQUIRED IMPORTED_TARGET sdl2)
+        target_link_libraries(garglk-common PRIVATE PkgConfig::SDL2_CONTROLLER)
+    endif()
+    # When SOUND=SDL2, SDL2 is already found and linked via PkgConfig::SDL2
+    # above; reuse it instead of linking a second copy of the library.
+    target_sources(garglk-common PRIVATE ctlsdl2.cpp)
+else()
+    target_sources(garglk-common PRIVATE ctlnull.cpp)
 endif()
 
 if(IMAGES STREQUAL "SYSTEM")
