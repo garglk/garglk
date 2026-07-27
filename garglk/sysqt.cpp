@@ -840,35 +840,6 @@ void wininit()
         }
     })
     .detach();
-
-#ifdef GARGLK_CONFIG_CONTROLLER
-    // Polls for gamepad/Steam Controller input. This isn't
-    // window-scoped (unlike Window::m_timer's glk-timeout handling),
-    // so it's owned here at the same app-wide lifetime as "app" itself
-    // rather than per-Window. Only created when WITH_CONTROLLER is on,
-    // so builds without it don't pay for an idle timer.
-    //
-    // Only polls while a window belonging to this app has OS focus --
-    // real keyboard input never reaches keyPressEvent() when
-    // Gargoyle isn't focused (Qt simply doesn't deliver it), and
-    // gamepad input, having no such natural gate, needs an explicit
-    // one to match: otherwise a controller left connected while the
-    // user has alt-tabbed away could still inject input.
-    //
-    // gli_input_handle_key(), which gli_controller_poll() may call,
-    // has no way to signal "something happened, repaint" the way
-    // View::keyPressEvent() does (it unconditionally sets
-    // refresh_needed, a variable private to this file) -- so do that
-    // here instead, but only when a key was actually dispatched.
-    auto *controller_timer = new QTimer(app);
-    controller_timer->setTimerType(Qt::TimerType::PreciseTimer);
-    QObject::connect(controller_timer, &QTimer::timeout, app, []() {
-        if (QApplication::activeWindow() != nullptr && gli_controller_poll()) {
-            refresh_needed = true;
-        }
-    });
-    controller_timer->start(CONTROLLER_POLL_PERIOD_MILLIS);
-#endif
 }
 
 void winopen()
@@ -915,6 +886,41 @@ void winopen()
     } else {
         window->show();
     }
+
+#ifdef GARGLK_CONFIG_CONTROLLER
+    // Polls for gamepad/Steam Controller input. This isn't
+    // window-scoped the way Window::m_timer is (that's per-window glk
+    // timeout handling); it's owned here, once, at the same app-wide
+    // lifetime as "window" itself. Set up here rather than in
+    // wininit() specifically so gli_conf_controller (read from the
+    // config file between the two) can gate whether it's created at
+    // all -- if the user has disabled it, no timer exists, not just a
+    // no-op poll every tick.
+    //
+    // CoarseTimer, not PreciseTimer: unlike Window::m_timer, which
+    // implements glk's own timer-event API and must fire when a game
+    // asks it to, this only needs to feel responsive at a nominal
+    // ~60Hz -- there's no caller relying on exact timing, so there's
+    // no reason to pay CoarseTimer's power/wakeup-coalescing cost to
+    // avoid jitter nothing depends on.
+    if (gli_conf_controller) {
+        auto *controller_timer = new QTimer(app);
+        controller_timer->setTimerType(Qt::TimerType::CoarseTimer);
+        QObject::connect(controller_timer, &QTimer::timeout, app, []() {
+            // activeWindow() alone would stay non-null while an
+            // in-process modal dialog (a QMessageBox, a file picker)
+            // has real keyboard focus, letting gamepad input leak into
+            // the game behind it -- something a real keystroke can't
+            // do, since Qt routes it to the modal widget instead.
+            // Comparing against the game window specifically excludes
+            // that case, matching what a real key press would do.
+            if (QApplication::activeWindow() == window && gli_controller_poll()) {
+                refresh_needed = true;
+            }
+        });
+        controller_timer->start(CONTROLLER_POLL_PERIOD_MILLIS);
+    }
+#endif
 }
 
 void wintitle()

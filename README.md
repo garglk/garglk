@@ -209,3 +209,6 @@ reads input from the first connected game controller:
 This can be turned off at runtime, without a rebuild, by setting
 `controller 0` in the configuration file. Only available with the Qt
 interface; see INSTALL.md for details.
+
+Controllers are only detected at startup; connecting one after Gargoyle
+has launched requires a restart to be picked up.
