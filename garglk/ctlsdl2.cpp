@@ -19,7 +19,6 @@
 #endif
 
 #include <array>
-#include <cstdlib>
 
 #include <SDL.h>
 
@@ -64,16 +63,6 @@ std::array<TrackedButton, 8> gli_tracked_buttons {{
 
 } // namespace
 
-static void gli_shutdown_controller()
-{
-    if (gli_controller != nullptr) {
-        SDL_GameControllerClose(gli_controller);
-        gli_controller = nullptr;
-    }
-
-    SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
-}
-
 void gli_initialize_controller()
 {
     if (!gli_conf_controller) {
@@ -88,9 +77,10 @@ void gli_initialize_controller()
         return;
     }
 
-    if (std::atexit(gli_shutdown_controller) != 0) {
-        gli_strict_warning("controller: unable to register atexit handler");
-    }
+    // Unlike the SDL2/SDL3 sound backends (sndsdl2.cpp, sndsdl3.cpp),
+    // no SDL_QuitSubSystem()/handle-close teardown is registered here:
+    // the OS reclaims everything on process exit, and neither backend
+    // bothers with explicit cleanup either.
 
     // Button state is read directly via SDL_GameControllerGetButton()
     // in gli_controller_poll() rather than via the SDL event queue, so
@@ -99,7 +89,14 @@ void gli_initialize_controller()
     // life of the process.
     SDL_GameControllerEventState(SDL_IGNORE);
 
-    for (int i = 0; i < SDL_NumJoysticks(); i++) {
+    int num_joysticks = SDL_NumJoysticks();
+    if (num_joysticks < 0) {
+        gli_strict_warning("controller: unable to enumerate joysticks\n");
+        gli_strict_warning(SDL_GetError());
+        return;
+    }
+
+    for (int i = 0; i < num_joysticks; i++) {
         if (SDL_IsGameController(i)) {
             gli_controller = SDL_GameControllerOpen(i);
             if (gli_controller == nullptr) {
