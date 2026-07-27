@@ -76,6 +76,10 @@ static void gli_shutdown_controller()
 
 void gli_initialize_controller()
 {
+    if (!gli_conf_controller) {
+        return;
+    }
+
     SDL_SetMainReady();
 
     if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0) {
