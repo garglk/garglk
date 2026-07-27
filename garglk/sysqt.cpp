@@ -128,6 +128,13 @@ static bool refresh_needed = true;
 static constexpr int TICK_PERIOD_MILLIS = 10;
 static std::atomic<bool> process_events(false);
 
+// Nominal ~60Hz poll interval. Actual cadence is an upper bound, not a
+// guarantee: like Window::m_timer, this only fires when something
+// calls app->processEvents() (see gli_tick()/process_events above), so
+// it can lag behind 16ms during heavy interpretation or a long-running
+// opcode.
+static constexpr int CONTROLLER_POLL_PERIOD_MILLIS = 16;
+
 static void handle_input(const QString &input, bool from_paste)
 {
     auto fn = from_paste ? gli_input_handle_key_paste :
@@ -763,6 +770,18 @@ void wininit()
         }
     })
     .detach();
+
+#ifdef GARGLK_CONFIG_CONTROLLER
+    // Polls for gamepad/Steam Controller input. This isn't
+    // window-scoped (unlike Window::m_timer's glk-timeout handling),
+    // so it's owned here at the same app-wide lifetime as "app" itself
+    // rather than per-Window. Only created when WITH_CONTROLLER is on,
+    // so builds without it don't pay for an idle timer.
+    auto *controller_timer = new QTimer(app);
+    controller_timer->setTimerType(Qt::TimerType::PreciseTimer);
+    QObject::connect(controller_timer, &QTimer::timeout, app, gli_controller_poll);
+    controller_timer->start(CONTROLLER_POLL_PERIOD_MILLIS);
+#endif
 }
 
 void winopen()

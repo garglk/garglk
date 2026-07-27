@@ -18,7 +18,9 @@
 #define SDL_MAIN_HANDLED
 #endif
 
+#include <array>
 #include <cstdlib>
+#include <iostream>
 
 #include <SDL.h>
 
@@ -30,6 +32,31 @@
 // init/teardown.
 
 static SDL_GameController *gli_controller = nullptr;
+
+namespace {
+
+// The buttons gli_controller_poll() tracks for edge (press/release)
+// detection. Only the buttons the default input mapping will use are
+// tracked; this is not a general-purpose "read every button" API.
+struct TrackedButton {
+    SDL_GameControllerButton button;
+    const char *name;
+    bool pressed = false;
+};
+
+std::array<TrackedButton, 9> gli_tracked_buttons {{
+    { SDL_CONTROLLER_BUTTON_DPAD_UP, "dpad_up" },
+    { SDL_CONTROLLER_BUTTON_DPAD_DOWN, "dpad_down" },
+    { SDL_CONTROLLER_BUTTON_DPAD_LEFT, "dpad_left" },
+    { SDL_CONTROLLER_BUTTON_DPAD_RIGHT, "dpad_right" },
+    { SDL_CONTROLLER_BUTTON_A, "a" },
+    { SDL_CONTROLLER_BUTTON_B, "b" },
+    { SDL_CONTROLLER_BUTTON_LEFTSHOULDER, "left_shoulder" },
+    { SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, "right_shoulder" },
+    { SDL_CONTROLLER_BUTTON_START, "start" },
+}};
+
+} // namespace
 
 static void gli_shutdown_controller()
 {
@@ -55,6 +82,13 @@ void gli_initialize_controller()
         gli_strict_warning("controller: unable to register atexit handler");
     }
 
+    // Button state is read directly via SDL_GameControllerGetButton()
+    // in gli_controller_poll() rather than via the SDL event queue, so
+    // tell SDL not to generate queued events for this subsystem;
+    // otherwise nothing ever drains them and the queue grows for the
+    // life of the process.
+    SDL_GameControllerEventState(SDL_IGNORE);
+
     for (int i = 0; i < SDL_NumJoysticks(); i++) {
         if (SDL_IsGameController(i)) {
             gli_controller = SDL_GameControllerOpen(i);
@@ -64,6 +98,26 @@ void gli_initialize_controller()
                 continue;
             }
             break;
+        }
+    }
+}
+
+// Detects press/release edges on the tracked buttons and logs them.
+// This is a temporary diagnostic: real input dispatch (synthetic
+// QKeyEvents) replaces the logging in a follow-up change.
+void gli_controller_poll()
+{
+    if (gli_controller == nullptr) {
+        return;
+    }
+
+    SDL_GameControllerUpdate();
+
+    for (auto &tracked : gli_tracked_buttons) {
+        bool pressed = SDL_GameControllerGetButton(gli_controller, tracked.button) != 0;
+        if (pressed != tracked.pressed) {
+            tracked.pressed = pressed;
+            std::cerr << "controller: " << tracked.name << (pressed ? " pressed" : " released") << '\n';
         }
     }
 }

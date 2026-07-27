@@ -340,6 +340,7 @@ if(WITH_CONTROLLER)
     # When SOUND=SDL2, SDL2 is already found and linked via PkgConfig::SDL2
     # above; reuse it instead of linking a second copy of the library.
     target_sources(garglk-common PRIVATE ctlsdl2.cpp)
+    target_compile_definitions(garglk-common PRIVATE GARGLK_CONFIG_CONTROLLER)
 else()
     target_sources(garglk-common PRIVATE ctlnull.cpp)
 endif()

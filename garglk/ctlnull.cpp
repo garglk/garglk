@@ -21,3 +21,7 @@
 void gli_initialize_controller()
 {
 }
+
+void gli_controller_poll()
+{
+}
