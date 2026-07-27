@@ -20,40 +20,46 @@
 
 #include <array>
 #include <cstdlib>
-#include <iostream>
 
 #include <SDL.h>
 
 #include "glk.h"
 #include "garglk.h"
 
-// Opens the first attached game controller, if any. Button polling and
-// input dispatch are added separately; this is just subsystem
-// init/teardown.
+// Opens the first attached game controller, if any; see
+// gli_controller_poll() below for button polling and input dispatch.
 
 static SDL_GameController *gli_controller = nullptr;
 
 namespace {
 
 // The buttons gli_controller_poll() tracks for edge (press/release)
-// detection. Only the buttons the default input mapping will use are
-// tracked; this is not a general-purpose "read every button" API.
+// detection, and the Glk keycode each dispatches to
+// gli_input_handle_key() on press (see event.cpp) -- the same
+// function keyboard input already goes through, so focus tracking,
+// scrollback paging, etc. all work identically regardless of input
+// source. Dispatch is press-edge only, single-shot: holding a button
+// does not auto-repeat (matching how a physical key held down would
+// need OS-level key-repeat, which this doesn't emulate).
+//
+// SDL_CONTROLLER_BUTTON_START has no mapping yet: opening Gargoyle's
+// config overlay is an app-level Qt action, not a Glk keycode, and is
+// deferred to whenever that gets wired up.
 struct TrackedButton {
     SDL_GameControllerButton button;
-    const char *name;
+    glui32 keycode;
     bool pressed = false;
 };
 
-std::array<TrackedButton, 9> gli_tracked_buttons {{
-    { SDL_CONTROLLER_BUTTON_DPAD_UP, "dpad_up" },
-    { SDL_CONTROLLER_BUTTON_DPAD_DOWN, "dpad_down" },
-    { SDL_CONTROLLER_BUTTON_DPAD_LEFT, "dpad_left" },
-    { SDL_CONTROLLER_BUTTON_DPAD_RIGHT, "dpad_right" },
-    { SDL_CONTROLLER_BUTTON_A, "a" },
-    { SDL_CONTROLLER_BUTTON_B, "b" },
-    { SDL_CONTROLLER_BUTTON_LEFTSHOULDER, "left_shoulder" },
-    { SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, "right_shoulder" },
-    { SDL_CONTROLLER_BUTTON_START, "start" },
+std::array<TrackedButton, 8> gli_tracked_buttons {{
+    { SDL_CONTROLLER_BUTTON_DPAD_UP, keycode_Up },
+    { SDL_CONTROLLER_BUTTON_DPAD_DOWN, keycode_Down },
+    { SDL_CONTROLLER_BUTTON_DPAD_LEFT, keycode_Left },
+    { SDL_CONTROLLER_BUTTON_DPAD_RIGHT, keycode_Right },
+    { SDL_CONTROLLER_BUTTON_A, keycode_Return },
+    { SDL_CONTROLLER_BUTTON_B, keycode_Escape },
+    { SDL_CONTROLLER_BUTTON_LEFTSHOULDER, keycode_PageUp },
+    { SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, keycode_PageDown },
 }};
 
 } // namespace
@@ -102,22 +108,34 @@ void gli_initialize_controller()
     }
 }
 
-// Detects press/release edges on the tracked buttons and logs them.
-// This is a temporary diagnostic: real input dispatch (synthetic
-// QKeyEvents) replaces the logging in a follow-up change.
-void gli_controller_poll()
+// Detects press edges on the tracked buttons and dispatches the
+// mapped Glk keycode for each. gli_controller_poll() always runs on
+// the Qt main thread (it's driven by a QTimer owned by the app-wide
+// QApplication), the same thread all other input handling runs on, so
+// calling gli_input_handle_key() here is no different from it being
+// called from View::keyPressEvent() -- except that the caller (unlike
+// keyPressEvent(), which unconditionally sets sysqt.cpp's private
+// refresh_needed flag) has no access to that flag, so it can't signal
+// "something happened, repaint" itself. Returning whether any key was
+// dispatched lets the caller do that instead.
+bool gli_controller_poll()
 {
     if (gli_controller == nullptr) {
-        return;
+        return false;
     }
 
     SDL_GameControllerUpdate();
 
+    bool dispatched = false;
+
     for (auto &tracked : gli_tracked_buttons) {
         bool pressed = SDL_GameControllerGetButton(gli_controller, tracked.button) != 0;
-        if (pressed != tracked.pressed) {
-            tracked.pressed = pressed;
-            std::cerr << "controller: " << tracked.name << (pressed ? " pressed" : " released") << '\n';
+        if (pressed && !tracked.pressed) {
+            gli_input_handle_key(tracked.keycode);
+            dispatched = true;
         }
+        tracked.pressed = pressed;
     }
+
+    return dispatched;
 }

@@ -22,6 +22,7 @@ void gli_initialize_controller()
 {
 }
 
-void gli_controller_poll()
+bool gli_controller_poll()
 {
+    return false;
 }
