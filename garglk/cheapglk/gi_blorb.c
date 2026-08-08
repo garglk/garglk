@@ -107,7 +107,7 @@ giblorb_err_t giblorb_create_map(strid_t file, giblorb_map_t **newmap)
     giblorb_err_t err;
     giblorb_map_t *map;
     glui32 readlen;
-    glui32 nextpos, totallength;
+    glui32 nextpos, totallength, filelength;
     giblorb_chunkdesc_t *chunks;
     int chunks_size, numchunks;
     char buffer[16];
@@ -123,6 +123,10 @@ giblorb_err_t giblorb_create_map(strid_t file, giblorb_map_t **newmap)
 
     /* First, chew through the file and index the chunks. */
     
+    /* Physical stream length, for tolerating a short FORM length below. */
+    glk_stream_set_position(file, 0, seekmode_End);
+    filelength = glk_stream_get_position(file);
+
     glk_stream_set_position(file, 0, seekmode_Start);
     
     readlen = glk_get_buffer_stream(file, buffer, 12);
@@ -186,8 +190,17 @@ giblorb_err_t giblorb_create_map(strid_t file, giblorb_map_t **newmap)
             nextpos++;
             
         if (nextpos > totallength) {
-            giblorb_free(chunks);
-            return giblorb_err_Format;
+            /* ADRIFT 5 Developer writes Blorbs whose FORM length undercounts
+               the chunks actually present; trust the chunk walk as long as it
+               stays within the physical file (+1 allows an odd-length final
+               chunk with its pad byte missing at end of file). */
+            if (nextpos <= filelength + 1) {
+                totallength = filelength;
+            }
+            else {
+                giblorb_free(chunks);
+                return giblorb_err_Format;
+            }
         }
     }
     

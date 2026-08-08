@@ -149,6 +149,8 @@ static glui32 msc_random()
 
 /* If no native RNG is defined above, use the xoshiro128** implementation. */
 #ifndef RAND_SET_SEED
+#include <stddef.h>
+#include <time.h>
 #define RAND_SET_SEED() (xo_seed_random(time(NULL)))
 #define RAND_GET() (xo_random())
 #endif /* RAND_SET_SEED */
