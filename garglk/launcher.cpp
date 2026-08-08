@@ -42,8 +42,18 @@
 #include "garglk.h"
 #include "launcher.h"
 
+#ifdef WITH_SCARIER
+#define T_ADRIFT    "scarier"
+#define T_ADRIFT5   "scarier"
+#else
 #define T_ADRIFT    "scare"
 #define T_ADRIFT5   "FrankenDrift.GlkRunner.Gargoyle"
+#endif
+
+#if defined(WITH_SCARIER) || defined(WITH_FRANKENDRIFT)
+#define HAVE_ADRIFT5
+#endif
+
 #define T_ADVSYS    "advsys"
 #define T_AGT       "agility"
 #define T_ALAN2     "alan2"
@@ -157,7 +167,7 @@ static const std::unordered_map<std::string, Format> extensions = {
 // Map formats to default interpreters
 static const std::unordered_map<Format, Interpreter> interpreters = {
     {Format::Adrift, Interpreter(T_ADRIFT)},
-#ifdef WITH_FRANKENDRIFT
+#ifdef HAVE_ADRIFT5
     {Format::Adrift5, Interpreter(T_ADRIFT5)},
 #endif
     {Format::AdvSys, Interpreter(T_ADVSYS)},
@@ -197,9 +207,7 @@ static bool call_winterp(Format format, const std::string &game)
 
         return call_winterp(interpreter, game);
     } catch (const std::out_of_range &) {
-        // The FrankenDrift interpreter for Adrift 5 games is not supported on all
-        // platforms. Let the user know when this is the case.
-#ifndef WITH_FRANKENDRIFT
+#ifndef HAVE_ADRIFT5
         if (format == Format::Adrift5) {
             garglk::winmsg("Adrift 5 games are not supported by this build of Gargoyle");
             return false;
@@ -213,66 +221,6 @@ static bool call_winterp(Format format, const std::string &game)
     }
 }
 
-// Adrift 5 can create invalid Blorb files: the reported file size is
-// smaller than the actual file size. gi_blorb (correctly) fails to load
-// these files, but they still exist, so must be dealt with. If the
-// overall size is ignored and the Blorb file is just read as though
-// it's valid, all the chunks can be found (which is to say, the only
-// problem with them is the file size, and that's not needed to iterate
-// through the file). So, do just enough work here to determine if
-// there's an Exec resource of type ADRI. If so, assume this is an
-// Adrift file and leave it to the interpreter to run it properly.
-static std::optional<Format> find_adrift_blorb_format(const std::string &game)
-{
-    std::ifstream f(game, std::ios::binary);
-    try {
-        f.exceptions(std::ifstream::badbit | std::ifstream::failbit | std::ifstream::eofbit);
-
-        auto be32 = [&f]() {
-            std::array<unsigned char, 4> bytes;
-            f.read(reinterpret_cast<char *>(bytes.data()), bytes.size());
-
-            return (static_cast<std::uint32_t>(bytes[0]) << 24) |
-                   (static_cast<std::uint32_t>(bytes[1]) << 16) |
-                   (static_cast<std::uint32_t>(bytes[2]) <<  8) |
-                   (static_cast<std::uint32_t>(bytes[3]) <<  0);
-        };
-
-        // Probing has already determined that this file starts with
-        // FORM....IFRSRidx, so there's no need to validate that.
-        f.seekg(20, std::ios::beg);
-
-        auto nresources = be32();
-
-        for (std::uint32_t i = 0; i < nresources; i++) {
-            if (be32() == giblorb_ID_Exec) {
-                f.seekg(4, std::ios::cur);
-                f.seekg(be32(), std::ios::beg);
-                if (be32() != ID_ADRI) {
-                    return std::nullopt;
-                }
-
-                f.seekg(12, std::ios::cur);
-                unsigned char version;
-                f.read(reinterpret_cast<char *>(&version), 1);
-
-                if (version == 0x92) {
-                    return Format::Adrift5;
-                } else if (version == 0x93 || version == 0x94) {
-                    return Format::Adrift;
-                } else {
-                    return std::nullopt;
-                }
-            } else {
-                f.seekg(8, std::ios::cur);
-            }
-        }
-    } catch (const std::ifstream::failure &) {
-    }
-
-    return std::nullopt;
-}
-
 static bool runblorb(const std::string &game)
 {
     class BlorbError : public std::runtime_error {
@@ -280,11 +228,6 @@ static bool runblorb(const std::string &game)
         explicit BlorbError(const std::string &msg) : std::runtime_error(msg) {
         }
     };
-
-    auto adrift_format = find_adrift_blorb_format(game);
-    if (adrift_format.has_value()) {
-        return call_winterp(*adrift_format, game);
-    }
 
     try {
         giblorb_result_t res;
@@ -311,6 +254,25 @@ static bool runblorb(const std::string &game)
             return call_winterp(Format::ZCode, game);
         } else if (res.chunktype == ID_GLUL) {
             return call_winterp(Format::Glulx, game);
+        } else if (res.chunktype == ID_ADRI) {
+            if (res.length < 9) {
+                throw BlorbError("Truncated Adrift story file");
+            }
+
+            glk_stream_set_position(file.get(), res.data.startpos + 8, seekmode_Start);
+
+            unsigned char version;
+            if (glk_get_buffer_stream(file.get(), reinterpret_cast<char *>(&version), 1) != 1) {
+                throw BlorbError("Unable to read Adrift version");
+            }
+
+            if (version == 0x92) {
+                return call_winterp(Format::Adrift5, game);
+            } else if (version == 0x93 || version == 0x94) {
+                return call_winterp(Format::Adrift, game);
+            }
+
+            throw BlorbError(Format("Unknown Adrift version: {:#04x}", version));
         }
 
         std::string name;

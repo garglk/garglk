@@ -2565,6 +2565,9 @@ gsc_refresh_windows (void)
 void
 os_show_graphic (const scr_char *filepath, scr_int offset, scr_int length)
 {
+  if (length <= 0 || gsc_main_window == NULL)
+    return;
+
   glui32 id = garglk_add_resource_from_file(giblorb_ID_Pict, gamefile, offset, length);
   if (id != 0)
     gsc_draw_inline_graphic(id);
