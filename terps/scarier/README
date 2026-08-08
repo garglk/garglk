@@ -1,0 +1,59 @@
+Scarier
+=======
+
+Scarier is a lazy AI C++ clone of SCARE, Simon Baldwin's C clone of jAsea,
+Mark J. Tilford's Java GPL clone of the Adrift 4 Runner, combined with a lazy
+AI C++ clone of the Adrift 5 runner and a lazy AI C++ clone of FrankenDrift,
+a C# frontend for Adrift 5 by Adrian Welcker.
+
+In other words, it is a single Glk interpreter that plays both ADRIFT 4 and
+ADRIFT 5 games.
+
+
+Which engine runs
+-----------------
+
+Dispatch happens at load time in glk_main() (os_glk.cpp). gsc_startup_code()
+tries the ADRIFT 5 loader first; it returns cleanly on any non-v5 file, in
+which case the ADRIFT 4 (SCARE) path takes over.
+
+  * ADRIFT 4 (.taf, v3.8 / v3.9 / v4.0) is handled by the SCARE-derived
+    engine: the sc*.cpp / sx*.cpp sources. v4.0 payloads are zlib-compressed;
+    v3.8/3.9 are XOR-obfuscated with the Visual Basic PRNG.
+
+  * ADRIFT 5 (.taf / .blorb) is handled by the a5*.cpp engine: a Blorb or raw
+    container whose Exec chunk is XOR-deobfuscated with a fixed 1024-byte key
+    and zlib-inflated to UTF-8 XML, then parsed into the a5 object model.
+
+Both engines share the Glk seam in os_glk.cpp (title screens, side windows,
+real-time timer events, saves) and the erkyrath_random() RNG.
+
+See ADRIFT4_vs_ADRIFT5.md for a detailed comparison of the two code paths
+(formats, saves, restriction evaluation, division rounding, and RNG streams).
+
+
+Building
+--------
+
+The default target builds the Glk interpreter linked against a Glk library
+(see the GLK / GLKDIR variables at the top of Makefile):
+
+    make
+
+Makefile.headless builds the standalone test and dump harnesses used for
+regression work — an ANSI/stdout runner plus a family of a5* tools:
+
+    make -f Makefile.headless test          # full test suite
+    make -f Makefile.headless a5run          # headless ADRIFT 5 runner
+    make -f Makefile.headless a5dump         # dump decoded v5 XML / model
+    make -f Makefile.headless a5walkthroughs # replay bundled walkthroughs
+
+The ADRIFT 5 engine is validated by diffing headless output against
+FrankenDrift; adrift-walkthroughs/ and test/ hold the walkthrough corpus and
+ground-truth fixtures.
+
+
+License
+-------
+
+The Scarier source code is released under the GPL. See COPYING.
