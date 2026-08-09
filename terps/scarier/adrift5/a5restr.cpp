@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include <map>
 #include <set>
@@ -17,6 +18,8 @@
 #include "a5restr.h"
 #include "a5text.h"
 #include "a5util.h"
+
+#include "../common_utils/sc_garglk.h"
 
 int a5restr_trace = 0;
 
