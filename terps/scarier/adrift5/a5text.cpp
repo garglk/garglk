@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include <algorithm>
 #include <string>
@@ -18,6 +19,8 @@
 #include "a5sexpr.h"
 #include "a5text.h"
 #include "a5util.h"
+
+#include "../common_utils/sc_garglk.h"
 
 /* ----------------------------------------------------------- small helpers */
 

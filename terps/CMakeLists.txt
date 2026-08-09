@@ -396,6 +396,35 @@ endif()
 #
 if(WITH_SCARIER)
     find_package(ZLIB REQUIRED)
+
+    # strndup() isn't in C++17. It's POSIX, so tends to be exported by
+    # C++ compilers, but doesn't have to be, and isn't in MinGW. Or
+    # isn't in some versions. Or some configurations. Who knows. And
+    # it's not in MSVC at all. So test for strndup() and if it's not
+    # available, provide a replacement. This is currently only for
+    # Scarier since it's the only thing that relies on strndup().
+    include(CheckCXXSourceCompiles)
+    set(_scarier_saved_std "${CMAKE_CXX_STANDARD}")
+    set(_scarier_saved_std_required "${CMAKE_CXX_STANDARD_REQUIRED}")
+    set(_scarier_saved_extensions "${CMAKE_CXX_EXTENSIONS}")
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+    check_cxx_source_compiles("
+#include <stdlib.h>
+#include <string.h>
+
+int main()
+{
+    char *copy = strndup(\"scarier\", 3);
+    free(copy);
+    return copy == NULL;
+}
+" HAVE_STRNDUP)
+    set(CMAKE_CXX_STANDARD "${_scarier_saved_std}")
+    set(CMAKE_CXX_STANDARD_REQUIRED "${_scarier_saved_std_required}")
+    set(CMAKE_CXX_EXTENSIONS "${_scarier_saved_extensions}")
+
     terp(scarier
         SRCS scarier/adrift5/a5blorb.cpp scarier/adrift5/a5deobf.cpp
         scarier/adrift5/a5expr.cpp scarier/adrift5/a5map.cpp
@@ -416,11 +445,14 @@ if(WITH_SCARIER)
         scarier/scresour.cpp scarier/screstrs.cpp scarier/scrunner.cpp
         scarier/scserial.cpp scarier/sctaffil.cpp scarier/sctafpar.cpp
         scarier/sctasks.cpp scarier/scutils.cpp scarier/scvars.cpp
-        scarier/common_utils/randomness.c
+        scarier/common_utils/randomness.c scarier/common_utils/sc_garglk.c
         INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS}
         LIBS ${ZLIB_LIBRARIES}
         CXXSTD 17)
 
+    if(NOT HAVE_STRNDUP)
+        target_compile_definitions(scarier PRIVATE GARGLK_NEEDS_STRNDUP)
+    endif()
 endif()
 
 # ------------------------------------------------------------------------------

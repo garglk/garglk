@@ -58,8 +58,13 @@
  * measured ~5-13% whole-run speedup with no output change.  Every set/longjmp
  * pair in the engine is file-local, so the swap is self-contained.
  */
+#ifdef _WIN32
+#define scr_setjmp(buffer)        setjmp (buffer)
+#define scr_longjmp(buffer, val)  longjmp ((buffer), (val))
+#else
 #define scr_setjmp(buffer)        _setjmp (buffer)
 #define scr_longjmp(buffer, val)  _longjmp ((buffer), (val))
+#endif
 
 /* Vartype typedef, supports relaxed typing. */
 typedef union
