@@ -7,22 +7,36 @@
 # By default, a TADS icon (application-x-tads.png) is included, but
 # this is also provded by QTads. Build with the -t flag to avoid
 # installation of this icon.
+#
+# SCARE is built by default for ADRIFT games. To build SCARIER (ADRIFT
+# 3.8, 3.9, 4, and 5) instead, pass the -s flag.
 
 set -e
 
-frankendrift="OFF"
+fatal() {
+    echo "${@}" >&2
+    exit 1
+}
 
-while getopts "ft" o
+frankendrift="OFF"
+scare="ON"
+scarier="OFF"
+
+while getopts "fst" o
 do
     case "${o}" in
         f)
             frankendrift="ON"
             ;;
+        s)
+            scare="OFF"
+            scarier="ON"
+            ;;
         t)
             NO_TADS_ICON=1
             ;;
         *)
-            exit 1
+            fatal "Usage: $0 [-fst]"
             ;;
     esac
 done
@@ -40,7 +54,7 @@ PKG_DEB_ROOT=${DEB_ROOT_DIR}/${PKG_NAME}/debian
 #Build Gargoyle
 mkdir build-debian
 pushd build-debian
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DQT_VERSION=5 -DWITH_FRANKENDRIFT="${frankendrift}"
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DQT_VERSION=5 -DWITH_FRANKENDRIFT="${frankendrift}" -DWITH_SCARE="${scare}" -DWITH_SCARIER="${scarier}"
 make -j$(nproc)
 make install DESTDIR=${PKG_DIR}
 popd
