@@ -608,6 +608,7 @@ extern std::array<unsigned char, 5> gli_conf_lcd_weights;
 
 extern bool gli_conf_graphics;
 extern bool gli_conf_sound;
+extern bool gli_conf_controller;
 extern std::deque<std::string> gli_conf_soundfonts;
 
 extern bool gli_conf_fluidsynth_reverb;
@@ -1041,6 +1042,8 @@ struct window_graphics_t {
 // ----------------------------------------------------------------------
 
 extern void gli_initialize_sound();
+extern void gli_initialize_controller();
+extern bool gli_controller_poll();
 extern void gli_initialize_tts();
 extern void gli_tts_speak(const glui32 *buf, std::size_t len);
 extern void gli_tts_flush();
