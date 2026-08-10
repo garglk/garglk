@@ -18,6 +18,9 @@ set -ex
 #
 # x86_64
 # aarch64
+#
+# FrankenDrift and SCARE are built by default for ADRIFT games. To build
+# SCARIER (ADRIFT 3.8, 3.9, 4, and 5) instead of both, pass the -s flag.
 
 . "$(dirname "$0")/libwin.sh"
 
@@ -27,8 +30,11 @@ fatal() {
 }
 
 GARGOYLE_QT_HOME=""
+GARGOYLE_FRANKENDRIFT="ON"
+GARGOYLE_SCARE="ON"
+GARGOYLE_SCARIER="OFF"
 
-while getopts "a:cQ:" o
+while getopts "a:cQ:s" o
 do
     case "${o}" in
         a)
@@ -40,8 +46,13 @@ do
         Q)
             GARGOYLE_QT_HOME="${OPTARG}"
             ;;
+        s)
+            GARGOYLE_FRANKENDRIFT="OFF"
+            GARGOYLE_SCARE="OFF"
+            GARGOYLE_SCARIER="ON"
+            ;;
         *)
-            fatal "Usage: $0 [-a x86_64|aarch64] [-c] [-Q /path/to/Qt]"
+            fatal "Usage: $0 [-a x86_64|aarch64] [-cs] [-Q /path/to/Qt]"
             ;;
     esac
 done
@@ -91,7 +102,7 @@ nproc=$(getconf _NPROCESSORS_ONLN)
 (
 mkdir build-msvc
 cd build-msvc
-cmake .. "${cmake_qt_args[@]}" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${toolchain}" -DSOUND=QT -DWITH_BUNDLED_FMT=ON -DDIST_INSTALL=ON -DWITH_FRANKENDRIFT=ON
+cmake .. "${cmake_qt_args[@]}" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${toolchain}" -DSOUND=QT -DWITH_BUNDLED_FMT=ON -DDIST_INSTALL=ON -DWITH_FRANKENDRIFT="${GARGOYLE_FRANKENDRIFT}" -DWITH_SCARE="${GARGOYLE_SCARE}" -DWITH_SCARIER="${GARGOYLE_SCARIER}"
 make -j${nproc}
 make install
 )

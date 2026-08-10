@@ -61,6 +61,7 @@ if(UNIX AND NOT DIST_INSTALL)
 endif()
 
 option(WITH_FRANKENDRIFT "Build the FrankenDrift interpreter for ADRIFT 5 games (requires the .NET 8 SDK)" OFF)
+option(WITH_SCARIER "Build the SCARIER interpreter (ADRIFT 3.8, 3.9, 4, and 5)" OFF)
 add_subdirectory(garglk)
 
 if(WITH_FRANKENDRIFT AND NOT BUILD_SHARED_LIBS)

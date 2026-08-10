@@ -1,0 +1,474 @@
+2008-05-01  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.3.10.
+
+	* Fixed a CR/LF problem that prevents a game that contains rogue
+	newline or carriage return characters (ones that don't precede a
+	newline) from loading.
+	* Corrected a (probably rare to trigger) bug in TAF file decompression
+	related to leaving the decompression loop before the zlib inflation
+	output buffer had been completely consumed.
+	* Amended status line handling for better results with game room
+	names and status strings that are blank.
+	* Corrected two bugs in the Cyrillic codepage 866 to gost 16876-71
+	ascii conversion tables.
+	* Removed use of labs() on sc_int types, to better decouple sc_int
+	from intrinsic C long types.
+	* Cleaned up action on zero-byte allocations, undefined in ANSI/ISO C.
+	* Improved hints iterator functionality by splitting it into two
+	separate functions, one for the first hint, and one for the next; this
+	is a minor SCARE API change.
+	* Yet more "adjustments" to tasks triggered by NPC and/or player
+	movement.  These are still not right, but the change at least fixes
+	breakage in The PK Girl introduced with release 1.3.9.
+	* Minor code refactoring and formatting changes.
+
+2008-03-12  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.3.9.
+
+	* Fixed disambiguation problem with "go to the <location>".  If a
+	location was both, say, "south" and "out", "go to the <location>" would
+	previously be reported as ambiguous.
+	* Ignore attempts to move player to "hidden".  Possible where a task
+	moves the player to same location as an NPC and that NPC is hidden.
+	Reported by ElliotM, with bug triage by Mark J. Tilford.
+	* Eliminated some memcpy calls and memory shuffling, leading to a
+	slight increase in performance.
+	* Added a new SCARE-specific system variable, %scare_version%, that
+	allows a game to query the version of SCARE.  This variable overrides
+	any user-defined variable of the same name, provided that variable's
+	value is zero.
+	* Switched to a more efficient exponentiation implementation, based on
+	the Russian Peasant algorithm.
+	* Changes to NPC walks to try to better replicate Adrift's somewhat
+	inscrutable actions in this area.
+	* Fixed a couple of bugs found by gcc's Mudflap, including a rather
+	nasty one involving object accessors called on building a gamestate.
+	* Changed from platform ctype functions (isspace, toupper, etc) to
+	specialized internal ones for codepage 1252 or codepage 1251, depending
+	on the game locale.  Again, a slight performance gain here.
+	* Added codepage 1252 to iso 8859-1 conversion to the Glk interface for
+	status lines; until now, only main window text had been converted.
+	* Improved codepage 1252 conversions for characters not supported by a
+	Glk library, and added codepage 850 conversions for courier and
+	terminal fonts.
+	* Added Unicode output for Glk libraries that support it.  This should
+	help to further hide the differences between Windows codepages and
+	Glk output, especially codepage 850 output.
+	* Added codepage 1251 and 866 Cyrillic codepage support to the Glk
+	interface for Russian games, automatically selected if SCARE detects a
+	Russian language game on starting the Glk interface.
+	* Added cancellation of <wait x.x> tags in the Glk interface; pressing
+	space or return cancels the delay.
+	* Assorted code tidy up and style changes.
+
+2007-09-14  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.3.8.
+
+	* Fixed a bug with "Also here is the" message and plural objects.
+	Thanks to Nick Rogers for the bug report.
+	* Added error handling for unterminated quoted strings in expressions.
+	* Implemented printfilter escaping, so that player input that is routed
+	to %text% and then subsequently displayed does not trigger <> tags,
+	& entities, or variable substitions.
+	* Added static_unmoved to the field comparisons in the debugger.
+	* Reworked room name and description code so that it correctly uses
+	alternate description strings when required by game states.  Added a
+	new testcase for these features.  Thanks to Sam Trenholme for the
+	report and bug triage.
+	* Assorted small code tidy up and style changes.
+
+2007-06-26  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.3.7.
+
+	* Corrected a printfilter bug that could let &gt; and other characters
+	through into game ouput untranslated under certain circumstances.
+	* Fixed a bug that could cause incorrect object descriptions to appear
+	for objects moved by anything other than the player, and another that
+	failed to ignore "stale" task reverse commands.  Thanks once more to
+	Nick Rogers for the reports and test cases.
+	* Added the ability to take objects from named NPCs to the parser.
+	* Implemented "get off" as a way to move the player from on supporter
+	object to on the ground.
+	* Added "go to room_name" as a way to move to a named adjacent room.
+	* Assorted relatively wide-ranging changes to standard system messages
+	and a couple of new standard commands, to align more closely with the
+	Runner.  No prizes for guessing who reported the differences.
+	* Added several new test cases to handle new commands, updated system
+	messages, and some test cases missed in prior releases.
+	* Some code tidy up and style changes.
+
+2007-01-28  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.3.6.
+
+	* Removed "move" as a synonym for "go".  Having this extra command may
+	confuse games that otherwise expect to override all movement.
+	* Fixed a small object disambiguation bug.
+	* Corrected a problem that occurred when listing objects that would not
+	fit in a container when using multiple object targets.
+	* Improved object disambiguation.  The parser should now allow, for
+	example, "drop book" to cope with two books, one held but the other
+	not.  Also, tightened "all" object generators to ignore static objects
+	moved to player inventory by events.  Thanks to Nick Rogers for the
+	suggestions.
+	* Changed (again) the way game tasks with failing restrictions and
+	library commands interact.  It seems that Adrift treats "take" in a
+	special way that doesn't always let a game override, and some games
+	appear to require this.
+	* Added "+percent+" as a '%' character entity.  This appears to be an
+	undocumented Runner feature.
+	* Fixed a tricky bug with complex task commands.  Yet again, thanks to
+	Nick Rogers for the report and test case.
+	* Minor tidy up and performance improvements.
+
+2006-12-16  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.3.5.
+
+	* Fixed a crash caused by using referenced text in task restrictions on
+	the very first game turn (before any referenced text set).  Thanks to
+	Mark J. Tilford for the diagnosis.
+	* Fixed an embarrassing crash that showed up when entering a line that
+	contained two or more spaces and no other text, and another caused by
+	failure to trap division by zero adequately.
+	* Updated to Zlib 1.2.3.
+	* Reworked game task handling to match the current understanding of how
+	the Adrift Runner selects between multiple tasks that match player
+	input.  Thanks (yet again) to Mark J. Tilford for the analysis and
+	reverse engineering work.
+	* Fixed a text formatting problem that showed up when examining an NPC
+	that is both wearing and holding objects.  Thanks to Richard Otter.
+	* Changes to score notifications to match the Runner a little better,
+	and generally behave more usefully.
+	* Implemented Adrift's "count" (alias "num") command, for querying the
+	status of weight and size limitations for carried objects.
+	* Fixed NPC task restriction off-by-one error in the version 3.8 to
+	version 4.0 game conversions done on parsing a TAF file, an object
+	worn task restriction error, and a win/lose game endian problem.
+	* Improved the way tasks are run when NPCs encounter objects and other
+	NPCs on walks, trying for closer agreement with the Adrift runner,
+	and a walk bug that made NPCs move more often than they should in
+	roomgroup walks.  Thanks to Todd Watson for the report.
+	* Fixed an alternate room description problem, an event timing problem,
+	a task override failure, and a task action ordering issue.  Thanks to
+	Nick Rogers for the reports.
+	* Corrected the way static objects moved to hidden by events behave.
+	* Fixed a status line display ordering bug that showed up on game end
+	with non-windowing Glk libraries.
+	* Removed the generally useless os_flush() function from the interface.
+	* Fixed a parser bug that prevented optional "{...}" words and wildcards
+	from working correctly if placed last on a list.
+	* Added period to the existing comma to period for characters used to
+	separate elements on a multi-command input line.  This improves the
+	match with the Adrift Runner.
+	* Added lower-level game saving and loading functions, to allow
+	interpreters such as Gargoyle to save and load game states directly to
+	files or callbacks.  Added "-r FILE" to glkscare to restore a saved
+	game directly the interpreter starts up.
+	* Added a built-in random number generator that will produce a stable
+	and repeatable sequence on all platforms.  Useful for scripted game
+	testing, it may be selected in place of the platform's rand().
+	* Improved memory allocations in the parser for better performance, and
+	generally reduced strlen() calls on constant strings throughout.
+	* Improved the printfilter, adding paths without allocate-and-copy for
+	strings that don't use tags or other HTML-like formatting.
+	* Updated event restarting to correctly reproduce Adrift's handling of
+	this situation in version 3.9 and 3.8 Runners (bug compatibility?),
+	and added other general event handling compatibility fixes.
+	* Altered expression handling to accurately reproduce Adrift's rounded
+	division, and also its apparently sequential and/or comparison.
+	* Assorted refactoring and code format and style cleanups, including an
+	effort at NPC accessors and mutators, removal of int16 types,
+	rationalization of use of unsigned variables, and byte instead of
+	short for boolean types.
+	* Made code 64-bit clean (specifically, LP64, but probably also ILP64).
+	* Added a control to allow the player to override the count of turns
+	consumed by 'wait'.  This helps with games that set one value but
+	assume another.  Several Runner releases are broken and always add one
+	to turns on 'wait', no matter what the game requests.
+	* Increased undo from a single turn to 17 total.  Added a command
+	history, addressable with '!' (somewhat like the c-shell).
+	* Improvements to 'it', 'him', and 'her' handling to try to better match
+	the Adrift Runner.  Also, added an attempt at guessing whether objects
+	are plural or singular, for correct "...is" and "...are" messages.
+	Thanks to David Whyld for the report and test case.
+	* Improved the parser, adding "...object {and object...}" and "...all
+	except object {and object}..." to take, drop, and wear and remove.
+	Rationalized assorted other commands, making "everything" synonymous
+	with "all" and "apart from" synonymous with "[except/but] {for}".
+	* Added a parser extension to logically interpolate %...% variables
+	into task command patterns before matching them to user input.
+	* Fixed getdynfromroom() for task command functions so that it works
+	believably with 'Humbug'.
+	* Added an automated test program, and a suite of test scripts aimed at
+	verifying core interpreter features and regression testing games by
+	comparing against transcripts created by the genuine Runner.
+
+2007-07-12  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.3.4.
+
+	* Updated the Glk interface to match improvements made to the Glk
+	interfaces of other IFP interpreters.
+	* Fixed errors in quit jump buffer handling across game restore that
+	could cause sc_quit_game() to crash.
+	* Added a "quit" command to the debugger.
+	* Suppressed inflate() error message when trying to restore a file that
+	is not a valid saved game.
+	* Slightly improved sc_str{n}casecmp() efficiency.
+	* Added end-of-file handling to os_ansi.c, so that it's now useful in
+	pipelines and for scripted game testing.
+	* Readability and code style update for the core interpreter, but very
+	few functional changes.  (Translation: if you're not using the Glk
+	interface, there is little reason to update from version 1.3.3).
+
+2005-01-21  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.3.3.
+
+	* Fixed a game crash with version 3.8 games when trying to lock an
+	openable object with "lock <object>".
+	* Avoided a possible (theoretical) crash where large negative numbers
+	are used in Adrift expressions.
+	* Now silently ignores empty HTML-like tags, "<>".  Prior versions
+	would issue a warning.
+	* Use monospaced output in Glk when the game uses either 'courier' or
+	'terminal' fonts.  Originally only 'courier' was recognized.  This
+	improves performance with 'Humbug'.
+	* Set %text% to the player input line before printing game command
+	error ("dontunderstand") messages, again for 'Humbug'.
+	* Fixed a hang on loading 'The Cat in the Tree' and 'Ice Cream';
+	thanks to David Kinder for the error report.
+	* Minor fix to kiss NPC message, and corrected "north_west" to be
+	"north-west" in movement command.
+	* Fixed an abort when an NPC with a walk is initialized to "hidden";
+	thanks to Richard Otter for uncovering the error.
+	* Minor cleanup of input parser error handling, and change in
+	debugger to stop debug refusal from consuming a game turn.
+	* Changed function sc_game_hint_iterate() to sc_iterate_game_hints()
+	for better naming symmetry with other interface functions.
+	* Performance optimizations to scprops.c, giving a 20-30% improvement.
+	* Added error trap for pathological games that define no rooms.
+	* Added %room% variable, accidentally omitted from earlier releases.
+	* Implemented raise-to-power (^) operator in expressions, and fixed a
+	pair of subtle bugs with unary minus and plus operators (incorrect
+	associations, and missing comparisons in unary minus and plus
+	determinations).
+	* Added "lay" as a synonym for "lie", and fixed NPC entry/exit
+	message where NPC enters or exits from above or below.
+	* Fixed %version% to contain values that correctly indicate the level
+	of Adrift runner emulation.
+	* Corrected NPC walk tasks for meeting player, object, and other NPCS;
+	thanks to Robert Goodwin for the error report.
+	* Documented battle system TAF file fields in sctafpar.c, in case the
+	occasion ever arises to implement the battle system.
+	* Minor structure tweaks to save memory via better field alignments.
+	* Fixed a silly bug that failed to enable trace/debugger for Windows.
+	* Fixed a bug that prevented player positions from being set up
+	correctly on game loads.  Thanks to Eric Mayer for the report.
+	* Added "ex" and "exam" as additional synonyms for "examine".
+	* Corrected handling of argumentless <wait> tags, and made a few small
+	performance improvements (strlen elimination).
+	* Upgraded handling of "get", "drop", "get all" and "drop all" command
+	handlers to check for game overrides for each object.
+	* Added a couple of casts to correct gcc 3.3.4 compilation warnings.
+	* Minor tidy up of Glk style resetting in os_glk.c.
+	* Fixed a failure to load Unfortunately.taf.  Thanks to David Kinder
+	for the report.
+	* Added Glk interface functions to print a status line even if the Glk
+	library in use lacks windowing capabilities (cheapglk).
+	* Added a workround for Xglk resizing problems.  It should have no
+	effect on Glk libraries that don't have Xglk's deficiencies.
+
+2004-05-06  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.3.2.
+
+	* Fixed a reverse engineering bug that prevented 'Doomed Xycanthus' from
+	running in SCARE.
+	* Added the ability to run Adrift 3.8 games.
+	* Integrated David Kinder's Windows Glk code into the main Glk
+	interface.
+	* Updated game title and author query functions to avoid ALR clashes.
+	* Minor updates to library output to avoid clashes with game ALRs.
+	* Fixed an object and NPC referencing problem that caused SCARE to fail
+	to distinguish between things such as "table leg" and "table".
+	* Updated the way room lists are stored in properties to reduce heap
+	memory requirement and improve game load performance, a 25% to 35%
+	improvement on average games, and 50% on some.
+	* Fixed a bug that caused SCARE to crash when trying to lock a container
+	that has no key (not lockable).
+	* Fixed an omission that caused object alternate descriptions requested
+	where a task is not completed to show the wrong description.
+	* Added score change notifications, and commands and interface functions
+	to control notification messages.
+	* Corrected an omission where SCARE failed to use changed descriptions
+	for NPCs on character walks, and a bug that noted meetings between
+	NPCs on walks and objects or other NPCs too often.
+	* Fixed a bug in task handling, one that shows up with the rubber ball
+	in 'The Woods are Dark'.  Thanks to Emily Short for finding and
+	reporting this.
+	* Corrected a bug that prevented the version 3.9 game 'The Caves of
+	Morpheus' from loading, and another that caused 'The Test' to
+	virtually hang (caused by its use of repeated wildcards).
+	* Fixed a bug with version 3.9 openable objects.  Those initially open
+	were being reported by SCARE as instead being locked.
+	* Added a function to retrieve any preferred default font from the game.
+
+2004-03-30  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.3.1.
+
+	* Added the ability to run Adrift 3.9 games as well as 4.0 ones.
+	* Added code and interface functions to provide the interface with a
+	game's use of sound and/or graphics resources.  See PORTING for
+	sc_does_game_use_sound(), sc_does_game_use_graphics(), and for the
+	os_play_sound(), os_stop_sound(), and os_show_graphic() functions.
+	* Many and drastic output message changes in an attempt to align with
+	the Adrift runner for ALR matching (damn you, ALRs).
+	* Implemented player size and weight checks, and container size and
+	contained object count checks.
+	* Added standard responses to game actions such as "jump", "dance",
+	and profanity, giving ALRs something to chew on.
+	* Created "score" and "turn" verbs, "kiss", "smell", "push", "pull",
+	and assorted others.
+	* Added automatic listing of objects in a container when opened.
+	* Implemented listing of NPC objects worn and held on "examine <npc>".
+	* Added first person responses for games that request this mode.
+	* Updated to Zlib 1.2.1, which offers somewhat faster operation.  It's
+	distributed in .zip format, so the SCARE Makefile no longer needs to
+	maintain extracted Zlib sources, as it did with the gzipped tar
+	distribution of Zlib 1.1.4.
+	* Fixed a bug in run_player_input() that left unused input line data
+	buffered across game end undo.
+	* Corrected game tidy up after calls to sc_quit_game().
+	* Corrected checks on object get to reject "get <object>" where the
+	object is either held or worn by a NPC.
+	* Removed TAF line pushback functionality from the TAF file module,
+	and implemented it locally inside the TAF file parser.
+	* Mapped 'font face="courier"' in os_glk.c, os_print_tag(), to Glk
+	preformatted text style.
+	* Improved os_glk.c so that it copes with "buggy" games that do not
+	correctly nest markup tags (for example "<i><font ...>mumble
+	</i></font").
+	* Refactored os_glk.c slightly to facilitate non-UNIX Glk builds.
+	* End of game delay os_glk.c now happens only on 'restart' selection.
+	* Fixed a bug in run_main_loop() that caused waits to consume one
+	turn too many.
+	* Included a required second variable interpolation pass to pf_filter(),
+	which needs to replace %...% both before and after ALRs, and a second
+	ALR pass after the second variable interpolation, with flags to let
+	each ALR fire only once.
+	* Added printfilter function to indicate a new sentence, provoking
+	uppercasing of the next buffered character.
+	* Modified object name printing in lib_print_object_np() to include
+	any significant parts of the object prefix, and to switch "a" or "an"
+	for "the" when (apparently) appropriate.
+	* Added interface functions to obtain a game's hints.  See PORTING for
+	sc_game_hint_iterate(), sc_get_game_hint_question(),
+	sc_get_game_subtle_hint(), sc_get_game_unsubtle_hint(), and
+	os_display_hints().  Added SC_CONF_VIEW_HINTS.
+	* Added a %version% variable.
+	* Substantial improvements to expression handling.  SCARE now fully
+	handles all 4.0.42 expression formulae correctly, including the
+	freedom to mix string and integer expression elements.  All
+	expression handling is now in scexpr.c, and scstrexp.c is dead and
+	buried.
+	* Fixed a minor bug in conversation topic matching.  The older code
+	would match substrings (for example "hat" before "hatchet").
+	* Improved "it", "him" and "her" handling so that they now work with
+	game commands that use %object% and %character% references.
+	* Fixed a program crash seen when trying to wear a static object.
+	* Added a reasonably useful game (and SCARE) debugger, accessible, when
+	enabled, using the "debug" command.
+	* Fixed the NPC listing loop for the "look" command, which was printing
+	NPCs in an odd fashion.
+	* Altered the ordering of output for "examine", to print object state
+	before, rather than after, container and surface content.
+	* Fixed an ugly bug in game saving, present since the dawn of time but
+	substantially worsened with a change made in 1.1e.
+	* Aligned the %theobject%, %on_, %in_, and %onin_ variables with the
+	formats printed by the library.
+	* Added getdynfromroom() handling for so-called task command functions.
+	* Moved trace output produced by SC_TRACE_FLAGS from stdout to stderr.
+	* Fixed an NPC bug that prevented NPCs from moving about if they don't
+	wait for a start task.  This one should have been fixed long, long
+	ago, as Thomas Payerle had the right extra code in SCARE 1.2.1
+	(thanks, Thomas).
+	* Changed version naming convention, by popular request.
+
+2004-02-03  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.1e.
+
+	* Fixed minuscule memory leak in gs_destroy().
+	* Fixed incorrect condition ordering in taf_append().
+	* Added tag stripping for game author and title, to neaten the title
+	line first displayed for 'To Hell in a Hamper'.
+	* Fixed bug in pf_strip_tags() that caused it to miss consecutive tags.
+	* Added sc_get_game_max_score() interface query function.
+	* Changed return type of os_read_line() from void to sc_bool.  Return
+	of TRUE indicates data buffered, FALSE ignore and re-call.
+	* Fixed a bug in run_player_input() that caused it to try to use old
+	input or stack junk when an input line ended with a comma.
+	* Substantial rewrite of os_glk.c to handle Microsoft codepage 1252
+	characters, and provide transcripts, reading input from a file, and
+	player input logs.
+	* Improved alignment with newer jAsea code (objects worn by player/NPC
+	on startup, turn based unmoved flag updates, game won text).
+	* Fixed bug in uip_parse_list() that caused input pattern matches to
+	fail against task commands where patterns had consecutive
+	'[...]' or '{...}' elements without intervening spaces.  This shows
+	up with 'To Hell in a Hamper'.
+	* Relaxed running requirements for sc_undo_game_turn(), sc_load_game(),
+	sc_save_game(), and sc_restart_game().
+	* Adding RUNNING text file, with notes on running SCARE.
+
+20003-12-10  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.1d.
+
+	* Fixed an endian problem that prevented correct builds on big endian
+	systems.  Thanks to Jan-Erik Karlsson for isolating and reporting
+	this problem, along with its fix.
+	* Redesigned TAF file decompression to place far less stress on malloc
+	and free functions.  The old TAF file decompression module caused
+	significant performance problems with AmigaOS malloc.  Again, thanks
+	to Jan-Erik Karlsson for this problem report.
+	* Fixed omission in sc_free_game(), which used to fail to free memory
+	allocated to holding raw TAF data.
+	* Fixed omission in prop_destroy_node() which used to fail to free
+	memory allocated to the child list.
+	* Added preallocation of properties nodes, in pools, to scprops.c,
+	further greatly reducing stress on malloc.  With this change and the
+	redesigned TAF compression, 'The PK Girl' becomes fully playable with
+	SCARE through IFP.  IFP's garbage collection now adds only around 6%
+	to game load time.
+	* Added handling for stateful objects and alternate room descriptions,
+	combined with a few small tweaks to accommodate them.
+
+2003-06-26  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.1c.
+
+	* Fixed decompression problem exposed by the post-comp02 release of
+	Robert Goodwin's 'The PK Girl'.
+	* Added undo functionality; "Undo" verb, sc_undo_game_turn() function,
+	and sc_is_undo_available() query function.
+	* Fixed minor memory leak with status line and current room name in
+	gs_copy().
+
+0000-00-00  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.1a,b.
+
+	* Additional verbs to complete major functional areas.
+
+0000-00-00  Simon Baldwin <simon_baldwin@yahoo.com>
+
+	* Release 1.1.  First public release
+

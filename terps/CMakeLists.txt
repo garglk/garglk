@@ -15,6 +15,14 @@ option(WITH_SCOTT "Enable the scott interpreter" ON)
 option(WITH_TADS "Enable the tads interpreter" ON)
 option(WITH_TAYLOR "Enable the taylor interpreter" ON)
 
+if(WITH_SCARIER AND WITH_SCARE)
+    message(FATAL_ERROR "WITH_SCARIER and WITH_SCARE are mutually exclusive")
+endif()
+
+if(WITH_SCARIER AND WITH_FRANKENDRIFT)
+    message(FATAL_ERROR "WITH_SCARIER and WITH_FRANKENDRIFT are mutually exclusive")
+endif()
+
 function(terp target)
     set(options POSIX LTO MATH WARNINGS GPL2)
     set(oneval CXXSTD)
@@ -380,6 +388,71 @@ if(WITH_SCARE)
         LIBS ${SCARE_LIBS}
         MACROS SCARE_NO_ABBREVIATIONS
         GPL2)
+endif()
+
+# ------------------------------------------------------------------------------
+#
+# SCARIER (from Spatterlight 1.5.2) for Adrift 4 and 5 games
+#
+if(WITH_SCARIER)
+    find_package(ZLIB REQUIRED)
+
+    # strndup() isn't in C++17. It's POSIX, so tends to be exported by
+    # C++ compilers, but doesn't have to be, and isn't in MinGW. Or
+    # isn't in some versions. Or some configurations. Who knows. And
+    # it's not in MSVC at all. So test for strndup() and if it's not
+    # available, provide a replacement. This is currently only for
+    # Scarier since it's the only thing that relies on strndup().
+    include(CheckCXXSourceCompiles)
+    set(_scarier_saved_std "${CMAKE_CXX_STANDARD}")
+    set(_scarier_saved_std_required "${CMAKE_CXX_STANDARD_REQUIRED}")
+    set(_scarier_saved_extensions "${CMAKE_CXX_EXTENSIONS}")
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+    check_cxx_source_compiles("
+#include <stdlib.h>
+#include <string.h>
+
+int main()
+{
+    char *copy = strndup(\"scarier\", 3);
+    free(copy);
+    return copy == NULL;
+}
+" HAVE_STRNDUP)
+    set(CMAKE_CXX_STANDARD "${_scarier_saved_std}")
+    set(CMAKE_CXX_STANDARD_REQUIRED "${_scarier_saved_std_required}")
+    set(CMAKE_CXX_EXTENSIONS "${_scarier_saved_extensions}")
+
+    terp(scarier
+        SRCS scarier/adrift5/a5blorb.cpp scarier/adrift5/a5deobf.cpp
+        scarier/adrift5/a5expr.cpp scarier/adrift5/a5map.cpp
+        scarier/adrift5/a5model.cpp scarier/adrift5/a5parse.cpp
+        scarier/adrift5/a5rand.cpp scarier/adrift5/a5restr.cpp
+        scarier/adrift5/a5run.cpp scarier/adrift5/a5run_action.cpp
+        scarier/adrift5/a5run_conv.cpp scarier/adrift5/a5run_events.cpp
+        scarier/adrift5/a5run_ref.cpp scarier/adrift5/a5run_resp.cpp
+        scarier/adrift5/a5run_sort.cpp scarier/adrift5/a5sb.cpp
+        scarier/adrift5/a5sexpr.cpp scarier/adrift5/a5state.cpp
+        scarier/adrift5/a5text.cpp scarier/adrift5/a5xml.cpp
+        scarier/mapdraw.cpp scarier/os_glk.cpp
+        scarier/scbattle.cpp scarier/scdebug.cpp scarier/scevents.cpp
+        scarier/scexpr.cpp scarier/scgamest.cpp scarier/scinterf.cpp
+        scarier/sclibrar.cpp scarier/sclocale.cpp scarier/scmap.cpp
+        scarier/scmemos.cpp scarier/scnpcs.cpp scarier/scobjcts.cpp
+        scarier/scparser.cpp scarier/scprintf.cpp scarier/scprops.cpp
+        scarier/scresour.cpp scarier/screstrs.cpp scarier/scrunner.cpp
+        scarier/scserial.cpp scarier/sctaffil.cpp scarier/sctafpar.cpp
+        scarier/sctasks.cpp scarier/scutils.cpp scarier/scvars.cpp
+        scarier/common_utils/randomness.c scarier/common_utils/sc_garglk.c
+        INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS}
+        LIBS ${ZLIB_LIBRARIES}
+        CXXSTD 17)
+
+    if(NOT HAVE_STRNDUP)
+        target_compile_definitions(scarier PRIVATE GARGLK_NEEDS_STRNDUP)
+    endif()
 endif()
 
 # ------------------------------------------------------------------------------

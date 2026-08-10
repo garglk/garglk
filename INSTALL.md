@@ -74,6 +74,11 @@ In addition, Gargoyle supports the following options:
   games. Defaults to false. Requires the .NET 8 SDK and a shared libgarglk (i.e.
   `BUILD_SHARED_LIBS` must be true, which it is by default).
 
+- `WITH_SCARIER`: If true, build the SCARIER interpreter for ADRIFT 3.8, 3.9, 4,
+  and 5 games. Defaults to false. SCARIER supersedes both SCARE and
+  FrankenDrift, so it is mutually exclusive with them: enabling it requires
+  `WITH_SCARE=OFF`, and `WITH_FRANKENDRIFT` must be false.
+
 - `INTERFACE`: Selects the GUI toolkit. On Apple, this defaults to `COCOA` and
   may be set to `QT` instead. On all other platforms `QT` is always used; the
   option has no effect there.
