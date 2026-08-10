@@ -659,6 +659,11 @@ scr_quit_game (scr_game game)
  * game commands, in that they prompt the user for a stream to write or read.
  * These alternative forms allow the caller to directly specify the data
  * streams.
+ *
+ * The two that write a save file the player keeps produce a pre-4.0 game's own
+ * save format, so the original Runner can read it; scr_save_game_to_callback()
+ * is the engine-snapshot form the Spatterlight autosave uses, and stays on the
+ * lossless 4.0 layout.  Loading auto-detects either.  See ser_save_game().
  */
 scr_bool
 scr_save_game_to_filename (scr_game game, const scr_char *filename)
@@ -685,7 +690,7 @@ scr_save_game_to_filename (scr_game game, const scr_char *filename)
   scr_bool status = TRUE;
   try
     {
-      run_save (game_, if_file_write_callback, stream);
+      run_save_to_file (game_, if_file_write_callback, stream);
     }
   catch (const scr_fatal_error &error)
     {
@@ -713,7 +718,7 @@ scr_save_game_to_stream (scr_game game, FILE *stream)
 
   try
     {
-      run_save (game_, if_file_write_callback, stream);
+      run_save_to_file (game_, if_file_write_callback, stream);
     }
   catch (const scr_fatal_error &error)
     {

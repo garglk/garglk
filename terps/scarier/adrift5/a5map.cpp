@@ -151,6 +151,8 @@ parse_node (map_node_t *node, const a5_xml_node_t *nd,
   node->page = page_key;
 
   loc = a5model_location (adv, node->key);
+  if (loc != NULL && loc->node != NULL)
+    node->hidden = a5xml_bool (a5xml_child_text (loc->node, "Hide"));
 
   n_links = a5xml_count (nd, "Link");
   if (n_links <= 0)

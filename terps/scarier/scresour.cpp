@@ -24,6 +24,7 @@
  */
 
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -120,7 +121,7 @@ res_handle_resource (scr_gameref_t game,
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
   scr_vartype_t vt_key[2], *vt_full;
-  scr_int partial_length, resource_start_offset;
+  scr_int partial_length, format_size, resource_start_offset;
   scr_bool embedded;
   scr_char *format;
   assert (gs_is_game_valid (game));
@@ -152,11 +153,13 @@ res_handle_resource (scr_gameref_t game,
 
   /*
    * Allocate a format for use with properties calls, five characters longer
-   * than the partial passed in.  Build a key one element larger than the
-   * partial supplied, and copy over all supplied elements.
+   * than the partial passed in: three for the leading "X<-", one for the
+   * trailing "s", and one for the terminator.  Build a key one element larger
+   * than the partial supplied, and copy over all supplied elements.
    */
   partial_length = strlen (partial_format);
-  format = (decltype(format)) scr_malloc (partial_length + 5);
+  format_size = partial_length + 5;
+  format = (decltype(format)) scr_malloc (format_size);
 
   vt_full = (decltype(vt_full)) scr_malloc ((partial_length + 1) * sizeof (vt_partial[0]));
   memcpy (vt_full, vt_partial, partial_length * sizeof (vt_partial[0]));
@@ -169,9 +172,7 @@ res_handle_resource (scr_gameref_t game,
 
       /* Get soundfile property from the node supplied. */
       vt_full[partial_length].string = "SoundFile";
-      strncpy (format, "S<-", partial_length + 5);
-      strncat (format, partial_format, partial_length);
-      strncat (format, "s", 1);
+      snprintf (format, format_size, "S<-%ss", partial_format);
       soundfile = prop_get_string (bundle, format, vt_full);
 
       /* If a sound is defined, handle it. */
@@ -181,16 +182,12 @@ res_handle_resource (scr_gameref_t game,
             {
               /* Retrieve offset and length. */
               vt_full[partial_length].string = "SoundOffset";
-              strncpy (format, "I<-", partial_length + 5);
-              strncat (format, partial_format, partial_length);
-              strncat (format, "s", 1);
+              snprintf (format, format_size, "I<-%ss", partial_format);
               soundoffset = prop_get_integer (bundle, format, vt_full)
                             + resource_start_offset;
 
               vt_full[partial_length].string = "SoundLen";
-              strncpy (format, "I<-", partial_length + 5);
-              strncat (format, partial_format, partial_length);
-              strncat (format, "s", 1);
+              snprintf (format, format_size, "I<-%ss", partial_format);
               soundlen = prop_get_integer (bundle, format, vt_full);
             }
           else
@@ -225,9 +222,7 @@ res_handle_resource (scr_gameref_t game,
 
       /* Get graphicfile property from the node supplied. */
       vt_full[partial_length].string = "GraphicFile";
-      strncpy (format, "S<-", partial_length + 5);
-      strncat (format, partial_format, partial_length);
-      strncat (format, "s", 1);
+      snprintf (format, format_size, "S<-%ss", partial_format);
       graphicfile = prop_get_string (bundle, format, vt_full);
 
       /* If a graphic is defined, handle it. */
@@ -237,16 +232,12 @@ res_handle_resource (scr_gameref_t game,
             {
               /* Retrieve offset and length. */
               vt_full[partial_length].string = "GraphicOffset";
-              strncpy (format, "I<-", partial_length + 5);
-              strncat (format, partial_format, partial_length);
-              strncat (format, "s", 1);
+              snprintf (format, format_size, "I<-%ss", partial_format);
               graphicoffset = prop_get_integer (bundle, format, vt_full)
                               + resource_start_offset;
 
               vt_full[partial_length].string = "GraphicLen";
-              strncpy (format, "I<-", partial_length + 5);
-              strncat (format, partial_format, partial_length);
-              strncat (format, "s", 1);
+              snprintf (format, format_size, "I<-%ss", partial_format);
               graphiclen = prop_get_integer (bundle, format, vt_full);
             }
           else

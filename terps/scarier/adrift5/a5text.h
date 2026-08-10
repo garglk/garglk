@@ -101,6 +101,16 @@
        text -- BEFORE any later <waitkey> pause, the way the Runner's
        DisplayText acts on an audio tag the moment it reaches it (Pervert
        Action Crisis strikes its sting ahead of a keypress-paced cutscene).
+     - <c> and <font colour="..."> leave an A5_COLOUR_MARK-delimited colour
+       span, \027<value>\027, and their close tags leave A5_ENDCOLOUR_MARK, so
+       the host can draw the enclosed text in the Adrift colour the author
+       asked for (a Glk host through garglk_set_zcolors, under "glk colour").
+       <value> is the tag's colour token verbatim and lowercased -- a name
+       ("red"), a hex triplet ("#ff0000") -- or empty for a <font> that names
+       no colour, which inherits the enclosing one so that its </font> still
+       pops symmetrically.  <c> writes the reserved token "input", since the
+       colour it asks for is the adventure's InputColour rather than anything
+       spelled out in the text; no Adrift colour name collides with it.
      - a <center> or <b> span still open when a Display commit ends dies with
        that commit: the Runner renders each commit through its own Source2HTML
        parse, so an unclosed tag never bleeds into the next commit's text.
@@ -119,8 +129,8 @@
    finish_turn keeps all of these in the returned turn text; a host that never
    enables interactive mode (the headless dump / ground-truth harness) sees no
    behaviour change.  \x06 (ACK), \x07 (BEL), \x0e (SO), \x0f (SI), \x10 (DLE),
-   \x11 (DC1), \x12 (DC2), \x13 (DC3), \x14 (DC4), \x15 (NAK) and \x16 (SYN)
-   never occur in game text. */
+   \x11 (DC1), \x12 (DC2), \x13 (DC3), \x14 (DC4), \x15 (NAK), \x16 (SYN),
+   \x17 (ETB) and \x18 (CAN) never occur in game text. */
 #define A5_IMG_MARK '\006'
 #define A5_WAITKEY_MARK '\007'
 #define A5_CENTER_MARK '\016'
@@ -132,6 +142,8 @@
 #define A5_SOUND_MARK '\024'
 #define A5_COMMIT_MARK '\025'
 #define A5_WAIT_MARK '\026'
+#define A5_COLOUR_MARK '\027'
+#define A5_ENDCOLOUR_MARK '\030'
 
 /* Interactive-presentation mode toggle (default off; see marks above). */
 extern void a5text_set_interactive (int on);
@@ -180,6 +192,15 @@ extern char *a5text_eval_expression (a5_state_t *st, const char *expr);
 /* Render markup (tags + entities) to plain text. */
 extern char *a5text_render_plain (const char *src);
 
+/* Compact an already-rendered plain string in place, dropping the presentation
+   sentinels defined above -- the non-spanning ones outright, the spanning ones
+   with their payload.  For text a host draws OUTSIDE the story window, where
+   finish_turn's own strip pass never runs and a sentinel would be drawn as a
+   glyph: Alyas of Starhollow tells its four River Lane rooms apart by naming
+   them "River Lane<1>".."<4>", and the stripped <4> leaves the A5_ALR_MARK
+   that Gargoyle shows as an ETX box at the end of the status line. */
+extern void a5text_strip_pres_marks (char *s);
+
 /*
  * Embedded-media side channel.  ADRIFT 5 embeds graphics/sound in description
  * text as <img src="..."> and <audio play|stop|pause src="..." channel=N> tags
@@ -213,10 +234,34 @@ extern void a5text_set_media_sink (a5_media_cb cb, void *ctx);
  * no callback installed (the default) PopUpInput evaluates to its default,
  * matching the Adrift 5 runner's InputBox returning the default when unattended.  The
  * FrankenDrift.Headless frontend consumes exactly one script line per popup the
- * same way, so ground-truth transcripts stay byte-aligned.
+ * same way, so ground-truth transcripts stay byte-aligned.  PopUpInput ONLY:
+ * %PopUpChoice% goes through MsgBox in the runner, not the scripted-input
+ * channel, and must never be fed from this one -- that would desync the
+ * transcript by a line.  It has a channel of its own; see below.
  */
 typedef char *(*a5_popup_cb) (void *ctx, const char *prompt, const char *dflt);
 extern void a5text_set_popup_cb (a5_popup_cb cb, void *ctx);
+
+/*
+ * Host callback for the %PopUpChoice[prompt, choice1, choice2]% text function
+ * (clsFunction PopUpChoice -> VB MsgBox, Global.vb:2278): a Yes/No dialog whose
+ * Yes yields choice1 and No choice2, in practice the gender question a game
+ * asks before play (Beagle2's System <RunImmediately> Autorun, "Are you Male or
+ * Female?").  The callback is handed the prompt and both choices and returns
+ * non-zero for Yes, 0 for No, or negative to decline -- which leaves the token
+ * unevaluated, as with no callback installed at all.
+ *
+ * Unevaluated is the default because it is what the ground truth does: MsgBox
+ * throws off-Windows, so FrankenDrift lands in the ReplaceFunctions catch
+ * (Global.vb:2483) and the %PopUpChoice[...]% text survives verbatim -- no
+ * output, and no script line consumed.  Only an interactive host with somewhere
+ * to ask (the Glk frontend, its story window standing in for the dialog) should
+ * install one, reproducing what the runner does on Windows without disturbing
+ * headless transcripts.
+ */
+typedef int (*a5_popup_choice_cb) (void *ctx, const char *prompt,
+                                   const char *choice1, const char *choice2);
+extern void a5text_set_popup_choice_cb (a5_popup_choice_cb cb, void *ctx);
 
 /*
  * The Display() ALR boundary (clsUserSession.Display -> Global.ReplaceALRs):

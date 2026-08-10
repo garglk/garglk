@@ -20,8 +20,9 @@
 /*
  * Module notes:
  *
- * o The Glk interface makes no effort to set text colors, background colors,
- *   and so forth, and minimal effort to set fonts and other style effects.
+ * o The Glk interface makes no effort to set text colours, background
+ *   colours, and so forth, and minimal effort to set fonts and other style
+ *   effects.
  */
 
 #include <assert.h>
@@ -179,6 +180,40 @@ static int gsc_commands_enabled = TRUE,
            gsc_abbreviations_enabled = TRUE,
            gsc_unicode_enabled = TRUE;
 
+/* Whether this Glk library has the garglk_set_zcolors extension, and with it
+   the "glk colour" mode.  Defined up here rather than down with the rest of
+   the colour code because the status line, drawn earlier in the file, draws
+   itself in the game's colours too; the mode itself is documented where
+   gsc_set_colour lives. */
+#if defined(SPATTERLIGHT) || defined(GARGLK) \
+    || defined(GLK_MODULE_GARGLK_FILE_RESOURCES)
+# define GSC_HAVE_ZCOLORS 1
+#endif
+
+/* ADRIFT <=4 Runner default palette; the ADRIFT 5 loop overwrites these from
+   the adventure when it loads one.  See gsc_set_colour for where the numbers
+   come from. */
+static glui32 gsc_colour_background = 0x000000,
+              gsc_colour_output = 0x00ff00,
+              gsc_colour_input = 0xff3232;
+
+/* Whether the game's own palette is in force ("glk colour", set by
+   gsc_set_colour far below).  It lives up here because the status line, drawn
+   earlier in the file, picks its style by it; where the Glk library has no
+   zcolors extension the command is not offered and this stays FALSE. */
+static int gsc_colour_enabled = FALSE;
+/* Whether the "-c" command line switch asked for colour mode from the start,
+   sparing the player a "glk colour on" at every launch.  Acted on once the
+   windows exist; see gsc_colour_startup_apply. */
+static int gsc_colour_startup = FALSE;
+/* The colour last named on the story window (gsc_colour_apply), so that drawing
+   the status bar in its own two colours can put the story's back afterwards --
+   a library whose zcolors are global as well as per-stream would otherwise go
+   on painting the story window in the bar's colours.  See gsc_status_end.  Only
+   read while colour mode is on, and gsc_set_colour colours the story window
+   before it turns the mode on, so it is always set by then. */
+static glui32 gsc_colour_main_fg = 0;
+
 /* Adrift game to interpret. */
 static scr_game gsc_game = NULL;
 
@@ -190,6 +225,14 @@ static scr_game gsc_game = NULL;
 static char gsc_game_path[2048];
 static a5_adventure_t *gsc_a5_adv = NULL;
 static int gsc_is_a5 = FALSE;
+
+/* A name for this game to file per-game settings under, for the games that
+   carry no IFID to use instead: ADRIFT 4 has none at all, and a few ADRIFT 5
+   games were built without one.  It is derived from the game file's contents
+   (gsc_hash_game_stream), so it follows the game when the file is moved or
+   renamed, and two games never share it the way two files both called
+   "adventure.taf" would.  Empty until the startup code has read the file. */
+static char gsc_game_key[40];
 
 /* Current a5 run, kept here so status redraws on window resize can reach it. */
 static a5_run_t *gsc_a5_run = NULL;
@@ -204,6 +247,11 @@ static void gsc_a5_undo_look (a5_run_t *run);
    engine's deterministic one-tick-per-input substitute.  Decided per run by
    gsc_a5_start_real_time. */
 static int gsc_a5_real_time = FALSE;
+
+/* Set while the opening is replayed only to reach a saved state (the
+   Spatterlight autorestore boot), so a %PopUpInput% naming prompt in it is
+   answered with its default instead of asking the player again. */
+static int gsc_a5_popup_silent = FALSE;
 
 /* Author-defined secondary output window (ADRIFT 5 <window NAME>), opened
    lazily as a right-hand text buffer the first time the game routes text to
@@ -222,15 +270,26 @@ static winid_t gsc_a5_side_window = NULL;
 static winid_t gsc_map_window = NULL;
 static map_t *gsc_map = NULL;
 static int gsc_map_shown = FALSE;
+/* Whether the map pane is wanted at all: the player's remembered choice, or
+   failing that the layout the game shipped (gsc_map_auto_reveal).  Wanted is
+   not the same as shown -- a map with nothing on it yet is held back until
+   there is something to see (gsc_map_worth_opening), and the per-turn redraw
+   opens it then.  FALSE until something decides. */
+static int gsc_map_want = FALSE;
 /* Where the map pane sits: the standard 40% pane to the right of the story,
    or -- for games with wide maps -- a 30% band across the top of the whole
    screen, above the status line ("glk map top").  The choice is kept, so
-   hiding and re-showing the map does not move it. */
+   hiding and re-showing the map does not move it, and it is remembered with
+   the visibility (gsc_map_pref_write) so neither does restarting. */
 static int gsc_map_at_top = FALSE;
 /* Set when the game defines a MAP command of its own (Lost Coastlines has a
    sea chart): the game's command wins, and the pane is reached with the
    "glk map" escape instead. */
 static int gsc_map_taken = FALSE;
+/* The restart the pane was last set up for (run_get_restart_count), so that an
+   ADRIFT 4 restart -- which happens entirely inside the interpreter -- is
+   noticed as the replayed opening arrives (gsc_map_notice_restart). */
+static scr_int gsc_map_restarts = 0;
 static void gsc_map_redraw (void);
 
 /* The camera and pixel size of the last map redraw, so a mouse click can be
@@ -299,6 +358,12 @@ static int gsc_sc_walk_steps = 0;
 
 static int gsc_sc_walk_next (scr_char *buffer, scr_int length);
 static void gsc_map_toggle (void);
+static void gsc_map_auto_reveal (void);
+static void gsc_map_notice_restart (void);
+static void gsc_map_show (void);
+static int gsc_map_available (void);
+static int gsc_map_pref_read (int *at_top);
+static int gsc_map_default_shown (void);
 
 static void
 gsc_sc_walk_stop (void)
@@ -323,6 +388,20 @@ static void gsc_short_delay (void);
 /*---------------------------------------------------------------------*/
 /*  Glk port utility functions                                         */
 /*---------------------------------------------------------------------*/
+
+/*
+ * gsc_put_literal()
+ *
+ * Print a string literal to the current Glk stream.  glk_put_string() takes
+ * a non-const char * for historical reasons but never writes through it, so
+ * this wrapper holds the const_cast needed to pass literals from C++.
+ */
+static void
+gsc_put_literal (const char *string)
+{
+  glk_put_string (const_cast<char *> (string));
+}
+
 
 /*
  * gsc_fatal()
@@ -354,12 +433,12 @@ gsc_fatal (const char *string)
   /* Print a message indicating the error, and exit. */
   glk_set_window (gsc_main_window);
   glk_set_style (style_Normal);
-  glk_put_string ("\n\nINTERNAL ERROR: ");
-  glk_put_string ((char *) string);
+  gsc_put_literal ("\n\nINTERNAL ERROR: ");
+  gsc_put_literal (string);
 
-  glk_put_string ("\n\nPlease record the details of this error, try to"
-                  " note down everything you did to cause it, and email"
-                  " this information to simon_baldwin@yahoo.com.\n\n");
+  gsc_put_literal ("\n\nPlease record the details of this error, try to"
+                   " note down everything you did to cause it, and email"
+                   " this information to simon_baldwin@yahoo.com.\n\n");
 }
 
 
@@ -1093,6 +1172,12 @@ gsc_unicode_buffer_to_locale (const glui32 *unicode, scr_int length,
 }
 
 
+/* Colour mode; defined with the rest of the style handling further down.
+   Switches later text between the game's typed colour and its normal one, and
+   does nothing at all unless colour mode is on. */
+static void gsc_colour_echo (scr_bool typing);
+
+
 /*
  * gsc_read_line_locale()
  *
@@ -1104,6 +1189,10 @@ gsc_read_line_locale (scr_char *buffer,
                       scr_int length, const gsc_locale_t *locale)
 {
   event_t event;
+
+  /* The Runner echoes what the player types in its own "typed" colour, a
+     different one from the text the game writes back. */
+  gsc_colour_echo (TRUE);
 
   /*
    * If we have unicode, we have to use it to ensure that characters not in
@@ -1127,6 +1216,7 @@ gsc_read_line_locale (scr_char *buffer,
       free (unicode);
 
       /* Return the count of characters placed in the buffer. */
+      gsc_colour_echo (FALSE);
       return event.val1;
     }
 
@@ -1135,6 +1225,7 @@ gsc_read_line_locale (scr_char *buffer,
   gsc_event_wait (evtype_LineInput, &event);
 
   /* Return the count of characters placed in the buffer. */
+  gsc_colour_echo (FALSE);
   return event.val1;
 }
 
@@ -1157,6 +1248,9 @@ gsc_read_line (scr_char *buffer, scr_int length)
 
 /* Size of saved status buffer used for non-windowing Glk status lines. */
 enum { GSC_STATUS_BUFFER_LENGTH = 74 };
+
+/* Scratch space gsc_status_line_text() formats or trims a status line into. */
+enum { GSC_STATUS_TEXT_LENGTH = 256 };
 
 /* Whitespace characters, used to detect empty status elements. */
 static const scr_char *const GSC_WHITESPACE = "\t\n\v\f\r ";
@@ -1194,7 +1288,7 @@ gsc_is_string_usable (const scr_char *string)
  *
  * Open and close a status line redraw, shared by the ADRIFT <=4 and ADRIFT 5
  * status lines.  gsc_status_begin() makes the status window current, blanks
- * it, and fills its width with User1 spaces so that the reverse-video bar
+ * it, and fills its width with spaces in the bar's style so that the bar
  * spans the whole line; it returns FALSE, having done nothing, if there is
  * no status window or it has no height, in which case the caller has nothing
  * to draw.  gsc_status_end() hands the current window back to the main one.
@@ -1215,7 +1309,26 @@ gsc_status_begin (glui32 *width)
   glk_window_move_cursor (gsc_status_window, 0, 0);
   glk_set_window (gsc_status_window);
 
-  glk_set_style (style_User1);
+#ifdef GSC_HAVE_ZCOLORS
+  /* The colours have to be named again after every clear, not once when colour
+     mode is turned on: in Gargoyle a grid clear re-seeds the window's
+     attributes from the library's global override colours, which would wipe a
+     colour set earlier on this stream. */
+  if (gsc_colour_enabled)
+    garglk_set_zcolors_stream (glk_window_get_stream (gsc_status_window),
+                               gsc_colour_background, gsc_colour_output);
+#endif
+
+  /* Out of colour mode the bar is a reverse-video User1 one, the way every
+     other Glk port draws a status line.  In colour mode the bar is still
+     reversed -- the Runner draws it as the inverse of the story text, the
+     game's text colour behind and its background colour for the letters -- but
+     the inversion is in the colours named just above rather than in the style.
+     Doing it that way is what makes every library agree: stylehint_ReverseColor
+     is honoured by some and dropped by others once a zcolor is in force, so a
+     User1 bar here would come out inverted in one interpreter and plain in the
+     next. */
+  glk_set_style (gsc_colour_enabled ? style_Normal : style_User1);
   for (index = 0; index < *width; index++)
     glk_put_char (' ');
   glk_window_move_cursor (gsc_status_window, 0, 0);
@@ -1226,6 +1339,18 @@ gsc_status_begin (glui32 *width)
 static void
 gsc_status_end (void)
 {
+#ifdef GSC_HAVE_ZCOLORS
+  /* Name the story window's own colours again.  A library whose zcolors are
+     global as well as per-stream (Gargoyle) paints window backgrounds from the
+     last colours it was told about, so leaving the bar's inverted pair in force
+     would tint the story window too.  Safe with respect to the input echo:
+     gsc_colour_echo() runs from gsc_read_line_locale(), after the status
+     redraw, so it always has the last word on the prompt's colour. */
+  if (gsc_colour_enabled && gsc_main_window)
+    garglk_set_zcolors_stream (glk_window_get_stream (gsc_main_window),
+                               gsc_colour_main_fg, gsc_colour_background);
+#endif
+
   glk_set_window (gsc_main_window);
 }
 
@@ -1234,20 +1359,43 @@ gsc_status_end (void)
  * gsc_status_line_text()
  *
  * The game's status line or, when the game does not set a usable one, the
- * score formatted into the caller's buffer.
+ * score, either way with trailing whitespace removed, and using the caller's
+ * buffer where it needs one.
+ *
+ * Authors pad StatusBoxText by hand to place it -- Three Monkeys, One Cage
+ * stores "     The game is %winnable%        " -- because the Runner draws the
+ * status box left-aligned.  Right-justifying that string as it stands ends the
+ * line with the author's eight spaces, leaving the text itself floating short
+ * of the right margin and looking mis-aligned.  The trailing run carries no
+ * information here, so drop it and justify the text.  Leading spaces are kept:
+ * they cost nothing at the left of a right-justified string, and are eaten
+ * first by head-truncation in a narrow window.
  */
 static const scr_char *
-gsc_status_line_text (char *score, size_t length)
+gsc_status_line_text (char *buffer, size_t length)
 {
   const scr_char *status;
+  size_t trimmed;
 
   status = scr_get_game_status_line (gsc_game);
   if (!gsc_is_string_usable (status))
     {
-      snprintf (score, length, "Score: %ld", scr_get_game_score (gsc_game));
-      status = score;
+      snprintf (buffer, length, "Score: %ld", scr_get_game_score (gsc_game));
+      return buffer;
     }
-  return status;
+
+  for (trimmed = strlen (status);
+       trimmed > 0 && strchr (GSC_WHITESPACE, status[trimmed - 1]);
+       trimmed--)
+    ;
+
+  /* Nothing to trim, or a status too long to copy: use it where it lies. */
+  if (status[trimmed] == '\0' || trimmed >= length)
+    return status;
+
+  memcpy (buffer, status, trimmed);
+  buffer[trimmed] = '\0';
+  return buffer;
 }
 
 
@@ -1309,6 +1457,94 @@ gsc_status_printed_width (const scr_char *string)
 
 
 /*
+ * gsc_status_writer_t
+ *
+ * How a given engine's status line renders text: the number of grid cells a
+ * string fills, the call that prints it, and the start of the character after
+ * the one at a given point (a byte step for the ADRIFT <=4 codepage strings, a
+ * UTF-8 step for the ADRIFT 5 ones).  gsc_status_put_right() needs all three.
+ */
+typedef struct
+{
+  glui32 (*width) (const scr_char *string);
+  void (*print) (const scr_char *string);
+  const scr_char *(*next) (const scr_char *string);
+} gsc_status_writer_t;
+
+static const scr_char *
+gsc_status_next_byte (const scr_char *string)
+{
+  return string + 1;
+}
+
+static const gsc_status_writer_t GSC_STATUS_WRITER = {
+  gsc_status_printed_width, gsc_put_string, gsc_status_next_byte
+};
+
+/* Head-truncation marker, and the least text worth printing after it. */
+static const char *const GSC_STATUS_ELLIPSIS = "...";
+enum { GSC_STATUS_ELLIPSIS_WIDTH = 3, GSC_STATUS_MIN_TAIL = 1 };
+
+
+/*
+ * gsc_status_put_right()
+ *
+ * Print the status text right-justified on the status line, ending one column
+ * short of the right edge to match the one-column indent the room name gets at
+ * the left.  The room name is already on the line, and room_end is the first
+ * free column after it, so the status may use only the columns from there on,
+ * and must leave at least one blank between the two.
+ *
+ * A status too long for that gap is truncated at its head: the tail carries
+ * the parts that change -- score, moves, time, whatever the game keeps there --
+ * so it is the head that gets replaced with "...".  If not even the "..." and a
+ * character of text will fit, the status is dropped rather than allowed to run
+ * into the room name.
+ */
+static void
+gsc_status_put_right (glui32 width, glui32 room_end,
+                      const scr_char *status,
+                      const gsc_status_writer_t *writer)
+{
+  glui32 avail, status_width;
+
+  /* Columns between the room name (plus one blank) and the right margin. */
+  if (width < room_end + 2)
+    return;
+  avail = width - room_end - 2;
+
+  status_width = writer->width (status);
+  if (status_width <= avail)
+    {
+      glk_window_move_cursor (gsc_status_window,
+                              width - status_width - 1, 0);
+      writer->print (status);
+      return;
+    }
+
+  /* Too wide: find the longest tail that fits alongside the "...". */
+  if (avail < GSC_STATUS_ELLIPSIS_WIDTH + GSC_STATUS_MIN_TAIL)
+    return;
+
+  while (*status != '\0')
+    {
+      status = writer->next (status);
+
+      status_width = writer->width (status);
+      if (status_width <= avail - GSC_STATUS_ELLIPSIS_WIDTH)
+        {
+          glk_window_move_cursor (gsc_status_window,
+                                  width - status_width
+                                  - GSC_STATUS_ELLIPSIS_WIDTH - 1, 0);
+          writer->print (GSC_STATUS_ELLIPSIS);
+          writer->print (status);
+          return;
+        }
+    }
+}
+
+
+/*
  * gsc_status_update()
  *
  * Update the status line from the current game state.  This is for windowing
@@ -1334,34 +1570,24 @@ gsc_status_update (void)
            */
           glk_window_move_cursor (gsc_status_window, 1, 0);
           gsc_put_string (scr_get_game_name (gsc_game));
-          glk_put_string (" | ");
+          gsc_put_literal (" | ");
           gsc_put_string (scr_get_game_author (gsc_game));
         }
       else
         {
           const scr_char *status;
-          char score[64] = {0};
-          glui32 status_width;
+          char text[GSC_STATUS_TEXT_LENGTH] = {0};
 
           /* Print the player location. */
           glk_window_move_cursor (gsc_status_window, 1, 0);
           gsc_put_string (room);
 
           /* Get the game's status line, or if none, format score. */
-          status = gsc_status_line_text (score, sizeof (score));
+          status = gsc_status_line_text (text, sizeof (text));
 
-          /*
-           * Print the status line or score at window right, if it fits, ending
-           * one column short of the edge to match the one-column indent the
-           * room name gets at the left (and the a5 status line's right margin).
-           */
-          status_width = gsc_status_printed_width (status);
-          if (width > status_width + 2)
-            {
-              glk_window_move_cursor (gsc_status_window,
-                                      width - status_width - 1, 0);
-              gsc_put_string (status);
-            }
+          /* Print the status line or score at window right. */
+          gsc_status_put_right (width, 1 + gsc_status_printed_width (room),
+                                status, &GSC_STATUS_WRITER);
         }
 
       gsc_status_end ();
@@ -1408,13 +1634,13 @@ gsc_status_print (void)
     {
       char buffer[GSC_STATUS_BUFFER_LENGTH + 1] = {0};
       const scr_char *status;
-      char score[64] = {0};
+      char text[GSC_STATUS_TEXT_LENGTH] = {0};
 
       /* Make an attempt at a status line, starting with player location. */
       gsc_status_safe_strcat (buffer, sizeof (buffer), room);
 
       /* Get the game's status line, or if none, format score. */
-      status = gsc_status_line_text (score, sizeof (score));
+      status = gsc_status_line_text (text, sizeof (text));
 
       /* Append the status line or score. */
       gsc_status_safe_strcat (buffer, sizeof (buffer), " | ");
@@ -1424,9 +1650,9 @@ gsc_status_print (void)
       if (strcmp (buffer, current_status) != 0)
         {
           /* Bracket, and output the status line buffer. */
-          glk_put_string ("[ ");
+          gsc_put_literal ("[ ");
           gsc_put_string (buffer);
-          glk_put_string (" ]\n");
+          gsc_put_literal (" ]\n");
 
           /* Save the details of the printed status buffer. */
           snprintf(current_status, sizeof(current_status), "%s", buffer);
@@ -1518,10 +1744,58 @@ gsc_status_redraw (void)
 static int gsc_help_requested = FALSE,
            gsc_help_hints_silenced = FALSE;
 
-/* Font descriptor type, encapsulating size and monospaced boolean. */
+/*
+ * Symbol fonts.  A <font face="..."> naming one of these selects a font whose
+ * bytes are pictograms rather than letters, so the text inside the tag has to
+ * be translated to the equivalent Unicode symbols rather than printed as
+ * Latin-1 (see gsc_put_string_symbol()).
+ */
+typedef enum {
+  GSC_SYMBOL_NONE = 0,
+  GSC_SYMBOL_WEBDINGS
+} gsc_symbol_font_t;
+
+/*
+ * Adrift text colours ("glk colour").
+ *
+ * Adrift games are written for a Runner that paints its output pane in a
+ * palette rather than in the interpreter's theme: a background, an "output"
+ * (replies) colour for the story, and an "input" (typed) colour that <c>...</c>
+ * also asks for, on top of whatever <font colour="..."> the text names.  Glk
+ * has no colour of its own, so by default this port drops all of that and
+ * shows the story in the interpreter's styles, as SCARE always has.
+ *
+ * "glk colour on" turns the palette back on, through the Gargoyle/Spatterlight
+ * garglk_set_zcolors extension.  Where that extension is missing (cheapglk,
+ * glkterm) the mode cannot be offered at all, so everything below compiles out
+ * and the command says so.
+ *
+ * Where the palette comes from differs by engine.  ADRIFT 5 stores it in the
+ * adventure itself (a5model.h bg_colour and friends).  ADRIFT <=4 stores none:
+ * the .taf has no colour fields, and the colours are Runner preferences.  The
+ * defaults below are the ones run400.exe ships, read out of the settings it
+ * writes under HKCU\Software\VB and VBA Program Settings\ADRIFT\Runner:
+ * Background 0, Text1 3289855 and Text2 65280 -- OLE colour integers (low byte
+ * red), i.e. black, #FF3232 for typed text and #00FF00 for replies.  They match
+ * the swatches in the Runner's own Options -> Display & Media dialog ("Set
+ * typed colour", "Set replies colour", "Set background colour").
+ */
+/* GSC_HAVE_ZCOLORS, the palette itself and the on/off flag are all declared
+   with the other module options at the top of the file, where the status line
+   -- which draws itself in the game's colours as well -- can see them. */
+
+/* "No colour set here": outside the 24-bit range an RGB colour occupies, and
+   distinct from the zcolor_* sentinels, which are at the top of the range. */
+static const glui32 GSC_COLOUR_NONE = 0x01000000;
+
+/* Font descriptor type, encapsulating size, monospaced boolean, face, and the
+   text colour a <font colour="..."> asked for (GSC_COLOUR_NONE when it asked
+   for none, which inherits the enclosing colour). */
 typedef struct {
   scr_bool is_monospaced;
   scr_int size;
+  gsc_symbol_font_t symbol_font;
+  glui32 colour;
 } gsc_font_size_t;
 
 /* Font stack and attributes for nesting tags. */
@@ -1531,7 +1805,7 @@ static glui32 gsc_font_index = 0;
 static glui32 gsc_attribute_bold = 0,
               gsc_attribute_italic = 0,
               gsc_attribute_underline = 0,
-              gsc_attribute_secondary_color = 0,
+              gsc_attribute_secondary_colour = 0,
               gsc_attribute_center = 0;
 
 /* Notional default font size, and limit font sizes. */
@@ -1580,12 +1854,215 @@ gsc_output_provide_help_hint (void)
   if (gsc_help_requested && !gsc_help_hints_silenced)
     {
       glk_set_style (style_Emphasized);
-      glk_put_string ("[Try 'glk help' for help on special interpreter"
-                      " commands]\n");
+      gsc_put_literal ("[Try 'glk help' for help on special interpreter"
+                       " commands]\n");
 
       gsc_help_requested = FALSE;
       glk_set_style (style_Normal);
     }
+}
+
+
+/*
+ * gsc_colour_lookup()
+ *
+ * Turn an Adrift colour token -- a name, or a hex triplet with or without its
+ * leading '#' -- into an 0xRRGGBB colour.  Returns GSC_COLOUR_NONE for the
+ * empty token and for "default", both of which mean "back to the surrounding
+ * colour" rather than a colour of their own.
+ *
+ * The names, and their values, are the Runner's own table (Global.ColourLookup),
+ * including its aliases (cyan/turquoise/aqua, magenta/fuchsia) and its
+ * treatment of anything unrecognised as a hex triplet right-padded with zeros.
+ * `token` must already be lowercased and unquoted.
+ */
+static glui32
+gsc_colour_lookup (const char *token)
+{
+  static const struct { const char *name; glui32 rgb; } COLOUR_NAMES[] = {
+    {"black",     0x000000}, {"blue",      0x0000ff},
+    {"cyan",      0x00ffff}, {"turquoise", 0x00ffff}, {"aqua", 0x00ffff},
+    {"gray",      0x808080}, {"grey",      0x808080},
+    {"green",     0x008000}, {"lime",      0x00ff00},
+    {"magenta",   0xff00ff}, {"fuchsia",   0xff00ff},
+    {"maroon",    0x800000}, {"navy",      0x000080},
+    {"olive",     0x808000}, {"orange",    0xff8000},
+    {"pink",      0xff8888}, {"purple",    0x800080},
+    {"red",       0xff0000}, {"silver",    0xc0c0c0},
+    {"teal",      0x008080}, {"white",     0xffffff},
+    {"yellow",    0xffff00}, {NULL, 0}
+  };
+  char hex[7];
+  int index_;
+  glui32 rgb;
+
+  if (token == NULL || token[0] == '\0' || strcmp (token, "default") == 0)
+    return GSC_COLOUR_NONE;
+
+  for (index_ = 0; COLOUR_NAMES[index_].name; index_++)
+    {
+      if (strcmp (token, COLOUR_NAMES[index_].name) == 0)
+        return COLOUR_NAMES[index_].rgb;
+    }
+
+  /* Not a name, so a hex triplet.  The Runner drops a leading '#', gives up on
+     anything longer than six digits (white), and right-pads a short one with
+     zeros -- "<font colour=f00>" is 0xf00000 there, not 0xff0000. */
+  if (token[0] == '#')
+    token++;
+  if (strlen (token) > 6)
+    return 0xffffff;
+  for (index_ = 0; index_ < 6; index_++)
+    hex[index_] = token[index_] != '\0' ? token[index_] : '0';
+  hex[6] = '\0';
+  for (index_ = 0; index_ < 6; index_++)
+    {
+      if (!isxdigit ((unsigned char) hex[index_]))
+        return GSC_COLOUR_NONE;
+    }
+  rgb = (glui32) strtoul (hex, NULL, 16);
+  return rgb;
+}
+
+
+/*
+ * gsc_colour_from_tag()
+ *
+ * Dig the value of `key` -- "colour" or "bgcolour" -- out of a tag argument,
+ * accepting the American spelling too, and return the colour it names.
+ * Returns GSC_COLOUR_NONE when the tag carries no such attribute, so a
+ * <font face=...> with no colour leaves the colour alone.
+ *
+ * The key has to match at a word boundary or "colour" would also be found
+ * inside "bgcolour", and a background would silently become a foreground.
+ *
+ * Whitespace is allowed on either side of the '=', as it is in the HTML the
+ * Runner hands its tags to; see a5_font_colour() in adrift5/a5text.cpp.
+ */
+static glui32
+gsc_colour_from_tag (const scr_char *tag, const char *key)
+{
+  char american[16], token[32];
+  const char *keys[2];
+  scr_char *lower;
+  glui32 result = GSC_COLOUR_NONE;
+  int pass;
+  scr_int index_;
+
+  /* Both the key and the value it finds are compared lowercased; the tag
+     arrives as the author wrote it. */
+  lower = (decltype (lower)) gsc_malloc (strlen (tag) + 1);
+  memcpy (lower, tag, strlen (tag) + 1);
+  for (index_ = 0; lower[index_] != '\0'; index_++)
+    lower[index_] = glk_char_to_lower (lower[index_]);
+
+  /* "colour" -> "color": drop the 'u' before the final 'r'. */
+  {
+    size_t length = strlen (key), index_ = 0, out = 0;
+
+    assert (length < sizeof (american));
+    for (; index_ < length; index_++)
+      {
+        if (!(key[index_] == 'u' && index_ + 2 == length))
+          american[out++] = key[index_];
+      }
+    american[out] = '\0';
+  }
+  keys[0] = key;
+  keys[1] = american;
+
+  for (pass = 0; pass < 2 && result == GSC_COLOUR_NONE; pass++)
+    {
+      const scr_char *at = lower;
+
+      while ((at = strstr (at, keys[pass])) != NULL)
+        {
+          const scr_char *value;
+          size_t length = 0;
+
+          if (at > lower && (isalnum ((unsigned char) at[-1]) || at[-1] == '_'))
+            {
+              at += strlen (keys[pass]);
+              continue;
+            }
+          value = at + strlen (keys[pass]);
+          while (isspace ((unsigned char) *value))
+            value++;
+          if (*value != '=')
+            {
+              /* A "colour" that is not an attribute assignment at all. */
+              at += strlen (keys[pass]);
+              continue;
+            }
+          value++;
+          while (isspace ((unsigned char) *value))
+            value++;
+          if (*value == '"' || *value == '\'')
+            {
+              scr_char quote = *value++;
+              while (value[length] != '\0' && value[length] != quote)
+                length++;
+            }
+          else
+            {
+              while (value[length] != '\0'
+                     && !isspace ((unsigned char) value[length])
+                     && value[length] != '>' && value[length] != '"')
+                length++;
+            }
+          if (length >= sizeof (token))
+            length = sizeof (token) - 1;
+          memcpy (token, value, length);
+          token[length] = '\0';
+          result = gsc_colour_lookup (token);
+          break;
+        }
+    }
+
+  free (lower);
+  return result;
+}
+
+
+/*
+ * gsc_colour_apply()
+ *
+ * Set the colours later text written to `win` comes out in: `fg` if it names
+ * one, otherwise the game's normal output colour, always over the game's
+ * background.  Does nothing at all unless the colour mode is on, so every
+ * caller can call it unconditionally.
+ */
+static void
+gsc_colour_apply (winid_t win, glui32 fg)
+{
+#ifdef GSC_HAVE_ZCOLORS
+  if (!gsc_colour_enabled || win == NULL)
+    return;
+  if (fg == GSC_COLOUR_NONE)
+    fg = gsc_colour_output;
+  if (win == gsc_main_window)
+    gsc_colour_main_fg = fg;
+  garglk_set_zcolors_stream (glk_window_get_stream (win),
+                             fg, gsc_colour_background);
+#else
+  (void) win;
+  (void) fg;
+#endif
+}
+
+
+/*
+ * gsc_colour_echo()
+ *
+ * Switch between the colour the player's typing is echoed in and the colour
+ * the game's own text comes out in; see the forward declaration above
+ * gsc_read_line_locale().
+ */
+static void
+gsc_colour_echo (scr_bool typing)
+{
+  gsc_colour_apply (gsc_main_window,
+                    typing ? gsc_colour_input : GSC_COLOUR_NONE);
 }
 
 
@@ -1605,6 +2082,8 @@ gsc_font_top (void)
     {
       font.is_monospaced = FALSE;
       font.size = GSC_DEFAULT_FONT_SIZE;
+      font.symbol_font = GSC_SYMBOL_NONE;
+      font.colour = GSC_COLOUR_NONE;
     }
   return font;
 }
@@ -1621,6 +2100,18 @@ gsc_set_glk_style (void)
   const gsc_font_size_t font = gsc_font_top ();
   const scr_bool is_monospaced = font.is_monospaced;
   const scr_int font_size = font.size;
+
+  /*
+   * In colour mode the Adrift colours ride alongside the Glk style: an
+   * explicit <font colour=...> if one is open, otherwise the typed colour
+   * while <c> is (the Runner's "replies" colour being the normal one).  The
+   * Glk style is still set below, so bold and centering keep working; only
+   * the ink changes.
+   */
+  gsc_colour_apply (gsc_main_window,
+                    font.colour != GSC_COLOUR_NONE ? font.colour
+                    : gsc_attribute_secondary_colour > 0 ? gsc_colour_input
+                    : GSC_COLOUR_NONE);
 
   /*
    * Map the font and current attributes into a Glk style.  Because Glk styles
@@ -1658,13 +2149,13 @@ gsc_set_glk_style (void)
         {
           /*
            * For bold, use Subheader; for italics, underline, or secondary
-           * color, use Emphasized.
+           * colour, use Emphasized.
            */
           if (gsc_attribute_bold > 0)
             glk_set_style (style_Subheader);
           else if (gsc_attribute_italic > 0
                    || gsc_attribute_underline > 0
-                   || gsc_attribute_secondary_color > 0)
+                   || gsc_attribute_secondary_colour > 0)
             glk_set_style (style_Emphasized);
           else
             {
@@ -1675,6 +2166,127 @@ gsc_set_glk_style (void)
               glk_set_style (style_Normal);
             }
         }
+    }
+}
+
+
+/*
+ * Webdings-to-Unicode translation table, indexed by character code.
+ *
+ * Webdings is a symbol font: its byte values are pictograms, not letters, so a
+ * game that writes <font face="Webdings">...</font> is drawing pictures with
+ * what would otherwise be text.  Glk has no way to select a font by name, but
+ * most Webdings pictograms were given Unicode code points in Unicode 7.0 (the
+ * Wingdings/Webdings additions), so they can be reproduced by translating to
+ * the equivalent Unicode character and printing that instead.
+ *
+ * The character-to-pictogram assignments were read off the glyph names in the
+ * `post` table of the Webdings font itself, rather than guessed: entry 0xFF,
+ * for instance, is the glyph named "peace", i.e. U+1F54A DOVE OF PEACE.  That
+ * is the one this table actually exists for -- Topaz (Woodfish) draws a dove
+ * under its title with <font face="Webdings" size=72>\xFF</font>, which
+ * without translation prints as a stray "y-umlaut".  The rest are filled in
+ * where the Unicode equivalent is unambiguous; entries left 0 have no good
+ * equivalent and print as '?'.
+ */
+static const glui32 GSC_WEBDINGS_TO_UNICODE[] = {
+  /* 0x00 */
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  /* 0x20 space, spider, web, no-piracy, sunglasses, trophy, medal, link */
+  0x0020, 0x1F577, 0x1F578, 0x1F572, 0x1F576, 0x1F3C6, 0x1F396, 0x1F517,
+  /* 0x28 speech bubbles, then new/updated/hot/ribbon/checkerboard (no map) */
+  0x1F5E8, 0x1F5E9, 0, 0, 0, 0, 0, 0,
+  /* 0x30 window controls (no map), then transport controls */
+  0, 0, 0, 0, 0, 0, 0, 0x23EA,
+  0x23E9, 0x23EE, 0x23ED, 0x23F8, 0x23F9, 0x23FA, 0, 0x1F5F3,
+  /* 0x40 tools, construction, town/city/site/desert/factory (no map), home */
+  0x1F6E0, 0x1F6A7, 0, 0, 0, 0, 0, 0,
+  0x1F3E0, 0x1F3D6, 0x1F3DD, 0x1F6E3, 0, 0x26F0, 0x1F441, 0x1F442,
+  /* 0x50 park, tent, rail (no map), stadium, ship, sound on/off */
+  0x1F3DE, 0x26FA, 0, 0x1F3DF, 0x1F6F3, 0x1F50A, 0x1F507, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  /* 0x60 loop/check (no map), bicycle, ... fire ... */
+  0, 0, 0x1F6B2, 0, 0, 0, 0x1F525, 0,
+  0x2695, 0x2139, 0x1F6E9, 0x1F6F0, 0, 0, 0, 0x26F5,
+  /* 0x70 police, refresh/close/help (no map), train, metro, bus, flag */
+  0x1F693, 0, 0, 0, 0x1F686, 0x1F687, 0x1F68D, 0x1F6A9,
+  0, 0x26D4, 0x1F6AD, 0, 0, 0, 0, 0,
+  /* 0x80 men, women, boy/girl (no map), baby */
+  0x1F6B9, 0x1F6BA, 0, 0, 0x1F6BC, 0, 0, 0x26F7,
+  0, 0x1F3CC, 0x1F3CA, 0x1F3C4, 0x1F3CD, 0x1F3CE, 0x1F698, 0,
+  /* 0x90 ... credit card ... mail ... */
+  0, 0, 0, 0x1F4B3, 0, 0, 0, 0,
+  0, 0, 0, 0x1F582, 0, 0, 0, 0,
+  /* 0xA0 ... clipboard, calendar, book, news, art, theatre, music */
+  0, 0, 0, 0, 0x1F4CB, 0, 0x1F4C5, 0x1F56E,
+  0, 0x1F5DE, 0, 0, 0, 0x1F3A8, 0x1F3AD, 0x1F3B5,
+  /* 0xB0 microphone, headphones, disc, film frames, ticket, clapper, video */
+  0, 0x1F3A4, 0x1F3A7, 0x1F4BF, 0x1F39E, 0, 0x1F39F, 0x1F3AC,
+  0, 0x1F4F9, 0, 0x1F4FB, 0x1F39A, 0x1F39B, 0x1F4FA, 0,
+  /* 0xC0 ... joystick ... fax, pager, mobile ... printer */
+  0, 0, 0, 0x1F579, 0, 0, 0x1F4E0, 0x1F4DF,
+  0x1F4F1, 0, 0x1F5A8, 0, 0, 0, 0, 0x1F512,
+  /* 0xD0 unlocked, ... weather from 0xD5 */
+  0x1F513, 0, 0, 0, 0, 0x2600, 0x1F324, 0x1F325,
+  0x1F326, 0x2601, 0x1F328, 0x1F327, 0x1F329, 0x1F32A, 0x1F32C, 0x1F32B,
+  /* 0xE0 moon, thermometer, ... dining ... parking, wheelchair, warning */
+  0x1F319, 0x1F321, 0, 0, 0x1F374, 0, 0, 0,
+  0x1F17F, 0x267F, 0x26A0, 0, 0, 0, 0, 0,
+  /* 0xF0 ... airplane, animal, bird, fish, dog, cat, rockets */
+  0, 0x2708, 0, 0x1F426, 0x1F41F, 0x1F415, 0x1F408, 0,
+  /* 0xF8 rockets (no map), world map, globes, and the peace dove at 0xFF */
+  0, 0, 0, 0x1F5FA, 0x1F30D, 0x1F30E, 0x1F30F, 0x1F54A
+};
+
+/*
+ * gsc_put_string_symbol()
+ *
+ * Write a string whose bytes are symbol-font pictograms, translating each to
+ * its Unicode equivalent.  Characters with no equivalent, and any character
+ * the Glk library cannot print exactly, fall back to '?' -- the same thing
+ * gsc_put_char_locale() does when it runs out of options.
+ */
+static void
+gsc_put_string_symbol (const scr_char *string, gsc_symbol_font_t symbol_font)
+{
+  scr_int index_;
+
+  assert (string);
+
+  for (index_ = 0; string[index_] != '\0'; index_++)
+    {
+      const unsigned char character = (unsigned char) string[index_];
+      glui32 unicode = 0;
+
+      if (symbol_font == GSC_SYMBOL_WEBDINGS)
+        unicode = GSC_WEBDINGS_TO_UNICODE[character];
+
+      /*
+       * Newlines are layout, not pictograms, and have to survive translation
+       * so that centring and line breaks still work inside the tag.
+       */
+      if (character == '\n')
+        {
+          glk_put_char ('\n');
+          continue;
+        }
+
+      if (unicode > 0 && unicode < GSC_ISO_8859_EQUIVALENCE)
+        {
+          glk_put_char ((unsigned char) unicode);
+          continue;
+        }
+
+      if (unicode > 0 && gsc_unicode_enabled
+          && glk_gestalt (gestalt_CharOutput,
+                          unicode) == gestalt_CharOutput_ExactPrint)
+        {
+          gsc_put_char_uni (unicode, NULL);
+          continue;
+        }
+
+      glk_put_char ('?');
     }
 }
 
@@ -1714,7 +2326,26 @@ gsc_handle_font_tag (const scr_char *argument)
            */
           font.is_monospaced = strncmp (face, "face=\"courier\"", 14) == 0
                                || strncmp (face, "face=\"terminal\"", 15) == 0;
+
+          /*
+           * Symbol faces need their content translated to Unicode rather than
+           * printed as text; see gsc_put_string_symbol().
+           */
+          font.symbol_font = strncmp (face, "face=\"webdings\"", 15) == 0
+                             ? GSC_SYMBOL_WEBDINGS : GSC_SYMBOL_NONE;
         }
+
+      /*
+       * Find any colour= portion of the tag argument.  Absent one the font
+       * keeps the colour it inherited from the enclosing tag, which is what
+       * the Runner does -- <font colour="red"><font size=20>x</font></font>
+       * is red throughout.
+       */
+      {
+        const glui32 colour = gsc_colour_from_tag (lower, "colour");
+        if (colour != GSC_COLOUR_NONE)
+          font.colour = colour;
+      }
 
       /* Find the size= portion of the tag argument. */
       size = strstr (lower, "size=");
@@ -1779,8 +2410,8 @@ gsc_handle_attribute_tag (scr_int tag)
     case SCR_TAG_UNDERLINE:
       gsc_attribute_underline++;
       break;
-    case SCR_TAG_COLOR:
-      gsc_attribute_secondary_color++;
+    case SCR_TAG_COLOUR:
+      gsc_attribute_secondary_colour++;
       break;
     default:
       break;
@@ -1809,9 +2440,9 @@ gsc_handle_endattribute_tag (scr_int tag)
       if (gsc_attribute_underline > 0)
         gsc_attribute_underline--;
       break;
-    case SCR_TAG_ENDCOLOR:
-      if (gsc_attribute_secondary_color > 0)
-        gsc_attribute_secondary_color--;
+    case SCR_TAG_ENDCOLOUR:
+      if (gsc_attribute_secondary_colour > 0)
+        gsc_attribute_secondary_colour--;
       break;
     default:
       break;
@@ -1911,7 +2542,7 @@ gsc_reset_glk_style (void)
   gsc_attribute_bold = 0;
   gsc_attribute_italic = 0;
   gsc_attribute_underline = 0;
-  gsc_attribute_secondary_color = 0;
+  gsc_attribute_secondary_colour = 0;
   gsc_attribute_center = 0;
   gsc_set_glk_style ();
 }
@@ -1996,7 +2627,7 @@ os_print_tag (scr_int tag, const scr_char *argument)
     case SCR_TAG_BOLD:
     case SCR_TAG_ITALICS:
     case SCR_TAG_UNDERLINE:
-    case SCR_TAG_COLOR:
+    case SCR_TAG_COLOUR:
       /* Handle with common attribute tag handler function. */
       gsc_handle_attribute_tag (tag);
       break;
@@ -2004,7 +2635,7 @@ os_print_tag (scr_int tag, const scr_char *argument)
     case SCR_TAG_ENDBOLD:
     case SCR_TAG_ENDITALICS:
     case SCR_TAG_ENDUNDERLINE:
-    case SCR_TAG_ENDCOLOR:
+    case SCR_TAG_ENDCOLOUR:
       /* Handle with common attribute endtag handler function. */
       gsc_handle_endattribute_tag (tag);
       break;
@@ -2051,6 +2682,26 @@ os_print_tag (scr_int tag, const scr_char *argument)
           gsc_attribute_center = 0;
           gsc_set_glk_style ();
         }
+      break;
+
+    case SCR_TAG_BGCOLOUR:
+      /*
+       * <bgcolour="red"> repaints the Runner's output pane.  There is no Glk
+       * way to change a window's background short of clearing it, and a game
+       * that sets a background mid-turn is not asking for its text to be
+       * wiped, so only the colour later text is drawn over changes; the
+       * window catches up at the next clear.  The argument is the whole tag
+       * contents (scprintf passes it verbatim, to match <font colour=...>),
+       * so it is parsed the same way -- and "default" returns the mode's own
+       * background rather than clearing the colour.
+       */
+      {
+        const glui32 colour = gsc_colour_from_tag (argument, "bgcolour");
+
+        gsc_colour_background
+          = (colour == GSC_COLOUR_NONE) ? 0x000000 : colour;
+        gsc_set_glk_style ();
+      }
       break;
 
     case SCR_TAG_WAIT:
@@ -2100,6 +2751,10 @@ os_print_string (const scr_char *string)
   assert (string);
   assert (glk_stream_get_current ());
 
+  /* The first output of a replayed opening is where a restart becomes visible
+     to the front end; take the map pane down before the text is laid out. */
+  gsc_map_notice_restart ();
+
   /*
    * If the current top of the font stack is monospaced, we may need to use an
    * alternative function to write this string.
@@ -2108,7 +2763,10 @@ os_print_string (const scr_char *string)
    * so we never be attempting monospaced output to the status window.
    * Nevertheless, check anyway.
    */
-  if (gsc_font_top ().is_monospaced
+  if (gsc_font_top ().symbol_font != GSC_SYMBOL_NONE
+      && glk_stream_get_current () == glk_window_get_stream (gsc_main_window))
+    gsc_put_string_symbol (string, gsc_font_top ().symbol_font);
+  else if (gsc_font_top ().is_monospaced
       && glk_stream_get_current () == glk_window_get_stream (gsc_main_window))
     gsc_put_string_alternate (string);
   else
@@ -3019,6 +3677,162 @@ gsc_command_verbose (const char *argument)
 
 
 /*
+ * gsc_set_colour()
+ * gsc_command_colour()
+ *
+ * Turn Adrift colours on and off.
+ *
+ * Adrift games are written for a Runner that paints its output pane in a
+ * palette of its own rather than in the interpreter's theme -- black behind,
+ * green replies, red typed text for ADRIFT 4 (the Runner's defaults, and the
+ * only place they live: nothing in the .taf carries a colour), the author's
+ * own four colours for ADRIFT 5 -- and a game that writes white text, or
+ * chooses colours to sit on black, needs that background to read at all.  Off
+ * by default, since the interpreter's own theme is what most players want;
+ * a player who wants the Runner's look every time starts the interpreter with
+ * "-c" (gsc_colour_startup_apply).
+ *
+ * Turning it on clears the window so the background is black from the top
+ * rather than only behind text written from here on; turning it off clears
+ * again, back to the theme's own background.  Both clears are the point of the
+ * command, not a side effect: Glk gives no other way to repaint a window.
+ */
+#ifdef GSC_HAVE_ZCOLORS
+/*
+ * gsc_colour_repaint()
+ *
+ * Take a text window into the game's palette, or hand it back to the theme.
+ * Both directions end in a clear, because a Glk window keeps the background a
+ * clear gave it and there is no other way to repaint one.
+ */
+static void
+gsc_colour_repaint (winid_t win, scr_bool state)
+{
+  strid_t stream;
+  glui32 bg;
+
+  if (win == NULL)
+    return;
+  stream = glk_window_get_stream (win);
+
+  if (state)
+    {
+      /* Set the colours first: a clear paints the window in the background
+         colour currently in force, so the order is what makes it black. */
+      gsc_colour_apply (win, GSC_COLOUR_NONE);
+      glk_window_clear (win);
+    }
+  else
+    {
+      /* Handing a window back is fiddlier than taking it, because a window
+         keeps the background a clear gave it: dropping the zcolors to Default
+         stops later text being coloured, but leaves the window itself black.
+         Only a clear made while a background zcolor is in force repaints it,
+         so the theme's own background has to be named for one last clear.
+         Three steps, and the order of the first two matters:
+
+           - drop to Default first, since glk_style_measure answers with the
+             zcolor in force folded in, and would otherwise report the black
+             we are trying to get rid of;
+           - measure style_Normal's background and clear with that as the
+             background zcolor, which repaints the window in it;
+           - drop to Default again, so text from here on follows the theme
+             like any other interpreter's. */
+      garglk_set_zcolors_stream (stream, zcolor_Default, zcolor_Default);
+      if (glk_style_measure (win, style_Normal, stylehint_BackColor, &bg))
+        garglk_set_zcolors_stream (stream, zcolor_Default, bg);
+      glk_window_clear (win);
+      garglk_set_zcolors_stream (stream, zcolor_Default, zcolor_Default);
+    }
+}
+
+static void
+gsc_set_colour (scr_bool state)
+{
+  gsc_colour_enabled = state;
+
+  gsc_colour_repaint (gsc_main_window, state);
+
+  /* An ADRIFT 5 game may keep a second pane of its own (Alien Diver's
+     "Status"), and it is as much the game's window as the story one: it has to
+     change palette with it, or the pane would sit there in the theme's colours
+     with the game's text on top.  Its content goes with the clear, as the
+     story window's does -- games write the pane from a <window> span, which
+     they re-run whenever what it shows changes. */
+  gsc_colour_repaint (gsc_a5_side_window, state);
+
+  /* The status line has a window of its own, and it follows the story window
+     into and out of colour mode whether or not it is asked to: Gargoyle's
+     zcolors are global as well as per-stream (gli_override_fg/bg apply to
+     every window at once).  Turning colour mode off therefore has to name
+     Default on the status stream as well, or the bar would keep the colours
+     it was last drawn in.  Going the other way needs nothing here, because
+     gsc_status_begin() names the bar's colours on every redraw -- it has to,
+     since a grid clear re-seeds the window's attributes.  The redraw below is
+     what actually repaints the bar either way, a grid window keeping the
+     pixels it was last given. */
+  if (gsc_status_window)
+    {
+      if (!state)
+        garglk_set_zcolors_stream (glk_window_get_stream (gsc_status_window),
+                                   zcolor_Default, zcolor_Default);
+      gsc_status_notify ();
+    }
+
+  /* The map pane is painted in the same palette, and it is drawn from the
+     prompt the turn loop prints -- which the command loop that brought us here
+     does not reach again until the next real turn.  Repaint it now, or the map
+     would sit in the old palette for one command more. */
+  gsc_map_screen_drop ();
+  gsc_map_redraw ();
+
+  gsc_main_at_line_start = TRUE;
+}
+#endif
+
+/*
+ * gsc_colour_startup_apply()
+ *
+ * Act on the "-c" switch, once the story and status windows exist and the
+ * ADRIFT 5 loader (if any) has replaced the palette globals with the
+ * adventure's own four colours -- both true by the time either main() calls
+ * this.  Not called on an autorestore: a restored session brings its own
+ * colour state back with it, and a switch on the command line has no business
+ * overriding what the player left the game in.
+ */
+static void
+gsc_colour_startup_apply (void)
+{
+#ifdef GSC_HAVE_ZCOLORS
+  if (gsc_colour_startup)
+    gsc_set_colour (TRUE);
+#endif
+}
+
+static void
+gsc_command_colour (const char *argument)
+{
+#ifdef GSC_HAVE_ZCOLORS
+  /* A bare "glk colour" turns colours on rather than asking after them, so
+     it is no use as a poll; "status" reports without acting, as it does for the
+     logging commands, and is what the summary asks with. */
+  const scr_bool poll = scr_strcasecmp (argument, "status") == 0;
+
+  gsc_command_toggle (poll ? "" : argument, "colour",
+                      "Glk Adrift colours are",
+                      gsc_colour_enabled, gsc_set_colour,
+                      "; text is drawn in the game's own colours, on the"
+                      " black background it was written for.\n",
+                      "; text follows the interpreter's own theme.\n", !poll);
+#else
+  assert (argument);
+  gsc_normal_string ("Glk Adrift colours are not available with this"
+                     " interpreter.\n");
+#endif
+}
+
+
+/*
  * gsc_command_print_version_number()
  * gsc_command_version()
  *
@@ -3324,6 +4138,13 @@ static gsc_command_t GSC_COMMAND_TABLE[] = {
    "zoom",                        GSC_USAGE_ZOOM},
   {"commands",       gsc_command_commands,       TRUE,  TRUE,  FALSE,
    "commands",                    GSC_USAGE_ONOFF},
+  /* "color" is a full alias rather than a prefix: neither spelling is a
+     prefix of the other, so each resolves on its own, at the cost of "glk col"
+     matching both and reporting itself ambiguous. */
+  {"colour",         gsc_command_colour,         TRUE,  TRUE,  FALSE,
+   "Adrift colours",              GSC_USAGE_ONOFFSTATUS},
+  {"color",          gsc_command_colour,         TRUE,  TRUE,  TRUE,
+   "Adrift colours",              GSC_USAGE_ONOFFSTATUS},
   /* No "hint" alias row: the dispatcher matches on prefix, so a second entry
      would make "glk hint" match two rows and report itself as ambiguous.  As
      a bare prefix of the sole "hints" row it already resolves. */
@@ -3404,9 +4225,10 @@ gsc_command_summary (const char *argument)
 
   /*
    * Call handlers that have status to report with an empty argument,
-   * prompting each to print its current setting.  The logging commands, along
-   * with map and zoom, act rather than report on an empty argument; the
-   * logging ones have an explicit "status" to poll instead, map and zoom none.
+   * prompting each to print its current setting.  The logging commands and
+   * the colour mode, along with map and zoom, act rather than report on an
+   * empty argument; those four have an explicit "status" to poll instead, map
+   * and zoom none.
    */
   for (entry = GSC_COMMAND_TABLE; entry->command; entry++)
     {
@@ -3424,7 +4246,8 @@ gsc_command_summary (const char *argument)
 
       is_log = entry->handler == gsc_command_script
                || entry->handler == gsc_command_inputlog
-               || entry->handler == gsc_command_readlog;
+               || entry->handler == gsc_command_readlog
+               || entry->handler == gsc_command_colour;
       entry->handler (is_log ? "status" : "");
     }
 }
@@ -3523,15 +4346,27 @@ gsc_command_help (const char *command)
       gsc_normal_string (" to hide it again; plain ");
       gsc_standout_string ("map");
       gsc_normal_string (" toggles it too, unless the game uses MAP for"
-                         " something of its own.\n\nFor games with wide"
-                         " maps, ");
+                         " something of its own.\n\nSome ADRIFT 5 games ask"
+                         " to open with their map already showing, and this"
+                         " one may be one of them; either way, whichever of ");
+      gsc_standout_string ("glk map on");
+      gsc_normal_string (" or ");
+      gsc_standout_string ("glk map off");
+      gsc_normal_string (" you use last is remembered for this game, and the"
+                         " next session starts that way.  A map with nothing"
+                         " on it yet -- during a title or options screen, say"
+                         " -- waits rather than opening empty, and appears as"
+                         " soon as you reach somewhere it can show.\n\nFor"
+                         " games with wide maps, ");
       gsc_standout_string ("glk map top");
       gsc_normal_string (" (or ");
       gsc_standout_string ("glk map above");
       gsc_normal_string (") moves the map to a band across the top of the"
                          " screen, above the status line; ");
       gsc_standout_string ("glk map right");
-      gsc_normal_string (" puts it back beside the story.\n\nThe map zooms"
+      gsc_normal_string (" puts it back beside the story.  This is remembered"
+                         " for the game as well, so the map comes back where"
+                         " you left it.\n\nThe map zooms"
                          " itself to fit its window.  Use ");
       gsc_standout_string ("glk zoom in");
       gsc_normal_string (" and ");
@@ -3706,6 +4541,27 @@ gsc_command_help (const char *command)
       gsc_normal_string (" to disable all Glk commands, including this one."
                          "  Once turned off, there is no way to turn Glk"
                          " commands back on while inside the game.\n");
+    }
+
+  else if (matched->handler == gsc_command_colour)
+    {
+      gsc_normal_string ("Shows the story in the colours ADRIFT would have"
+                         " used.\n\nUse ");
+      gsc_standout_string ("glk colour on");
+      gsc_normal_string (" to clear the screen to black and draw what follows"
+                         " in the game's own colours -- the ADRIFT Runner's"
+                         " green replies and red typed text for an ADRIFT 4"
+                         " game, or the colours the author chose for an"
+                         " ADRIFT 5 one -- honouring any colour the game asks"
+                         " for as it goes.  Use ");
+      gsc_standout_string ("glk colour off");
+      gsc_normal_string (" to clear the screen again and go back to the"
+                         " colours of the interpreter's own theme.  ");
+      gsc_standout_string ("glk color");
+      gsc_normal_string (" is the same command.\n\nGames written for a black"
+                         " screen can be hard to read without this; games that"
+                         " never set a colour of their own look much the same"
+                         " either way.\n");
     }
 
   else if (matched->handler == gsc_command_hints)
@@ -3990,7 +4846,9 @@ os_read_line (scr_char *buffer, scr_int length)
   gsc_status_notify ();
 
   /* The map follows the game: the ADRIFT 4 layout is centred on the room you
-     are in and grows as you explore, so it is redrawn at every prompt. */
+     are in and grows as you explore, so it is redrawn at every prompt -- and a
+     restart, which reaches the front end no other way, is caught here first. */
+  gsc_map_notice_restart ();
   gsc_map_redraw ();
 
 #ifdef SPATTERLIGHT
@@ -4000,7 +4858,7 @@ os_read_line (scr_char *buffer, scr_int length)
     gsc_autorestored = FALSE;
   else
     {
-      glk_put_string (">");
+      gsc_put_literal (">");
       /* Autosave at every top-level prompt: after the prompt is printed (so
          the GUI snapshot ends with it) but before input is requested (so
          the archived windows carry no pending request and a restore
@@ -4008,7 +4866,7 @@ os_read_line (scr_char *buffer, scr_int length)
       gsc_autosave ();
     }
 #else
-  glk_put_string (">");
+  gsc_put_literal (">");
 #endif
 
   /* A walk set going by a click on the map supplies the next direction itself,
@@ -4019,7 +4877,7 @@ os_read_line (scr_char *buffer, scr_int length)
       glk_set_style (style_Input);
       glk_put_string ((char *) buffer);
       glk_set_style (style_Normal);
-      glk_put_string ("\n");
+      gsc_put_literal ("\n");
       return TRUE;
     }
 
@@ -4148,7 +5006,7 @@ os_read_line_debug (scr_char *buffer, scr_int length)
 
   gsc_output_silence_help_hints ();
   gsc_reset_glk_style ();
-  glk_put_string ("[SCARIER debug]");
+  gsc_put_literal ("[SCARIER debug]");
 #ifdef SPATTERLIGHT
   /* A debugger prompt is mid-turn: not a state worth autosaving. */
   gsc_in_debug_read = TRUE;
@@ -4216,37 +5074,37 @@ os_confirm (scr_int type)
 
   /* Prompt for the confirmation, based on the type. */
   if (type == GSC_CONF_SUBTLE_HINT)
-    glk_put_string ("View the subtle hint for this topic");
+    gsc_put_literal ("View the subtle hint for this topic");
   else if (type == GSC_CONF_UNSUBTLE_HINT)
-    glk_put_string ("View the unsubtle hint for this topic");
+    gsc_put_literal ("View the unsubtle hint for this topic");
   else if (type == GSC_CONF_CONTINUE_HINTS)
-    glk_put_string ("Continue with hints");
+    gsc_put_literal ("Continue with hints");
   else
     {
-      glk_put_string ("Do you really want to ");
+      gsc_put_literal ("Do you really want to ");
       switch (type)
         {
         case SCR_CONF_QUIT:
-          glk_put_string ("quit");
+          gsc_put_literal ("quit");
           break;
         case SCR_CONF_RESTART:
-          glk_put_string ("restart");
+          gsc_put_literal ("restart");
           break;
         case SCR_CONF_SAVE:
-          glk_put_string ("save");
+          gsc_put_literal ("save");
           break;
         case SCR_CONF_RESTORE:
-          glk_put_string ("restore");
+          gsc_put_literal ("restore");
           break;
         case SCR_CONF_VIEW_HINTS:
-          glk_put_string ("view hints");
+          gsc_put_literal ("view hints");
           break;
         default:
-          glk_put_string ("do that");
+          gsc_put_literal ("do that");
           break;
         }
     }
-  glk_put_string ("? ");
+  gsc_put_literal ("? ");
 
   /* Wait until 'yes' or 'no' entered. */
   response = gsc_get_choice_key ("YN");
@@ -4479,7 +5337,7 @@ enum gsc_end_option { GAME_RESTART, GAME_UNDO, GAME_QUIT };
  * The following value needs to be passed between the startup_code and main
  * functions.
  */
-static char *gsc_game_message = NULL;
+static const char *gsc_game_message = NULL;
 
 
 /*
@@ -4516,7 +5374,7 @@ gsc_get_ending_option (void)
   gsc_status_notify ();
 
   /* Prompt for restart, undo, or quit, and wait for one of the three. */
-  glk_put_string ("\nWould you like to RESTART, UNDO a turn, or QUIT? ");
+  gsc_put_literal ("\nWould you like to RESTART, UNDO a turn, or QUIT? ");
   switch (gsc_get_choice_key ("RUQ"))
     {
     case 'R':
@@ -4642,6 +5500,45 @@ gsc_apply_known_game_assists (scr_game game)
 
 
 /*
+ * gsc_hash_game_stream()
+ *
+ * Set gsc_game_key from the contents of the game file, and rewind the stream
+ * so that the loader still sees it whole.
+ *
+ * This is only ever a name to hang a settings file off, never a claim about
+ * the file's contents, so a 64-bit FNV-1a of the bytes with the length hung
+ * on the end is ample: the whole population it has to keep apart is one
+ * player's game folder.  It is deliberately not the Treaty of Babel IFID --
+ * that is a published identifier, and inventing a private one that looks like
+ * it would be worse than an obviously local name.
+ */
+static void
+gsc_hash_game_stream (strid_t stream)
+{
+  static const unsigned long long fnv_offset = 0xcbf29ce484222325ULL;
+  static const unsigned long long fnv_prime = 0x100000001b3ULL;
+  unsigned long long hash = fnv_offset;
+  unsigned long length = 0;
+  char buffer[4096];
+  glui32 count;
+
+  do
+    {
+      glui32 i;
+
+      count = glk_get_buffer_stream (stream, buffer, (glui32) sizeof buffer);
+      for (i = 0; i < count; i++)
+        hash = (hash ^ (unsigned char) buffer[i]) * fnv_prime;
+      length += count;
+    }
+  while (count == sizeof buffer);
+
+  glk_stream_set_position (stream, 0, seekmode_Start);
+  snprintf (gsc_game_key, sizeof gsc_game_key, "%016llx%08lx", hash, length);
+}
+
+
+/*
  * gsc_startup_code()
  * gsc_main
  *
@@ -4679,7 +5576,7 @@ gsc_startup_code (strid_t game_stream, strid_t restore_stream,
        * Display a brief loading game message; here we have to use a timeout
        * to ensure that the text is flushed to Glk.
        */
-      glk_put_string ("Loading game...\n");
+      gsc_put_literal ("Loading game...\n");
       if (glk_gestalt (gestalt_Timer, 0))
         {
           event_t event;
@@ -4730,6 +5627,11 @@ gsc_startup_code (strid_t game_stream, strid_t restore_stream,
       scr_reseed_random_sequence (1);
     }
 
+  /* Name the game file, while the stream is still open and at its start: both
+     loaders below want the file from the beginning, and only one of them (the
+     ADRIFT 5 one) finds an IFID inside it. */
+  gsc_hash_game_stream (game_stream);
+
   /*
    * ADRIFT 5 detection.  ADRIFT 5 games are zlib-compressed XML (optionally
    * Blorb-wrapped) and unrelated to the ADRIFT <=4 TAF format the scare engine
@@ -4746,6 +5648,12 @@ gsc_startup_code (strid_t game_stream, strid_t restore_stream,
           gsc_is_a5 = TRUE;
           gsc_game = NULL;
           gsc_game_message = NULL;
+          /* Unlike ADRIFT 4, where the palette is a Runner preference the .taf
+             knows nothing about, an ADRIFT 5 adventure carries the author's
+             own colours; colour mode uses those. */
+          gsc_colour_background = gsc_a5_adv->bg_colour;
+          gsc_colour_output = gsc_a5_adv->output_colour;
+          gsc_colour_input = gsc_a5_adv->input_colour;
           glk_stream_close (game_stream, NULL);
           if (restore_stream)
             glk_stream_close (restore_stream, NULL);
@@ -4871,6 +5779,9 @@ gsc_main (void)
         }
 
       gsc_open_status_window ();
+
+      /* "-c": into the game's palette before a word is printed. */
+      gsc_colour_startup_apply ();
     }
 
   /* Does the game define a MAP verb of its own?  If so it keeps it, and the
@@ -4940,6 +5851,17 @@ gsc_main (void)
       gsc_autorestored = TRUE;
     }
 #endif
+
+  /* Bring back the map if the player left this game with one.  Before the
+     intro rather than after it, unlike the ADRIFT 5 path: there is no title
+     page here to keep the screen to itself, and opening the pane first spares
+     the opening text being laid out twice.  It usually opens a moment later
+     anyway -- the starting room is not marked seen until it has been
+     described, so there is nothing to draw yet and the first prompt's redraw
+     is what actually reveals it.  An autorestore keeps the archived pane
+     instead, whatever it was. */
+  if (!autorestore)
+    gsc_map_auto_reveal ();
 
   /* Repeat the game until no more restarts requested. */
   is_running = TRUE;
@@ -5384,6 +6306,10 @@ gsc_a5_read_line_raw (char *buf, int bufsize)
   glk_set_echo_line_event (gsc_main_window, gsc_a5_real_time ? 0 : 1);
 #endif
 
+  /* The author's input colour for what the player types, whether the echo is
+     Glk's or the manual one below. */
+  gsc_colour_echo (TRUE);
+
   if (gsc_unicode_enabled)
     {
       const glui32 cap = 256;
@@ -5438,6 +6364,7 @@ gsc_a5_read_line_raw (char *buf, int bufsize)
       glk_set_style (style_Normal);
       gsc_a5_put_string ("\n");
     }
+  gsc_colour_echo (FALSE);
   return n;
 }
 
@@ -5483,10 +6410,62 @@ gsc_a5_read_line (char *buf, int bufsize)
 }
 
 /*
+ * gsc_a5_popup_input()
+ *
+ * Answer the %PopUpInput[prompt, default]% text function -- ADRIFT's naming
+ * prompts, typically a System <RunImmediately> task that asks for the
+ * player's name before the title (The After School Special: SetProperty
+ * Player CharacterProperName %PopUpInput["Please enter your name",
+ * "Anonymous"]%).  The Runner pops a modal VB InputBox seeded with the
+ * author's default (Global.vb:2296); Glk has no dialog, so ask in the story
+ * window instead -- print the prompt, take one line -- and read an empty
+ * answer as the default, which is what OK on an unedited box returns.
+ * Returns a heap-allocated answer the engine takes ownership of, or NULL to
+ * fall back to the default (see a5text.h a5_popup_cb).
+ */
+static char *
+gsc_a5_popup_input (void * /*ctx*/, const char *prompt, const char *dflt)
+{
+  char input[1024];
+  int saved_real_time, n;
+
+  /* No window to ask in, or a silent boot (the autorestore below replays the
+     intro only to reach the saved state, whose name the player already
+     chose): take the default without troubling anyone. */
+  if (gsc_main_window == NULL || gsc_a5_popup_silent)
+    return NULL;
+
+  gsc_a5_put_string ("\n");
+  if (prompt != NULL && prompt[0] != '\0')
+    gsc_a5_put_string (prompt);
+  if (dflt != NULL && dflt[0] != '\0')
+    {
+      /* The InputBox arrives with the default already filled in; say what
+         answering with an empty line will give. */
+      gsc_a5_put_string (" [");
+      gsc_a5_put_string (dflt);
+      gsc_a5_put_string ("]");
+    }
+  gsc_a5_put_string ("\n> ");
+
+  /* This runs inside the engine (mid text-render), so a TimeBased tick must
+     not re-enter it: hold real-time mode off for the duration, which also
+     hands the echo of the typed answer back to the library. */
+  saved_real_time = gsc_a5_real_time;
+  gsc_a5_real_time = FALSE;
+  n = gsc_a5_read_line_raw (input, sizeof input);
+  gsc_a5_real_time = saved_real_time;
+
+  return n > 0 ? gsc_copy_string (input) : NULL;
+}
+
+/*
  * gsc_a5_match_command()
  *
  * Case-insensitively test whether the player input (after trimming surrounding
- * whitespace) equals the given meta-command word.
+ * whitespace) equals the given word.  Both sides are folded, so the word can be
+ * a mixed-case one taken from the game (a %PopUpChoice% option) as well as one
+ * of the port's own lower-case meta-commands.
  */
 static int
 gsc_a5_match_command (const char *input, const char *command)
@@ -5495,7 +6474,8 @@ gsc_a5_match_command (const char *input, const char *command)
     input++;
   while (*input && *command)
     {
-      if (glk_char_to_lower ((unsigned char) *input) != (unsigned char) *command)
+      if (glk_char_to_lower ((unsigned char) *input)
+          != glk_char_to_lower ((unsigned char) *command))
         return FALSE;
       input++;
       command++;
@@ -5503,6 +6483,81 @@ gsc_a5_match_command (const char *input, const char *command)
   while (*input == ' ' || *input == '\t')
     input++;
   return *input == '\0' && *command == '\0';
+}
+
+/*
+ * gsc_a5_popup_choice()
+ *
+ * Answer the %PopUpChoice[prompt, choice1, choice2]% text function -- ADRIFT's
+ * two-way prompts, in practice the gender question a game asks before play
+ * (Beagle2's System <RunImmediately> Autorun, "Are you Male or Female?", whose
+ * answer a SetGender task turns into the Player's Gender property).  The Runner
+ * puts up a modal Yes/No MsgBox where Yes yields the first choice and No the
+ * second (Global.vb:2278); Glk has no dialog, so ask in the story window.
+ * Since the choices carry the meaning and the buttons don't, name both in the
+ * prompt and accept either the choice itself or its yes/no button.  Returns
+ * non-zero for the first choice, 0 for the second, or negative to leave the
+ * token unevaluated (see a5text.h a5_popup_choice_cb).
+ */
+static int
+gsc_a5_popup_choice (void * /*ctx*/, const char *prompt,
+                     const char *choice1, const char *choice2)
+{
+  char input[1024];
+  int saved_real_time, picked;
+
+  /* No window to ask in, or a silent boot (the autorestore below replays the
+     opening only to reach the saved state, whose answer the player already
+     gave): leave the question unasked, as an unattended Runner does. */
+  if (gsc_main_window == NULL || gsc_a5_popup_silent)
+    return -1;
+
+  /* This runs inside the engine (mid text-render), so a TimeBased tick must
+     not re-enter it: hold real-time mode off for the duration, which also
+     hands the echo of the typed answer back to the library. */
+  saved_real_time = gsc_a5_real_time;
+  gsc_a5_real_time = FALSE;
+
+  for (;;)
+    {
+      int n;
+
+      gsc_a5_put_string ("\n");
+      if (prompt != NULL && prompt[0] != '\0')
+        gsc_a5_put_string (prompt);
+      gsc_a5_put_string (" [yes = ");
+      gsc_a5_put_string (choice1);
+      gsc_a5_put_string (" / no = ");
+      gsc_a5_put_string (choice2);
+      gsc_a5_put_string ("]\n> ");
+
+      n = gsc_a5_read_line_raw (input, sizeof input);
+
+      /* An empty line takes the dialog's default button, Yes -- what Return on
+         an untouched MsgBox gives.  It also ends the loop at end of input, so
+         a readlog replay that runs dry cannot spin here. */
+      if (n <= 0
+          || gsc_a5_match_command (input, "yes")
+          || gsc_a5_match_command (input, "y")
+          || gsc_a5_match_command (input, choice1))
+        {
+          picked = TRUE;
+          break;
+        }
+      if (gsc_a5_match_command (input, "no")
+          || gsc_a5_match_command (input, "n")
+          || gsc_a5_match_command (input, choice2))
+        {
+          picked = FALSE;
+          break;
+        }
+
+      /* A MsgBox has no third answer; ask again rather than invent one. */
+      gsc_a5_put_string ("Please answer yes or no.\n");
+    }
+
+  gsc_a5_real_time = saved_real_time;
+  return picked;
 }
 
 /*
@@ -6028,6 +7083,7 @@ gsc_stash_frontend_state (ScarierGlkFrontendState *st)
   st->map_shown = gsc_map_shown;
   st->map_at_top = gsc_map_at_top;
   st->map_zoom = gsc_map_zoom;
+  st->colour_on = gsc_colour_enabled;
 
   /* The exact RNG state (which generator is active plus the xoshiro words),
      so a deterministic session's randomness continues where it left off. */
@@ -6076,6 +7132,23 @@ gsc_recover_frontend_state (const ScarierGlkFrontendState *st)
   gsc_map_shown = st->map_shown;
   gsc_map_at_top = st->map_at_top;
   gsc_map_zoom = st->map_zoom;
+  /* The restored streams still carry the zcolors colour mode set on them, and
+     the restored windows their black background, so taking the flag back is
+     all it takes to pick the mode up where it left off.  (An autosave written
+     before this field existed decodes as 0, which is what those sessions
+     restored as anyway.) */
+  gsc_colour_enabled = st->colour_on;
+  /* A map that was wanted but still waiting for somewhere to draw was archived
+     closed, and looks exactly like one the player shut; what the map would do
+     from a standing start -- the stored preference, or failing that the
+     layout the game shipped -- is what tells the two apart, so the wait
+     survives the autosave. */
+  {
+    int pref = gsc_map_pref_read (NULL);
+
+    gsc_map_want = gsc_map_shown || pref == 1
+                   || (pref < 0 && gsc_map_default_shown ());
+  }
   /* The restored map window holds the app's snapshot pixels, not ours:
      force the next redraw to flush the whole surface. */
   gsc_map_screen_drop ();
@@ -6093,7 +7166,10 @@ gsc_recover_frontend_state (const ScarierGlkFrontendState *st)
   /* Not stashed: gsc_map_taken, assist flags and locale are re-derived at
      startup; the walk-in-progress state is deliberately dropped (a restored
      session simply stops walking); gsc_map itself is authored data (ADRIFT
-     5, reloaded at boot) or rebuilt every redraw (ADRIFT 4). */
+     5, reloaded at boot) or rebuilt every redraw (ADRIFT 4); and the restart
+     count gsc_map_notice_restart watches is per-process on both sides of the
+     comparison, so a fresh process starts it and the engine's at zero
+     together. */
 }
 
 /* The on-disk game path, for the autosave directory's file-signature hash. */
@@ -6208,11 +7284,43 @@ static winid_t
 gsc_a5_open_side_window (void)
 {
   if (gsc_a5_side_window == NULL)
-    gsc_a5_side_window = glk_window_open (gsc_main_window,
-                                          winmethod_Right
-                                            | winmethod_Proportional,
-                                          40, wintype_TextBuffer, 0);
+    {
+      gsc_a5_side_window = glk_window_open (gsc_main_window,
+                                            winmethod_Right
+                                              | winmethod_Proportional,
+                                            40, wintype_TextBuffer, 0);
+#ifdef GSC_HAVE_ZCOLORS
+      /* A window opened in colour mode starts in the theme's background: it
+         takes the game's only from a clear made with the colours in force,
+         and there is nothing in it yet to lose to one. */
+      if (gsc_colour_enabled && gsc_a5_side_window)
+        {
+          gsc_colour_apply (gsc_a5_side_window, GSC_COLOUR_NONE);
+          glk_window_clear (gsc_a5_side_window);
+        }
+#endif
+    }
   return gsc_a5_side_window;
+}
+
+/*
+ * gsc_a5_colour_top()
+ *
+ * The colour in force given a stack of nested colour spans: the innermost one
+ * that names a colour.  A span that names none -- <font size=20> with no
+ * colour attribute -- is transparent to colour, so the enclosing <font
+ * colour="red"> still applies inside it, as it does in the Runner.
+ */
+static glui32
+gsc_a5_colour_top (const glui32 *stack, int depth)
+{
+  while (depth > 0)
+    {
+      if (stack[depth - 1] != GSC_COLOUR_NONE)
+        return stack[depth - 1];
+      depth--;
+    }
+  return GSC_COLOUR_NONE;
 }
 
 /*
@@ -6223,8 +7331,9 @@ gsc_a5_open_side_window (void)
  * image at its marked position, pause for a keypress at each <waitkey>
  * mark and for a timed delay at each <wait N> mark, clear the story window
  * at each <cls> mark, show <center> spans in the centered style_User1
- * (hinted for centered justification before the window opened), and <b>
- * spans in bold.  This is the same presentation the official Runner's
+ * (hinted for centered justification before the window opened), <b>
+ * spans in bold, and -- in colour mode -- <font colour> and <c> spans in
+ * their colours.  This is the same presentation the official Runner's
  * output pane gives, e.g., Anno 1700's intro: credits and cover image,
  * "Press any key", then a cleared screen for the opening narrative.
  */
@@ -6233,6 +7342,8 @@ gsc_a5_display (const char *text)
 {
   const char *p = text, *seg = text;
   int center_depth = 0, bold_depth = 0;
+  glui32 colour_stack[GSC_MAX_STYLE_NESTING];
+  int colour_depth = 0;
   /* The window a run of text is currently going to: the main story window, or
      an author-defined side window between an A5_WINDOW_MARK span and its
      A5_ENDWINDOW_MARK.  A <cls> inside the span clears that side window. */
@@ -6242,6 +7353,7 @@ gsc_a5_display (const char *text)
     return;
 
   glk_set_window (gsc_main_window);
+  gsc_colour_apply (gsc_main_window, GSC_COLOUR_NONE);
 
   while (TRUE)
     {
@@ -6250,7 +7362,8 @@ gsc_a5_display (const char *text)
           && *p != A5_ENDCENTER_MARK && *p != A5_BOLD_MARK
           && *p != A5_ENDBOLD_MARK && *p != A5_WINDOW_MARK
           && *p != A5_ENDWINDOW_MARK && *p != A5_SOUND_MARK
-          && *p != A5_COMMIT_MARK && *p != A5_WAIT_MARK)
+          && *p != A5_COMMIT_MARK && *p != A5_WAIT_MARK
+          && *p != A5_COLOUR_MARK && *p != A5_ENDCOLOUR_MARK)
         {
           p++;
           continue;
@@ -6282,6 +7395,8 @@ gsc_a5_display (const char *text)
 
           cur_window = w != NULL ? w : gsc_main_window;
           glk_set_window (cur_window);
+          gsc_colour_apply (cur_window,
+                            gsc_a5_colour_top (colour_stack, colour_depth));
           if (e != NULL)
             p = e;
         }
@@ -6290,6 +7405,8 @@ gsc_a5_display (const char *text)
           /* Side-window span closes: text returns to the main story window. */
           cur_window = gsc_main_window;
           glk_set_window (cur_window);
+          gsc_colour_apply (cur_window,
+                            gsc_a5_colour_top (colour_stack, colour_depth));
         }
       else if (*p == A5_WAITKEY_MARK)
         {
@@ -6311,8 +7428,46 @@ gsc_a5_display (const char *text)
              or <b> left open there ends now -- Death Shack's Introduction
              never closes its <center>, and the first room description (the
              next commit) must come out left-aligned, not centered. */
-          center_depth = bold_depth = 0;
+          center_depth = bold_depth = colour_depth = 0;
           glk_set_style (gsc_a5_span_style (0, 0));
+          gsc_colour_apply (cur_window, GSC_COLOUR_NONE);
+        }
+      else if (*p == A5_COLOUR_MARK)
+        {
+          /* Colour span opens: \027<value>\027, the value being a colour name
+             or hex triplet, the reserved token "input" for <c> (which the
+             Runner draws in its input colour), or empty for a <font> tag with
+             no colour of its own. */
+          const char *e = strchr (p + 1, A5_COLOUR_MARK);
+
+          if (e != NULL)
+            {
+              char token[32];
+              size_t n = (size_t) (e - (p + 1));
+
+              if (n >= sizeof token)
+                n = sizeof token - 1;
+              memcpy (token, p + 1, n);
+              token[n] = '\0';
+
+              if (colour_depth < GSC_MAX_STYLE_NESTING)
+                {
+                  colour_stack[colour_depth++]
+                    = strcmp (token, "input") == 0 ? gsc_colour_input
+                      : gsc_colour_lookup (token);
+                  gsc_colour_apply (cur_window,
+                                    gsc_a5_colour_top (colour_stack,
+                                                       colour_depth));
+                }
+              p = e;
+            }
+        }
+      else if (*p == A5_ENDCOLOUR_MARK)
+        {
+          if (colour_depth > 0)
+            colour_depth--;
+          gsc_colour_apply (cur_window,
+                            gsc_a5_colour_top (colour_stack, colour_depth));
         }
       else if (*p == A5_CENTER_MARK || *p == A5_ENDCENTER_MARK
                || *p == A5_BOLD_MARK || *p == A5_ENDBOLD_MARK)
@@ -6380,6 +7535,9 @@ gsc_a5_display (const char *text)
   /* A dangling <center> or <b> must not bleed into prompts and later turns. */
   if (center_depth > 0 || bold_depth > 0)
     glk_set_style (style_Normal);
+  /* Nor a dangling colour span: the prompt and the player's input follow. */
+  if (colour_depth > 0)
+    gsc_colour_apply (cur_window, GSC_COLOUR_NONE);
   /* Likewise a dangling <window> span: prompts and input echo belong in the
      main story window. */
   if (cur_window != gsc_main_window)
@@ -6585,6 +7743,48 @@ gsc_a5_present_intro_media (a5_run_t *run)
 }
 
 /*
+ * gsc_a5_printed_width()
+ * gsc_a5_next_char()
+ *
+ * The grid cells gsc_a5_put_string() fills for a UTF-8 string, and the start of
+ * the character following the one a string points at.  With Unicode output each
+ * multi-byte sequence prints as a single cell; without it the bytes go out as
+ * they are, one cell each.  Stepping is by whole sequences either way, so that
+ * a truncated tail stays well-formed UTF-8.
+ */
+static glui32
+gsc_a5_printed_width (const char *string)
+{
+  const unsigned char *p = (const unsigned char *) string;
+  glui32 width = 0;
+
+  if (!gsc_unicode_enabled)
+    return (glui32) strlen (string);
+
+  for (; *p != '\0'; p++)
+    {
+      if ((*p & 0xc0) != 0x80)
+        width++;
+    }
+  return width;
+}
+
+static const char *
+gsc_a5_next_char (const char *string)
+{
+  const unsigned char *p = (const unsigned char *) string + 1;
+
+  while ((*p & 0xc0) == 0x80)
+    p++;
+  return (const char *) p;
+}
+
+static const gsc_status_writer_t GSC_A5_STATUS_WRITER = {
+  gsc_a5_printed_width, gsc_a5_put_string, gsc_a5_next_char
+};
+
+
+/*
  * gsc_a5_status()
  *
  * Redraw the one-line status window: the current room name at the left, and the
@@ -6597,7 +7797,7 @@ gsc_a5_status (a5_run_t *run)
   char *room;
   char right[96];
   long score, maxscore;
-  size_t rlen;
+  glui32 room_end;
 
   if (!gsc_status_begin (&width))
     return;
@@ -6617,19 +7817,16 @@ gsc_a5_status (a5_run_t *run)
   /* Room name at the left. */
   glk_window_move_cursor (gsc_status_window, 1, 0);
   room = a5run_location_name (run);
+  room_end = 1;
   if (room)
     {
       gsc_a5_put_string (room);
+      room_end += gsc_a5_printed_width (room);
       free (room);
     }
 
-  /* Right-justified score/moves, if it fits. */
-  rlen = strlen (right);
-  if (width > rlen + 2)
-    {
-      glk_window_move_cursor (gsc_status_window, width - (glui32) rlen - 1, 0);
-      glk_put_string (right);
-    }
+  /* Right-justified score/moves. */
+  gsc_status_put_right (width, room_end, right, &GSC_A5_STATUS_WRITER);
 
   gsc_status_end ();
 }
@@ -6686,6 +7883,10 @@ gsc_a5_map_name (void *ctx, const char *lockey)
   name = a5text_location_short_plain (st, lockey);
   if (name == NULL)
     return NULL;
+  /* Map labels are drawn outside the story window, where the turn loop's own
+     strip pass never reaches: a room whose name lost a tag would otherwise
+     carry the stripped-tag sentinel into the box. */
+  a5text_strip_pres_marks (name);
   if (gsc_a5_map_n_names >= GSC_A5_MAP_NAMES)
     {
       /* Cache full (a huge page): draw this one and drop it. */
@@ -6720,6 +7921,12 @@ gsc_a5_map_ever_blocked (void *ctx, const char *lockey, int dir)
 static void
 gsc_a5_map_view (a5_state_t *st, map_view_t *view)
 {
+  /* The runner draws its map only after PrepareForNextTurn has emptied the
+     per-turn route memo, so a route un-blocked late in the turn is re-checked
+     fresh by the draw; drop the memo here to match.  (The turn loop clears it
+     again at the next command, so entries seeded by drawing never leak into
+     game-visible restriction checks.) */
+  a5restr_route_cache_clear (st);
   view->seen = gsc_a5_map_seen;
   view->name = gsc_a5_map_name;
   view->exit_dest = gsc_a5_map_exit_dest;
@@ -6770,6 +7977,42 @@ gsc_map_current (map_view_t *view, const char **player, char *keybuf,
 }
 
 /*
+ * gsc_map_worth_opening()
+ *
+ * Whether opening the pane right now would show the player anything.
+ *
+ * ADRIFT 5 games routinely run their title, credits and options screens from a
+ * staging room the map hides (Location <Hide>), and a page whose only seen room
+ * is hidden renders as an empty rectangle -- The Axe of Kolt spends three
+ * screens there before the game proper begins.  Rather than put up a blank
+ * pane, opening waits; every redraw asks again, so the map arrives with the
+ * first real room.
+ *
+ * ADRIFT 4 hides its map the same way, but a step earlier: the layout is
+ * derived from the room you are standing in, and from a room the author flagged
+ * HideOnMap the runner drew nothing at all (Form29.drawmap bails, so scmap_build
+ * hands back no map).  The PK Girl opens in such a room and plays its whole
+ * introduction there.  That is the same "wait for a real room" case, not a
+ * failure, so it defers too.
+ *
+ * A map that cannot be built for any other reason answers TRUE, because that is
+ * a different complaint and one the pane makes for itself: the game may have no
+ * map to show, or ADRIFT 4's layout may have given up ("too complex"), and the
+ * player asking for the map deserves to be told so.
+ */
+static int
+gsc_map_worth_opening (void)
+{
+  map_view_t view;
+  const char *ploc = NULL;
+  char keybuf[16];
+
+  if (!gsc_map_current (&view, &ploc, keybuf, sizeof keybuf))
+    return gsc_is_a5 || !gsc_map_available () || scmap_failed () != 0;
+  return map_has_content (gsc_map, &view, ploc);
+}
+
+/*
  * gsc_map_redraw()
  *
  * Rasterise the map and blit it into the graphics window.  Glk has no drawing
@@ -6791,6 +8034,12 @@ gsc_map_redraw (void)
   glui32 w, h;
   int x, y;
 
+  /* A map that was asked for while there was nothing on it: try again now
+     that the game has moved on.  (gsc_map_show comes straight back here, but
+     with gsc_map_shown set, so this runs once.) */
+  if (gsc_map_want && !gsc_map_shown && gsc_map_worth_opening ())
+    gsc_map_show ();
+
   if (!gsc_map_window)
     return;
 
@@ -6805,10 +8054,29 @@ gsc_map_redraw (void)
      measure leaves the palette at its black-on-white default. */
   {
     glui32 bg, fg;
-    if (glk_style_measure (gsc_main_window, style_Normal,
-                           stylehint_BackColor, &bg)
-        && glk_style_measure (gsc_main_window, style_Normal,
-                              stylehint_TextColor, &fg))
+    scr_bool have;
+
+#ifdef GSC_HAVE_ZCOLORS
+    /* In colour mode the game's own palette is named rather than measured: a
+       measure answers with the zcolor currently in force folded in (that is
+       what Spatterlight does), and which one that is depends on when the
+       redraw falls -- the output colour mid-turn, but the input echo colour in
+       a session restored at its prompt, where the archived window still
+       carries the colour the ">" was written in.  Measuring would draw the
+       same map in two different colours. */
+    if (gsc_colour_enabled)
+      {
+        bg = gsc_colour_background;
+        fg = gsc_colour_output;
+        have = TRUE;
+      }
+    else
+#endif
+      have = glk_style_measure (gsc_main_window, style_Normal,
+                                stylehint_BackColor, &bg)
+             && glk_style_measure (gsc_main_window, style_Normal,
+                                   stylehint_TextColor, &fg);
+    if (have)
       {
         map_set_palette (bg, fg);
         /* So the clear below, and any exposed edge, match the surface. */
@@ -6975,6 +8243,172 @@ gsc_a5_walk_next (a5_run_t *run, char *buf, int bufsize)
 }
 
 /*
+ * gsc_map_available()
+ *
+ * Whether this game has a map at all.  In ADRIFT 5 that is settled at load:
+ * it either shipped map data or it did not.  In ADRIFT 4 every game with
+ * rooms has one, unless the author switched it off -- and gsc_map itself is
+ * no guide there, being built lazily at the first redraw.  Whether there is
+ * anything to draw *right now* is a separate question (map_has_content).
+ */
+static int
+gsc_map_available (void)
+{
+  if (gsc_is_a5)
+    return gsc_map != NULL;
+  return gsc_game != NULL && scmap_available ((scr_gameref_t) gsc_game);
+}
+
+/*
+ * gsc_map_default_shown()
+ *
+ * Whether this game would start with the map showing if the player had never
+ * said otherwise: what the author's shipped Runner layout asks for in ADRIFT
+ * 5, and nothing at all in ADRIFT 4, whose Runner opened with the map closed
+ * however the last game left it.
+ */
+static int
+gsc_map_default_shown (void)
+{
+  return gsc_is_a5 && gsc_a5_adv != NULL && gsc_a5_adv->map_pane_open == 1;
+}
+
+/*
+ * gsc_map_pref_ref()
+ *
+ * A fileref for this game's remembered map choice, or NULL when there is
+ * nothing to remember or nowhere to keep it.
+ *
+ * The ADRIFT 5 Runner keeps the player's window layout per game, in
+ * RunnerLayout-<IFID>.xml, and writes it out on quit; that file is also what
+ * overrides the layout an author shipped inside the Blorb, because the Runner
+ * only unpacks the shipped one when no file for that IFID exists yet
+ * (Blorb.vb:343).  This is the same store, under the same key -- two bytes,
+ * '1' or '0' for whether the map is wanted and 't' or 'r' for where it goes,
+ * rather than a window layout.
+ *
+ * Games the Runner has no key for get one of ours (gsc_game_key): ADRIFT 4
+ * never had an IFID, and its Runner kept the map as a global View-menu
+ * setting in the registry rather than per game, so there is nothing to be
+ * compatible with -- and a few ADRIFT 5 .taf files were built without an
+ * <ifid> block too.
+ *
+ * Games with no map and hosts with no graphics have nothing to record, and
+ * must not leave a file behind for it.
+ */
+static frefid_t
+gsc_map_pref_ref (void)
+{
+  const char *key;
+  char name[128];
+
+  if (!gsc_map_available ())
+    return NULL;
+  if (!glk_gestalt (gestalt_Graphics, 0)
+      || !glk_gestalt (gestalt_DrawImage, wintype_Graphics))
+    return NULL;
+
+  if (gsc_is_a5 && gsc_a5_adv != NULL
+      && gsc_a5_adv->ifid != NULL && gsc_a5_adv->ifid[0] != '\0')
+    key = gsc_a5_adv->ifid;
+  else if (gsc_game_key[0] != '\0')
+    key = gsc_game_key;
+  else
+    return NULL;
+
+  snprintf (name, sizeof name, "scarier-map-%s", key);
+  return glk_fileref_create_by_name (fileusage_Data | fileusage_TextMode,
+                                     name, 0);
+}
+
+/*
+ * gsc_map_pref_read()
+ *
+ * The player's remembered choice for this game: 1 to show the map, 0 to hide
+ * it, -1 when they have never said.  Where they last put it is returned
+ * through at_top on the same terms -- 1 for the top band, 0 for the pane at
+ * the right, -1 for never said -- since files written before the map could be
+ * moved hold only the first byte.
+ */
+static int
+gsc_map_pref_read (int *at_top)
+{
+  frefid_t fileref;
+  int value = -1;
+
+  if (at_top != NULL)
+    *at_top = -1;
+
+  fileref = gsc_map_pref_ref ();
+  if (fileref == NULL)
+    return -1;
+
+  if (glk_fileref_does_file_exist (fileref))
+    {
+      strid_t stream = glk_stream_open_file (fileref, filemode_Read, 0);
+
+      if (stream)
+        {
+          glui32 c = glk_get_char_stream (stream);
+
+          if (c == '0' || c == '1')
+            value = (int) (c - '0');
+
+          c = glk_get_char_stream (stream);
+          if (at_top != NULL && (c == 't' || c == 'r'))
+            *at_top = (c == 't');
+
+          glk_stream_close (stream, NULL);
+        }
+    }
+
+  glk_fileref_destroy (fileref);
+  return value;
+}
+
+/*
+ * gsc_map_pref_write()
+ *
+ * Remember that the player asked for the map to be shown or hidden in this
+ * game, and where they had it, so that the next session opens the way they
+ * left it.  The position is recorded even when the map is off, so that turning
+ * it back on later still puts it where they last had it.
+ *
+ * Only a game whose map the player has actually moved away from its default
+ * gets a file; one they have put back where it started has theirs removed
+ * again.  So the common case -- ADRIFT 4, where the map starts hidden and
+ * most players leave it that way -- costs nothing at all, and the files that
+ * do accumulate are only for games the player made a decision about.
+ */
+static void
+gsc_map_pref_write (int shown, int at_top)
+{
+  frefid_t fileref;
+  strid_t stream;
+
+  fileref = gsc_map_pref_ref ();
+  if (fileref == NULL)
+    return;
+
+  if (!shown == !gsc_map_default_shown () && !at_top)
+    {
+      if (glk_fileref_does_file_exist (fileref))
+        glk_fileref_delete_file (fileref);
+      glk_fileref_destroy (fileref);
+      return;
+    }
+
+  stream = glk_stream_open_file (fileref, filemode_Write, 0);
+  if (stream)
+    {
+      glk_put_char_stream (stream, (unsigned char) (shown ? '1' : '0'));
+      glk_put_char_stream (stream, (unsigned char) (at_top ? 't' : 'r'));
+      glk_stream_close (stream, NULL);
+    }
+  glk_fileref_destroy (fileref);
+}
+
+/*
  * gsc_map_show()
  *
  * Open the map pane, in whichever position gsc_map_at_top asks for: the
@@ -6985,12 +8419,7 @@ gsc_a5_walk_next (a5_run_t *run, char *buf, int bufsize)
 static void
 gsc_map_show (void)
 {
-  /* Does the game have a map at all?  In ADRIFT 5 that is settled at load: it
-     either shipped map data or it did not.  In ADRIFT 4 every game with rooms
-     has one, unless the author switched it off.  Whether there is anything to
-     draw *right now* is a separate question, and one for the redraw. */
-  if (gsc_is_a5 ? gsc_map == NULL
-                : !scmap_available ((scr_gameref_t) gsc_game))
+  if (!gsc_map_available ())
     {
       gsc_normal_string ("This game has no map.\n");
       return;
@@ -7050,22 +8479,168 @@ gsc_map_hide (void)
 }
 
 /*
+ * gsc_map_set()
+ *
+ * Show or hide the map pane at the player's request, and remember the choice
+ * for this game.  The window is opened on first use (and only for games that
+ * actually have map data), then kept, so toggling is cheap.
+ *
+ * Remembering matters because a game can ask to start with its map showing
+ * (gsc_map_auto_reveal); the player's own last word has to outlast the
+ * session, or "glk map off" would be undone by the next launch.
+ */
+static void
+gsc_map_set (int shown)
+{
+  int deferred = FALSE;
+
+  if (shown)
+    {
+      if (!gsc_map_shown)
+        {
+          if (gsc_map_worth_opening ())
+            gsc_map_show ();
+          else
+            {
+              deferred = TRUE;
+              gsc_normal_string ("There is nothing to put on the map from"
+                                 " here; it will open by itself as soon as"
+                                 " there is.\n");
+            }
+        }
+    }
+  else if (gsc_map_shown)
+    {
+      gsc_map_hide ();
+      gsc_normal_string ("Map hidden.\n");
+    }
+  else if (gsc_map_want)
+    /* Called off before it ever got to open. */
+    gsc_normal_string ("Map hidden.\n");
+
+  /* What actually happened, not what was asked for: opening can fail outright
+     (no map, no graphics), and a pane that cannot exist is not a preference
+     worth keeping.  A deferred open is the opposite case -- the player did
+     ask, and the map is on its way. */
+  gsc_map_want = gsc_map_shown || deferred;
+  gsc_map_pref_write (gsc_map_want, gsc_map_at_top);
+}
+
+/*
  * gsc_map_toggle()
  *
- * Show or hide the map pane.  The window is opened on first use (and only for
- * games that actually have map data), then kept, so toggling is cheap.
+ * Show the map pane if it is hidden, hide it if it is shown -- or cancel it if
+ * it is merely on its way.
  */
 static void
 gsc_map_toggle (void)
 {
-  if (gsc_map_shown)
-    {
-      gsc_map_hide ();
-      gsc_normal_string ("Map hidden.\n");
-      return;
-    }
+  gsc_map_set (!(gsc_map_shown || gsc_map_want));
+}
 
-  gsc_map_show ();
+/*
+ * gsc_map_auto_reveal()
+ *
+ * Open the map pane at the start of a game that asks for it.
+ *
+ * ADRIFT 5 games can carry the author's own Runner window layout in their
+ * Blorb (a5blorb_find_layout), and run500.exe starts with whatever panes that
+ * layout has open -- which is the whole of why a handful of games "come with
+ * the map already showing" and the rest do not.  There is no authored
+ * map-visibility setting, and ADRIFT 4 has no equivalent at all: run400's map
+ * was a View-menu toggle stored globally in the registry, never per game.
+ *
+ * A choice the player made themselves wins over the author's, exactly as the
+ * Runner's own saved RunnerLayout-<IFID>.xml wins over the shipped one -- in
+ * either direction, so a player who once opened the map in this game gets it
+ * back too.  That part applies to ADRIFT 4 as well, which is why this runs on
+ * both paths: the game has nothing to say about the map, but the player does.
+ * Silent throughout: a host that cannot draw a map, or a game with none, just
+ * gets no pane.
+ */
+static void
+gsc_map_auto_reveal (void)
+{
+  int pref, at_top;
+
+  if (gsc_map_shown)
+    return;
+
+  gsc_map_want = FALSE;
+  if (!gsc_map_available ())
+    return;
+  if (!glk_gestalt (gestalt_Graphics, 0)
+      || !glk_gestalt (gestalt_DrawImage, wintype_Graphics))
+    return;
+
+  pref = gsc_map_pref_read (&at_top);
+
+  /* Where the map goes is remembered whether or not it is opened now, so that
+     a later "glk map on" puts it back where the player last had it. */
+  if (at_top >= 0)
+    gsc_map_at_top = at_top;
+
+  if (pref < 0)
+    {
+      /* Never asked: follow the layout the author shipped, if any. */
+      if (!gsc_is_a5 || gsc_a5_adv == NULL || gsc_a5_adv->map_pane_open != 1)
+        return;
+    }
+  else if (pref == 0)
+    return;
+
+  /* Wanted -- but an opening played out from a room the map hides has nothing
+     to put in the pane, so the map may have to wait for the first real room
+     (gsc_map_worth_opening, and the retry in gsc_map_redraw). */
+  gsc_map_want = TRUE;
+  if (gsc_map_worth_opening ())
+    gsc_map_show ();
+}
+
+/*
+ * gsc_map_notice_restart()
+ *
+ * Take the map pane down for a replayed ADRIFT 4 opening, and let it be decided
+ * again from scratch.
+ *
+ * The ADRIFT 5 path does this where the restart happens (gsc_a5_restart_run);
+ * ADRIFT 4 has nowhere to do it, because the restart never surfaces here.  Both
+ * RESTART at the prompt and the restart offered when the game ends are handled
+ * inside scr_interpret_game, which just replays the opening -- so the pane goes
+ * into the new game still showing the old one's layout, and for a game whose
+ * opening plays out in a room the map hides, like The PK Girl, that means the
+ * empty rectangle gsc_map_worth_opening exists to keep off the screen.  Watch
+ * the interpreter's restart count for a change instead (run_get_restart_count).
+ *
+ * The zoom goes with the old run for the same reason it does in ADRIFT 5: the
+ * new one is back to a single room, which a scale chosen for a whole map would
+ * show far too close in.
+ *
+ * Called at the first sign of the replayed opening -- its first line of output,
+ * or failing that its first prompt -- so that the opening is laid out at the
+ * width it will keep.  Opening and closing windows moves the current stream
+ * about (gsc_map_show leaves output pointed at the story window), which the
+ * caller mid-print is not expecting, so put it back.
+ */
+static void
+gsc_map_notice_restart (void)
+{
+  strid_t stream;
+  scr_int restarts;
+
+  if (gsc_is_a5 || gsc_game == NULL)
+    return;
+
+  restarts = run_get_restart_count ();
+  if (restarts == gsc_map_restarts)
+    return;
+  gsc_map_restarts = restarts;
+
+  stream = glk_stream_get_current ();
+  gsc_map_hide ();
+  gsc_map_zoom = 0;
+  gsc_map_auto_reveal ();
+  glk_stream_set_current (stream);
 }
 
 /*
@@ -7088,7 +8663,11 @@ gsc_map_place (int at_top)
 
   gsc_map_hide ();
   gsc_map_at_top = at_top;
-  gsc_map_show ();
+
+  /* Asking where the map goes is asking for a map -- through gsc_map_set, so
+     that the request is remembered and honoured later even if there is nothing
+     to draw from where the player is standing. */
+  gsc_map_set (TRUE);
 }
 
 /*
@@ -7108,15 +8687,16 @@ gsc_command_map (const char *argument)
       gsc_map_toggle ();
       return;
     }
+  /* Explicit on/off go through gsc_map_set even when they change nothing, so
+     that "glk map off" in a game that opens with its map showing is recorded
+     as a veto rather than shrugged off as a no-op. */
   if (scr_strcasecmp (argument, "on") == 0)
     {
-      if (!gsc_map_shown)
-        gsc_map_toggle ();
+      gsc_map_set (TRUE);
     }
   else if (scr_strcasecmp (argument, "off") == 0)
     {
-      if (gsc_map_shown)
-        gsc_map_toggle ();
+      gsc_map_set (FALSE);
     }
   else if (scr_strcasecmp (argument, "top") == 0
            || scr_strcasecmp (argument, "above") == 0)
@@ -7290,8 +8870,20 @@ gsc_a5_restart_run (a5_run_t *&run)
     }
   gsc_a5_stop_all_sounds ();
   gsc_a5_start_real_time (run);
+
+  /* Take the map down for the replayed opening and put it back afterwards,
+     for the same two reasons the first reveal waits: the title screen should
+     have the screen to itself, and what comes back should be decided afresh
+     -- by the player's remembered choice, or failing that by the layout the
+     game shipped.  A hand-set zoom goes with the old run: the new one is back
+     to a single room, which a scale chosen for a whole map would show far too
+     close in. */
+  gsc_map_hide ();
+  gsc_map_zoom = 0;
+
   glk_window_clear (gsc_main_window);
   gsc_a5_present_intro (run);
+  gsc_map_auto_reveal ();
 }
 
 
@@ -7325,12 +8917,23 @@ gsc_a5_main (void)
     {
       gsc_open_main_window ();
       gsc_open_status_window ();
+
+      /* "-c": into the adventure's own palette (already parsed off the header
+         by the startup code) before the title page is drawn. */
+      gsc_colour_startup_apply ();
     }
 
   /* Present turns interactively: keep <cls>/<waitkey>/<img> as positional
      marks in the turn text (a5text.h) so gsc_a5_display can page an intro
      like the official Runner -- title page, keypress, screen clear. */
   a5text_set_interactive (TRUE);
+
+  /* Ask the player %PopUpInput% naming prompts, the story window standing in
+     for the Runner's modal InputBox; unasked, they evaluate to their default.
+     Likewise %PopUpChoice% gender prompts for its Yes/No MsgBox; unasked,
+     those stay unevaluated. */
+  a5text_set_popup_cb (gsc_a5_popup_input, NULL);
+  a5text_set_popup_choice_cb (gsc_a5_popup_choice, NULL);
 
   /* Register the game Blorb for image/sound resources. */
   gsc_a5_init_resources ();
@@ -7381,7 +8984,9 @@ gsc_a5_main (void)
       std::string data;
       bool restored;
 
+      gsc_a5_popup_silent = TRUE;
       text = a5run_intro (run);
+      gsc_a5_popup_silent = FALSE;
       free (text);
       restored = scarier_autosave_read_game (&data)
                  && gsc_a5_apply_all (data)
@@ -7410,9 +9015,30 @@ gsc_a5_main (void)
     {
 #endif
   gsc_a5_present_intro (run);
+  /* After the intro, so the title page is not sharing the screen with a map.
+     An autorestore takes the archived pane instead, whatever it was. */
+  gsc_map_auto_reveal ();
 #ifdef SPATTERLIGHT
     }
 #endif
+
+  /* An adventure the runner refuses outright -- today, one with no locations at
+     all -- stops here rather than dropping the player into a world with no
+     room to stand in.  The real Runner shows its window and the game title,
+     then an "ADRIFT Error" dialog carrying this same text, which is why the
+     check comes after the intro (a5model_load_error).  Scarier has no dialog,
+     so the story window stands in for it, as it does for the Adventure-Upgrade
+     question. */
+  {
+    const char *load_err = a5model_load_error (gsc_a5_adv);
+    if (load_err != NULL)
+      {
+        gsc_a5_put_string ("\n");
+        gsc_a5_put_string (load_err);
+        gsc_a5_put_string ("\n");
+        glk_exit ();
+      }
+  }
 
   for (;;)
     {
@@ -7607,6 +9233,10 @@ glkunix_argumentlist_t glkunix_arguments[] = {
    (char *) "-na        Turn off abbreviation expansions"},
   {(char *) "-nu", glkunix_arg_NoValue,
    (char *) "-nu        Turn off any use of Unicode output"},
+#ifdef GSC_HAVE_ZCOLORS
+  {(char *) "-c", glkunix_arg_NoValue,
+   (char *) "-c         Start in the game's own Adrift colours"},
+#endif
 #ifdef LINUX_GRAPHICS
   {(char *) "-ng", glkunix_arg_NoValue,
    (char *) "-ng        Turn off attempts at game graphics"},
@@ -7668,6 +9298,16 @@ glkunix_startup_code (glkunix_startup_t * data)
           gsc_unicode_enabled = FALSE;
           continue;
         }
+#ifdef GSC_HAVE_ZCOLORS
+      /* Only offered where the Glk library has the zcolors extension, exactly
+         as "glk colour" is -- accepting it elsewhere would promise a palette
+         that could never arrive. */
+      if (strcmp (argv[argv_index], "-c") == 0)
+        {
+          gsc_colour_startup = TRUE;
+          continue;
+        }
+#endif
 #ifdef LINUX_GRAPHICS
       if (strcmp (argv[argv_index], "-ng") == 0)
         {

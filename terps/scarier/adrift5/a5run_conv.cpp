@@ -120,7 +120,8 @@ capture_restr_text (a5_state_t *st, const a5_xml_node_t *restrictions,
     return;
   const a5_xml_node_t *fm = a5restr_fail_message (st, restrictions);
   if (fm != NULL)
-    { char *t2 = a5text_describe (st, fm); *restr_text = t2; free (t2); }
+    { a5_intro_guard ig (st, 1);          /* fail text expands in Display (vb:1247) */
+      char *t2 = a5text_describe (st, fm); *restr_text = t2; free (t2); }
 }
 
 /*
@@ -225,6 +226,7 @@ exec_conversation (a5_run_t *run, const char *char_key, int conv_type,
   a5_state_t *st = run->st;
   const a5_character_t *conv_ch;
   const a5_topic_t *topic = NULL;
+  const a5_topic_t *intro_emitted = NULL;
   std::string restr_text;
 
   if (char_key == NULL || char_key[0] == '\0')
@@ -258,6 +260,7 @@ exec_conversation (a5_run_t *run, const char *char_key, int conv_type,
       if (intro != NULL)
         {
           emit_topic_conv (run, conv_ch->key, intro->conversation, out);
+          intro_emitted = intro;
           a5state_set_conv_node (st, intro->key);
           if (intro->is_ask || intro->is_tell || intro->is_command)
             {
@@ -294,7 +297,13 @@ exec_conversation (a5_run_t *run, const char *char_key, int conv_type,
 
   if (topic != NULL)
     {
-      emit_topic_conv (run, conv_ch->key, topic->conversation, out);
+      /* A pure Greet's main lookup can re-find the very topic just emitted as
+         the intro.  The runner emits both, but AddResponse (clsUserSession.vb:
+         1296) keys responses by message TEXT and merges the duplicate, so only
+         one copy is displayed.  Skip the re-emission; the node bookkeeping and
+         actions below still run (the runner runs them from this block too). */
+      if (topic != intro_emitted)
+        emit_topic_conv (run, conv_ch->key, topic->conversation, out);
       if (topic_has_children (conv_ch, topic->key))
         a5state_set_conv_node (st, topic->key);
       else if (!topic->stay_in_node)

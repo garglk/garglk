@@ -410,13 +410,16 @@ var_append_temp (scr_var_setref_t vars, const scr_char *string)
     }
   else
     {
-      /* Append string to existing temporary. */
+      /* Append string to existing temporary; `noted` is already the length to
+         append at, and is reused below to case the first new character. */
       new_sentence = (vars->temporary[0] == NUL);
       noted = strlen (vars->temporary);
-      vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary,
-                                    strlen (vars->temporary) +
-                                    strlen (string) + 1);
-      strncat (vars->temporary, string, strlen (string));
+      {
+        size_t size = (size_t) noted + strlen (string) + 1;
+
+        vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary, size);
+        snprintf (vars->temporary + noted, size - (size_t) noted, "%s", string);
+      }
     }
 
   if (new_sentence)
@@ -941,11 +944,13 @@ var_get_system (scr_var_setref_t vars,
           vt_key[2].string = "Short";
           objname = prop_get_string (bundle, "S<-sis", vt_key);
 
-          vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary,
-                                        strlen (vars->temporary)
-                                        + strlen (objname) + 2);
-          strncat (vars->temporary, " ", 1);
-          strncat (vars->temporary, objname, strlen (objname));
+          {
+            size_t used = strlen (vars->temporary);
+            size_t size = used + strlen (objname) + 2;
+
+            vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary, size);
+            snprintf (vars->temporary + used, size - used, " %s", objname);
+          }
 
           return var_return_string (vars->temporary, type, vt_rvalue);
         }
@@ -1343,46 +1348,60 @@ var_get_system (scr_var_setref_t vars,
           /* Return object name prefixed with "the"... */
           scr_vartype_t vt_key[3];
           const scr_char *prefix, *normalized, *objname;
+          size_t size, used = 0;
 
           vt_key[0].string = "Objects";
           vt_key[1].integer = vars->referenced_object;
           vt_key[2].string = "Prefix";
           prefix = prop_get_string (bundle, "S<-sis", vt_key);
 
-          vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary, strlen (prefix) + 5);
+          /* "the" plus the de-articled prefix, a separating space, and the
+             terminator; never more than the prefix length plus five. */
+          size = strlen (prefix) + 5;
+          vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary, size);
           vars->temporary[0] = '\0';
 
           normalized = prefix;
           if (scr_compare_word (prefix, "a", 1))
             {
-              strncat (vars->temporary, "the", 3);
+              snprintf (vars->temporary + used, size - used, "the");
+              used = strlen (vars->temporary);
               normalized = prefix + 1;
             }
           else if (scr_compare_word (prefix, "an", 2))
             {
-              strncat (vars->temporary, "the", 3);
+              snprintf (vars->temporary + used, size - used, "the");
+              used = strlen (vars->temporary);
               normalized = prefix + 2;
             }
           else if (scr_compare_word (prefix, "the", 3))
             {
-              strncat (vars->temporary, "the", 3);
+              snprintf (vars->temporary + used, size - used, "the");
+              used = strlen (vars->temporary);
               normalized = prefix + 3;
             }
           else if (scr_compare_word (prefix, "some", 4))
             {
-              strncat (vars->temporary, "the", 3);
+              snprintf (vars->temporary + used, size - used, "the");
+              used = strlen (vars->temporary);
               normalized = prefix + 4;
             }
           else if (scr_strempty (prefix))
-            strncat (vars->temporary, "the ", 4);
+            {
+              snprintf (vars->temporary + used, size - used, "the ");
+              used = strlen (vars->temporary);
+            }
 
           if (!scr_strempty (normalized))
             {
-              strncat (vars->temporary, normalized, strlen (normalized));
-              strncat (vars->temporary, " ", 1);
+              snprintf (vars->temporary + used, size - used, "%s ", normalized);
+              used = strlen (vars->temporary);
             }
           else if (normalized > prefix)
-            strncat (vars->temporary, " ", 1);
+            {
+              snprintf (vars->temporary + used, size - used, " ");
+              used = strlen (vars->temporary);
+            }
 
           vt_key[2].string = "Short";
           objname = prop_get_string (bundle, "S<-sis", vt_key);
@@ -1395,10 +1414,9 @@ var_get_system (scr_var_setref_t vars,
           else if (scr_compare_word (objname, "some", 4))
             objname += 4;
 
-          vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary,
-                                        strlen (vars->temporary)
-                                        + strlen (objname) + 1);
-          strncat (vars->temporary, objname, strlen (objname));
+          size = used + strlen (objname) + 1;
+          vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary, size);
+          snprintf (vars->temporary + used, size - used, "%s", objname);
 
           return var_return_string (vars->temporary, type, vt_rvalue);
         }

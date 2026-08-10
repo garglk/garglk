@@ -203,55 +203,75 @@ task_forget_game (const void *game)
 }
 
 /*
- * task_can_run_task_directional()
+ * task_state_allows_run()
  *
- * Return TRUE if player is in a room where the task can be run and the task
- * is runnable in the given direction.
+ * The half of the runnability test that has nothing to do with where the
+ * player is standing: a completed task is not re-runnable forwards unless it
+ * is repeatable or has repeat text to print, and a task is only runnable in
+ * reverse if it is reversible.
+ *
+ * Split out from task_can_run_task_directional() so that the two halves can be
+ * asked separately -- see task_is_room_refused() below.
  */
-scr_bool
-task_can_run_task_directional (scr_gameref_t game,
-                               scr_int task, scr_bool forwards)
+static scr_bool
+task_is_repeatable (scr_gameref_t game, scr_int task)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[5];
-  scr_int type;
+  scr_vartype_t vt_key[3];
   scr_task_props_t *cached;
 
-#ifdef SCARIER_DUMP_TOOLS
-  /* Reusable structural-dump / NPC-trace instrumentation; see scdump.c.
-   * Compiled only into the headless walkthrough harness (-DSCARIER_DUMP_TOOLS);
-   * a normal Spatterlight build omits this entirely. */
-  scr_dump_structure_once (game);
-#endif
+  cached = task_cache_entry (game, task);
+  if (cached->repeatable == TASK_CACHE_UNKNOWN)
+    {
+      vt_key[0].string = "Tasks";
+      vt_key[1].integer = task;
+      vt_key[2].string = "Repeatable";
+      cached->repeatable = prop_get_boolean (bundle, "B<-sis", vt_key)
+                           ? TASK_CACHE_TRUE : TASK_CACHE_FALSE;
+    }
+  return cached->repeatable == TASK_CACHE_TRUE;
+}
+
+
+static scr_bool
+task_repeattext_is_empty (scr_gameref_t game, scr_int task)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_vartype_t vt_key[3];
+  scr_task_props_t *cached;
+
+  cached = task_cache_entry (game, task);
+  if (cached->repeattext_empty == TASK_CACHE_UNKNOWN)
+    {
+      const scr_char *repeattext;
+
+      vt_key[0].string = "Tasks";
+      vt_key[1].integer = task;
+      vt_key[2].string = "RepeatText";
+      repeattext = prop_get_string (bundle, "S<-sis", vt_key);
+      cached->repeattext_empty = scr_strempty (repeattext)
+                                 ? TASK_CACHE_TRUE : TASK_CACHE_FALSE;
+    }
+  return cached->repeattext_empty == TASK_CACHE_TRUE;
+}
+
+
+static scr_bool
+task_state_allows_run (scr_gameref_t game, scr_int task, scr_bool forwards)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_vartype_t vt_key[3];
+  scr_task_props_t *cached;
 
   cached = task_cache_entry (game, task);
 
   /* If already run, non-repeatable tasks are not re-runnable forwards. */
   if (forwards && gs_task_done (game, task))
     {
-      if (cached->repeatable == TASK_CACHE_UNKNOWN)
-        {
-          vt_key[0].string = "Tasks";
-          vt_key[1].integer = task;
-          vt_key[2].string = "Repeatable";
-          cached->repeatable = prop_get_boolean (bundle, "B<-sis", vt_key)
-                               ? TASK_CACHE_TRUE : TASK_CACHE_FALSE;
-        }
-      if (cached->repeatable == TASK_CACHE_FALSE)
+      if (!task_is_repeatable (game, task))
         return FALSE;
 
-      if (cached->repeattext_empty == TASK_CACHE_UNKNOWN)
-        {
-          const scr_char *repeattext;
-
-          vt_key[0].string = "Tasks";
-          vt_key[1].integer = task;
-          vt_key[2].string = "RepeatText";
-          repeattext = prop_get_string (bundle, "S<-sis", vt_key);
-          cached->repeattext_empty = scr_strempty (repeattext)
-                                     ? TASK_CACHE_TRUE : TASK_CACHE_FALSE;
-        }
-      if (cached->repeattext_empty == TASK_CACHE_FALSE)
+      if (!task_repeattext_is_empty (game, task))
         return FALSE;
     }
 
@@ -269,6 +289,26 @@ task_can_run_task_directional (scr_gameref_t game,
       if (cached->reversible == TASK_CACHE_FALSE)
         return FALSE;
     }
+
+  return TRUE;
+}
+
+
+/*
+ * task_where_allows_run()
+ *
+ * The other half: TRUE if the player is standing in a room the task's Where
+ * room list covers.
+ */
+static scr_bool
+task_where_allows_run (scr_gameref_t game, scr_int task)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_vartype_t vt_key[5];
+  scr_int type;
+  scr_task_props_t *cached;
+
+  cached = task_cache_entry (game, task);
 
   /* Check room list for the task and return it. */
   if (cached->where_type == 0)
@@ -333,9 +373,79 @@ task_can_run_task_directional (scr_gameref_t game,
       }
 
     default:
-      scr_fatal ("task_can_run_task_directional: invalid type, %ld\n", type);
+      scr_fatal ("task_where_allows_run: invalid type, %ld\n", type);
       return FALSE;
     }
+}
+
+
+/*
+ * task_can_run_task_directional()
+ *
+ * Return TRUE if player is in a room where the task can be run and the task
+ * is runnable in the given direction.
+ */
+scr_bool
+task_can_run_task_directional (scr_gameref_t game,
+                               scr_int task, scr_bool forwards)
+{
+#ifdef SCARIER_DUMP_TOOLS
+  /* Reusable structural-dump / NPC-trace instrumentation; see scdump.c.
+   * Compiled only into the headless walkthrough harness (-DSCARIER_DUMP_TOOLS);
+   * a normal Spatterlight build omits this entirely. */
+  scr_dump_structure_once (game);
+#endif
+
+  return task_state_allows_run (game, task, forwards)
+         && task_where_allows_run (game, task);
+}
+
+
+/*
+ * task_is_room_refused()
+ *
+ * Return TRUE if the player's room is what stands between this task and a run
+ * in the given direction: its Where room list does not cover where the player
+ * is standing.
+ *
+ * Pre-4.0 Runners answer a command that matches such a task with a refusal of
+ * their own rather than the game's DontUnderstand text; see run_task_refusal()
+ * in scrunner.c.
+ *
+ * Whether the task has already been run is deliberately NOT part of the test.
+ * The Runner checks the room ahead of the task's state, and answers a task that
+ * is both done and out of its rooms with the room refusal rather than "You have
+ * already done that." (measured live -- probe task "theta").  The reverse
+ * direction still asks task_state_allows_run(), which for a backwards run tests
+ * only the reversibility flag.
+ */
+scr_bool
+task_is_room_refused (scr_gameref_t game, scr_int task, scr_bool forwards)
+{
+  return !task_where_allows_run (game, task)
+         && (forwards || task_state_allows_run (game, task, FALSE));
+}
+
+
+/*
+ * task_is_done_refused()
+ *
+ * Return TRUE if the only thing standing between this task and a forwards run
+ * is that it has already been done and is not repeatable -- the player is in a
+ * room the task's Where list covers, but the task is spent.
+ *
+ * The Runners answer such a command with the task's RepeatText, or with "You
+ * have already done that." when there is none; see run_task_refusal() in
+ * scrunner.c.  The room half is deliberately part of the test, because a task
+ * that is both done and out of its rooms gets the room refusal instead
+ * (measured live -- probe task "theta").
+ */
+scr_bool
+task_is_done_refused (scr_gameref_t game, scr_int task)
+{
+  return gs_task_done (game, task)
+         && !task_is_repeatable (game, task)
+         && task_where_allows_run (game, task);
 }
 
 
@@ -366,6 +476,21 @@ static void
 task_move_object (scr_gameref_t game, scr_int object, scr_int var2, scr_int var3)
 {
   const scr_var_setref_t vars = gs_get_vars (game);
+
+  /*
+   * Ignore negative object indexes, as evt_move_object() does.  Var1 = 2 is
+   * "the referenced object", and a task reached by redirection (or matched by
+   * a pattern with no %object%) has none, so var_get_ref_object() hands back
+   * -1.  The Runner's Select Case simply moves nothing; SCARE used to walk
+   * into gs_object_*() and abort on its range assertion.  Mortality's task
+   * 314 [? the return] does exactly this.
+   */
+  if (object < 0)
+    {
+      if (task_trace)
+        scr_trace ("Task: ignoring move of unset object %ld\n", object);
+      return;
+    }
 
   /* Select action depending on var2. */
   switch (var2)
@@ -1030,10 +1155,10 @@ task_run_change_score_action (scr_gameref_t game, scr_int task, scr_int var1)
           if (task_trace)
             scr_trace ("Task: already scored task %ld\n", var1);
 
-          /* Version 3.8 games permit tasks to rescore. */
+          /* Version 3.8 and 3.7 games permit tasks to rescore. */
           vt_key[0].string = "Version";
           version = prop_get_integer (bundle, "I<-s", vt_key);
-          if (version == TAF_VERSION_380)
+          if (version <= TAF_VERSION_380)
             {
               vt_key[0].string = "Tasks";
               vt_key[1].integer = task;
@@ -1085,7 +1210,12 @@ task_run_set_task_action (scr_gameref_t game, scr_int var1, scr_int var2)
   /* Select based on var1. */
   if (var1 == 0)
     {
-      /* Redirect forwards. */
+      /*
+       * Redirect forwards.  Once the game has ended, this dispatch is a no-op;
+       * the guard lives at the top of task_run_task(), exactly as the Runner
+       * puts it at the top of its RunTask.  Plain in-line actions are *not*
+       * dropped; see task_run_task_actions() below.
+       */
       if (task_can_run_task_directional (game, var2, TRUE))
         {
           if (task_trace)
@@ -1332,9 +1462,9 @@ task_run_task_action (scr_gameref_t game, scr_int task, scr_int action)
 /*
  * task_run_task_actions()
  *
- * Run every task action associated with the task.  If any action ends the
- * game, return immediately.  Returns TRUE if any action ran and itself
- * returned TRUE.
+ * Run every task action associated with the task.  Actions after one that
+ * ends the game still run, with output muted; see the comment on the loop.
+ * Returns TRUE if any action ran and itself returned TRUE.
  */
 static scr_bool
 task_run_task_actions (scr_gameref_t game, scr_int task)
@@ -1361,13 +1491,21 @@ task_run_task_actions (scr_gameref_t game, scr_int task)
     }
 
   /*
-   * Run all task actions, capturing any TRUE status returned.  If any task
-   * ends the game, run the remaining tasks silently.
+   * Run all task actions, capturing any TRUE status returned.  If an action
+   * ends the game, run the remaining ones silently rather than exiting the
+   * loop early.
    *
-   * This seems a little counterintuitive; a more conventional thing would be
-   * to just exit the actions loop early.  However, Adrift appears to plough
-   * on, and there may be an action that changes the score in here somewhere,
-   * so we'll do the same.
+   * This seems counterintuitive, but it is what the Runner does, and it was
+   * confirmed against run400 with the "EG" arena probe (see
+   * test/adrift4/harness/make_arena_probe.py): a task whose actions are
+   * "end game" then "+7 points" finishes on 7 out of 7, exactly as when the
+   * two are the other way round.  Nothing the trailing actions print is
+   * shown, hence the muting.  The Runner's own action executor
+   * (mdlSpreadTheLoad.Sub_20_11) reads its gameover flag exactly once, inside
+   * the EndGame handler at 0008D621, where it guards re-printing the ending
+   * -- there is no test at the loop head.  The one kind of action it *does*
+   * drop after the ending is Execute Task, because that dispatches through
+   * RunTask, which does have such a test; see task_run_task().
    */
   status = FALSE;
   muted = FALSE;
@@ -1621,6 +1759,32 @@ task_run_task (scr_gameref_t game, scr_int task, scr_bool forwards)
     {
       scr_trace ("Task: running task %ld %s, depth %ld\n",
                 task, forwards ? "forwards" : "backwards", recursion_depth);
+    }
+
+  /*
+   * Refuse to run anything once the game has ended.  This is the Runner's own
+   * first act in the equivalent routine: mdlSpreadTheLoad.Sub_20_22 opens at
+   * file offset 0005F750 with
+   *
+   *     ImpAdLdUI1 <gameover> ; CI2UI1 ; LitI2_Byte 0 ; GtI2 ; BranchF ; ExitProc
+   *
+   * i.e. "If gameOver > 0 Then Exit Sub", ahead of restrictions, completion
+   * text and actions alike.  The one caller that can reach here after an
+   * ending is the type-5 Execute Task action, whose branch in the action
+   * executor (Sub_20_11 @ 0008D5D1) calls RunTask unguarded -- so the Runner
+   * refuses the *dispatch*, not the callee's completion.  Measured with the
+   * "EG" arena probe: "printlast" (end game, then execute a task that scores)
+   * finishes on 0 out of 7, while its "printfirst" control -- the same two
+   * actions in the other order -- finishes on 7.  The action *loop* has no
+   * such test, which is why in-line actions behind an ending still run; see
+   * task_run_task_actions().
+   */
+  if (!game->is_running)
+    {
+      if (task_trace)
+        scr_trace ("Task: game over, not running task %ld\n", task);
+
+      return FALSE;
     }
 
   /* Check restrictions. */

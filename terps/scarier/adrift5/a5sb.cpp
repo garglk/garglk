@@ -65,16 +65,17 @@ sb_resolve_cls (sb_t *b, size_t floor)
   /* Interactive hosts present the pre-<cls> text themselves and clear their
      window at the mark, so the wipe must not happen here (see a5text.h).
      But the commit boundary still closes every open span: the Runner renders
-     each Display commit through its own Source2HTML parse, so a <center> or
-     <b> the commit never closes dies with it -- Death Shack's Introduction
-     opens <center> without closing it, yet the first room description (the
+     each Display commit through its own Source2HTML parse, so a <center>,
+     <b> or colour tag the commit never closes dies with it -- Death Shack's
+     Introduction opens <center> without closing it, yet the first room
+     description (the
      next commit) shows left-aligned.  When this commit dangles a span, leave
      an A5_COMMIT_MARK for the host to reset its span state at, placed before
      the commit's trailing whitespace so the buffer keeps the tail shape that
      sb_pspace and the finish_turn trim inspect. */
   if (a5text_interactive ())
     {
-      int center = 0, bold = 0;
+      int center = 0, bold = 0, colour = 0;
       for (i = floor; i < b->len; i++)
         {
           char c = b->p[i];
@@ -82,8 +83,19 @@ sb_resolve_cls (sb_t *b, size_t floor)
           else if (c == A5_ENDCENTER_MARK) { if (center > 0) center--; }
           else if (c == A5_BOLD_MARK) bold++;
           else if (c == A5_ENDBOLD_MARK) { if (bold > 0) bold--; }
+          else if (c == A5_COLOUR_MARK)
+            {
+              /* \027<value>\027 -- one span, two marks; skip to its close so
+                 the value cannot be miscounted, then count it as open. */
+              size_t j = i + 1;
+              while (j < b->len && b->p[j] != A5_COLOUR_MARK) j++;
+              if (j >= b->len) break;
+              i = j;
+              colour++;
+            }
+          else if (c == A5_ENDCOLOUR_MARK) { if (colour > 0) colour--; }
         }
-      if (center > 0 || bold > 0)
+      if (center > 0 || bold > 0 || colour > 0)
         {
           char mark[2] = { A5_COMMIT_MARK, '\0' };
           size_t at = b->len;

@@ -782,11 +782,58 @@ rel_point (const proj_t *p, const map_node_t *n, double xp, double yp,
   *y = px_y (p, n->y + n->h * yp / 100.0);
 }
 
-/* GetBezierAssister (Map.vb:1592): the control point that bows a connector
-   out of the node in its own direction. */
+/* In and Out have no direction on the plan, so the runner picks the edge they
+   leave by from where the other room lies (GetLinkPoint, Map.vb:775-816),
+   remembering it on the node as eInEdge / eOutEdge.  That is what puts a room's
+   IN badge on the side facing the room it lets you into. */
+static int
+inout_edge (const map_node_t *n, const map_node_t *dn)
+{
+  if (dn == NULL)
+    return DIR_N;               /* no node to aim at: the runner's fallback */
+  if (dn->x > n->x + n->w)
+    return DIR_E;
+  if (dn->x + dn->w < n->x)
+    return DIR_W;
+  if (dn->y > n->y)
+    return DIR_S;
+  return DIR_N;
+}
+
+/* Where on that edge the badge sits, as a percentage of the box: node.ptIn and
+   node.ptOut (Map.vb:902-928).  IN and OUT take opposite quarters of the same
+   edge so a room with both keeps them apart. */
 static void
-bezier_assister (const proj_t *p, const map_node_t *n, int dir, double dist,
-                 double *x, double *y)
+inout_pct (int dir, int edge, double *xp, double *yp)
+{
+  int in = (dir == DIR_IN);
+
+  switch (edge)
+    {
+    case DIR_E: *xp = 100;           *yp = in ? 25 : 75;  break;
+    case DIR_W: *xp = 0;             *yp = in ? 75 : 25;  break;
+    case DIR_S: *xp = in ? 75 : 25;  *yp = 100;           break;
+    default:    *xp = in ? 25 : 75;  *yp = 0;             break;
+    }
+}
+
+/* The point an In/Out connector meets the box at -- the centre of the badge,
+   which is where the runner starts and ends the line. */
+static void
+inout_point (const proj_t *p, const map_node_t *n, int dir, int edge,
+             double *x, double *y)
+{
+  double xp, yp;
+  inout_pct (dir, edge, &xp, &yp);
+  rel_point (p, n, xp, yp, x, y);
+}
+
+/* GetBezierAssister (Map.vb:1592): the control point that bows a connector
+   out of the node in its own direction.  In and Out are absent here on
+   purpose -- see the straight-line note in map_render. */
+static void
+bezier_assister (const proj_t *p, const map_node_t *n, int dir,
+                 double dist, double *x, double *y)
 {
   double ox, oy;
   int scale = p->cam->scale > 0 ? p->cam->scale : 1;
@@ -835,6 +882,57 @@ page_node (const map_page_t *page, const char *key)
   return NULL;
 }
 
+/* The page the runner would switch to: the player's own (SelectNode), or the
+   first one when the player is somewhere the map does not place.  Returns 0
+   when there is no page to pick, leaving *key alone. */
+static int
+player_page_key (const map_t *map, const char *player_key, int *key)
+{
+  const map_node_t *pn;
+
+  if (map == NULL)
+    return 0;
+  pn = map_find (map, player_key);
+  if (pn != NULL)
+    {
+      *key = pn->page;
+      return 1;
+    }
+  if (map->n_pages > 0)
+    {
+      *key = map->pages[0].key;
+      return 1;
+    }
+  return 0;
+}
+
+int
+map_has_content (const map_t *map, const map_view_t *view,
+                 const char *player_key)
+{
+  const map_page_t *page;
+  int key = 0, i;
+
+  if (!player_page_key (map, player_key, &key))
+    return 0;
+  page = page_by_key (map, key);
+  if (page == NULL)
+    return 0;
+
+  /* The same two tests pass 3 of map_render applies before it draws a box.
+     A hidden room counts for nothing even when seen, which is exactly the
+     case that matters: the staging rooms games park the player in during
+     their opening screens are hidden. */
+  for (i = 0; i < page->n_nodes; i++)
+    {
+      if (page->nodes[i].hidden)
+        continue;
+      if (view_seen (view, page->nodes[i].key))
+        return 1;
+    }
+  return 0;
+}
+
 /* The manual zoom ladder ("glk zoom in/out").  The automatic fit never goes
    above MAP_SCALE_MAX, but a player asking to zoom in can usefully get closer
    than the fit would; past 32 the boxes stop gaining anything. */
@@ -877,12 +975,8 @@ map_frame (const map_t *map, const map_view_t *view,
   if (map == NULL || dst == NULL)
     return;
 
-  /* The runner switches to the page the player is on (SelectNode). */
   pn = map_find (map, player_key);
-  if (pn != NULL)
-    cam->page = pn->page;
-  else if (map->n_pages > 0)
-    cam->page = map->pages[0].key;
+  player_page_key (map, player_key, &cam->page);
 
   page = page_by_key (map, cam->page);
   if (page == NULL)
@@ -1003,24 +1097,28 @@ draw_out_arrow (map_surface_t *s, const proj_t *p, const map_node_t *n,
    put a little icon on the room box instead of drawing a connector). */
 static void
 draw_dir_icon (map_surface_t *s, const proj_t *p, const map_node_t *n,
-               int dir, int alpha)
+               int dir, int edge, int alpha)
 {
   double cx, cy;
   const char *letter;
   unsigned int rgb;
-  int xp, yp;
+  double xp, yp;
   int r = p->cam->scale / 2;
   if (r < 3)
     r = 3;
-  /* The runner picks the edge from where the destination lies; without the
-     full edge bookkeeping we give each badge a fixed spot -- IN and OUT along
-     the top edge, UP high on the right edge, DOWN low on the left edge --
-     which keeps the four from colliding, and keeps UP and DOWN off the
-     corners where the NE and SW connectors attach. */
+  /* IN and OUT go where the connector leaves the box, on the edge `edge` that
+     inout_edge picked.  UP and DOWN are ours: the ADRIFT 4 runner drew them as
+     icons rather than lines, so they get a fixed spot -- high on the right
+     edge, low on the left -- clear of the IN/OUT quarters and off the corners
+     where the NE and SW connectors attach. */
   switch (dir)
     {
-    case DIR_IN:   letter = "I"; rgb = ICON_IN;   xp = 25;  yp = 0;   break;
-    case DIR_OUT:  letter = "O"; rgb = ICON_OUT;  xp = 75;  yp = 0;   break;
+    case DIR_IN:
+    case DIR_OUT:
+      letter = (dir == DIR_IN) ? "I" : "O";
+      rgb = (dir == DIR_IN) ? ICON_IN : ICON_OUT;
+      inout_pct (dir, edge, &xp, &yp);
+      break;
     case DIR_UP:   letter = "U"; rgb = ICON_UP;   xp = 100; yp = 25;  break;
     case DIR_DOWN: letter = "D"; rgb = ICON_DOWN; xp = 0;   yp = 75;  break;
     default: return;
@@ -1046,6 +1144,85 @@ badge_alpha (const map_view_t *view, const map_link_t *lk, int alpha)
   return alpha / 2;
 }
 
+/* Which IN/OUT badges a node wears, and on which edge.
+ *
+ * An In/Out connector is recorded on one room only, but the runner puts a
+ * badge on both ends of it: DrawLinks finishes by drawing the opposite badge
+ * on the destination node (Map.vb:1517), which is how the room you step into
+ * gets its OUT even though the <Link> lives on the room outside.  `far` is
+ * that badge; `own` is the one the node draws for a link of its own
+ * (Map.vb:1326-1343), and only `own` answers to HasRouteInDirection. */
+typedef struct {
+  int in_edge, out_edge;        /* node.eInEdge / eOutEdge */
+  unsigned char far_in, far_out;
+} inout_badge_t;
+
+/* Record the edge an In/Out badge sits on, and whether it got there from a
+   link ending at this node rather than one leaving it. */
+static void
+inout_mark (inout_badge_t *b, int dir, int edge, int far)
+{
+  if (dir == DIR_IN)
+    {
+      b->in_edge = edge;
+      b->far_in |= (unsigned char) (far != 0);
+    }
+  else
+    {
+      b->out_edge = edge;
+      b->far_out |= (unsigned char) (far != 0);
+    }
+}
+
+/* Walk the page's In/Out links once and record both ends of each, the way
+   RecalculateLinks does (Map.vb:824).  ADRIFT 4's In/Out are badge links with
+   no geometry to share, so they are left to the fixed north-edge fallback.
+   Returns NULL when the page has no In/Out at all, which most pages do. */
+static inout_badge_t *
+inout_layout (const map_page_t *page, const map_view_t *view)
+{
+  inout_badge_t *b = NULL;
+  int i, l;
+
+  for (i = 0; i < page->n_nodes; i++)
+    {
+      const map_node_t *n = &page->nodes[i];
+      if (!view_seen (view, n->key))
+        continue;
+
+      for (l = 0; l < n->n_links; l++)
+        {
+          const map_link_t *link = &n->links[l];
+          const map_node_t *dn;
+          int dst_anchor;
+
+          if (link->badge)
+            continue;
+          if (link->dir != DIR_IN && link->dir != DIR_OUT)
+            continue;
+          if (b == NULL)
+            {
+              b = (inout_badge_t *) calloc ((size_t) page->n_nodes,
+                                            sizeof (inout_badge_t));
+              if (b == NULL)
+                return NULL;
+            }
+
+          dn = (link->dest != NULL) ? page_node (page, link->dest) : NULL;
+          inout_mark (&b[i], link->dir, inout_edge (n, dn), 0);
+          if (dn == NULL || !view_seen (view, dn->key))
+            continue;
+
+          dst_anchor = link->dst_anchor;
+          if (dst_anchor != DIR_IN && dst_anchor != DIR_OUT)
+            continue;
+          inout_mark (&b[dn - page->nodes], dst_anchor,
+                      inout_edge (dn, n), 1);
+        }
+    }
+  return b;
+}
+
 void
 map_render (const map_t *map, const map_view_t *view,
               const char *player_key, const map_camera_t *cam,
@@ -1053,6 +1230,7 @@ map_render (const map_t *map, const map_view_t *view,
 {
   const map_page_t *page;
   const map_node_t *active;
+  inout_badge_t *badges;
   proj_t p;
   int i, l, wd;
 
@@ -1070,6 +1248,7 @@ map_render (const map_t *map, const map_view_t *view,
   wd = cam->scale / 5;          /* Map.vb:1433, pen width = iScale / 5 */
   if (wd < 1)
     wd = 1;
+  badges = inout_layout (page, view);
 
   /* Pass 1: connectors, so the room boxes sit on top of them. */
   for (i = 0; i < page->n_nodes; i++)
@@ -1084,10 +1263,10 @@ map_render (const map_t *map, const map_view_t *view,
           const map_node_t *dn;
           double x0, y0, x1, y1, x2, y2, x3, y3, dist;
           int alpha, dash, phase = 0;
-          int dst_anchor;
+          int dst_anchor, src_edge, dst_edge;
 
-          if (link->dir == DIR_IN || link->dir == DIR_OUT || link->badge)
-            continue;           /* drawn as badges below */
+          if (link->badge)
+            continue;           /* ADRIFT 4 draws these as icons, not lines */
           if (link->dest == NULL)
             continue;
 
@@ -1131,11 +1310,37 @@ map_render (const map_t *map, const map_view_t *view,
           if (dst_anchor < 0)
             dst_anchor = link->dir;
 
-          link_point (&p, n, link->dir, &x0, &y0);
-          link_point (&p, dn, dst_anchor, &x3, &y3);
+          /* An In/Out connector runs badge to badge, so both ends come off the
+             edges inout_edge picked rather than off a compass point. */
+          src_edge = inout_edge (n, dn);
+          if (link->dir == DIR_IN || link->dir == DIR_OUT)
+            inout_point (&p, n, link->dir, src_edge, &x0, &y0);
+          else
+            link_point (&p, n, link->dir, &x0, &y0);
+          dst_edge = inout_edge (dn, n);
+          if (dst_anchor == DIR_IN || dst_anchor == DIR_OUT)
+            inout_point (&p, dn, dst_anchor, dst_edge, &x3, &y3);
+          else
+            link_point (&p, dn, dst_anchor, &x3, &y3);
+
           dist = sqrt ((x3 - x0) * (x3 - x0) + (y3 - y0) * (y3 - y0));
-          bezier_assister (&p, n, link->dir, dist, &x1, &y1);
-          bezier_assister (&p, dn, dst_anchor, dist, &x2, &y2);
+          if (link->dir == DIR_IN || link->dir == DIR_OUT
+              || dst_anchor == DIR_IN || dst_anchor == DIR_OUT)
+            {
+              /* No bow: an In/Out connector is a straight run between the two
+                 badges however far apart they are.  Checked against run500
+                 5.0.36 on Alyas of Starhollow, whose In Longhouse -> By
+                 Longhouse link crosses ten map units diagonally and still
+                 arrives dead straight, where a compass link over that distance
+                 visibly bellies out. */
+              x1 = x0; y1 = y0;
+              x2 = x3; y2 = y3;
+            }
+          else
+            {
+              bezier_assister (&p, n, link->dir, dist, &x1, &y1);
+              bezier_assister (&p, dn, dst_anchor, dist, &x2, &y2);
+            }
 
           draw_bezier (dst, x0, y0, x1, y1, x2, y2, x3, y3, wd, map_fg,
                        alpha, dash, &phase);
@@ -1180,6 +1385,8 @@ map_render (const map_t *map, const map_view_t *view,
 
       if (!view_seen (view, n->key))
         continue;
+      if (n->hidden)
+        continue;               /* Location <Hide>: no box (Map.vb:1156) */
 
       x0 = px_x (&p, n->x);
       y0 = px_y (&p, n->y);
@@ -1225,14 +1432,21 @@ map_render (const map_t *map, const map_view_t *view,
               && view->exit_dest (view->ctx, n->key, DIR_OUT) == NULL)
             b_out = NULL;
         }
-      if (b_in != NULL)
-        draw_dir_icon (dst, &p, n, DIR_IN, badge_alpha (view, b_in, alpha));
-      if (b_out != NULL)
-        draw_dir_icon (dst, &p, n, DIR_OUT, badge_alpha (view, b_out, alpha));
+      /* The far end of somebody else's In/Out link wears a badge too, and that
+         one is not gated -- DrawLinks draws it whatever the route does. */
+      if (b_in != NULL || (badges != NULL && badges[i].far_in))
+        draw_dir_icon (dst, &p, n, DIR_IN,
+                       badges != NULL ? badges[i].in_edge : DIR_N,
+                       b_in != NULL ? badge_alpha (view, b_in, alpha) : alpha);
+      if (b_out != NULL || (badges != NULL && badges[i].far_out))
+        draw_dir_icon (dst, &p, n, DIR_OUT,
+                       badges != NULL ? badges[i].out_edge : DIR_N,
+                       b_out != NULL ? badge_alpha (view, b_out, alpha)
+                                     : alpha);
       if (b_up != NULL)
-        draw_dir_icon (dst, &p, n, DIR_UP, badge_alpha (view, b_up, alpha));
+        draw_dir_icon (dst, &p, n, DIR_UP, -1, badge_alpha (view, b_up, alpha));
       if (b_down != NULL)
-        draw_dir_icon (dst, &p, n, DIR_DOWN,
+        draw_dir_icon (dst, &p, n, DIR_DOWN, -1,
                        badge_alpha (view, b_down, alpha));
 
       if (view != NULL && view->name != NULL)
@@ -1244,6 +1458,8 @@ map_render (const map_t *map, const map_view_t *view,
                         alpha == 50 ? 90 : 255);
         }
     }
+
+  free (badges);
 }
 
 const char *

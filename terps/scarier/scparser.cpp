@@ -269,7 +269,7 @@ uip_current_token_value (void)
 typedef enum
 {
   NODE_UNUSED = 0,
-  NODE_CHOICE, NODE_OPTIONAL, NODE_WILDCARD, NODE_WHITESPACE,
+  NODE_CHOICE, NODE_OPTIONAL, NODE_WILDCARD, NODE_WHITESPACE, NODE_JOIN,
   NODE_CHARACTER_REFERENCE, NODE_OBJECT_REFERENCE, NODE_TEXT_REFERENCE,
   NODE_NUMBER_REFERENCE, NODE_WORD, NODE_VARIABLE, NODE_LIST, NODE_EOS
 } scr_pttype_t;
@@ -289,6 +289,14 @@ static scr_uip_tok_t uip_parse_lookahead = TOK_NONE;
 
 /* Parse error jump buffer. */
 static jmp_buf uip_parse_error;
+
+/*
+ * Nesting depth of [...] and {...} groups currently being parsed.  A "/" is
+ * an alternatives separator only inside a group; at depth zero run400 has no
+ * notion of it at all and treats it as an ordinary literal character (see
+ * uip_parse_list()).
+ */
+static scr_int uip_parse_group_depth = 0;
 
 /* Parse tree for cleanup, and forward declaration of pattern list parser. */
 static scr_ptnoderef_t uip_parse_tree = (scr_ptnoderef_t) NULL;
@@ -578,7 +586,9 @@ uip_parse_element (void)
       /* Parse a [...[/.../...]] choice. */
       uip_parse_match (TOK_CHOICE);
       node = uip_new_node (NODE_CHOICE);
+      uip_parse_group_depth++;
       uip_parse_alternatives (node);
+      uip_parse_group_depth--;
       uip_parse_match (TOK_CHOICE_END);
       break;
 
@@ -586,9 +596,27 @@ uip_parse_element (void)
       /* Parse a {...[/.../...]} optional element. */
       uip_parse_match (TOK_OPTIONAL);
       node = uip_new_node (NODE_OPTIONAL);
+      uip_parse_group_depth++;
       uip_parse_alternatives (node);
+      uip_parse_group_depth--;
       uip_parse_match (TOK_OPTIONAL_END);
       break;
+
+    case TOK_ALTERNATES_SEPARATOR:
+      {
+        /*
+         * A "/" outside any group.  Only reachable from uip_parse_list()
+         * at depth zero, where it is a literal character rather than a
+         * separator; make a word node for it.
+         */
+        scr_char *word;
+
+        word = uip_new_word ("/");
+        uip_parse_match (TOK_ALTERNATES_SEPARATOR);
+        node = uip_new_node (NODE_WORD);
+        node->word = word;
+        break;
+      }
 
     case TOK_WILDCARD:
     case TOK_CHARACTER_REFERENCE:
@@ -683,9 +711,22 @@ uip_parse_list (scr_ptnoderef_t list)
         {
         case TOK_CHOICE_END:
         case TOK_OPTIONAL_END:
-        case TOK_ALTERNATES_SEPARATOR:
           /* Terminate list building and return. */
           return;
+
+        case TOK_ALTERNATES_SEPARATOR:
+          /*
+           * Inside a group, this ends the current alternative.  Outside one
+           * it is not a separator at all -- run400's matcher only ever looks
+           * for "/" between [] or {} delimiters, so a bare "take/get/eat
+           * stew" is a single literal that matches only itself.  Fall into
+           * the default case, which makes a literal "/" word node.  (Before
+           * this, the list was terminated here *without* a NODE_EOS, so the
+           * pattern degenerated to "take" and prefix-matched anything.)
+           */
+          if (uip_parse_group_depth > 0)
+            return;
+          /* Fall through. */
 
         case TOK_EOS:
           /* Place EOS at the appropriate link and return. */
@@ -708,17 +749,31 @@ uip_parse_list (scr_ptnoderef_t list)
             {
               /*
                * Make a special case of a choice or option next to another
-               * choice or option.  In this case, add an (invented) whitespace
-               * node, to ensure a match with suitable input.
+               * choice or option.  In this case, add an (invented) join node,
+               * which matches a space if one is there but is happy without
+               * one, to ensure a match with suitable input.
+               *
+               * Both halves of that matter.  "[open/pull/push]{the}{wooden}
+               * [door]" has no spaces in it at all, yet has to match "open
+               * door" and "open the door" -- so a space between groups must be
+               * allowed.  But ADRIFT authors also build single words out of
+               * adjacent groups, with no separator intended: ImagiDroids has
+               * "{move/run/walk/go/climb} {to/towards} {the} [d/out/in]{own}"
+               * (d, down, out, in) and "[s]{outh}{ /-}[w]{est}", where the
+               * explicit "{ /-}" for the space in "south west" is the proof
+               * that adjacency alone does not imply one.  This node used to be
+               * a plain NODE_WHITESPACE, which insisted on a space or a word
+               * boundary, so "north" never matched "[n]{orth}" and the game's
+               * own published walkthrough could not leave the first room.
                */
               if ((child->type == NODE_OPTIONAL || child->type == NODE_CHOICE)
                   && (node->type == NODE_OPTIONAL || node->type == NODE_CHOICE))
                 {
-                  scr_ptnoderef_t whitespace;
+                  scr_ptnoderef_t join;
 
-                  /* Interpose invented whitespace. */
-                  whitespace = uip_new_node (NODE_WHITESPACE);
-                  child->right_sibling = whitespace;
+                  /* Interpose invented optional whitespace. */
+                  join = uip_new_node (NODE_JOIN);
+                  child->right_sibling = join;
                   child = child->right_sibling;
                 }
 
@@ -783,6 +838,9 @@ uip_debug_dump_node (scr_ptnoderef_t node, scr_int depth)
           break;
         case NODE_WHITESPACE:
           scr_trace (", whitespace");
+          break;
+        case NODE_JOIN:
+          scr_trace (", join");
           break;
         case NODE_CHARACTER_REFERENCE:
           scr_trace (", character");
@@ -1029,6 +1087,19 @@ uip_match_whitespace (void)
   return FALSE;
 }
 
+/*
+ * Optional whitespace, invented between two adjacent [] or {} groups.  Eat a
+ * space if one is present, but never fail -- see uip_parse_list().
+ */
+static scr_bool
+uip_match_join (void)
+{
+  while (uip_string[uip_posn] != NUL && scr_isspace (uip_string[uip_posn]))
+    uip_posn++;
+
+  return TRUE;
+}
+
 static scr_bool
 uip_match_list (scr_ptnoderef_t node)
 {
@@ -1127,13 +1198,29 @@ uip_match_optional (scr_ptnoderef_t node)
 
   /*
    * If the temporary matched and consumed text, rewind position to match
-   * nothing.  If it didn't, match alternatives to consume anything that may
-   * match our options.
+   * nothing.  If it didn't, rewind anyway -- a failed look-ahead may still
+   * have advanced the position, since uip_match_list() has no backtracking of
+   * its own -- and then match alternatives to consume anything that may match
+   * our options.
+   *
+   * The rewind before uip_match_alternatives() matters whenever an option is
+   * a prefix of the word actually in the input.  Monsters (Release 2) has
+   * "shine {the} [flashlight/light] {on} {the} {brainsucker} {brain}
+   * {monster}": against "shine flashlight on the brainsucker" the look-ahead
+   * from {brainsucker} lets {brain} eat the first five letters of
+   * "brainsucker" (uip_match_word() is a prefix compare with no word-boundary
+   * check), then fails on the trailing "sucker".  Without the rewind the
+   * alternatives are tried at "sucker", {brainsucker} matches nothing, and
+   * the whole pattern dies -- which lost the game its brainsucker task even
+   * though the author's own published transcript shows the command working.
    */
   if (matched && uip_posn > start_posn)
     uip_posn = start_posn;
   else
-    uip_match_alternatives (node);
+    {
+      uip_posn = start_posn;
+      uip_match_alternatives (node);
+    }
 
   /* Return TRUE no matter what. */
   return TRUE;
@@ -1408,10 +1495,9 @@ uip_compare_reference (const scr_char *words)
  */
 typedef struct
 {
-  std::string prefixed;    /* "prefix name", exactly as composed before */
+  std::vector<std::string> forms;  /* every string this candidate answers to */
   const scr_char *plain;   /* interned name string from the bundle */
-  scr_char lead_prefixed;  /* uip_lead_char() of the strings above... */
-  scr_char lead_plain;     /* ... valid under the game's locale */
+  std::string leads;       /* uip_lead_char() of each form, in form order */
 } scr_uip_candidate_t;
 
 typedef struct
@@ -1440,19 +1526,53 @@ uip_lead_char (const scr_char *string)
  * uip_build_candidate()
  *
  * Fill in one match candidate from a prefix and a name.
+ *
+ * The forms are "prefix name", then that same string with the prefix's
+ * leading words dropped one at a time, and finally the bare name.  Dropping
+ * prefix words is what lets the real Runner answer to a partial prefix:
+ * Monsters (Release 2) has Prefix "Sissy's four poster" on Short "bed", and
+ * the author's own published transcript shows "examine the four poster bed"
+ * returning the object's description.  Matching only the whole prefix or the
+ * bare noun -- as this did before -- turned any such line into "I see no such
+ * thing".  Only prefix words are droppable; the name itself is never cut
+ * down, so a two-word Short still has to be given in full.
  */
 static void
 uip_build_candidate (scr_uip_candidate_t *candidate,
                      const scr_char *prefix, const scr_char *name)
 {
+  std::string composed;
+  size_t word;
+
   /* Compose "prefix name" as the old per-call sprintf ("%s %s") did. */
-  candidate->prefixed.assign (prefix);
-  candidate->prefixed.append (1, ' ');
-  candidate->prefixed.append (name);
+  composed.assign (prefix);
+  composed.append (1, ' ');
+  composed.append (name);
+
+  candidate->forms.clear ();
+  candidate->forms.push_back (composed);
+
+  /*
+   * Add one form per remaining prefix word boundary.  Walk only as far as the
+   * prefix extends -- past that we would be eating into the name.
+   */
+  for (word = 0; word < strlen (prefix); word++)
+    {
+      if (!scr_isspace (composed[word]) || scr_isspace (composed[word + 1]))
+        continue;
+
+      candidate->forms.push_back (composed.substr (word + 1));
+    }
+
+  /* The bare name, unless a wholly empty prefix already made it form 0. */
+  if (candidate->forms.back () != name)
+    candidate->forms.push_back (name);
 
   candidate->plain = name;
-  candidate->lead_prefixed = uip_lead_char (candidate->prefixed.c_str ());
-  candidate->lead_plain = uip_lead_char (name);
+
+  candidate->leads.clear ();
+  for (word = 0; word < candidate->forms.size (); word++)
+    candidate->leads.append (1, uip_lead_char (candidate->forms[word].c_str ()));
 }
 
 /*
@@ -1544,20 +1664,26 @@ uip_forget_game (const void *game)
 /*
  * uip_compare_candidate()
  *
- * Attempt a reference match against a candidate's prefixed name, and if
- * that fails, its plain name (the same order the matchers always used).
- * Returns the extent of the match, or zero if no match.
+ * Attempt a reference match against each of a candidate's forms, longest
+ * first (the fully prefixed name down to the bare one, which is the order
+ * uip_build_candidate() stores them in, and which keeps the longest match
+ * winning as the matchers always assumed).  Returns the extent of the match,
+ * or zero if no match.
  */
 static scr_int
 uip_compare_candidate (const scr_uip_candidate_t &candidate)
 {
-  scr_int extent;
+  size_t form;
 
-  extent = uip_compare_reference (candidate.prefixed.c_str ());
-  if (extent == 0)
-    extent = uip_compare_reference (candidate.plain);
+  for (form = 0; form < candidate.forms.size (); form++)
+    {
+      scr_int extent = uip_compare_reference (candidate.forms[form].c_str ());
 
-  return extent;
+      if (extent > 0)
+        return extent;
+    }
+
+  return 0;
 }
 
 
@@ -1574,6 +1700,21 @@ uip_match_remainder (scr_ptnoderef_t node, scr_int extent)
   scr_ptnoderef_t list;
   scr_int start_posn;
   scr_bool matched;
+
+  /*
+   * If the reference is the last element of its list there is nothing left to
+   * match, and the remainder is vacuously satisfied.  This happens whenever a
+   * %character% or %object% closes a choice or optional group, as in the very
+   * common idioms "[kiss {the} %character%]" and
+   * "[smack/hit/punch/kick]{the}[%character%]".  Without this the temporary
+   * list below is empty, uip_match_list() fails it by design, and the
+   * reference can never match -- a divergence from the real Runner, which
+   * matches both of those (verified against run400.exe on ADRIFTMAS Party).
+   * At the top level the case does not arise: uip_parse_list() appends a
+   * NODE_EOS there, so end-of-string is still enforced after the group.
+   */
+  if (!node->right_sibling)
+    return TRUE;
 
   /* Note the start position, then advance to the given extent. */
   start_posn = uip_posn;
@@ -1662,8 +1803,7 @@ uip_match_entity (scr_ptnoderef_t node, scr_bool is_character)
             scr_trace ("UIParser: trying %s%s\n",
                        alias < 0 ? "" : "alias ", candidate.plain);
 
-          if (input_lead != candidate.lead_prefixed
-              && input_lead != candidate.lead_plain)
+          if (candidate.leads.find (input_lead) == std::string::npos)
             continue;
 
           extent = uip_compare_candidate (candidate);
@@ -1735,6 +1875,9 @@ uip_match_node (scr_ptnoderef_t node)
       break;
     case NODE_WHITESPACE:
       match = uip_match_whitespace ();
+      break;
+    case NODE_JOIN:
+      match = uip_match_join ();
       break;
     case NODE_LIST:
       match = uip_match_list (node);
@@ -1886,6 +2029,7 @@ uip_match (const scr_char *pattern, const scr_char *string, scr_gameref_t game)
         {
           /* Parse the pattern into a match tree. */
           uip_parse_lookahead = uip_next_token ();
+          uip_parse_group_depth = 0;
           uip_parse_tree = uip_new_node (NODE_LIST);
           uip_parse_list (uip_parse_tree);
           uip_tokenize_end ();
@@ -2183,11 +2327,13 @@ uip_assign_pronouns (scr_gameref_t game, const scr_char *string)
               /*
                * Version 3.8 games lack NPC gender information, so for this
                * case set "him"/"her" on each match, and never set "it"; this
-               * matches the version 3.8 runner.
+               * matches the version 3.8 runner.  Version 3.7 has no gender
+               * field either (its NPC record is version 3.8's), so it takes
+               * the same treatment.
                */
               vt_key[0].string = "Version";
               version = prop_get_integer (bundle, "I<-s", vt_key);
-              if (version == TAF_VERSION_380)
+              if (version <= TAF_VERSION_380)
                 {
                   game->him_npc = npc;
                   game->her_npc = npc;

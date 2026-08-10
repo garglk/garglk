@@ -50,7 +50,7 @@ static const scr_char NEWLINE = '\n';
 static const scr_char CARRIAGE_RETURN = '\r';
 static const scr_char NUL = '\0';
 
-/* Version 4.0, version 3.9, and version 3.8 TAF file signatures. */
+/* Version 4.0, version 3.9, version 3.8, and version 3.7 TAF file signatures. */
 static const scr_byte
   V400_SIGNATURE[VERSION_HEADER_SIZE] = {0x3c, 0x42, 0x3f, 0xc9, 0x6a, 0x87,
                                          0xc2, 0xcf, 0x93, 0x45, 0x3e, 0x61,
@@ -62,6 +62,17 @@ static const scr_byte
 static const scr_byte
   V380_SIGNATURE[VERSION_HEADER_SIZE] = {0x3c, 0x42, 0x3f, 0xc9, 0x6a, 0x87,
                                          0xc2, 0xcf, 0x94, 0x45, 0x36, 0x61,
+                                         0x39, 0xfa};
+/*
+ * Note that the version 3.7 signature is not the version 3.8 one with its
+ * version digit stepped down by one: "Version 3.70" and "Version 3.80" differ
+ * in the character *after* the one that differs in the plaintext too, because
+ * each is XOR'd with a different byte of the keystream.  Byte 10 is 0x39, not
+ * the 0x35 that interpolating 3.80/3.90 would suggest.
+ */
+static const scr_byte
+  V370_SIGNATURE[VERSION_HEADER_SIZE] = {0x3c, 0x42, 0x3f, 0xc9, 0x6a, 0x87,
+                                         0xc2, 0xcf, 0x94, 0x45, 0x39, 0x61,
                                          0x39, 0xfa};
 
 /*
@@ -125,6 +136,32 @@ taf_random_reset (void)
 {
   /* Reset PRNG to initial conditions. */
   taf_random_state = PRNG_INITIAL_STATE;
+}
+
+
+/*
+ * taf_obfuscate_reset()
+ * taf_obfuscate_buffer()
+ *
+ * Run the obfuscation the other way, for writing a pre-4.0 saved game that the
+ * original Runner can read back.  Xor is its own inverse, so this is
+ * taf_unobfuscate()'s inner loop with the bytes going out instead of in.  Reset
+ * once at the start of a stream, then feed it every byte in order; a saved game
+ * has no header, so the keystream starts at index 0.
+ */
+void
+taf_obfuscate_reset (void)
+{
+  taf_random_reset ();
+}
+
+void
+taf_obfuscate_buffer (scr_byte *buffer, scr_int length)
+{
+  scr_int index_;
+
+  for (index_ = 0; index_ < length; index_++)
+    buffer[index_] ^= taf_random ();
 }
 
 
@@ -358,10 +395,17 @@ taf_unobfuscate (scr_tafref_t taf, scr_read_callbackref_t callback,
 {
   scr_int bytes, used_bytes, total_bytes, index_;
 
-  /* Reset the PRNG, and synchronize with the header already read. */
+  /*
+   * Reset the PRNG, and synchronize with the header already read.  A saved
+   * game has no header, so its keystream starts at index 0 -- skipping the
+   * fourteen header values there would decode to garbage.
+   */
   taf_random_reset ();
-  for (index_ = 0; index_ < VERSION_HEADER_SIZE; index_++)
-    taf_random ();
+  if (is_gamefile)
+    {
+      for (index_ = 0; index_ < VERSION_HEADER_SIZE; index_++)
+        taf_random ();
+    }
 
   /*
    * Allocate buffer on the heap, done to help systems with limited stacks,
@@ -555,6 +599,55 @@ taf_decompress (scr_tafref_t taf, scr_read_callbackref_t callback,
 
 
 /*
+ * Saved-game container sniffing.
+ *
+ * A .tas carries no signature, so its format has to be recognised from its
+ * first bytes.  A version 4.0 save is a bare zlib stream, whose two-byte
+ * header is 0x78 (deflate, 32K window -- what every deflateInit emits)
+ * followed by a check byte chosen so the pair is a multiple of 31.  Anything
+ * else is a pre-4.0 save, obfuscated with the same Visual Basic PRNG a version
+ * 3.9 .taf uses.  The odds of an obfuscated first line passing the zlib test
+ * by chance are about one in eight thousand.
+ *
+ * The sniffed bytes cannot be pushed back into the caller's stream, so the
+ * reader runs against taf_sniff_read(), which replays them and then delegates.
+ */
+typedef struct
+{
+  scr_read_callbackref_t callback;
+  void *opaque;
+  scr_byte prefix[2];
+  scr_int length;
+  scr_int offset;
+} scr_tas_sniff_t;
+
+static scr_int
+taf_sniff_read (void *opaque, scr_byte *buffer, scr_int length)
+{
+  scr_tas_sniff_t *const sniff = (scr_tas_sniff_t *) opaque;
+  scr_int bytes = 0;
+
+  while (sniff->offset < sniff->length && bytes < length)
+    buffer[bytes++] = sniff->prefix[sniff->offset++];
+
+  if (bytes < length)
+    bytes += sniff->callback (sniff->opaque, buffer + bytes, length - bytes);
+
+  return bytes;
+}
+
+static scr_int
+taf_sniff_tas_version (const scr_byte *prefix, scr_int length)
+{
+  if (length >= 2
+      && prefix[0] == 0x78 && (((scr_int) prefix[0] << 8) | prefix[1]) % 31 == 0)
+    return TAF_VERSION_400;
+
+  return TAF_VERSION_390;
+}
+
+
+/*
  * taf_populate_from_callback()
  * taf_create_from_callback()
  *
@@ -568,10 +661,12 @@ taf_populate_from_callback (scr_tafref_t taf,
                             void *opaque, scr_bool is_gamefile)
 {
   scr_bool status = FALSE;
+  scr_tas_sniff_t sniff;
 
   /*
-   * Determine the TAF file version in use.  For saved games, we always use
-   * version 4.0 format.  For others, it's determined from the header.
+   * Determine the TAF file version in use.  For game files it comes from the
+   * header; for saved games, which have none, it is sniffed from the first
+   * bytes of the stream.
    */
   if (is_gamefile)
     {
@@ -613,6 +708,8 @@ taf_populate_from_callback (scr_tafref_t taf,
         taf->version = TAF_VERSION_390;
       else if (memcmp (taf->header, V380_SIGNATURE, VERSION_HEADER_SIZE) == 0)
         taf->version = TAF_VERSION_380;
+      else if (memcmp (taf->header, V370_SIGNATURE, VERSION_HEADER_SIZE) == 0)
+        taf->version = TAF_VERSION_370;
       else
         {
           taf_destroy (taf);
@@ -621,14 +718,27 @@ taf_populate_from_callback (scr_tafref_t taf,
     }
   else
     {
-      /* Saved games are always considered to be version 4.0. */
-      taf->version = TAF_VERSION_400;
+      /*
+       * A saved game written by SCARIER or by run400.exe is a zlib stream; one
+       * written by run390.exe (or by us for a pre-4.0 game) is PRNG-obfuscated.
+       * Peek at the first bytes to tell them apart, then read through the
+       * replaying wrapper so the peeked bytes are not lost.
+       */
+      sniff.callback = callback;
+      sniff.opaque = opaque;
+      sniff.length = callback (opaque, sniff.prefix,
+                               (scr_int) sizeof (sniff.prefix));
+      sniff.offset = 0;
+
+      taf->version = taf_sniff_tas_version (sniff.prefix, sniff.length);
+      callback = taf_sniff_read;
+      opaque = &sniff;
     }
 
   /*
    * Call the appropriate game file reader function.  For version 4.0 games,
-   * data is compressed with Zlib.  For version 3.9 and version 3.8 games,
-   * it's obfuscated with the Visual Basic PRNG.
+   * data is compressed with Zlib.  For version 3.9, 3.8 and 3.7 games, it's
+   * obfuscated with the Visual Basic PRNG.
    */
   switch (taf->version)
     {
@@ -638,6 +748,7 @@ taf_populate_from_callback (scr_tafref_t taf,
 
     case TAF_VERSION_390:
     case TAF_VERSION_380:
+    case TAF_VERSION_370:
       status = taf_unobfuscate (taf, callback, opaque, is_gamefile);
       break;
 
@@ -797,7 +908,7 @@ taf_get_game_data_length (scr_tafref_t taf)
 /*
  * taf_get_version()
  *
- * Return the version number of the TAF file, 400, 390, or 380.
+ * Return the version number of the TAF file, 400, 390, 380, or 370.
  */
 scr_int
 taf_get_version (scr_tafref_t taf)
@@ -853,7 +964,8 @@ taf_debug_dump (scr_tafref_t taf)
   scr_trace ("taf->version = %s\n",
             taf->version == TAF_VERSION_400 ? "4.00" :
             taf->version == TAF_VERSION_390 ? "3.90" :
-            taf->version == TAF_VERSION_380 ? "3.80" : "[Unknown]");
+            taf->version == TAF_VERSION_380 ? "3.80" :
+            taf->version == TAF_VERSION_370 ? "3.70" : "[Unknown]");
 
   scr_trace ("taf->slabs = \n");
   for (index_ = 0; index_ < taf->slab_count; index_++)

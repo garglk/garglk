@@ -50,4 +50,35 @@ extern int a5blorb_find (const uint8_t *buf, uint32_t length,
 extern int a5blorb_find_exec (const uint8_t *buf, uint32_t length,
                               a5_blorb_chunk_t *out);
 
+/*
+ * The ADRIFT 5 Runner's saved window layout, which the Generator embeds as a
+ * 'TEXT' chunk whose body begins with the four bytes "RLAY" (Blorb.vb,
+ * DataChunk).  The chunk is NOT listed in the resource index, so it has to be
+ * found by walking the top-level chunks.
+ *
+ * It holds the author's own Runner dock arrangement, picked up from their
+ * RunnerLayout[-<IFID>].xml at export time.  On load the Runner writes it back
+ * out under the game's IFID if no layout for that IFID exists yet
+ * (Blorb.vb:343), so it becomes the layout the player starts with -- which is
+ * the only reason a game can "open with the map showing".  There is no
+ * authored map-visibility setting anywhere in the adventure data.
+ *
+ * Returns nonzero and fills *out (aliasing buf, past the "RLAY" tag) when the
+ * chunk is present.
+ */
+extern int a5blorb_find_layout (const uint8_t *buf, uint32_t length,
+                                a5_blorb_chunk_t *out);
+
+/*
+ * Whether a docked pane is open in such a layout.  `xml` is the chunk body
+ * a5blorb_find_layout hands back: SOAP-serialised Infragistics
+ * UltraDockManager state, one <DockableControlPane> per pane, carrying
+ * <Closed>true</Closed> only when the pane is shut.  `pane` is the pane's
+ * caption, which is what the Runner itself matches on (frmRunner.vb,
+ * cp.Text = "Map").  Returns 1 for open, 0 for closed, and -1 when the layout
+ * names no such pane.
+ */
+extern int a5blorb_layout_pane_open (const uint8_t *xml, uint32_t length,
+                                     const char *pane);
+
 #endif

@@ -84,6 +84,12 @@ struct ScarierGlkFrontendState {
     int map_shown = 0;
     int map_at_top = 0;
     int map_zoom = 0;
+    /* "glk colour": the archived windows come back painted in the game's
+     * palette, so the flag has to come back with them.  Without it the
+     * interpreter reads as off in front of a coloured screen, and the next
+     * status redraw paints the bar with the reverse video that colour mode
+     * drops -- the game's own text colour as a solid bar. */
+    int colour_on = 0;
     /* Exact RNG state (erkyrath_random detstate): which generator is active
      * plus the xoshiro words, so deterministic randomness continues across
      * an autorestore.  -1 = not recorded (an older autosave). */

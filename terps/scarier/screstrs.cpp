@@ -80,10 +80,11 @@ restr_integer_variable (scr_gameref_t game, scr_int n)
  */
 static scr_bool
 restr_object_in_place (scr_gameref_t game,
-                       scr_int object, scr_int var2, scr_int var3)
+                       scr_int object, scr_int var2, scr_int var3,
+                       scr_bool quantified)
 {
   const scr_var_setref_t vars = gs_get_vars (game);
-  scr_int npc;
+  scr_int npc, holder;
 
   if (restr_trace)
     {
@@ -97,10 +98,11 @@ restr_object_in_place (scr_gameref_t game,
     case 0:
     case 6:                    /* In room */
       /*
-       * Callers only ever pass dynamic objects here (the Adrift 4 runner's
-       * object-location restriction ignores statics entirely -- see the static
-       * filter in restr_pass_task_object_location below), so `position` is
-       * meaningful: -1 is genuinely "hidden", and >= 1 is the room, 1-based.
+       * `position` is meaningful for a dynamic object: -1 is genuinely
+       * "hidden", and >= 1 is the room, 1-based.  A static can still reach
+       * here through the "referenced object" form, and then reads as hidden
+       * until something moves it -- which is what the Adrift 4 runner does
+       * too.  See restr_pass_task_object_location below.
        */
       if (var3 == 0)
         return gs_object_position (game, object) == OBJ_HIDDEN;
@@ -109,8 +111,64 @@ restr_object_in_place (scr_gameref_t game,
 
     case 1:
     case 7:                    /* Held by */
+      /*
+       * "Held by the player" is broader than it sounds.  The Adrift 4 runner
+       * answers TRUE for an object the player is *wearing* as well as one
+       * being carried, and also for an object sitting inside a container that
+       * the player carries or wears -- one level of nesting, not a recursive
+       * search.  See the notes above restr_pass_task_object_location below.
+       *
+       * The container's openness is NOT consulted, and that half was checked
+       * separately: probe `p39held` (test/adrift4/harness/make_39_heldprobe.py) run in the
+       * real run390.exe answers KEY IS HELD for a key inside a *closed* box
+       * the player carries, and only turns to NOT HELD when the box is
+       * dropped -- picking the closed box back up restores it.  All five
+       * states (loose, carried, open-carried-container, closed-carried-
+       * container, closed-container-on-floor) match Scarier exactly.
+       * Verified 2026-08-02; this is what lets inverness's desk be unlocked
+       * with the old key still sealed inside its riddle box.
+       *
+       * Note that none of this applies to the NPC forms, nor to "worn by":
+       * those really are the single exact position test they look like.
+       *
+       * ...and it does not apply to the "any object" / "no object" quantified
+       * form either, which the Runner evaluates in a SEPARATE, hand-duplicated
+       * per-object switch (`quantified` here).  That copy dropped the worn
+       * case: at 00080871 in mdlSpreadTheLoad.Sub_20_3 the Var3 = 0 arm tests
+       * only `location == 0` (held) and the container arm `location == 246`
+       * with the parent held (0) or worn (156) -- there is no `location == 156`
+       * test on the object itself, where the single-object path at 00080C9B
+       * plainly has one.  So a worn object counts as held when a restriction
+       * names it, but NOT when the restriction quantifies over all objects.
+       *
+       * Almost certainly a Runner slip rather than a design, but it is what
+       * shipped, and games depend on it: Cursed's second interlude gates the
+       * magical entrance on "no object is held by the player" while the player
+       * wears street clothes that the game refuses to let you remove.  Count
+       * the clothes and the veil can never be entered and the game is
+       * unwinnable from that point on.
+       */
       if (var3 == 0)            /* Player */
-        return gs_object_position (game, object) == OBJ_HELD_PLAYER;
+        {
+          scr_int position, parent, parent_position;
+
+          position = gs_object_position (game, object);
+          if (position == OBJ_HELD_PLAYER)
+            return TRUE;
+          if (position == OBJ_WORN_PLAYER)
+            return !quantified;
+
+          if (position != OBJ_IN_OBJECT)
+            return FALSE;
+
+          parent = gs_object_parent (game, object);
+          if (parent < 0 || parent >= gs_object_count (game))
+            return FALSE;
+
+          parent_position = gs_object_position (game, parent);
+          return parent_position == OBJ_HELD_PLAYER
+                 || parent_position == OBJ_WORN_PLAYER;
+        }
       else if (var3 == 1)       /* Ref character */
         npc = var_get_ref_character (vars);
       else
@@ -144,23 +202,68 @@ restr_object_in_place (scr_gameref_t game,
       return obj_indirectly_in_room (game, object,
                                      gs_npc_location (game, npc) - 1);
 
+    /*
+     * "Inside" and "on top of" both index a sublist -- containers for one,
+     * surfaces for the other -- with Var3 - 1, and there is NO "nothing"
+     * option.  SCARE used to read Var3 = 0 as "is not inside anything" and
+     * return the negation of the position test; the guess was flagged with a
+     * `/ * Nothing? * /` comment, and it was wrong.
+     *
+     * Probed 2026-08-01 against run400.exe, using a Topaz variant whose
+     * `hedges` (an all-rooms static, so it is in the start room) was flipped to
+     * a container with the dynamic `ring` starting inside it -- the runner
+     * loads it and agrees, answering `look in bushes` with "The silver ring is
+     * inside the hedges":
+     *
+     *   Var1  Var2  Var3  meaning                            runner  old SCARE
+     *   4     4     1     ring is inside container 1         PASS    pass
+     *   4     4     0     ring is inside nothing             fail    fail
+     *   3     4     0     Topaz-object is inside nothing     fail    PASS  <--
+     *   3     10    0     Topaz-object is NOT inside nothing PASS    fail  <--
+     *   4     5     0     ring is on top of nothing          fail    PASS  <--
+     *   3     11    0     ...is NOT on top of nothing        PASS    fail  <--
+     *
+     * Row 1 confirms the 1-based container-sublist index.  The rest are all
+     * explained by Var3 = 0 producing index -1, which no object can match: the
+     * plain form is then always false and the negated form always true.  So
+     * return FALSE here and let the caller's negation do the rest.
+     *
+     * The Generator agrees -- its restriction dropdown strings run
+     * "in room / held by / worn by / visible to / inside object / on object"
+     * with a "- No room -" sentinel for the in-room case and no counterpart for
+     * the other two, so Var3 = 0 is not authorable at all.  Nothing in the v4
+     * corpus has it either: all 111 inside/on-top-of restrictions use Var3 >= 1.
+     *
+     * An index past the end of the sublist answers false in the runner without
+     * complaint (unlike Var1, which raises "Subscript out of range").
+     * obj_nth_object() overruns to the last object instead of failing, so test
+     * what came back rather than trusting it.  That can only reject an index
+     * that was already out of range -- a valid one always yields a real
+     * container/surface.
+     */
     case 4:
     case 10:                   /* Inside */
-      if (var3 == 0)            /* Nothing? */
-        return gs_object_position (game, object) != OBJ_IN_OBJECT;
+      if (var3 == 0)
+        return FALSE;
+
+      holder = obj_container_object (game, var3 - 1);
+      if (holder < 0 || !obj_is_container (game, holder))
+        return FALSE;
 
       return gs_object_position (game, object) == OBJ_IN_OBJECT
-             && gs_object_parent (game, object) == obj_container_object (game,
-                                                                      var3 - 1);
+             && gs_object_parent (game, object) == holder;
 
     case 5:
     case 11:                   /* On top of */
-      if (var3 == 0)            /* Nothing? */
-        return gs_object_position (game, object) != OBJ_ON_OBJECT;
+      if (var3 == 0)
+        return FALSE;
+
+      holder = obj_surface_object (game, var3 - 1);
+      if (holder < 0 || !obj_is_surface (game, holder))
+        return FALSE;
 
       return gs_object_position (game, object) == OBJ_ON_OBJECT
-             && gs_object_parent (game, object) == obj_surface_object (game,
-                                                                      var3 - 1);
+             && gs_object_parent (game, object) == holder;
 
     default:
       scr_fatal ("restr_object_in_place: bad var2, %ld\n", var2);
@@ -196,7 +299,26 @@ restr_pass_task_object_location (scr_gameref_t game,
   else
     scr_fatal ("restr_pass_task_object_location: bad var2, %ld\n", var2);
 
-  /* Now find the addressed object. */
+  /*
+   * Now find the addressed object.
+   *
+   * DELIBERATE DIVERGENCE for the "any object" / "no object" forms combined
+   * with a negated Var2 (6..11).  We negate once, at the end of the loop
+   * below, so "ANY object is NOT in room R" means "no dynamic object is in
+   * room R" and "NO object is NOT in room R" means "some dynamic object is in
+   * room R".  The real Runner cannot express either: the per-object condition
+   * switch inside its any/no loop (mdlSpreadTheLoad.Sub_20_3, dispatch chain
+   * at 000807EE..00080AF1) has cases for Var2 0..5 only, so a negated Var2
+   * matches nothing, and the loop result collapses to a constant -- "any
+   * object" always FAILS and "no object" always PASSES, whatever Var3 and the
+   * world state are.
+   *
+   * Verified 2026-08-01 against run400.exe itself (Wine/Rosetta), with twelve
+   * hand-built single-restriction Topaz variants: the six Var2 < 6 probes all
+   * agree, and the six negated ones show the Runner returning that constant.
+   * We keep the meaningful reading; nothing in the v4 corpus authors a negated
+   * any/no object-location restriction, so no game can tell the difference.
+   */
   if (var1 == 0)
     {
       object = -1;              /* No object */
@@ -207,28 +329,65 @@ restr_pass_task_object_location (scr_gameref_t game,
   else if (var1 == 2)
     object = var_get_ref_object (vars);
   else if (var1 >= 3)
+    /*
+     * Confirmed against run400.exe 2026-08-01: Var1 - 3 indexes the DYNAMIC
+     * objects only, 0-based, not the full object list.  Four probes on Topaz
+     * (dynamics are object 5 `Topaz`, in room 4, and object 8 `ring`, hidden)
+     * pin both halves down -- addressing Var1 = 3 as "in room 4" passes, which
+     * a full-list reading could not do (object 3 is the static `sky`), and
+     * Var1 = 4 as "in room 4" fails, which an off-by-one base could not do.
+     * Var1 = 5 and 6 make the runner raise "evaluate error - Subscript out of
+     * range", so its array really is the two-element dynamic one.  SCARE is
+     * softer there: obj_nth_object() runs off the end and hands back the last
+     * object.  Silent and wrong, but harmless -- no shipped game can contain
+     * such an index, because loading it would crash the runner.
+     */
     object = obj_dynamic_object (game, var1 - 3);
   else
     scr_fatal ("restr_pass_task_object_location: bad var1, %ld\n", var1);
 
   /*
-   * Here it seems that we have to special case static objects that may have
-   * crept in through the referenced object.  The object in place function
-   * isn't built to handle these.
+   * A static object can arrive here through the "referenced object" form, and
+   * unlike the any/no quantifier above the runner does NOT filter it out: it
+   * evaluates the condition on whatever %object% matched.  SCARE used to
+   * reject statics unconditionally at this point, which made "the referenced
+   * object is visible to the player" -- by far the most common way this form
+   * is authored, 25 of the 30 occurrences in the v4 corpus -- impossible to
+   * satisfy by naming any piece of scenery.
    *
-   * TODO What is the meaning of applying object restrictions to static
-   * objects?
+   * Verified 2026-08-01 against run400.exe (Wine/Rosetta), with six
+   * single-restriction Topaz variants whose task command is `probe %object%`
+   * and whose referenced object is the static `sky`:
+   *
+   *   Var2  Var3  meaning                     runner
+   *   0     0     is hidden                   PASS
+   *   0     1     is in room 1 (player's)     fail
+   *   0     4     is in room 4                fail
+   *   1     0     is held by the player       fail
+   *   3     0     is visible to the player    PASS
+   *   6     0     is NOT hidden               fail
+   *
+   * Falling through to restr_object_in_place() reproduces all six.  The two
+   * halves come out right for different reasons, and both are worth spelling
+   * out:
+   *
+   *  - "Visible to" is genuinely computed.  The runner splits static from
+   *    dynamic there (mdlSpreadTheLoad.Sub_20_7) and consults the authored
+   *    per-room list; so does obj_indirectly_in_room() via obj_static_in_room.
+   *    Note `sky` is a Where-type-3 (all rooms) static, hence PASS -- and note
+   *    that Var3 = 1 above is FALSE even though `sky` is in every room, which
+   *    is what proves the "in room" case is NOT consulting that same list.
+   *
+   *  - The other cases match only because both engines end up reading a
+   *    location field that statics never maintain.  The runner keeps a static's
+   *    whereabouts in the per-room array at [1C] but still reads the dynamic
+   *    location int at [1A] here, and that stays at its initial -1; SCARE
+   *    likewise leaves an unmoved static's `position` at OBJ_HIDDEN.  So both
+   *    answer "hidden", accidentally in agreement.  Body-part statics are the
+   *    one place the accident breaks down: SCARE gives them OBJ_PART_NPC, so
+   *    "is hidden" is FALSE where the runner would say TRUE.  Left alone --
+   *    it is the saner answer, and no corpus game asks.
    */
-  if (var1 == 2 && object != -1 && obj_is_static (game, object))
-    {
-      if (restr_trace)
-        {
-          scr_trace ("Restr:"
-                    " restriction object %ld is static, rejecting\n", object);
-        }
-
-      return FALSE;
-    }
 
   /* Try to put it all together. */
   if (object == -1)
@@ -255,12 +414,12 @@ restr_pass_task_object_location (scr_gameref_t game,
           if (obj_is_static (game, target))
             continue;
 
-          if (restr_object_in_place (game, target, var2, var3))
+          if (restr_object_in_place (game, target, var2, var3, TRUE))
             return should_be;
         }
       return !should_be;
     }
-  return should_be == restr_object_in_place (game, object, var2, var3);
+  return should_be == restr_object_in_place (game, object, var2, var3, FALSE);
 }
 
 
@@ -1028,33 +1187,64 @@ restr_match (scr_char c)
 static void restr_bexpr (void);
 
 /*
- * restr_andexpr()
- * restr_orexpr()
+ * restr_expr()
  * restr_bexpr()
  *
  * Expression parsers.  Here we go again...
+ *
+ * "A" and "O" have EQUAL precedence and associate to the LEFT, so "#O#A#"
+ * is "(1 OR 2) AND 3" and never "1 OR (2 AND 3)".  SCARE used to parse the
+ * mask with C precedence -- an or-expression over and-expressions -- which
+ * agrees whenever every A precedes every O, and differs the moment an O
+ * comes before an A at the same bracket level.
+ *
+ * Ground truth is run400.exe's own P-code, mdlSpreadTheLoad.Sub_20_57
+ * ("evaluaterestrictions", 00055CAC..00055EB9), which recurses from the RIGHT:
+ *
+ *   If s = "T" Then True : If s = "F" Then False
+ *   If Right(s, 1) = ")" Then          ' Sub_20_56 finds the matching "("
+ *     grp = trailing bracket group : tail = evaluaterestrictions(inside grp)
+ *     s = Left(s, Len(s) - Len(grp))
+ *   Else
+ *     tail = evaluaterestrictions(Right(s, 1)) : s = Left(s, Len(s) - 1)
+ *   If s = "" Then tail
+ *   ElseIf Right(s, 1) = "A" Then tail And evaluaterestrictions(Left(s, -1))
+ *   ElseIf Right(s, 1) = "O" Then tail Or  evaluaterestrictions(Left(s, -1))
+ *   Else MsgBox "Oops - bad bracket string (evaluaterestrictions): "
+ *
+ * -- one operator per level, the whole head re-parsed underneath it.  Peeling
+ * the LAST operand off and recursing on the head is left association: for
+ * "a A b O c" the outermost call folds `c Or evaluaterestrictions("aAb")`,
+ * i.e. "(a And b) Or c".  There is no second precedence level anywhere in the
+ * routine -- "A" and "O" are two arms of the same If.  Its
+ * caller Sub_20_65 first walks the restrictions in index order substituting
+ * "T"/"F" for each "#" (so every restriction is evaluated, no short circuit,
+ * as SCARE also does), then hands the resulting string to Sub_20_57.
+ *
+ * 20 of the v4 corpus games author a mask that mixes A and O at one bracket
+ * level; the ones this changes are the ones where an O comes first.  The
+ * case that found it is 3monkeys T21, the author's own `winnable` self-check,
+ * whose group "#O(#A#)A#" is "(bucket on the hook OR the coconut is set up)
+ * AND the gate is still shut".  Under C precedence the trailing AND binds
+ * only to the second disjunct, the group is true from turn 1, and the game
+ * declares itself unwinnable before the player has moved.
+ *
+ * The parse walks the mask left to right, so restrictions are evaluated in
+ * index order -- matching Sub_20_65's loop, and keeping restr_lowest_fail
+ * (the FailMessage pick) on the lowest-indexed failure.
  */
 static void
-restr_andexpr (void)
+restr_expr (void)
 {
   restr_bexpr ();
-  while (restr_lookahead == TOK_AND)
-    {
-      restr_match (TOK_AND);
-      restr_bexpr ();
-      restr_eval_action (TOK_AND);
-    }
-}
 
-static void
-restr_orexpr (void)
-{
-  restr_andexpr ();
-  while (restr_lookahead == TOK_OR)
+  while (restr_lookahead == TOK_AND || restr_lookahead == TOK_OR)
     {
-      restr_match (TOK_OR);
-      restr_andexpr ();
-      restr_eval_action (TOK_OR);
+      scr_char operator_ = restr_lookahead;
+
+      restr_match (operator_);
+      restr_bexpr ();
+      restr_eval_action (operator_);
     }
 }
 
@@ -1070,7 +1260,7 @@ restr_bexpr (void)
 
     case TOK_LPAREN:
       restr_match (TOK_LPAREN);
-      restr_orexpr ();
+      restr_expr ();
       restr_match (TOK_RPAREN);
       break;
 
@@ -1176,7 +1366,7 @@ restr_eval_task_restrictions (scr_gameref_t game,
     {
       /* Parse the pattern, and ensure it ends at string end. */
       restr_lookahead = restr_next_token ();
-      restr_orexpr ();
+      restr_expr ();
       restr_match (TOK_EOS);
     }
   else

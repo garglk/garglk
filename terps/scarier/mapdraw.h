@@ -39,7 +39,7 @@
  *
  * This module is deliberately free of Glk and of both engines: it rasterises
  * into a plain RGB surface, so a map can be rendered and diffed headlessly
- * (test/a5map_dump.cpp).
+ * (test/adrift5/harness/a5map_dump.cpp).
  */
 
 #ifndef MAPDRAW_H
@@ -84,6 +84,9 @@ typedef struct map_node_s {
   int x, y, z;                /* top-left corner, in map units               */
   int w, h;                   /* size in map units                           */
   int page;
+  int hidden;                 /* Location <Hide>: the runner omits the box
+                                 but still draws connectors to a seen hidden
+                                 room (Map.vb:1156 DrawNode vs DrawLinks)    */
   map_link_t *links;
   int n_links;
 } map_node_t;
@@ -182,6 +185,14 @@ extern int map_zoom_step (int scale, int dir);
 extern void map_render (const map_t *map, const map_view_t *view,
                         const char *player_key, const map_camera_t *cam,
                         map_surface_t *dst);
+
+/* Whether map_render would put anything at all on the page the player is on:
+   at least one room that has been seen and is not hidden.  Games that run
+   their title and options screens from a hidden staging room draw a blank
+   rectangle until the player reaches somewhere real, which is worth not
+   opening a pane for. */
+extern int map_has_content (const map_t *map, const map_view_t *view,
+                            const char *player_key);
 
 /* Which room is at pixel (px,py) of a `w` x `h` map view?  NULL if none.
    Lets a click walk there. */
