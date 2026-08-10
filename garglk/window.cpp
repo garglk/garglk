@@ -224,9 +224,11 @@ winid_t glk_window_open(winid_t splitwin,
             break;
         case wintype_TextGrid:
             newwin->window = std::make_unique<window_textgrid_t>(newwin.get());
+            gli_css_apply_hints_to_styles(newwin->wingrid()->styles, wintype_TextGrid);
             break;
         case wintype_TextBuffer:
             newwin->window = std::make_unique<window_textbuffer_t>(newwin.get());
+            gli_css_apply_hints_to_styles(newwin->winbuffer()->styles, wintype_TextBuffer);
             break;
         case wintype_Graphics:
             newwin->window = std::make_unique<window_graphics_t>(newwin.get());
@@ -1358,6 +1360,7 @@ void attr_t::set(glui32 style_)
     bgcolor.reset();
     reverse = false;
     style = style_;
+    clear_css();
 }
 
 void attr_t::clear()
@@ -1367,11 +1370,59 @@ void attr_t::clear()
     reverse = false;
     hyper = 0;
     style = 0;
+    clear_css();
+}
+
+void attr_t::clear_css()
+{
+    bold.reset();
+    italic.reset();
+    monospace.reset();
+    underline.reset();
+    size.reset();
+    justification.reset();
+    margin_left = 0;
+    margin_right = 0;
+    text_indent = 0;
 }
 
 FontFace attr_t::font(const Styles &styles) const
 {
-    return styles[style].font;
+    FontFace face = styles[style].font;
+
+    if (bold.has_value()) {
+        face.bold = *bold;
+    }
+    if (italic.has_value()) {
+        face.italic = *italic;
+    }
+    if (monospace.has_value()) {
+        face.monospace = *monospace;
+    }
+
+    return face;
+}
+
+double attr_t::fontsize(const Styles &styles) const
+{
+    if (size.has_value()) {
+        return *size;
+    }
+    if (styles[style].size.has_value()) {
+        return *styles[style].size;
+    }
+
+    return font(styles).monospace ? gli_conf_monosize : gli_conf_propsize;
+}
+
+glui32 attr_t::just(const Styles &styles) const
+{
+    return justification.value_or(styles[style].justification);
+}
+
+bool attr_t::underlined(const Styles &styles) const
+{
+    return underline.value_or(styles[style].underline);
 }
 
 static Color zcolor_LightGrey = Color(181, 181, 181);

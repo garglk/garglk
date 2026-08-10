@@ -267,13 +267,13 @@ static int calcwidth(window_textbuffer_t *dwin,
     for (b = startchar; b < numchars; b++) {
         if (attrs[a] != attrs[b]) {
             w += gli_string_width_uni(attrs[a].font(dwin->styles),
-                    chars + a, b - a, spw);
+                    chars + a, b - a, spw, attrs[a].fontsize(dwin->styles));
             a = b;
         }
     }
 
     w += gli_string_width_uni(attrs[a].font(dwin->styles),
-            chars + a, b - a, spw);
+            chars + a, b - a, spw, attrs[a].fontsize(dwin->styles));
 
     return w;
 }
@@ -285,23 +285,41 @@ static int calcwidth(window_textbuffer_t *dwin,
     return calcwidth(dwin, chars.data(), attrs.data(), startchar, numchars, spw);
 }
 
+// Left and right CSS margins for a line, in subpixels.
+static void line_margins(const tbline_t &ln, int linelen, int &left, int &right)
+{
+    left = 0;
+    right = 0;
+
+    if (linelen <= 0) {
+        return;
+    }
+
+    const attr_t &attr = ln.attrs[0];
+    left = (attr.margin_left + attr.text_indent) * GLI_SUBPIX;
+    right = attr.margin_right * GLI_SUBPIX;
+}
+
 // Horizontal origin for a line's text, honoring Justification stylehints.
 static int line_text_x0(window_textbuffer_t *dwin, const tbline_t &ln,
     int linelen, int x0, int x1, int spw)
 {
-    int text_x0 = x0 + SLOP + ln.lm;
+    int marginl, marginr;
+    line_margins(ln, linelen, marginl, marginr);
+
+    int text_x0 = x0 + SLOP + ln.lm + marginl;
 
     if (linelen <= 0) {
         return text_x0;
     }
 
-    glui32 just = dwin->styles[ln.attrs[0].style].justification;
+    glui32 just = ln.attrs[0].just(dwin->styles);
     if (just != stylehint_just_Centered && just != stylehint_just_RightFlush) {
         return text_x0;
     }
 
     int textw = calcwidth(dwin, ln.chars, ln.attrs, 0, linelen, spw);
-    int avail = x1 - x0 - ln.lm - ln.rm - 2 * SLOP;
+    int avail = x1 - x0 - ln.lm - ln.rm - marginl - marginr - 2 * SLOP;
     if (textw >= avail) {
         return text_x0;
     }
@@ -409,7 +427,7 @@ void win_textbuffer_redraw(window_t *win)
 
         // count spaces and width for full (left-right) justification
         glui32 line_just = linelen > 0
-            ? dwin->styles[ln.attrs[0].style].justification
+            ? ln.attrs[0].just(dwin->styles)
             : stylehint_just_LeftFlush;
         bool full_justify = (gli_conf_justify || line_just == stylehint_just_LeftRight)
             && line_just != stylehint_just_Centered
@@ -422,8 +440,10 @@ void win_textbuffer_redraw(window_t *win)
                 }
             }
             w = calcwidth(dwin, ln.chars, ln.attrs, 0, linelen, 0);
+            int marginl, marginr;
+            line_margins(ln, linelen, marginl, marginr);
             if (nsp != 0) {
-                spw = (x1 - x0 - ln.lm - ln.rm - 2 * SLOP - w) / nsp;
+                spw = (x1 - x0 - ln.lm - ln.rm - marginl - marginr - 2 * SLOP - w) / nsp;
             } else {
                 spw = 0;
             }
@@ -502,47 +522,46 @@ void win_textbuffer_redraw(window_t *win)
                 (x1 - x0) / GLI_SUBPIX, gli_leading,
                 color);
 
+        // Paint the background of a run of identically-styled
+        // characters, along with its hyperlink and CSS underlines.
+        auto draw_run_background = [dwin, y](const tbline_t &ln, int a, int x, int w) {
+            glui32 link = ln.attrs[a].hyper;
+
+            gli_draw_rect(x / GLI_SUBPIX, y, w / GLI_SUBPIX, gli_leading,
+                    ln.attrs[a].bg(dwin->styles));
+
+            if (link != 0) {
+                if (gli_underline_hyperlinks) {
+                    gli_draw_rect(x / GLI_SUBPIX + 1, y + gli_baseline + 1,
+                            w / GLI_SUBPIX + 1, 1,
+                            gli_link_color);
+                }
+                gli_put_hyperlink(link, x / GLI_SUBPIX, y,
+                        x / GLI_SUBPIX + w / GLI_SUBPIX,
+                        y + gli_leading);
+            } else if (ln.attrs[a].underlined(dwin->styles)) {
+                gli_draw_rect(x / GLI_SUBPIX, y + gli_baseline + 1,
+                        w / GLI_SUBPIX, 1,
+                        ln.attrs[a].fg(dwin->styles));
+            }
+        };
+
         x = text_x0;
         a = 0;
         for (b = 0; b < linelen; b++) {
             if (ln.attrs[a] != ln.attrs[b]) {
-                link = ln.attrs[a].hyper;
                 auto font = ln.attrs[a].font(dwin->styles);
-                color = ln.attrs[a].bg(dwin->styles);
-                w = gli_string_width_uni(font, &ln.chars[a], b - a, spw);
-                gli_draw_rect(x / GLI_SUBPIX, y,
-                        w / GLI_SUBPIX, gli_leading,
-                        color);
-                if (link != 0) {
-                    if (gli_underline_hyperlinks) {
-                        gli_draw_rect(x / GLI_SUBPIX + 1, y + gli_baseline + 1,
-                                w / GLI_SUBPIX + 1, 1,
-                                gli_link_color);
-                    }
-                    gli_put_hyperlink(link, x / GLI_SUBPIX, y,
-                            x / GLI_SUBPIX + w / GLI_SUBPIX,
-                            y + gli_leading);
-                }
+                w = gli_string_width_uni(font, &ln.chars[a], b - a, spw,
+                        ln.attrs[a].fontsize(dwin->styles));
+                draw_run_background(ln, a, x, w);
                 x += w;
                 a = b;
             }
         }
-        link = ln.attrs[a].hyper;
         auto font = ln.attrs[a].font(dwin->styles);
-        color = ln.attrs[a].bg(dwin->styles);
-        w = gli_string_width_uni(font, &ln.chars[a], b - a, spw);
-        gli_draw_rect(x / GLI_SUBPIX, y, w / GLI_SUBPIX,
-                gli_leading, color);
-        if (link != 0) {
-            if (gli_underline_hyperlinks) {
-                gli_draw_rect(x / GLI_SUBPIX + 1, y + gli_baseline + 1,
-                        w / GLI_SUBPIX + 1, 1,
-                        gli_link_color);
-            }
-            gli_put_hyperlink(link, x / GLI_SUBPIX, y,
-                    x / GLI_SUBPIX + w / GLI_SUBPIX,
-                    y + gli_leading);
-        }
+        w = gli_string_width_uni(font, &ln.chars[a], b - a, spw,
+                ln.attrs[a].fontsize(dwin->styles));
+        draw_run_background(ln, a, x, w);
         x += w;
 
         color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
@@ -573,7 +592,8 @@ void win_textbuffer_redraw(window_t *win)
                 font = ln.attrs[a].font(dwin->styles);
                 color = link != 0 ? gli_link_color : ln.attrs[a].fg(dwin->styles);
                 x = gli_draw_string_uni(x, y + gli_baseline,
-                        font, color, &ln.chars[a], b - a, spw);
+                        font, color, &ln.chars[a], b - a, spw,
+                        ln.attrs[a].fontsize(dwin->styles));
                 a = b;
             }
         }
@@ -581,7 +601,8 @@ void win_textbuffer_redraw(window_t *win)
         font = ln.attrs[a].font(dwin->styles);
         color = link != 0 ? gli_link_color : ln.attrs[a].fg(dwin->styles);
         gli_draw_string_uni(x, y + gli_baseline,
-                font, color, &ln.chars[a], linelen - a, spw);
+                font, color, &ln.chars[a], linelen - a, spw,
+                ln.attrs[a].fontsize(dwin->styles));
     }
 
     //
@@ -969,6 +990,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 
     pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2 - gli_scroll_width) * GLI_SUBPIX;
     pw = pw - 2 * SLOP - dwin->radjw - dwin->ladjw;
+    pw -= (win->attr.margin_left + win->attr.margin_right + win->attr.text_indent) * GLI_SUBPIX;
 
     Color color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
 
@@ -1011,7 +1033,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     // the font file itself is actually monospace: if the font is monor,
     // monob, monoi, or monoz, then this will be true, regardless of
     // what font the user actually set as the monospace font.
-    bool monospace = gli_tstyles[win->attr.style].font.monospace;
+    bool monospace = win->attr.font(dwin->styles).monospace;
 
     if (gli_conf_dashes != 0 && !monospace) {
         if (ch == '-') {

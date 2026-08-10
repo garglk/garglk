@@ -101,16 +101,20 @@ public:
         std::string m_what;
     };
 
-    Font(FontFace fontface, UniqueFace face, const std::string &fontpath);
+    Font(FontFace fontface, UniqueFace face, const std::string &fontpath, std::optional<double> size_override = std::nullopt);
 
     FontEntry getglyph(glui32 cid);
     int charkern(glui32 c0, glui32 c1);
     const UniqueFace &face() {
         return m_face;
     }
+    const std::string &path() const {
+        return m_path;
+    }
 
 private:
     UniqueFace m_face;
+    std::string m_path;
     bool m_make_bold = false;
     bool m_make_oblique = false;
     bool m_kerned = false;
@@ -130,6 +134,11 @@ static std::array<unsigned char, 1 << GAMMA_BITS> gammainv;
 
 static std::unordered_map<FontFace, Font> gfont_table;
 static std::unordered_map<FontFace, std::vector<Font>> glyph_substitution_fonts;
+
+// Fonts at sizes other than the configured default, as requested by the
+// CSS Basic extension. These are keyed by face and by size in
+// thousandths of a point.
+static std::unordered_map<std::pair<FontFace, glui32>, Font> sized_font_table;
 
 int gli_cellw = 8;
 int gli_cellh = 8;
@@ -374,8 +383,9 @@ static std::vector<Font> make_substitution_fonts(FontFace fontface)
     return fonts;
 }
 
-Font::Font(FontFace fontface, UniqueFace face, const std::string &fontpath) :
-    m_face(std::move(face))
+Font::Font(FontFace fontface, UniqueFace face, const std::string &fontpath, std::optional<double> size_override) :
+    m_face(std::move(face)),
+    m_path(fontpath)
 {
     int err = 0;
     double aspect, size;
@@ -386,6 +396,10 @@ Font::Font(FontFace fontface, UniqueFace face, const std::string &fontpath) :
     } else {
         aspect = gli_conf_propaspect;
         size = gli_conf_propsize;
+    }
+
+    if (size_override.has_value() && *size_override > 0) {
+        size = *size_override;
     }
 
     auto dot = fontpath.rfind('.');
@@ -664,9 +678,50 @@ static const std::vector<std::pair<std::vector<glui32>, glui32>> ligatures = {
     {{'f', 'l'}, UNI_LIG_FL},
 };
 
-static int gli_string_impl(int x, FontFace fontface, const glui32 *s, std::size_t n, int spw, const std::function<void(int, const std::array<Bitmap, GLI_SUBPIX> &)> &callback)
+// Convert a requested font size (in points) to the key used by
+// sized_font_table; the default size for the face maps to 0, meaning
+// the font from gfont_table is used as-is.
+static glui32 font_size_key(FontFace fontface, std::optional<double> size)
 {
-    auto &f = gfont_table.at(fontface);
+    if (!size.has_value() || *size <= 0) {
+        return 0;
+    }
+
+    double def = fontface.monospace ? gli_conf_monosize : gli_conf_propsize;
+    auto key = static_cast<glui32>(std::lround(*size * 1000));
+
+    return key == static_cast<glui32>(std::lround(def * 1000)) ? 0 : key;
+}
+
+static Font &get_font(FontFace fontface, glui32 size_key)
+{
+    auto &base = gfont_table.at(fontface);
+
+    if (size_key == 0) {
+        return base;
+    }
+
+    auto key = std::pair(fontface, size_key);
+    auto it = sized_font_table.find(key);
+    if (it == sized_font_table.end()) {
+        FT_Face face;
+        if (FT_New_Face(ftlib, base.path().c_str(), 0, &face) != 0) {
+            return base;
+        }
+
+        try {
+            it = sized_font_table.emplace(key, Font(fontface, UniqueFace(face), base.path(), size_key / 1000.0)).first;
+        } catch (const Font::LoadError &) {
+            return base;
+        }
+    }
+
+    return it->second;
+}
+
+static int gli_string_impl(int x, FontFace fontface, glui32 size_key, const glui32 *s, std::size_t n, int spw, const std::function<void(int, const std::array<Bitmap, GLI_SUBPIX> &)> &callback)
+{
+    auto &f = get_font(fontface, size_key);
     bool dolig = !FT_IS_FIXED_WIDTH(f.face());
     int prev = -1;
     glui32 c;
@@ -703,9 +758,10 @@ static int gli_string_impl(int x, FontFace fontface, const glui32 *s, std::size_
         // that glyph is unavailable, log a warning and select a
         // question mark instead. If a question mark can't be loaded,
         // abort with an error message. Lookups are cached.
-        auto glyph = [&f, &fontface](glui32 c) -> const FontEntry & {
-            static std::unordered_map<std::pair<FontFace, glui32>, FontEntry> fallback_cache;
+        auto glyph = [&f, &fontface, size_key](glui32 c) -> const FontEntry & {
+            static std::unordered_map<glui32, std::unordered_map<std::pair<FontFace, glui32>, FontEntry>> size_caches;
 
+            auto &fallback_cache = size_caches[size_key];
             auto key = std::pair(fontface, c);
 
             auto it = fallback_cache.find(key);
@@ -757,9 +813,10 @@ static int gli_string_impl(int x, FontFace fontface, const glui32 *s, std::size_
 }
 
 int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb,
-                        const glui32 *text, int len, int spacewidth)
+                        const glui32 *text, int len, int spacewidth,
+                        std::optional<double> fontsize)
 {
-    return gli_string_impl(x, face, text, len, spacewidth, [&y, &rgb](int x, const std::array<Bitmap, GLI_SUBPIX> &glyphs) {
+    return gli_string_impl(x, face, font_size_key(face, fontsize), text, len, spacewidth, [&y, &rgb](int x, const std::array<Bitmap, GLI_SUBPIX> &glyphs) {
         int px = x / GLI_SUBPIX;
         int sx = x % GLI_SUBPIX;
 
@@ -771,9 +828,10 @@ int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb,
     });
 }
 
-int gli_string_width_uni(FontFace face, const glui32 *text, int len, int spacewidth)
+int gli_string_width_uni(FontFace face, const glui32 *text, int len, int spacewidth,
+                         std::optional<double> fontsize)
 {
-    return gli_string_impl(0, face, text, len, spacewidth, [](int, const std::array<Bitmap, GLI_SUBPIX> &) {});
+    return gli_string_impl(0, face, font_size_key(face, fontsize), text, len, spacewidth, [](int, const std::array<Bitmap, GLI_SUBPIX> &) {});
 }
 
 void gli_draw_caret(int x, int y)
