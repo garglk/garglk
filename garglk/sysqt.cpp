@@ -18,6 +18,7 @@
 // along with Gargoyle; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+#include <QAction>
 #include <QApplication>
 #include <QChar>
 #include <QClipboard>
@@ -31,9 +32,12 @@
 #include <QFrame>
 #include <QGraphicsView>
 #include <QHBoxLayout>
+#include <QKeySequence>
 #include <QLabel>
 #include <QList>
 #include <QMainWindow>
+#include <QMenu>
+#include <QMenuBar>
 #include <QMessageBox>
 #include <QMoveEvent>
 #include <QObject>
@@ -51,6 +55,7 @@
 #include <QStringList>
 #include <QTimer>
 #include <QUrl>
+#include <QVector>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QtGlobal>
@@ -120,8 +125,131 @@ static const std::unordered_map<FileFilter, std::pair<QString, QString>> filters
     {FileFilter::Data, {"Data files (*.glkdata)", "glkdata"}},
 };
 
+static constexpr int MAX_RECENT_FILES = 10;
+static const char *RECENT_FILES_KEY = "recent/files";
+
+static void add_recent_file(QSettings *settings, const QString &path)
+{
+    if (path.isEmpty()) {
+        return;
+    }
+
+    auto absolute = QFileInfo(path).absoluteFilePath();
+    auto recent = settings->value(RECENT_FILES_KEY).toStringList();
+    recent.removeAll(absolute);
+    recent.prepend(absolute);
+    while (recent.size() > MAX_RECENT_FILES) {
+        recent.removeLast();
+    }
+    settings->setValue(RECENT_FILES_KEY, recent);
+}
+
+static QString find_gargoyle_launcher()
+{
+    // Prefer the path recorded by the launcher when it started this
+    // interpreter; that covers non-standard layouts (e.g. build trees).
+    if (auto *env = std::getenv("GARGLK_LAUNCHER"); env != nullptr && env[0] != '\0') {
+        QFileInfo info(QString::fromLocal8Bit(env));
+        if (info.exists() && info.isFile()) {
+            return info.canonicalFilePath();
+        }
+    }
+
+    QDir appdir(QCoreApplication::applicationDirPath());
+#ifdef Q_OS_WIN
+    const QString name = "gargoyle.exe";
+#else
+    const QString name = "gargoyle";
+#endif
+
+    // AppImage/Windows/dev builds keep interpreters next to gargoyle.
+    // Unix installs typically put interpreters in libexec/gargoyle and
+    // the launcher in bin/, one or two levels up. CMake build trees put
+    // the launcher in ../garglk/.
+    const QStringList candidates = {
+        appdir.absoluteFilePath(name),
+        appdir.absoluteFilePath(QString("../%1").arg(name)),
+        appdir.absoluteFilePath(QString("../garglk/%1").arg(name)),
+        appdir.absoluteFilePath(QString("../bin/%1").arg(name)),
+        appdir.absoluteFilePath(QString("../../bin/%1").arg(name)),
+    };
+
+    for (const auto &candidate : candidates) {
+        QFileInfo info(candidate);
+        if (info.exists() && info.isFile()) {
+            return info.canonicalFilePath();
+        }
+    }
+
+    return QStandardPaths::findExecutable("gargoyle");
+}
+
 static QApplication *app;
 static garglk::Window *window;
+
+static bool launch_gargoyle(const QString &game = {})
+{
+    auto launcher = find_gargoyle_launcher();
+    if (launcher.isEmpty()) {
+        QMessageBox::warning(window, "Warning", "Unable to find the Gargoyle launcher.");
+        return false;
+    }
+
+    QStringList args;
+    if (!game.isEmpty()) {
+        args << game;
+    }
+
+    if (!QProcess::startDetached(launcher, args)) {
+        QMessageBox::warning(window, "Warning", "Unable to start Gargoyle.");
+        return false;
+    }
+
+    return true;
+}
+
+static QString browse_for_game()
+{
+    // Keep in sync with launchqt.cpp's winbrowsefile().
+    struct Filter {
+        QString name;
+        QStringList extensions;
+    };
+
+    const QVector<Filter> game_filters = {
+        {"Adrift", {"taf"}},
+        {"AdvSys", {"dat"}},
+        {"AGT", {"agx", "d$$"}},
+        {"Alan", {"acd", "a3c"}},
+        {"Glulx", {"ulx", "blb", "blorb", "glb", "gblorb"}},
+        {"Hugo", {"hex"}},
+        {"JACL", {"jacl", "j2"}},
+        {"Level 9", {"l9", "sna"}},
+        {"Magnetic Scrolls", {"mag"}},
+        {"TADS", {"gam", "t3"}},
+        {"Z-code", {"z1", "z2", "z3", "z4", "z5", "z6", "z7", "z8", "zlb", "zblorb"}},
+    };
+
+    QStringList mapped_filters;
+    QStringList all_extensions;
+    for (const auto &filter : game_filters) {
+        QStringList exts;
+        for (const auto &ext : filter.extensions) {
+            exts << QString("*.%1").arg(ext);
+        }
+        all_extensions << exts;
+        mapped_filters << QString("%1 Games (%2)").arg(filter.name, exts.join(" "));
+    }
+
+    QString filter_string = QString("All Games (%1);;All Files (*);;%2")
+        .arg(all_extensions.join(" "), mapped_filters.join(";;"));
+
+    QFileDialog::Options options(QFileDialog::HideNameFilterDetails);
+#ifdef GARGLK_CONFIG_NO_NATIVE_FILE_DIALOGS
+    options |= QFileDialog::DontUseNativeDialog;
+#endif
+    return QFileDialog::getOpenFileName(window, "Open", "", filter_string, nullptr, options);
+}
 
 static bool refresh_needed = true;
 
@@ -274,10 +402,95 @@ garglk::Window::Window() :
     // doesn't really matter anyway.
     m_settings(new QSettings("io.github.garglk", "Gargoyle", this))
 {
+    setCentralWidget(m_view);
+
     m_timer->setTimerType(Qt::TimerType::PreciseTimer);
     connect(m_timer, &QTimer::timeout, this, [&]() {
         m_timed_out = true;
     });
+
+    setup_menu_bar();
+}
+
+void garglk::Window::setup_menu_bar()
+{
+    auto *file_menu = menuBar()->addMenu("&File");
+
+    auto *open_action = file_menu->addAction("&Open…", this, &Window::open_game);
+    open_action->setShortcut(QKeySequence::Open);
+
+    m_recent_menu = file_menu->addMenu("Open &Recent");
+    connect(m_recent_menu, &QMenu::aboutToShow, this, &Window::update_recent_menu);
+    update_recent_menu();
+
+    file_menu->addSeparator();
+
+    auto *settings_action = file_menu->addAction("&Settings", this, [] {
+        gli_edit_config();
+    });
+    // QKeySequence::Preferences is empty on Windows; Ctrl+, matches the
+    // existing key binding in keyPressEvent.
+    auto prefs = QKeySequence::keyBindings(QKeySequence::Preferences);
+    if (prefs.isEmpty()) {
+        settings_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma));
+    } else {
+        settings_action->setShortcuts(prefs);
+    }
+}
+
+void garglk::Window::note_recent_file(const QString &path)
+{
+    add_recent_file(m_settings, path);
+}
+
+void garglk::Window::open_game()
+{
+    auto game = browse_for_game();
+    if (!game.isEmpty()) {
+        launch_gargoyle(game);
+    }
+}
+
+void garglk::Window::open_recent_game()
+{
+    auto *action = qobject_cast<QAction *>(sender());
+    if (action == nullptr) {
+        return;
+    }
+
+    auto game = action->data().toString();
+    if (game.isEmpty()) {
+        return;
+    }
+
+    if (!QFileInfo::exists(game)) {
+        QMessageBox::warning(this, "Warning", QString("File not found:\n%1").arg(game));
+        auto recent = m_settings->value(RECENT_FILES_KEY).toStringList();
+        recent.removeAll(game);
+        m_settings->setValue(RECENT_FILES_KEY, recent);
+        return;
+    }
+
+    launch_gargoyle(game);
+}
+
+void garglk::Window::update_recent_menu()
+{
+    m_recent_menu->clear();
+
+    auto recent = m_settings->value(RECENT_FILES_KEY).toStringList();
+    if (recent.isEmpty()) {
+        auto *empty = m_recent_menu->addAction("No Recent Files");
+        empty->setEnabled(false);
+        return;
+    }
+
+    for (const auto &path : recent) {
+        auto *action = m_recent_menu->addAction(QFileInfo(path).fileName());
+        action->setData(path);
+        action->setToolTip(path);
+        connect(action, &QAction::triggered, this, &Window::open_recent_game);
+    }
 }
 
 void garglk::Window::showEvent(QShowEvent *event)
@@ -303,7 +516,7 @@ void garglk::Window::showEvent(QShowEvent *event)
     // window is first shown, by which point the true scale has reliably
     // arrived in practice.
     QTimer::singleShot(50, this, [this]() {
-        updateBufferSize(size());
+        updateBufferSize(m_view->size());
     });
 #endif
 }
@@ -312,7 +525,7 @@ void garglk::Window::showEvent(QShowEvent *event)
 bool garglk::Window::event(QEvent *event)
 {
     if (event->type() == QEvent::DevicePixelRatioChange) {
-        updateBufferSize(size());
+        updateBufferSize(m_view->size());
     }
 
     return QMainWindow::event(event);
@@ -363,9 +576,9 @@ void garglk::Window::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
 
-    m_view->resize(event->size());
-
-    updateBufferSize(event->size());
+    // Buffer size follows the central view (below the menu bar), not the
+    // full window.
+    updateBufferSize(m_view->size());
 
     event->accept();
 }
@@ -821,13 +1034,21 @@ void winopen()
             size = stored_size.toSize();
         }
     }
-    window->resize(size);
+
+    // Requested size is for the game view; grow the window to fit the
+    // menu bar above it.
+    int menu_h = window->menuBar()->sizeHint().height();
+    window->resize(size.width(), size.height() + menu_h);
 
     if (gli_conf_save_window_location) {
         auto position = window->settings()->value("window/position");
         if (position.canConvert<QPoint>()) {
             window->move(position.toPoint());
         }
+    }
+
+    if (gli_workfile.has_value()) {
+        window->note_recent_file(QString::fromStdString(*gli_workfile));
     }
 
     wintitle();

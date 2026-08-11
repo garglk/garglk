@@ -4,12 +4,14 @@
 #include <QCloseEvent>
 #include <QKeyEvent>
 #include <QMainWindow>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QMoveEvent>
 #include <QPaintEvent>
 #include <QResizeEvent>
 #include <QSettings>
 #include <QShowEvent>
+#include <QString>
 #include <QTimer>
 #include <QWheelEvent>
 #include <QWidget>
@@ -54,7 +56,8 @@ public:
     bool timed_out() const { return m_timed_out; }
     void reset_timeout() { m_timed_out = false; }
 
-    const QSettings *settings() { return m_settings; }
+    const QSettings *settings() const { return m_settings; }
+    void note_recent_file(const QString &path);
 
 protected:
     void showEvent(QShowEvent *) override;
@@ -72,9 +75,15 @@ private:
     // event(), see the comments there for why a second call is needed.
     void updateBufferSize(const QSize &logicalSize);
 
+    void setup_menu_bar();
+    void open_game();
+    void open_recent_game();
+    void update_recent_menu();
+
     View *const m_view;
     QTimer *const m_timer;
     QSettings *const m_settings;
+    QMenu *m_recent_menu = nullptr;
     bool m_timed_out = false;
 };
 

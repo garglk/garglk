@@ -40,6 +40,7 @@
 #include <QList>
 #include <QMessageBox>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QPushButton>
 #include <QString>
 #include <QStringList>
@@ -154,6 +155,12 @@ bool garglk::winterp(const std::string &exe, const std::vector<std::string> &fla
 
     QProcess proc;
     proc.setProcessChannelMode(QProcess::ForwardedChannels);
+
+    // So interpreters can re-launch Gargoyle (File → Open / Open Recent).
+    auto env = QProcessEnvironment::systemEnvironment();
+    env.insert("GARGLK_LAUNCHER", QCoreApplication::applicationFilePath());
+    proc.setProcessEnvironment(env);
+
     proc.start(argv0, args);
 
     if (!proc.waitForStarted(5000)) {
