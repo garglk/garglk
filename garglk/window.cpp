@@ -25,10 +25,6 @@
 #include "glk.h"
 #include "garglk.h"
 
-// limit number of text rows/columns
-#define MAX_TEXT_COLUMNS 255
-#define MAX_TEXT_ROWS 255
-
 bool gli_force_redraw = true;
 bool gli_more_focus = false;
 
@@ -724,8 +720,63 @@ void gli_windows_unechostream(stream_t *str)
 // Size changes, rearrangement and redrawing.
 //
 
+// Hide an overlay if it would obscure an active [more] prompt.
+static bool gli_overlay_waits_for_pager(const window_t *overlay)
+{
+    bool beneath = false;
+
+    for (window_t *win = gli_windowlist; win != nullptr; win = win->next) {
+        if (win == overlay) {
+            beneath = true;
+            continue;
+        }
+
+        // Tiled windows and older overlays draw beneath this one.
+        if (win->overlay.has_value() && !beneath) {
+            continue;
+        }
+
+        // Hidden overlays draw no prompt.
+        if (win->pager_hidden) {
+            continue;
+        }
+
+        if (!win_textbuffer_pages(win)) {
+            continue;
+        }
+
+        if (overlay->bbox.x0 < win->bbox.x1 && overlay->bbox.x1 > win->bbox.x0 &&
+            overlay->bbox.y0 < win->bbox.y1 && overlay->bbox.y1 > win->bbox.y0)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void gli_window_rearrange(window_t *win, rect_t *box)
 {
+    // Use the requested rectangle, clamped in case a resize made it stale.
+    rect_t overlay;
+    if (win->overlay.has_value()) {
+        overlay = win->overlay->box;
+        overlay.x0 = std::clamp(overlay.x0, 0, gli_image_rgb.width());
+        overlay.x1 = std::clamp(overlay.x1, overlay.x0, gli_image_rgb.width());
+        overlay.y0 = std::clamp(overlay.y0, 0, gli_image_rgb.height());
+        overlay.y1 = std::clamp(overlay.y1, overlay.y0, gli_image_rgb.height());
+
+        // The tiled layout's margins keep a grid within what its lines can
+        // hold; an overlay box must be held there itself, so that the box
+        // and the cell count agree.
+        if (win->type == wintype_TextGrid) {
+            overlay.x1 = std::min(overlay.x1, overlay.x0 + MAX_TEXT_COLUMNS * gli_cellw);
+            overlay.y1 = std::min(overlay.y1, overlay.y0 + MAX_TEXT_ROWS * gli_cellh);
+        }
+
+        box = &overlay;
+    }
+
     switch (win->type) {
     case wintype_Blank:
         win_blank_rearrange(win, box);
@@ -745,6 +796,104 @@ void gli_window_rearrange(window_t *win, rect_t *box)
     }
 }
 
+// Once set, hyperlinks remain disabled; see gli_get_hyperlink().
+bool gli_overlays_used = false;
+
+// Install an overlay whose rectangle is already in device pixels.
+static void window_float(window_t *win, const Overlay &overlay)
+{
+    if (win->overlay == overlay) {
+        return;
+    }
+
+    gli_overlays_used = true;
+    win->overlay = overlay;
+
+    // Repaint both the vacated tile and the new overlay at the next refresh.
+    gli_force_redraw = true;
+    gli_windows_rearrange();
+    winrepaint(0, 0, gli_image_rgb.width(), gli_image_rgb.height());
+}
+
+void garglk_window_set_overlay(window_t *win, glsi32 left, glsi32 top, glsi32 right, glsi32 bottom, glui32 transparent)
+{
+    if (win == nullptr) {
+        gli_strict_warning("window_set_overlay: invalid ref");
+        return;
+    }
+
+    if (win->type == wintype_Pair) {
+        gli_strict_warning("window_set_overlay: cannot overlay a pair window");
+        return;
+    }
+
+    // Other window types always paint their entire box.
+    if (transparent != 0 && win->type != wintype_TextGrid && win->type != wintype_TextBuffer) {
+        gli_strict_warning("window_set_overlay: only text windows can be transparent");
+        return;
+    }
+
+    rect_t box;
+    box.x0 = gli_zoom_int(left);
+    box.y0 = gli_zoom_int(top);
+    box.x1 = gli_zoom_int(right);
+    box.y1 = gli_zoom_int(bottom);
+
+    if (box.x1 < box.x0 || box.y1 < box.y0) {
+        gli_strict_warning("window_set_overlay: inverted rectangle");
+        return;
+    }
+
+    window_float(win, Overlay {box, transparent != 0});
+}
+
+void garglk_window_set_grid_overlay(window_t *win, glsi32 left, glsi32 top, glui32 columns, glui32 rows, glui32 transparent)
+{
+    if (win == nullptr) {
+        gli_strict_warning("window_set_grid_overlay: invalid ref");
+        return;
+    }
+
+    if (win->type != wintype_TextGrid) {
+        gli_strict_warning("window_set_grid_overlay: not a text grid");
+        return;
+    }
+
+    if (gli_cellw <= 0 || gli_cellh <= 0) {
+        return;
+    }
+
+    // Work in device pixels to avoid a lossy unzoom/zoom round trip. The
+    // caps only keep the multiplication in range; rearranging clamps.
+    rect_t box;
+    box.x0 = gli_zoom_int(left);
+    box.y0 = gli_zoom_int(top);
+    box.x1 = box.x0 + (static_cast<int>(std::min<glui32>(columns, MAX_TEXT_COLUMNS)) * gli_cellw);
+    box.y1 = box.y0 + (static_cast<int>(std::min<glui32>(rows, MAX_TEXT_ROWS)) * gli_cellh);
+
+    window_float(win, Overlay {box, transparent != 0});
+}
+
+void garglk_window_clear_overlay(window_t *win)
+{
+    if (win == nullptr) {
+        gli_strict_warning("window_clear_overlay: invalid ref");
+        return;
+    }
+
+    if (!win->overlay.has_value()) {
+        return;
+    }
+
+    win->overlay.reset();
+
+    win->pager_hidden = false;
+
+    gli_force_redraw = true;
+    gli_windows_rearrange();
+    winrepaint(0, 0, gli_image_rgb.width(), gli_image_rgb.height());
+}
+
 void gli_windows_size_change(int w, int h, bool post_arrange_event)
 {
     gli_image_rgb.resize(w, h, false);
@@ -761,7 +910,7 @@ void gli_windows_size_change(int w, int h, bool post_arrange_event)
 
 void gli_window_redraw(window_t *win)
 {
-    if (gli_force_redraw) {
+    if (gli_force_redraw && !win->is_transparent()) {
         Color color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
         int y0 = win->yadj != 0 ? win->bbox.y0 - win->yadj : win->bbox.y0;
         gli_draw_rect(win->bbox.x0, y0,
@@ -809,13 +958,52 @@ void gli_windows_redraw()
 {
     gli_claimselect = false;
 
+    window_t *last = nullptr;
+    for (window_t *win = gli_windowlist; win != nullptr; win = win->next) {
+        last = win;
+    }
+
+    // Settle pager visibility from oldest overlay to newest.
+    for (window_t *win = last; win != nullptr; win = win->prev) {
+        if (!win->overlay.has_value()) {
+            continue;
+        }
+
+        bool hidden = gli_overlay_waits_for_pager(win);
+        if (hidden != win->pager_hidden) {
+            win->pager_hidden = hidden;
+            gli_force_redraw = true;
+
+            // Hidden overlays are not redrawn, so clear their stale request.
+            if (hidden) {
+                win->more_request = false;
+            }
+        }
+
+        // Rebuild the frame beneath a transparent overlay to avoid blending
+        // glyphs over previous redraws.
+        if (!hidden && win->overlay->transparent) {
+            gli_force_redraw = true;
+        }
+    }
+
     if (gli_force_redraw) {
         winrepaint(0, 0, gli_image_rgb.width(), gli_image_rgb.height());
         gli_draw_clear(gli_window_color);
     }
 
-    if (gli_rootwin != nullptr) {
+    // Pair windows skip overlay children; a floating root is skipped here.
+    if (gli_rootwin != nullptr && !gli_rootwin->overlay.has_value()) {
         gli_window_redraw(gli_rootwin);
+    }
+
+    // Draw overlays in creation order so newer windows end up on top,
+    // always in full.
+    gli_force_redraw = true;
+    for (window_t *win = last; win != nullptr; win = win->prev) {
+        if (win->overlay.has_value() && !win->pager_hidden) {
+            gli_window_redraw(win);
+        }
     }
 
     if (gli_more_focus) {
@@ -1118,6 +1306,40 @@ void glk_cancel_hyperlink_event(winid_t win)
     }
 }
 
+static bool window_contains(const window_t *win, int x, int y)
+{
+    return x >= win->bbox.x0 && x < win->bbox.x1 &&
+           y >= win->bbox.y0 && y < win->bbox.y1;
+}
+
+// Offer the click to visible overlays, newest first, then fall through.
+// Text buffers take it as they always do; grids and graphics only while
+// they wait for mouse input. Hyperlinks are disabled once any window floats.
+void gli_windows_click(int x, int y)
+{
+    for (window_t *win = gli_windowlist; win != nullptr; win = win->next) {
+        // pager_hidden is the state the frame was drawn with.
+        if (!win->overlay.has_value() || win->pager_hidden) {
+            continue;
+        }
+
+        if (win->type != wintype_TextBuffer && !win->mouse_request) {
+            continue;
+        }
+
+        if (window_contains(win, x, y)) {
+            gli_window_click(win, x, y);
+            return;
+        }
+    }
+
+    // Pair windows hit-test their children; a floating root must be tested here.
+    if (gli_rootwin != nullptr &&
+        (!gli_rootwin->overlay.has_value() || window_contains(gli_rootwin, x, y))) {
+        gli_window_click(gli_rootwin, x, y);
+    }
+}
+
 void gli_window_click(window_t *win, int x, int y)
 {
     switch (win->type) {
@@ -1393,9 +1615,26 @@ static Color rgbshift(const Color &rgb)
                  std::min(rgb[2] + 0x30, 0xff));
 }
 
+// Return the effective hyperlink for drawing. Overlays disable links globally;
+// see gli_get_hyperlink().
+glui32 attr_t::hyperlink() const
+{
+    return gli_overlays_used ? 0 : hyper;
+}
+
+void attr_t::set_hyperlink(glui32 linkval)
+{
+    hyper = linkval;
+}
+
+bool attr_t::reversed(const Styles &styles) const
+{
+    return reverse || (styles[style].reverse && !gli_override_reverse);
+}
+
 Color attr_t::bg(const Styles &styles) const
 {
-    bool revset = reverse || (styles[style].reverse && !gli_override_reverse);
+    bool revset = reversed(styles);
 
     zcolor_Foreground = fgcolor.has_value() ? fgcolor :
                         gli_override_fg.has_value() ? gli_override_fg :
@@ -1426,7 +1665,7 @@ Color attr_t::bg(const Styles &styles) const
 
 Color attr_t::fg(const Styles &styles) const
 {
-    bool revset = reverse || (styles[style].reverse && !gli_override_reverse);
+    bool revset = reversed(styles);
 
     zcolor_Foreground = fgcolor.has_value() ? fgcolor :
                         gli_override_fg.has_value() ? gli_override_fg :

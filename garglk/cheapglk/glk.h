@@ -65,6 +65,7 @@ typedef int32_t glsi32;
 #define GLK_MODULE_GARGLKBLEEP
 #define GLK_MODULE_GARGLKWINSIZE
 #define GLK_MODULE_GARGLK_FILE_RESOURCES
+#define GLK_MODULE_GARGLKOVERLAY
 
 /* Define a macro for a function attribute that indicates a function that
     never returns. (E.g., glk_exit().) We try to do this only in C compilers
@@ -573,6 +574,49 @@ extern void garglk_window_get_size_pixels(winid_t win, glui32 *width, glui32 *he
  */
 extern glui32 garglk_add_resource_from_file(glui32 usage, const char *filename, glui32 offset, glui32 len);
 
+#ifdef GLK_MODULE_GARGLKOVERLAY
+
+/* Overlay windows are removed from the tiled layout and drawn in creation
+ * order over the remaining windows. This allows text to be drawn over a
+ * graphics window, as required by some Infocom V6 games.
+ *
+ * The old split is retained and restored by garglk_window_clear_overlay().
+ * Resizing may discard text-grid or graphics contents, so clearing an overlay
+ * may require a redraw.
+ *
+ * Coordinates are unzoomed pixels from the top-left of the drawing area.
+ * Use garglk_window_set_grid_overlay() for dimensions in cells to avoid zoom
+ * rounding errors.
+ *
+ * Transparent overlays are supported only for text windows. They do not draw
+ * a background except for reverse-video runs, and transparent text buffers do
+ * not have a scrollbar.
+ *
+ * Using an overlay disables hyperlink activation for the rest of the session.
+ * The hyperlink mask cannot represent overlapping windows reliably.
+ *
+ * Text-buffer overlays take clicks like any text buffer. Mouse events fall
+ * through grid and graphics overlays that did not request them. Overlays are
+ * hidden while they cover a window stopped at a [more] prompt.
+ *
+ * garglk_window_get_origin_pixels() returns a window's current origin; adding
+ * garglk_window_get_size_pixels() reaches its far edge. Either output pointer
+ * may be NULL.
+ */
+extern void garglk_window_set_overlay(winid_t win, glsi32 left, glsi32 top, glsi32 right, glsi32 bottom, glui32 transparent);
+extern void garglk_window_set_grid_overlay(winid_t win, glsi32 left, glsi32 top, glui32 columns, glui32 rows, glui32 transparent);
+extern void garglk_window_clear_overlay(winid_t win);
+extern void garglk_window_get_origin_pixels(winid_t win, glsi32 *x, glsi32 *y);
+
+/* Return the unrounded size of a text-grid cell in unzoomed pixels. This is
+ * useful for mapping points to cells. Either pointer may be NULL. */
+extern void garglk_get_cell_size_pixels(double *width, double *height);
+
+/* Return the number of whole cells in an unzoomed pixel span, using the same
+ * zoom rounding and limits as text grids. Either output pointer may be NULL. */
+extern void garglk_cells_in_pixels(glui32 width, glui32 height, glui32 *columns, glui32 *rows);
+
+#endif /* GLK_MODULE_GARGLKOVERLAY */
 
 /* non standard keycodes */
 #define keycode_Erase               (0xffffef7f)

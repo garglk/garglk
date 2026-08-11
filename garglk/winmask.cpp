@@ -101,6 +101,11 @@ void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigne
 
 glui32 gli_get_hyperlink(int x, int y)
 {
+    // The screen-sized mask cannot represent overlapping windows reliably.
+    if (gli_overlays_used) {
+        return 0;
+    }
+
     if (!gli_mask.initialized || gli_mask.hor == 0 || gli_mask.ver == 0) {
         gli_strict_warning("get_hyperlink: struct not initialized");
         return 0;
