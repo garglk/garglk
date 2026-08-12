@@ -145,6 +145,22 @@ void glk_stylehint_clear(glui32 wintype, glui32 styl, glui32 hint)
             style.justification = def.justification;
             break;
         }
+
+        // glk_stylehint_set() takes the window, more prompt and caret colors
+        // along with Normal's; clearing the hint has to hand them back, or
+        // they keep colors that no style asks for any more.
+        if (wintype == wintype_TextBuffer &&
+                styl == style_Normal &&
+                hint == stylehint_BackColor) {
+            gli_window_color = gli_window_save;
+        }
+
+        if (wintype == wintype_TextBuffer &&
+                styl == style_Normal &&
+                hint == stylehint_TextColor) {
+            gli_more_color = gli_more_save;
+            gli_caret_color = gli_caret_save;
+        }
     } catch (const std::out_of_range &) {
     }
 }
