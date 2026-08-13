@@ -68,26 +68,15 @@ if (Test-Path "$stagedir") {
 mkdir $stagedir
 Copy-Item "$builddir\*.ttf" "$stagedir"
 Copy-Item "$builddir\*.otf" "$stagedir"
+# Native Windows builds colocate runtimes in the CMake build directory root.
 Copy-Item "$builddir\*.exe" "$stagedir"
-Copy-Item "$builddir\garglk\gargoyle.exe" "$stagedir"
-Copy-Item "$builddir\garglk\*.dll" "$stagedir"
-Copy-Item "$builddir\terps\*.exe" "$stagedir"
-Copy-Item "$builddir\terps\tads\*.exe" "$stagedir"
+Copy-Item "$builddir\*.dll" "$stagedir"
 if ($withPdbs) {
-    Copy-Item "$builddir\garglk\*.pdb" "$stagedir"
-    Copy-Item "$builddir\terps\*.pdb" "$stagedir"
-    Copy-Item "$builddir\terps\tads\*.pdb" "$stagedir"
-}
-
-if ($withFrankendrift) {
-    Copy-Item "$builddir\terps\frankendrift\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.Gargoyle\FrankenDrift.GlkRunner.Gargoyle.exe" "$stagedir"
-    if ($withPdbs) {
-        Copy-Item "$builddir\terps\frankendrift\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.Gargoyle\*.pdb" "$stagedir"
-    }
+    Copy-Item "$builddir\*.pdb" "$stagedir"
 }
 
 Set-Location "$stagedir"
-$deployArgs = @("--no-opengl-sw","--no-compiler-runtime","--no-system-d3d-compiler","--no-system-dxc-compiler","--no-pdf","--exclude-plugins","ffmpegmediaplugin,qopensslbackend","--skip-plugin-types","iconengines,imageformats,tls")
+$deployArgs = @("--no-opengl-sw","--no-compiler-runtime","--no-system-d3d-compiler","--no-system-dxc-compiler","--exclude-plugins","ffmpegmediaplugin,qopensslbackend,qpdf","--skip-plugin-types","iconengines,imageformats,tls")
 if ($withPdbs) {
     $deployArgs += "--pdb"
 }

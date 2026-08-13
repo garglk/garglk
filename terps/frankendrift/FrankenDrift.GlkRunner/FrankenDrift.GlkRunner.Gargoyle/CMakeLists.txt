@@ -77,6 +77,15 @@ add_custom_command(TARGET frankendrift
     COMMAND ${CMAKE_COMMAND} -E rm "${CMAKE_CURRENT_SOURCE_DIR}/${GARGLK_FRANKEN_DYLIB_NAME}"
 )
 
+# On Windows the CMake build colocates runtimes in CMAKE_BINARY_DIR so the
+# launcher can find interpreters next to itself.
+if(WIN32)
+    add_custom_command(TARGET frankendrift POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_BINARY_DIR}/FrankenDrift.GlkRunner.Gargoyle${GARGLK_FRANKEN_EXT}"
+            "${CMAKE_BINARY_DIR}/FrankenDrift.GlkRunner.Gargoyle${GARGLK_FRANKEN_EXT}"
+    )
+endif()
 
 add_dependencies(frankendrift garglk)
 
