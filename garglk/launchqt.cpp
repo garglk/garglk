@@ -25,6 +25,7 @@
 #include <iostream>
 #include <iterator>
 #include <string>
+#include <vector>
 
 #ifdef _WIN32
 #include <cstdio>
@@ -51,6 +52,7 @@
 #include "garglk.h"
 #include "garversion.h"
 #include "launcher.h"
+#include "sessionqt.h"
 
 #include GARGLKINI_H
 
@@ -154,6 +156,15 @@ bool garglk::winterp(const std::string &exe, const std::vector<std::string> &fla
         args.push_back(QString::fromStdString(flag));
     }
     args.push_back(QString::fromStdString(game));
+
+    if (garglk::session_is_parent()) {
+        // IPC session: launch non-blocking; the parent owns windows.
+        if (!QProcess::startDetached(argv0, args)) {
+            garglk::winmsg("Could not start interpreter " + argv0.toStdString());
+            return false;
+        }
+        return true;
+    }
 
     QProcess proc;
     proc.setProcessChannelMode(QProcess::ForwardedChannels);
@@ -344,6 +355,45 @@ int main(int argc, char **argv)
     }
 #endif
 
+    // Read config early so ipc / ipc_server are available for handoff.
+    // If a story was passed on the CLI, per-game config applies too.
+    gli_read_config(argc, argv);
+
+    if (gli_conf_ipc) {
+        if (!story.isEmpty() && garglk::session_try_handoff(story)) {
+            return 0;
+        }
+
+        if (story.isEmpty()) {
+            story = winbrowsefile();
+        }
+        if (story.isEmpty()) {
+            return 1;
+        }
+
+        // Re-read so per-game config from the chosen story applies.
+        // Build a synthetic argv with the story path.
+        std::string story_std = story.toStdString();
+        std::vector<char *> config_argv;
+        config_argv.push_back(argv[0]);
+        config_argv.push_back(story_std.data());
+        gli_read_config(static_cast<int>(config_argv.size()), config_argv.data());
+
+        if (!garglk::session_init_parent()) {
+            return 1;
+        }
+
+        garglk::session_set_launcher([](const std::string &game) {
+            return garglk::rungame(game);
+        });
+
+        if (!garglk::session_open_game(story)) {
+            return 1;
+        }
+
+        return garglk::session_exec();
+    }
+
     if (story.isEmpty()) {
         story = winbrowsefile();
     }
@@ -351,8 +401,6 @@ int main(int argc, char **argv)
     if (story.isEmpty()) {
         return 1;
     }
-
-    gli_read_config(argc, argv);
 
     // run story file
     return garglk::rungame(story.toStdString()) ? 0 : 1;

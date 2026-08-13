@@ -4,7 +4,6 @@
 #include <QCloseEvent>
 #include <QKeyEvent>
 #include <QMainWindow>
-#include <QMenu>
 #include <QMouseEvent>
 #include <QMoveEvent>
 #include <QPaintEvent>
@@ -75,15 +74,9 @@ private:
     // event(), see the comments there for why a second call is needed.
     void updateBufferSize(const QSize &logicalSize);
 
-    void setup_menu_bar();
-    void open_game();
-    void open_recent_game();
-    void update_recent_menu();
-
     View *const m_view;
     QTimer *const m_timer;
     QSettings *const m_settings;
-    QMenu *m_recent_menu = nullptr;
     bool m_timed_out = false;
 };
 
