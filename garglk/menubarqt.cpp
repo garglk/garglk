@@ -114,7 +114,8 @@ QString browse_for_game(QWidget *parent)
 }
 
 void setup_file_menu(QMainWindow *window, QSettings *settings,
-        const std::function<void(const QString &)> &open_game)
+        const std::function<void(const QString &)> &open_game,
+        const std::function<void()> &on_exit)
 {
     auto *file_menu = window->menuBar()->addMenu("&File");
 
@@ -148,6 +149,17 @@ void setup_file_menu(QMainWindow *window, QSettings *settings,
         settings_action->setShortcuts(prefs);
     }
 
+    file_menu->addSeparator();
+
+    auto *exit_action = file_menu->addAction("E&xit", window, on_exit);
+    // QKeySequence::Quit is empty on Windows; Ctrl+Q matches the
+    // existing key binding in keyPressEvent.
+    auto quit = QKeySequence::keyBindings(QKeySequence::Quit);
+    if (quit.isEmpty()) {
+        exit_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Q));
+    } else {
+        exit_action->setShortcuts(quit);
+    }
 }
 
 }

@@ -409,7 +409,7 @@ garglk::Window::Window() :
     });
 
     if (gli_conf_menu_bar) {
-        setup_file_menu(this, m_settings, launch_gargoyle);
+        setup_file_menu(this, m_settings, launch_gargoyle, [] { gli_exit(0); });
     } else {
         menuBar()->hide();
     }

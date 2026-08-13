@@ -228,7 +228,8 @@ GameWindow::GameWindow(QLocalSocket *socket, QWidget *parent) :
     m_socket->setParent(this);
     if (gli_conf_menu_bar) {
         setup_file_menu(this, m_settings,
-                [](const QString &game) { Session::instance().open_game(game); });
+                [](const QString &game) { Session::instance().open_game(game); },
+                [this] { close(); });
     } else {
         menuBar()->hide();
     }
