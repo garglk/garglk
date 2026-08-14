@@ -53,7 +53,11 @@ is_pres_mark (char c)
   return c == A5_ALR_MARK || c == A5_WAITKEY_MARK
       || c == A5_CENTER_MARK || c == A5_ENDCENTER_MARK
       || c == A5_BOLD_MARK || c == A5_ENDBOLD_MARK
-      || c == A5_ENDWINDOW_MARK;
+      || c == A5_ITALIC_MARK || c == A5_ENDITALIC_MARK
+      || c == A5_UNDERLINE_MARK || c == A5_ENDUNDERLINE_MARK
+      || c == A5_RIGHT_MARK || c == A5_ENDRIGHT_MARK
+      || c == A5_ENDCOLOUR_MARK || c == A5_ENDWINDOW_MARK;
+
 }
 
 /* The runner's bHasOutput (clsUserSession.vb:1272) for an ALREADY-RENDERED plain message
@@ -72,7 +76,7 @@ int
 msg_has_output (const char *m)
 {
   /* A5_ALR_MARK bytes are stripped-tag sentinels, not output: a message whose
-     plain rendering is only stripped tags (e.g. "<font color=X>") was empty in
+     plain rendering is only stripped tags (e.g. "<font colour=X>") was empty in
      the runner's stripped view too.  The interactive-mode presentation marks (waitkey
      pause points and \006<number>\006 image slots) are likewise not output --
      they stand for the same stripped tags, so a message must be judged empty
@@ -82,10 +86,10 @@ msg_has_output (const char *m)
   for (; *m != '\0'; m++)
     {
       if (*m == A5_IMG_MARK || *m == A5_WINDOW_MARK || *m == A5_SOUND_MARK
-          || *m == A5_WAIT_MARK)
+          || *m == A5_WAIT_MARK || *m == A5_COLOUR_MARK)
         {
           /* Skip the \006<number>\006 / \022<name>\022 / \024<index>\024 /
-             \026<seconds>\026 span (or a stray mark). */
+             \026<seconds>\026 / \027<colour>\027 span (or a stray mark). */
           const char *e = strchr (m + 1, *m);
           if (e == NULL)
             continue;
@@ -113,12 +117,12 @@ msg_ends_with_cls (const char *m)
       char c = m[n - 1];
       if (c == A5_CLS_MARK)
         return 1;
-      if (c == A5_SOUND_MARK || c == A5_WAIT_MARK)
+      if (c == A5_SOUND_MARK || c == A5_WAIT_MARK || c == A5_COLOUR_MARK)
         {
-          /* A trailing \024<index>\024 sound or \026<seconds>\026 wait span
-             is presentation, not output -- step back over the whole span (a
-             stray unpaired mark reads as text, like any other unrecognised
-             byte). */
+          /* A trailing \024<index>\024 sound, \026<seconds>\026 wait or
+             \027<colour>\027 colour span is presentation, not output -- step
+             back over the whole span (a stray unpaired mark reads as text,
+             like any other unrecognised byte). */
           size_t j = n - 1;
           while (j > 0 && m[j - 1] != c)
             j--;
@@ -216,14 +220,21 @@ a5run_is_over (a5_run_t *run) { return run->st->game_over; }
 /* ----------------------------------------------------- status-line accessors */
 
 /* The player's current location short description (room NAME) as plain text,
-   caller frees; NULL if the location is unknown. */
+   caller frees; NULL if the location is unknown.  This one goes straight to
+   the host's status line, so the presentation sentinels come out here: the
+   turn loop strips them from story text at finish_turn, and nothing strips
+   them from a room name. */
 char *
 a5run_location_name (a5_run_t *run)
 {
   const char *loc = a5state_player_location (run->st);
+  char *name;
+
   if (loc == NULL)
     return NULL;
-  return a5text_location_short_plain (run->st, loc);
+  name = a5text_location_short_plain (run->st, loc);
+  a5text_strip_pres_marks (name);
+  return name;
 }
 
 /* Adventure.Score / MaxScore (the runner reads htblVariables("Score"/"MaxScore"); see
@@ -354,6 +365,15 @@ a5run_new (const a5_adventure_t *adv)
       rt.when_start = adv->events[i].when_start;
       rt.se_ft.assign ((size_t) adv->events[i].n_subevents, 0);
     }
+  /* Let the location viewer ask "is event #i Running?" for the SetLook gate
+     (clsEvent.LookText's Status = Running check). */
+  run->st->ev_running = [] (void *ctx, int ei) -> int
+    {
+      a5_run_t *r = (a5_run_t *) ctx;
+      return ei >= 0 && ei < (int) r->events->size ()
+             && (*r->events)[ei].status == A5_EV_RUNNING;
+    };
+  run->st->ev_running_ctx = run;
   /* Flatten every character's walks into one runtime list (clsWalk instances).
      Sub-walk offsets resolve once here (clsWalk never resets them); step
      durations re-roll on each lStart. */
@@ -663,6 +683,34 @@ scan_tasks (a5_run_t *run, const std::string &in, sb_t *out,
                 break;
               if (mr == 0)
                 continue;
+              /* FAITHFUL BUG: a typed command matching a task with a plural
+                 %characters% reference kills the WHOLE scan.  %characters% is
+                 missing from Global.ReferenceNames() (Global.vb:473), so the
+                 task's References list never counts it and NewReferences is
+                 ReDim'd too short (clsUserSession.vb:275); InputMatchesCommand's
+                 "characters" group handler then assigns past the end
+                 (vb:5630) and the IndexOutOfRangeException unwinds into
+                 GetGeneralTask's Catch (vb:6118), which returns Nothing --
+                 discarding every candidate recorded so far AND skipping the
+                 second-chance pass.  The input falls through to NotUnderstood
+                 ("I don't understand what you want to do with Bob.").
+                 (SetTasks-Execute parameter binds bypass this: they never
+                 re-enter InputMatchesCommand.)  Simplification: the runner
+                 only throws once the groups BEFORE "characters" all resolved;
+                 a mixed command whose earlier %object% names nothing would
+                 DoesntMatch first -- not mirrored, the abort here fires on any
+                 regex match. */
+              for (int mi = 0; mi < m.n_refs; mi++)
+                if (strcmp (m.ref_name[mi], "characters") == 0)
+                  {
+                    *have_amb = 0; *have_fail = 0; *have_noref = 0;
+                    fail_text->clear ();
+                    /* On a ContinueAlways continuation the claiming task
+                       already ran; the aborted continuation still reports the
+                       turn handled (NotUnderstood is gated on
+                       iMinimumPriority=0, see the cont_active return below). */
+                    return cont_active ? 1 : 0;
+                  }
               /* clsUserSession.vb:2567: a command-matched candidate's %textN%
                  captures overwrite the turn-global sReferencedText slots as soon
                  as its references are processed -- BEFORE (and regardless of) its
@@ -813,10 +861,14 @@ scan_tasks (a5_run_t *run, const std::string &in, sb_t *out,
               /* A "get all"-style command whose %objects% resolved to no passing
                  item: the task's FailOverride claims the turn ("There is nothing
                  worth taking here.") -- clsUserSession.vb:788, shown when no
-                 response passed and the input contained "all". */
+                 response passed and the input contained "all".  vb:789 is a
+                 literal Display(task.FailOverride.ToString) over a raw
+                 clsDescription, so the expansion happens with bDisplaying set. */
               if (run->pending_failover != NULL)
                 {
-                  char *fo = a5text_describe (st, run->pending_failover);
+                  char *fo;
+                  { a5_intro_guard ig (st, 1);
+                    fo = a5text_describe (st, run->pending_failover); }
                   run->pending_failover = NULL;
                   if (msg_has_output (fo)) { sb_pspace (out); sb_puts (out, fo); }
                   free (fo);
@@ -852,7 +904,10 @@ scan_tasks (a5_run_t *run, const std::string &in, sb_t *out,
                 fm = st->restriction_text;
               if (fm != NULL)
                 {
-                  char *fmsg = a5text_describe (st, fm);
+                  /* Raw into AddResponse (vb:1247): expanded inside Display. */
+                  char *fmsg;
+                  { a5_intro_guard ig (st, 1);
+                    fmsg = a5text_describe (st, fm); }
                   /* Prefix a failing multi-match %objects% noun with the runner's
                      "Sorry, I'm not sure which object ..." ambiguity message
                      (set by resolve_plural).  Skip when the failure message is
@@ -1088,6 +1143,11 @@ finish_turn (a5_run_t *run, sb_t *out)
      multi-commit intro resolves its own segments before calling finish_turn, so
      no markers reach here from a5run_intro.) */
   sb_resolve_cls (out, 0);
+  /* Same for a <del> the plain renderer could not satisfy inside its own
+     message (A5_DEL_MARK): the runner's Display buffer spans the turn, so such
+     a delete eats the pSpace join and then the previous message's tail.  After
+     the <cls> pass, so a marker a <cls> wiped never fires. */
+  sb_resolve_del (out);
   raw = sb_finish (out);
   /* The pSpace markers (A5_PS_MARK) have already done their job during buffer
      accumulation -- sb_pspace saw them as non-newline tails and inserted the join
@@ -1219,6 +1279,13 @@ a5run_intro (a5_run_t *run)
      joins onto the centred title. */
   sb_resolve_cls (&out, cf); cf = out.len;   /* commit: Adventure-Upgrade prompt */
   run_immediate_tasks (run, &out);
+  /* Only NOW is the player's room marked seen (clsUserSession.vb:371, after the
+     RunImmediately loop at vb:355).  The room the adventure names as the start
+     is not seen by virtue of being the start: a game whose immediate tasks move
+     the player away -- Alien Diver drops the diver on a random ocean square --
+     never marks the authored one, and the runner's map draws a single node
+     where marking at session creation would draw two. */
+  a5state_mark_loc_seen (run->st, a5state_player_location (run->st));
   /* The centred title: the runner's Display("<c>" & Adventure.Title & "</c>" & vbCrLf)
      at vb:226, emitted through the same buffer so the RunImmediately output above
      joins onto it via pSpace.  An empty title emits nothing (the runner's "<c></c>"
@@ -1233,11 +1300,19 @@ a5run_intro (a5_run_t *run)
          sits after the prompt commit, in which case it pSpace-joins to that. */
       if (!had_prompt || out.len != cf)
         sb_pspace (&out);
-      /* The runner's title Display goes through the same HTML rendering as any other
-         text, so markup INSIDE Adventure.Title is stripped -- Trapped's title
-         is "<centre><b>'Trapped'  by Driftwood</b></centre>". */
+      /* The runner builds "<c>" & Adventure.Title & "</c>" and hands the whole
+         string to ONE HTML rendering pass, so the InputColour wrap and any
+         markup INSIDE the title -- Trapped's is
+         "<centre><b>'Trapped'  by Driftwood</b></centre>" -- are stripped
+         together.  Render the wrap the same way, in a single pass: interactive
+         mode then leaves an A5_COLOUR_MARK span for the host, headless drops
+         <c> to A5_ALR_MARK (stripped in finish_turn) so goldens are unchanged.
+         Rendering the title first and wrapping the result would feed rendered
+         text back through the parser, and a title whose entities decode to
+         markup ("&lt;b&gt;") would be re-parsed as a tag and vanish. */
       {
-        char *tp = a5text_render_plain (run->adv->title);
+        std::string wrapped = std::string ("<c>") + run->adv->title + "</c>";
+        char *tp = a5text_render_plain (wrapped.c_str ());
         sb_puts (&out, tp);
         free (tp);
       }
@@ -1285,6 +1360,7 @@ a5run_intro (a5_run_t *run)
   ev_init (run, &out);
   sb_resolve_cls (&out, cf);                 /* commit: start-of-game events */
   update_seen (run->st);
+  a5state_stamp_prev (run->st);
   {
     char *turn = finish_turn (run, &out);
     if (had_prompt != 2)
@@ -1612,7 +1688,15 @@ run_noref (a5_run_t *run, int ti, int ci, const std::string &in, sb_t *out)
   const a5_xml_node_t *fm = a5restr_fail_message (st, t->restrictions);
   if (fm == NULL)
     return 0;
-  char *fmsg = a5text_describe (st, fm);
+  /* bDisplaying only when this render is the one the player sees.  With
+     out == NULL the caller is the HighestPriorityPassingTask predictor, which
+     in the runner is a bare `sRestrictionText <> ""` test on the RAW template
+     (vb:6076) -- no expansion happens there at all, so a discarded render must
+     not mark characters Introduced (cf. the CharHereDesc probe that used to
+     mark Anno 1700's Susan a turn early). */
+  char *fmsg;
+  { a5_intro_guard ig (st, out != NULL);
+    fmsg = a5text_describe (st, fm); }
   int has = fmsg[0] != '\0';
   if (has && out != NULL)
     sb_puts (out, fmsg);
@@ -1908,6 +1992,10 @@ a5run_input_inner (a5_run_t *run, const char *line)
      must be seen" gates reflect everyone visible by now. */
   update_seen (st);
 
+  /* PrepareForNextTurn also stamps every object's/character's PrevParent
+     (vb:5214-5218), the state the %Prev...% functions read this turn. */
+  a5state_stamp_prev (st);
+
   /* PrepareForNextTurn also empties every character's per-turn route memo
      (dictHasRouteCache/dictRouteErrors, vb:3792) -- see
      a5restr_exit_in_direction. */
@@ -1916,14 +2004,13 @@ a5run_input_inner (a5_run_t *run, const char *line)
   /* PrepareForNextTurn also clears the rendered-character-name ledger
      (PronounKeys.Clear, vb:3823).  The runner clears at the END of each processed
      command (vb:504) -- nothing renders between that and the next input, so
-     clearing here is equivalent, EXCEPT that the runner's intro entries survive into
-     the first command (its init-time PrepareForNextTurn runs before the intro
-     renders); skip the clear on the first command to match. */
-  if (st->turns > 1)
-    {
-      st->n_pron = 0;
-      st->pron_pending = 0;
-    }
+     clearing here is equivalent.  The init path clears too: OpenAdventure
+     displays the title/intro/first room (vb:227-229) and only THEN runs its
+     init-time PrepareForNextTurn (vb:283), so no intro entry survives into the
+     first command (SampleConversation: the start room's CharHereDesc mention of
+     the old lady must not pronoun-replace her conversation intro to "She"). */
+  st->n_pron = 0;
+  st->pron_pending = 0;
 
   /* Resolve "it"/"them"/"him"/"her" to the last-referenced entity (echoing the
      "(name)" line) and recompute the referents for next turn, before the input
@@ -2299,8 +2386,8 @@ a5run_time_tick (a5_run_t *run)
 /* Phase 5 save/restore (clsState / FileIO.SaveState|LoadState).
  *
  * The on-disk save is ADRIFT 5 Runner-compatible: a `<Game>` document keyed by
- * entity <Key> (FileIO.SaveState / LoadState schema, TODO_a5_frankendrift_save_
- * compat.md).  An ADRIFT 5 Runner save restores into
+ * entity <Key> (FileIO.SaveState / LoadState schema; see ADRIFT4_vs_ADRIFT5.md
+ * section 8).  An ADRIFT 5 Runner save restores into
  * Scarier, and a Scarier save loads in the Adrift 5 runner.
  *
  * To keep Scarier<->Scarier round-trips (undo snapshots, deterministic
@@ -2705,6 +2792,7 @@ save_scarier_body (sb_t *b, a5_run_t *run)
       sb_puts (b, "<Look>\n");
       sb_elem (b, "LocKey", st->looks[i].loc_key);
       sb_elem (b, "Text", st->looks[i].text);
+      sb_elem (b, "Event", st->looks[i].event_key);
       sb_puts (b, "</Look>\n");
     }
 }
@@ -2712,7 +2800,10 @@ save_scarier_body (sb_t *b, a5_run_t *run)
 /* ----------------------------------------------------- the Adrift 5 runner <Game> ---
    The interop schema.  Maps a5_state_t onto the Adrift 5 runner's clsGameState fields,
    keyed by entity <Key>, with the where-fields written as their .ToString enum
-   names.  See TODO_a5_frankendrift_save_compat.md for the full mapping. */
+   names.  The writers below are the mapping; the design doc that derived it,
+   TODO_a5_frankendrift_save_compat.md, was pruned in ab6bc4af.  For its
+   field-by-field derivation from the runner's source, run
+   `git show ab6bc4af^:terps/scarier/TODO_a5_frankendrift_save_compat.md`. */
 
 /* Split a5_objloc_t onto the runner's two where-enums + LocationKey (SaveState @83).
    *dyn / *stat are NULL when at their default (Hidden / NoRooms, so the runner omits
@@ -3388,7 +3479,8 @@ restore_scarier_body (a5_run_t *run, const a5_xml_node_t *container)
       else if (streq (nm, "Look"))
         {
           a5state_push_look (st, a5xml_child_text (n, "LocKey"),
-                             a5xml_child_text (n, "Text"));
+                             a5xml_child_text (n, "Text"),
+                             a5xml_child_text (n, "Event"));
         }
     }
 
@@ -3403,7 +3495,8 @@ restore_scarier_body (a5_run_t *run, const a5_xml_node_t *container)
    Applied only to a foreign save (an ADRIFT 5 Runner file with no
    <ScarierExt>).  Keyed lookups, tolerant of missing/extra entities; the RNG
    re-seeds to 1234 (the runner saves carry none), so a game that draws randomness right
-   after such a restore diverges -- documented in the TODO. */
+   after such a restore diverges from the session that wrote the save.  Accepted:
+   only foreign saves are affected, and Scarier's own carry <ScarierExt>. */
 
 static a5_owhere_t
 fd_decode_object_where (const char *dyn, const char *stat, int *is_static)

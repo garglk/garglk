@@ -142,6 +142,18 @@ os_print_tag (scr_int tag, const scr_char *argument)
          * solution file maps one line to one game command regardless of how
          * many <waitkey> tags the game's text embeds.
          */
+        /*
+         * Derivation aid: SCR_MARK_WAITKEY=1 notes each pause on stderr (after
+         * the flush above, so with 2>&1 the marker lands in transcript order).
+         * Combined with SCR_SKIP_WAITKEY=1 -- which keeps the command list in
+         * sync -- that turns "how many blank lines does this solution need, and
+         * where?" into a read rather than a bisection.
+         */
+        if (getenv ("SCR_MARK_WAITKEY"))
+          {
+            fflush (stdout);
+            fprintf (stderr, "[WAITKEY]\n");
+          }
         if (getenv ("SCR_SKIP_WAITKEY"))
           break;
         if (!feof (stdin))
@@ -263,7 +275,7 @@ os_read_line (scr_char *buffer, scr_int length)
    * command, so nothing legitimate is lost.
    *
    * This is UNCONDITIONAL (not gated behind SCARIER_DUMP_TOOLS): the commented
-   * solution files in adrift-walkthroughs/ are the documented validation corpus,
+   * solution files in test/adrift4/ are the documented validation corpus,
    * and gating comment-skipping behind the dump build meant a plain build
    * silently mis-executed them -- the comment tokens desynced the route into a
    * spurious "death", which once led to a wrong "the walkthrough no longer wins,
@@ -278,6 +290,20 @@ os_read_line (scr_char *buffer, scr_int length)
           scr_quit_game (game);
           exit (EXIT_SUCCESS);
         }
+    }
+
+  /*
+   * Derivation aid: with SCR_ECHO_INPUT set, echo the command back after the
+   * '>' prompt.  Piped input is not a terminal, so nothing else puts the
+   * command into the transcript, and pairing a response with the command that
+   * produced it otherwise means counting prompts by hand.
+   */
+  if (getenv ("SCR_ECHO_INPUT"))
+    {
+      fputs (buffer, stdout);
+      if (buffer[0] != '\0' && buffer[strlen (buffer) - 1] != '\n')
+        putchar ('\n');
+      fflush (stdout);
     }
 
   return TRUE;

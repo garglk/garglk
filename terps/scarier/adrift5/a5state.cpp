@@ -236,8 +236,12 @@ a5state_new (const a5_adventure_t *adv)
   if (adv->n_locations > 0)
     {
       st->loc_seen = (char *) calloc ((size_t) adv->n_locations, 1);
-      /* The start location is seen from the outset (clsUserSession.vb:222). */
-      a5state_mark_loc_seen (st, a5state_player_location (st));
+      /* Nothing is seen yet, not even the room the player starts in: the runner
+         marks that one only after the <RunImmediately> tasks have run
+         (clsUserSession.vb:371), so a game that starts by moving the player
+         elsewhere -- Alien Diver picks its opening ocean square at random --
+         leaves the authored start room unseen for good.  a5run_intro does the
+         marking; see the call there. */
     }
 
   st->conv_char = strdup ("");
@@ -306,7 +310,34 @@ a5state_new (const a5_adventure_t *adv)
                                   adv->groups[i].members[m]);
     }
 
+  if (adv->n_objects > 0)
+    st->obj_prev = (a5_objloc_t *) calloc ((size_t) adv->n_objects,
+                                           sizeof *st->obj_prev);
+  if (adv->n_characters > 0)
+    st->char_prevpar = (const char **) calloc ((size_t) adv->n_characters,
+                                               sizeof *st->char_prevpar);
+  a5state_stamp_prev (st);   /* the runner's init-time PrepareForNextTurn */
+
   return st;
+}
+
+void
+a5state_stamp_prev (a5_state_t *st)
+{
+  int i;
+  if (st->obj_prev != NULL)
+    for (i = 0; i < st->adv->n_objects; i++)
+      st->obj_prev[i] = st->obj[i];
+  if (st->char_prevpar != NULL)
+    for (i = 0; i < st->adv->n_characters; i++)
+      {
+        /* clsCharacter.Parent == Location.Key: the carrier object or
+           character when on/in one, else the location. */
+        const char *p = st->char_onobj[i];
+        if (p == NULL) p = st->char_onchar[i];
+        if (p == NULL) p = st->char_loc[i];
+        st->char_prevpar[i] = p;
+      }
 }
 
 void
@@ -333,6 +364,8 @@ a5state_free (a5_state_t *st)
   free (st->gm);
   free (st->end_message);
   free (st->obj);
+  free (st->obj_prev);
+  free ((void *) st->char_prevpar);
   free ((void *) st->char_loc);
   free (st->char_position);
   free (st->char_seen);
@@ -366,7 +399,8 @@ a5state_free (a5_state_t *st)
   free (st->task_scored);
   free (st->disp_once);
   for (i = 0; i < st->n_looks; i++)
-    { free (st->looks[i].loc_key); free (st->looks[i].text); }
+    { free (st->looks[i].loc_key); free (st->looks[i].text);
+      free (st->looks[i].event_key); }
   free (st->looks);
   a5restr_route_cache_free (st);
   a5restr_ever_blocked_free (st);
@@ -400,7 +434,8 @@ a5state_in_group_or_location (const a5_state_t *st, const char *charkey,
 /* -------------------------------------------------------- SetLook look stack */
 
 void
-a5state_push_look (a5_state_t *st, const char *loc_key, const char *text)
+a5state_push_look (a5_state_t *st, const char *loc_key, const char *text,
+                   const char *event_key)
 {
   if (st->n_looks == st->cap_looks)
     {
@@ -408,18 +443,22 @@ a5state_push_look (a5_state_t *st, const char *loc_key, const char *text)
       st->looks = (a5_looktext_t *)
         realloc (st->looks, (size_t) st->cap_looks * sizeof *st->looks);
     }
-  st->looks[st->n_looks].loc_key = strdup (loc_key ? loc_key : "");
-  st->looks[st->n_looks].text    = strdup (text ? text : "");
+  st->looks[st->n_looks].loc_key   = strdup (loc_key ? loc_key : "");
+  st->looks[st->n_looks].text      = strdup (text ? text : "");
+  st->looks[st->n_looks].event_key = strdup (event_key ? event_key : "");
   st->n_looks++;
 }
 
 const char *
-a5state_player_look (const a5_state_t *st)
+a5state_event_look (const a5_state_t *st, const char *event_key)
 {
   int i;
-  /* LIFO: the most recently pushed matching look text wins. */
+  /* clsEvent.LookText: the event's own stack, LIFO -- the most recently
+     pushed entry whose gate matches the player wins. */
   for (i = st->n_looks - 1; i >= 0; i--)
-    if (a5state_in_group_or_location (st, a5state_player_key (st), st->looks[i].loc_key))
+    if (streq (st->looks[i].event_key, event_key)
+        && a5state_in_group_or_location (st, a5state_player_key (st),
+                                         st->looks[i].loc_key))
       return st->looks[i].text;
   return NULL;
 }
@@ -1073,6 +1112,61 @@ a5state_object_at_location (const a5_state_t *st, int oi, const char *lockey,
                             int directly)
 {
   return exists_at (st, oi, lockey, directly, 0, 0);
+}
+
+/* Is `lockey` one of object `oi`'s location ROOTS (clsObject.LocationRoots,
+   clsObject.vb:460)?  Differs from ExistsAtLocation in the held/worn/part-of-
+   character branches: the runner only roots those at the carrier's location
+   when the character is strictly AtLocation -- a carrier seated On/In furniture
+   or riding another character contributes NO root, so %LocationOf[obj]% renders
+   empty for its cargo. */
+static int
+location_root_at (const a5_state_t *st, int oi, const char *lockey, int depth)
+{
+  const a5_objloc_t *loc;
+
+  if (oi < 0 || depth > 32)
+    return 0;
+  loc = &st->obj[oi];
+
+  switch (loc->where)
+    {
+    case A5_OWHERE_ALLROOMS:
+      return 1;
+    case A5_OWHERE_HIDDEN:
+    case A5_OWHERE_NONE:
+      return 0;
+    case A5_OWHERE_LOCATION:
+      return streq (loc->key, lockey);
+    case A5_OWHERE_LOCGROUP:
+      return a5state_object_in_group (st, loc->key, lockey);
+    case A5_OWHERE_IN_OBJECT:
+    case A5_OWHERE_ON_OBJECT:
+    case A5_OWHERE_PART_OBJECT:
+      return location_root_at (st, a5state_object_index (st, loc->key),
+                               lockey, depth + 1);
+    case A5_OWHERE_HELD_BY:
+    case A5_OWHERE_WORN_BY:
+    case A5_OWHERE_PART_CHAR:
+      {
+        int ci = a5state_character_index (st, loc->key);
+        if (ci < 0 || st->char_loc == NULL || st->char_loc[ci] == NULL)
+          return 0;
+        /* AtLocation only (clsObject.vb:472/509): no root through a seated
+           or riding carrier. */
+        if ((st->char_onobj != NULL && st->char_onobj[ci] != NULL)
+            || (st->char_onchar != NULL && st->char_onchar[ci] != NULL))
+          return 0;
+        return streq (st->char_loc[ci], lockey);
+      }
+    }
+  return 0;
+}
+
+int
+a5state_object_location_root (const a5_state_t *st, int oi, const char *lockey)
+{
+  return location_root_at (st, oi, lockey, 0);
 }
 
 int

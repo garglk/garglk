@@ -20,6 +20,7 @@
 #include "a5text.h"
 #include "a5util.h"
 
+/* strndup() where the toolchain has none; empty everywhere else. */
 #include "../common_utils/sc_garglk.h"
 
 /* ----------------------------------------------------------- small helpers */
@@ -383,11 +384,29 @@ a5text_object_name (const a5_state_t *st, const a5_object_t *o, a5_article_t art
 /* ---------------------------------------------------- function replacement */
 
 static char *replace_functions (a5_state_t *st, const char *src, int as_arg = 0);
+static std::string protect_exprs (const char *src, std::vector<std::string> &saved);
+static std::string restore_exprs (const char *src, const std::vector<std::string> &saved);
 
 /* %PopUpInput% host callback (a5text_set_popup_cb); NULL => use the default. */
 static a5_popup_cb a5_popup = NULL;
 static void *a5_popup_ctx = NULL;
+/* %PopUpChoice% host callback (a5text_set_popup_choice_cb); NULL => leave the
+   token unevaluated, as FD's throwing MsgBox does. */
+static a5_popup_choice_cb a5_popup_choice = NULL;
+static void *a5_popup_choice_ctx = NULL;
 static char *view_location_impl (a5_state_t *st, const char *lockey);
+
+/* Trim surrounding whitespace and one layer of "double quotes" from a PopUp*
+   function argument (they arrive already function-expanded). */
+static void
+popup_unquote (std::string &s)
+{
+  size_t b = s.find_first_not_of (" \t");
+  size_t e = s.find_last_not_of (" \t");
+  s = (b == std::string::npos) ? "" : s.substr (b, e - b + 1);
+  if (s.size () >= 2 && s.front () == '"' && s.back () == '"')
+    s = s.substr (1, s.size () - 2);
+}
 
 /* Resolve a function argument (a key or display name) to an object key. */
 static const char *
@@ -701,9 +720,8 @@ character_display_name (a5_state_t *st, const a5_character_t *c, int definite,
      runs under UserSession.bDisplaying: once a character's name has rendered
      in displayed output, later Indefinite descriptor renders upgrade to the
      Definite article ("a tall guillermo" -> "the tall guillermo"), and the
-     render itself marks the character Introduced.  In the runner the only renders
-     that happen under bDisplaying are of text still carrying its %functions%
-     when it reaches Display() -- see a5state.h's intro_active. */
+     render itself marks the character Introduced.  Which renders count as
+     bDisplaying ones is spelled out on a5state.h's intro_active. */
   if (displaying && st->intro_active
       && c != NULL && st->char_introduced != NULL)
     {
@@ -967,6 +985,23 @@ oo_firstkey (a5_state_t *st, const char *name)
   else if (ci_eq (name, "character3")) k = a5state_lookup_ref (st, "ReferencedCharacter3");
   else if (ci_eq (name, "character4")) k = a5state_lookup_ref (st, "ReferencedCharacter4");
   else if (ci_eq (name, "character5")) k = a5state_lookup_ref (st, "ReferencedCharacter5");
+  /* %locationN% / %itemN% command references resolve to their bound KEY the
+     same way (Global.vb:1770+ substitutes MatchingPossibilities(0) for
+     "locationN"/"itemN" ReferenceMatches) -- an %item% may hold an object OR
+     character OR location key.  ProbeWalk's completion message chains
+     %LocationName[%location1%]% off this. */
+  else if (ci_eq (name, "location") || ci_eq (name, "location1"))
+    k = a5state_lookup_ref (st, "ReferencedLocation");
+  else if (ci_eq (name, "location2")) k = a5state_lookup_ref (st, "ReferencedLocation2");
+  else if (ci_eq (name, "location3")) k = a5state_lookup_ref (st, "ReferencedLocation3");
+  else if (ci_eq (name, "location4")) k = a5state_lookup_ref (st, "ReferencedLocation4");
+  else if (ci_eq (name, "location5")) k = a5state_lookup_ref (st, "ReferencedLocation5");
+  else if (ci_eq (name, "item") || ci_eq (name, "item1"))
+    k = a5state_lookup_ref (st, "ReferencedItem");
+  else if (ci_eq (name, "item2")) k = a5state_lookup_ref (st, "ReferencedItem2");
+  else if (ci_eq (name, "item3")) k = a5state_lookup_ref (st, "ReferencedItem3");
+  else if (ci_eq (name, "item4")) k = a5state_lookup_ref (st, "ReferencedItem4");
+  else if (ci_eq (name, "item5")) k = a5state_lookup_ref (st, "ReferencedItem5");
   if (k == NULL && (ci_eq (name, "object") || ci_eq (name, "objects")))
     k = a5state_lookup_ref (st, "ReferencedObject");
   if (k != NULL)
@@ -1006,13 +1041,7 @@ fn_popupinput (a5_state_t * /*st*/, const char * /*name*/, const char *args)
   size_t comma = a.find (',');
   if (comma != std::string::npos)
     { prompt = a.substr (0, comma); dflt = a.substr (comma + 1); }
-  auto unquote = [](std::string &s){
-    size_t b = s.find_first_not_of (" \t");
-    size_t e = s.find_last_not_of (" \t");
-    s = (b == std::string::npos) ? "" : s.substr (b, e - b + 1);
-    if (s.size () >= 2 && s.front () == '"' && s.back () == '"')
-      s = s.substr (1, s.size () - 2); };
-  unquote (prompt); unquote (dflt);
+  popup_unquote (prompt); popup_unquote (dflt);
   if (a5_popup != NULL)
     {
       char *ans = a5_popup (a5_popup_ctx, prompt.c_str (), dflt.c_str ());
@@ -1150,14 +1179,24 @@ fn_locationof (a5_state_t *st, const char * /*name*/, const char *args)
   const char *key = args ? args : "";
   int ci = a5state_character_index (st, key);
   if (ci >= 0)
-    return strdup (st->char_loc[ci] ? st->char_loc[ci] : "");
+    {
+      /* clsCharacter.LocationKey (clsCharacter.vb:1790): the effective room,
+         resolved through on/in-object and on-character carriers; a Hidden
+         character reports the literal "Hidden" (Global.vb:25). */
+      const char *k = a5state_character_location_key (st, ci);
+      return strdup (k != NULL ? k : "Hidden");
+    }
   {
     int oi = a5state_object_index (st, key);
     if (oi >= 0)
       {
+        /* clsObject.LocationRoots (clsObject.vb:460) joined by '|': roots
+           resolve through container/part-of chains and through an At-Location
+           carrier, unlike the previous directly-placed-only test which
+           rendered held/contained/part-of objects as empty. */
         sb_t sb; sb_init (&sb);
         for (i = 0; i < st->adv->n_locations; i++)
-          if (a5state_object_at_location (st, oi, st->adv->locations[i].key, 1))
+          if (a5state_object_location_root (st, oi, st->adv->locations[i].key))
             { if (sb.len) sb_putc (&sb, '|');
               sb_puts (&sb, st->adv->locations[i].key); }
         return sb_finish (&sb);
@@ -1278,8 +1317,28 @@ fn_propertyvalue (a5_state_t *st, const char * /*name*/, const char *args)
   auto strip = [](std::string &s){
     s.erase (std::remove (s.begin (), s.end (), ' '), s.end ()); };
   strip (prop);
-  /* arg0 may be a key or a display name; map to a key. */
-  const char *ekey = resolve_object_arg (st, ent.c_str ());
+  /* arg0 is primarily a KEY: the Runner builds the singleton lookup table by
+     probing Adventure.htblObjects, htblCharacters *and* htblLocations with it
+     (Global.vb:2052-2070) before the PropertyValue arm walks those tables, so
+     character and location keys resolve exactly like object keys.  Only when
+     none of the three matches do we fall back to resolve_object_arg's object
+     display-name lookup (arg0 often arrives pre-expanded from %object1%).
+     Missing this made every `%PropertyValue[Character1,Prop]%` render blank --
+     TASP keys its whole TextOverride prose off character-state properties,
+     so the text collapsed to the raw `[kristenstart=0]` lookup tokens and
+     `SetProperty ... %PropertyValue%+2` arithmetic silently stopped
+     counting. */
+  const char *ekey = NULL;
+  {
+    const a5_object_t *eo = a5model_object (st->adv, ent.c_str ());
+    const a5_character_t *ec = eo ? NULL : a5model_character (st->adv, ent.c_str ());
+    const a5_location_t *el = (eo || ec) ? NULL
+                                         : a5model_location (st->adv, ent.c_str ());
+    if (eo != NULL)      ekey = eo->key;
+    else if (ec != NULL) ekey = ec->key;
+    else if (el != NULL) ekey = el->key;
+    else                 ekey = resolve_object_arg (st, ent.c_str ());
+  }
   /* A runtime SetProperty override wins over the static model value, just
      as a5state_entity_prop layers it (e.g. Amazon's CarriersFl1 runs
      `SetProperty Door1 LockKey Key3`, retargeting the lazy-unlock chain's
@@ -1399,9 +1458,32 @@ fn_list_characters (a5_state_t *st, const char *name, const char *args)
   std::vector<const a5_character_t *> on, in;
   if (k != NULL && !ci_eq (name, "listcharactersin")) on = chars_on_in (st, k, 1);
   if (k != NULL && !ci_eq (name, "listcharacterson")) in = chars_on_in (st, k, 0);
-  /* DisplayCharacterChildren lists inside-characters only when the object
-     is `Not Openable OrElse IsOpen` (clsObject.vb:383) -- same gate as the
-     object children above. */
+  auto names = [&](std::vector<const a5_character_t *> &cs) {
+    std::string s; int n = (int) cs.size ();
+    for (int i = 0; i < n; i++)
+      { char *nm = a5text_character_subjective (st, cs[i]);
+        if (i > 0) s += (i == n - 1) ? " and " : ", ";
+        s += nm; free (nm); }
+    return s; };
+  if (!ci_eq (name, "listcharactersonandin"))
+    {
+      /* ListCharactersOn/In (Global.vb:2159/2166) are the bare
+         CharacterHashTable.List("and") name join -- no "is on the table"
+         here-form, no open-container gate (ChildrenCharacters,
+         clsObject.vb:940, never looks at OpenStatus), and "noone" when the
+         set is empty (StronglyTypedCollections.vb:425).  An unknown object
+         key just DisplayErrors and renders blank. */
+      if (k == NULL)
+        return strdup ("");
+      std::vector<const a5_character_t *> &cs =
+          ci_eq (name, "listcharacterson") ? on : in;
+      if (cs.empty ())
+        return strdup ("noone");
+      return strdup (names (cs).c_str ());
+    }
+  /* OnAndIn -> DisplayCharacterChildren, which lists inside-characters only
+     when the object is `Not Openable OrElse IsOpen` (clsObject.vb:383) --
+     same gate as the object children above. */
   if (!in.empty () && o != NULL
       && a5_prop_find (o->props, o->n_props, "Openable") != NULL)
     {
@@ -1414,13 +1496,6 @@ fn_list_characters (a5_state_t *st, const char *name, const char *args)
   /* DisplayCharacterChildren: "X is on/inside the <object>." */
   std::string out;
   char *defn = o ? a5text_object_name (st, o, A5_ART_DEFINITE) : strdup (k ? k : "");
-  auto names = [&](std::vector<const a5_character_t *> &cs) {
-    std::string s; int n = (int) cs.size ();
-    for (int i = 0; i < n; i++)
-      { char *nm = a5text_character_subjective (st, cs[i]);
-        if (i > 0) s += (i == n - 1) ? " and " : ", ";
-        s += nm; free (nm); }
-    return s; };
   if (!on.empty ())
     { out += names (on); out += (on.size () == 1) ? " is on " : " are on ";
       out += defn; }
@@ -1529,14 +1604,296 @@ fn_list_objects_at_location (a5_state_t *st, const char * /*name*/, const char *
   return list_objects (st, v);
 }
 
+/* GroupToWords (Global.vb:2513): one three-digit group, "one hundred and
+   twenty three" style.  0 renders "". */
+static std::string
+number_group_to_words (int num)
+{
+  static const char *one_to_nineteen[] = { "zero", "one", "two", "three",
+    "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
+    "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+    "eighteen", "nineteen" };
+  static const char *multiples_of_ten[] = { "twenty", "thirty", "forty",
+    "fifty", "sixty", "seventy", "eighty", "ninety" };
+
+  if (num == 0)
+    return "";
+  std::string result;
+  if (num > 99)
+    {
+      result = std::string (one_to_nineteen[num / 100]) + " hundred";
+      num %= 100;
+      if (num == 0)
+        return result;
+      result += " and";
+    }
+  if (num < 20)
+    result += std::string (" ") + one_to_nineteen[num];
+  else
+    {
+      result += std::string (" ") + multiples_of_ten[num / 10 - 2];
+      if (num % 10 > 0)
+        result += std::string (" ") + one_to_nineteen[num % 10];
+    }
+  while (!result.empty () && result.front () == ' ')
+    result.erase (0, 1);
+  return result;
+}
+
 static char *
 fn_number_as_text (a5_state_t * /*st*/, const char * /*name*/, const char *args)
 {
-  static const char *ones[] = { "zero","one","two","three","four","five",
-    "six","seven","eight","nine","ten","eleven","twelve" };
-  long n = strtol (args, NULL, 10);
-  if (n >= 0 && n <= 12) return strdup (ones[n]);
-  return strdup (args);
+  /* %NumberAsText[n]% (Global.vb:2249 -> NumberToString, vb:2563): spell the
+     number in words, groups-of-three with US group names ("one thousand,
+     two hundred and thirty four").  A non-numeric argument is evaluated as
+     an expression first.  Faithful quirks: the decimal branch drops the
+     digit BEFORE the point too (Substring(0, pos - 1): "12.9" -> "1" ->
+     "one"), and negatives render "zero" (the loop only emits for positive
+     group values). */
+  static const char *groups[] = { "", "thousand", "million", "billion",
+    "trillion", "quadrillion", "quintillion", "sextillion", "septillion",
+    "octillion", "nonillion", "decillion", "undecillion", "duodecillion",
+    "tredecillion", "quattuordecillion", "quindecillion", "sexdecillion",
+    "septendecillion", "octodecillion", "novemdecillion", "vigintillion" };
+  const int n_groups_names = (int) (sizeof groups / sizeof groups[0]);
+
+  std::string num = args != NULL ? args : "";
+  /* IsNumeric gate: digits with optional sign/currency/comma/point dressing.
+     Anything else goes through the expression engine and its IntValue. */
+  int numeric = 0;
+  {
+    int digits = 0, other = 0;
+    for (char c : num)
+      {
+        if (c >= '0' && c <= '9') digits++;
+        else if (c != '$' && c != ',' && c != '.' && c != '+' && c != '-'
+                 && c != ' ')
+          other++;
+      }
+    numeric = digits > 0 && other == 0;
+  }
+  if (!numeric)
+    {
+      char *ev = a5_eval_sexpr (num.c_str ());
+      if (ev != NULL)
+        {
+          long iv = strtol (ev, NULL, 10);
+          char buf[32];
+          snprintf (buf, sizeof buf, "%ld", iv);
+          num = buf;
+          free (ev);
+        }
+    }
+
+  /* Clean: strip "$" and ",", leading zeros, then the decimal tail. */
+  std::string cleaned;
+  for (char c : num)
+    if (c != '$' && c != ',')
+      cleaned += c;
+  size_t nz = cleaned.find_first_not_of ('0');
+  cleaned = (nz == std::string::npos) ? "" : cleaned.substr (nz);
+  size_t pos = cleaned.find ('.');
+  if (pos == 0)
+    return strdup ("zero");
+  if (pos != std::string::npos)
+    cleaned = cleaned.substr (0, pos - 1);
+
+  std::string result;
+  int num_groups = (int) (cleaned.size () + 2) / 3;
+  cleaned.insert (0, (size_t) num_groups * 3 - cleaned.size (), ' ');
+  for (int group_num = num_groups - 1; group_num >= 0; group_num--)
+    {
+      int group_value = atoi (cleaned.substr (0, 3).c_str ());
+      cleaned = cleaned.substr (3);
+      if (group_value > 0)
+        result += number_group_to_words (group_value) + " "
+                  + (group_num >= n_groups_names ? "?" : groups[group_num])
+                  + ", ";
+    }
+  if (result.size () >= 2 && result.compare (result.size () - 2, 2, ", ") == 0)
+    result.erase (result.size () - 2);
+  while (!result.empty () && result.back () == ' ')
+    result.pop_back ();
+  while (!result.empty () && result.front () == ' ')
+    result.erase (0, 1);
+  if (result.empty ())
+    result = "zero";
+  return strdup (result.c_str ());
+}
+
+static char *
+fn_held_worn_keys (a5_state_t *st, const char *name, const char *args)
+{
+  /* %Held[charkey]% / %Worn[charkey]% -> the "|"-joined keys of the objects
+     the character directly holds / wears (Global.vb:2146/2401; HeldObjects /
+     WornObjects default bRecursive:=False).  The runner takes the argument as
+     a literal character KEY (htblCharacters.ContainsKey); an unknown key just
+     DisplayErrors and renders "" (blank allowed, bAllowBlank). */
+  const a5_character_t *c = a5model_character (st->adv, args);
+  a5_owhere_t want = ci_eq (name, "held") ? A5_OWHERE_HELD_BY
+                                          : A5_OWHERE_WORN_BY;
+  std::string out;
+  if (c != NULL)
+    for (int i = 0; i < st->adv->n_objects; i++)
+      if (st->obj[i].where == want && streq (st->obj[i].key, c->key))
+        { if (!out.empty ()) out += '|'; out += st->adv->objects[i].key; }
+  return strdup (out.c_str ());
+}
+
+static char *
+fn_objectsin (a5_state_t *st, const char * /*name*/, const char *args)
+{
+  /* %ObjectsIn[objkey]% -> "|"-joined keys of the objects directly inside
+     (Global.vb:2255, Children(InsideObject).Values), open or not. */
+  const a5_object_t *o = a5model_object (st->adv, args);
+  std::string out;
+  if (o != NULL)
+    for (int i = 0; i < st->adv->n_objects; i++)
+      if (st->obj[i].where == A5_OWHERE_IN_OBJECT
+          && streq (st->obj[i].key, o->key))
+        { if (!out.empty ()) out += '|'; out += st->adv->objects[i].key; }
+  return strdup (out.c_str ());
+}
+
+static char *
+fn_characterdescriptor (a5_state_t *st, const char * /*name*/, const char *args)
+{
+  /* %CharacterDescriptor[charkey]% -> "article [prefix] first-descriptor"
+     (clsCharacter.Descriptor, clsCharacter.vb:572; dispatched Global.vb:2074).
+     No descriptors -> "". */
+  const a5_character_t *c = a5model_character (st->adv, args);
+  if (c == NULL || c->n_descriptors == 0)
+    return strdup ("");
+  std::string out;
+  if (c->article != NULL && c->article[0] != '\0')
+    { out += c->article; out += ' '; }
+  if (c->prefix != NULL && c->prefix[0] != '\0')
+    { out += c->prefix; out += ' '; }
+  out += c->descriptors[0];
+  return strdup (out.c_str ());
+}
+
+static char *
+fn_taskcompleted (a5_state_t *st, const char * /*name*/, const char *args)
+{
+  /* %TaskCompleted[taskkey]% -> the flag as VB Boolean.ToString ("True"/
+     "False", Global.vb:2388). */
+  int ti = a5state_task_index (st, args);
+  if (ti < 0)
+    return strdup ("");
+  return strdup (st->task_done[ti] ? "True" : "False");
+}
+
+static char *
+fn_sum (a5_state_t * /*st*/, const char * /*name*/, const char *args)
+{
+  /* %Sum[text]% (Global.vb:2368): keep digit and '-' chars, blank everything
+     else, then total the space-split runs through SafeInt -- a run that is
+     not a clean integer ("3-4", "-") contributes 0. */
+  std::string t = args ? args : "";
+  for (char &ch : t)
+    if (!(ch >= '0' && ch <= '9') && ch != '-')
+      ch = ' ';
+  long total = 0;
+  size_t p = 0;
+  while (p < t.size ())
+    {
+      size_t e = t.find (' ', p);
+      if (e == std::string::npos) e = t.size ();
+      if (e > p)
+        {
+          std::string tok = t.substr (p, e - p);
+          char *end = NULL;
+          long v = strtol (tok.c_str (), &end, 10);
+          if (end != NULL && *end == '\0')
+            total += v;
+        }
+      p = e + 1;
+    }
+  char buf[32];
+  snprintf (buf, sizeof buf, "%ld", total);
+  return strdup (buf);
+}
+
+static char *
+fn_popupchoice (a5_state_t * /*st*/, const char * /*name*/, const char *args)
+{
+  /* %PopUpChoice[prompt, choice1, choice2]% (Global.vb:2278): a Yes/No dialog
+     where Yes picks choice1, No picks choice2.  Unlike PopUpInput, the runner
+     asks with MsgBox, NOT the scripted-input channel, and MsgBox throws
+     off-Windows, so FD lands in the ReplaceFunctions catch (Global.vb:2483)
+     and the token stays verbatim -- no output, no script line consumed, and a
+     SetVariable RHS keeps the literal %PopUpChoice[...]% text.  Beagle2's
+     startup Autorun depends on all three: its gender stays Male because
+     NewGender never equals "female".  That is what we do with no host callback
+     installed; in particular never route the question through the a5_popup
+     script feed, which would desync the transcript by a line.
+
+     A host that CAN ask (a5text_set_popup_choice_cb -- the interactive Glk
+     frontend, not the headless harness) gets the Windows behaviour instead:
+     the chosen text replaces the token.  A malformed call with fewer than
+     three arguments has nothing to choose between, so it stays verbatim too. */
+  if (a5_popup_choice == NULL || args == NULL)
+    return NULL;
+
+  std::string a = args;
+  size_t c1 = a.find (','), c2 = (c1 == std::string::npos)
+                                 ? std::string::npos : a.find (',', c1 + 1);
+  if (c2 == std::string::npos)
+    return NULL;
+
+  std::string prompt = a.substr (0, c1);
+  std::string yes = a.substr (c1 + 1, c2 - c1 - 1);
+  std::string no = a.substr (c2 + 1);
+  popup_unquote (prompt); popup_unquote (yes); popup_unquote (no);
+
+  int picked = a5_popup_choice (a5_popup_choice_ctx, prompt.c_str (),
+                                yes.c_str (), no.c_str ());
+  if (picked < 0)
+    return NULL;                /* host declined to ask: leave it verbatim */
+  return strdup (picked ? yes.c_str () : no.c_str ());
+}
+
+static char *
+fn_prevparentof (a5_state_t *st, const char * /*name*/, const char *args)
+{
+  /* %PrevParentOf[key]% (Global.vb:2320): the item's PrevParent -- its parent
+     as of the last turn start (the PrepareForNextTurn stamp, vb:5214-5218).
+     Objects officially also re-stamp on each Move, so the turn-start snapshot
+     only diverges when one object moves twice within a single turn. */
+  int oi = a5state_object_index (st, args);
+  if (oi >= 0 && st->obj_prev != NULL)
+    {
+      a5_owhere_t w = st->obj_prev[oi].where;
+      if (w == A5_OWHERE_ON_OBJECT || w == A5_OWHERE_IN_OBJECT
+          || w == A5_OWHERE_HELD_BY || w == A5_OWHERE_WORN_BY
+          || w == A5_OWHERE_PART_OBJECT || w == A5_OWHERE_PART_CHAR
+          || w == A5_OWHERE_LOCATION || w == A5_OWHERE_LOCGROUP)
+        return strdup (st->obj_prev[oi].key);
+      return strdup ("");
+    }
+  int ci = a5state_character_index (st, args);
+  if (ci >= 0 && st->char_prevpar != NULL)
+    return strdup (st->char_prevpar[ci] != NULL ? st->char_prevpar[ci] : "");
+  return strdup ("");
+}
+
+static char *
+fn_prevlistobjectson (a5_state_t *st, const char * /*name*/, const char *args)
+{
+  /* %PrevListObjectsOn[objkey]% (Global.vb:2315): ListObjectsOn evaluated
+     against the previous game state (PreviousFunction restores States.Peek,
+     Global.vb:596) -- computed here from the turn-start placement snapshot. */
+  const char *k = resolve_object_arg (st, args);
+  std::vector<const char *> v;
+  if (k != NULL && st->obj_prev != NULL)
+    for (int i = 0; i < st->adv->n_objects; i++)
+      if (st->obj_prev[i].where == A5_OWHERE_ON_OBJECT
+          && streq (st->obj_prev[i].key, k))
+        v.push_back (st->adv->objects[i].key);
+  if (v.empty ())
+    return strdup ("nothing");
+  return list_objects (st, v);
 }
 
 static char *
@@ -1551,6 +1908,31 @@ fn_case (a5_state_t * /*st*/, const char *name, const char *args)
   else if (s[0])
     s[0] = toupper ((unsigned char) s[0]);
   return s;
+}
+
+// EvaluateUDF's expression sniff (Global.vb:1706): the VB regex
+// `\d( )*[+-/*^]( )*\d`, whose `[+-/]` is the character RANGE '+'..'/' -- so
+// the operator set is  * + , - . / ^  with any number of spaces around it.  A
+// UDF argument matching this is folded through EvaluateExpression ("3 + 4" ->
+// "7"); a plain number ("21") is left alone.  (Line comments here because the
+// regex above contains a literal /*, which -Wcomment flags inside a block.)
+static int
+udf_arg_is_expression (const char *s)
+{
+  for (const char *p = s; *p != '\0'; p++)
+    {
+      if (!isdigit ((unsigned char) *p))
+        continue;
+      const char *q = p + 1;
+      while (*q == ' ') q++;
+      if (*q == '\0' || strchr ("*+,-./^", *q) == NULL)
+        continue;
+      q++;
+      while (*q == ' ') q++;
+      if (isdigit ((unsigned char) *q))
+        return 1;
+    }
+  return 0;
 }
 
 /* Evaluate one %Name[args]% (args already function-expanded), or NULL. */
@@ -1578,26 +1960,41 @@ eval_function (a5_state_t *st, const char *name, const char *args)
         const a5_xml_node_t *outp = a5xml_child (u->node, "Output");
         if (outp == NULL || udf_depth > 8)   /* The runner: recursive UDF = error */
           return strdup ("");
+        /* EvaluateUDF (Global.vb:1653) substitutes the arguments into the RAW
+           Output text -- BEFORE any function/expression evaluation -- then
+           re-runs ReplaceFunctions on the substituted body
+           (`sText = ReplaceFunctions(re.Replace(...))`) while the `<#...#>`
+           expressions stay GUID-stashed for the Display-time
+           ReplaceExpressions pass.  So `Double of %n% is <# %n% * 2 #>.` on
+           %Double[21]% must become "Double of 21 is <# 21 * 2 #>." here, with
+           the outer replace_expressions pass reducing it to 42 -- evaluating
+           the body first computed <# %n% * 2 #> with %n% unbound (= 0).
+           (Not mirrored: the restriction-key Parameter-<name> rewrite and the
+           refsUDF %objects% NewReferences swap during the render -- Scarier
+           gates the Output's restrictions against the live state instead.) */
         udf_depth++;
-        char *r = a5text_describe (st, outp);
-        udf_depth--;
-        if (r != NULL && args != NULL && args[0] != '\0')
+        char *raw = a5text_eval_description (st, outp);
+        std::string body = (raw != NULL) ? raw : "";
+        free (raw);
+        if (args != NULL && args[0] != '\0')
           {
-            /* Split the [.] block on top-level commas (the runner SplitArgs) and
-               replace each declared argument's %Name% token in the render. */
+            /* SplitArgs (Global.vb:1623): split on commas at bracket depth 0
+               ('('/'[' up, ')'/']' down); empty chunks are dropped, nothing
+               is trimmed. */
             std::vector<std::string> vals;
             {
               std::string cur;
-              int q = 0;
+              int level = 0;
               for (const char *p = args; *p != '\0'; p++)
                 {
-                  if (*p == '"') q = !q;
-                  if (*p == ',' && !q) { vals.push_back (cur); cur.clear (); }
+                  if (*p == '(' || *p == '[') level++;
+                  else if (*p == ')' || *p == ']') level--;
+                  if (*p == ',' && level == 0)
+                    { if (!cur.empty ()) vals.push_back (cur); cur.clear (); }
                   else cur += *p;
                 }
-              vals.push_back (cur);
+              if (!cur.empty ()) vals.push_back (cur);
             }
-            std::string out = r;
             size_t vi = 0;
             for (const a5_xml_node_t *an = u->node->first_child;
                  an != NULL; an = an->next)
@@ -1607,23 +2004,47 @@ eval_function (a5_state_t *st, const char *name, const char *args)
                 const char *anm = a5xml_child_text (an, "Name");
                 if (anm != NULL && vi < vals.size ())
                   {
+                    std::string v = vals[vi];
+                    /* "Our function argument could be an expression": fold a
+                       digit-op-digit argument through EvaluateExpression
+                       (%Double[3 + 4]% -> body sees 7); keep the original on
+                       a failed evaluation (EvaluateExpression = Nothing). */
+                    if (udf_arg_is_expression (v.c_str ()))
+                      {
+                        char *ev = a5text_eval_expression (st, v.c_str ());
+                        if (ev != NULL && ev[0] != '\0')
+                          v = ev;
+                        free (ev);
+                      }
                     std::string tok = std::string ("%") + anm + "%";
-                    size_t at;
-                    while ((at = out.find (tok)) != std::string::npos)
-                      out.replace (at, tok.size (), vals[vi]);
+                    size_t at = 0;
+                    while ((at = body.find (tok, at)) != std::string::npos)
+                      { body.replace (at, tok.size (), v); at += v.size (); }
                   }
                 vi++;
               }
-            free (r);
-            r = strdup (out.c_str ());
           }
-        return r;
+        /* The runner's trailing ReplaceFunctions recursion: expand any
+           functions the substituted body carries (%TheObject[ObjectBall]%),
+           keeping its <#...#> bodies untouched for the outer expression
+           pass. */
+        std::vector<std::string> saved;
+        std::string prot = protect_exprs (body.c_str (), saved);
+        char *funcs = replace_functions (st, prot.c_str ());
+        std::string rest = restore_exprs (funcs, saved);
+        free (funcs);
+        udf_depth--;
+        return strdup (rest.c_str ());
       }
   }
 
   if (ci_eq (name, "player"))
     return fn_player (st, name, args);
-  if (ci_eq (name, "popupinput"))
+  /* Bare %PopUpInput% (no [args]) is not a function call in the runner --
+     the args-form regex doesn't match it, so it survives verbatim (ProbePopups
+     intro).  Evaluating it here would also eat a script line as the popup
+     answer, desyncing the transcript. */
+  if (args != NULL && ci_eq (name, "popupinput"))
     return fn_popupinput (st, name, args);
   if (ci_eq (name, "charactername"))
     return fn_charactername (st, name, args);
@@ -1673,6 +2094,39 @@ eval_function (a5_state_t *st, const char *name, const char *args)
     return fn_number_as_text (st, name, args);
   if (ci_eq (name, "pcase") || ci_eq (name, "ucase") || ci_eq (name, "lcase"))
     return fn_case (st, name, args);
+  if (args != NULL && (ci_eq (name, "held") || ci_eq (name, "worn")))
+    return fn_held_worn_keys (st, name, args);
+  if (args != NULL && ci_eq (name, "objectsin"))
+    return fn_objectsin (st, name, args);
+  if (args != NULL && ci_eq (name, "characterdescriptor"))
+    return fn_characterdescriptor (st, name, args);
+  if (args != NULL && ci_eq (name, "taskcompleted"))
+    return fn_taskcompleted (st, name, args);
+  if (args != NULL && ci_eq (name, "sum"))
+    return fn_sum (st, name, args);
+  if (args != NULL && ci_eq (name, "popupchoice"))
+    return fn_popupchoice (st, name, args);
+  if (args != NULL && ci_eq (name, "prevparentof"))
+    return fn_prevparentof (st, name, args);
+  if (args != NULL && ci_eq (name, "prevlistobjectson"))
+    return fn_prevlistobjectson (st, name, args);
+  if (args != NULL && ci_eq (name, "replace"))
+    /* In TEXT context the runner's function Select has no Replace arm --
+       sResult stays "" ("Bad Function - Nothing output") and the token
+       renders empty; the usable replace(a,b,c) lives in expressions
+       (a5sexpr.cpp). */
+    return strdup ("");
+  if (args == NULL && ci_eq (name, "version"))
+    /* %version% (Global.vb:1765): the Runner's assembly version "5.0.36.6"
+       (AssemblyInfo.vb) with the first two dots elided by the substring
+       splice -> "5036.6". */
+    return strdup ("5036.6");
+  if (args == NULL && ci_eq (name, "release"))
+    /* %release% (Global.vb:1766): the <ifindex> block's <release><version>
+       (BabelTreatyInfo ... Release.Version) -- which DEFAULTS to 1
+       (Babel.vb:354 iVersion As Integer = 1), so a file carrying no release
+       metadata still renders "1". */
+    return strdup (st->adv->release != NULL ? st->adv->release : "1");
 
   /* A bound reference produced by the parser this turn (%direction%, %text%). */
   if (args == NULL)
@@ -1744,6 +2198,27 @@ eval_function (a5_state_t *st, const char *name, const char *args)
           const a5_character_t *ch = key ? a5model_character (st->adv, key) : NULL;
           if (ch != NULL && ch->name != NULL)
             return strdup (ch->name);
+        }
+      else if (ci_eq (name, "location") || ci_eq (name, "location1")
+               || ci_eq (name, "location2") || ci_eq (name, "location3")
+               || ci_eq (name, "location4") || ci_eq (name, "location5")
+               || ci_eq (name, "item") || ci_eq (name, "item1")
+               || ci_eq (name, "item2") || ci_eq (name, "item3")
+               || ci_eq (name, "item4") || ci_eq (name, "item5"))
+        {
+          /* Like %objectN%: the runner's ReplaceFunctions substitutes the bound
+             entity KEY (nr.Items(0).MatchingPossibilities(0)) for a resolved
+             %locationN%/%itemN%; an unbound one stays verbatim (in its
+             numbered form -- see the singular rewrite below). */
+          char rbuf[24];
+          char last = name[strlen (name) - 1];
+          const char *stem = (tolower ((unsigned char) name[0]) == 'l')
+                             ? "Location" : "Item";
+          if (isdigit ((unsigned char) last) && last != '1')
+            snprintf (rbuf, sizeof rbuf, "Referenced%s%c", stem, last);
+          else
+            snprintf (rbuf, sizeof rbuf, "Referenced%s", stem);
+          bound = a5state_lookup_ref (st, rbuf);
         }
       if (bound != NULL)
         return strdup (bound);
@@ -2135,15 +2610,34 @@ replace_functions (a5_state_t *st, const char *src, int as_arg)
                 }
               else
                 {
-                  /* leave the original token verbatim -- but the runner rewrites the
-                     bare %object% alias to %object1% BEFORE resolving
-                     (ReplaceIgnoreCase, Global.vb:1754), so an unresolved
-                     singular on a plural %objects% command surfaces as
-                     "%object1%..." (the Blender's "You put %object%.Name on
-                     the table." task text). */
-                  if ((size_t) (q - p) == 8 && strncmp (p, "%object%", 8) == 0)
-                    sb_puts (&sb, "%object1%");
-                  else
+                  /* leave the original token verbatim -- but the runner rewrites
+                     EVERY bare singular reference alias to its numbered form
+                     BEFORE resolving (ReplaceIgnoreCase, Global.vb:1754-1760:
+                     %object% %character% %location% %direction% %item% %text%
+                     %number% -> %...1%), so an unresolved singular surfaces
+                     numbered: the Blender's "You put %object%.Name on the
+                     table.", ProbeRefCapture's intro "...%number1%,
+                     %location1%, %item1%, and %characters%." (the plurals are
+                     NOT rewritten). */
+                  static const char *const singulars[] =
+                    { "object", "character", "location", "direction",
+                      "item", "text", "number", NULL };
+                  size_t tlen = (size_t) (q - p);
+                  int rewrote = 0;
+                  for (int si = 0; singulars[si] != NULL; si++)
+                    {
+                      size_t sl = strlen (singulars[si]);
+                      if (tlen == sl + 2 && p[0] == '%' && p[tlen - 1] == '%'
+                          && strncasecmp (p + 1, singulars[si], sl) == 0)
+                        {
+                          sb_putc (&sb, '%');
+                          sb_puts (&sb, singulars[si]);
+                          sb_puts (&sb, "1%");
+                          rewrote = 1;
+                          break;
+                        }
+                    }
+                  if (!rewrote)
                     sb_putn (&sb, p, (size_t) (q - p));
                 }
               p = q;
@@ -2777,11 +3271,12 @@ process_inner_ex (a5_state_t *st, const char *src, int depth, int *pre_alr_ink)
       for (; *q; q++)
         {
           if (*q == A5_IMG_MARK || *q == A5_WINDOW_MARK || *q == A5_SOUND_MARK
-              || *q == A5_WAIT_MARK)
+              || *q == A5_WAIT_MARK || *q == A5_COLOUR_MARK)
             {
               /* Skip the \006<number>\006 / \022<name>\022 / \024<index>\024
-                 / \026<seconds>\026 span (the window name is a routing tag,
-                 not visible ink), or a stray unpaired mark. */
+                 / \026<seconds>\026 / \027<colour>\027 span (the window name
+                 and the colour are presentation, not visible ink), or a stray
+                 unpaired mark. */
               const char *e = strchr (q + 1, *q);
               if (e == NULL)
                 continue;
@@ -2791,7 +3286,11 @@ process_inner_ex (a5_state_t *st, const char *src, int depth, int *pre_alr_ink)
                    && *q != A5_ALR_MARK && *q != A5_WAITKEY_MARK
                    && *q != A5_CENTER_MARK && *q != A5_ENDCENTER_MARK
                    && *q != A5_BOLD_MARK && *q != A5_ENDBOLD_MARK
-                   && *q != A5_ENDWINDOW_MARK)
+                   && *q != A5_ITALIC_MARK && *q != A5_ENDITALIC_MARK
+                   && *q != A5_UNDERLINE_MARK && *q != A5_ENDUNDERLINE_MARK
+                   && *q != A5_RIGHT_MARK && *q != A5_ENDRIGHT_MARK
+                   && *q != A5_ENDCOLOUR_MARK && *q != A5_ENDWINDOW_MARK)
+
             { *pre_alr_ink = 1; break; }
         }
       free (pp);
@@ -2934,6 +3433,13 @@ a5text_set_popup_cb (a5_popup_cb cb, void *ctx)
   a5_popup_ctx = ctx;
 }
 
+void
+a5text_set_popup_choice_cb (a5_popup_choice_cb cb, void *ctx)
+{
+  a5_popup_choice = cb;
+  a5_popup_choice_ctx = ctx;
+}
+
 /* Parse an <img>/<audio> tag body (without the angle brackets) and report it to
    the installed media sink: src="..." (image/sound file), and for <audio> the
    play/stop verb, channel=N and an optional loop flag.  Returns the sink's
@@ -3006,6 +3512,59 @@ a5_emit_media (const std::string &tag, int is_img)
   }
 }
 
+/* The value of a <font> tag's colour= / color= attribute, lowercased and with
+   its quotes stripped; "" when the tag names no colour.  The attribute name is
+   matched only at a word boundary, so the bgcolour= of a <font bgcolour="...">
+   cannot be read as the text colour.  Whitespace is allowed on either side of
+   the '=', because the Runner hands the tag to an HTML renderer and those
+   allow it: Alyas of Starhollow rewrites the library movement message as
+   "<font color = white>You move %PCase[%direction%]%.</font>", and without
+   this the line comes out in the adventure's output colour rather than white.
+   The result is capped well above any colour name or hex triplet -- it becomes
+   the payload of a mark-delimited span, which nothing downstream should have
+   to treat as unbounded. */
+static std::string
+a5_font_colour (const std::string &tag)
+{
+  static const char *const names[2] = { "colour", "color" };
+  std::string low = tag;
+
+  for (size_t k = 0; k < low.size (); k++)
+    low[k] = (char) tolower ((unsigned char) low[k]);
+
+  for (int pass = 0; pass < 2; pass++)
+    {
+      const std::string name = names[pass];
+
+      for (size_t at = low.find (name); at != std::string::npos;
+           at = low.find (name, at + 1))
+        {
+          size_t q = at + name.size ();
+          char quote = 0;
+          std::string out;
+
+          if (at > 0 && isalpha ((unsigned char) low[at - 1]))
+            continue;                          /* the tail of "bgcolour" */
+          while (q < low.size () && isspace ((unsigned char) low[q]))
+            q++;
+          if (q >= low.size () || low[q] != '=')
+            continue;                          /* an attribute of its own */
+          q++;
+          while (q < low.size () && isspace ((unsigned char) low[q]))
+            q++;
+          if (q < low.size () && (low[q] == '"' || low[q] == '\''))
+            quote = low[q++];
+          while (q < low.size () && out.size () < 24
+                 && (quote ? low[q] != quote
+                           : (!isspace ((unsigned char) low[q])
+                              && low[q] != '>')))
+            out.push_back (low[q++]);
+          return out;
+        }
+    }
+  return std::string ();
+}
+
 /* ----------------------------------------------------------- plain renderer */
 
 char *
@@ -3042,6 +3601,22 @@ a5text_render_plain (const char *src)
           }
           if (strcmp (name, "br") == 0)
             sb_putc (&sb, '\n');
+          else if (strcmp (name, "del") == 0)
+            {
+              /* Delete the previous output glyph (ADRIFT TextBoxes <del>).
+                 Operates on this fragment's buffer before any Glk flush, so
+                 style marks and newlines are still mutable -- including the
+                 common ALR rewrite of "(standing up first)" to <del> that
+                 undoes a paragraph break.  When this fragment has nothing left
+                 to eat the delete reaches back into the turn's earlier text
+                 (a whole-turn operator, like <cls>), which only finish_turn can
+                 see: leave an A5_DEL_MARK for sb_resolve_del.  Leave
+                 A5_ALR_MARK too so boundary ALRs cannot match across the former
+                 tag site. */
+              if (sb_del_glyph (&sb, sb.len) == 0)
+                sb_putc (&sb, A5_DEL_MARK);
+              sb_putc (&sb, A5_ALR_MARK);
+            }
           else if (strcmp (name, "cls") == 0)
             {
               /* Screen clear: drop everything buffered so far in THIS fragment,
@@ -3096,6 +3671,47 @@ a5text_render_plain (const char *src)
             sb_putc (&sb, A5_BOLD_MARK);
           else if (a5_interactive_mode && strcmp (name, "/b") == 0)
             sb_putc (&sb, A5_ENDBOLD_MARK);
+          else if (a5_interactive_mode && strcmp (name, "i") == 0)
+            /* Italic span opens; same ALR-blocking / headless-strip contract
+               as <b>. */
+            sb_putc (&sb, A5_ITALIC_MARK);
+          else if (a5_interactive_mode && strcmp (name, "/i") == 0)
+            sb_putc (&sb, A5_ENDITALIC_MARK);
+          else if (a5_interactive_mode && strcmp (name, "u") == 0)
+            /* Underline span opens; distinct marks so a future CSS/Glk host
+               can paint real underline.  Until then the Glk path styles them
+               like italic (Emphasized / Alert with bold). */
+            sb_putc (&sb, A5_UNDERLINE_MARK);
+          else if (a5_interactive_mode && strcmp (name, "/u") == 0)
+            sb_putc (&sb, A5_ENDUNDERLINE_MARK);
+          else if (a5_interactive_mode && strcmp (name, "right") == 0)
+            /* Right-aligned span opens; same ALR-blocking / headless-strip
+               contract as <center>. */
+            sb_putc (&sb, A5_RIGHT_MARK);
+          else if (a5_interactive_mode && strcmp (name, "/right") == 0)
+            sb_putc (&sb, A5_ENDRIGHT_MARK);
+          else if (a5_interactive_mode
+                   && (strcmp (name, "c") == 0 || strcmp (name, "font") == 0))
+            {
+              /* Colour span opens: \027<value>\027 (see a5text.h).  <c> asks
+                 for the adventure's InputColour, which is not spelled out in
+                 the text, so it writes the reserved token "input"; a <font>
+                 writes its colour= attribute, or nothing at all when it names
+                 no colour -- it then inherits the enclosing colour, and its
+                 </font> still has a span to pop.  Headlessly both tags drop to
+                 A5_ALR_MARK below, so ground truth is unchanged. */
+              sb_putc (&sb, A5_COLOUR_MARK);
+              if (name[0] == 'c')
+                sb_puts (&sb, "input");
+              else
+                sb_puts (&sb, a5_font_colour (std::string (p + 1, tagend))
+                                .c_str ());
+              sb_putc (&sb, A5_COLOUR_MARK);
+            }
+          else if (a5_interactive_mode
+                   && (strcmp (name, "/c") == 0 || strcmp (name, "/font") == 0))
+            sb_putc (&sb, A5_ENDCOLOUR_MARK);
+
           else if (a5_interactive_mode && strcmp (name, "window") == 0)
             {
               /* Secondary output window opens: leave the window name delimited
@@ -3142,9 +3758,9 @@ a5text_render_plain (const char *src)
                 sb_putc (&sb, A5_ALR_MARK);
             }
           else
-            /* every other tag (<>, <c>, </c>, <b>, <i>, <font...>, <waitkey>...)
-               drops -- but leave A5_ALR_MARK so the display-boundary ALR pass
-               cannot match an OldText ACROSS the stripped tag (the runner's ALR sees the
+            /* every other tag (<>, <left>...) drops -- but leave A5_ALR_MARK
+               so the display-boundary ALR pass cannot match an OldText ACROSS
+               the stripped tag (the runner's ALR sees the
                tag and is blocked; see a5text.h).  finish_turn strips the mark. */
             sb_putc (&sb, A5_ALR_MARK);
           p = q;
@@ -3162,6 +3778,40 @@ a5text_render_plain (const char *src)
       p++;
     }
   return sb_finish (&sb);
+}
+
+void
+a5text_strip_pres_marks (char *s)
+{
+  char *r, *w;
+
+  if (s == NULL)
+    return;
+  for (r = w = s; *r != '\0'; r++)
+    {
+      if (*r == A5_IMG_MARK || *r == A5_WINDOW_MARK || *r == A5_SOUND_MARK
+          || *r == A5_WAIT_MARK || *r == A5_COLOUR_MARK)
+        {
+          /* A spanning mark goes with its payload: \006<number>\006 and
+             friends, or nothing at all if the closing mark is missing. */
+          const char *e = strchr (r + 1, *r);
+
+          if (e != NULL)
+            r = (char *) e;
+          continue;
+        }
+      if (*r == A5_ALR_MARK || *r == A5_WAITKEY_MARK
+          || *r == A5_CENTER_MARK || *r == A5_ENDCENTER_MARK
+          || *r == A5_BOLD_MARK || *r == A5_ENDBOLD_MARK
+          || *r == A5_ITALIC_MARK || *r == A5_ENDITALIC_MARK
+          || *r == A5_UNDERLINE_MARK || *r == A5_ENDUNDERLINE_MARK
+          || *r == A5_RIGHT_MARK || *r == A5_ENDRIGHT_MARK
+          || *r == A5_ENDCOLOUR_MARK || *r == A5_ENDWINDOW_MARK
+          || *r == A5_CLS_MARK || *r == A5_PS_MARK || *r == A5_COMMIT_MARK)
+        continue;
+      *w++ = *r;
+    }
+  *w = '\0';
 }
 
 /* str_replace_all, except an occurrence of `find` that is part of an ALREADY-
@@ -3341,7 +3991,7 @@ a5text_expand_var_defers (a5_state_t *st, const char *text)
 
 /* The runner applies pSpace to its RAW (markup-bearing) output buffer, so a message whose
    raw text ends in something other than a real newline -- a stripped tag
-   (`...\n<font color=X>`), a trailing `<br>`, or an entity -- leaves the buffer
+   (`...\n<font colour=X>`), a trailing `<br>`, or an entity -- leaves the buffer
    non-vbLf and the NEXT message space-joins with two leading spaces.  Scarier
    strips markup per message, so its stripped text ends in the '\n' that preceded
    the trailing tag and it would drop that join.  When the pre-strip text ends
@@ -3502,8 +4152,20 @@ object_list_desc (a5_state_t *st, const a5_object_t *o, int is_static)
 }
 
 /* A present character's "is here" line: its CharHereDesc property rendered (with
-   the character as the text context, retiring its DisplayOnce segments), else
-   the default "<Name> is here." (clsLocation.ViewLocation: IsHereDesc / fallback). */
+   the character as the text context), else the default "<Name> is here."
+   (clsLocation.ViewLocation: IsHereDesc / fallback).
+
+   The render follows the AMBIENT marking_display like every other description
+   in the view -- clsDescription.ToString sets Displayed only `If Not
+   UserSession.bTestingOutput`, and IsHereDesc is not special-cased.  Forcing
+   the mark here made the stock Look's two test renders disagree whenever a
+   present character had a DisplayOnce CharHereDesc: the pre-action probe
+   retired the first-visit segment, so the post-action probe fell through to the
+   next one.  The view still came out right (the response pins to the first
+   probe), but the discarded second render expanded that segment's %functions%
+   under bDisplaying and so marked the character Introduced a turn early --
+   Anno 1700's Susan answered "say hello" as "(to the young woman)" instead of
+   "(to a young woman)". */
 static char *
 char_here_desc (a5_state_t *st, const a5_character_t *c)
 {
@@ -3520,11 +4182,7 @@ char_here_desc (a5_state_t *st, const a5_character_t *c)
          customs official stands here."). */
       if (p->value_node != NULL)
         {
-          char *raw;
-          {
-            a5_mark_guard mg (st, 1);
-            raw = a5text_eval_description (st, p->value_node);
-          }
+          char *raw = a5text_eval_description (st, p->value_node);
           result = process_inner (st, raw, 0);     /* %functions% / OO pass */
           free (raw);
         }
@@ -3734,22 +4392,28 @@ view_location_impl (a5_state_t *st, const char *lockey)
   (void) listed;
 
   /* Event SetLook text (clsLocation.ViewLocation: "For Each e ... e.LookText()"):
-     a SetLook sub-event pushed a location-gated look line onto the look stack;
-     append the most-recent entry matching the player's location. */
-  {
-    const char *lt = a5state_player_look (st);
-    if (lt != NULL && lt[0] != '\0')
-      {
-        /* pSpace(sView) (clsLocation.ViewLocation:144): always two spaces unless
-           the buffer ends in a newline -- NOT add_space's sentence-aware test, so
-           a description ending in a trailing space still gets the two (e.g.
-           SixSilverBullets' Hotel "...grim and gray. " + "  " before the
-           Purple Agent's "is here" line -> three spaces). */
-        if (sb.len > 0 && sb.p[sb.len - 1] != '\n')
-          sb_puts (&sb, "  ");
-        sb_puts (&sb, lt);
-      }
-  }
+     walk the model's events in order; each RUNNING event contributes its own
+     most-recent look entry matching the player's location (clsEvent.LookText
+     answers only while Status = Running, so a finished or paused event's
+     SetLook text disappears from the room view). */
+  for (int ei = 0; ei < st->adv->n_events; ei++)
+    {
+      if (st->ev_running == NULL
+          || !st->ev_running (st->ev_running_ctx, ei))
+        continue;
+      const char *lt = a5state_event_look (st, st->adv->events[ei].key);
+      if (lt != NULL && lt[0] != '\0')
+        {
+          /* pSpace(sView) (clsLocation.ViewLocation:144): always two spaces unless
+             the buffer ends in a newline -- NOT add_space's sentence-aware test, so
+             a description ending in a trailing space still gets the two (e.g.
+             SixSilverBullets' Hotel "...grim and gray. " + "  " before the
+             Purple Agent's "is here" line -> three spaces). */
+          if (sb.len > 0 && sb.p[sb.len - 1] != '\n')
+            sb_puts (&sb, "  ");
+          sb_puts (&sb, lt);
+        }
+    }
 
   /* Present NPCs (clsLocation.ViewLocation character loop): each visible
      character contributes its CharHereDesc (or "<Name> is here."); identical

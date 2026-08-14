@@ -723,7 +723,7 @@ expr_eval_action (scr_int token)
          * Pick one of the top N items at random, then unstack all N and
          * push back the value of the one picked.
          */
-        pick = scr_rand () % argument_count;
+        pick = scr_randomint (0, argument_count - 1);
         for (index_ = 0; index_ < argument_count; index_++)
           {
             scr_int val;
@@ -1125,8 +1125,13 @@ expr_eval_action (scr_int token)
          * Resize text1 to be long enough for both, and concatenate, then
          * free text2, and push back the concatenation.
          */
-        text1 = (decltype(text1)) scr_realloc (text1, strlen (text1) + strlen (text2) + 1);
-        strncat (text1, text2, strlen (text2));
+        {
+          size_t used = strlen (text1);
+          size_t size = used + strlen (text2) + 1;
+
+          text1 = (decltype(text1)) scr_realloc (text1, size);
+          snprintf (text1 + used, size - used, "%s", text2);
+        }
         scr_free (text2);
         expr_eval_push_alloced_string (text1);
         break;

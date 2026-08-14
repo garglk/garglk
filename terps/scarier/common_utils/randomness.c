@@ -149,6 +149,8 @@ static glui32 msc_random()
 
 /* If no native RNG is defined above, use the xoshiro128** implementation. */
 #ifndef RAND_SET_SEED
+/* This fallback is the only path that reaches time(); on the platforms that
+   take it (MinGW/MSVC among them) nothing above has declared it. */
 #include <stddef.h>
 #include <time.h>
 #define RAND_SET_SEED() (xo_seed_random(time(NULL)))

@@ -1,18 +1,17 @@
-# Headless build + regression test for the Scarier Battle System port.
+# Headless build + regression test for the Scarier ADRIFT engines.
 #
-# Builds a small console harness (test/battle_test.cpp) that links the Scarier
-# interpreter sources against the bundled sx* os-layer stubs (no Glk, links the
-# system zlib) and runs it against the synthetic, fully deterministic game
-# test/battle_test.taf.  The harness checks the combat math through the public
-# battle API and exits non-zero on any mismatch.
+# Builds small console harnesses that link the Scarier interpreter sources
+# against the bundled sx* os-layer stubs (no Glk, links the system zlib) and
+# runs them against synthetic / golden-backed games.
 #
 # Usage:
-#   make -f Makefile.headless test     # build and run the battle test
-#   make -f Makefile.headless taf      # regenerate test/battle_test.taf
+#   make -f Makefile.headless test      # Scarier in isolation (default; no FrankenDrift)
+#   make -f Makefile.headless test-fd   # opt-in: diff a5 walkthroughs against FrankenDrift
+#   make -f Makefile.headless taf       # regenerate test/adrift4/harness/battle_test.taf
 #   make -f Makefile.headless clean
 #
-# test/battle_test.taf is a hand-authored ADRIFT 4.0 file (see
-# test/make_battle_taf.py) and contains no third-party game data, so it is safe
+# test/adrift4/harness/battle_test.taf is a hand-authored ADRIFT 4.0 file (see
+# test/adrift4/harness/make_battle_taf.py) and contains no third-party game data, so it is safe
 # to keep in the tree and to rebuild offline.
 
 CXX     ?= clang++
@@ -28,7 +27,7 @@ LDLIBS  ?= -lz
 SAN_FLAGS := -fsanitize=address,undefined -fno-omit-frame-pointer \
              -fno-sanitize-recover=all -g
 SAN_ENV   := ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1
-SAN_RAND_OBJ := test/a5_randomness_san.o
+SAN_RAND_OBJ := test/adrift5/harness/a5_randomness_san.o
 
 # Shared, seedable cross-platform RNG (erkyrath_random), used by the v5 engine
 # so deterministic walkthroughs reproduce.  Compiled as C; it pulls in glk.h
@@ -37,39 +36,46 @@ COMMON  := ../common_utils
 
 # The ADRIFT 5 engine sources live in their own subdirectory.
 A5DIR   := adrift5
-A5_RAND_OBJ := test/a5_randomness.o
+A5_RAND_OBJ := test/adrift5/harness/a5_randomness.o
 
 # All interpreter sources, plus the os-layer stubs the battle harness needs.
 # mapdraw.cpp is the engine-neutral map model/rasteriser scmap.cpp draws into.
 SRC  := $(wildcard sc*.cpp) mapdraw.cpp
 STUBS   := sxstubs.cpp sxglob.cpp sxutils.cpp
-HARNESS := test/battle_test.cpp
+HARNESS := test/adrift4/harness/battle_test.cpp
 
-TAF     := test/battle_test.taf
-BIN     := test/battle_test_hl
+TAF     := test/adrift4/harness/battle_test.taf
+BIN     := test/adrift4/harness/battle_test_hl
+
+# The do-nothing half of that os-layer port, shared by every harness below: the
+# twelve hooks none of them care about, plus os_read_line_debug forwarding to
+# whichever os_read_line the harness itself defines.  Not sxstubs.cpp -- that
+# one supplies an os_read_line of its own, which is the hook each harness needs
+# to own.
+OS_STUBS := test/adrift4/harness/harness_os_stubs.cpp
 
 # The precedence and bad-parent harnesses bring their own os-layer port, so they
 # link SRC alone (no sx* stubs) and drive the real interpreter loop over their
 # own synthetic tafs.
-PREC_HARNESS := test/precedence_test.cpp
-PREC_TAF     := test/precedence_test.taf
-PREC_BIN     := test/precedence_test_hl
+PREC_HARNESS := test/adrift4/harness/precedence_test.cpp
+PREC_TAF     := test/adrift4/harness/precedence_test.taf
+PREC_BIN     := test/adrift4/harness/precedence_test_hl
 
-BADP_HARNESS := test/badparent_test.cpp
-BADP_TAF     := test/badparent_test.taf
-BADP_BIN     := test/badparent_test_hl
+BADP_HARNESS := test/adrift4/harness/badparent_test.cpp
+BADP_TAF     := test/adrift4/harness/badparent_test.taf
+BADP_BIN     := test/adrift4/harness/badparent_test_hl
 
 # The corrupt-game harness (P2) links SRC alone with its own minimal os-layer
 # port and needs no game data -- it drives the public boundary with corrupt byte
 # buffers and an in-stack scr_fatal to prove no abort() reaches the host.
-CORRUPT_HARNESS := test/corrupt_test.cpp
-CORRUPT_BIN     := test/corrupt_test_hl
+CORRUPT_HARNESS := test/adrift4/harness/corrupt_test.cpp
+CORRUPT_BIN     := test/adrift4/harness/corrupt_test_hl
 
 # The quit-flow harness drives the runner's run_loop_halt exception path
 # (mid-turn scr_restart_game / scr_quit_game) over the precedence .taf; links
 # SRC alone with its own os-layer port, like the precedence/badparent harnesses.
-QUIT_HARNESS := test/quit_test.cpp
-QUIT_BIN     := test/quit_test_hl
+QUIT_HARNESS := test/adrift4/harness/quit_test.cpp
+QUIT_BIN     := test/adrift4/harness/quit_test_hl
 
 # ADRIFT 5 (Phases 0-1): container + de-obfuscation + zlib inflate -> XML, then
 # an in-situ XML DOM parser -> typed object model.  Self-contained at the
@@ -88,44 +94,79 @@ A5_HDRS := $(A5DIR)/a5blorb.h $(A5DIR)/a5deobf.h $(A5DIR)/a5xml.h $(A5DIR)/a5mod
            $(A5DIR)/a5util.h
 A5_TEXT_HDRS := $(A5_HDRS) $(A5DIR)/a5state.h $(A5DIR)/a5restr.h $(A5DIR)/a5expr.h $(A5DIR)/a5sexpr.h $(A5DIR)/a5text.h $(A5DIR)/a5parse.h
 A5_RUN_HDRS := $(A5_TEXT_HDRS) $(A5DIR)/a5parse.h $(A5DIR)/a5rand.h $(A5DIR)/a5sb.h $(A5DIR)/a5run.h $(A5DIR)/a5run_internal.h
-A5DUMP_HARNESS := test/a5dump.cpp
-A5DUMP_BIN     := test/a5dump
-A5MODEL_HARNESS := test/a5model_dump.cpp
-A5MODEL_BIN     := test/a5model_dump
-A5TEXT_HARNESS := test/a5text_dump.cpp
-A5TEXT_BIN     := test/a5text_dump
-A5RUN_HARNESS := test/a5run_dump.cpp
-A5RUN_BIN     := test/a5run_dump
-A5MAP_HARNESS := test/a5map_dump.cpp
-A5MAP_BIN     := test/a5map_dump
-SCMAP_HARNESS := test/scmap_dump.cpp
-SCMAP_BIN     := test/scmap_dump
-A5PARSE_HARNESS := test/a5parse_test.cpp
-A5PARSE_BIN     := test/a5parse_test
-A5DIS_HARNESS   := test/a5_disambig_test.cpp
-A5DIS_BIN       := test/a5_disambig_test
-A5WALK_HARNESS  := test/a5_walk_test.cpp
-A5WALK_BIN      := test/a5_walk_test
-A5OBJ_HARNESS   := test/a5_objects_test.cpp
-A5OBJ_BIN       := test/a5_objects_test
-A5SEXPR_HARNESS := test/a5sexpr_test.cpp
-A5SEXPR_BIN     := test/a5sexpr_test
-A5SAVE_HARNESS  := test/a5_save_test.cpp
-A5SAVE_BIN      := test/a5_save_test
+A5DUMP_HARNESS := test/adrift5/harness/a5dump.cpp
+A5DUMP_BIN     := test/adrift5/harness/a5dump
+A5MODEL_HARNESS := test/adrift5/harness/a5model_dump.cpp
+A5MODEL_BIN     := test/adrift5/harness/a5model_dump
+A5TEXT_HARNESS := test/adrift5/harness/a5text_dump.cpp
+A5TEXT_BIN     := test/adrift5/harness/a5text_dump
+A5RUN_HARNESS := test/adrift5/harness/a5run_dump.cpp
+A5RUN_BIN     := test/adrift5/harness/a5run_dump
+A5MAP_HARNESS := test/adrift5/harness/a5map_dump.cpp
+A5MAP_BIN     := test/adrift5/harness/a5map_dump
+SCMAP_HARNESS := test/adrift4/harness/scmap_dump.cpp
+SCMAP_BIN     := test/adrift4/harness/scmap_dump
+A5PARSE_HARNESS := test/adrift5/harness/a5parse_test.cpp
+A5PARSE_BIN     := test/adrift5/harness/a5parse_test
+A5DIS_HARNESS   := test/adrift5/harness/a5_disambig_test.cpp
+A5DIS_BIN       := test/adrift5/harness/a5_disambig_test
+A5WALK_HARNESS  := test/adrift5/harness/a5_walk_test.cpp
+A5WALK_BIN      := test/adrift5/harness/a5_walk_test
+A5OBJ_HARNESS   := test/adrift5/harness/a5_objects_test.cpp
+A5OBJ_BIN       := test/adrift5/harness/a5_objects_test
+A5SEXPR_HARNESS := test/adrift5/harness/a5sexpr_test.cpp
+A5SEXPR_BIN     := test/adrift5/harness/a5sexpr_test
+A5SAVE_HARNESS  := test/adrift5/harness/a5_save_test.cpp
+A5SAVE_BIN      := test/adrift5/harness/a5_save_test
+# Shared XML fragments + build helper for the four synthetic-adventure tests.
+A5FIX_HDR       := test/adrift5/harness/a5_test_fixtures.h
 
-.PHONY: test sanitize taf clean scmap a5dump a5model a5text a5run a5map a5parsetest a5runtest a5walkthroughs a5distest a5walktest a5objtest a5savetest a5sexprtest v4walkthroughs
+# Container size/capacity regression.  Unlike the harnesses above this one wants
+# a whole interpreter session rather than an API poke, so it links the plain
+# ANSI port and replays a script, exactly as the walkthrough harness does -- and
+# unlike the walkthrough corpus, its two games are synthetic and generated here,
+# so it runs everywhere.  Both are v3.9, which needs no donor .taf for the
+# password trailer.  The goldens encode the Runner's answers: capacities are
+# volumes the contents spend, and both refusal strings are load-bearing (see
+# RUNNER_TESTS_TODO.md, 2026-08-03).
+CAP_BIN    := test/adrift4/harness/capacity_test_hl
+CAP_TAF    := test/adrift4/harness/capacity_matrix.taf test/adrift4/harness/capacity_nest.taf
 
+# Pre-4.0 task-refusal regression ("You can't do that here!", "You have already
+# done that."), replayed with the same interpreter binary as the capacity
+# probes.  The walkthrough corpus does not cover this: a solved route never
+# types a task command in a room the task cannot run in, nor re-types a
+# completed one-shot task, so all 203 rows are untouched by the feature.  Three
+# synthetic 3.9 games differing only in Perspective, since the refusals take
+# their leading word from it -- and since pre-4.0 has no third person, the
+# Perspective 2 build must read exactly like the Perspective 1 one, down to the
+# inventory line the script types.  See RUNNER_TESTS_TODO.md section 5.
+WHERE_TAF  := test/adrift4/harness/where_refusal.taf \
+              test/adrift4/harness/where_refusal_1p.taf \
+              test/adrift4/harness/where_refusal_3p.taf
+WHERE_PROBES := where_refusal where_refusal_1p where_refusal_3p
+
+.PHONY: test test-fd sanitize taf clean capacitytest capacitybless wheretest wherebless scmap a5dump a5model a5text a5run a5map a5parsetest a5runtest a5walkthroughs a5walkthroughs-golden a5probetafs a5maptest a5distest a5walktest a5objtest a5savetest a5sexprtest v4walkthroughs scprojregress gamescheck gamesfetch vendorcheck
 # ADRIFT 5 game files live in an untracked (gitignored) folder under test/ so the
 # harnesses can find them by a stable in-repo path; the games themselves are
 # copyrighted and not committed.  Override A5_GAMES_DIR / A5_BULLETS to relocate.
 # The a5runtest target skips gracefully when the file is absent.
-A5_GAMES_DIR ?= test/adrift5-games
+#
+# What *is* committed is test/adrift5/games.manifest.tsv: one sha256-pinned row
+# per game, with the URL it came from where there is one.  `sh test/fetch_games.sh
+# fetch` recreates as much of the corpus as is still online; see test/GAMES.md.
+A5_GAMES_DIR ?= test/adrift5/games
 A5_BULLETS ?= $(A5_GAMES_DIR)/SixSilverBullets.blorb
 
 # Same policy for the ADRIFT 3.9/4.0 (SCARE) walkthrough corpus: the .taf files
-# are untracked, so v4walkthroughs skips entirely when no corpus is present.
-V4_GAMES_DIR ?= adrift-walkthroughs/games
+# are untracked (manifest: test/adrift4/games.manifest.tsv), so v4walkthroughs
+# skips entirely when no corpus is present.
+V4_GAMES_DIR ?= test/adrift4/games
 
+# Default regression suite: Scarier in isolation.  No FrankenDrift / dotnet.
+# Covers unit harnesses, capacity, gamescheck, a5runtest, v4 walkthroughs,
+# a5maptest, scprojregress, and golden-backed a5 walkthroughs (rows without an
+# *_expected.txt are SKIPPED -- those need `test-fd`).
 test: $(BIN) $(TAF) $(PREC_BIN) $(PREC_TAF) $(BADP_BIN) $(BADP_TAF) $(CORRUPT_BIN) $(QUIT_BIN) $(A5PARSE_BIN) $(A5SEXPR_BIN) $(A5DIS_BIN) $(A5WALK_BIN) $(A5OBJ_BIN) $(A5SAVE_BIN)
 	./$(BIN) $(TAF)
 	./$(PREC_BIN) $(PREC_TAF)
@@ -138,31 +179,80 @@ test: $(BIN) $(TAF) $(PREC_BIN) $(PREC_TAF) $(BADP_BIN) $(BADP_TAF) $(CORRUPT_BI
 	./$(A5WALK_BIN)
 	./$(A5OBJ_BIN)
 	./$(A5SAVE_BIN)
+	@$(MAKE) -f Makefile.headless vendorcheck
+	@$(MAKE) -f Makefile.headless capacitytest
+	@$(MAKE) -f Makefile.headless wheretest
+	@$(MAKE) -f Makefile.headless gamescheck
 	@$(MAKE) -f Makefile.headless a5runtest
 	@$(MAKE) -f Makefile.headless v4walkthroughs
+	@$(MAKE) -f Makefile.headless a5maptest
+	@$(MAKE) -f Makefile.headless scprojregress
+	@$(MAKE) -f Makefile.headless a5walkthroughs-golden
+
+# Opt-in: ADRIFT 5 walkthrough corpus vs FrankenDrift (needs FD.Headless +
+# dotnet).  Alias of a5walkthroughs.
+test-fd:
+	@$(MAKE) -f Makefile.headless a5walkthroughs
+
+# Gargoyle builds Scarier from a straight copy of this directory, so the shared
+# files it needs from outside it are vendored in common_utils/ (see the README
+# there).  Nothing in the Spatterlight tree compiles those copies, which is
+# exactly how they came to sit a bug-fix behind the originals once already, so
+# check them here rather than discover it in the next Gargoyle build.
+VENDORED := randomness.c randomness.h
+
+vendorcheck:
+	@for f in $(VENDORED); do \
+	  if ! cmp -s $(COMMON)/$$f common_utils/$$f; then \
+	    echo "vendorcheck: FAIL common_utils/$$f differs from $(COMMON)/$$f" >&2; \
+	    echo "  re-copy it (the originals are the ones that build here)" >&2; \
+	    exit 1; \
+	  fi; \
+	done
+	@echo "vendorcheck: PASS ($(words $(VENDORED)) vendored files match $(COMMON))"
+
+# Checksum the game corpora against the committed manifests before the suites
+# that replay them.  A *missing* corpus is fine (the suites SKIP), so this only
+# fails when a file that is present does not match its recorded sha256 -- which
+# would otherwise surface downstream as a golden-transcript diff that looks like
+# an engine regression but is really the wrong release of the game.  Set
+# SCARIER_SKIP_GAMESCHECK=1 to bypass.  See test/GAMES.md.
+gamescheck:
+	@if [ -n "$$SCARIER_SKIP_GAMESCHECK" ]; then \
+	  echo "gamescheck: SKIP (SCARIER_SKIP_GAMESCHECK set)"; \
+	else \
+	  V4_GAMES_DIR="$(V4_GAMES_DIR)" A5_GAMES_DIR="$(A5_GAMES_DIR)" \
+	    sh test/fetch_games.sh verify; \
+	fi
+
+# Download every corpus row that still has a live source, verifying each against
+# the manifest.  Not part of `test`: it hits the network.
+gamesfetch:
+	@V4_GAMES_DIR="$(V4_GAMES_DIR)" A5_GAMES_DIR="$(A5_GAMES_DIR)" \
+	  sh test/fetch_games.sh fetch
 
 # Golden-transcript regression for the ADRIFT 3.9/4.0 (SCARE) engine: replays
-# every derived walkthrough in adrift-walkthroughs/harness against its committed
-# golden (see adrift-walkthroughs/harness/run_v4_walkthroughs.sh).  The runner
+# every derived walkthrough in test/adrift4/harness against its committed
+# golden (see test/adrift4/harness/run_v4_walkthroughs.sh).  The runner
 # SKIPs any row whose .taf is absent and exits non-zero only on a real regression
 # (golden mismatch or a missing win marker), so it is safe in `test`.  Skipped
 # outright -- without even building the harness -- when no game corpus exists on
 # this machine.
 v4walkthroughs:
 	@if [ -d "$(V4_GAMES_DIR)" ]; then \
-	  sh adrift-walkthroughs/harness/run_v4_walkthroughs.sh; \
+	  sh test/adrift4/harness/run_v4_walkthroughs.sh; \
 	else \
 	  echo "v4walkthroughs: SKIP (no ADRIFT 4 game corpus: $(V4_GAMES_DIR))"; \
 	fi
 
 # Golden-transcript regression for the ADRIFT 5 (P4) engine: replays
-# test/a5_bullets_script.txt through Six Silver Bullets and diffs against
-# test/a5_bullets_expected.txt.  Skips (does not fail) if the game file is
+# test/adrift5/goldens/a5_bullets_script.txt through Six Silver Bullets and diffs against
+# test/adrift5/goldens/a5_bullets_expected.txt.  Skips (does not fail) if the game file is
 # missing, since it cannot be checked in.
 a5runtest: $(A5RUN_BIN)
 	@if [ -f "$(A5_BULLETS)" ]; then \
-	  ./$(A5RUN_BIN) "$(A5_BULLETS)" test/a5_bullets_script.txt > /tmp/a5_bullets_got.txt 2>/dev/null; \
-	  if diff -u test/a5_bullets_expected.txt /tmp/a5_bullets_got.txt; then \
+	  ./$(A5RUN_BIN) "$(A5_BULLETS)" test/adrift5/goldens/a5_bullets_script.txt > /tmp/a5_bullets_got.txt 2>/dev/null; \
+	  if diff -u test/adrift5/goldens/a5_bullets_expected.txt /tmp/a5_bullets_got.txt; then \
 	    echo "a5runtest: Six Silver Bullets transcript matches"; \
 	  else \
 	    echo "a5runtest: FAILED (transcript diverged)"; exit 1; \
@@ -171,20 +261,54 @@ a5runtest: $(A5RUN_BIN)
 	  echo "a5runtest: SKIP (game file not found: $(A5_BULLETS))"; \
 	fi
 
-# Real-game walkthrough corpus: replays published walkthroughs for the games in
-# $(A5_GAMES_DIR) through BOTH a5run_dump and FrankenDrift (test/a5_groundtruth.sh)
-# and checks each transcript's divergence against its recorded baseline (see
-# test/A5_WALKTHROUGH_FINDINGS.md).  Per-game SKIP when the (uncommittable) game
-# file is absent; needs FrankenDrift.Headless built for the differential games
-# (the golden-backed games, e.g. Achtung Panzer, need only a5run_dump).
-# Not part of `test` (external data + dotnet).  Fails if any game regresses
-# past its baseline hunk budget.
+# Opt-in FrankenDrift differential for the ADRIFT 5 walkthrough corpus: replays
+# published walkthroughs through BOTH a5run_dump and FrankenDrift
+# (test/adrift5/harness/a5_groundtruth.sh) and checks each transcript's
+# divergence against its recorded baseline (see
+# test/adrift5/notes/A5_WALKTHROUGH_FINDINGS.md).  Per-game SKIP when the
+# (uncommittable) game file is absent; needs FrankenDrift.Headless built.
+# Not part of `test` -- run via `make -f Makefile.headless test-fd`.  Fails if
+# any game regresses past its baseline hunk budget.
 a5walkthroughs: $(A5RUN_BIN)
-	@test/run_a5_walkthroughs.sh
+	@test/adrift5/harness/run_a5_walkthroughs.sh
 
-# ASan/UBSan sweep of every self-contained, no-external-data harness that `test`
-# runs (the a5runtest game-file replay is excluded: it needs uncommittable game
-# data -- run it under sanitizers by hand with
+# Scarier-only a5 walkthroughs: strict-diff committed *_expected.txt goldens,
+# SKIP rows without a golden, no FrankenDrift/dotnet.  Part of default `test`.
+a5walkthroughs-golden: $(A5RUN_BIN)
+	@test/adrift5/harness/run_a5_walkthroughs.sh --golden-only
+
+# Deterministic projectile-combat regression (ADRIFT 4 Battle System).  SKIPs
+# when the five battle-game .taf files are absent; no FrankenDrift.  Part of
+# default `test`.
+scprojregress:
+	@sh test/adrift4/harness/scproj_regress.sh
+
+# Synthetic ADRIFT 5 conformance probes (the Probe* rows of the walkthrough
+# suite), imported from the adrift-5-rs test suite.  The committed
+# test/adrift5/probes/*.taf are built from the committed XML sources by embedding
+# the standard library with test/adrift5/probes/tools/xml2taf.py.  Rebuilding is
+# only needed after editing a source XML: the .taf output is byte-stable (the
+# IFID is derived from the probe's file name, not a fresh uuid4 per build), so a
+# no-change rebuild leaves the files -- and FrankenDrift's FD_CACHE entries for
+# them -- untouched.
+a5probetafs:
+	@cd test/adrift5/probes && for x in src/*.xml; do \
+	    n=$$(basename "$$x" .xml); \
+	    python3 tools/xml2taf.py "$$x" -o "$$n.taf" || exit 1; \
+	    echo "built adrift5/probes/$$n.taf"; \
+	done
+
+# ADRIFT 5 auto-map raster regression: renders six views of the map.xml
+# stress test (adrift5/probes/map.taf) and compares PPM hashes against the
+# committed manifest.  Self-blessed (the real Runner map is GUI-only);
+# re-bless intentional rendering changes with test/adrift5/harness/run_a5_maptest.sh -b.
+# Part of default `test` (no FrankenDrift).
+a5maptest: $(A5MAP_BIN)
+	test/adrift5/harness/run_a5_maptest.sh
+
+# ASan/UBSan sweep of every self-contained, no-external-data harness that the
+# unit portion of `test` runs (the a5runtest game-file replay is excluded: it
+# needs uncommittable game data -- run it under sanitizers by hand with
 #   make -f Makefile.headless a5runtest CXXFLAGS="$(CXXFLAGS) $(SAN_FLAGS)").
 # Each harness is rebuilt from source into a *_san binary (so there is no
 # timestamp/flag-staleness footgun) and run immediately; a sanitizer abort or a
@@ -192,14 +316,24 @@ a5walkthroughs: $(A5RUN_BIN)
 sanitize: $(TAF) $(PREC_TAF) $(BADP_TAF) $(SAN_RAND_OBJ)
 	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) $(STUBS) $(HARNESS) $(LDLIBS) -o $(BIN)_san
 	$(SAN_ENV) ./$(BIN)_san $(TAF)
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) $(PREC_HARNESS) $(LDLIBS) -o $(PREC_BIN)_san
+	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) $(OS_STUBS) $(PREC_HARNESS) $(LDLIBS) -o $(PREC_BIN)_san
 	$(SAN_ENV) ./$(PREC_BIN)_san $(PREC_TAF)
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) $(BADP_HARNESS) $(LDLIBS) -o $(BADP_BIN)_san
+	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) $(OS_STUBS) $(BADP_HARNESS) $(LDLIBS) -o $(BADP_BIN)_san
 	$(SAN_ENV) ./$(BADP_BIN)_san $(BADP_TAF)
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) $(CORRUPT_HARNESS) $(LDLIBS) -o $(CORRUPT_BIN)_san
+	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) $(OS_STUBS) $(CORRUPT_HARNESS) $(LDLIBS) -o $(CORRUPT_BIN)_san
 	$(SAN_ENV) ./$(CORRUPT_BIN)_san
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) $(QUIT_HARNESS) $(LDLIBS) -o $(QUIT_BIN)_san
+	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) $(OS_STUBS) $(QUIT_HARNESS) $(LDLIBS) -o $(QUIT_BIN)_san
 	$(SAN_ENV) ./$(QUIT_BIN)_san $(PREC_TAF)
+	$(MAKE) -f Makefile.headless $(CAP_TAF)
+	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) os_ansi.cpp \
+	    test/adrift4/harness/seed.cpp $(LDLIBS) -o $(CAP_BIN)_san
+	$(SAN_ENV) ./$(CAP_BIN)_san test/adrift4/harness/capacity_matrix.taf \
+	    < test/adrift4/harness/capacity_matrix_script.txt > /dev/null
+	$(SAN_ENV) ./$(CAP_BIN)_san test/adrift4/harness/capacity_nest.taf \
+	    < test/adrift4/harness/capacity_nest_script.txt > /dev/null
+	$(MAKE) -f Makefile.headless $(WHERE_TAF)
+	$(SAN_ENV) ./$(CAP_BIN)_san test/adrift4/harness/where_refusal.taf \
+	    < test/adrift4/harness/where_refusal_script.txt > /dev/null
 	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(A5DIR)/a5parse.cpp $(A5PARSE_HARNESS) -o $(A5PARSE_BIN)_san
 	$(SAN_ENV) ./$(A5PARSE_BIN)_san
 	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(A5DIR)/a5sexpr.cpp $(A5DIR)/a5rand.cpp $(A5SEXPR_HARNESS) $(SAN_RAND_OBJ) $(LDLIBS) -o $(A5SEXPR_BIN)_san
@@ -221,42 +355,42 @@ $(SAN_RAND_OBJ): $(COMMON)/randomness.c $(COMMON)/randomness.h
 $(BIN): $(SRC) $(STUBS) $(HARNESS)
 	$(CXX) $(CXXFLAGS) $(SRC) $(STUBS) $(HARNESS) $(LDLIBS) -o $@
 
-$(PREC_BIN): $(SRC) $(PREC_HARNESS)
-	$(CXX) $(CXXFLAGS) $(SRC) $(PREC_HARNESS) $(LDLIBS) -o $@
+$(PREC_BIN): $(SRC) $(OS_STUBS) $(PREC_HARNESS)
+	$(CXX) $(CXXFLAGS) $(SRC) $(OS_STUBS) $(PREC_HARNESS) $(LDLIBS) -o $@
 
-$(BADP_BIN): $(SRC) $(BADP_HARNESS)
-	$(CXX) $(CXXFLAGS) $(SRC) $(BADP_HARNESS) $(LDLIBS) -o $@
+$(BADP_BIN): $(SRC) $(OS_STUBS) $(BADP_HARNESS)
+	$(CXX) $(CXXFLAGS) $(SRC) $(OS_STUBS) $(BADP_HARNESS) $(LDLIBS) -o $@
 
-$(CORRUPT_BIN): $(SRC) $(CORRUPT_HARNESS)
-	$(CXX) $(CXXFLAGS) $(SRC) $(CORRUPT_HARNESS) $(LDLIBS) -o $@
+$(CORRUPT_BIN): $(SRC) $(OS_STUBS) $(CORRUPT_HARNESS)
+	$(CXX) $(CXXFLAGS) $(SRC) $(OS_STUBS) $(CORRUPT_HARNESS) $(LDLIBS) -o $@
 
-$(QUIT_BIN): $(SRC) $(QUIT_HARNESS)
-	$(CXX) $(CXXFLAGS) $(SRC) $(QUIT_HARNESS) $(LDLIBS) -o $@
+$(QUIT_BIN): $(SRC) $(OS_STUBS) $(QUIT_HARNESS)
+	$(CXX) $(CXXFLAGS) $(SRC) $(OS_STUBS) $(QUIT_HARNESS) $(LDLIBS) -o $@
 
 # Build the ADRIFT 5 XML dumper.  Run it by hand on a game:
 #   make -f Makefile.headless a5dump
-#   ./test/a5dump path/to/game.blorb > game.xml
+#   ./test/adrift5/harness/a5dump path/to/game.blorb > game.xml
 a5dump: $(A5DUMP_BIN)
 $(A5DUMP_BIN): $(A5_SRC) $(A5DUMP_HARNESS) $(A5DIR)/a5blorb.h $(A5DIR)/a5deobf.h
 	$(CXX) $(CXXFLAGS) $(A5_SRC) $(A5DUMP_HARNESS) $(LDLIBS) -o $@
 
 # Build the ADRIFT 5 object-model dumper (Phase 1).  Run it by hand:
 #   make -f Makefile.headless a5model
-#   ./test/a5model_dump path/to/game.blorb
+#   ./test/adrift5/harness/a5model_dump path/to/game.blorb
 a5model: $(A5MODEL_BIN)
 $(A5MODEL_BIN): $(A5_MODEL_SRC) $(A5MODEL_HARNESS) $(A5_HDRS)
 	$(CXX) $(CXXFLAGS) $(A5_MODEL_SRC) $(A5MODEL_HARNESS) $(LDLIBS) -o $@
 
 # Build the ADRIFT 5 text-engine harness (Phase 2).  Run it by hand:
 #   make -f Makefile.headless a5text
-#   ./test/a5text_dump path/to/game.blorb [LocationKey]
+#   ./test/adrift5/harness/a5text_dump path/to/game.blorb [LocationKey]
 a5text: $(A5TEXT_BIN)
 $(A5TEXT_BIN): $(A5_TEXT_SRC) $(A5TEXT_HARNESS) $(A5_TEXT_HDRS) $(A5_RAND_OBJ)
 	$(CXX) $(CXXFLAGS) $(A5_TEXT_SRC) $(A5TEXT_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
 
 # Build the ADRIFT 5 turn-loop harness (Phase 3).  Run it by hand:
 #   make -f Makefile.headless a5run
-#   ./test/a5run_dump path/to/game.blorb [script.txt]
+#   ./test/adrift5/harness/a5run_dump path/to/game.blorb [script.txt]
 a5run: $(A5RUN_BIN)
 $(A5RUN_BIN): $(A5_RUN_SRC) $(A5RUN_HARNESS) $(A5_RUN_HDRS) $(A5_RAND_OBJ)
 	$(CXX) $(CXXFLAGS) $(A5_RUN_SRC) $(A5RUN_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
@@ -268,7 +402,7 @@ $(A5_RAND_OBJ): $(COMMON)/randomness.c $(COMMON)/randomness.h
 
 # Render the ADRIFT 5 map headlessly to a PPM (no Glk).  Run it by hand:
 #   make -f Makefile.headless a5map
-#   ./test/a5map_dump path/to/game.blorb [script.txt] -o map.ppm [-all]
+#   ./test/adrift5/harness/a5map_dump path/to/game.blorb [script.txt] -o map.ppm [-all]
 a5map: $(A5MAP_BIN)
 $(A5MAP_BIN): $(A5_RUN_SRC) $(A5DIR)/a5map.cpp mapdraw.cpp $(A5MAP_HARNESS) $(A5_RUN_HDRS) \
               $(A5DIR)/a5map.h mapdraw.h $(A5_RAND_OBJ)
@@ -277,10 +411,10 @@ $(A5MAP_BIN): $(A5_RUN_SRC) $(A5DIR)/a5map.cpp mapdraw.cpp $(A5MAP_HARNESS) $(A5
 
 # Render the ADRIFT 4 map headlessly to a PPM (no Glk).  Run it by hand:
 #   make -f Makefile.headless scmap
-#   ./test/scmap_dump path/to/game.taf [script.txt] -o map.ppm [-all] [-grid]
+#   ./test/adrift4/harness/scmap_dump path/to/game.taf [script.txt] -o map.ppm [-all] [-grid]
 scmap: $(SCMAP_BIN)
-$(SCMAP_BIN): $(SRC) $(SCMAP_HARNESS) scmap.h mapdraw.h
-	$(CXX) $(CXXFLAGS) $(SRC) $(SCMAP_HARNESS) $(LDLIBS) -o $@
+$(SCMAP_BIN): $(SRC) $(OS_STUBS) $(SCMAP_HARNESS) scmap.h mapdraw.h
+	$(CXX) $(CXXFLAGS) $(SRC) $(OS_STUBS) $(SCMAP_HARNESS) $(LDLIBS) -o $@
 
 # Self-contained matcher regression test (no game data); part of `test`.
 a5parsetest: $(A5PARSE_BIN)
@@ -300,7 +434,7 @@ $(A5SEXPR_BIN): $(A5DIR)/a5sexpr.cpp $(A5DIR)/a5sexpr.h $(A5DIR)/a5rand.cpp $(A5
 # no game data); part of `test`.  Links the full a5 run pipeline.
 a5distest: $(A5DIS_BIN)
 	./$(A5DIS_BIN)
-$(A5DIS_BIN): $(A5_RUN_SRC) $(A5DIS_HARNESS) $(A5_RUN_HDRS) $(A5_RAND_OBJ)
+$(A5DIS_BIN): $(A5_RUN_SRC) $(A5DIS_HARNESS) $(A5_RUN_HDRS) $(A5FIX_HDR) $(A5_RAND_OBJ)
 	$(CXX) $(CXXFLAGS) $(A5_RUN_SRC) $(A5DIS_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
 
 # Self-contained walks + event sub-events regression (synthetic in-memory v5
@@ -309,7 +443,7 @@ $(A5DIS_BIN): $(A5_RUN_SRC) $(A5DIS_HARNESS) $(A5_RUN_HDRS) $(A5_RAND_OBJ)
 # (DisplayMessage gate + SetLook), which the shipped corpus does not cover.
 a5walktest: $(A5WALK_BIN)
 	./$(A5WALK_BIN)
-$(A5WALK_BIN): $(A5_RUN_SRC) $(A5WALK_HARNESS) $(A5_RUN_HDRS) $(A5_RAND_OBJ)
+$(A5WALK_BIN): $(A5_RUN_SRC) $(A5WALK_HARNESS) $(A5_RUN_HDRS) $(A5FIX_HDR) $(A5_RAND_OBJ)
 	$(CXX) $(CXXFLAGS) $(A5_RUN_SRC) $(A5WALK_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
 
 # Self-contained multiple-object reference regression (synthetic in-memory v5
@@ -319,7 +453,7 @@ $(A5WALK_BIN): $(A5_RUN_SRC) $(A5WALK_HARNESS) $(A5_RUN_HDRS) $(A5_RAND_OBJ)
 # shipped corpus covers under the deterministic seed.
 a5objtest: $(A5OBJ_BIN)
 	./$(A5OBJ_BIN)
-$(A5OBJ_BIN): $(A5_RUN_SRC) $(A5OBJ_HARNESS) $(A5_RUN_HDRS) $(A5_RAND_OBJ)
+$(A5OBJ_BIN): $(A5_RUN_SRC) $(A5OBJ_HARNESS) $(A5_RUN_HDRS) $(A5FIX_HDR) $(A5_RAND_OBJ)
 	$(CXX) $(CXXFLAGS) $(A5_RUN_SRC) $(A5OBJ_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
 
 # Self-contained save/restore round-trip regression (synthetic in-memory v5
@@ -328,18 +462,79 @@ $(A5OBJ_BIN): $(A5_RUN_SRC) $(A5OBJ_HARNESS) $(A5_RUN_HDRS) $(A5_RAND_OBJ)
 # continuation after restore (Phase 5).
 a5savetest: $(A5SAVE_BIN)
 	./$(A5SAVE_BIN)
-$(A5SAVE_BIN): $(A5_RUN_SRC) $(A5SAVE_HARNESS) $(A5_RUN_HDRS) $(A5_RAND_OBJ)
+$(A5SAVE_BIN): $(A5_RUN_SRC) $(A5SAVE_HARNESS) $(A5_RUN_HDRS) $(A5FIX_HDR) $(A5_RAND_OBJ)
 	$(CXX) $(CXXFLAGS) $(A5_RUN_SRC) $(A5SAVE_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
 
 # The TAFs are checked in; these targets only refresh them from the generators.
+# Container size/capacity goldens.  Regenerate with:
+#   make -f Makefile.headless capacitybless
+capacitytest: $(CAP_BIN) $(CAP_TAF)
+	@fail=0; \
+	for probe in matrix nest; do \
+	  ./$(CAP_BIN) test/adrift4/harness/capacity_$$probe.taf < test/adrift4/harness/capacity_$${probe}_script.txt \
+	      2>/dev/null | tr -s '\n' > /tmp/capacity_$$probe.got; \
+	  if diff -u test/adrift4/harness/capacity_$${probe}_expected.txt /tmp/capacity_$$probe.got \
+	      > /tmp/capacity_$$probe.diff 2>&1; then \
+	    echo "capacity $$probe: PASS"; \
+	  else \
+	    echo "capacity $$probe: FAIL"; cat /tmp/capacity_$$probe.diff; fail=1; \
+	  fi; \
+	done; \
+	exit $$fail
+
+capacitybless: $(CAP_BIN) $(CAP_TAF)
+	@for probe in matrix nest; do \
+	  ./$(CAP_BIN) test/adrift4/harness/capacity_$$probe.taf < test/adrift4/harness/capacity_$${probe}_script.txt \
+	      2>/dev/null | tr -s '\n' > test/adrift4/harness/capacity_$${probe}_expected.txt; \
+	  echo "blessed test/adrift4/harness/capacity_$${probe}_expected.txt"; \
+	done
+
+# Task-refusal + perspective goldens.  Regenerate with:
+#   make -f Makefile.headless wherebless
+wheretest: $(CAP_BIN) $(WHERE_TAF)
+	@fail=0; \
+	for probe in $(WHERE_PROBES); do \
+	  ./$(CAP_BIN) test/adrift4/harness/$$probe.taf < test/adrift4/harness/where_refusal_script.txt \
+	      2>/dev/null | tr -s '\n' > /tmp/$$probe.got; \
+	  if diff -u test/adrift4/harness/$${probe}_expected.txt /tmp/$$probe.got \
+	      > /tmp/$$probe.diff 2>&1; then \
+	    echo "where $$probe: PASS"; \
+	  else \
+	    echo "where $$probe: FAIL"; cat /tmp/$$probe.diff; fail=1; \
+	  fi; \
+	done; \
+	exit $$fail
+
+wherebless: $(CAP_BIN) $(WHERE_TAF)
+	@for probe in $(WHERE_PROBES); do \
+	  ./$(CAP_BIN) test/adrift4/harness/$$probe.taf < test/adrift4/harness/where_refusal_script.txt \
+	      2>/dev/null | tr -s '\n' > test/adrift4/harness/$${probe}_expected.txt; \
+	  echo "blessed test/adrift4/harness/$${probe}_expected.txt"; \
+	done
+
+$(CAP_BIN): $(SRC) os_ansi.cpp test/adrift4/harness/seed.cpp
+	$(CXX) $(CXXFLAGS) $(SRC) os_ansi.cpp \
+	    test/adrift4/harness/seed.cpp $(LDLIBS) -o $@
+
+test/adrift4/harness/capacity_matrix.taf: test/adrift4/harness/make_sizeprobe.py
+	python3 test/adrift4/harness/make_sizeprobe.py 390 $@ 994 994 cap2
+test/adrift4/harness/capacity_nest.taf: test/adrift4/harness/make_sizeprobe.py
+	python3 test/adrift4/harness/make_sizeprobe.py 390 $@ 994 994 cap3
+test/adrift4/harness/where_refusal.taf: test/adrift4/harness/make_39_whereprobe.py
+	python3 test/adrift4/harness/make_39_whereprobe.py $@ 1 e
+test/adrift4/harness/where_refusal_1p.taf: test/adrift4/harness/make_39_whereprobe.py
+	python3 test/adrift4/harness/make_39_whereprobe.py $@ 0 e
+test/adrift4/harness/where_refusal_3p.taf: test/adrift4/harness/make_39_whereprobe.py
+	python3 test/adrift4/harness/make_39_whereprobe.py $@ 2 e
+
 taf: $(TAF) $(PREC_TAF) $(BADP_TAF)
-$(TAF): test/make_battle_taf.py
-	python3 test/make_battle_taf.py $(TAF)
-$(PREC_TAF): test/make_precedence_taf.py
-	python3 test/make_precedence_taf.py $(PREC_TAF)
-$(BADP_TAF): test/make_badparent_taf.py
-	python3 test/make_badparent_taf.py $(BADP_TAF)
+$(TAF): test/adrift4/harness/make_battle_taf.py
+	python3 test/adrift4/harness/make_battle_taf.py $(TAF)
+$(PREC_TAF): test/adrift4/harness/make_precedence_taf.py
+	python3 test/adrift4/harness/make_precedence_taf.py $(PREC_TAF)
+$(BADP_TAF): test/adrift4/harness/make_badparent_taf.py
+	python3 test/adrift4/harness/make_badparent_taf.py $(BADP_TAF)
 
 clean:
-	rm -f $(BIN) $(PREC_BIN) $(BADP_BIN) $(CORRUPT_BIN) $(QUIT_BIN) $(A5DUMP_BIN) $(A5MODEL_BIN) $(A5TEXT_BIN) $(A5RUN_BIN) $(A5PARSE_BIN) $(A5SEXPR_BIN) $(A5DIS_BIN) $(A5WALK_BIN) $(A5OBJ_BIN) $(A5SAVE_BIN) $(A5_RAND_OBJ)
-	rm -f $(BIN)_san $(PREC_BIN)_san $(BADP_BIN)_san $(CORRUPT_BIN)_san $(QUIT_BIN)_san $(A5PARSE_BIN)_san $(A5SEXPR_BIN)_san $(A5DIS_BIN)_san $(A5WALK_BIN)_san $(A5OBJ_BIN)_san $(A5SAVE_BIN)_san $(SAN_RAND_OBJ)
+	rm -f $(BIN) $(PREC_BIN) $(BADP_BIN) $(CORRUPT_BIN) $(QUIT_BIN) $(A5DUMP_BIN) $(A5MODEL_BIN) $(A5TEXT_BIN) $(A5RUN_BIN) $(A5PARSE_BIN) $(A5SEXPR_BIN) $(A5DIS_BIN) $(A5WALK_BIN) $(A5OBJ_BIN) $(A5SAVE_BIN) $(A5_RAND_OBJ) $(CAP_BIN)
+	rm -f $(BIN)_san $(PREC_BIN)_san $(BADP_BIN)_san $(CORRUPT_BIN)_san $(QUIT_BIN)_san $(A5PARSE_BIN)_san $(A5SEXPR_BIN)_san $(A5DIS_BIN)_san $(A5WALK_BIN)_san $(A5OBJ_BIN)_san $(A5SAVE_BIN)_san $(CAP_BIN)_san $(SAN_RAND_OBJ)

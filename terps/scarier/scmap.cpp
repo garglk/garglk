@@ -69,6 +69,7 @@ typedef struct {
   int seen;                     /* the player has been here                  */
   int exits[MAP_N_DIRS];        /* destination room number, 0 for none       */
   int restricted[MAP_N_DIRS];   /* the exit has a movement restriction       */
+  int shown[MAP_N_DIRS];        /* a connector has been run out this way     */
 } sm_room_t;
 
 typedef struct {
@@ -1032,6 +1033,7 @@ scmap_build (scr_gameref_t game, const map_view_t *view)
       return NULL;
     }
   m->n_pages = 1;
+  m->line_links = 1;            /* Form29.dolink draws with Line controls */
   page = &m->pages[0];
   page->key = 0;
   page->label = NULL;
@@ -1078,7 +1080,36 @@ scmap_build (scr_gameref_t game, const map_view_t *view)
      runner showed them as a small icon on the room box (Form29.doicon)
      whenever the raw exit exists -- the destination need not be placed, or
      even seen; an unseen destination only switches the icon to its dimmed
-     variant, which the renderer does off the badge link's dest. */
+     variant, which the renderer does off the badge link's dest.
+
+     Which connectors get run out is not a question about geometry.  Form29
+     kept one Line control per room per direction and drew nothing when the
+     far room was already showing the line back this way:
+
+         var_9E = opp(direction)
+         If Not(lineshow(endroom, var_9E, frm)) Then   ' dolink
+             ...draw, and set line<direction>(startroom).Visible = True
+
+     -- a first-come-first-served claim, walked in the order draw_graphics
+     used: rooms by ascending number, and within a room N, E, S, W, NE, SE,
+     SW, NW (the badge directions go to doicon and never take part).  So of a
+     mutual pair only the lower-numbered room's connector is drawn, and an
+     exit is dropped whenever its destination is already showing a line in the
+     opposite direction -- to anywhere, not just back to us.  That second case
+     is what keeps map39's East--NE--Hub off the map: Hub runs its SW
+     connector out to SW Corner first, so East's NE back to Hub finds Hub's SW
+     line already showing and is never drawn (issue #155).
+
+     Rooms the player has not seen sit out both halves of this.  Their boxes
+     are laid out but draw_graphics skipped them, so they neither claim a
+     direction nor lose a connector to one.
+
+     A direction is claimed only for a connector we actually draw.  The runner
+     also ran dolink for exits into rooms it had not placed -- one hidden from
+     the map, or one no route reaches -- inventing a cell for the far end and
+     trailing a stub off towards it, and that stub claimed the direction like
+     any other line.  We draw no such stubs, so honouring those claims would
+     delete a real connector and leave nothing in its place. */
   for (ip = 0; ip < page->n_nodes; ip++)
     {
       map_node_t *node = &page->nodes[ip];
@@ -1100,6 +1131,13 @@ scmap_build (scr_gameref_t game, const map_view_t *view)
             continue;
           if (!is_badge && !L.rooms[dest].placed)
             continue;
+
+          if (!is_badge && L.rooms[rno].seen)
+            {
+              if (L.rooms[dest].shown[sm_opp (d)])
+                continue;
+              L.rooms[rno].shown[d] = 1;
+            }
 
           node->links[nl].dir = d;
           node->links[nl].badge = is_badge;

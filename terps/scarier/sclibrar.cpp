@@ -33,6 +33,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <vector>
+
 #include "scarier.h"
 #include "scprotos.h"
 #include "scgamest.h"
@@ -47,6 +49,13 @@ enum
   SECS_PER_HOUR = 3600
 };
 enum { LIB_ALLOCATION_AVOIDANCE_SIZE = 128 };
+
+/*
+ * A gathered list of objects, NPCs, or directions, and the printer used for
+ * one of its elements.  See lib_print_list() below.
+ */
+typedef std::vector<scr_int> lib_list_t;
+typedef void (*lib_print_item_t) (scr_gameref_t game, scr_int item);
 
 /* Trace flag, set before running. */
 static scr_bool lib_trace = FALSE;
@@ -415,7 +424,7 @@ lib_print_room_name (scr_gameref_t game, scr_int room)
  * prefix -- any "a"/"an"/"some" is replaced by "the" -- and with the full
  * prefix.
  */
-static void
+void
 lib_print_object_np (scr_gameref_t game, scr_int object)
 {
   const scr_filterref_t filter = gs_get_filter (game);
@@ -574,6 +583,49 @@ lib_print_npc (scr_gameref_t game, scr_int npc)
 
 
 /*
+ * lib_get_perspective()
+ *
+ * Return Globals/Perspective as the Runner of this game's version reads it.
+ *
+ * ADRIFT gained the third person in 4.0.  The pre-4.0 Runners know two
+ * perspectives only, and treat every value that is not LIB_FIRST_PERSON as the
+ * second person -- measured live in run390 on the 3.9 Where probe with
+ * Perspective set to 1, 2 and 3 in turn: all three answer "You can't do that
+ * here!" and "You are carrying nothing.", and only 0 answers "I".  The same
+ * split showed up on the 3.9 capacity probe, which run390 narrates "You pick up
+ * the a1." / "You put the b1 inside the c52t." where run400 renders the very
+ * same Perspective 2 in the third person ("Player put the d2 inside the
+ * c52t.").  SCARE read the field the 4.0 way in every version, so a pre-4.0
+ * game authored with Perspective 2 came out in the third person here and in the
+ * second person in its own Runner.
+ *
+ * Clamping here rather than at parse time keeps the authored value intact for
+ * the dumps (scdump.cpp's GAME line prints it raw) and confines the rule to the
+ * two places that render a person.  Out-of-range values fall through unclamped
+ * for 4.0, where lib_select_response() still reports them as an error.
+ */
+static scr_int
+lib_get_perspective (scr_gameref_t game)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_vartype_t vt_key[2];
+  scr_int perspective, version;
+
+  vt_key[0].string = "Globals";
+  vt_key[1].string = "Perspective";
+  perspective = prop_get_integer (bundle, "I<-ss", vt_key);
+
+  vt_key[0].string = "Version";
+  version = prop_get_integer (bundle, "I<-s", vt_key);
+
+  if (version < TAF_VERSION_400 && perspective != LIB_FIRST_PERSON)
+    return LIB_SECOND_PERSON;
+
+  return perspective;
+}
+
+
+/*
  * lib_select_response()
  * lib_select_plurality()
  *
@@ -586,15 +638,11 @@ lib_select_response (scr_gameref_t game,
                      const scr_char *first_person,
                      const scr_char *third_person)
 {
-  const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[2];
   scr_int perspective;
   const scr_char *response;
 
   /* Return the response appropriate for Perspective. */
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "Perspective";
-  perspective = prop_get_integer (bundle, "I<-ss", vt_key);
+  perspective = lib_get_perspective (game);
   switch (perspective)
     {
     case LIB_FIRST_PERSON:
@@ -714,12 +762,6 @@ lib_print_response_message (scr_gameref_t game,
  * Start a new clause in the turn's output.  Where something has already been
  * printed this turn, the clause is set off from it by two spaces; the rest is
  * either a fresh sentence, or the phrase appropriate to the perspective.
- *
- * List handlers hold each item back until they know whether it is the last,
- * so the clause that introduces a list has to be printed at whichever point
- * the first item finally emerges -- inside the loop when a second item turns
- * up, or in the tail when the list held only one.  These keep the two copies
- * of it from drifting apart.
  */
 static void
 lib_new_clause (scr_gameref_t game, scr_bool has_printed)
@@ -744,6 +786,79 @@ lib_print_clause (scr_gameref_t game, scr_bool has_printed,
   pf_buffer_string (filter,
                     lib_select_response (game, second_person,
                                          first_person, third_person));
+}
+
+
+/*
+ * lib_print_list()
+ * lib_print_name_list()
+ *
+ * Print a gathered list as "a, b, c and d", the last separator being the
+ * given conjunction -- " and " for most lists, " or " where the game is
+ * offering a choice.  Callers collect into a lib_list_t first rather than
+ * printing as they iterate, so that the clause introducing the list can be
+ * chosen from the finished list rather than reconstructed on the fly.
+ */
+static void
+lib_print_list (scr_gameref_t game, const lib_list_t &list,
+                lib_print_item_t print_item, const scr_char *conjunction)
+{
+  const scr_filterref_t filter = gs_get_filter (game);
+  size_t index_;
+
+  for (index_ = 0; index_ < list.size (); index_++)
+    {
+      if (index_ > 0)
+        pf_buffer_string (filter,
+                          index_ == list.size () - 1 ? conjunction : ", ");
+      print_item (game, list[index_]);
+    }
+}
+
+static void
+lib_print_name_list (scr_gameref_t game, const lib_list_t &list,
+                     const scr_char *const *names,
+                     const scr_char *conjunction)
+{
+  const scr_filterref_t filter = gs_get_filter (game);
+  size_t index_;
+
+  for (index_ = 0; index_ < list.size (); index_++)
+    {
+      if (index_ > 0)
+        pf_buffer_string (filter,
+                          index_ == list.size () - 1 ? conjunction : ", ");
+      pf_buffer_string (filter, names[list[index_]]);
+    }
+}
+
+
+/*
+ * lib_print_object_list()
+ *
+ * Print "<clause>a, b and c." for a gathered list of objects -- the shape
+ * every "You can't wear ..."-style report about a batch of objects takes.
+ * Prints nothing for an empty list.  Returns TRUE if it printed anything,
+ * so that callers can fold the result into their has_printed.
+ */
+static scr_bool
+lib_print_object_list (scr_gameref_t game, scr_bool has_printed,
+                       const lib_list_t &list,
+                       const scr_char *conjunction, scr_char terminator,
+                       const scr_char *second_person,
+                       const scr_char *first_person,
+                       const scr_char *third_person)
+{
+  const scr_filterref_t filter = gs_get_filter (game);
+
+  if (list.empty ())
+    return FALSE;
+
+  lib_print_clause (game, has_printed,
+                    second_person, first_person, third_person);
+  lib_print_list (game, list, lib_print_object_np, conjunction);
+  pf_buffer_character (filter, terminator);
+  return TRUE;
 }
 
 
@@ -802,7 +917,8 @@ lib_print_room_contents (scr_gameref_t game, scr_int room)
   const scr_filterref_t filter = gs_get_filter (game);
   const scr_prop_setref_t bundle = gs_get_bundle (game);
   scr_vartype_t vt_key[4];
-  scr_int object, npc, count, trail;
+  scr_int object, npc, count;
+  lib_list_t list;
 
   /* List all objects that show their initial description. */
   count = 0;
@@ -840,8 +956,6 @@ lib_print_room_contents (scr_gameref_t game, scr_int room)
    * where it would normally be included, but if static it's included where it
    * would normally be excluded.
    */
-  count = 0;
-  trail = -1;
   for (object = 0; object < gs_object_count (game); object++)
     {
       if (obj_directly_in_room (game, object, room))
@@ -862,34 +976,17 @@ lib_print_room_contents (scr_gameref_t game, scr_int room)
               listflag = prop_get_boolean (bundle, "B<-sis", vt_key);
 
               if (listflag == obj_is_static (game, object))
-                {
-                  if (count > 0)
-                    {
-                      if (count == 1)
-                        pf_buffer_string (filter,
-                                          lib_select_plurality (game, trail,
-                                                           "\nAlso here is ",
-                                                           "\nAlso here are "));
-                      else
-                        pf_buffer_string (filter, ", ");
-                      lib_print_object (game, trail);
-                    }
-                  trail = object;
-                  count++;
-                }
+                list.push_back (object);
             }
         }
     }
-  if (count >= 1)
+  if (!list.empty ())
     {
-      if (count == 1)
-        pf_buffer_string (filter,
-                          lib_select_plurality (game, trail,
-                                                "\nAlso here is ",
-                                                "\nAlso here are "));
-      else
-        pf_buffer_string (filter, " and ");
-      lib_print_object (game, trail);
+      pf_buffer_string (filter,
+                        lib_select_plurality (game, list[0],
+                                              "\nAlso here is ",
+                                              "\nAlso here are "));
+      lib_print_list (game, list, lib_print_object, " and ");
       pf_buffer_string (filter, ".\n");
     }
 
@@ -956,8 +1053,7 @@ lib_print_room_contents (scr_gameref_t game, scr_int room)
    *
    * TODO Is this right?
    */
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (npc = 0; npc < gs_npc_count (game); npc++)
     {
       if (npc_in_room (game, npc, room))
@@ -967,36 +1063,16 @@ lib_print_room_contents (scr_gameref_t game, scr_int room)
           /* Print name for descriptions marked '#'. */
           description = lib_get_npc_inroom_text (game, npc);
           if (!scr_strempty (description) && !scr_strcasecmp (description, "#"))
-            {
-              if (count > 0)
-                {
-                  if (count > 1)
-                    pf_buffer_string (filter, ", ");
-                  else
-                    {
-                      pf_buffer_character (filter, '\n');
-                      pf_new_sentence (filter);
-                    }
-                  lib_print_npc_np (game, trail);
-                }
-              trail = npc;
-              count++;
-            }
+            list.push_back (npc);
         }
     }
-  if (count >= 1)
+  if (!list.empty ())
     {
-      if (count == 1)
-        {
-          pf_buffer_character (filter, '\n');
-          pf_new_sentence (filter);
-          lib_print_npc_np (game, trail);
-          pf_buffer_string (filter, " is here");
-        }
-      else
-        {
-          lib_print_wrapped_npc (game, " and ", trail, " are here");
-        }
+      pf_buffer_character (filter, '\n');
+      pf_new_sentence (filter);
+      lib_print_list (game, list, lib_print_npc_np, " and ");
+      pf_buffer_string (filter,
+                        list.size () == 1 ? " is here" : " are here");
       pf_buffer_string (filter, ".\n");
     }
 }
@@ -1013,7 +1089,7 @@ lib_print_room_description (scr_gameref_t game, scr_int room)
   const scr_filterref_t filter = gs_get_filter (game);
   const scr_prop_setref_t bundle = gs_get_bundle (game);
   scr_vartype_t vt_key[5];
-  scr_bool showobjects, is_described, is_suppressed;
+  scr_bool showobjects, is_described, is_suppressed, looked;
   scr_int alt_count, alt, start, event;
 
   /* Get count of room alternates. */
@@ -1126,31 +1202,6 @@ lib_print_room_description (scr_gameref_t game, scr_int room)
         }
     }
 
-  /* Print out any relevant event look text. */
-  for (event = 0; event < gs_event_count (game); event++)
-    {
-      if (gs_event_state (game, event) == ES_RUNNING
-          && evt_can_see_event (game, event))
-        {
-          const scr_char *looktext;
-
-          vt_key[0].string = "Events";
-          vt_key[1].integer = event;
-          vt_key[2].string = "LookText";
-          looktext = prop_get_string (bundle, "S<-sis", vt_key);
-          if (!scr_strempty (looktext))
-            {
-              if (is_described)
-                pf_buffer_string (filter, "  ");
-              pf_buffer_string (filter, looktext);
-              is_described = TRUE;
-            }
-
-          vt_key[2].string = "Res";
-          vt_key[3].integer = 1;
-          res_handle_resource (game, "sisi", vt_key);
-        }
-    }
   /*
    * Terminate the description block with a single line break.  Many ADRIFT
    * room descriptions already end with a trailing "<br>" of their own; if we
@@ -1168,9 +1219,59 @@ lib_print_room_description (scr_gameref_t game, scr_int room)
         pf_buffer_character (filter, '\n');
     }
 
-  /* Finally, print room contents. */
+  /* Print room contents. */
   if (showobjects)
-    lib_print_room_contents (game, room);
+    {
+      const scr_char *buffered = pf_get_buffer (filter);
+      size_t noted = buffered ? strlen (buffered) : 0;
+
+      lib_print_room_contents (game, room);
+
+      buffered = pf_get_buffer (filter);
+      if (buffered && strlen (buffered) > noted)
+        is_described = TRUE;
+    }
+
+  /*
+   * Finally, print any relevant event look text.  The runner appends it dead
+   * last in the room block, after the object list and the character lines,
+   * run on with its two-space separator (probed live in both runners,
+   * 2026-08-02).  Join onto the description block only if this call printed
+   * one, so an event's text can't migrate up onto the room name line.
+   */
+  looked = FALSE;
+  for (event = 0; event < gs_event_count (game); event++)
+    {
+      if (gs_event_state (game, event) == ES_RUNNING
+          && evt_can_see_event (game, event))
+        {
+          const scr_char *looktext;
+
+          vt_key[0].string = "Events";
+          vt_key[1].integer = event;
+          vt_key[2].string = "LookText";
+          looktext = prop_get_string (bundle, "S<-sis", vt_key);
+          if (!scr_strempty (looktext))
+            {
+              if (is_described || looked)
+                pf_buffer_join (filter, looktext);
+              else
+                pf_buffer_string (filter, looktext);
+              looked = TRUE;
+            }
+
+          vt_key[2].string = "Res";
+          vt_key[3].integer = 1;
+          res_handle_resource (game, "sisi", vt_key);
+        }
+    }
+  if (looked)
+    {
+      const scr_char *buffered = pf_get_buffer (filter);
+
+      if (!(buffered && pf_text_ends_with_break (buffered)))
+        pf_buffer_character (filter, '\n');
+    }
 }
 
 
@@ -1376,7 +1477,8 @@ lib_cmd_print_room_exits (scr_gameref_t game)
   scr_vartype_t vt_key[4];
   scr_bool eightpointcompass;
   const scr_char *const *dirnames;
-  scr_int count, index_, trail;
+  scr_int index_;
+  lib_list_t list;
 
   /* Decide on four or eight point compass names list. */
   vt_key[0].string = "Globals";
@@ -1385,8 +1487,6 @@ lib_cmd_print_room_exits (scr_gameref_t game)
   dirnames = eightpointcompass ? DIRNAMES_8 : DIRNAMES_4;
 
   /* Poll for an exit for each valid direction name. */
-  count = 0;
-  trail = -1;
   for (index_ = 0; dirnames[index_]; index_++)
     {
       scr_vartype_t vt_rvalue;
@@ -1397,34 +1497,13 @@ lib_cmd_print_room_exits (scr_gameref_t game)
       vt_key[3].integer = index_;
       if (prop_get (bundle, "I<-sisi", &vt_rvalue, vt_key)
           && lib_can_go (game, gs_playerroom (game), index_))
-        {
-          if (count > 0)
-            {
-              if (count == 1)
-                {
-                  /* Vary text slightly for DispFirstRoom. */
-                  if (game->turns == 0)
-                    pf_buffer_string (filter, "There are exits ");
-                  else
-                    pf_buffer_string (filter,
-                                      lib_select_response (game,
-                                                         "You can move ",
-                                                         "I can move ",
-                                                         "%player% can move "));
-                }
-              else
-                pf_buffer_string (filter, ", ");
-              pf_buffer_string (filter, dirnames[trail]);
-            }
-          trail = index_;
-          count++;
-        }
+        list.push_back (index_);
     }
-  if (count >= 1)
+  if (!list.empty ())
     {
-      if (count == 1)
+      /* Vary text slightly for DispFirstRoom, and for a lone exit. */
+      if (list.size () == 1)
         {
-          /* Vary text slightly for DispFirstRoom. */
           if (game->turns == 0)
             pf_buffer_string (filter, "There is an exit ");
           else
@@ -1435,8 +1514,17 @@ lib_cmd_print_room_exits (scr_gameref_t game)
                                                    "%player% can only move "));
         }
       else
-        pf_buffer_string (filter, " and ");
-      pf_buffer_string (filter, dirnames[trail]);
+        {
+          if (game->turns == 0)
+            pf_buffer_string (filter, "There are exits ");
+          else
+            pf_buffer_string (filter,
+                              lib_select_response (game,
+                                                   "You can move ",
+                                                   "I can move ",
+                                                   "%player% can move "));
+        }
+      lib_print_name_list (game, list, dirnames, " and ");
       pf_buffer_string (filter, ".\n");
     }
   else
@@ -2089,9 +2177,7 @@ lib_cmd_information (scr_gameref_t game)
       if_print_string (compile_date);
     }
 
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "GameAuthor";
-  gameauthor = prop_get_string (bundle, "S<-ss", vt_key);
+  gameauthor = prop_get_global_string (bundle, "GameAuthor");
   filtered = pf_filter_for_info (gameauthor, vars);
   pf_strip_tags (filtered);
 
@@ -2447,6 +2533,23 @@ enum
 
 
 /*
+ * lib_set_movement_probe()
+ *
+ * Put lib_go() into probe mode, in which it prints nothing, moves nobody,
+ * and returns TRUE only if the movement it was handed would really have
+ * taken the player out of the room.  Used by the version 3.8 movement
+ * pre-pass in run_all_commands(); see the commentary there.
+ */
+static scr_bool lib_movement_probe = FALSE;
+
+void
+lib_set_movement_probe (scr_bool probe)
+{
+  lib_movement_probe = probe;
+}
+
+
+/*
  * lib_go()
  *
  * Central movement command, called by all movement handlers.
@@ -2486,6 +2589,9 @@ lib_go (scr_gameref_t game, scr_int direction)
     }
   if (is_trapped)
     {
+      if (lib_movement_probe)
+        return FALSE;
+
       pf_buffer_string (filter,
                         lib_select_response (game,
                                       "You can't go in any direction!\n",
@@ -2507,7 +2613,10 @@ lib_go (scr_gameref_t game, scr_int direction)
     destination = vt_rvalue.integer - 1;
   else
     {
-      scr_int count, trail;
+      lib_list_t list;
+
+      if (lib_movement_probe)
+        return FALSE;
 
       pf_buffer_string (filter,
                         lib_select_response (game,
@@ -2516,28 +2625,12 @@ lib_go (scr_gameref_t game, scr_int direction)
                          "%player% can't go in that direction, but can move "));
 
       /* List available exits, found in exit test loop earlier. */
-      count = 0;
-      trail = -1;
       for (index_ = 0; dirnames[index_]; index_++)
         {
           if (is_exitable[index_])
-            {
-              if (count > 0)
-                {
-                  if (count > 1)
-                    pf_buffer_string (filter, ", ");
-                  pf_buffer_string (filter, dirnames[trail]);
-                }
-              trail = index_;
-              count++;
-            }
+            list.push_back (index_);
         }
-      if (count >= 1)
-        {
-          if (count > 1)
-            pf_buffer_string (filter, " and ");
-          pf_buffer_string (filter, dirnames[trail]);
-        }
+      lib_print_name_list (game, list, dirnames, " and ");
       pf_buffer_string (filter, ".\n");
       return TRUE;
     }
@@ -2545,6 +2638,9 @@ lib_go (scr_gameref_t game, scr_int direction)
   /* Check for any movement restrictions. */
   if (!lib_can_go (game, gs_playerroom (game), direction))
     {
+      if (lib_movement_probe)
+        return FALSE;
+
       pf_buffer_string (filter,
                         lib_select_response (game,
                         "You can't go in that direction (at present).\n",
@@ -2552,6 +2648,10 @@ lib_go (scr_gameref_t game, scr_int direction)
                         "%player% can't go in that direction (at present).\n"));
       return TRUE;
     }
+
+  /* The move would go through; that is all a probe wants to know. */
+  if (lib_movement_probe)
+    return TRUE;
 
   if (lib_trace)
     {
@@ -2842,7 +2942,8 @@ lib_cmd_examine_self (scr_gameref_t game)
   const scr_filterref_t filter = gs_get_filter (game);
   const scr_prop_setref_t bundle = gs_get_bundle (game);
   scr_vartype_t vt_key[2];
-  scr_int task, object, count, trail;
+  scr_int task, object;
+  lib_list_t list;
   const scr_char *description, *position = NULL;
 
   /* Get selection task. */
@@ -2909,38 +3010,18 @@ lib_cmd_examine_self (scr_gameref_t game)
     }
 
   /* Find and list each object worn by the player. */
-  count = 0;
-  trail = -1;
   for (object = 0; object < gs_object_count (game); object++)
     {
       if (gs_object_position (game, object) == OBJ_WORN_PLAYER)
-        {
-          if (count > 0)
-            {
-              if (count == 1)
-                lib_print_clause (game, TRUE,
-                                  "You are wearing ",
-                                  "I am wearing ",
-                                  "%player% is wearing ");
-              else
-                pf_buffer_string (filter, ", ");
-              lib_print_object (game, trail);
-            }
-          trail = object;
-          count++;
-        }
+        list.push_back (object);
     }
-  if (count >= 1)
+  if (!list.empty ())
     {
-      /* Print out final listed object. */
-      if (count == 1)
-        lib_print_clause (game, TRUE,
-                          "You are wearing ",
-                          "I am wearing ",
-                          "%player% is wearing ");
-      else
-        pf_buffer_string (filter, " and ");
-      lib_print_object (game, trail);
+      lib_print_clause (game, TRUE,
+                        "You are wearing ",
+                        "I am wearing ",
+                        "%player% is wearing ");
+      lib_print_list (game, list, lib_print_object, " and ");
       pf_buffer_character (filter, '.');
     }
 
@@ -3221,95 +3302,45 @@ static scr_bool
 lib_list_npc_inventory (scr_gameref_t game, scr_int npc, scr_bool is_described)
 {
   const scr_filterref_t filter = gs_get_filter (game);
-  scr_int object, count, trail;
+  scr_int object;
   scr_bool wearing;
+  lib_list_t list;
 
   /* Find and list each object worn by the NPC. */
-  count = 0;
-  trail = -1;
-  wearing = FALSE;
   for (object = 0; object < gs_object_count (game); object++)
     {
       if (gs_object_position (game, object) == OBJ_WORN_NPC
           && gs_object_parent (game, object) == npc)
-        {
-          if (count > 0)
-            {
-              if (count == 1)
-                {
-                  lib_new_clause (game, is_described);
-                  lib_print_npc_np (game, npc);
-                  pf_buffer_string (filter, " is wearing ");
-                }
-              else
-                pf_buffer_string (filter, ", ");
-              lib_print_object (game, trail);
-            }
-          trail = object;
-          count++;
-        }
+        list.push_back (object);
     }
-  if (count >= 1)
+  wearing = !list.empty ();
+  if (wearing)
     {
-      /* Print out final listed object. */
-      if (count == 1)
-        {
-          lib_new_clause (game, is_described);
-          lib_print_npc_np (game, npc);
-          pf_buffer_string (filter, " is wearing ");
-        }
-      else
-        pf_buffer_string (filter, " and ");
-      lib_print_object (game, trail);
-      wearing = TRUE;
+      lib_new_clause (game, is_described);
+      lib_print_npc_np (game, npc);
+      pf_buffer_string (filter, " is wearing ");
+      lib_print_list (game, list, lib_print_object, " and ");
     }
 
   /* Find and list each object owned by the NPC. */
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (object = 0; object < gs_object_count (game); object++)
     {
       if (gs_object_position (game, object) == OBJ_HELD_NPC
           && gs_object_parent (game, object) == npc)
-        {
-          if (count > 0)
-            {
-              if (count == 1)
-                {
-                  if (!wearing)
-                    {
-                      lib_new_clause (game, is_described);
-                      lib_print_npc_np (game, npc);
-                    }
-                  else
-                    pf_buffer_string (filter, ", and");
-                  pf_buffer_string (filter, " is carrying ");
-                }
-              else
-                pf_buffer_string (filter, ", ");
-              lib_print_object (game, trail);
-            }
-          trail = object;
-          count++;
-        }
+        list.push_back (object);
     }
-  if (count >= 1)
+  if (!list.empty ())
     {
-      /* Print out final listed object. */
-      if (count == 1)
+      if (!wearing)
         {
-          if (!wearing)
-            {
-              lib_new_clause (game, is_described);
-              lib_print_npc_np (game, npc);
-            }
-          else
-            pf_buffer_string (filter, ", and");
-          pf_buffer_string (filter, " is carrying ");
+          lib_new_clause (game, is_described);
+          lib_print_npc_np (game, npc);
         }
       else
-        pf_buffer_string (filter, " and ");
-      lib_print_object (game, trail);
+        pf_buffer_string (filter, ", and");
+      pf_buffer_string (filter, " is carrying ");
+      lib_print_list (game, list, lib_print_object, " and ");
       pf_buffer_character (filter, '.');
     }
   else
@@ -3319,7 +3350,7 @@ lib_list_npc_inventory (scr_gameref_t game, scr_int npc, scr_bool is_described)
     }
 
   /* Return TRUE if anything worn or carried. */
-  return wearing || count > 0;
+  return wearing || !list.empty ();
 }
 
 
@@ -3396,62 +3427,31 @@ lib_list_in_object_normal (scr_gameref_t game,
                            scr_int container, scr_bool is_described)
 {
   const scr_filterref_t filter = gs_get_filter (game);
-  scr_int object, count, trail;
+  scr_int object;
+  lib_list_t list;
 
   /* List out the containers contained in this container. */
-  count = 0;
-  trail = -1;
   for (object = 0; object < gs_object_count (game); object++)
     {
       /* Contained? */
       if (gs_object_position (game, object) == OBJ_IN_OBJECT
           && gs_object_parent (game, object) == container)
-        {
-          if (count > 0)
-            {
-              if (count == 1)
-                {
-                  if (is_described)
-                    pf_buffer_string (filter, "  ");
-                  pf_buffer_string (filter, "Inside ");
-                  lib_print_object_np (game, container);
-                  pf_buffer_string (filter,
-                                    lib_select_plurality (game, trail,
-                                                          " is ", " are "));
-                }
-              else
-                pf_buffer_string (filter, ", ");
-
-              /* Print out the current list object. */
-              lib_print_object (game, trail);
-            }
-          trail = object;
-          count++;
-        }
+        list.push_back (object);
     }
-  if (count >= 1)
+  if (!list.empty ())
     {
-      /* Print out final listed object. */
-      if (count == 1)
-        {
-          if (is_described)
-            pf_buffer_string (filter, "  ");
-          pf_buffer_string (filter, "Inside ");
-          lib_print_object_np (game, container);
-          pf_buffer_string (filter,
-                            lib_select_plurality (game, trail,
-                                                  " is ", " are "));
-        }
-      else
-        pf_buffer_string (filter, " and ");
-
-      /* Print out the final object. */
-      lib_print_object (game, trail);
+      if (is_described)
+        pf_buffer_string (filter, "  ");
+      pf_buffer_string (filter, "Inside ");
+      lib_print_object_np (game, container);
+      pf_buffer_string (filter,
+                        lib_select_plurality (game, list[0], " is ", " are "));
+      lib_print_list (game, list, lib_print_object, " and ");
       pf_buffer_character (filter, '.');
     }
 
   /* Return TRUE if anything listed. */
-  return count > 0;
+  return !list.empty ();
 }
 
 
@@ -3465,49 +3465,26 @@ lib_list_in_object_alternate (scr_gameref_t game,
                               scr_int container, scr_bool is_described)
 {
   const scr_filterref_t filter = gs_get_filter (game);
-  scr_int object, count, trail;
+  scr_int object;
+  lib_list_t list;
 
   /* List out the objects contained in this object. */
-  count = 0;
-  trail = -1;
   for (object = 0; object < gs_object_count (game); object++)
     {
       /* Contained? */
       if (gs_object_position (game, object) == OBJ_IN_OBJECT
           && gs_object_parent (game, object) == container)
-        {
-          if (count > 0)
-            {
-              if (count == 1)
-                lib_new_clause (game, is_described);
-              else
-                pf_buffer_string (filter, ", ");
-
-              /* Print out the current list object. */
-              lib_print_object (game, trail);
-            }
-          trail = object;
-          count++;
-        }
+        list.push_back (object);
     }
-  if (count >= 1)
+  if (!list.empty ())
     {
-      /* Print out final listed object. */
-      if (count == 1)
-        {
-          lib_new_clause (game, is_described);
-          lib_print_object (game, trail);
-          pf_buffer_string (filter,
-                            lib_select_plurality (game, trail,
-                                                  " is inside ",
-                                                  " are inside "));
-        }
-      else
-        {
-          pf_buffer_string (filter, " and ");
-          lib_print_object (game, trail);
-          pf_buffer_string (filter, " are inside ");
-        }
+      lib_new_clause (game, is_described);
+      lib_print_list (game, list, lib_print_object, " and ");
+      pf_buffer_string (filter,
+                        list.size () == 1
+                        ? lib_select_plurality (game, list[0],
+                                                " is inside ", " are inside ")
+                        : " are inside ");
 
       /* Print out the container. */
       lib_print_object_np (game, container);
@@ -3515,7 +3492,7 @@ lib_list_in_object_alternate (scr_gameref_t game,
     }
 
   /* Return TRUE if anything listed. */
-  return count > 0;
+  return !list.empty ();
 }
 
 
@@ -3524,47 +3501,55 @@ lib_list_in_object_alternate (scr_gameref_t game,
  *
  * List the objects in a given container object.
  *
- * TODO The Adrift Runner has two distinct styles it uses for listing objects
- * within a container, but which it picks at any one point is, frankly, a
- * mystery.  The selection below seems to work with the few games checked for
- * this, and in particular works with the ALR magic in "To Hell in a Hamper",
- * but it's almost certainly wrong.  Or, at minimum, incomplete.
+ * The Runner has two distinct styles for listing a container's contents, and
+ * which one it picks used to be recorded here as "frankly, a mystery".  It
+ * isn't: run400.exe selects purely on the *number* of contained objects.  The
+ * listing helper at 0006A418 in run400.txt counts the objects whose position
+ * is 246 (in object) and whose parent is this container into var_98, then
+ *
+ *   0006A49E   if (var_98 == 1 && var_9E == 0)  ->  "<obj> is inside <cont>."
+ *   0006A607   if (var_98 == 2 && var_9E == 0)  ->  "<a> and <b> are inside <cont>."
+ *   0006A786   otherwise                        ->  "Inside <cont> is <list>."
+ *
+ * -- i.e. one or two objects get the alternate (postfixed) format and three or
+ * more get the normal (prefixed) one, with no test on the container being
+ * static or dynamic anywhere in the chain.  (var_9E == 1 is the nested case,
+ * which prints ", and inside is <list>"; scarier does not model it.)
+ *
+ * Confirmed against the real Runner in the "It's Easter, Peeps!" walkthrough
+ * transcript, which exercises all three: "An umbrella is inside the umbrella
+ * stand." (static, 1), "A crumpled note and a candy coin are inside the pay
+ * phone." (static, 2), "A few bills and a couple of photographs are inside
+ * your wallet." (dynamic, 2) and "Inside the Easter basket is a strip of
+ * candy dots, ... and a lollipop." (dynamic, 6).
+ *
+ * The part-of-NPC test below is not in run400's chain, but it is kept as an
+ * extra alternative so that containers worn by or attached to an NPC keep the
+ * format they had before this rule was derived; it can only matter for three
+ * or more contained objects.
  */
 static scr_bool
 lib_list_in_object (scr_gameref_t game, scr_int container, scr_bool is_described)
 {
   scr_bool use_alternate_format = FALSE;
+  scr_int object, count;
 
-  /*
-   * Switch if the object is static and part of an NPC or the player, or if
-   * the count of contained objects in a dynamic container is exactly one.
-   */
-  if (obj_is_static (game, container))
+  /* Count the objects this container holds. */
+  count = 0;
+  for (object = 0; object < gs_object_count (game); object++)
     {
-      scr_int object_position;
-
-      object_position = gs_object_position (game, container);
-
-      if (object_position == OBJ_PART_NPC)
-        use_alternate_format = TRUE;
+      if (gs_object_position (game, object) == OBJ_IN_OBJECT
+          && gs_object_parent (game, object) == container)
+        count++;
+      if (count > 2)
+        break;
     }
-  else
-    {
-      scr_int object, count;
 
-      count = 0;
-      for (object = 0; object < gs_object_count (game); object++)
-        {
-          if (gs_object_position (game, object) == OBJ_IN_OBJECT
-              && gs_object_parent (game, object) == container)
-            count++;
-          if (count > 1)
-            break;
-        }
-
-      if (count == 1)
-        use_alternate_format = TRUE;
-    }
+  if (count == 1 || count == 2)
+    use_alternate_format = TRUE;
+  else if (obj_is_static (game, container)
+           && gs_object_position (game, container) == OBJ_PART_NPC)
+    use_alternate_format = TRUE;
 
   /* List contained objects using the selected handler. */
   return use_alternate_format
@@ -3582,49 +3567,26 @@ static scr_bool
 lib_list_on_object (scr_gameref_t game, scr_int supporter, scr_bool is_described)
 {
   const scr_filterref_t filter = gs_get_filter (game);
-  scr_int object, count, trail;
+  scr_int object;
+  lib_list_t list;
 
   /* List out the objects standing on this object. */
-  count = 0;
-  trail = -1;
   for (object = 0; object < gs_object_count (game); object++)
     {
       /* Standing on? */
       if (gs_object_position (game, object) == OBJ_ON_OBJECT
           && gs_object_parent (game, object) == supporter)
-        {
-          if (count > 0)
-            {
-              if (count == 1)
-                lib_new_clause (game, is_described);
-              else
-                pf_buffer_string (filter, ", ");
-
-              /* Print out the current list object. */
-              lib_print_object (game, trail);
-            }
-          trail = object;
-          count++;
-        }
+        list.push_back (object);
     }
-  if (count >= 1)
+  if (!list.empty ())
     {
-      /* Print out final listed object. */
-      if (count == 1)
-        {
-          lib_new_clause (game, is_described);
-          lib_print_object (game, trail);
-          pf_buffer_string (filter,
-                            lib_select_plurality (game, trail,
-                                                  " is on ",
-                                                  " are on "));
-        }
-      else
-        {
-          pf_buffer_string (filter, " and ");
-          lib_print_object (game, trail);
-          pf_buffer_string (filter, " are on ");
-        }
+      lib_new_clause (game, is_described);
+      lib_print_list (game, list, lib_print_object, " and ");
+      pf_buffer_string (filter,
+                        list.size () == 1
+                        ? lib_select_plurality (game, list[0],
+                                                " is on ", " are on ")
+                        : " are on ");
 
       /* Print out the surface. */
       lib_print_object_np (game, supporter);
@@ -3632,7 +3594,7 @@ lib_list_on_object (scr_gameref_t game, scr_int supporter, scr_bool is_described
     }
 
   /* Return TRUE if anything listed. */
-  return count > 0;
+  return !list.empty ();
 }
 
 
@@ -3938,22 +3900,18 @@ lib_try_game_command_common (scr_gameref_t game,
       /* Get the associate's prefix and main name. */
       if (is_associate_object)
         {
-          vt_key[0].string = "Objects";
-          vt_key[1].integer = associate;
-          vt_key[2].string = "Prefix";
-          associate_prefix = prop_get_string (bundle, "S<-sis", vt_key);
-          vt_key[2].string = "Short";
-          associate_name = prop_get_string (bundle, "S<-sis", vt_key);
+          associate_prefix = prop_get_indexed_string (bundle, "Objects",
+                                                      associate, "Prefix");
+          associate_name = prop_get_indexed_string (bundle, "Objects",
+                                                    associate, "Short");
         }
       else
         {
           assert (is_associate_npc);
-          vt_key[0].string = "NPCs";
-          vt_key[1].integer = associate;
-          vt_key[2].string = "Prefix";
-          associate_prefix = prop_get_string (bundle, "S<-sis", vt_key);
-          vt_key[2].string = "Name";
-          associate_name = prop_get_string (bundle, "S<-sis", vt_key);
+          associate_prefix = prop_get_indexed_string (bundle, "NPCs",
+                                                      associate, "Prefix");
+          associate_name = prop_get_indexed_string (bundle, "NPCs", associate,
+                                                    "Name");
         }
 
       assert (preposition);
@@ -3964,30 +3922,20 @@ lib_try_game_command_common (scr_gameref_t game,
                 ? (decltype(+buffer)) scr_malloc (required) : buffer;
 
       /*
-       * Try the command with and without prefixes on both the target object
-       * and the associate.
+       * Try the command with prefixes on both the target object and the
+       * associate.  This used to also try the prefix-dropped combinations,
+       * but the real Runner does not: probed live 2026-08-02 (FM7 + a
+       * TheADRIFTProject .tas transplant in run400), "put pill in cup"
+       * completes the library put untouched by a matched-but-failing
+       * "put * pill in cup" task -- the prefix-less retry is exactly the
+       * form that task would steal.  (The single-object retry below keeps
+       * its prefixed form too, which is what lets Wax Worx's "get * head"
+       * claim "get marie" via "get Marie Antoinette's head" -- the wildcard
+       * absorbs the prefix there, matching the Runner.)
        */
       sprintf (command, "%s %s %s %s %s %s", verb,
                prefix, name, preposition, associate_prefix, associate_name);
       status = run_game_task_commands (game, command);
-      if (!status)
-        {
-          sprintf (command, "%s %s %s %s %s",
-                   verb, prefix, name, preposition, associate_name);
-          status = run_game_task_commands (game, command);
-        }
-      if (!status)
-        {
-          sprintf (command, "%s %s %s %s %s",
-                   verb, name, preposition, associate_prefix, associate_name);
-          status = run_game_task_commands (game, command);
-        }
-      if (!status)
-        {
-          sprintf (command, "%s %s %s %s",
-                   verb, name, preposition, associate_name);
-          status = run_game_task_commands (game, command);
-        }
     }
   else
     {
@@ -4309,6 +4257,30 @@ lib_apply_filter (scr_gameref_t game,
 
 
 /*
+ * lib_carried_burden()
+ *
+ * Return the total burden of everything the player currently holds or wears,
+ * under the version 3.8 pooled model (see obj_get_burden()).  Always computed
+ * afresh: unlike weight, a burden is never charged twice, since a container is
+ * not charged for its contents, so there is no running total to drift from.
+ */
+static scr_int
+lib_carried_burden (scr_gameref_t game)
+{
+  scr_int index_, burden = 0;
+
+  for (index_ = 0; index_ < gs_object_count (game); index_++)
+    {
+      if (gs_object_position (game, index_) == OBJ_HELD_PLAYER
+          || gs_object_position (game, index_) == OBJ_WORN_PLAYER)
+        burden += obj_get_burden (game, index_);
+    }
+
+  return burden;
+}
+
+
+/*
  * lib_cmd_count()
  *
  * Display player weight and size limits and amounts currently carried.
@@ -4319,6 +4291,25 @@ lib_cmd_count (scr_gameref_t game)
   const scr_filterref_t filter = gs_get_filter (game);
   scr_int size, weight;
   scr_char buffer[32];
+
+  /*
+   * A version 3.8 game has neither of these axes -- report the one pooled
+   * burden its capacity check really uses instead of two laundered numbers.
+   */
+  if (obj_uses_burden_model (game))
+    {
+      pf_buffer_string (filter, "Burden:  You have ");
+      snprintf (buffer, sizeof(buffer), "%ld", lib_carried_burden (game));
+      pf_buffer_string (filter, buffer);
+      pf_buffer_string (filter, ".  The most you can hold is ");
+      snprintf (buffer, sizeof(buffer), "%ld",
+                obj_get_player_burden_limit (game));
+      pf_buffer_string (filter, buffer);
+      pf_buffer_string (filter, ".\n");
+
+      game->is_admin = TRUE;
+      return TRUE;
+    }
 
   /*
    * Report the same carried totals the capacity checks use: the running totals
@@ -4377,6 +4368,18 @@ lib_object_too_heavy (scr_gameref_t game, scr_int object, scr_bool *is_portable)
 {
   scr_int player_limit, weight, object_weight;
 
+  /*
+   * Version 3.8 has no weight axis, and no "too heavy" refusal to go with one
+   * -- its single pooled burden is checked in lib_object_too_large() below,
+   * and answers "Your hands are full." to everything it refuses.
+   */
+  if (obj_uses_burden_model (game))
+    {
+      if (is_portable)
+        *is_portable = TRUE;
+      return FALSE;
+    }
+
   /* Get the player limit and the given object weight. */
   player_limit = obj_get_player_weight_limit (game);
   object_weight = obj_get_weight (game, object);
@@ -4419,6 +4422,30 @@ static scr_bool
 lib_object_too_large (scr_gameref_t game, scr_int object, scr_bool *is_portable)
 {
   scr_int player_limit, size, object_size;
+
+  /*
+   * Version 3.8's pooled burden against its plain MaxCarried limit, which
+   * replaces both 4.0 axes outright: every class costs at least 1, so the
+   * burden is never looser than the object count the size axis would have
+   * enforced against normalised 3.8 objects.
+   */
+  if (obj_uses_burden_model (game))
+    {
+      scr_int object_burden = obj_get_burden (game, object);
+
+      player_limit = obj_get_player_burden_limit (game);
+
+      /*
+       * 3.8 never qualifies the refusal.  run380 answers a flat "Your hands
+       * are full." whether or not empty hands would have taken the object
+       * (measured 2026-08-03), so report the object as unportable and keep
+       * the 4.0 " at the moment" suffix off.
+       */
+      if (is_portable)
+        *is_portable = FALSE;
+
+      return lib_carried_burden (game) + object_burden > player_limit;
+    }
 
   /* Get the player limit and the given object size. */
   player_limit = obj_get_player_size_limit (game);
@@ -4490,9 +4517,10 @@ lib_take_backend_common (scr_gameref_t game, scr_int associate,
                          scr_bool is_associate_object, scr_bool is_associate_npc)
 {
   const scr_filterref_t filter = gs_get_filter (game);
-  scr_int object_count, object, count, trail, total, npc;
+  scr_int object_count, object, total, npc;
   scr_int too_heavy, too_large;
   scr_bool too_heavy_portable, too_large_portable, has_printed;
+  lib_list_t list;
   assert (!is_associate_object || !is_associate_npc);
 
   /* Initialize our notions of anything exceeding player capacity. */
@@ -4591,8 +4619,7 @@ lib_take_backend_common (scr_gameref_t game, scr_int associate,
 
       for (parent = start; parent <= limit; parent++)
         {
-          count = 0;
-          trail = -1;
+          list.clear ();
           for (object = 0; object < object_count; object++)
             {
               scr_bool is_portable;
@@ -4648,57 +4675,27 @@ lib_take_backend_common (scr_gameref_t game, scr_int associate,
                     }
                 }
 
-              if (count > 0)
-                {
-                  if (count == 1)
-                    {
-                      if (has_printed)
-                        pf_buffer_string (filter, total == 0 ? "\n" : "  ");
-                      if (parent == -1)
-                        pf_buffer_string (filter,
-                                          lib_select_response (game,
-                                                         "You pick up ",
-                                                         "I pick up ",
-                                                         "%player% picks up "));
-                      else
-                        pf_buffer_string (filter,
-                                          lib_select_response (game,
-                                                           "You take ",
-                                                           "I take ",
-                                                           "%player% takes "));
-                    }
-                  else
-                    pf_buffer_string (filter, ", ");
-                  lib_print_object_np (game, trail);
-                }
-              trail = object;
-              count++;
-
+              list.push_back (object);
               gs_object_player_get (game, object);
             }
 
-          if (count >= 1)
+          if (!list.empty ())
             {
-              if (count == 1)
-                {
-                  if (has_printed)
-                    pf_buffer_string (filter, total == 0 ? "\n" : "  ");
-                  if (parent == -1)
-                    pf_buffer_string (filter,
-                                      lib_select_response (game,
-                                                         "You pick up ",
-                                                         "I pick up ",
-                                                         "%player% picks up "));
-                  else
-                    pf_buffer_string (filter,
-                                      lib_select_response (game,
-                                                           "You take ",
-                                                           "I take ",
-                                                           "%player% takes "));
-                }
+              if (has_printed)
+                pf_buffer_string (filter, total == 0 ? "\n" : "  ");
+              if (parent == -1)
+                pf_buffer_string (filter,
+                                  lib_select_response (game,
+                                                       "You pick up ",
+                                                       "I pick up ",
+                                                       "%player% picks up "));
               else
-                pf_buffer_string (filter, " and ");
-              lib_print_object_np (game, trail);
+                pf_buffer_string (filter,
+                                  lib_select_response (game,
+                                                       "You take ",
+                                                       "I take ",
+                                                       "%player% takes "));
+              lib_print_list (game, list, lib_print_object_np, " and ");
               if (parent != -1)
                 {
                   pf_buffer_string (filter, " from ");
@@ -4706,8 +4703,8 @@ lib_take_backend_common (scr_gameref_t game, scr_int associate,
                 }
               pf_buffer_character (filter, '.');
             }
-          total += count;
-          has_printed |= count > 0;
+          total += (scr_int) list.size ();
+          has_printed |= !list.empty ();
         }
     }
 
@@ -4752,8 +4749,7 @@ lib_take_backend_common (scr_gameref_t game, scr_int associate,
    */
   if (is_associate_object)
     {
-      count = 0;
-      trail = -1;
+      list.clear ();
       for (object = 0; object < object_count; object++)
         {
           if (!game->multiple_references[object])
@@ -4763,35 +4759,19 @@ lib_take_backend_common (scr_gameref_t game, scr_int associate,
               || gs_object_position (game, object) == OBJ_WORN_PLAYER)
             continue;
 
-          if (count > 0)
-            {
-              if (count == 1)
-                lib_new_clause (game, has_printed);
-              else
-                pf_buffer_string (filter, ", ");
-              lib_print_object_np (game, trail);
-            }
-          trail = object;
-          count++;
-
+          list.push_back (object);
           game->multiple_references[object] = FALSE;
         }
 
-      if (count >= 1)
+      if (!list.empty ())
         {
-          if (count == 1)
-            {
-              lib_new_clause (game, has_printed);
-              lib_print_object_np (game, trail);
-              pf_buffer_string (filter,
-                                lib_select_plurality (game, trail,
-                                                      " is not ",
-                                                      " are not "));
-            }
-          else
-            {
-              lib_print_wrapped_object (game, " and ", trail, " are not ");
-            }
+          lib_new_clause (game, has_printed);
+          lib_print_list (game, list, lib_print_object_np, " and ");
+          pf_buffer_string (filter,
+                            list.size () == 1
+                            ? lib_select_plurality (game, list[0],
+                                                    " is not ", " are not ")
+                            : " are not ");
           if (obj_is_container (game, associate))
             {
               pf_buffer_string (filter, "in ");
@@ -4803,7 +4783,7 @@ lib_take_backend_common (scr_gameref_t game, scr_int associate,
           lib_print_object_np (game, associate);
           pf_buffer_character (filter, '.');
         }
-      has_printed |= count > 0;
+      has_printed |= !list.empty ();
     }
 
   /*
@@ -4816,8 +4796,7 @@ lib_take_backend_common (scr_gameref_t game, scr_int associate,
    */
   if (is_associate_npc)
     {
-      count = 0;
-      trail = -1;
+      list.clear ();
       for (object = 0; object < object_count; object++)
         {
           if (!game->multiple_references[object])
@@ -4826,41 +4805,19 @@ lib_take_backend_common (scr_gameref_t game, scr_int associate,
           if (gs_object_position (game, object) == OBJ_PART_NPC)
             continue;
 
-          if (count > 0)
-            {
-              if (count == 1)
-                {
-                  lib_new_clause (game, has_printed);
-                  lib_print_npc_np (game, associate);
-                  pf_buffer_string (filter, " is not carrying ");
-                }
-              else
-                pf_buffer_string (filter, ", ");
-              lib_print_object_np (game, trail);
-            }
-          trail = object;
-          count++;
-
+          list.push_back (object);
           game->multiple_references[object] = FALSE;
         }
 
-      if (count >= 1)
+      if (!list.empty ())
         {
-          if (count == 1)
-            {
-              lib_new_clause (game, has_printed);
-              lib_print_npc_np (game, associate);
-              pf_buffer_string (filter, " is not carrying ");
-              lib_print_object_np (game, trail);
-            }
-          else
-            {
-              pf_buffer_string (filter, " or ");
-              lib_print_object_np (game, trail);
-            }
+          lib_new_clause (game, has_printed);
+          lib_print_npc_np (game, associate);
+          pf_buffer_string (filter, " is not carrying ");
+          lib_print_list (game, list, lib_print_object_np, " or ");
           pf_buffer_character (filter, '!');
         }
-      has_printed |= count > 0;
+      has_printed |= !list.empty ();
 
       /*
        * Merge any remaining object references into multiple references,
@@ -4878,8 +4835,7 @@ lib_take_backend_common (scr_gameref_t game, scr_int associate,
    * The remainder of this routine is common error reporting for both object
    * and NPC associates (and also for no associates).
    */
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (object = 0; object < object_count; object++)
     {
       if (!game->multiple_references[object])
@@ -4888,39 +4844,16 @@ lib_take_backend_common (scr_gameref_t game, scr_int associate,
       if (gs_object_position (game, object) != OBJ_HELD_PLAYER)
         continue;
 
-      if (count > 0)
-        {
-          if (count == 1)
-            lib_print_clause (game, has_printed,
-                              "You've already got ",
-                              "I've already got ",
-                              "%player% already has ");
-          else
-            pf_buffer_string (filter, ", ");
-          lib_print_object_np (game, trail);
-        }
-      trail = object;
-      count++;
-
+      list.push_back (object);
       game->multiple_references[object] = FALSE;
     }
 
-  if (count >= 1)
-    {
-      if (count == 1)
-        lib_print_clause (game, has_printed,
-                          "You've already got ",
-                          "I've already got ",
-                          "%player% already has ");
-      else
-        pf_buffer_string (filter, " and ");
-      lib_print_object_np (game, trail);
-      pf_buffer_character (filter, '!');
-    }
-  has_printed |= count > 0;
+  has_printed |= lib_print_object_list (game, has_printed, list, " and ", '!',
+                                        "You've already got ",
+                                        "I've already got ",
+                                        "%player% already has ");
 
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (object = 0; object < object_count; object++)
     {
       if (!game->multiple_references[object])
@@ -4929,41 +4862,18 @@ lib_take_backend_common (scr_gameref_t game, scr_int associate,
       if (gs_object_position (game, object) != OBJ_WORN_PLAYER)
         continue;
 
-      if (count > 0)
-        {
-          if (count == 1)
-            lib_print_clause (game, has_printed,
-                              "You're already wearing ",
-                              "I'm already wearing ",
-                              "%player% is already wearing ");
-          else
-            pf_buffer_string (filter, ", ");
-          lib_print_object_np (game, trail);
-        }
-      trail = object;
-      count++;
-
+      list.push_back (object);
       game->multiple_references[object] = FALSE;
     }
 
-  if (count >= 1)
-    {
-      if (count == 1)
-        lib_print_clause (game, has_printed,
-                          "You're already wearing ",
-                          "I'm already wearing ",
-                          "%player% is already wearing ");
-      else
-        pf_buffer_string (filter, " and ");
-      lib_print_object_np (game, trail);
-      pf_buffer_character (filter, '!');
-    }
-  has_printed |= count > 0;
+  has_printed |= lib_print_object_list (game, has_printed, list, " and ", '!',
+                                        "You're already wearing ",
+                                        "I'm already wearing ",
+                                        "%player% is already wearing ");
 
   for (npc = 0; npc < gs_npc_count (game); npc++)
     {
-      count = 0;
-      trail = -1;
+      list.clear ();
       for (object = 0; object < object_count; object++)
         {
           if (!game->multiple_references[object])
@@ -4975,84 +4885,39 @@ lib_take_backend_common (scr_gameref_t game, scr_int associate,
           if (gs_object_parent (game, object) != npc)
             continue;
 
-          if (count > 0)
-            {
-              if (count == 1)
-                {
-                  lib_new_clause (game, has_printed);
-                  lib_print_npc_np (game, gs_object_parent (game, trail));
-                  pf_buffer_string (filter,
-                                    lib_select_response (game,
-                                                 " refuses to give you ",
-                                                 " refuses to give me ",
-                                                 " refuses to give %player% "));
-                }
-              else
-                pf_buffer_string (filter, ", ");
-              lib_print_object_np (game, trail);
-            }
-          trail = object;
-          count++;
-
+          list.push_back (object);
           game->multiple_references[object] = FALSE;
         }
 
-      if (count >= 1)
+      if (!list.empty ())
         {
-          if (count == 1)
-            {
-              lib_new_clause (game, has_printed);
-              lib_print_npc_np (game, gs_object_parent (game, trail));
-              pf_buffer_string (filter,
-                                lib_select_response (game,
+          lib_new_clause (game, has_printed);
+          lib_print_npc_np (game, npc);
+          pf_buffer_string (filter,
+                            lib_select_response (game,
                                                  " refuses to give you ",
                                                  " refuses to give me ",
                                                  " refuses to give %player% "));
-            }
-          else
-            pf_buffer_string (filter, " and ");
-          lib_print_object_np (game, trail);
+          lib_print_list (game, list, lib_print_object_np, " and ");
           pf_buffer_character (filter, '!');
         }
-      has_printed |= count > 0;
+      has_printed |= !list.empty ();
     }
 
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (object = 0; object < object_count; object++)
     {
       if (!game->multiple_references[object])
         continue;
 
-      if (count > 0)
-        {
-          if (count == 1)
-            lib_print_clause (game, has_printed,
-                              "You can't take ",
-                              "I can't take ",
-                              "%player% can't take ");
-          else
-            pf_buffer_string (filter, ", ");
-          lib_print_object_np (game, trail);
-        }
-      trail = object;
-      count++;
-
+      list.push_back (object);
       game->multiple_references[object] = FALSE;
     }
 
-  if (count >= 1)
-    {
-      if (count == 1)
-        lib_print_clause (game, has_printed,
-                          "You can't take ",
-                          "I can't take ",
-                          "%player% can't take ");
-      else
-        pf_buffer_string (filter, " and ");
-      lib_print_object_np (game, trail);
-      pf_buffer_character (filter, '!');
-    }
+  lib_print_object_list (game, has_printed, list, " and ", '!',
+                         "You can't take ",
+                         "I can't take ",
+                         "%player% can't take ");
 }
 
 
@@ -5113,6 +4978,26 @@ lib_take_filter (scr_gameref_t game, scr_int object, scr_int unused)
 
 
 /*
+ * lib_take_all_filter()
+ *
+ * The universe that "all" ranges over, which is narrower than the set of
+ * objects a named take can reach: the Runner's "all" leaves alone anything
+ * already in the player's possession, including the contents of an open
+ * container being carried.  In Ticket to No Where, holding the open bag of
+ * shopping and typing "get all" answers "You take the pamphlet." and leaves
+ * the tights, pet food, deodorant and gloves in the bag, while "get paper"
+ * still lifts the scrap of paper out of the carried wallet.  Both verified
+ * live against run400.exe, 2026-08-02.
+ */
+static scr_bool
+lib_take_all_filter (scr_gameref_t game, scr_int object, scr_int unused)
+{
+  return lib_take_filter (game, object, unused)
+         && !obj_indirectly_held_by_player (game, object);
+}
+
+
+/*
  * lib_cmd_take_all()
  *
  * Attempt to take all objects currently visible to the player.
@@ -5126,7 +5011,7 @@ lib_cmd_take_all (scr_gameref_t game)
   /* Filter objects into references, then handle with the backend. */
   gs_set_multiple_references (game);
   objects = lib_apply_filter (game,
-                              lib_take_filter, -1, FALSE, NULL);
+                              lib_take_all_filter, -1, FALSE, NULL);
   gs_clear_multiple_references (game);
   if (objects > 0)
     lib_take_backend (game);
@@ -5148,11 +5033,19 @@ static scr_bool
 lib_take_multiple_common (scr_gameref_t game, scr_bool is_except)
 {
   const scr_filterref_t filter = gs_get_filter (game);
+  scr_bool (*resolver) (scr_gameref_t, scr_int, scr_int);
   scr_int objects, references;
+
+  /*
+   * "take all except ..." works over the "all" universe, which excludes
+   * whatever the player already carries; a named take reaches further, into
+   * a carried open container (see lib_take_all_filter).
+   */
+  resolver = is_except ? lib_take_all_filter : lib_take_filter;
 
   /* Parse the multiple objects list to find the target objects. */
   if (!lib_parse_multiple_objects (game, is_except ? "leave" : "take",
-                                   lib_take_filter, -1,
+                                   resolver, -1,
                                    &references))
     return FALSE;
   else if (references == 0)
@@ -5160,7 +5053,7 @@ lib_take_multiple_common (scr_gameref_t game, scr_bool is_except)
 
   /* Filter objects into references, then handle with the backend. */
   objects = lib_apply_filter (game,
-                              lib_take_filter, -1, is_except,
+                              resolver, -1, is_except,
                               &references);
   if (objects > 0 || references > 0)
     lib_take_backend (game);
@@ -5659,45 +5552,28 @@ lib_move_backend (scr_gameref_t game, const lib_move_verb_t *verb,
                   scr_int target, scr_bool has_printed)
 {
   const scr_filterref_t filter = gs_get_filter (game);
-  scr_int object_count, object, count, trail;
+  scr_int object_count, object;
+  lib_list_t list;
 
   object_count = gs_object_count (game);
 
   /* Move every object that remains referenced. */
-  count = 0;
-  trail = -1;
   for (object = 0; object < object_count; object++)
     {
       if (!game->object_references[object])
         continue;
 
-      if (count > 0)
-        {
-          if (count == 1)
-            lib_print_clause (game, has_printed,
-                              verb->does[0],
-                              verb->does[1],
-                              verb->does[2]);
-          else
-            pf_buffer_string (filter, ", ");
-          lib_print_object_np (game, trail);
-        }
-      trail = object;
-      count++;
-
+      list.push_back (object);
       verb->move (game, object, target);
     }
 
-  if (count >= 1)
+  if (!list.empty ())
     {
-      if (count == 1)
-        lib_print_clause (game, has_printed,
-                          verb->does[0],
-                          verb->does[1],
-                          verb->does[2]);
-      else
-        pf_buffer_string (filter, " and ");
-      lib_print_object_np (game, trail);
+      lib_print_clause (game, has_printed,
+                        verb->does[0],
+                        verb->does[1],
+                        verb->does[2]);
+      lib_print_list (game, list, lib_print_object_np, " and ");
       if (verb->onto)
         {
           pf_buffer_string (filter, verb->onto);
@@ -5705,45 +5581,21 @@ lib_move_backend (scr_gameref_t game, const lib_move_verb_t *verb,
         }
       pf_buffer_character (filter, '.');
     }
-  has_printed |= count > 0;
+  has_printed |= !list.empty ();
 
   /* Note any remaining multiple references left out of the operation. */
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (object = 0; object < object_count; object++)
     {
       if (!game->multiple_references[object])
         continue;
 
-      if (count > 0)
-        {
-          if (count == 1)
-            lib_print_clause (game, has_printed,
-                              verb->lacks[0],
-                              verb->lacks[1],
-                              verb->lacks[2]);
-          else
-            pf_buffer_string (filter, ", ");
-          lib_print_object_np (game, trail);
-        }
-      trail = object;
-      count++;
-
+      list.push_back (object);
       game->multiple_references[object] = FALSE;
     }
 
-  if (count >= 1)
-    {
-      if (count == 1)
-        lib_print_clause (game, has_printed,
-                          verb->lacks[0],
-                          verb->lacks[1],
-                          verb->lacks[2]);
-      else
-        pf_buffer_string (filter, " or ");
-      lib_print_object_np (game, trail);
-      pf_buffer_character (filter, verb->lacks_end);
-    }
+  lib_print_object_list (game, has_printed, list, " or ", verb->lacks_end,
+                         verb->lacks[0], verb->lacks[1], verb->lacks[2]);
 }
 
 
@@ -5780,6 +5632,25 @@ lib_drop_filter (scr_gameref_t game, scr_int object, scr_int unused)
 
   return !obj_is_static (game, object)
          && gs_object_position (game, object) == OBJ_HELD_PLAYER;
+}
+
+/*
+ * lib_drop_named_filter()
+ *
+ * Variant of the above for explicitly named objects.  The Runner also drops
+ * a *worn* object named in a drop command, implicitly removing it first --
+ * "drop cloak" while wearing it answers "You drop the cloak." -- while a bare
+ * "drop all" leaves worn items alone.  Both verified live against run390;
+ * see RUNNER_TESTS_TODO.md section 2.
+ */
+static scr_bool
+lib_drop_named_filter (scr_gameref_t game, scr_int object, scr_int unused)
+{
+  assert (unused == -1);
+
+  return !obj_is_static (game, object)
+         && (gs_object_position (game, object) == OBJ_HELD_PLAYER
+             || gs_object_position (game, object) == OBJ_WORN_PLAYER);
 }
 
 
@@ -5825,11 +5696,18 @@ static scr_bool
 lib_drop_multiple_common (scr_gameref_t game, scr_bool is_except)
 {
   const scr_filterref_t filter = gs_get_filter (game);
+  scr_bool (*resolver) (scr_gameref_t, scr_int, scr_int);
   scr_int objects, references;
+
+  /*
+   * Named objects may also be dropped from worn; the "all" universe that
+   * "drop all except ..." works over is held objects only.
+   */
+  resolver = is_except ? lib_drop_filter : lib_drop_named_filter;
 
   /* Parse the multiple objects list to find the target objects. */
   if (!lib_parse_multiple_objects (game, is_except ? "retain" : "drop",
-                                   lib_drop_filter, -1,
+                                   resolver, -1,
                                    &references))
     return FALSE;
   else if (references == 0)
@@ -5837,7 +5715,7 @@ lib_drop_multiple_common (scr_gameref_t game, scr_bool is_except)
 
   /* Filter objects into references, then handle with the backend. */
   objects = lib_apply_filter (game,
-                              lib_drop_filter, -1, is_except,
+                              resolver, -1, is_except,
                               &references);
   if (objects > 0 || references > 0)
     lib_drop_backend (game);
@@ -5950,9 +5828,9 @@ lib_cmd_give_object (scr_gameref_t game)
 static void
 lib_wear_backend (scr_gameref_t game)
 {
-  const scr_filterref_t filter = gs_get_filter (game);
-  scr_int object_count, object, count, trail;
+  scr_int object_count, object;
   scr_bool has_printed;
+  lib_list_t list;
 
   /*
    * Try game commands for all referenced objects first.  If any succeed,
@@ -5973,47 +5851,23 @@ lib_wear_backend (scr_gameref_t game)
     }
 
   /* Wear every object referenced. */
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (object = 0; object < object_count; object++)
     {
       if (!game->object_references[object])
         continue;
 
-      if (count > 0)
-        {
-          if (count == 1)
-            lib_print_clause (game, has_printed,
-                              "You put on ",
-                              "I put on ",
-                              "%player% puts on ");
-          else
-            pf_buffer_string (filter, ", ");
-          lib_print_object_np (game, trail);
-        }
-      trail = object;
-      count++;
-
+      list.push_back (object);
       gs_object_player_wear (game, object);
     }
 
-  if (count >= 1)
-    {
-      if (count == 1)
-        lib_print_clause (game, has_printed,
-                          "You put on ",
-                          "I put on ",
-                          "%player% puts on ");
-      else
-        pf_buffer_string (filter, " and ");
-      lib_print_object_np (game, trail);
-      pf_buffer_character (filter, '.');
-    }
-  has_printed |= count > 0;
+  has_printed |= lib_print_object_list (game, has_printed, list, " and ", '.',
+                                        "You put on ",
+                                        "I put on ",
+                                        "%player% puts on ");
 
   /* Note any remaining multiple references left out of the wear operation. */
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (object = 0; object < object_count; object++)
     {
       if (!game->multiple_references[object])
@@ -6022,39 +5876,16 @@ lib_wear_backend (scr_gameref_t game)
       if (gs_object_position (game, object) != OBJ_WORN_PLAYER)
         continue;
 
-      if (count > 0)
-        {
-          if (count == 1)
-            lib_print_clause (game, has_printed,
-                              "You are already wearing ",
-                              "I am already wearing ",
-                              "%player% is already wearing ");
-          else
-            pf_buffer_string (filter, ", ");
-          lib_print_object_np (game, trail);
-        }
-      trail = object;
-      count++;
-
+      list.push_back (object);
       game->multiple_references[object] = FALSE;
     }
 
-  if (count >= 1)
-    {
-      if (count == 1)
-        lib_print_clause (game, has_printed,
-                          "You are already wearing ",
-                          "I am already wearing ",
-                          "%player% is already wearing ");
-      else
-        pf_buffer_string (filter, " and ");
-      lib_print_object_np (game, trail);
-      pf_buffer_character (filter, '.');
-    }
-  has_printed |= count > 0;
+  has_printed |= lib_print_object_list (game, has_printed, list, " and ", '.',
+                                        "You are already wearing ",
+                                        "I am already wearing ",
+                                        "%player% is already wearing ");
 
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (object = 0; object < object_count; object++)
     {
       if (!game->multiple_references[object])
@@ -6063,73 +5894,29 @@ lib_wear_backend (scr_gameref_t game)
       if (gs_object_position (game, object) == OBJ_HELD_PLAYER)
         continue;
 
-      if (count > 0)
-        {
-          if (count == 1)
-            lib_print_clause (game, has_printed,
-                              "You are not holding ",
-                              "I am not holding ",
-                              "%player% is not holding ");
-          else
-            pf_buffer_string (filter, ", ");
-          lib_print_object_np (game, trail);
-        }
-      trail = object;
-      count++;
-
+      list.push_back (object);
       game->multiple_references[object] = FALSE;
     }
 
-  if (count >= 1)
-    {
-      if (count == 1)
-        lib_print_clause (game, has_printed,
-                          "You are not holding ",
-                          "I am not holding ",
-                          "%player% is not holding ");
-      else
-        pf_buffer_string (filter, " or ");
-      lib_print_object_np (game, trail);
-      pf_buffer_character (filter, '.');
-    }
-  has_printed |= count > 0;
+  has_printed |= lib_print_object_list (game, has_printed, list, " or ", '.',
+                                        "You are not holding ",
+                                        "I am not holding ",
+                                        "%player% is not holding ");
 
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (object = 0; object < object_count; object++)
     {
       if (!game->multiple_references[object])
         continue;
 
-      if (count > 0)
-        {
-          if (count == 1)
-            lib_print_clause (game, has_printed,
-                              "You can't wear ",
-                              "I can't wear ",
-                              "%player% can't wear ");
-          else
-            pf_buffer_string (filter, ", ");
-          lib_print_object_np (game, trail);
-        }
-      trail = object;
-      count++;
-
+      list.push_back (object);
       game->multiple_references[object] = FALSE;
     }
 
-  if (count >= 1)
-    {
-      if (count == 1)
-        lib_print_clause (game, has_printed,
-                          "You can't wear ",
-                          "I can't wear ",
-                          "%player% can't wear ");
-      else
-        pf_buffer_string (filter, " or ");
-      lib_print_object_np (game, trail);
-      pf_buffer_character (filter, '.');
-    }
+  lib_print_object_list (game, has_printed, list, " or ", '.',
+                         "You can't wear ",
+                         "I can't wear ",
+                         "%player% can't wear ");
 }
 
 
@@ -6387,106 +6174,52 @@ scr_bool
 lib_cmd_inventory (scr_gameref_t game)
 {
   const scr_filterref_t filter = gs_get_filter (game);
-  scr_int object, count, trail;
+  scr_int object;
   scr_bool wearing;
+  lib_list_t list;
 
   /* Find and list each object worn by the player. */
-  count = 0;
-  trail = -1;
-  wearing = FALSE;
   for (object = 0; object < gs_object_count (game); object++)
     {
       if (gs_object_position (game, object) == OBJ_WORN_PLAYER)
-        {
-          if (count > 0)
-            {
-              if (count == 1)
-                lib_print_clause (game, FALSE,
-                                  "You are wearing ",
-                                  "I am wearing ",
-                                  "%player% is wearing ");
-              else
-                pf_buffer_string (filter, ", ");
-              lib_print_object (game, trail);
-            }
-          trail = object;
-          count++;
-        }
+        list.push_back (object);
     }
-  if (count >= 1)
+  wearing = !list.empty ();
+  if (wearing)
     {
-      /* Print out final listed object. */
-      if (count == 1)
-        lib_print_clause (game, FALSE,
-                          "You are wearing ",
-                          "I am wearing ",
-                          "%player% is wearing ");
-      else
-        pf_buffer_string (filter, " and ");
-      lib_print_object (game, trail);
-      wearing = TRUE;
+      lib_print_clause (game, FALSE,
+                        "You are wearing ",
+                        "I am wearing ",
+                        "%player% is wearing ");
+      lib_print_list (game, list, lib_print_object, " and ");
     }
 
   /* Find and list each object owned by the player. */
-  count = 0;
+  list.clear ();
   for (object = 0; object < gs_object_count (game); object++)
     {
       if (gs_object_position (game, object) == OBJ_HELD_PLAYER)
-        {
-          if (count > 0)
-            {
-              if (count == 1)
-                {
-                  if (wearing)
-                    {
-                      pf_buffer_string (filter,
-                                        lib_select_response (game,
-                                                ", and you are carrying ",
-                                                ", and I am carrying ",
-                                                ", and %player% is carrying "));
-                    }
-                  else
-                    {
-                      pf_buffer_string (filter,
-                                        lib_select_response (game,
-                                                      "You are carrying ",
-                                                      "I am carrying ",
-                                                      "%player% is carrying "));
-                    }
-                }
-              else
-                pf_buffer_string (filter, ", ");
-              lib_print_object (game, trail);
-            }
-          trail = object;
-          count++;
-        }
+        list.push_back (object);
     }
-  if (count >= 1)
+  if (!list.empty ())
     {
-      /* Print out final listed object. */
-      if (count == 1)
+      if (wearing)
         {
-          if (wearing)
-            {
-              pf_buffer_string (filter,
-                                lib_select_response (game,
-                                                ", and you are carrying ",
-                                                ", and I am carrying ",
-                                                ", and %player% is carrying "));
-            }
-          else
-            {
-              pf_buffer_string (filter,
-                                lib_select_response (game,
-                                                     "You are carrying ",
-                                                     "I am carrying ",
-                                                     "%player% is carrying "));
-            }
+          pf_buffer_string (filter,
+                            lib_select_response (game,
+                                            ", and you are carrying ",
+                                            ", and I am carrying ",
+                                            ", and %player% is carrying "));
         }
       else
-        pf_buffer_string (filter, " and ");
-      lib_print_object (game, trail);
+        {
+          pf_buffer_string (filter,
+                            lib_select_response (game,
+                                                 "You are carrying ",
+                                                 "I am carrying ",
+                                                 "%player% is carrying "));
+        }
+      lib_print_list (game, list, lib_print_object, " and ");
       pf_buffer_character (filter, '.');
 
       /* Print contents of every container and surface carried. */
@@ -6862,13 +6595,10 @@ lib_lock_backend (scr_gameref_t game, const lib_lock_verb_t *verb,
 
     case LIB_LOCK_PROCEED:
       {
-        scr_vartype_t vt_key[3];
         scr_int key_index, the_key;
 
-        vt_key[0].string = "Objects";
-        vt_key[1].integer = object;
-        vt_key[2].string = "Key";
-        key_index = prop_get_integer (bundle, "I<-sis", vt_key);
+        key_index = prop_get_indexed_integer (bundle, "Objects", object,
+                                              "Key");
         if (key_index == -1)
           break;
 
@@ -7240,8 +6970,9 @@ static void
 lib_put_in_backend (scr_gameref_t game, scr_int container)
 {
   const scr_filterref_t filter = gs_get_filter (game);
-  scr_int object_count, object, count, trail, capacity, maxsize;
+  scr_int object_count, object, count, capacity, free_space;
   scr_bool has_printed;
+  lib_list_t list;
 
   /*
    * Try game commands for all referenced objects first.  If any succeed,
@@ -7271,70 +7002,79 @@ lib_put_in_backend (scr_gameref_t game, scr_int container)
         }
     }
 
-  /* Retrieve the container's limits. */
-  maxsize = obj_get_container_maxsize (game, container);
+  /*
+   * Retrieve the container's total volume, and the volume it has left.  The
+   * free space is tracked across the loop below rather than recomputed, since
+   * each object put in spends some of it.
+   */
   capacity = obj_get_container_capacity (game, container);
+  free_space = obj_get_container_free_space (game, container);
 
   /* Put in every object that remains referenced. */
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (object = 0; object < object_count; object++)
     {
+      scr_int size;
+
       if (!game->object_references[object])
         continue;
 
-      /* If too big, or exceeds container limits, ignore for now. */
-      if (obj_get_size (game, object) > maxsize)
+      /* If too big, or no longer room for it, ignore for now. */
+      size = obj_get_size (game, object);
+      if (size > capacity || size > free_space)
         continue;
-      else
-        {
-          scr_int other, contains;
+      free_space -= size;
 
-          contains = 0;
-          for (other = 0; other < gs_object_count (game); other++)
-            {
-              if (gs_object_position (game, other) == OBJ_IN_OBJECT
-                  && gs_object_parent (game, other) == container)
-                contains++;
-            }
-          if (contains >= capacity)
-            continue;
-        }
-
-      if (count > 0)
-        {
-          if (count == 1)
-            lib_print_clause (game, has_printed,
-                              "You put ",
-                              "I put ",
-                              "%player% puts ");
-          else
-            pf_buffer_string (filter, ", ");
-          lib_print_object_np (game, trail);
-        }
-      trail = object;
-      count++;
-
+      list.push_back (object);
       gs_object_move_into (game, object, container);
       game->object_references[object] = FALSE;
     }
 
-  if (count >= 1)
+  if (!list.empty ())
     {
-      if (count == 1)
-        lib_print_clause (game, has_printed,
-                          "You put ",
-                          "I put ",
-                          "%player% puts ");
-      else
-        pf_buffer_string (filter, " and ");
-      /* The trailing object and " inside " print on BOTH branches -- folding
-       * them into the else lost the single-object "I put X inside Y" form. */
-      lib_print_wrapped_object (game, "", trail, " inside ");
+      lib_print_clause (game, has_printed,
+                        "You put ",
+                        "I put ",
+                        "%player% puts ");
+      lib_print_list (game, list, lib_print_object_np, " and ");
+      pf_buffer_string (filter, " inside ");
       lib_print_object_np (game, container);
       pf_buffer_character (filter, '.');
     }
-  has_printed |= count > 0;
+  has_printed |= !list.empty ();
+
+  /*
+   * Version 3.8 has one container refusal and one only.  run380 answers "The
+   * box is full." to everything it will not take in -- whether the container
+   * has no room left, or (with a Capacity of 0) never had any, and whatever
+   * the object's Size/weight class, which it does not charge against the
+   * container at all (measured 2026-08-03; see obj_get_container_capacity).
+   * Consume the leftovers here, so that neither 4.0 report below finds
+   * anything to say about them.
+   */
+  if (obj_uses_burden_model (game))
+    {
+      count = 0;
+      for (object = 0; object < object_count; object++)
+        {
+          if (!game->object_references[object])
+            continue;
+
+          game->object_references[object] = FALSE;
+          count++;
+        }
+
+      if (count > 0)
+        {
+          lib_new_clause (game, has_printed);
+          lib_print_object_np (game, container);
+          pf_buffer_string (filter,
+                            lib_select_plurality (game, container,
+                                                  " is", " are"));
+          pf_buffer_string (filter, " full.");
+          has_printed = TRUE;
+        }
+    }
 
   /*
    * Report objects not put in because of their size.  These objects remain in
@@ -7342,132 +7082,72 @@ lib_put_in_backend (scr_gameref_t game, scr_int container)
    * By removing too large objects in this loop, we're left later on with just
    * the objects rejected by capacity limits.
    */
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (object = 0; object < object_count; object++)
     {
       if (!game->object_references[object])
         continue;
 
-      if (!(obj_get_size (game, object) > maxsize))
+      if (!(obj_get_size (game, object) > capacity))
         continue;
 
-      if (count > 0)
-        {
-          if (count == 1)
-            {
-              lib_new_clause (game, has_printed);
-              lib_print_object_np (game, trail);
-            }
-          else
-            pf_buffer_string (filter, ", ");
-        }
-      trail = object;
-      count++;
-
+      list.push_back (object);
       game->object_references[object] = FALSE;
     }
 
-  if (count >= 1)
+  if (!list.empty ())
     {
-      if (count == 1)
-        {
-          lib_new_clause (game, has_printed);
-          lib_print_object_np (game, trail);
-          pf_buffer_string (filter,
-                            lib_select_plurality (game, trail,
-                                                  " is too big",
-                                                  " are too big"));
-        }
-      else
-        {
-          lib_print_wrapped_object (game, " and ", trail, " are too big");
-        }
+      lib_new_clause (game, has_printed);
+      lib_print_list (game, list, lib_print_object_np, " and ");
+      pf_buffer_string (filter,
+                        list.size () == 1
+                        ? lib_select_plurality (game, list[0],
+                                                " is too big", " are too big")
+                        : " are too big");
       pf_buffer_string (filter, " to fit inside ");
       lib_print_object_np (game, container);
       pf_buffer_character (filter, '.');
     }
-  has_printed |= count > 0;
+  has_printed |= !list.empty ();
 
   /*
    * Report objects not put in because the container is too full.  This should
    * be all remaining objects in standard references.
    */
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (object = 0; object < object_count; object++)
     {
       if (!game->object_references[object])
         continue;
 
-      if (count > 0)
-        {
-          if (count == 1)
-            lib_new_clause (game, has_printed);
-          else
-            pf_buffer_string (filter, ", ");
-          lib_print_object_np (game, trail);
-        }
-      trail = object;
-      count++;
-
+      list.push_back (object);
       game->object_references[object] = FALSE;
     }
 
-  if (count >= 1)
+  if (!list.empty ())
     {
-      if (count == 1)
-        {
-          lib_new_clause (game, has_printed);
-          lib_print_object_np (game, trail);
-        }
-      else
-        {
-          pf_buffer_string (filter, " and ");
-          lib_print_object_np (game, trail);
-        }
+      lib_new_clause (game, has_printed);
+      lib_print_list (game, list, lib_print_object_np, " and ");
       lib_print_wrapped_object (game, " can't fit inside ",
                                 container, " at the moment.");
     }
-  has_printed |= count > 0;
+  has_printed |= !list.empty ();
 
   /* Note any remaining multiple references left out of the operation. */
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (object = 0; object < object_count; object++)
     {
       if (!game->multiple_references[object])
         continue;
 
-      if (count > 0)
-        {
-          if (count == 1)
-            lib_print_clause (game, has_printed,
-                              "You are not holding ",
-                              "I am not holding ",
-                              "%player% is not holding ");
-          else
-            pf_buffer_string (filter, ", ");
-          lib_print_object_np (game, trail);
-        }
-      trail = object;
-      count++;
-
+      list.push_back (object);
       game->multiple_references[object] = FALSE;
     }
 
-  if (count >= 1)
-    {
-      if (count == 1)
-        lib_print_clause (game, has_printed,
-                          "You are not holding ",
-                          "I am not holding ",
-                          "%player% is not holding ");
-      else
-        pf_buffer_string (filter, " or ");
-      lib_print_object_np (game, trail);
-      pf_buffer_character (filter, '.');
-    }
+  lib_print_object_list (game, has_printed, list, " or ", '.',
+                         "You are not holding ",
+                         "I am not holding ",
+                         "%player% is not holding ");
 }
 
 
@@ -7508,6 +7188,16 @@ lib_put_in_is_valid (scr_gameref_t game, scr_int container)
   /* Verify that the container object is a container. */
   if (!obj_is_container (game, container))
     {
+      /*
+       * In the tentative priority pass the refusal is deferred, so a matched
+       * task's fail message can claim the input first; the STANDARD_COMMANDS
+       * duplicate prints it when no task does (run400-verified, 2026-08-02).
+       */
+      if (run_in_priority_pass ())
+        {
+          run_priority_defer ();
+          return FALSE;
+        }
       lib_print_response_object (game,
                                  "You can't put anything inside ",
                                  "I can't put anything inside ",
@@ -7516,9 +7206,41 @@ lib_put_in_is_valid (scr_gameref_t game, scr_int container)
       return FALSE;
     }
 
+  /*
+   * Version 3.8 will only fill a dynamic container the player is holding: an
+   * open box sitting on the floor answers "You are not holding a box." (note
+   * the object's own prefix, not the "the" of most refusals).  Static
+   * containers are exempt -- run380 puts a coin into Wrecked's static red
+   * locker where it stands, which is just as well, since nothing could ever
+   * pick one up.  Both measured 2026-08-03.
+   */
+  if (obj_uses_burden_model (game)
+      && !obj_is_static (game, container)
+      && gs_object_position (game, container) != OBJ_HELD_PLAYER)
+    {
+      if (run_in_priority_pass ())
+        {
+          run_priority_defer ();
+          return FALSE;
+        }
+      pf_buffer_string (filter,
+                        lib_select_response (game,
+                                             "You are not holding ",
+                                             "I am not holding ",
+                                             "%player% is not holding "));
+      lib_print_object (game, container);
+      pf_buffer_string (filter, ".\n");
+      return FALSE;
+    }
+
   /* If the container is closed, reject now. */
   if (gs_object_openness (game, container) > OBJ_OPEN)
     {
+      if (run_in_priority_pass ())
+        {
+          run_priority_defer ();
+          return FALSE;
+        }
       pf_new_sentence (filter);
       lib_print_object_np (game, container);
       pf_buffer_string (filter,
@@ -7552,9 +7274,9 @@ lib_cmd_put_all_in (scr_gameref_t game)
   if (container == -1)
     return is_ambiguous;
 
-  /* Validate the container object to take from. */
+  /* Validate the container object to take from (deferred -> unhandled). */
   if (!lib_put_in_is_valid (game, container))
-    return TRUE;
+    return !run_in_priority_pass ();
 
   /* Filter objects into references, then handle with the backend. */
   gs_set_multiple_references (game);
@@ -7610,9 +7332,9 @@ lib_put_in_multiple_common (scr_gameref_t game, scr_bool is_except)
   else if (references == 0)
     return TRUE;
 
-  /* Validate the container object to put into. */
+  /* Validate the container object to put into (deferred -> unhandled). */
   if (!lib_put_in_is_valid (game, container))
-    return TRUE;
+    return !run_in_priority_pass ();
 
   /* As a special case, complain about requests to retain the container. */
   if (is_except
@@ -7790,6 +7512,12 @@ lib_put_on_is_valid (scr_gameref_t game, scr_int supporter)
   /* Verify that the supporter object is a supporter. */
   if (!obj_is_surface (game, supporter))
     {
+      /* Deferred in the tentative priority pass; see lib_put_in_is_valid. */
+      if (run_in_priority_pass ())
+        {
+          run_priority_defer ();
+          return FALSE;
+        }
       lib_print_response_object (game,
                                  "You can't put anything on ",
                                  "I can't put anything on ",
@@ -7822,7 +7550,7 @@ lib_cmd_put_all_on (scr_gameref_t game)
 
   /* Validate the supporter object to take from. */
   if (!lib_put_on_is_valid (game, supporter))
-    return TRUE;
+    return !run_in_priority_pass ();
 
   /* Filter objects into references, then handle with the backend. */
   gs_set_multiple_references (game);
@@ -7879,7 +7607,7 @@ lib_put_on_multiple_common (scr_gameref_t game, scr_bool is_except)
 
   /* Validate the supporter object to put into. */
   if (!lib_put_on_is_valid (game, supporter))
-    return TRUE;
+    return !run_in_priority_pass ();
 
   /* As a special case, complain about requests to retain the supporter. */
   if (is_except
@@ -8006,21 +7734,18 @@ lib_cmd_read_other (scr_gameref_t game)
 /*
  * lib_battle_player_strike()
  *
- * Shared Battle System helper: resolve the weapon the player strikes the NPC
- * with (the explicit object, else the player's default weapon), enforce a
- * method verb's weapon-method requirement, then deliver the blow.  method is -1
- * for a generic attack, or a method code 0..5 (chop/cut/hit/shoot/stab/throw)
- * that the wielded weapon must match; verb names the action for the mismatch
- * message.  No requirement is imposed when striking bare-handed.
+ * Shared Battle System helper: enforce a method verb's weapon-method
+ * requirement, then deliver the blow with the given weapon (-1 for bare
+ * hands).  method is -1 for a generic attack, or a method code 0..5
+ * (chop/cut/hit/shoot/stab/throw) that the weapon must match; verb names the
+ * action for the mismatch message.  No requirement is imposed when striking
+ * bare-handed, so an unarmed method verb lands a plain blow (Runner-verified).
  */
 static void
 lib_battle_player_strike (scr_gameref_t game, scr_int npc,
                           const scr_char *verb, scr_int method, scr_int weapon)
 {
   const scr_filterref_t filter = gs_get_filter (game);
-
-  if (weapon < 0)
-    weapon = battle_player_default_weapon (game);
 
   if (method >= 0 && weapon >= 0
       && battle_weapon_method (game, weapon) != method)
@@ -8063,11 +7788,35 @@ lib_battle_attack_bare (scr_gameref_t game, const scr_char *verb,
   if (npc == -1)
     return is_ambiguous;
 
-  /* With the Battle System enabled, resolve a real attack (bare-handed, or
-   * with the player's wielded or best carried weapon). */
+  /* With the Battle System enabled, resolve a real attack. */
   if (battle_is_enabled (game))
     {
-      lib_battle_player_strike (game, npc, verb, method, -1);
+      scr_int weapon = battle_player_wielded_weapon (game);
+
+      /*
+       * With no wield set the Runner auto-selects a solitary carried weapon
+       * (the blow then persists it as the wield), fights bare-handed when
+       * carrying none, and with two or more carried weapons asks -- a
+       * rhetorical question, always worded with "attack" whatever the verb,
+       * that costs no combat turn and whose reply is not read as an answer
+       * (settled live 2026-08-01).
+       */
+      if (weapon < 0)
+        {
+          const scr_int count = battle_player_weapon_count (game);
+
+          if (count > 1)
+            {
+              pf_buffer_string (filter, "What do you want to attack ");
+              lib_print_npc_np (game, npc);
+              pf_buffer_string (filter, " with?\n");
+              game->is_admin = TRUE;
+              return TRUE;
+            }
+          if (count == 1)
+            weapon = battle_player_best_weapon (game);
+        }
+      lib_battle_player_strike (game, npc, verb, method, weapon);
       return TRUE;
     }
 
@@ -8106,14 +7855,15 @@ lib_battle_attack_with (scr_gameref_t game, const scr_char *verb,
   if (object == -1)
     return TRUE;
 
-  /* Ensure the referenced object is held. */
+  /* Ensure the referenced object is held.  The Runner: "Player is not
+   * carrying the rock!" (probe pWS2 -- unlike wield's "aren't carrying"). */
   if (gs_object_position (game, object) != OBJ_HELD_PLAYER)
     {
       lib_print_response_object (game,
-                                 "You are not holding ",
-                                 "I am not holding ",
-                                 "%player% is not holding ",
-                                 object, ".\n");
+                                 "You are not carrying ",
+                                 "I am not carrying ",
+                                 "%player% is not carrying ",
+                                 object, "!\n");
       return TRUE;
     }
 
@@ -8127,7 +7877,7 @@ lib_battle_attack_with (scr_gameref_t game, const scr_char *verb,
           lib_print_object_np (game, object);
           pf_buffer_string (filter,
                             lib_select_plurality (game, object, " is", " are"));
-          pf_buffer_string (filter, " not a weapon.\n");
+          pf_buffer_string (filter, " not a weapon!\n");
           return TRUE;
         }
       lib_battle_player_strike (game, npc, verb, method, object);
@@ -8303,12 +8053,13 @@ lib_cmd_fight_npc_with (scr_gameref_t game)
 
 /*
  * lib_cmd_wield()
- * lib_cmd_unwield()
  *
- * Battle System weapon selection.  "wield <weapon>" remembers a held weapon as
- * the player's default for combat; "unwield" forgets it, reverting to the best
- * carried weapon.  Both fall through to other grammar when the Battle System is
- * disabled, as plain wielding is not otherwise modelled.
+ * Battle System weapon selection.  "wield <weapon>" sets a held weapon as the
+ * player's persistent wield; the wield is cleared -- not swapped for another
+ * carried weapon -- when the weapon leaves the player's hands.  There is no
+ * "unwield" verb (the Runner answers "I don't understand.").  Falls through to
+ * other grammar when the Battle System is disabled, as plain wielding is not
+ * otherwise modelled.
  */
 scr_bool
 lib_cmd_wield (scr_gameref_t game)
@@ -8324,14 +8075,15 @@ lib_cmd_wield (scr_gameref_t game)
   if (object == -1)
     return TRUE;
 
-  /* The weapon must be held, and must actually be a weapon. */
+  /* The weapon must be held, and must actually be a weapon.  The Runner's
+   * refusal is "Player aren't carrying the rock!" [sic] (probe pWS2). */
   if (gs_object_position (game, object) != OBJ_HELD_PLAYER)
     {
       lib_print_response_object (game,
-                                 "You are not holding ",
-                                 "I am not holding ",
-                                 "%player% is not holding ",
-                                 object, ".\n");
+                                 "You aren't carrying ",
+                                 "I am not carrying ",
+                                 "%player% aren't carrying ",
+                                 object, "!\n");
       return TRUE;
     }
   if (!battle_is_weapon (game, object))
@@ -8340,44 +8092,26 @@ lib_cmd_wield (scr_gameref_t game)
       lib_print_object_np (game, object);
       pf_buffer_string (filter,
                         lib_select_plurality (game, object, " is", " are"));
-      pf_buffer_string (filter, " not a weapon.\n");
+      pf_buffer_string (filter, " not a weapon!\n");
+      return TRUE;
+    }
+
+  /* Wielding the already-wielded weapon is acknowledged, not repeated. */
+  if (gs_playerwield (game) == object)
+    {
+      lib_print_response_object (game,
+                                 "You are already wielding ",
+                                 "I am already wielding ",
+                                 "%player% is already wielding ",
+                                 object, ".\n");
       return TRUE;
     }
 
   gs_set_playerwield (game, object);
   lib_print_response_object (game,
-                             "You are now wielding ",
-                             "I am now wielding ",
-                             "%player% is now wielding ",
-                             object, ".\n");
-  return TRUE;
-}
-
-scr_bool
-lib_cmd_unwield (scr_gameref_t game)
-{
-  const scr_filterref_t filter = gs_get_filter (game);
-  scr_int object;
-
-  if (!battle_is_enabled (game))
-    return FALSE;
-
-  object = gs_playerwield (game);
-  if (object < 0)
-    {
-      pf_buffer_string (filter,
-                        lib_select_response (game,
-                                             "You are not wielding anything.\n",
-                                             "I am not wielding anything.\n",
-                                          "%player% is not wielding anything.\n"));
-      return TRUE;
-    }
-
-  gs_set_playerwield (game, -1);
-  lib_print_response_object (game,
-                             "You are no longer wielding ",
-                             "I am no longer wielding ",
-                             "%player% is no longer wielding ",
+                             "You wield ",
+                             "I wield ",
+                             "%player% wields ",
                              object, ".\n");
   return TRUE;
 }
@@ -9407,24 +9141,48 @@ lib_cmd_score (scr_gameref_t game)
  * lib_print_battle_attribute()
  * lib_print_battle_status()
  *
- * Helpers for the Battle System "status" command.  Print one labelled
- * attribute as "Lo-Hi   <current>", and a full status report for the player
- * (npc < 0) or a given NPC.  Stamina is the live game state value; the other
- * attributes show their configured [lo, hi] range alongside a fresh effective
- * roll that folds in the combatant's wielded weapon and worn armour, as the
- * Runner's status display does.  The wielded weapon, if any, is named last.
+ * Helpers for the Battle System "status" command, matching the Runner's
+ * status table (settled live 2026-08-01, probes pWS/pWS2): a header row
+ * "Range / Max / Current value (inc weapons/armour)", then one row per
+ * attribute.  The stamina row is live / max / live (no lo-hi range); the
+ * other rows are "lo-hi", the configured max, a fresh effective roll that
+ * folds in the wielded weapon and worn armour, and -- for the three rows
+ * equipment can affect -- the equipment share in parentheses (agility takes
+ * none, so its row has no parenthesis).  The table has no leading "You
+ * have:" line, and the trailing wielding line is indented to the first
+ * column and names the weapon with its article prefix ("a sword"), or
+ * "nothing".  Until a wield is set the player's values are bare -- no
+ * would-be weapon is folded in.
  */
+enum
+{ STATUS_COL_LABEL = 16,
+  STATUS_COL_RANGE = 14,
+  STATUS_COL_MAX = 12,
+  STATUS_COL_CURRENT = 12
+};
+
 static void
 lib_print_battle_attribute (scr_gameref_t game, scr_int npc,
-                            const scr_char *label, const scr_char *base)
+                            const scr_char *label, const scr_char *base,
+                            scr_bool has_bonus)
 {
   const scr_filterref_t filter = gs_get_filter (game);
-  scr_char buffer[64];
+  scr_char buffer[96], range[32];
   scr_int lo, hi, current;
 
   battle_attribute_report (game, npc, base, &lo, &hi, &current);
-  pf_buffer_string (filter, label);
-  snprintf (buffer, sizeof (buffer), "%ld-%ld   %ld", lo, hi, current);
+  snprintf (range, sizeof (range), "%ld-%ld", lo, hi);
+  if (has_bonus)
+    snprintf (buffer, sizeof (buffer), "%-*s%-*s%-*ld%-*ld(%ld)",
+              STATUS_COL_LABEL, label, STATUS_COL_RANGE, range,
+              STATUS_COL_MAX, battle_attribute_max (game, npc, base),
+              STATUS_COL_CURRENT, current,
+              battle_attribute_bonus (game, npc, base));
+  else
+    snprintf (buffer, sizeof (buffer), "%-*s%-*s%-*ld%ld",
+              STATUS_COL_LABEL, label, STATUS_COL_RANGE, range,
+              STATUS_COL_MAX, battle_attribute_max (game, npc, base),
+              current);
   pf_buffer_string (filter, buffer);
   pf_buffer_character (filter, '\n');
 }
@@ -9433,64 +9191,61 @@ static void
 lib_print_battle_status (scr_gameref_t game, scr_int npc)
 {
   const scr_filterref_t filter = gs_get_filter (game);
-  scr_char buffer[32];
+  scr_char buffer[96];
   scr_int stamina, maxstamina, weapon;
 
   maxstamina = battle_attribute_max (game, npc, "Stamina");
 
-  /* Print the report header, naming the player or character. */
-  if (npc < 0)
-    pf_buffer_string (filter,
-                      lib_select_response (game,
-                                           "You have:\n",
-                                           "I have:\n",
-                                           "%player% has:\n"));
-  else
+  /* A character with no stamina configured is not a combatant. */
+  if (npc >= 0 && maxstamina <= 0)
     {
       lib_print_npc_np (game, npc);
-      pf_buffer_string (filter, " has:\n");
-
-      /* A character with no stamina configured is not a combatant. */
-      if (maxstamina <= 0)
-        {
-          pf_buffer_string (filter, "   Nothing worth mentioning.\n");
-          return;
-        }
+      pf_buffer_string (filter, " has:\n   Nothing worth mentioning.\n");
+      return;
     }
 
-  stamina = (npc < 0)
-            ? gs_playerstamina (game) : gs_npc_stamina (game, npc);
-
-  pf_buffer_string (filter, "   Stamina:  ");
-  snprintf (buffer, sizeof (buffer), "%ld", stamina);
-  pf_buffer_string (filter, buffer);
-  pf_buffer_string (filter, " out of ");
-  snprintf (buffer, sizeof (buffer), "%ld", maxstamina);
+  /* The header row, indented past the label column as the Runner's is. */
+  snprintf (buffer, sizeof (buffer), "%-*s%-*s%-*s%s",
+            STATUS_COL_LABEL, "", STATUS_COL_RANGE, "Range",
+            STATUS_COL_MAX, "Max", "Current value (inc weapons/armour)");
   pf_buffer_string (filter, buffer);
   pf_buffer_character (filter, '\n');
 
-  lib_print_battle_attribute (game, npc, "   Strength: ", "Strength");
-  lib_print_battle_attribute (game, npc, "   Accuracy: ", "Accuracy");
-  lib_print_battle_attribute (game, npc, "   Defence:  ", "Defense");
-  lib_print_battle_attribute (game, npc, "   Agility:  ", "Agility");
+  /* The stamina row is live / max / live -- no lo-hi range, no bonus. */
+  stamina = (npc < 0)
+            ? gs_playerstamina (game) : gs_npc_stamina (game, npc);
+  snprintf (buffer, sizeof (buffer), "%-*s%-*ld%-*ld%ld",
+            STATUS_COL_LABEL, "Stamina:", STATUS_COL_RANGE, stamina,
+            STATUS_COL_MAX, maxstamina, stamina);
+  pf_buffer_string (filter, buffer);
+  pf_buffer_character (filter, '\n');
 
-  /* Name the weapon the combatant is wielding, if any. */
+  lib_print_battle_attribute (game, npc, "Hit strength:", "Strength", TRUE);
+  lib_print_battle_attribute (game, npc, "Accuracy:", "Accuracy", TRUE);
+  lib_print_battle_attribute (game, npc, "Defense value:", "Defense", TRUE);
+  lib_print_battle_attribute (game, npc, "Agility:", "Agility", FALSE);
+
+  /* Name the weapon the combatant is wielding -- "nothing" when unarmed --
+   * with the article prefix the Runner uses ("... is wielding a sword."). */
   weapon = battle_combatant_weapon (game, npc);
-  if (weapon >= 0)
+  snprintf (buffer, sizeof (buffer), "%-*s", STATUS_COL_LABEL, "");
+  pf_buffer_string (filter, buffer);
+  if (npc < 0)
+    pf_buffer_string (filter,
+                      lib_select_response (game,
+                                           "You are wielding ",
+                                           "I am wielding ",
+                                           "%player% is wielding "));
+  else
     {
-      if (npc < 0)
-        pf_buffer_string (filter,
-                          lib_select_response (game,
-                                               "   You are wielding ",
-                                               "   I am wielding ",
-                                               "   %player% is wielding "));
-      else
-        {
-          lib_print_wrapped_npc (game, "   ", npc, " is wielding ");
-        }
-      lib_print_object_np (game, weapon);
-      pf_buffer_string (filter, ".\n");
+      lib_print_npc_np (game, npc);
+      pf_buffer_string (filter, " is wielding ");
     }
+  if (weapon >= 0)
+    lib_print_object (game, weapon);
+  else
+    pf_buffer_string (filter, "nothing");
+  pf_buffer_string (filter, ".\n");
 }
 
 
@@ -9946,16 +9701,12 @@ lib_nothing_happens_common (scr_gameref_t game,
                             scr_bool is_object)
 {
   const scr_filterref_t filter = gs_get_filter (game);
-  const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[2];
   scr_int perspective, object;
   const scr_char *person, *verb;
   scr_bool is_ambiguous;
 
   /* Use person and verb tense according to perspective. */
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "Perspective";
-  perspective = prop_get_integer (bundle, "I<-ss", vt_key);
+  perspective = lib_get_perspective (game);
   switch (perspective)
     {
     case LIB_FIRST_PERSON:

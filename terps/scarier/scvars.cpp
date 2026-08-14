@@ -35,6 +35,8 @@
 #include <string.h>
 #include <time.h>
 
+#include <vector>
+
 #include "scarier.h"
 #include "scprotos.h"
 #include "scgamest.h"
@@ -410,13 +412,16 @@ var_append_temp (scr_var_setref_t vars, const scr_char *string)
     }
   else
     {
-      /* Append string to existing temporary. */
+      /* Append string to existing temporary; `noted` is already the length to
+         append at, and is reused below to case the first new character. */
       new_sentence = (vars->temporary[0] == NUL);
       noted = strlen (vars->temporary);
-      vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary,
-                                    strlen (vars->temporary) +
-                                    strlen (string) + 1);
-      strncat (vars->temporary, string, strlen (string));
+      {
+        size_t size = (size_t) noted + strlen (string) + 1;
+
+        vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary, size);
+        snprintf (vars->temporary + noted, size - (size_t) noted, "%s", string);
+      }
     }
 
   if (new_sentence)
@@ -545,6 +550,30 @@ var_select_plurality (scr_gameref_t game, scr_int object,
 
 
 /*
+ * var_print_list()
+ *
+ * Print a gathered list of objects as "a, b and c".  The listers below
+ * collect first and print afterwards, so that the phrase introducing the
+ * list can be picked from the finished list.
+ */
+typedef std::vector<scr_int> var_list_t;
+
+static void
+var_print_list (scr_gameref_t game, const var_list_t &list)
+{
+  const scr_var_setref_t vars = gs_get_vars (game);
+  size_t index_;
+
+  for (index_ = 0; index_ < list.size (); index_++)
+    {
+      if (index_ > 0)
+        var_append_temp (vars, index_ == list.size () - 1 ? " and " : ", ");
+      var_print_object (game, list[index_]);
+    }
+}
+
+
+/*
  * var_list_at_object()
  * var_list_in_object()
  * var_list_on_object()
@@ -558,45 +587,25 @@ var_list_at_object (scr_gameref_t game, scr_int associate, scr_int position,
                     const scr_char *singular, const scr_char *plural)
 {
   const scr_var_setref_t vars = gs_get_vars (game);
-  scr_int object, count, trail;
+  scr_int object;
+  var_list_t list;
 
   /* List out the objects held by this object. */
-  count = 0;
-  trail = -1;
   for (object = 0; object < gs_object_count (game); object++)
     {
       /* Contained, or standing on? */
       if (gs_object_position (game, object) == position
           && gs_object_parent (game, object) == associate)
-        {
-          if (count > 0)
-            {
-              if (count > 1)
-                var_append_temp (vars, ", ");
-
-              /* Print out the current list object. */
-              var_print_object (game, trail);
-            }
-          trail = object;
-          count++;
-        }
+        list.push_back (object);
     }
-  if (count >= 1)
+  if (!list.empty ())
     {
-      /* Print out final listed object. */
-      if (count == 1)
-        {
-          var_print_object (game, trail);
-          var_append_temp (vars,
-                           var_select_plurality (game, trail,
-                                                 singular, plural));
-        }
-      else
-        {
-          var_append_temp (vars, " and ");
-          var_print_object (game, trail);
-          var_append_temp (vars, plural);
-        }
+      var_print_list (game, list);
+      var_append_temp (vars,
+                       list.size () == 1
+                       ? var_select_plurality (game, list[0],
+                                               singular, plural)
+                       : plural);
 
       /* Print out the container or surface. */
       var_print_object_np (game, associate);
@@ -628,98 +637,51 @@ static void
 var_list_onin_object (scr_gameref_t game, scr_int associate)
 {
   const scr_var_setref_t vars = gs_get_vars (game);
-  scr_int object, count, trail;
+  scr_int object;
   scr_bool supporting;
+  var_list_t list;
 
   /* List out the objects standing on this object. */
-  count = 0;
-  trail = -1;
-  supporting = FALSE;
   for (object = 0; object < gs_object_count (game); object++)
     {
       /* Standing on? */
       if (gs_object_position (game, object) == OBJ_ON_OBJECT
           && gs_object_parent (game, object) == associate)
-        {
-          if (count > 0)
-            {
-              if (count > 1)
-                var_append_temp (vars, ", ");
-
-              /* Print out the current list object. */
-              var_print_object (game, trail);
-            }
-          trail = object;
-          count++;
-        }
+        list.push_back (object);
     }
-  if (count >= 1)
+  supporting = !list.empty ();
+  if (supporting)
     {
-      /* Print out final listed object. */
-      if (count == 1)
-        {
-          var_print_object (game, trail);
-          var_append_temp (vars,
-                           var_select_plurality (game, trail,
-                                                 " is on ", " are on "));
-        }
-      else
-        {
-          var_append_temp (vars, " and ");
-          var_print_object (game, trail);
-          var_append_temp (vars, " are on ");
-        }
+      var_print_list (game, list);
+      var_append_temp (vars,
+                       list.size () == 1
+                       ? var_select_plurality (game, list[0],
+                                               " is on ", " are on ")
+                       : " are on ");
 
       /* Print out the surface. */
       var_print_object_np (game, associate);
-      supporting = TRUE;
     }
 
   /* List out the objects contained in this object. */
-  count = 0;
-  trail = -1;
+  list.clear ();
   for (object = 0; object < gs_object_count (game); object++)
     {
       /* Contained? */
       if (gs_object_position (game, object) == OBJ_IN_OBJECT
           && gs_object_parent (game, object) == associate)
-        {
-          if (count > 0)
-            {
-              if (count == 1)
-                {
-                  if (supporting)
-                    var_append_temp (vars, ", and ");
-                }
-              else
-                var_append_temp (vars, ", ");
-
-              /* Print out the current list object. */
-              var_print_object (game, trail);
-            }
-          trail = object;
-          count++;
-        }
+        list.push_back (object);
     }
-  if (count >= 1)
+  if (!list.empty ())
     {
-      /* Print out final listed object. */
-      if (count == 1)
-        {
-          if (supporting)
-            var_append_temp (vars, ", and ");
-          var_print_object (game, trail);
-          var_append_temp (vars,
-                           var_select_plurality (game, trail,
-                                                 " is inside ",
-                                                 " are inside "));
-        }
-      else
-        {
-          var_append_temp (vars, " and ");
-          var_print_object (game, trail);
-          var_append_temp (vars, " are inside");
-        }
+      if (supporting)
+        var_append_temp (vars, ", and ");
+      var_print_list (game, list);
+      var_append_temp (vars,
+                       list.size () == 1
+                       ? var_select_plurality (game, list[0],
+                                               " is inside ", " are inside ")
+                       : " are inside");
 
       /* Print out the container. */
       if (!supporting)
@@ -927,25 +889,24 @@ var_get_system (scr_var_setref_t vars,
       if (vars->referenced_object != -1)
         {
           /* Return object name with its prefix. */
-          scr_vartype_t vt_key[3];
           const scr_char *prefix, *objname;
 
-          vt_key[0].string = "Objects";
-          vt_key[1].integer = vars->referenced_object;
-          vt_key[2].string = "Prefix";
-          prefix = prop_get_string (bundle, "S<-sis", vt_key);
+          prefix = prop_get_indexed_string (bundle, "Objects",
+                                            vars->referenced_object, "Prefix");
 
           vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary, strlen (prefix) + 1);
           memcpy (vars->temporary, prefix, strlen (prefix) + 1);
 
-          vt_key[2].string = "Short";
-          objname = prop_get_string (bundle, "S<-sis", vt_key);
+          objname = prop_get_indexed_string (bundle, "Objects",
+                                             vars->referenced_object, "Short");
 
-          vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary,
-                                        strlen (vars->temporary)
-                                        + strlen (objname) + 2);
-          strncat (vars->temporary, " ", 1);
-          strncat (vars->temporary, objname, strlen (objname));
+          {
+            size_t used = strlen (vars->temporary);
+            size_t size = used + strlen (objname) + 2;
+
+            vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary, size);
+            snprintf (vars->temporary + used, size - used, " %s", objname);
+          }
 
           return var_return_string (vars->temporary, type, vt_rvalue);
         }
@@ -1343,46 +1304,60 @@ var_get_system (scr_var_setref_t vars,
           /* Return object name prefixed with "the"... */
           scr_vartype_t vt_key[3];
           const scr_char *prefix, *normalized, *objname;
+          size_t size, used = 0;
 
           vt_key[0].string = "Objects";
           vt_key[1].integer = vars->referenced_object;
           vt_key[2].string = "Prefix";
           prefix = prop_get_string (bundle, "S<-sis", vt_key);
 
-          vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary, strlen (prefix) + 5);
+          /* "the" plus the de-articled prefix, a separating space, and the
+             terminator; never more than the prefix length plus five. */
+          size = strlen (prefix) + 5;
+          vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary, size);
           vars->temporary[0] = '\0';
 
           normalized = prefix;
           if (scr_compare_word (prefix, "a", 1))
             {
-              strncat (vars->temporary, "the", 3);
+              snprintf (vars->temporary + used, size - used, "the");
+              used = strlen (vars->temporary);
               normalized = prefix + 1;
             }
           else if (scr_compare_word (prefix, "an", 2))
             {
-              strncat (vars->temporary, "the", 3);
+              snprintf (vars->temporary + used, size - used, "the");
+              used = strlen (vars->temporary);
               normalized = prefix + 2;
             }
           else if (scr_compare_word (prefix, "the", 3))
             {
-              strncat (vars->temporary, "the", 3);
+              snprintf (vars->temporary + used, size - used, "the");
+              used = strlen (vars->temporary);
               normalized = prefix + 3;
             }
           else if (scr_compare_word (prefix, "some", 4))
             {
-              strncat (vars->temporary, "the", 3);
+              snprintf (vars->temporary + used, size - used, "the");
+              used = strlen (vars->temporary);
               normalized = prefix + 4;
             }
           else if (scr_strempty (prefix))
-            strncat (vars->temporary, "the ", 4);
+            {
+              snprintf (vars->temporary + used, size - used, "the ");
+              used = strlen (vars->temporary);
+            }
 
           if (!scr_strempty (normalized))
             {
-              strncat (vars->temporary, normalized, strlen (normalized));
-              strncat (vars->temporary, " ", 1);
+              snprintf (vars->temporary + used, size - used, "%s ", normalized);
+              used = strlen (vars->temporary);
             }
           else if (normalized > prefix)
-            strncat (vars->temporary, " ", 1);
+            {
+              snprintf (vars->temporary + used, size - used, " ");
+              used = strlen (vars->temporary);
+            }
 
           vt_key[2].string = "Short";
           objname = prop_get_string (bundle, "S<-sis", vt_key);
@@ -1395,10 +1370,9 @@ var_get_system (scr_var_setref_t vars,
           else if (scr_compare_word (objname, "some", 4))
             objname += 4;
 
-          vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary,
-                                        strlen (vars->temporary)
-                                        + strlen (objname) + 1);
-          strncat (vars->temporary, objname, strlen (objname));
+          size = used + strlen (objname) + 1;
+          vars->temporary = (decltype(vars->temporary)) scr_realloc (vars->temporary, size);
+          snprintf (vars->temporary + used, size - used, "%s", objname);
 
           return var_return_string (vars->temporary, type, vt_rvalue);
         }

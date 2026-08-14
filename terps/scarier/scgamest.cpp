@@ -76,7 +76,20 @@ gs_carried_recompute (scr_gameref_t gs)
 static void
 gs_carried_track (scr_gameref_t gs, scr_int object, scr_int old_pos, scr_int new_pos)
 {
-  if (!gs->carried_ready || old_pos == new_pos)
+  if (old_pos == new_pos)
+    return;
+
+  /*
+   * A wielded weapon that leaves the player's hands -- dropped, thrown, given
+   * away, put down, worn -- is no longer wielded, and the wield never falls
+   * back to another carried weapon (Runner, settled live 2026-08-01).  Restore
+   * bypasses this by assigning positions directly, so a restored wield is
+   * whatever the save says.
+   */
+  if (object == gs->playerwield && old_pos == OBJ_HELD_PLAYER)
+    gs->playerwield = -1;
+
+  if (!gs->carried_ready)
     return;
 
   if (new_pos == OBJ_HELD_PLAYER)

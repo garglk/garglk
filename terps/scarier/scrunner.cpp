@@ -225,6 +225,44 @@ static scr_commands_t PRIORITY_COMMANDS[] = {
    lib_cmd_take_except_multiple},
   {"[get/take/pick up] %text%", lib_cmd_take_multiple},
   {"pick %text% up", lib_cmd_take_multiple},
+  /*
+   * "drop X in Y" and "drop X on Y" are Adrift's put handlers wearing a
+   * different verb: `drop wallet in bin` answers "You put your wallet inside
+   * the rubbish bin.", and `drop wallet on bin` gives the put-on refusal
+   * "You can't put anything onto the rubbish bin!".  "put down" and "all"
+   * behave the same way.  Verified live against run400.exe with Ticket to No
+   * Where, whose walkthrough disposes of five bits of litter with
+   * "drop <litter> in bin".  These have to precede the plain drop patterns
+   * below, whose %text% would otherwise swallow the "in <container>" tail and
+   * leave the player with "Drop what?".
+   */
+  {"[drop/put down] [all/everything] [in/into/inside {of}] %object%",
+   lib_cmd_put_all_in},
+  {"[drop/put down] [all/everything] [[except/but] {for}/apart from] %text%"
+   " [in/into/inside {of}] %object%", lib_cmd_put_in_except_multiple},
+  {"[drop/put down] %text% [in/into/inside {of}] %object%",
+   lib_cmd_put_in_multiple},
+  {"[drop/put down] [all/everything] [on/onto/on top of] %object%",
+   lib_cmd_put_all_on},
+  {"[drop/put down] [all/everything] [[except/but] {for}/apart from] %text%"
+   " [on/onto/on top of] %object%", lib_cmd_put_on_except_multiple},
+  {"[drop/put down] %text% [on/onto/on top of] %object%",
+   lib_cmd_put_on_multiple},
+  /*
+   * The plain "put" spellings of the same handlers.  Priority placement is
+   * live-verified (run400, 2026-08-02, probe FM7 / TheADRIFTProject): a
+   * completable put beats a matched-but-failing task, so these must run
+   * before the loud-fail task pass; the refusal cases defer from here (see
+   * run_priority_commands) and print from the STANDARD_COMMANDS duplicates.
+   */
+  {"put [all/everything] [in/into/inside {of}] %object%", lib_cmd_put_all_in},
+  {"put [all/everything] [[except/but] {for}/apart from] %text%"
+   " [in/into/inside {of}] %object%", lib_cmd_put_in_except_multiple},
+  {"put %text% [in/into/inside {of}] %object%", lib_cmd_put_in_multiple},
+  {"put [all/everything] [on/onto/on top of] %object%", lib_cmd_put_all_on},
+  {"put [all/everything] [[except/but] {for}/apart from] %text%"
+   " [on/onto/on top of] %object%", lib_cmd_put_on_except_multiple},
+  {"put %text% [on/onto/on top of] %object%", lib_cmd_put_on_multiple},
   {"[[drop/put down] [all/everything]/put [all/everything] down]",
    lib_cmd_drop_all},
   {"[drop/put down] [all/everything] [[except/but] {for}/apart from] %text%",
@@ -273,7 +311,13 @@ static scr_commands_t STANDARD_COMMANDS[] = {
   {"[get/take/pick up] %character%", lib_cmd_take_npc},
   {"pick %character% up", lib_cmd_take_npc},
 
-  /* Manipulating selected objects. */
+  /*
+   * Manipulating selected objects.  The put-family rows repeat their
+   * PRIORITY_COMMANDS twins (drop spellings included): the priority pass
+   * defers the refusal cases so a matched task's fail message can claim the
+   * input first, and this second appearance prints the refusal when no task
+   * did.
+   */
   {"put [all/everything] [in/into/inside {of}] %object%", lib_cmd_put_all_in},
   {"put [all/everything] [[except/but] {for}/apart from] %text%"
    " [in/into/inside {of}] %object%", lib_cmd_put_in_except_multiple},
@@ -282,6 +326,18 @@ static scr_commands_t STANDARD_COMMANDS[] = {
   {"put [all/everything] [[except/but] {for}/apart from] %text%"
    " [on/onto/on top of] %object%", lib_cmd_put_on_except_multiple},
   {"put %text% [on/onto/on top of] %object%", lib_cmd_put_on_multiple},
+  {"[drop/put down] [all/everything] [in/into/inside {of}] %object%",
+   lib_cmd_put_all_in},
+  {"[drop/put down] [all/everything] [[except/but] {for}/apart from] %text%"
+   " [in/into/inside {of}] %object%", lib_cmd_put_in_except_multiple},
+  {"[drop/put down] %text% [in/into/inside {of}] %object%",
+   lib_cmd_put_in_multiple},
+  {"[drop/put down] [all/everything] [on/onto/on top of] %object%",
+   lib_cmd_put_all_on},
+  {"[drop/put down] [all/everything] [[except/but] {for}/apart from] %text%"
+   " [on/onto/on top of] %object%", lib_cmd_put_on_except_multiple},
+  {"[drop/put down] %text% [on/onto/on top of] %object%",
+   lib_cmd_put_on_multiple},
   {"open %object%", lib_cmd_open_object},
   {"close %object%", lib_cmd_close_object},
   {"unlock %object% with %text%", lib_cmd_unlock_object_with},
@@ -382,7 +438,6 @@ static scr_commands_t STANDARD_COMMANDS[] = {
   {"status %character%", lib_cmd_status_npc},
   {"[status/stats]", lib_cmd_status_player},
   {"wield %object%", lib_cmd_wield},
-  {"[unwield/sheath/sheathe]", lib_cmd_unwield},
   {"version", lib_cmd_version},
 
   {"[locate/where {is/are}/find] %object%", lib_cmd_locate_object},
@@ -558,24 +613,97 @@ static scr_commands_t STANDARD_COMMANDS[] = {
  *
  * For now, I can't find any better way to try to handle it than to make
  * object acquisition take precedence over game commands.
+ *
+ * The put-in/put-on family runs here TENTATIVELY: probed live against
+ * run400 (2026-08-02, probe FM7 + a TheADRIFTProject .tas transplant), the
+ * real Runner lets a put that can actually complete beat a matched task
+ * whose restrictions fail ("put pill in cup" answers the library's "You put
+ * the small pill inside the coffee cup." while the task's fail message is
+ * suppressed), but when the put would be REFUSED (target not a container/
+ * surface) the failing task's message wins ("drop pill in slime" prints the
+ * fail message, not the refusal).  So in this pass the validity check
+ * defers instead of refusing -- run_priority_defer() -- and the scan stops
+ * so the plain-drop %text% rows cannot swallow the input; the loud-fail
+ * task pass then gets its chance, and the duplicate rows in
+ * STANDARD_COMMANDS print the refusal when no task claims it.
  */
+static scr_bool run_priority_pass_active = FALSE;
+static scr_bool run_priority_deferred = FALSE;
+
+scr_bool
+run_in_priority_pass (void)
+{
+  return run_priority_pass_active;
+}
+
+void
+run_priority_defer (void)
+{
+  assert (run_priority_pass_active);
+  run_priority_deferred = TRUE;
+}
+
 static scr_bool
 run_priority_commands (scr_gameref_t game, const scr_char *string)
 {
   scr_commandsref_t command;
 
+  run_priority_pass_active = TRUE;
+  run_priority_deferred = FALSE;
   for (command = PRIORITY_COMMANDS; command->command; command++)
     {
       if (uip_match (command->command, string, game))
         {
           if (command->handler (game))
-            return TRUE;
+            {
+              run_priority_pass_active = FALSE;
+              return TRUE;
+            }
+          if (run_priority_deferred)
+            break;
         }
     }
+  run_priority_pass_active = FALSE;
 
   /* Nothing matched match the string.  Or if it did, its handler failed. */
   return FALSE;
 }
+
+/*
+ * run_movement_succeeds()
+ *
+ * Return TRUE if the input is a movement command that would really move the
+ * player out of the room.  Prints nothing and changes nothing -- the movement
+ * handlers run under lib_set_movement_probe().  Used only by the version 3.8
+ * ordering in run_all_commands().
+ */
+static scr_bool
+run_movement_succeeds (scr_gameref_t game, const scr_char *string)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_bool eightpointcompass, is_movement = FALSE;
+  scr_commandsref_t command;
+
+  eightpointcompass = prop_get_global_boolean (bundle, "EightPointCompass");
+  command = eightpointcompass ? MOVE_COMMANDS_8 : MOVE_COMMANDS_4;
+
+  lib_set_movement_probe (TRUE);
+  for (; command->command; command++)
+    {
+      if (uip_match (command->command, string, game))
+        {
+          if (command->handler (game))
+            {
+              is_movement = TRUE;
+              break;
+            }
+        }
+    }
+  lib_set_movement_probe (FALSE);
+
+  return is_movement;
+}
+
 
 static scr_bool
 run_standard_commands (scr_gameref_t game, const scr_char *string)
@@ -841,6 +969,45 @@ run_match_task_common (scr_gameref_t game,
             if (trace_match)
               fprintf (stderr, "MATCH task=%ld pattern=[%s] input=[%s]\n",
                        task, pattern, string);
+          }
+          {
+            /* SCR_TRACE_SCOPE: report matches the real Runner would refuse
+             * or bind differently.  Its parser only matches a %object%
+             * against objects present to the player (probed live in Topaz
+             * and pBP2), while uip_match_entity() has no scope filter and
+             * binds the LAST name match.  SCOPE-MISS = no matched object is
+             * present (the Runner would fail the whole command); SCOPE-BIND
+             * = the bound object is absent while a present one also
+             * matched (the Runner would bind the present one). */
+            static const scr_bool trace_scope =
+                getenv ("SCR_TRACE_SCOPE") != NULL;
+            if (trace_scope && strstr (pattern, "%object%") != NULL)
+              {
+                const scr_var_setref_t vars = gs_get_vars (game);
+                scr_int object, present, matched, room, bound_present;
+
+                room = gs_playerroom (game);
+                present = matched = 0;
+                bound_present = FALSE;
+                for (object = 0; object < gs_object_count (game); object++)
+                  {
+                    if (!game->object_references[object])
+                      continue;
+                    matched++;
+                    if (obj_indirectly_in_room (game, object, room))
+                      {
+                        present++;
+                        if (object == var_get_ref_object (vars))
+                          bound_present = TRUE;
+                      }
+                  }
+                if (matched > 0 && present == 0)
+                  fprintf (stderr, "SCOPE-MISS task=%ld pattern=[%s]"
+                           " input=[%s]\n", task, pattern, string);
+                else if (present > 0 && !bound_present)
+                  fprintf (stderr, "SCOPE-BIND task=%ld pattern=[%s]"
+                           " input=[%s]\n", task, pattern, string);
+              }
           }
 #endif
           break;
@@ -1196,55 +1363,349 @@ run_game_functions (scr_gameref_t game, const scr_char *string)
  * run_npc_walk_task()
  *
  * Run the task triggered by an NPC walk meeting a character or an object (a
- * walk's CharTask or ObjectTask).  The reference Runner does not run this one
- * task by its stored index: it copies the task's command text and dispatches
- * it through the same task matcher used for player input, so every task that
- * shares that command is a candidate and the one whose "Where the task can be
- * run" room list matches the player's location (and whose restrictions pass)
- * is what actually fires.  This matters when an author splits one logical
- * reaction across several same-command tasks, one per room -- e.g. "Lair of
- * the CyberCow" has two "#lured" tasks (steeple and chapel yard) so the fairy
- * snatches the milk bowl in whichever of those rooms the player is standing.
- * Running only the literal walk task would fire just one room's variant.
+ * walk's CharTask or ObjectTask).  The 3.9 Runner does not run this one task
+ * by its stored index: it copies the task's command text into the input
+ * global and calls the task matcher, instruction-for-instruction the same
+ * dispatch its events use (Form1.characters at 0005AAD5/0005AB88 vs
+ * Form1.checkevent at 00048D83, all three "copy tasks[n-1].command[0], call
+ * Form1.tasks(1)"), so everything verified for event dispatch holds here
+ * too: the first task in list order that matches and passes where +
+ * restrictions fires, an earlier runnable `*` wildcard steals the execution
+ * outright, and a restricted match is skipped silently.  Verified live in
+ * run390 (test/adrift4/harness/make_39_walkprobe.py variants E/F/G): with a wildcard first
+ * the arrival turn prints the wildcard's text twice and the walk task's
+ * never, with the walk task first it fires itself, and a restricted walk
+ * task prints nothing.  The matcher dispatch is also what fans one walk
+ * trigger out across same-command tasks -- e.g. "Lair of the CyberCow" has
+ * two "#lured" tasks (steeple and chapel yard) and the fairy snatches the
+ * milk bowl in whichever of those rooms the player is standing.
  *
- * The walk task's command is matched here by exact command text rather than by
- * the pattern matcher, because these tasks customarily use an un-typeable
- * "#name" command, which the normal command matcher deliberately skips.
+ * The 4.0 Runner instead runs the task directly by index -- its walk handler
+ * calls the same direct task runner (Sub_20_22) as its events -- so there is
+ * no interception, and a failing restriction prints its FailMessage (which
+ * task_run_task does).  Verified live in run400 (test/adrift4/harness/make_400_walkprobe.py
+ * variants E/G): the walk task fires with a wildcard listed before it, and
+ * a restricted walk task prints its FailMessage on every arrival turn.
  */
 void
 run_npc_walk_task (scr_gameref_t game, scr_int walktask)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_vartype_t vt_key;
+  scr_int version;
+
+  vt_key.string = "Version";
+  version = prop_get_integer (bundle, "I<-s", &vt_key);
+
+  if (version < TAF_VERSION_400)
+    run_task_command_dispatch (game, walktask);
+  else if (task_can_run_task_directional (game, walktask, TRUE))
+    task_run_task (game, walktask, TRUE);
+}
+
+
+/*
+ * run_event_task()
+ *
+ * Run the task executed by a finishing event (its TaskAffected, with
+ * "task finished" unset) in a pre-4.0 game.  The reference Runner does not
+ * run this task by its stored index: it submits the task's command
+ * text through the task matcher, and the first task in list order that
+ * matches the text -- a `*` wildcard matches it like any other input -- and
+ * whose "where" and restrictions pass is the one that fires.  So a runnable
+ * wildcard task earlier in the list steals the event's execution outright
+ * (its text prints instead, the affected task does not run), and the theft
+ * happens even when the affected task itself could not run where the player
+ * is standing.  Restricted matches are passed over silently.
+ *
+ * All of this is verified against the live 3.9 Runner (see
+ * RUNNER_TESTS_TODO.md section 2): "thetest" depends on the stealing -- its
+ * "Nice try fish face!" `*` task fires on the same turn as the library drop
+ * because an always-restarting one-turn event executes a task every turn,
+ * and the author's ALRs splice the two messages -- while a probe with the
+ * wildcard placed after the affected task shows list order deciding the
+ * winner, and a probe without any event shows no same-turn firing at all.
+ *
+ * The literal-text comparison below backstops the pattern matcher for the
+ * customary un-typeable "#name" commands, which never survive the player
+ * input path; the matcher is still consulted so wildcard patterns match.
+ *
+ * run_task_command_dispatch() is the dispatch itself, shared with the 3.9
+ * walk CharTask/ObjectTask path above (in the 3.9 Runner both are the same
+ * P-code sequence); run_event_task() is the event-facing name.
+ */
+void
+run_task_command_dispatch (scr_gameref_t game, scr_int eventtask)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
   scr_vartype_t vt_key[4];
   const scr_char *command;
   scr_int task_count, task;
 
-  /* Get the walk task's first command pattern; nothing to match if absent. */
+  /* Get the task's first command pattern; nothing to match if absent. */
   vt_key[0].string = "Tasks";
-  vt_key[1].integer = walktask;
+  vt_key[1].integer = eventtask;
   vt_key[2].string = "Command";
   vt_key[3].integer = 0;
   command = prop_get_string (bundle, "S<-sisi", vt_key);
   if (scr_strempty (command))
-    return;
+    {
+      /* No command text to dispatch; run the task directly. */
+      if (task_can_run_task_directional (game, eventtask, TRUE)
+          && run_task_is_unrestricted (game, eventtask))
+        task_run_task (game, eventtask, TRUE);
+      return;
+    }
 
-  /* Run every same-command task the player's room and restrictions permit. */
+  /* Run the first task in list order the command text matches. */
   task_count = gs_task_count (game);
   for (task = 0; task < task_count; task++)
     {
-      const scr_char *other;
+      scr_bool is_matched;
 
-      if (!task_can_run_task_directional (game, task, TRUE))
+      if (!task_can_run_task (game, task)
+          || !task_can_run_task_directional (game, task, TRUE))
         continue;
 
-      vt_key[1].integer = task;
-      other = prop_get_string (bundle, "S<-sisi", vt_key);
-      if (scr_strcasecmp (command, other) != 0)
+      if (task == eventtask)
+        is_matched = TRUE;
+      else
+        {
+          const scr_char *other;
+
+          is_matched = run_match_task_commands (game, task, command,
+                                                TRUE, FALSE);
+          if (!is_matched)
+            {
+              vt_key[1].integer = task;
+              other = prop_get_string (bundle, "S<-sisi", vt_key);
+              vt_key[1].integer = eventtask;
+              is_matched = scr_strcasecmp (command, other) == 0;
+            }
+        }
+      if (!is_matched)
         continue;
 
       if (run_task_is_unrestricted (game, task))
-        task_run_task (game, task, TRUE);
+        {
+#ifdef SCARIER_DUMP_TOOLS
+          {
+            static const scr_bool trace_evtask =
+                getenv ("SCR_TRACE_EVENT_TASK") != NULL;
+            if (trace_evtask && task != eventtask)
+              fprintf (stderr, "EVTASK steal: task=%ld stole [%s] from"
+                       " task=%ld\n", task, command, eventtask);
+          }
+#endif
+          task_run_task (game, task, TRUE);
+          return;
+        }
     }
+
+#ifdef SCARIER_DUMP_TOOLS
+  {
+    static const scr_bool trace_evtask =
+        getenv ("SCR_TRACE_EVENT_TASK") != NULL;
+    if (trace_evtask)
+      fprintf (stderr, "EVTASK no-run: [%s] task=%ld candone=%d dir=%d\n",
+               command, eventtask,
+               (int) task_can_run_task (game, eventtask),
+               (int) task_can_run_task_directional (game, eventtask, TRUE));
+  }
+#endif
+}
+
+void
+run_event_task (scr_gameref_t game, scr_int eventtask)
+{
+  run_task_command_dispatch (game, eventtask);
+}
+
+
+/*
+ * run_defer_loud_tasks_to_movement()
+ *
+ * In version 3.8 (and so also 3.7) a task whose command matches but whose
+ * restrictions fail does NOT get to swallow a direction the player can
+ * actually walk in: the movement happens, and the task's fail message is
+ * never printed.  Verified live in run380 with "The Twilight" (2026-08-04):
+ * its task 6 is "w" at the Cliff Top, restricted to Gale being present, and
+ * before she joins you the Runner answers a bare "w" with "You move west."
+ * and no message at all.  Under the version 4.0 ordering the message wins
+ * instead, which strands the player on the very first move of that game --
+ * and again later, since it also blocks the attic with "d"/"u" tasks
+ * restricted to the Sentinel and the apparition being present.
+ *
+ * This is specific to movement.  Other standard commands still lose to the
+ * message: in the same session "ask gale about mansion" printed task 4's
+ * "You can't do that in your present company." even though the Runner has a
+ * perfectly good answer of its own for asking an absent character (it says
+ * "You can't talk to that." when no task matches at all).  So all this does
+ * is let a *successful* move jump the queue.  A move that would be refused
+ * changes nothing: the loud task still gets its say, and the refusal is
+ * printed afterwards by run_standard_commands() if no task claims the input.
+ */
+static scr_bool
+run_defer_loud_tasks_to_movement (scr_gameref_t game, const scr_char *string)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_vartype_t vt_key;
+  scr_int version;
+
+  vt_key.string = "Version";
+  version = prop_get_integer (bundle, "I<-s", &vt_key);
+  if (version > TAF_VERSION_380)
+    return FALSE;
+
+  return run_movement_succeeds (game, string);
+}
+
+
+/*
+ * run_task_refusal()
+ *
+ * The Runners have two answers of their own for a command that matches a task
+ * the main dispatcher would not run, both of which Scarier used to leave to the
+ * standard library or to the game's DontUnderstand text:
+ *
+ *   - the player is in the wrong room for the task.  Pre-4.0 only: 3.7 and 3.8
+ *     answer "You can't do that here.", 3.9 "You can't do that here!", and 4.0
+ *     dropped the message (the string is still in run400.exe, unused).
+ *   - the task has already been done and is not repeatable.  The Runner prints
+ *     the task's RepeatText if it has one -- in EVERY version, 4.0 included --
+ *     and otherwise "You have already done that.", which like the room refusal
+ *     is a pre-4.0 message only (` have already done that.` is a UTF-16 literal
+ *     in run370/run380/run390 and absent from run400).
+ *
+ * Measured live against run370 (Castle Quest), run380 (Marooned), run390 (The
+ * Hangover plus the p39where probe built by test/adrift4/harness/
+ * make_39_whereprobe.py) and run400 (make_400_whereprobe.py), 2026-08-09/10.
+ *
+ * The conditions are narrow, and the probes say how narrow.  A task refused by
+ * a *restriction* that fails silently gets "I don't understand.", as does a
+ * command that matches no task pattern at all.  Runner P-code guards the room
+ * message with `OUT = "" And FLAG = 1`, so any output at all -- including a
+ * standard library answer -- suppresses it, which is why this runs last, only
+ * when nothing else claimed the input.
+ *
+ * The two refusals are ordered, and the order is measured rather than assumed:
+ * probe task "theta" is done AND out of its room, and run390 answers "You can't
+ * do that here!", so the room half is tested first.  That is why the
+ * already-done test carries the room condition with it (task_is_done_refused()).
+ *
+ * Both count as a turn, unlike DontUnderstand: in the probe, an event ticking
+ * once a turn fires on either refusal and not on the parser complaint, matching
+ * the `handled = 1` the Runner sets alongside the message.  Hence the TRUE
+ * return, which lets the caller run the turn.  (Measured for all three pre-4.0
+ * answers; 4.0's RepeatText is assumed to tick as well, its probe having no
+ * event in it.)
+ *
+ * The leading word follows Perspective, which pre-4.0 has only two of: run390
+ * answers "I can't do that here!" / "I have already done that." for Perspective
+ * 0 and the "You" forms for every other value, third person being a 4.0
+ * addition (its inventory says "You are carrying nothing." for Perspective 2 as
+ * well).
+ */
+enum { REFUSAL_NONE = 0, REFUSAL_ROOM, REFUSAL_DONE };
+
+static scr_bool
+run_task_refusal (scr_gameref_t game, const scr_char *string)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  const scr_filterref_t filter = gs_get_filter (game);
+  scr_vartype_t vt_key[3];
+  scr_int version, perspective, task_count, task, direction;
+  scr_int refusal, refused_task;
+  const scr_char *repeattext;
+
+  /*
+   * An empty input line element is not a command and gets no complaint of any
+   * kind -- the same guard the DontUnderstand fallback uses.  Without it a
+   * game with a bare "*" task command outside the player's room turns every
+   * press-a-key blank line into a refusal.
+   */
+  if (scr_strempty (string))
+    return FALSE;
+
+  vt_key[0].string = "Version";
+  version = prop_get_integer (bundle, "I<-s", vt_key);
+
+  /*
+   * Look for the first task in list order whose command matches the input and
+   * that the dispatcher passed over for one of the two refusable reasons.  A
+   * task blocked by anything else can never raise a refusal.
+   */
+  refusal = REFUSAL_NONE;
+  refused_task = -1;
+  task_count = gs_task_count (game);
+  for (task = 0; task < task_count && refusal == REFUSAL_NONE; task++)
+    {
+      /* The room half first -- see the note above on probe task "theta". */
+      if (version < TAF_VERSION_400)
+        {
+          for (direction = 0; direction < 2; direction++)
+            {
+              const scr_bool is_forwards = !direction;
+
+              if (task_is_room_refused (game, task, is_forwards)
+                  && run_match_task_commands (game, task, string,
+                                              is_forwards, FALSE))
+                {
+                  refusal = REFUSAL_ROOM;
+                  refused_task = task;
+                  break;
+                }
+            }
+        }
+
+      if (refusal == REFUSAL_NONE
+          && task_is_done_refused (game, task)
+          && run_match_task_commands (game, task, string, TRUE, FALSE))
+        {
+          refusal = REFUSAL_DONE;
+          refused_task = task;
+        }
+    }
+  if (refusal == REFUSAL_NONE)
+    return FALSE;
+
+  /*
+   * An authored RepeatText replaces the already-done message, and is the one
+   * part of all this that 4.0 kept.
+   */
+  repeattext = NULL;
+  if (refusal == REFUSAL_DONE)
+    {
+      repeattext = prop_get_indexed_string (bundle, "Tasks", refused_task,
+                                            "RepeatText");
+      if (scr_strempty (repeattext))
+        {
+          repeattext = NULL;
+          if (version >= TAF_VERSION_400)
+            return FALSE;
+        }
+    }
+
+  if (repeattext)
+    {
+      pf_buffer_paragraph_line (filter, repeattext);
+      return TRUE;
+    }
+
+  perspective = prop_get_global_integer (bundle, "Perspective");
+
+  pf_buffer_string (filter,
+                    perspective == LIB_FIRST_PERSON ? "I" : "You");
+  if (refusal == REFUSAL_ROOM)
+    {
+      pf_buffer_paragraph_line (filter,
+                                version < TAF_VERSION_390
+                                ? " can't do that here."
+                                : " can't do that here!");
+    }
+  else
+    pf_buffer_paragraph_line (filter, " have already done that.");
+  return TRUE;
 }
 
 
@@ -1300,10 +1761,12 @@ run_all_commands (scr_gameref_t game, const scr_char *string)
   status = run_game_commands_in_parser_context (game, string, FALSE);
   if (!status)
     status = run_priority_commands (game, string);
-  if (!status)
+  if (!status && !run_defer_loud_tasks_to_movement (game, string))
     status = run_game_commands_in_parser_context (game, string, TRUE);
   if (!status)
     status = run_standard_commands (game, string);
+  if (!status)
+    status = run_task_refusal (game, string);
 
   /*
    * For version 4.0 games, it seems that if any command succeeded, we need
@@ -1484,7 +1947,6 @@ run_player_input (scr_gameref_t game)
       /* Only complain on non-empty command input line elements. */
       if (!scr_strempty (command))
         {
-          scr_vartype_t vt_key[2];
           const scr_char *message;
 
           /*
@@ -1495,9 +1957,7 @@ run_player_input (scr_gameref_t game)
            */
           scr_owned_string escaped (pf_escape (scr_normalize_string (line_element)));
           var_set_ref_text (vars, escaped.get ());
-          vt_key[0].string = "Globals";
-          vt_key[1].string = "DontUnderstand";
-          message = prop_get_string (bundle, "S<-ss", vt_key);
+          message = prop_get_global_string (bundle, "DontUnderstand");
           pf_buffer_string (filter, message);
           pf_buffer_character (filter, '\n');
 
@@ -1795,11 +2255,26 @@ run_main_loop (scr_gameref_t game)
       /* Initial clear screen. */
       pf_buffer_tag (filter, SCR_TAG_CLS);
 
-      /* Print the game name. */
+      /*
+       * Print the game name.  The Runner gives this line a look of its own,
+       * not the plain body style: one step larger than normal text, in the
+       * secondary ("command") colour -- the same red that <c> spans and the
+       * player's own typing come out in.  Measured off a 3.90 Runner shot of
+       * rich_text_390.taf: the title's ascenders run 13px against normal
+       * text's 11 (12pt -> 14pt), with the stroke weight of normal text, not
+       * of bold.
+       *
+       * Emit it as markup rather than as a port-side special case, so it
+       * costs the ports nothing: the Glk port already maps a 14pt font to
+       * style_Subheader and <c> to the input colour, and the ANSI port
+       * discards both tags, leaving headless output unchanged.
+       */
       vt_key[0].string = "Globals";
       vt_key[1].string = "GameName";
       gamename = prop_get_string (bundle, "S<-ss", vt_key);
+      pf_buffer_string (filter, "<font size=14><c>");
       pf_buffer_string (filter, gamename);
+      pf_buffer_string (filter, "</c></font>");
       pf_buffer_character (filter, '\n');
 
       /*
@@ -1838,6 +2313,15 @@ run_main_loop (scr_gameref_t game)
       run_prompt_player_name (game);
       run_prompt_player_gender (game);
 
+      /*
+       * Start the events that start immediately, before anything is
+       * described: both Runners do this during load, so an immediate event's
+       * LookText belongs to the OPENING room description and its StartText is
+       * never seen (probes EV6 / make_39_fwprobe variant "e", live
+       * 2026-08-02 -- see evt_start_load_events()).
+       */
+      evt_start_load_events (game);
+
       /* If flagged, describe the initial room. */
       vt_key[0].string = "Globals";
       vt_key[1].string = "DispFirstRoom";
@@ -1857,8 +2341,19 @@ run_main_loop (scr_gameref_t game)
       /* Roll initial battle stamina if the Battle System is enabled. */
       battle_start (game);
 
-      /* Nudge NPCs then events (Runner: Sub_20_2 before Sub_20_32). */
-      npc_tick_npcs (game);
+      /*
+       * Nudge events, but NOT NPC walks: the Runner's walk handler (Sub_20_2)
+       * is reachable only from the typed-command evaluator (Sub_20_62, called
+       * solely by Form1.evaluate), so walks never tick before the first
+       * command -- settled live 2026-08-01 in BOTH Runners (walk probe C: no
+       * CharTask fires before the first prompt; Scarier used to move walking
+       * NPCs, and fire their CharTask, during startup).
+       *
+       * The zero-length half of the load start finishes here rather than
+       * above: its FinishText, TaskAffected and any restart land BELOW the
+       * opening description in the real Runner.
+       */
+      evt_finish_load_events (game);
       evt_tick_events (game);
 
       /*
@@ -2085,6 +2580,30 @@ run_create (scr_read_callbackref_t callback, void *opaque)
 
 
 /*
+ * run_get_restart_count()
+ *
+ * How many times a game has been restarted in this process.
+ *
+ * A restart never comes back through run_interpret's caller: RESTART typed at
+ * the prompt unwinds into the loop below, which replays the opening without
+ * returning, and even the front end's own scr_restart_game() leaves nothing
+ * behind to see.  So a front end with screen furniture to reconsider when the
+ * game goes back to the beginning -- the Glk port's map pane -- watches this
+ * for a change instead.
+ *
+ * Deliberately not part of the game state: a restart replaces that wholesale,
+ * and a restore or undo would carry an older count back.
+ */
+static scr_int run_restart_count = 0;
+
+scr_int
+run_get_restart_count (void)
+{
+  return run_restart_count;
+}
+
+
+/*
  * run_restart_handler()
  *
  * Return a game context to initial states to restart a game.
@@ -2126,6 +2645,9 @@ run_restart_handler (scr_gameref_t game)
 
   /* Reset resources handling. */
   res_cancel_resources (game);
+
+  /* The one place a restart can be counted; see run_get_restart_count(). */
+  run_restart_count++;
 }
 
 
@@ -2365,9 +2887,15 @@ run_restart (scr_gameref_t game)
 
 /*
  * run_save()
+ * run_save_to_file()
  * run_save_prompted()
  *
  * Saves either a running or a stopped game.
+ *
+ * run_save_to_file() is for a save the player keeps, and writes a pre-4.0
+ * game's own save format so the original Runner can read it back; run_save()
+ * always writes the full 4.0 layout, for snapshots that have to survive a
+ * round trip losslessly (the Spatterlight autosave).  See ser_save_game().
  */
 void
 run_save (scr_gameref_t game, scr_write_callbackref_t callback, void *opaque)
@@ -2376,6 +2904,16 @@ run_save (scr_gameref_t game, scr_write_callbackref_t callback, void *opaque)
   assert (callback);
 
   ser_save_game (game, callback, opaque);
+}
+
+void
+run_save_to_file (scr_gameref_t game,
+                  scr_write_callbackref_t callback, void *opaque)
+{
+  assert (gs_is_game_valid (game));
+  assert (callback);
+
+  ser_save_game_to_file (game, callback, opaque);
 }
 
 scr_bool
@@ -2586,9 +3124,7 @@ run_get_attributes (scr_gameref_t game,
           const scr_char *gamename;
           scr_char *filtered;
 
-          vt_key[0].string = "Globals";
-          vt_key[1].string = "GameName";
-          gamename = prop_get_string (bundle, "S<-ss", vt_key);
+          gamename = prop_get_global_string (bundle, "GameName");
 
           filtered = pf_filter_for_info (gamename, vars);
           pf_strip_tags (filtered);
@@ -2603,9 +3139,7 @@ run_get_attributes (scr_gameref_t game,
           const scr_char *gameauthor;
           scr_char *filtered;
 
-          vt_key[0].string = "Globals";
-          vt_key[1].string = "GameAuthor";
-          gameauthor = prop_get_string (bundle, "S<-ss", vt_key);
+          gameauthor = prop_get_global_string (bundle, "GameAuthor");
 
           filtered = pf_filter_for_info (gameauthor, vars);
           pf_strip_tags (filtered);
@@ -2645,9 +3179,7 @@ run_get_attributes (scr_gameref_t game,
     *score = game->score;
   if (max_score)
     {
-      vt_key[0].string = "Globals";
-      vt_key[1].string = "MaxScore";
-      *max_score = prop_get_integer (bundle, "I<-ss", vt_key);
+      *max_score = prop_get_global_integer (bundle, "MaxScore");
     }
   if (bold_room_names)
     *bold_room_names = game->bold_room_names;
