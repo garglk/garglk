@@ -1381,6 +1381,7 @@ void attr_t::clear_css()
     underline.reset();
     size.reset();
     justification.reset();
+    family_id.reset();
     margin_left = 0;
     margin_right = 0;
     text_indent = 0;
@@ -1401,6 +1402,15 @@ FontFace attr_t::font(const Styles &styles) const
     }
 
     return face;
+}
+
+std::optional<std::uint16_t> attr_t::family(const Styles &styles) const
+{
+    if (family_id.has_value()) {
+        return family_id;
+    }
+
+    return styles[style].family_id;
 }
 
 double attr_t::fontsize(const Styles &styles) const

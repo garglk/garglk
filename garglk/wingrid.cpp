@@ -78,6 +78,7 @@ void win_textgrid_redraw(window_t *win) {
         glui32 link    = ln->attrs[start].hyper;
         auto   font    = ln->attrs[start].font(dwin->styles);
         auto   size    = ln->attrs[start].fontsize(dwin->styles);
+        auto   family  = ln->attrs[start].family(dwin->styles);
         Color  fgcolor = link != 0 ? gli_link_color
                                    : ln->attrs[start].fg(dwin->styles);
         Color  bgcolor = ln->attrs[start].bg(dwin->styles);
@@ -95,7 +96,7 @@ void win_textgrid_redraw(window_t *win) {
         }
 
         for (int i = start; i < end; i++) {
-            gli_draw_string_uni(x * GLI_SUBPIX, y + gli_baseline, font, fgcolor, &ln->chars[i], 1, -1, size);
+            gli_draw_string_uni(x * GLI_SUBPIX, y + gli_baseline, font, fgcolor, &ln->chars[i], 1, -1, size, family);
             x += gli_cellw;
         }
 

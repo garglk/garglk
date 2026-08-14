@@ -16,51 +16,52 @@ public:
         BoldItalic
     };
 
-    explicit FontFiller(FontType type) :
-        m_type(type)
-    {
-    }
+    FontFiller() = default;
 
     void add(Style style, std::optional<std::string> path) {
         m_fonts.insert({style, std::move(path)});
     }
 
-    bool fill() {
-        const auto &regular = m_fonts[Style::Regular];
-        if (!regular.has_value()) {
-            return false;
+    // Build FontFiles from collected style paths. Bold/italic/z fall
+    // back to regular when missing so FreeType can synthesize styles.
+    std::optional<FontFiles> files() const {
+        const auto &regular = m_fonts.find(Style::Regular);
+        if (regular == m_fonts.end() || !regular->second.has_value()) {
+            return std::nullopt;
         }
 
-        FontFiles &files = m_type == FontType::Monospace ? gli_conf_mono
-                                                         : gli_conf_prop;
+        FontFiles out;
+        out.r.base = *regular->second;
+        out.b.base = *regular->second;
+        out.i.base = *regular->second;
+        out.z.base = *regular->second;
 
-        files.r.base = *regular;
-        files.b.base = *regular;
-        files.i.base = *regular;
-        files.z.base = *regular;
-
-        const auto &bold = m_fonts[Style::Bold];
-        if (bold.has_value()) {
-            files.b.base = *bold;
-            files.z.base = *bold;
+        auto style_path = [this](Style style) -> const std::optional<std::string> * {
+            auto it = m_fonts.find(style);
+            if (it == m_fonts.end() || !it->second.has_value()) {
+                return nullptr;
+            }
+            return &it->second;
         };
 
-        const auto &italic = m_fonts[Style::Italic];
-        if (italic.has_value()) {
-            files.i.base = *italic;
-            files.z.base = *italic;
+        if (const auto *bold = style_path(Style::Bold)) {
+            out.b.base = **bold;
+            out.z.base = **bold;
         }
 
-        const auto &bolditalic = m_fonts[Style::BoldItalic];
-        if (bolditalic.has_value()) {
-            files.z.base = *bolditalic;
+        if (const auto *italic = style_path(Style::Italic)) {
+            out.i.base = **italic;
+            out.z.base = **italic;
         }
 
-        return true;
+        if (const auto *bolditalic = style_path(Style::BoldItalic)) {
+            out.z.base = **bolditalic;
+        }
+
+        return out;
     }
 
 private:
-    FontType m_type;
     std::unordered_map<Style, std::optional<std::string>> m_fonts;
 };
 

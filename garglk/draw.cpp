@@ -140,6 +140,33 @@ static std::unordered_map<FontFace, std::vector<Font>> glyph_substitution_fonts;
 // thousandths of a point.
 static std::unordered_map<std::pair<FontFace, glui32>, Font> sized_font_table;
 
+// CSS font-family faces, keyed by family id, bold/italic, and size.
+struct CssFontKey {
+    std::uint16_t family_id = 0;
+    bool bold = false;
+    bool italic = false;
+    glui32 size_key = 0;
+
+    bool operator==(const CssFontKey &other) const {
+        return family_id == other.family_id &&
+               bold == other.bold &&
+               italic == other.italic &&
+               size_key == other.size_key;
+    }
+};
+
+struct CssFontKeyHash {
+    std::size_t operator()(const CssFontKey &key) const {
+        auto seed = hash_combine(0, std::hash<std::uint16_t>()(key.family_id));
+        seed = hash_combine(seed, std::hash<bool>()(key.bold));
+        seed = hash_combine(seed, std::hash<bool>()(key.italic));
+        seed = hash_combine(seed, std::hash<glui32>()(key.size_key));
+        return seed;
+    }
+};
+
+static std::unordered_map<CssFontKey, Font, CssFontKeyHash> css_font_table;
+
 int gli_cellw = 8;
 int gli_cellh = 8;
 
@@ -681,19 +708,33 @@ static const std::vector<std::pair<std::vector<glui32>, glui32>> ligatures = {
 // Convert a requested font size (in points) to the key used by
 // sized_font_table; the default size for the face maps to 0, meaning
 // the font from gfont_table is used as-is.
-static glui32 font_size_key(FontFace fontface, std::optional<double> size)
+static glui32 font_size_key(bool monospace, std::optional<double> size)
 {
     if (!size.has_value() || *size <= 0) {
         return 0;
     }
 
-    double def = fontface.monospace ? gli_conf_monosize : gli_conf_propsize;
+    double def = monospace ? gli_conf_monosize : gli_conf_propsize;
     auto key = static_cast<glui32>(std::lround(*size * 1000));
 
     return key == static_cast<glui32>(std::lround(def * 1000)) ? 0 : key;
 }
 
-static Font &get_font(FontFace fontface, glui32 size_key)
+static const std::optional<std::string> &family_slot(const FontFiles &files, bool bold, bool italic)
+{
+    if (bold && italic) {
+        return files.z.fontpath();
+    }
+    if (bold) {
+        return files.b.fontpath();
+    }
+    if (italic) {
+        return files.i.fontpath();
+    }
+    return files.r.fontpath();
+}
+
+static Font &get_font_default(FontFace fontface, glui32 size_key)
 {
     auto &base = gfont_table.at(fontface);
 
@@ -719,9 +760,60 @@ static Font &get_font(FontFace fontface, glui32 size_key)
     return it->second;
 }
 
-static int gli_string_impl(int x, FontFace fontface, glui32 size_key, const glui32 *s, std::size_t n, int spw, const std::function<void(int, const std::array<Bitmap, GLI_SUBPIX> &)> &callback)
+static Font &get_font(FontFace fontface, glui32 size_key, std::optional<std::uint16_t> family_id)
 {
-    auto &f = get_font(fontface, size_key);
+    if (!family_id.has_value()) {
+        return get_font_default(fontface, size_key);
+    }
+
+    const CssFontFamily *family = gli_css_get_family(*family_id);
+    if (family == nullptr) {
+        return get_font_default(fontface, size_key);
+    }
+
+    CssFontKey key{*family_id, fontface.bold, fontface.italic, size_key};
+    auto it = css_font_table.find(key);
+    if (it != css_font_table.end()) {
+        return it->second;
+    }
+
+    // Prefer the style slot, then regular within the family, then the
+    // configured FontFace table.
+    std::array<const std::optional<std::string> *, 2> paths = {
+        &family_slot(family->files, fontface.bold, fontface.italic),
+        &family->files.r.fontpath(),
+    };
+
+    FontFace loadface = fontface;
+    loadface.monospace = family->monospace;
+
+    for (const auto *path : paths) {
+        if (path == nullptr || !path->has_value()) {
+            continue;
+        }
+
+        FT_Face face;
+        if (FT_New_Face(ftlib, (*path)->c_str(), 0, &face) != 0) {
+            continue;
+        }
+
+        try {
+            std::optional<double> size_override;
+            if (size_key != 0) {
+                size_override = size_key / 1000.0;
+            }
+            it = css_font_table.emplace(key, Font(loadface, UniqueFace(face), **path, size_override)).first;
+            return it->second;
+        } catch (const Font::LoadError &) {
+        }
+    }
+
+    return get_font_default(fontface, size_key);
+}
+
+static int gli_string_impl(int x, FontFace fontface, glui32 size_key, std::optional<std::uint16_t> family_id, const glui32 *s, std::size_t n, int spw, const std::function<void(int, const std::array<Bitmap, GLI_SUBPIX> &)> &callback)
+{
+    auto &f = get_font(fontface, size_key, family_id);
     bool dolig = !FT_IS_FIXED_WIDTH(f.face());
     int prev = -1;
     glui32 c;
@@ -758,11 +850,32 @@ static int gli_string_impl(int x, FontFace fontface, glui32 size_key, const glui
         // that glyph is unavailable, log a warning and select a
         // question mark instead. If a question mark can't be loaded,
         // abort with an error message. Lookups are cached.
-        auto glyph = [&f, &fontface, size_key](glui32 c) -> const FontEntry & {
-            static std::unordered_map<glui32, std::unordered_map<std::pair<FontFace, glui32>, FontEntry>> size_caches;
+        auto glyph = [&f, &fontface, size_key, family_id](glui32 c) -> const FontEntry & {
+            struct GlyphKey {
+                FontFace face;
+                std::uint16_t family_id;
+                glui32 cid;
+
+                bool operator==(const GlyphKey &other) const {
+                    return face == other.face &&
+                           family_id == other.family_id &&
+                           cid == other.cid;
+                }
+            };
+
+            struct GlyphKeyHash {
+                std::size_t operator()(const GlyphKey &key) const {
+                    auto seed = hash_combine(0, std::hash<FontFace>()(key.face));
+                    seed = hash_combine(seed, std::hash<std::uint16_t>()(key.family_id));
+                    seed = hash_combine(seed, std::hash<glui32>()(key.cid));
+                    return seed;
+                }
+            };
+
+            static std::unordered_map<glui32, std::unordered_map<GlyphKey, FontEntry, GlyphKeyHash>> size_caches;
 
             auto &fallback_cache = size_caches[size_key];
-            auto key = std::pair(fontface, c);
+            GlyphKey key{fontface, family_id.value_or(0xffff), c};
 
             auto it = fallback_cache.find(key);
             if (it == fallback_cache.end()) {
@@ -814,9 +927,17 @@ static int gli_string_impl(int x, FontFace fontface, glui32 size_key, const glui
 
 int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb,
                         const glui32 *text, int len, int spacewidth,
-                        std::optional<double> fontsize)
+                        std::optional<double> fontsize,
+                        std::optional<std::uint16_t> family_id)
 {
-    return gli_string_impl(x, face, font_size_key(face, fontsize), text, len, spacewidth, [&y, &rgb](int x, const std::array<Bitmap, GLI_SUBPIX> &glyphs) {
+    bool monospace = face.monospace;
+    if (family_id.has_value()) {
+        if (const CssFontFamily *family = gli_css_get_family(*family_id)) {
+            monospace = family->monospace;
+        }
+    }
+
+    return gli_string_impl(x, face, font_size_key(monospace, fontsize), family_id, text, len, spacewidth, [&y, &rgb](int x, const std::array<Bitmap, GLI_SUBPIX> &glyphs) {
         int px = x / GLI_SUBPIX;
         int sx = x % GLI_SUBPIX;
 
@@ -829,9 +950,17 @@ int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb,
 }
 
 int gli_string_width_uni(FontFace face, const glui32 *text, int len, int spacewidth,
-                         std::optional<double> fontsize)
+                         std::optional<double> fontsize,
+                         std::optional<std::uint16_t> family_id)
 {
-    return gli_string_impl(0, face, font_size_key(face, fontsize), text, len, spacewidth, [](int, const std::array<Bitmap, GLI_SUBPIX> &) {});
+    bool monospace = face.monospace;
+    if (family_id.has_value()) {
+        if (const CssFontFamily *family = gli_css_get_family(*family_id)) {
+            monospace = family->monospace;
+        }
+    }
+
+    return gli_string_impl(0, face, font_size_key(monospace, fontsize), family_id, text, len, spacewidth, [](int, const std::array<Bitmap, GLI_SUBPIX> &) {});
 }
 
 void gli_draw_caret(int x, int y)

@@ -29,12 +29,17 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "glk.h"
 #include "garglk.h"
 
 namespace {
+
+// Interned CSS font-family entries (ids stored on attr_t / style_t).
+std::vector<CssFontFamily> gli_css_families;
+std::unordered_map<std::string, std::uint16_t> gli_css_family_keys;
 
 // Hints are stored per window type, per style, and per level (span or
 // paragraph).
@@ -210,11 +215,37 @@ double parse_length(const std::string &value, double base)
     return number(v) * gli_zoom;
 }
 
-// Decide whether a font-family list asks for the monospace font. Only
-// the first family that Gargoyle can honor is considered; since
-// Gargoyle has exactly two font families, anything that isn't
-// recognizably monospace maps to the proportional font.
-std::optional<bool> parse_font_family(const std::string &value)
+// Intern a resolved family under a stable key so repeated CSS values
+// reuse the same id.
+std::uint16_t intern_family(const std::string &key, FontFiles files, bool monospace)
+{
+    auto it = gli_css_family_keys.find(key);
+    if (it != gli_css_family_keys.end()) {
+        return it->second;
+    }
+
+    if (gli_css_families.size() >= 0xffff) {
+        return 0;
+    }
+
+    auto id = static_cast<std::uint16_t>(gli_css_families.size());
+    gli_css_families.push_back({std::move(files), monospace});
+    gli_css_family_keys.emplace(key, id);
+    return id;
+}
+
+bool name_looks_monospace(const std::string &name)
+{
+    return name == "monospace" || name == "mono" || name == "terminal" ||
+           name == "consolas" || name == "monaco" || name == "menlo" ||
+           name.find("courier") != std::string::npos ||
+           name.find("ocr") != std::string::npos;
+}
+
+// Resolve a CSS font-family list like a browser: walk left to right and
+// take the first family that can be honored. Generics map to configured
+// mono/prop fonts or a platform sans; named families use fontlookup.
+std::optional<std::uint16_t> resolve_font_family(const std::string &value, bool &monospace)
 {
     for (const auto &family : split(value, ',')) {
         auto name = garglk::downcase(unquote(trim(family)));
@@ -222,14 +253,40 @@ std::optional<bool> parse_font_family(const std::string &value)
             continue;
         }
 
-        if (name == "monospace" || name == "mono" || name == "terminal" ||
-                name == "consolas" || name == "monaco" || name == "menlo" ||
-                name.find("courier") != std::string::npos ||
-                name.find("ocr") != std::string::npos) {
-            return true;
+        if (name == "monospace") {
+            monospace = true;
+            return intern_family("\1monospace", gli_conf_mono, true);
         }
 
-        return false;
+        if (name == "serif") {
+            monospace = false;
+            return intern_family("\1serif", gli_conf_prop, false);
+        }
+
+        if (name == "sans-serif") {
+            static const char *const sans_candidates[] = {
+                "Helvetica", "Arial", "DejaVu Sans", "sans-serif",
+            };
+            for (const char *candidate : sans_candidates) {
+                auto files = garglk::fontlookup(candidate);
+                if (files.has_value()) {
+                    monospace = false;
+                    return intern_family("\1sans-serif", *files, false);
+                }
+            }
+            monospace = false;
+            return intern_family("\1sans-serif", gli_conf_prop, false);
+        }
+
+        auto original = unquote(trim(family));
+        auto files = garglk::fontlookup(original);
+        if (!files.has_value() && original != name) {
+            files = garglk::fontlookup(name);
+        }
+        if (files.has_value()) {
+            monospace = name_looks_monospace(name);
+            return intern_family(name, *files, monospace);
+        }
     }
 
     return std::nullopt;
@@ -292,7 +349,10 @@ void reset_style_property(style_t &style, const style_t &def, const std::string 
         style.font.bold = def.font.bold;
     } else if (prop == "font-style") {
         style.font.italic = def.font.italic;
-    } else if (prop == "font-family" || prop == "monospace") {
+    } else if (prop == "font-family") {
+        style.font.monospace = def.font.monospace;
+        style.family_id = def.family_id;
+    } else if (prop == "monospace") {
         style.font.monospace = def.font.monospace;
     } else if (prop == "font-size") {
         style.size = def.size;
@@ -317,6 +377,8 @@ void apply_hint_levels(style_t &style, const style_t &def, const std::array<CssP
     // size; start from that so that reapplying the hints (which happens
     // every time one of them changes) doesn't compound them.
     style.size = def.size;
+    style.family_id = def.family_id;
+    style.font.monospace = def.font.monospace;
 
     gli_css_apply_props(unused, &style, levels[CSS_Span], true);
     gli_css_apply_props(unused, &style, levels[CSS_Paragraph], true);
@@ -408,6 +470,7 @@ bool attr_has_css(const attr_t &attr)
            attr.underline.has_value() ||
            attr.size.has_value() ||
            attr.justification.has_value() ||
+           attr.family_id.has_value() ||
            attr.margin_left != 0 ||
            attr.margin_right != 0 ||
            attr.text_indent != 0;
@@ -452,12 +515,24 @@ void gli_css_apply_props(attr_t &attr, style_t *style, const CssProps &props, bo
     auto family = props.find("font-family");
     auto mono_prop = props.find("monospace");
     std::optional<bool> monospace;
+    std::optional<std::uint16_t> family_id;
     if (family != props.end()) {
-        monospace = parse_font_family(family->second);
+        bool mono = false;
+        family_id = resolve_font_family(family->second, mono);
+        if (family_id.has_value()) {
+            monospace = mono;
+        }
     }
     if (mono_prop != props.end()) {
         auto val = garglk::downcase(trim(mono_prop->second));
         monospace = parse_bool(val) || val == "monospace";
+    }
+    if (family_id.has_value()) {
+        if (target != nullptr) {
+            target->family_id = *family_id;
+        } else {
+            attr.family_id = *family_id;
+        }
     }
     if (monospace.has_value()) {
         if (target != nullptr) {
@@ -790,4 +865,13 @@ void glk_css_inline_clear(char *prop, glui32 proplen)
 
     win->css_inline.erase(property);
     gli_css_refresh_window_attr(win);
+}
+
+const CssFontFamily *gli_css_get_family(std::uint16_t id)
+{
+    if (id >= gli_css_families.size()) {
+        return nullptr;
+    }
+
+    return &gli_css_families[id];
 }
