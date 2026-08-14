@@ -171,6 +171,17 @@ static winid_t gsc_main_window = NULL,
    costing the player any text; see SCR_TAG_BGCOLOUR. */
 static int gsc_main_window_empty = TRUE;
 
+/* Nonzero when the Glk library offers CSS Basic (gestalt_CSSBasic). */
+static int gsc_css_basic = 0;
+
+#ifdef GLK_MODULE_CSS_BASIC
+static void gsc_css_inline_set_s (const char *prop, const char *val);
+static void gsc_css_inline_clear_char_props (void);
+static void gsc_css_hint_s (glui32 wintype, glui32 styl, glui32 par_or_span,
+                            const char *prop, const char *val);
+static void gsc_css_color_hex (glui32 rgb, char *buf, size_t buflen);
+#endif
+
 /*
  * Transcript stream and input log.  These are NULL if there is no current
  * collection of these strings.
@@ -223,8 +234,7 @@ static glui32 gsc_colour_background = 0x000000,
 
 /* Whether the game's own palette is in force ("glk colour", set by
    gsc_set_colour far below).  It lives up here because the status line, drawn
-   earlier in the file, picks its style by it; where the Glk library has no
-   zcolors extension the command is not offered and this stays FALSE. */
+   earlier in the file, picks its style by it. */
 static int gsc_colour_enabled = FALSE;
 /* Whether colour mode should be on before the game prints a word: the "-c"
    command line switch, sparing the player a "glk colour on" at every launch, or
@@ -328,6 +338,19 @@ gsc_colour_visible (void)
     return TRUE;
   return fg == gsc_colour_output && bg == gsc_colour_background;
 }
+
+/* How Adrift colours are painted while "glk colour" is on, in preference
+   order: CSS Basic, then garglk zcolors.  Without either, colour is unavailable. */
+typedef enum {
+  GSC_COLOUR_VIA_NONE = 0,
+  GSC_COLOUR_VIA_CSS,
+  GSC_COLOUR_VIA_ZCOLORS
+} gsc_colour_via_t;
+
+static gsc_colour_via_t gsc_colour_via (void);
+static int gsc_colour_available (void);
+static void gsc_colour_apply_pair (winid_t win, glui32 fg, glui32 bg);
+static void gsc_colour_apply (winid_t win, glui32 fg);
 
 /* Adrift game to interpret. */
 static scr_game gsc_game = NULL;
@@ -610,6 +633,24 @@ gsc_hint_window_styles (void)
                      stylehint_Justification, stylehint_just_LeftFlush);
 
   glk_stylehint_set (wintype_TextGrid, style_User1, stylehint_ReverseColor, 1);
+
+#ifdef GLK_MODULE_CSS_BASIC
+  if (gsc_css_basic)
+    {
+      gsc_css_hint_s (wintype_TextBuffer, style_User1, CSS_Paragraph,
+                      "text-align", "center");
+      gsc_css_hint_s (wintype_TextBuffer, style_User2, CSS_Paragraph,
+                      "text-align", "center");
+      gsc_css_hint_s (wintype_TextBuffer, style_User2, CSS_Span,
+                      "font-weight", "bold");
+      gsc_css_hint_s (wintype_TextBuffer, style_Note, CSS_Paragraph,
+                      "text-align", "right");
+      gsc_css_hint_s (wintype_TextBuffer, style_Header, CSS_Paragraph,
+                      "text-align", "left");
+      gsc_css_hint_s (wintype_TextBuffer, style_Subheader, CSS_Paragraph,
+                      "text-align", "left");
+    }
+#endif
 }
 
 static void
@@ -1434,15 +1475,13 @@ gsc_status_begin (glui32 *width)
   glk_window_move_cursor (gsc_status_window, 0, 0);
   glk_set_window (gsc_status_window);
 
-#ifdef GSC_HAVE_ZCOLORS
   /* The colours have to be named again after every clear, not once when colour
      mode is turned on: in Gargoyle a grid clear re-seeds the window's
      attributes from the library's global override colours, which would wipe a
      colour set earlier on this stream. */
   if (gsc_colour_enabled)
-    garglk_set_zcolors_stream (glk_window_get_stream (gsc_status_window),
-                               gsc_colour_background, gsc_colour_output);
-#endif
+    gsc_colour_apply_pair (gsc_status_window,
+                           gsc_colour_background, gsc_colour_output);
 
   /* Out of colour mode the bar is a reverse-video User1 one, the way every
      other Glk port draws a status line.  In colour mode the bar is still
@@ -1467,7 +1506,6 @@ gsc_status_begin (glui32 *width)
 static void
 gsc_status_end (void)
 {
-#ifdef GSC_HAVE_ZCOLORS
   /* Name the story window's own colours again.  A library whose zcolors are
      global as well as per-stream (Gargoyle) paints window backgrounds from the
      last colours it was told about, so leaving the bar's inverted pair in force
@@ -1475,9 +1513,8 @@ gsc_status_end (void)
      gsc_colour_echo() runs from gsc_read_line_locale(), after the status
      redraw, so it always has the last word on the prompt's colour. */
   if (gsc_colour_enabled && gsc_main_window)
-    garglk_set_zcolors_stream (glk_window_get_stream (gsc_main_window),
-                               gsc_colour_main_fg, gsc_colour_background);
-#endif
+    gsc_colour_apply_pair (gsc_main_window,
+                           gsc_colour_main_fg, gsc_colour_background);
 
   glk_set_window (gsc_main_window);
 }
@@ -1893,10 +1930,10 @@ typedef enum {
  * has no colour of its own, so by default this port drops all of that and
  * shows the story in the interpreter's styles, as SCARE always has.
  *
- * "glk colour on" turns the palette back on, through the Gargoyle/Spatterlight
- * garglk_set_zcolors extension.  Where that extension is missing (cheapglk,
- * glkterm) the mode cannot be offered at all, so everything below compiles out
- * and the command says so.
+ * "glk colour on" turns the palette back on.  Preference while the mode is on
+ * (see gsc_colour_via): CSS Basic, else garglk zcolors.  Without either
+ * extension the mode is not offered.  Toggling tears the window tree down and
+ * recreates it so the background repaints from the top.
  *
  * A game that cannot be read without the palette -- an ADRIFT 5 adventure that
  * set colours of its own, or text that paints a background or names a colour
@@ -1929,6 +1966,7 @@ typedef struct {
   scr_int size;
   gsc_symbol_font_t symbol_font;
   glui32 colour;
+  char face_name[64];
 } gsc_font_size_t;
 
 /* Font stack and attributes for nesting tags. */
@@ -2323,29 +2361,111 @@ gsc_colour_detect (winid_t window)
 
 
 /*
+ * gsc_colour_via()
+ * gsc_colour_available()
+ *
+ * How Adrift colours are painted while "glk colour" is on:
+ *   1. off     -- mode disabled, paint nothing
+ *   2. CSS     -- CSS Basic inline color (window bg via zcolors when present)
+ *   3. zcolors -- garglk_set_zcolors
+ *
+ * Colour needs CSS Basic or zcolors; stylehints cannot do per-span colours
+ * and are not attempted.
+ */
+static gsc_colour_via_t
+gsc_colour_via (void)
+{
+  if (!gsc_colour_enabled)
+    return GSC_COLOUR_VIA_NONE;
+#ifdef GLK_MODULE_CSS_BASIC
+  if (gsc_css_basic)
+    return GSC_COLOUR_VIA_CSS;
+#endif
+#ifdef GSC_HAVE_ZCOLORS
+  return GSC_COLOUR_VIA_ZCOLORS;
+#else
+  return GSC_COLOUR_VIA_NONE;
+#endif
+}
+
+static int
+gsc_colour_available (void)
+{
+  /* Colour mode needs zcolors for window background clears and the rebuild
+     path; CSS Basic, when present, is preferred for per-span ink. */
+#ifdef GSC_HAVE_ZCOLORS
+  return TRUE;
+#else
+  return FALSE;
+#endif
+}
+
+
+/*
+ * gsc_colour_apply_pair()
  * gsc_colour_apply()
  *
- * Set the colours later text written to `win` comes out in: `fg` if it names
- * one, otherwise the game's normal output colour, always over the game's
- * background.  Does nothing at all unless the colour mode is on, so every
- * caller can call it unconditionally.
+ * Set the colours later text written to `win` comes out in.  Does nothing at
+ * all unless the colour mode is on, so every caller can call unconditionally.
+ * gsc_colour_apply uses the game background; apply_pair names both ends (the
+ * status bar is the story pair inverted).
+ *
+ * CSS Basic paints foreground via inline `color`.  Inline `background-color`
+ * only colours the glyph runs (a black slab on a white window), so the window
+ * background still goes through zcolors when that extension is present -- a
+ * clear then paints the pane in the game's black, the way the zcolors path
+ * always has.  Without zcolors, CSS changes the ink alone.
  */
+static void
+gsc_colour_apply_pair (winid_t win, glui32 fg, glui32 bg)
+{
+  if (!gsc_colour_enabled || win == NULL)
+    return;
+  if (win == gsc_main_window)
+    gsc_colour_main_fg = fg;
+
+  switch (gsc_colour_via ())
+    {
+#ifdef GLK_MODULE_CSS_BASIC
+    case GSC_COLOUR_VIA_CSS:
+      {
+        char hex[16];
+        strid_t old = glk_stream_get_current ();
+        strid_t stream = glk_window_get_stream (win);
+
+        glk_stream_set_current (stream);
+        gsc_css_color_hex (fg, hex, sizeof hex);
+        gsc_css_inline_set_s ("color", hex);
+        /* Never set inline background-color for the Adrift palette: Spatterlight
+           maps it to NSBackgroundColorAttributeName (per-run), not the text
+           view's background. */
+        gsc_css_inline_set_s ("background-color", NULL);
+        if (old != NULL)
+          glk_stream_set_current (old);
+#ifdef GSC_HAVE_ZCOLORS
+        /* Window background (and clear) via zcolors; leave fg to CSS. */
+        garglk_set_zcolors_stream (stream, zcolor_Current, bg);
+#endif
+        return;
+      }
+#endif
+#ifdef GSC_HAVE_ZCOLORS
+    case GSC_COLOUR_VIA_ZCOLORS:
+      garglk_set_zcolors_stream (glk_window_get_stream (win), fg, bg);
+      return;
+#endif
+    case GSC_COLOUR_VIA_NONE:
+    default:
+      return;
+    }
+}
+
 static void
 gsc_colour_apply (winid_t win, glui32 fg)
 {
-#ifdef GSC_HAVE_ZCOLORS
-  if (!gsc_colour_enabled || win == NULL)
-    return;
   if (fg == GSC_COLOUR_NONE)
     fg = gsc_colour_output;
-  if (win == gsc_main_window)
-    gsc_colour_main_fg = fg;
-  garglk_set_zcolors_stream (glk_window_get_stream (win),
-                             fg, gsc_colour_background);
-#else
-  (void) win;
-  (void) fg;
-#endif
+  gsc_colour_apply_pair (win, fg, gsc_colour_background);
 }
 
 
@@ -2404,10 +2524,63 @@ gsc_font_top (void)
       font.size = GSC_DEFAULT_FONT_SIZE;
       font.symbol_font = GSC_SYMBOL_NONE;
       font.colour = GSC_COLOUR_NONE;
+      font.face_name[0] = '\0';
     }
   return font;
 }
 
+
+
+/*
+ * gsc_css_* helpers -- thin wrappers around CSS Basic when gestalt_CSSBasic
+ * is available.  Property names are ASCII so proplen is strlen.
+ */
+#ifdef GLK_MODULE_CSS_BASIC
+static void
+gsc_css_inline_set_s (const char *prop, const char *val)
+{
+  if (!gsc_css_basic || !prop)
+    return;
+  if (val)
+    glk_css_inline_set ((char *) prop, (glui32) strlen (prop),
+                        (char *) val, (glui32) strlen (val));
+  else
+    glk_css_inline_clear ((char *) prop, (glui32) strlen (prop));
+}
+
+static void
+gsc_css_inline_clear_char_props (void)
+{
+  static const char *props[] = {
+    "font-weight", "font-style", "text-decoration",
+    "font-size", "font-family", "color", "background-color",
+    "text-align", NULL
+  };
+  int i;
+
+  if (!gsc_css_basic)
+    return;
+  for (i = 0; props[i] != NULL; i++)
+    glk_css_inline_clear ((char *) props[i], (glui32) strlen (props[i]));
+}
+
+static void
+gsc_css_hint_s (glui32 wintype, glui32 styl, glui32 par_or_span,
+                const char *prop, const char *val)
+{
+  if (!gsc_css_basic || !prop || !val)
+    return;
+  glk_css_hint_set (wintype, styl, par_or_span,
+                    (char *) prop, (glui32) strlen (prop),
+                    (char *) val, (glui32) strlen (val));
+}
+
+static void
+gsc_css_color_hex (glui32 rgb, char *buf, size_t buflen)
+{
+  snprintf (buf, buflen, "#%06lx", (unsigned long) (rgb & 0x00FFFFFFul));
+}
+#endif /* GLK_MODULE_CSS_BASIC */
 
 /*
  * gsc_set_glk_style()
@@ -2420,6 +2593,69 @@ gsc_set_glk_style (void)
   const gsc_font_size_t font = gsc_font_top ();
   const scr_bool is_monospaced = font.is_monospaced;
   const scr_int font_size = font.size;
+  const glui32 fg_wanted
+    = font.colour != GSC_COLOUR_NONE ? font.colour
+      : gsc_attribute_secondary_colour > 0 ? gsc_colour_input
+      : GSC_COLOUR_NONE;
+
+#ifdef GLK_MODULE_CSS_BASIC
+  if (gsc_css_basic)
+    {
+      char sizebuf[32];
+
+      /* Alignment still needs Glk styles (paragraph CSS is hinted on them).
+         Also set text-align inline: Spatterlight applies inline CSS onto the
+         run's paragraph style.  With "glk colour" off, <c> keeps the
+         Emphasized stand-in used by the non-CSS path. */
+      if (gsc_attribute_right > 0)
+        glk_set_style (style_Note);
+      else if (gsc_attribute_center > 0)
+        glk_set_style (gsc_attribute_bold > 0 ? style_User2 : style_User1);
+      else if (is_monospaced)
+        glk_set_style (style_Preformatted);
+      else if (gsc_attribute_secondary_colour > 0 && !gsc_colour_enabled)
+        glk_set_style (style_Emphasized);
+      else
+        glk_set_style (style_Normal);
+
+      gsc_css_inline_clear_char_props ();
+
+      if (gsc_attribute_right > 0)
+        gsc_css_inline_set_s ("text-align", "right");
+      else if (gsc_attribute_center > 0)
+        gsc_css_inline_set_s ("text-align", "center");
+      else
+        gsc_css_inline_set_s ("text-align", "left");
+
+      if (gsc_attribute_bold > 0)
+        gsc_css_inline_set_s ("font-weight", "bold");
+      if (gsc_attribute_italic > 0)
+        gsc_css_inline_set_s ("font-style", "italic");
+      if (gsc_attribute_underline > 0)
+        gsc_css_inline_set_s ("text-decoration", "underline");
+
+      if (font_size > 0 && font_size != GSC_DEFAULT_FONT_SIZE)
+        {
+          snprintf (sizebuf, sizeof sizebuf, "%dpt", (int) font_size);
+          gsc_css_inline_set_s ("font-size", sizebuf);
+        }
+
+      if (font.face_name[0] != '\0')
+        gsc_css_inline_set_s ("font-family", font.face_name);
+      else if (is_monospaced)
+        gsc_css_inline_set_s ("font-family", "monospace");
+
+      /* Colour follows the CSS / zcolors priority in gsc_colour_apply;
+         clear inline CSS when the mode is off. */
+      if (!gsc_colour_enabled)
+        {
+          gsc_css_inline_set_s ("color", NULL);
+          gsc_css_inline_set_s ("background-color", NULL);
+        }
+      gsc_colour_apply (gsc_main_window, fg_wanted);
+      return;
+    }
+#endif /* GLK_MODULE_CSS_BASIC */
 
   /*
    * In colour mode the Adrift colours ride alongside the Glk style: an
@@ -2428,10 +2664,7 @@ gsc_set_glk_style (void)
    * Glk style is still set below, so bold and centering keep working; only
    * the ink changes.
    */
-  gsc_colour_apply (gsc_main_window,
-                    font.colour != GSC_COLOUR_NONE ? font.colour
-                    : gsc_attribute_secondary_colour > 0 ? gsc_colour_input
-                    : GSC_COLOUR_NONE);
+  gsc_colour_apply (gsc_main_window, fg_wanted);
 
   /*
    * Map the font and current attributes into a Glk style.  Because Glk styles
@@ -2657,9 +2890,15 @@ gsc_handle_font_tag (const scr_char *argument)
       face = strstr (lower, "face=");
       if (face)
         {
+          const char *q;
+          size_t n = 0;
+          /* Offset into the original argument so the face name keeps its
+             authored capitalisation (NSFont is case-sensitive). */
+          const char *orig_face = argument + (face - lower);
+
           /*
            * There may be plenty of monospaced fonts, but we do only courier
-           * and terminal.
+           * and terminal for the classic (non-CSS) path.
            */
           font.is_monospaced = strncmp (face, "face=\"courier\"", 14) == 0
                                || strncmp (face, "face=\"terminal\"", 15) == 0;
@@ -2670,6 +2909,20 @@ gsc_handle_font_tag (const scr_char *argument)
            */
           font.symbol_font = strncmp (face, "face=\"webdings\"", 15) == 0
                              ? GSC_SYMBOL_WEBDINGS : GSC_SYMBOL_NONE;
+
+          font.face_name[0] = '\0';
+          q = strchr (orig_face, '"');
+          if (q != NULL)
+            {
+              q++;
+              while (q[n] != '\0' && q[n] != '"' && n + 1 < sizeof font.face_name)
+                n++;
+              if (n > 0)
+                {
+                  memcpy (font.face_name, q, n);
+                  font.face_name[n] = '\0';
+                }
+            }
         }
 
       /*
@@ -4063,11 +4316,12 @@ gsc_command_verbose (const char *argument)
  * "-c" (gsc_colour_startup_apply).
  *
  * Colour mode publishes the game palette as Normal TextColor/BackColor
- * stylehints so glk_style_measure (and libraries that honour hints) see it,
- * and uses zcolors for per-span output/input colours.  Mid-session toggles
- * rebuild the Glk window tree so open windows pick up the new hints
- * (libraries snapshot stylehints at window open).  Both directions wipe the
- * transcript: Glk gives no other way to repaint a window's background.
+ * stylehints so glk_style_measure (and libraries that honour hints) see it.
+ * Per-span painting prefers CSS Basic when available, else garglk zcolors
+ * (see gsc_colour_via).  Mid-session toggles rebuild the Glk window tree so
+ * open windows pick up the new hints (libraries snapshot stylehints at window
+ * open).  Both directions wipe the transcript: Glk gives no other way to
+ * repaint a window's background.
  */
 #ifdef GSC_HAVE_ZCOLORS
 /*
@@ -4143,6 +4397,9 @@ gsc_colour_rebuild_windows (void)
   gsc_open_main_window ();
   gsc_open_status_window ();
 
+  if (gsc_transcript_stream)
+    glk_window_set_echo_stream (gsc_main_window, gsc_transcript_stream);
+
 #ifdef GSC_HAVE_TITLE_WINDOW
   if (was_title && gsc_title_image != 0)
     gsc_show_title_graphic (gsc_title_image);
@@ -4179,6 +4436,18 @@ gsc_colour_repaint (winid_t win, scr_bool state)
     }
   else
     {
+#ifdef GLK_MODULE_CSS_BASIC
+      if (gsc_css_basic)
+        {
+          strid_t old = glk_stream_get_current ();
+
+          glk_stream_set_current (stream);
+          gsc_css_inline_set_s ("color", NULL);
+          gsc_css_inline_set_s ("background-color", NULL);
+          if (old != NULL)
+            glk_stream_set_current (old);
+        }
+#endif
       /* Handing a window back is fiddlier than taking it, because a window
          keeps the background a clear gave it: dropping the zcolors to Default
          stops later text being coloured, but leaves the window itself black.
@@ -4202,6 +4471,9 @@ static void
 gsc_set_colour (scr_bool state)
 {
   scr_bool rebuild;
+
+  if (state && !gsc_colour_available ())
+    return;
 
   gsc_colour_enabled = state;
   gsc_colour_set_normal_hints (state);
@@ -4240,8 +4512,21 @@ gsc_set_colour (scr_bool state)
   if (gsc_status_window)
     {
       if (!state)
-        garglk_set_zcolors_stream (glk_window_get_stream (gsc_status_window),
-                                   zcolor_Default, zcolor_Default);
+        {
+#ifdef GLK_MODULE_CSS_BASIC
+          if (gsc_css_basic)
+            {
+              strid_t old = glk_stream_get_current ();
+              glk_stream_set_current (glk_window_get_stream (gsc_status_window));
+              gsc_css_inline_set_s ("color", NULL);
+              gsc_css_inline_set_s ("background-color", NULL);
+              if (old != NULL)
+                glk_stream_set_current (old);
+            }
+#endif
+          garglk_set_zcolors_stream (glk_window_get_stream (gsc_status_window),
+                                     zcolor_Default, zcolor_Default);
+        }
       gsc_status_notify ();
     }
 
@@ -4266,7 +4551,8 @@ gsc_set_colour (scr_bool state)
  * -- both true by the time either main() calls this.  Not called on an
  * autorestore: a restored session brings its own colour state back with it, and
  * neither a switch on the command line nor a guess about the game has any
- * business overriding what the player left the game in.
+ * business overriding what the player left the game in.  A no-op when the
+ * library cannot paint colours (neither CSS Basic nor zcolors).
  */
 static void
 gsc_colour_startup_apply (void)
@@ -4284,14 +4570,16 @@ gsc_command_colour (const char *argument)
   /* A bare "glk colour" turns colours on rather than asking after them, so
      it is no use as a poll; "status" reports without acting, as it does for the
      logging commands, and is what the summary asks with. */
-  const scr_bool poll = scr_strcasecmp (argument, "status") == 0;
+  {
+    const scr_bool poll = scr_strcasecmp (argument, "status") == 0;
 
-  gsc_command_toggle (poll ? "" : argument, "colour",
-                      "Glk Adrift colours are",
-                      gsc_colour_enabled, gsc_set_colour,
-                      "; text is drawn in the game's own colours, on the"
-                      " black background it was written for.\n",
-                      "; text follows the interpreter's own theme.\n", !poll);
+    gsc_command_toggle (poll ? "" : argument, "colour",
+                        "Glk Adrift colours are",
+                        gsc_colour_enabled, gsc_set_colour,
+                        "; text is drawn in the game's own colours, on the"
+                        " black background it was written for.\n",
+                        "; text follows the interpreter's own theme.\n", !poll);
+  }
 #else
   assert (argument);
   gsc_normal_string ("Glk Adrift colours are not available with this"
@@ -6519,6 +6807,13 @@ gsc_main (void)
       glk_exit ();
     }
 
+  gsc_css_basic =
+#ifdef GLK_MODULE_CSS_BASIC
+    (int) glk_gestalt (gestalt_CSSBasic, 0);
+#else
+    0;
+#endif
+
   gsc_hint_window_styles ();
 
   /* Create the Glk window, and set its stream as the current one.  An
@@ -8088,8 +8383,8 @@ gsc_a5_draw_image (winid_t win, glui32 number)
  * styles: centered+bold keeps User2 (weight-hinted); right uses Note with no
  * bold/italic combo.  Unaligned bold+italic (or bold+underline) maps to Alert;
  * italic or underline alone to Emphasized; bold alone to Subheader (as the
- * ADRIFT 4 path does in gsc_set_glk_style).  Underline marks are distinct for
- * a future CSS path; for now they share italic's Glk styles.
+ * ADRIFT 4 path does in gsc_set_glk_style).  Without CSS Basic, underline
+ * marks share italic's Glk styles; with CSS they get real text-decoration.
  *
  * `input_colour` says the span's ink is the input colour (a <c> span, or the
  * game title, which the Runner Displays as one).  That ink only exists in
@@ -8140,7 +8435,6 @@ gsc_a5_open_side_window (void)
                                             winmethod_Right
                                               | winmethod_Proportional,
                                             40, wintype_TextBuffer, 0);
-#ifdef GSC_HAVE_ZCOLORS
       /* A window opened in colour mode starts in the theme's background: it
          takes the game's only from a clear made with the colours in force,
          and there is nothing in it yet to lose to one. */
@@ -8149,7 +8443,6 @@ gsc_a5_open_side_window (void)
           gsc_colour_apply (gsc_a5_side_window, GSC_COLOUR_NONE);
           glk_window_clear (gsc_a5_side_window);
         }
-#endif
     }
   return gsc_a5_side_window;
 }
@@ -8197,6 +8490,153 @@ gsc_a5_colour_top_is_input (const glui32 *stack, const int *is_input,
 
 
 /*
+ * gsc_a5_apply_colour()
+ *
+ * Apply a colour span for A5 display through gsc_colour_apply (CSS or zcolors
+ * per gsc_colour_via).  When colour mode is off, clear any CSS inline color so
+ * the Emphasized <c> stand-in stays the only distinction.
+ */
+static void
+gsc_a5_apply_colour (winid_t win, glui32 fg)
+{
+#ifdef GLK_MODULE_CSS_BASIC
+  if (gsc_css_basic && !gsc_colour_enabled)
+    {
+      strid_t old = glk_stream_get_current ();
+      strid_t stream = win != NULL ? glk_window_get_stream (win) : NULL;
+
+      if (stream != NULL)
+        {
+          glk_stream_set_current (stream);
+          gsc_css_inline_set_s ("color", NULL);
+          if (old != NULL)
+            glk_stream_set_current (old);
+        }
+    }
+#endif
+  gsc_colour_apply (win, fg);
+}
+
+/*
+ * gsc_a5_apply_char_css()
+ *
+ * Drive bold/italic/underline/align via inline CSS while alignment styles
+ * also stay on Glk styles.  Independent of "glk colour".
+ */
+static void
+gsc_a5_apply_char_css (int center_depth, int right_depth,
+                       int bold_depth, int italic_depth, int underline_depth)
+{
+#ifdef GLK_MODULE_CSS_BASIC
+  if (!gsc_css_basic)
+    return;
+  if (right_depth > 0)
+    gsc_css_inline_set_s ("text-align", "right");
+  else if (center_depth > 0)
+    gsc_css_inline_set_s ("text-align", "center");
+  else
+    gsc_css_inline_set_s ("text-align", "left");
+  if (bold_depth > 0)
+    gsc_css_inline_set_s ("font-weight", "bold");
+  else
+    gsc_css_inline_set_s ("font-weight", NULL);
+  if (italic_depth > 0)
+    gsc_css_inline_set_s ("font-style", "italic");
+  else
+    gsc_css_inline_set_s ("font-style", NULL);
+  if (underline_depth > 0)
+    gsc_css_inline_set_s ("text-decoration", "underline");
+  else
+    gsc_css_inline_set_s ("text-decoration", NULL);
+#else
+  (void) center_depth;
+  (void) right_depth;
+  (void) bold_depth;
+  (void) italic_depth;
+  (void) underline_depth;
+#endif
+}
+
+typedef struct {
+  char face[64];
+  char size[16];
+} gsc_a5_font_entry_t;
+
+static void
+gsc_a5_apply_font_css (const gsc_a5_font_entry_t *stack, int depth)
+{
+#ifdef GLK_MODULE_CSS_BASIC
+  const char *face = NULL;
+  int i;
+  int size_pt = 12;
+  int have_size = 0;
+  char sizebuf[32];
+
+  if (!gsc_css_basic)
+    return;
+
+  for (i = 0; i < depth; i++)
+    {
+      if (stack[i].face[0] != '\0')
+        face = stack[i].face;
+      if (stack[i].size[0] != '\0')
+        {
+          const char *s = stack[i].size;
+          if (s[0] == '+' || s[0] == '-')
+            size_pt += atoi (s);
+          else
+            size_pt = atoi (s);
+          if (size_pt < 1)
+            size_pt = 1;
+          have_size = 1;
+        }
+    }
+
+  if (face != NULL)
+    gsc_css_inline_set_s ("font-family", face);
+  else
+    gsc_css_inline_set_s ("font-family", NULL);
+
+  if (have_size)
+    {
+      snprintf (sizebuf, sizeof sizebuf, "%dpt", size_pt);
+      gsc_css_inline_set_s ("font-size", sizebuf);
+    }
+  else
+    gsc_css_inline_set_s ("font-size", NULL);
+#else
+  (void) stack;
+  (void) depth;
+#endif
+}
+
+/*
+ * When CSS Basic is available, character weight/oblique ride on inline CSS, so
+ * Glk styles are mostly alignment.  With "glk colour" off, an input-colour
+ * span still takes Emphasized -- the same stand-in as without CSS.
+ */
+static glui32
+gsc_a5_span_style_for_display (int center_depth, int right_depth,
+                               int bold_depth, int italic_depth,
+                               int underline_depth, int input_colour)
+{
+#ifdef GLK_MODULE_CSS_BASIC
+  if (gsc_css_basic)
+    {
+      if (right_depth > 0)
+        return style_Note;
+      if (center_depth > 0)
+        return bold_depth > 0 ? style_User2 : style_User1;
+      if (input_colour && !gsc_colour_enabled)
+        return style_Emphasized;
+      return style_Normal;
+    }
+#endif
+  return gsc_a5_span_style (center_depth, right_depth, bold_depth,
+                            italic_depth, underline_depth, input_colour);
+}
+
+/*
  * gsc_a5_display()
  *
  * Present one turn's text.  The engine runs in interactive mode (see
@@ -8221,6 +8661,8 @@ gsc_a5_display (const char *text)
   glui32 colour_stack[GSC_MAX_STYLE_NESTING];
   int colour_is_input[GSC_MAX_STYLE_NESTING];
   int colour_depth = 0;
+  gsc_a5_font_entry_t font_stack[GSC_MAX_STYLE_NESTING];
+  int font_depth = 0;
 
   /* The window a run of text is currently going to: the main story window, or
      an author-defined side window between an A5_WINDOW_MARK span and its
@@ -8231,7 +8673,7 @@ gsc_a5_display (const char *text)
     return;
 
   glk_set_window (gsc_main_window);
-  gsc_colour_apply (gsc_main_window, GSC_COLOUR_NONE);
+  gsc_a5_apply_colour (gsc_main_window, GSC_COLOUR_NONE);
 
   while (TRUE)
     {
@@ -8244,7 +8686,8 @@ gsc_a5_display (const char *text)
           && *p != A5_ENDRIGHT_MARK && *p != A5_WINDOW_MARK
           && *p != A5_ENDWINDOW_MARK && *p != A5_SOUND_MARK
           && *p != A5_COMMIT_MARK && *p != A5_WAIT_MARK
-          && *p != A5_COLOUR_MARK && *p != A5_ENDCOLOUR_MARK)
+          && *p != A5_COLOUR_MARK && *p != A5_ENDCOLOUR_MARK
+          && *p != A5_FONT_MARK && *p != A5_ENDFONT_MARK)
         {
           p++;
           continue;
@@ -8280,7 +8723,7 @@ gsc_a5_display (const char *text)
 
           cur_window = w != NULL ? w : gsc_main_window;
           glk_set_window (cur_window);
-          gsc_colour_apply (cur_window,
+          gsc_a5_apply_colour (cur_window,
                             gsc_a5_colour_top (colour_stack, colour_depth));
           if (e != NULL)
             p = e;
@@ -8290,7 +8733,7 @@ gsc_a5_display (const char *text)
           /* Side-window span closes: text returns to the main story window. */
           cur_window = gsc_main_window;
           glk_set_window (cur_window);
-          gsc_colour_apply (cur_window,
+          gsc_a5_apply_colour (cur_window,
                             gsc_a5_colour_top (colour_stack, colour_depth));
         }
       else if (*p == A5_WAITKEY_MARK)
@@ -8317,8 +8760,11 @@ gsc_a5_display (const char *text)
           center_depth = right_depth = bold_depth = italic_depth
             = underline_depth = 0;
           colour_depth = 0;
-          glk_set_style (gsc_a5_span_style (0, 0, 0, 0, 0, FALSE));
-          gsc_colour_apply (cur_window, GSC_COLOUR_NONE);
+          font_depth = 0;
+          glk_set_style (gsc_a5_span_style_for_display (0, 0, 0, 0, 0, FALSE));
+          gsc_a5_apply_char_css (0, 0, 0, 0, 0);
+          gsc_a5_apply_font_css (font_stack, 0);
+          gsc_a5_apply_colour (cur_window, GSC_COLOUR_NONE);
         }
       else if (*p == A5_COLOUR_MARK)
         {
@@ -8346,19 +8792,20 @@ gsc_a5_display (const char *text)
                   colour_stack[colour_depth++]
                     = is_input ? gsc_colour_input
                                : gsc_colour_lookup (token);
-                  gsc_colour_apply (cur_window,
+                  gsc_a5_apply_colour (cur_window,
                                     gsc_a5_colour_top (colour_stack,
                                                        colour_depth));
                   /* Colour spans carry a style too, for the colourless case
                      (see gsc_a5_span_style); with colours on this re-asserts
                      the style already in force. */
-                  glk_set_style (gsc_a5_span_style (center_depth, right_depth,
-                                                    bold_depth, italic_depth,
-                                                    underline_depth,
-                                                    gsc_a5_colour_top_is_input
-                                                      (colour_stack,
-                                                       colour_is_input,
-                                                       colour_depth)));
+                  glk_set_style (gsc_a5_span_style_for_display
+                                  (center_depth, right_depth,
+                                   bold_depth, italic_depth,
+                                   underline_depth,
+                                   gsc_a5_colour_top_is_input
+                                     (colour_stack,
+                                      colour_is_input,
+                                      colour_depth)));
                 }
               p = e;
             }
@@ -8367,14 +8814,58 @@ gsc_a5_display (const char *text)
         {
           if (colour_depth > 0)
             colour_depth--;
-          gsc_colour_apply (cur_window,
-                            gsc_a5_colour_top (colour_stack, colour_depth));
-          glk_set_style (gsc_a5_span_style (center_depth, right_depth,
-                                            bold_depth, italic_depth,
-                                            underline_depth,
-                                            gsc_a5_colour_top_is_input
-                                              (colour_stack, colour_is_input,
-                                               colour_depth)));
+          gsc_a5_apply_colour (cur_window,
+                               gsc_a5_colour_top (colour_stack, colour_depth));
+          glk_set_style (gsc_a5_span_style_for_display
+                           (center_depth, right_depth,
+                            bold_depth, italic_depth,
+                            underline_depth,
+                            gsc_a5_colour_top_is_input
+                              (colour_stack, colour_is_input,
+                               colour_depth)));
+        }
+      else if (*p == A5_FONT_MARK)
+        {
+          /* Font face/size open: \010face\177size\010. */
+          const char *e = strchr (p + 1, A5_FONT_MARK);
+          if (e != NULL && font_depth < GSC_MAX_STYLE_NESTING)
+            {
+              const char *sep = (const char *) memchr (p + 1, A5_FONT_SEP,
+                                                       (size_t) (e - (p + 1)));
+              gsc_a5_font_entry_t *ent = &font_stack[font_depth];
+              size_t flen, slen;
+
+              ent->face[0] = '\0';
+              ent->size[0] = '\0';
+              if (sep != NULL)
+                {
+                  flen = (size_t) (sep - (p + 1));
+                  slen = (size_t) (e - (sep + 1));
+                  if (flen >= sizeof ent->face)
+                    flen = sizeof ent->face - 1;
+                  if (slen >= sizeof ent->size)
+                    slen = sizeof ent->size - 1;
+                  if (flen > 0)
+                    {
+                      memcpy (ent->face, p + 1, flen);
+                      ent->face[flen] = '\0';
+                    }
+                  if (slen > 0)
+                    {
+                      memcpy (ent->size, sep + 1, slen);
+                      ent->size[slen] = '\0';
+                    }
+                }
+              font_depth++;
+              gsc_a5_apply_font_css (font_stack, font_depth);
+              p = e;
+            }
+        }
+      else if (*p == A5_ENDFONT_MARK)
+        {
+          if (font_depth > 0)
+            font_depth--;
+          gsc_a5_apply_font_css (font_stack, font_depth);
         }
       else if (*p == A5_CENTER_MARK || *p == A5_ENDCENTER_MARK
                || *p == A5_RIGHT_MARK || *p == A5_ENDRIGHT_MARK
@@ -8409,12 +8900,15 @@ gsc_a5_display (const char *text)
             underline_depth++;
           else if (*p == A5_ENDUNDERLINE_MARK && underline_depth > 0)
             underline_depth--;
-          glk_set_style (gsc_a5_span_style (center_depth, right_depth,
-                                            bold_depth, italic_depth,
-                                            underline_depth,
-                                            gsc_a5_colour_top_is_input
-                                              (colour_stack, colour_is_input,
-                                               colour_depth)));
+          glk_set_style (gsc_a5_span_style_for_display
+                           (center_depth, right_depth,
+                            bold_depth, italic_depth,
+                            underline_depth,
+                            gsc_a5_colour_top_is_input
+                              (colour_stack, colour_is_input,
+                               colour_depth)));
+          gsc_a5_apply_char_css (center_depth, right_depth,
+                                 bold_depth, italic_depth, underline_depth);
         }
       else if (*p == A5_WAIT_MARK)
         {
@@ -8464,11 +8958,16 @@ gsc_a5_display (const char *text)
 
   /* A dangling span must not bleed into prompts and later turns. */
   if (center_depth > 0 || right_depth > 0
-      || bold_depth > 0 || italic_depth > 0 || underline_depth > 0)
-    glk_set_style (style_Normal);
+      || bold_depth > 0 || italic_depth > 0
+      || underline_depth > 0 || font_depth > 0)
+    {
+      glk_set_style (style_Normal);
+      gsc_a5_apply_char_css (0, 0, 0, 0, 0);
+      gsc_a5_apply_font_css (font_stack, 0);
+    }
   /* Nor a dangling colour span: the prompt and the player's input follow. */
   if (colour_depth > 0)
-    gsc_colour_apply (cur_window, GSC_COLOUR_NONE);
+    gsc_a5_apply_colour (cur_window, GSC_COLOUR_NONE);
   /* Likewise a dangling <window> span: prompts and input echo belong in the
      main story window. */
   if (cur_window != gsc_main_window)
@@ -9862,6 +10361,13 @@ gsc_a5_main (void)
 
 #ifdef SPATTERLIGHT
   autorestore = gsc_autorestore_wanted ();
+#endif
+
+  gsc_css_basic =
+#ifdef GLK_MODULE_CSS_BASIC
+    (int) glk_gestalt (gestalt_CSSBasic, 0);
+#else
+    0;
 #endif
 
   gsc_hint_window_styles ();

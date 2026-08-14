@@ -69,7 +69,8 @@ a5_is_single_pres_mark (unsigned char c)
       || c == A5_ITALIC_MARK || c == A5_ENDITALIC_MARK
       || c == A5_UNDERLINE_MARK || c == A5_ENDUNDERLINE_MARK
       || c == A5_RIGHT_MARK || c == A5_ENDRIGHT_MARK
-      || c == A5_ENDCOLOUR_MARK || c == A5_ENDWINDOW_MARK
+      || c == A5_ENDCOLOUR_MARK || c == A5_ENDFONT_MARK
+      || c == A5_ENDWINDOW_MARK
       || c == A5_CLS_MARK || c == A5_PS_MARK || c == A5_COMMIT_MARK
       || c == A5_DEL_MARK;
 }
@@ -79,7 +80,7 @@ static int
 a5_is_spanning_pres_mark (unsigned char c)
 {
   return c == A5_IMG_MARK || c == A5_WINDOW_MARK || c == A5_SOUND_MARK
-      || c == A5_WAIT_MARK || c == A5_COLOUR_MARK;
+      || c == A5_WAIT_MARK || c == A5_COLOUR_MARK || c == A5_FONT_MARK;
 }
 
 size_t
@@ -183,6 +184,7 @@ sb_resolve_cls (sb_t *b, size_t floor)
   if (a5text_interactive ())
     {
       int center = 0, bold = 0, italic = 0, underline = 0, right = 0, colour = 0;
+      int font = 0;
 
       for (i = floor; i < b->len; i++)
         {
@@ -208,10 +210,20 @@ sb_resolve_cls (sb_t *b, size_t floor)
               colour++;
             }
           else if (c == A5_ENDCOLOUR_MARK) { if (colour > 0) colour--; }
+          else if (c == A5_FONT_MARK)
+            {
+              /* \010face\177size\010 -- same delimited shape as colour. */
+              size_t j = i + 1;
+              while (j < b->len && b->p[j] != A5_FONT_MARK) j++;
+              if (j >= b->len) break;
+              i = j;
+              font++;
+            }
+          else if (c == A5_ENDFONT_MARK) { if (font > 0) font--; }
 
         }
       if (center > 0 || bold > 0 || italic > 0 || underline > 0
-          || right > 0 || colour > 0)
+          || right > 0 || colour > 0 || font > 0)
 
         {
           char mark[2] = { A5_COMMIT_MARK, '\0' };
