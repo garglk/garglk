@@ -204,6 +204,11 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
             return TRUE;
 #endif
 
+#ifdef GLK_MODULE_CSS_BASIC
+        case gestalt_CSSBasic:
+            return TRUE;
+#endif
+
         default:
             return 0;
 

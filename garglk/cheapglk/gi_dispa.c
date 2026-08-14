@@ -67,6 +67,9 @@ static gidispatch_intconst_t intconstant_table[] = {
     { "gestalt_DateTime", (20) },
     { "gestalt_DrawImage", (7) },
     { "gestalt_DrawImageScale", (24) },
+#ifdef GLK_MODULE_CSS_BASIC
+    { "gestalt_CSSBasic", (0x1220) },
+#endif
 #ifdef GARGLK
     { "gestalt_GarglkText", (0x1100) },
 #endif
@@ -343,6 +346,15 @@ static gidispatch_function_t function_table[] = {
     { 0x1102, garglk_set_reversevideo, "garglk_set_reversevideo" },
     { 0x1103, garglk_set_reversevideo_stream, "garglk_set_reversevideo_stream" },
 #endif /* GLK_MODULE_GARGLKTEXT */
+#ifdef GLK_MODULE_CSS_BASIC
+    { 0x1220, glk_css_hint_set, "css_hint_set" },
+    { 0x1221, glk_css_hint_set_num, "css_hint_set_num" },
+    { 0x1222, glk_css_hint_clear, "css_hint_clear" },
+    { 0x1223, glk_css_hint_clear_all, "css_hint_clear_all" },
+    { 0x1224, glk_css_inline_set, "css_inline_set" },
+    { 0x1225, glk_css_inline_set_num, "css_inline_set_num" },
+    { 0x1226, glk_css_inline_clear, "css_inline_clear" },
+#endif /* GLK_MODULE_CSS_BASIC */
 };
 
 glui32 gidispatch_count_classes()
@@ -706,6 +718,23 @@ char *gidispatch_prototype(glui32 funcnum)
         case 0x1103: /* garglk_set_reversevideo_stream */
             return "2QbIu:";
 #endif /* GLK_MODULE_GARGLKTEXT */
+
+#ifdef GLK_MODULE_CSS_BASIC
+        case 0x1220: /* css_hint_set */
+            return "7IuIuIu>+#Cn>+#Cn:";
+        case 0x1221: /* css_hint_set_num */
+            return "6IuIuIu>+#CnIs:";
+        case 0x1222: /* css_hint_clear */
+            return "5IuIuIu>+#Cn:";
+        case 0x1223: /* css_hint_clear_all */
+            return "2IuIu:";
+        case 0x1224: /* css_inline_set */
+            return "4>+#Cn>+#Cn:";
+        case 0x1225: /* css_inline_set_num */
+            return "3>+#CnIs:";
+        case 0x1226: /* css_inline_clear */
+            return "2>+#Cn:";
+#endif /* GLK_MODULE_CSS_BASIC */
 
         default:
             return NULL;
@@ -1563,6 +1592,61 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
             garglk_set_reversevideo_stream( arglist[0].opaqueref, arglist[1].uint );
             break;
 #endif /* GLK_MODULE_GARGLKTEXT */
+
+#ifdef GLK_MODULE_CSS_BASIC
+        case 0x1220: /* css_hint_set */
+            if (arglist[3].ptrflag && arglist[6].ptrflag)
+                glk_css_hint_set(arglist[0].uint, arglist[1].uint, arglist[2].uint,
+                    arglist[4].array, arglist[5].uint,
+                    arglist[7].array, arglist[8].uint);
+            else if (arglist[3].ptrflag)
+                glk_css_hint_set(arglist[0].uint, arglist[1].uint, arglist[2].uint,
+                    arglist[4].array, arglist[5].uint, NULL, 0);
+            else
+                glk_css_hint_set(arglist[0].uint, arglist[1].uint, arglist[2].uint,
+                    NULL, 0, NULL, 0);
+            break;
+        case 0x1221: /* css_hint_set_num */
+            if (arglist[3].ptrflag)
+                glk_css_hint_set_num(arglist[0].uint, arglist[1].uint, arglist[2].uint,
+                    arglist[4].array, arglist[5].uint, arglist[6].sint);
+            else
+                glk_css_hint_set_num(arglist[0].uint, arglist[1].uint, arglist[2].uint,
+                    NULL, 0, arglist[4].sint);
+            break;
+        case 0x1222: /* css_hint_clear */
+            if (arglist[3].ptrflag)
+                glk_css_hint_clear(arglist[0].uint, arglist[1].uint, arglist[2].uint,
+                    arglist[4].array, arglist[5].uint);
+            else
+                glk_css_hint_clear(arglist[0].uint, arglist[1].uint, arglist[2].uint,
+                    NULL, 0);
+            break;
+        case 0x1223: /* css_hint_clear_all */
+            glk_css_hint_clear_all(arglist[0].uint, arglist[1].uint);
+            break;
+        case 0x1224: /* css_inline_set */
+            if (arglist[0].ptrflag && arglist[3].ptrflag)
+                glk_css_inline_set(arglist[1].array, arglist[2].uint,
+                    arglist[4].array, arglist[5].uint);
+            else if (arglist[0].ptrflag)
+                glk_css_inline_set(arglist[1].array, arglist[2].uint, NULL, 0);
+            else
+                glk_css_inline_set(NULL, 0, NULL, 0);
+            break;
+        case 0x1225: /* css_inline_set_num */
+            if (arglist[0].ptrflag)
+                glk_css_inline_set_num(arglist[1].array, arglist[2].uint, arglist[3].sint);
+            else
+                glk_css_inline_set_num(NULL, 0, arglist[1].sint);
+            break;
+        case 0x1226: /* css_inline_clear */
+            if (arglist[0].ptrflag)
+                glk_css_inline_clear(arglist[1].array, arglist[2].uint);
+            else
+                glk_css_inline_clear(NULL, 0);
+            break;
+#endif /* GLK_MODULE_CSS_BASIC */
 
         default:
             /* do nothing */

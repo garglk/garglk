@@ -91,7 +91,7 @@ typedef struct
 } scr_html_tags_t;
 
 static const scr_html_tags_t HTML_TAGS_TABLE[] = {
-  {"bgcolour", 8, SCR_TAG_BGCOLOR}, {"bgcolor", 7, SCR_TAG_BGCOLOR},
+  {"bgcolour", 8, SCR_TAG_BGCOLOUR}, {"bgcolor", 7, SCR_TAG_BGCOLOUR},
   {"waitkey", 7, SCR_TAG_WAITKEY},
   {"center", 6, SCR_TAG_CENTER}, {"/center", 7, SCR_TAG_ENDCENTER},
   {"centre", 6, SCR_TAG_CENTER}, {"/centre", 7, SCR_TAG_ENDCENTER},
@@ -101,7 +101,7 @@ static const scr_html_tags_t HTML_TAGS_TABLE[] = {
   {"i", 1, SCR_TAG_ITALICS}, {"/i", 2, SCR_TAG_ENDITALICS},
   {"b", 1, SCR_TAG_BOLD}, {"/b", 2, SCR_TAG_ENDBOLD},
   {"u", 1, SCR_TAG_UNDERLINE}, {"/u", 2, SCR_TAG_ENDUNDERLINE},
-  {"c", 1, SCR_TAG_COLOR}, {"/c", 2, SCR_TAG_ENDCOLOR},
+  {"c", 1, SCR_TAG_COLOUR}, {"/c", 2, SCR_TAG_ENDCOLOUR},
   {NULL, 0, SCR_TAG_UNKNOWN}
 };
 
@@ -509,7 +509,7 @@ pf_output_tag (const scr_char *contents)
 
           next = contents[entry->length];
           if (next == NUL || scr_isspace (next)
-              || (entry->tag == SCR_TAG_BGCOLOR && next == '='))
+              || (entry->tag == SCR_TAG_BGCOLOUR && next == '='))
             break;
         }
     }
@@ -527,7 +527,7 @@ pf_output_tag (const scr_char *contents)
    * argument (to match <font colour=...> for the client.
    */
   argument = contents;
-  argument += (entry->tag != SCR_TAG_BGCOLOR) ? entry->length : 0;
+  argument += (entry->tag != SCR_TAG_BGCOLOUR) ? entry->length : 0;
   while (scr_isspace (argument[0]))
     argument++;
   if_print_tag (entry->tag, argument);
@@ -1118,6 +1118,37 @@ pf_buffer_paragraph_line (scr_filterref_t filter, const scr_char *string)
 
 
 /*
+ * pf_buffer_join()
+ *
+ * Append a string as a continuation of the current output line, with the
+ * Adrift runner's two-space sentence separator.  The runner builds a turn's
+ * output as one paragraph joined with two spaces; our section printers
+ * instead terminate each section with a newline of their own.  To join text
+ * onto the previous section the way the runner does -- event look text runs
+ * on after the room's character lines -- remove a single terminating newline
+ * first, then separate with two spaces unless the text before it ends with
+ * an author's own break.
+ */
+void
+pf_buffer_join (scr_filterref_t filter, const scr_char *string)
+{
+  assert (pf_is_valid (filter));
+  assert (string);
+
+  if (!filter->is_muted && !filter->buffer.empty ())
+    {
+      if (filter->buffer.back () == '\n')
+        filter->buffer.pop_back ();
+
+      if (!filter->buffer.empty ()
+          && !pf_text_ends_with_break (filter->buffer.c_str ()))
+        pf_append_string (filter, "  ");
+    }
+  pf_buffer_string (filter, string);
+}
+
+
+/*
  * pf_prepend_string()
  *
  * Add a string to the front of the printfilter buffer, rather than to the
@@ -1431,7 +1462,7 @@ scr_char *
 pf_filter_input (const scr_char *string, scr_prop_setref_t bundle)
 {
   scr_vartype_t vt_key[3];
-  scr_int synonym_count;
+  scr_int synonym_count, index_;
   std::string buffer;
   scr_bool modified;
   const scr_char *current;
@@ -1457,13 +1488,38 @@ pf_filter_input (const scr_char *string, scr_prop_setref_t bundle)
   offset = strspn (current, WHITESPACE);
   while (current[offset] != NUL)
     {
-      scr_int index_, extent;
+      scr_int span;
 
-      /* Search for a synonym match at this index into the buffer. */
-      extent = 0;
+      /*
+       * Look for a synonym match at this point.  The first one to match fires;
+       * every synonym after it in the list gets a look at the text that one
+       * just wrote, but only as a whole -- a later synonym fires again only if
+       * its original is the entire replacement.  'span' is the length of that
+       * replacement region, or zero while nothing has fired yet.
+       *
+       * Both halves of that rule are needed, and each is pinned by a game:
+       *
+       *  o Lair of the Vampire maps "harris" to "steve" *and* "steve" back to
+       *    "harris", so that both spellings reach one NPC.  run400 accepts
+       *    "ask harris about key" -- the game's own walkthrough opens with it
+       *    -- so the second synonym must fire on the first one's output.
+       *    Stopping at the first match, as we used to, left a "steve" the
+       *    character has no alias for and made the cellmate unaddressable.
+       *
+       *  o Yak Shaving maps "flags", then "line", then "clothes" all onto
+       *    "clothes line".  run400 answers "x flags" with the laundry
+       *    description, so the "line" and "clothes" synonyms must *not* fire
+       *    on the words inside the "clothes line" the first one wrote --
+       *    neither is the whole of it.  Letting them would spiral: "x flags"
+       *    grows a "clothes line" per pass without bound.
+       *
+       * Both behaviours were read off the real Runner under Wine.
+       */
+      span = 0;
       for (index_ = 0; index_ < synonym_count; index_++)
         {
-          const scr_char *original;
+          const scr_char *original, *replacement;
+          scr_int extent, length;
 
           /* Retrieve the synonym original string. */
           vt_key[0].string = "Synonyms";
@@ -1473,18 +1529,12 @@ pf_filter_input (const scr_char *string, scr_prop_setref_t bundle)
 
           /* Compare the original at this point. */
           extent = pf_compare_words (current + offset, original);
-          if (extent > 0)
-            break;
-        }
+          if (extent == 0)
+            continue;
 
-      /*
-       * If a synonym found was, index_ indicates it, and extent shows how
-       * much of the buffer to replace with it.
-       */
-      if (index_ < synonym_count && extent > 0)
-        {
-          const scr_char *replacement;
-          scr_int length;
+          /* Once something has fired, only an exact re-match counts. */
+          if (span > 0 && extent != span)
+            continue;
 
           /*
            * If not yet copied, copy the input string into the buffer now and
@@ -1507,12 +1557,16 @@ pf_filter_input (const scr_char *string, scr_prop_setref_t bundle)
           /* Splice the replacement in for the matched extent. */
           buffer.replace (offset, extent, replacement, length);
           current = buffer.c_str ();
-
-          /* Adjust offset to skip over the replacement. */
-          offset += length;
+          span = length;
 
           if (pf_trace)
             scr_trace ("Printfilter: synonym \"%s\"\n", buffer.c_str ());
+        }
+
+      if (span > 0)
+        {
+          /* Adjust offset to skip over the replacement region. */
+          offset += span;
         }
       else
         {

@@ -891,6 +891,98 @@ prop_get_string (scr_prop_setref_t bundle,
 
 
 /*
+ * prop_get_global_integer()
+ * prop_get_global_boolean()
+ * prop_get_global_string()
+ *
+ * Fetch bundle["Globals"][name], the game's header properties (GameName,
+ * Perspective, MaxScore, BattleSystem, ...).  Every caller of these built the
+ * same two-element vt_key by hand; there is nothing per-call-site about it
+ * beyond the name, so it lives here next to the prop_get_* it wraps.
+ */
+scr_int
+prop_get_global_integer (scr_prop_setref_t bundle, const scr_char *name)
+{
+  scr_vartype_t vt_key[2];
+
+  vt_key[0].string = "Globals";
+  vt_key[1].string = name;
+  return prop_get_integer (bundle, "I<-ss", vt_key);
+}
+
+scr_bool
+prop_get_global_boolean (scr_prop_setref_t bundle, const scr_char *name)
+{
+  scr_vartype_t vt_key[2];
+
+  vt_key[0].string = "Globals";
+  vt_key[1].string = name;
+  return prop_get_boolean (bundle, "B<-ss", vt_key);
+}
+
+const scr_char *
+prop_get_global_string (scr_prop_setref_t bundle, const scr_char *name)
+{
+  scr_vartype_t vt_key[2];
+
+  vt_key[0].string = "Globals";
+  vt_key[1].string = name;
+  return prop_get_string (bundle, "S<-ss", vt_key);
+}
+
+
+/*
+ * prop_get_indexed_integer()
+ * prop_get_indexed_boolean()
+ * prop_get_indexed_string()
+ *
+ * Fetch bundle[class][index][name] -- one field of one member of an indexed
+ * collection, which is how nearly every game entity is read: "Objects" 42
+ * "Short", "NPCs" 3 "Name", "Tasks" 7 "Command".  `class_` is the collection
+ * name as it appears in the TAF schema (see sctafpar.cpp).
+ *
+ * Deeper keys (per-alt, per-exit, per-action rows -- the "I<-sisis" family)
+ * still build their vt_key by hand: the extra index has no single spelling
+ * worth freezing into a signature here.
+ */
+scr_int
+prop_get_indexed_integer (scr_prop_setref_t bundle, const scr_char *class_,
+                          scr_int index_, const scr_char *name)
+{
+  scr_vartype_t vt_key[3];
+
+  vt_key[0].string = class_;
+  vt_key[1].integer = index_;
+  vt_key[2].string = name;
+  return prop_get_integer (bundle, "I<-sis", vt_key);
+}
+
+scr_bool
+prop_get_indexed_boolean (scr_prop_setref_t bundle, const scr_char *class_,
+                          scr_int index_, const scr_char *name)
+{
+  scr_vartype_t vt_key[3];
+
+  vt_key[0].string = class_;
+  vt_key[1].integer = index_;
+  vt_key[2].string = name;
+  return prop_get_boolean (bundle, "B<-sis", vt_key);
+}
+
+const scr_char *
+prop_get_indexed_string (scr_prop_setref_t bundle, const scr_char *class_,
+                         scr_int index_, const scr_char *name)
+{
+  scr_vartype_t vt_key[3];
+
+  vt_key[0].string = class_;
+  vt_key[1].integer = index_;
+  vt_key[2].string = name;
+  return prop_get_string (bundle, "S<-sis", vt_key);
+}
+
+
+/*
  * prop_get_child_count()
  *
  * Convenience function to retrieve a count of child properties available
@@ -1061,6 +1153,23 @@ prop_adopt (scr_prop_setref_t bundle, void *addr)
      one bookkeeping array that grows past prop_solidify() -- see
      prop_put_string().) */
   bundle->orphans.push_back (addr);
+}
+
+
+/*
+ * prop_get_taf()
+ *
+ * The TAF the properties were parsed from.  The bundle keeps it for the life of
+ * the game (prop_destroy is what finally frees it), so a caller that wants the
+ * authored strings as they were written -- rather than as the property tree
+ * files them -- can read them back out of it.
+ */
+scr_tafref_t
+prop_get_taf (scr_prop_setref_t bundle)
+{
+  assert (prop_is_valid (bundle));
+
+  return bundle->taf;
 }
 
 

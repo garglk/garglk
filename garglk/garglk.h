@@ -93,6 +93,17 @@ struct FontFace {
     bool italic;
 };
 
+struct FontFiles {
+    struct {
+        std::optional<std::string> base;
+        std::optional<std::string> override;
+
+        const std::optional<std::string> &fontpath() const {
+            return override.has_value() ? override : base;
+        }
+    } r, b, i, z;
+};
+
 // Taken from Boost 1.81.0.
 // Copyright (c) 2019 Vinnie Falco (vinnie.falco@gmail.com).
 constexpr std::size_t hash_combine(std::size_t seed, std::size_t h) noexcept {
@@ -175,6 +186,9 @@ void show_game_info(const GameInfo &info, bool show_once);
 std::optional<GameInfo> get_game_info(std::string filename);
 std::string downcase(const std::string &string);
 bool fontreplace(const std::string &font, FontType type);
+// Resolve an installed font family to Regular/Bold/Italic/BoldItalic
+// file paths without mutating the configured mono/prop fonts.
+std::optional<FontFiles> fontlookup(const std::string &font);
 std::vector<ConfigFile> configs(const std::optional<std::string> &gamepath);
 void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, const std::function<void(const std::string &cmd, const std::string &arg, int lineno)> &callback);
 std::string user_config();
@@ -533,19 +547,37 @@ struct picture_t {
     bool scaled;
 };
 
+// A set of CSS declarations, as used by the CSS Basic extension. Keys
+// are property names, lowercased; values are the property values as
+// provided by the game, with surrounding whitespace stripped.
+using CssProps = std::map<std::string, std::string>;
+
 struct style_t {
     FontFace font;
     Color bg;
     Color fg;
     bool reverse;
     glui32 justification = stylehint_just_LeftFlush;
+    std::optional<double> size;
+    bool underline = false;
+    double margin_left = 0;
+    double margin_right = 0;
+    double text_indent = 0;
+    // CSS font-family resolved to an interned family table entry.
+    std::optional<std::uint16_t> family_id;
 
     bool operator==(const style_t &other) const {
         return font == other.font &&
                bg == other.bg &&
                fg == other.fg &&
                reverse == other.reverse &&
-               justification == other.justification;
+               justification == other.justification &&
+               size == other.size &&
+               underline == other.underline &&
+               margin_left == other.margin_left &&
+               margin_right == other.margin_right &&
+               text_indent == other.text_indent &&
+               family_id == other.family_id;
     }
 
     bool operator!=(const style_t &other) const {
@@ -646,17 +678,6 @@ extern int gli_scroll_width;
 
 extern int gli_baseline;
 extern int gli_leading;
-
-struct FontFiles {
-    struct {
-        std::optional<std::string> base;
-        std::optional<std::string> override;
-
-        const std::optional<std::string> &fontpath() const {
-            return override.has_value() ? override : base;
-        }
-    } r, b, i, z;
-};
 
 #define DEFAULT_MONO_FONT	"Gargoyle Mono"
 #define DEFAULT_PROP_FONT	"Gargoyle Serif"
@@ -807,21 +828,54 @@ struct glk_fileref_struct {
 struct attr_t {
     bool reverse = false;
     glui32 style = 0;
+    glui32 hyper = 0;
     std::optional<Color> fgcolor;
     std::optional<Color> bgcolor;
-    glui32 hyper = 0;
+
+    // CSS Basic overrides; when unset, the value comes from the style.
+    std::optional<bool> bold;
+    std::optional<bool> italic;
+    std::optional<bool> monospace;
+    std::optional<bool> underline;
+    std::optional<double> size;
+    std::optional<glui32> justification;
+    std::optional<std::uint16_t> family_id;
+    float margin_left = 0;
+    float margin_right = 0;
+    float text_indent = 0;
+
+    bool operator==(const attr_t &other) const {
+        return reverse == other.reverse &&
+               style == other.style &&
+               hyper == other.hyper &&
+               fgcolor == other.fgcolor &&
+               bgcolor == other.bgcolor &&
+               bold == other.bold &&
+               italic == other.italic &&
+               monospace == other.monospace &&
+               underline == other.underline &&
+               size == other.size &&
+               justification == other.justification &&
+               family_id == other.family_id &&
+               margin_left == other.margin_left &&
+               margin_right == other.margin_right &&
+               text_indent == other.text_indent;
+    }
 
     bool operator!=(const attr_t &other) const {
-        return reverse != other.reverse ||
-               style != other.style ||
-               fgcolor != other.fgcolor ||
-               bgcolor != other.bgcolor ||
-               hyper != other.hyper;
+        return !(*this == other);
     }
 
     void set(glui32 style_);
     void clear();
+    // Reset only the CSS Basic overrides, leaving the style, hyperlink,
+    // and zcolors alone.
+    void clear_css();
     [[nodiscard]] FontFace font(const Styles &styles) const;
+    [[nodiscard]] std::optional<std::uint16_t> family(const Styles &styles) const;
+    [[nodiscard]] double fontsize(const Styles &styles) const;
+    [[nodiscard]] glui32 just(const Styles &styles) const;
+    [[nodiscard]] bool underlined(const Styles &styles) const;
     [[nodiscard]] Color bg(const Styles &styles) const;
     [[nodiscard]] Color fg(const Styles &styles) const;
 };
@@ -872,6 +926,14 @@ struct glk_window_struct {
     attr_t attr;
     Color bgcolor = gli_window_color;
     Color fgcolor = gli_more_color;
+
+    // CSS Basic inline declarations, plus the colors most recently
+    // applied from them, so that a refresh can tell a CSS-set color
+    // apart from one set by garglk_set_zcolors().
+    CssProps css_inline;
+    std::optional<Color> css_fgcolor;
+    std::optional<Color> css_bgcolor;
+    bool css_reverse = false;
 
     gidispatch_rock_t disprock;
     window_t *next, *prev; // in the big linked list of windows
@@ -1134,8 +1196,8 @@ void gli_initialize_fonts();
 void gli_draw_pixel(int x, int y, const Color &rgb);
 void gli_draw_clear(const Color &rgb);
 void gli_draw_rect(int x, int y, int w, int h, const Color &rgb);
-int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb, const glui32 *text, int len, int spacewidth);
-int gli_string_width_uni(FontFace face, const glui32 *text, int len, int spacewidth);
+int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb, const glui32 *text, int len, int spacewidth, std::optional<double> fontsize = std::nullopt, std::optional<std::uint16_t> family_id = std::nullopt);
+int gli_string_width_uni(FontFace face, const glui32 *text, int len, int spacewidth, std::optional<double> fontsize = std::nullopt, std::optional<std::uint16_t> family_id = std::nullopt);
 void gli_draw_caret(int x, int y);
 void gli_draw_picture(const picture_t *pic, int x0, int y0, int dx0, int dy0, int dx1, int dy1);
 
@@ -1179,6 +1241,29 @@ bool win_textbuffer_draw_picture(std::shared_ptr<picture_t> pic, window_textbuff
 void win_textbuffer_flow_break(window_textbuffer_t *win);
 
 void gli_read_config(int argc, char **argv);
+
+// CSS Basic (see cssbasic.cpp)
+
+// Apply a set of CSS declarations either to a style (is_style_level) or
+// to a set of text attributes. base_size, if non-zero, is the font size
+// (in points) that relative font sizes are computed against.
+void gli_css_apply_props(attr_t &attr, style_t *style, const CssProps &props, bool is_style_level, double base_size = 0);
+// Reapply the window's CSS hints and inline declarations to its current
+// text attributes.
+void gli_css_refresh_window_attr(window_t *win);
+// Bake the CSS hints for a window type into a freshly created window's
+// copy of the style table.
+void gli_css_apply_hints_to_styles(Styles &styles, glui32 wintype);
+bool gli_css_active();
+
+// Interned CSS font-family: file paths for r/b/i/z plus whether the
+// family should use monospace metrics (aspect, dash/space rules).
+struct CssFontFamily {
+    FontFiles files;
+    bool monospace = false;
+};
+
+const CssFontFamily *gli_css_get_family(std::uint16_t id);
 
 // unicode case mapping
 

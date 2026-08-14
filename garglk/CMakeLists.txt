@@ -108,7 +108,7 @@ else()
     set(IMGLOAD imgload-system.cpp)
 endif()
 
-add_library(garglk-common OBJECT babeldata.cpp style.cpp config.cpp draw.cpp event.cpp
+add_library(garglk-common OBJECT babeldata.cpp style.cpp config.cpp cssbasic.cpp draw.cpp event.cpp
     garglk.cpp imgload.cpp ${IMGLOAD} imgscale.cpp theme.cpp winblank.cpp window.cpp
     wingfx.cpp wingrid.cpp winmask.cpp winpair.cpp wintext.cpp zbleep.cpp
     ${GARGLKINI_CXX} ${THEME_DARK_CXX} ${THEME_LIGHT_CXX}

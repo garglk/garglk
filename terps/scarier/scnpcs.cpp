@@ -63,6 +63,22 @@ npc_walk_meetobject_needs_fixup (scr_gameref_t game)
 
 
 /*
+ * npc_version()
+ *
+ * Return the game's TAF version constant.
+ */
+static scr_int
+npc_version (scr_gameref_t game)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_vartype_t vt_key;
+
+  vt_key.string = "Version";
+  return prop_get_integer (bundle, "I<-s", &vt_key);
+}
+
+
+/*
  * npc_in_room()
  *
  * Return TRUE if a given NPC is currently in a given room.
@@ -130,6 +146,41 @@ npc_start_npc_walk (scr_gameref_t game, scr_int npc, scr_int walk)
 
 
 /*
+ * npc_start_walk_is_390_noop()
+ *
+ * The 3.9 Runner never runs a one-stop, non-looping, game-start walk at all:
+ * the NPC stays put and the walk's CharTask never fires (walk probe C, live
+ * 2026-08-01 -- Bob never arrives, "You cannot see Bob from here.").  The
+ * 4.0 Runner runs the same walk: it arrives on turn one and fires its
+ * CharTask once -- a genuine version split, like the walk-task dispatch.
+ * Only the game-start (StartTask 0) case was probed live, and the corpus
+ * wants the narrow rule: "deaths" (3.9) ends with a demon walked in by a
+ * task-triggered one-stop walk, so those keep running.
+ */
+static scr_bool
+npc_start_walk_is_390_noop (scr_gameref_t game, scr_int npc, scr_int walk)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_vartype_t vt_key[5];
+  scr_int stops;
+  scr_bool is_loop;
+
+  if (npc_version (game) >= TAF_VERSION_400)
+    return FALSE;
+
+  vt_key[0].string = "NPCs";
+  vt_key[1].integer = npc;
+  vt_key[2].string = "Walks";
+  vt_key[3].integer = walk;
+  vt_key[4].string = "Times";
+  stops = prop_get_child_count (bundle, "I<-sisis", vt_key);
+  vt_key[4].string = "Loop";
+  is_loop = prop_get_boolean (bundle, "B<-sisis", vt_key);
+  return stops == 1 && !is_loop;
+}
+
+
+/*
  * npc_turn_update()
  * npc_setup_initial()
  *
@@ -171,11 +222,13 @@ npc_setup_initial (scr_gameref_t game)
         {
           scr_int starttask;
 
-          /* If StartTask is zero, start walk at game start. */
+          /* If StartTask is zero, start walk at game start -- except for the
+           * 3.9 one-stop non-looping walks the real Runner never runs. */
           vt_key[3].integer = walk;
           vt_key[4].string = "StartTask";
           starttask = prop_get_integer (bundle, "I<-sisis", vt_key);
-          if (starttask == 0)
+          if (starttask == 0
+              && !npc_start_walk_is_390_noop (game, index_, walk))
             npc_start_npc_walk (game, index_, walk);
         }
     }
@@ -335,6 +388,25 @@ npc_announce (scr_gameref_t game, scr_int npc,
         }
     }
 
+  /*
+   * A walk's stops are room indexes, not exits, so a walker can step between
+   * rooms that share no exit -- and then there is no direction to name.  The
+   * pre-4.0 Runner reacts to that by dropping the *leave* announcement
+   * altogether, while still printing the arrival one without a direction
+   * (run390 walk probes H and J, live 2026-08-02: with the two probe rooms
+   * unconnected only "Bob BOB ENTERS.." appears, but once they are joined
+   * north/south both "BOB ENTERS. from the north." and "BOB LEAVES. to the
+   * north." do).  run400 prints the directionless leave line (walk probe H
+   * against run400, same day), so this is a pre-4.0 suppression; 3.8 games run
+   * under the same 3.9 Runner and are assumed to share it.
+   *
+   * Corpus exposure is three games: "Melbourne Beach" (Judy), "Lair of the
+   * CyberCow" (Vluurinik) and "thetest" (the Robot Guard) all walk between
+   * rooms that share no exit while the player watches.
+   */
+  if (is_exit && !found && npc_version (game) < TAF_VERSION_400)
+    return;
+
   /* Print NPC exit/entry details. */
   pf_buffer_character (filter, '\n');
   pf_new_sentence (filter);
@@ -369,6 +441,7 @@ npc_tick_npc_walk (scr_gameref_t game, scr_int npc, scr_int walk)
   scr_vartype_t vt_key[6];
   scr_int roomgroups, movetimes, walkstep, start, dest, destnum;
   scr_int chartask, objecttask;
+  scr_bool is_arrival;
 
   if (npc_trace)
     {
@@ -399,6 +472,38 @@ npc_tick_npc_walk (scr_gameref_t game, scr_int npc, scr_int walk)
         break;
     }
 
+  /*
+   * A stop lasting several turns is only *arrived at* on the turn the
+   * counter hits that step's suffix-sum exactly; the turns after it are the
+   * NPC standing around.  The Runner runs the walk's CharTask/ObjectTask
+   * from its arrival handler, so a multi-turn stay at a fixed room fires
+   * them once, not once per turn (run400 walk probe H, live 2026-08-02:
+   * Times = 3 in the player's room, 2 away, `CHARTASK FIRED.` on the arrival
+   * turn only, and again five turns later when the loop brings Bob back).
+   * Scarier used to fire on every co-located tick.
+   *
+   * The gate covers fixed-room AND follow-player stops.  A roomgroup stop
+   * does NOT behave this way -- in "Ticket to No Where" the lost girl
+   * wanders a roomgroup on a single Times=4 stop, and live run400 has her
+   * speak on two consecutive turns per cycle and move on consecutive turns,
+   * i.e. it re-runs the whole walk step every tick rather than once per
+   * stay.  Firing every tick is what Scarier already does there, so leave
+   * roomgroup stops alone.
+   *
+   * Follow-player stops (walk probe K, live in BOTH Runners 2026-08-02,
+   * Times = 3 following / 2 away): the walker warps to the player's room
+   * only on the arrival tick, and stands still on the stay turns even when
+   * the player then walks away -- there is no per-turn trailing.  (Classic
+   * "follows you around" behaviour is a Times=1 follow stop, where every
+   * tick is an arrival tick.)  The arrival tick fires the CharTask even
+   * when the walker was already in the player's room and so never moved --
+   * probe K turn 11 prints no enter line but fires the task -- which the
+   * plain is_arrival computation below already gets right.
+   */
+  vt_key[5].integer = walkstep;
+  is_arrival = gs_npc_walkstep (game, npc, walk)
+               == prop_get_integer (bundle, "I<-sisisi", vt_key);
+
   /* Sort out a destination. */
   dest = start = gs_npc_location (game, npc) - 1;
 
@@ -407,14 +512,24 @@ npc_tick_npc_walk (scr_gameref_t game, scr_int npc, scr_int walk)
   destnum = prop_get_integer (bundle, "I<-sisisi", vt_key);
 
   if (destnum == 0)          /* Hidden. */
-    dest = -1;
+    {
+      dest = -1;
+      is_arrival = TRUE;
+    }
   else if (destnum == 1)     /* Follow player. */
-    dest = gs_playerroom (game);
+    {
+      /* Warp to the player only on the arrival tick; between arrivals the
+         walker stands still even if the player moves away (probe K). */
+      if (is_arrival)
+        dest = gs_playerroom (game);
+    }
   else if (destnum < gs_room_count (game) + 2)
     dest = destnum - 2;      /* To room. */
   else if (destnum < gs_room_count (game) + 2 + roomgroups)
     {
       scr_int initial;
+
+      is_arrival = TRUE;
 
       /* For roomgroup walks, move only if walksteps has just refreshed. */
       vt_key[4].string = "MoveTimes";
@@ -449,7 +564,10 @@ npc_tick_npc_walk (scr_gameref_t game, scr_int npc, scr_int walk)
         npc_announce (game, npc, dest, FALSE, start);
     }
 
-  /* Handle meeting characters and objects. */
+  /* Handle meeting characters and objects -- arrival turns only. */
+  if (!is_arrival)
+    return;
+
   vt_key[4].string = "CharTask";
   chartask = prop_get_integer (bundle, "I<-sisis", vt_key) - 1;
   if (chartask >= 0)
@@ -572,7 +690,19 @@ npc_tick_npc (scr_gameref_t game, scr_int npc)
                                                        "I<-sisisi", vt_key));
               }
             else
-              gs_set_npc_walkstep (game, npc, walk, -1);
+              {
+                /*
+                 * A non-looping walk finishes silently: the Runner's counter
+                 * tick marks the walk done (0xFF) before any arrival
+                 * processing keys off it, so the expiry turn neither moves
+                 * the NPC nor re-runs the CharTask -- the final stop's
+                 * arrival already happened on an earlier turn (run400 walk
+                 * probe C, live 2026-08-01: exactly one CHARTASK, on turn 1,
+                 * nothing on turn 2; Scarier used to fire it again).
+                 */
+                gs_set_npc_walkstep (game, npc, walk, -1);
+                continue;
+              }
           }
 
       /*
@@ -604,6 +734,17 @@ npc_tick_npcs (scr_gameref_t game)
    * Compare the player location to last turn, to see if the player has moved
    * this turn.  If moved, look for meetings with NPCs.
    *
+   * This player-side meet is a 4.0-only rule.  Probed live 2026-08-02
+   * (make_400_walkprobe.py L turns 3/8/10, K session 1 turn 8): run400 runs
+   * a walk's CharTask whenever the PLAYER moves into the walker's room --
+   * at any stop of the walk, fixed, follow-player or the away stop, again
+   * on every re-entry -- while run390 prints only "Bob is standing here"
+   * on the identical moves (pWKL39, pWKK39) and fires meets solely from
+   * the walk's own arrival ticks.  The re-check is also CharTask-only:
+   * probe M shows the ObjectTask does not fire when the player walks in on
+   * (or drops) the MeetObject beside a mid-stay walker, so this block
+   * rightly never looks at ObjectTask.
+   *
    * TODO Is this the right place to do this.  After ticking each NPC, rather
    * than before, seems more appropriate.  But the messages come out in the
    * right order by putting it here.
@@ -612,7 +753,8 @@ npc_tick_npcs (scr_gameref_t game)
    * rather than properly recording the prior location of the player, and
    * perhaps also NPCs, in the live gamestate.
    */
-  if (undo && !gs_player_in_room (undo, gs_playerroom (game)))
+  if (npc_version (game) >= TAF_VERSION_400
+      && undo && !gs_player_in_room (undo, gs_playerroom (game)))
     {
       for (npc = 0; npc < gs_npc_count (game); npc++)
         {

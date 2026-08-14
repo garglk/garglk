@@ -58,6 +58,21 @@
    markers after the boundary pass.  \x03 (ETX) never occurs in game text. */
 #define A5_ALR_MARK '\003'
 
+/* Sentinel byte standing for "a <del> that found nothing left to delete in its
+   own message".  Like <cls>, <del> is a whole-turn operator: the runner's
+   Display accumulates the turn into one buffer and a <del> deletes one
+   character from ALL of it, so a <del> at the head of a message reaches back
+   over the pSpace join and into the PREVIOUS message's tail.  Measured in the
+   genuine 5.0.36 Runner with test/adrift5/probes/src/delrt.xml case 8: message
+   "8[aZ" followed by an Execute-Task message "<del><del><del>]END8" prints
+   "8[a]END8" -- the three deletes eat the two join spaces and then the Z.
+   a5text_render_plain can only reach its own fragment, so when its backward
+   walk comes up empty it leaves this marker instead and sb_resolve_del (called
+   from finish_turn, after the <cls> pass) applies it to the accumulated turn
+   buffer.  \x1F (US) never occurs in game text; \x04 is taken by the
+   display-defer `\004<idx>\004` sentinel. */
+#define A5_DEL_MARK '\037'
+
 /* Sentinel pair wrapping a variable NAME whose expansion was deferred to the
    Display boundary.  The Adrift 5 runner applies ALRs only inside Display()
    (ReplaceALRs, Global.vb:519), whose leading ReplaceFunctions call expands any
@@ -90,6 +105,16 @@
      - <b> and </b> leave A5_BOLD_MARK and A5_ENDBOLD_MARK, so the host can
        show the span between them in bold (a Glk host through style_Subheader,
        or style_User2 when the span is also centered).
+     - <i> and </i> leave A5_ITALIC_MARK and A5_ENDITALIC_MARK, so the host
+       can show the span in italic (style_Emphasized, or style_Alert when
+       combined with bold).  Alignment styles win over italic when nested.
+     - <u> and </u> leave A5_UNDERLINE_MARK and A5_ENDUNDERLINE_MARK.  Until a
+       Glk host can paint real underline (e.g. via CSS), the same styles as
+       italic are used; the marks stay distinct so underline can be wired
+       later without re-parsing tags.
+     - <right> and </right> leave A5_RIGHT_MARK and A5_ENDRIGHT_MARK, so the
+       host can show the span right-aligned (a Glk host through a
+       RightFlush-hinted style_Note).
      - <window NAME> leaves A5_WINDOW_MARK<name>A5_WINDOW_MARK (the name span
        delimited like an image), and </window> leaves A5_ENDWINDOW_MARK, so the
        host can route the enclosed text to a named secondary window (a Glk host
@@ -101,14 +126,34 @@
        text -- BEFORE any later <waitkey> pause, the way the Runner's
        DisplayText acts on an audio tag the moment it reaches it (Pervert
        Action Crisis strikes its sting ahead of a keypress-paced cutscene).
-     - a <center> or <b> span still open when a Display commit ends dies with
-       that commit: the Runner renders each commit through its own Source2HTML
-       parse, so an unclosed tag never bleeds into the next commit's text.
-       The turn assembler (sb_resolve_cls, a5sb.cpp) leaves A5_COMMIT_MARK at
-       a boundary whose commit dangles a span, and the host resets its span
-       state there -- Death Shack's Introduction opens <center> and never
-       closes it, yet the Runner shows the first room description (the next
-       commit, clsUserSession.vb game-start) left-aligned.
+     - <c> and <font colour="..."> leave an A5_COLOUR_MARK-delimited colour
+       span, \027<value>\027, and their close tags leave A5_ENDCOLOUR_MARK, so
+       the host can draw the enclosed text in the Adrift colour the author
+       asked for (a Glk host through garglk_set_zcolors / CSS color, under
+       "glk colour").
+       <value> is the tag's colour token verbatim and lowercased -- a name
+       ("red"), a hex triplet ("#ff0000") -- or empty for a <font> that names
+       no colour, which inherits the enclosing one so that its </font> still
+       pops symmetrically.  <c> writes the reserved token "input", since the
+       colour it asks for is the adventure's InputColour rather than anything
+       spelled out in the text; no Adrift colour name collides with it.
+     - <u> / </u> leave A5_UNDERLINE_MARK / A5_ENDUNDERLINE_MARK.
+     - <font face="..." size=...> (with or without colour=) leaves an
+       A5_FONT_MARK-delimited payload \010face\177size\010 (face and/or size
+       may be empty; \177 separates them) and </font> leaves A5_ENDFONT_MARK
+       when a face/size was pushed, so the host can set CSS font-family /
+       font-size.  Colour and face/size stack independently on the same
+       <font> open.  The open mark is \x08 (BS), not A5_DEL_MARK (\x1F), and
+       the close is \x0B (VT), not the display-defer `\004…\004` sentinel.
+     - a <center>, <right>, <b>, <i>, <u>, colour, or font face/size span still
+       open when a Display commit ends dies with that commit: the Runner
+       renders each commit through its own Source2HTML parse, so an unclosed
+       tag never bleeds into the next commit's text.  The turn assembler
+       (sb_resolve_cls, a5sb.cpp) leaves A5_COMMIT_MARK at a boundary whose
+       commit dangles a span, and the host resets its span state there --
+       Death Shack's Introduction opens <center> and never closes it, yet the
+       Runner shows the first room description (the next commit,
+       clsUserSession.vb game-start) left-aligned.
      - <wait N> leaves an A5_WAIT_MARK-delimited delay, \026<seconds>\026
        (the tag's argument verbatim; fractions allowed), so the host can run
        a timed pause where the tag sits, the way the Runner's rendering
@@ -118,9 +163,11 @@
 
    finish_turn keeps all of these in the returned turn text; a host that never
    enables interactive mode (the headless dump / ground-truth harness) sees no
-   behaviour change.  \x06 (ACK), \x07 (BEL), \x0e (SO), \x0f (SI), \x10 (DLE),
-   \x11 (DC1), \x12 (DC2), \x13 (DC3), \x14 (DC4), \x15 (NAK) and \x16 (SYN)
-   never occur in game text. */
+   behaviour change.  \x06 (ACK), \x07 (BEL), \x08 (BS), \x0b (VT), \x0e (SO),
+   \x0f (SI), \x10 (DLE),
+   \x11 (DC1), \x12 (DC2), \x13 (DC3), \x14 (DC4), \x15 (NAK), \x16 (SYN),
+   \x17 (ETB), \x18 (CAN), \x19 (EM), \x1a (SUB), \x1b (ESC), \x1c (FS),
+   \x1d (GS), \x1e (RS), \x1f (US) and \x04 (EOT) never occur in game text. */
 #define A5_IMG_MARK '\006'
 #define A5_WAITKEY_MARK '\007'
 #define A5_CENTER_MARK '\016'
@@ -132,6 +179,19 @@
 #define A5_SOUND_MARK '\024'
 #define A5_COMMIT_MARK '\025'
 #define A5_WAIT_MARK '\026'
+#define A5_COLOUR_MARK '\027'
+#define A5_ENDCOLOUR_MARK '\030'
+#define A5_ITALIC_MARK '\031'
+#define A5_ENDITALIC_MARK '\032'
+#define A5_RIGHT_MARK '\033'
+#define A5_ENDRIGHT_MARK '\034'
+#define A5_UNDERLINE_MARK '\035'
+#define A5_ENDUNDERLINE_MARK '\036'
+#define A5_FONT_MARK '\010'
+#define A5_ENDFONT_MARK '\013'
+/* Separator inside an A5_FONT_MARK payload between face and size. */
+#define A5_FONT_SEP '\177'
+
 
 /* Interactive-presentation mode toggle (default off; see marks above). */
 extern void a5text_set_interactive (int on);
@@ -180,6 +240,15 @@ extern char *a5text_eval_expression (a5_state_t *st, const char *expr);
 /* Render markup (tags + entities) to plain text. */
 extern char *a5text_render_plain (const char *src);
 
+/* Compact an already-rendered plain string in place, dropping the presentation
+   sentinels defined above -- the non-spanning ones outright, the spanning ones
+   with their payload.  For text a host draws OUTSIDE the story window, where
+   finish_turn's own strip pass never runs and a sentinel would be drawn as a
+   glyph: Alyas of Starhollow tells its four River Lane rooms apart by naming
+   them "River Lane<1>".."<4>", and the stripped <4> leaves the A5_ALR_MARK
+   that Gargoyle shows as an ETX box at the end of the status line. */
+extern void a5text_strip_pres_marks (char *s);
+
 /*
  * Embedded-media side channel.  ADRIFT 5 embeds graphics/sound in description
  * text as <img src="..."> and <audio play|stop|pause src="..." channel=N> tags
@@ -213,10 +282,34 @@ extern void a5text_set_media_sink (a5_media_cb cb, void *ctx);
  * no callback installed (the default) PopUpInput evaluates to its default,
  * matching the Adrift 5 runner's InputBox returning the default when unattended.  The
  * FrankenDrift.Headless frontend consumes exactly one script line per popup the
- * same way, so ground-truth transcripts stay byte-aligned.
+ * same way, so ground-truth transcripts stay byte-aligned.  PopUpInput ONLY:
+ * %PopUpChoice% goes through MsgBox in the runner, not the scripted-input
+ * channel, and must never be fed from this one -- that would desync the
+ * transcript by a line.  It has a channel of its own; see below.
  */
 typedef char *(*a5_popup_cb) (void *ctx, const char *prompt, const char *dflt);
 extern void a5text_set_popup_cb (a5_popup_cb cb, void *ctx);
+
+/*
+ * Host callback for the %PopUpChoice[prompt, choice1, choice2]% text function
+ * (clsFunction PopUpChoice -> VB MsgBox, Global.vb:2278): a Yes/No dialog whose
+ * Yes yields choice1 and No choice2, in practice the gender question a game
+ * asks before play (Beagle2's System <RunImmediately> Autorun, "Are you Male or
+ * Female?").  The callback is handed the prompt and both choices and returns
+ * non-zero for Yes, 0 for No, or negative to decline -- which leaves the token
+ * unevaluated, as with no callback installed at all.
+ *
+ * Unevaluated is the default because it is what the ground truth does: MsgBox
+ * throws off-Windows, so FrankenDrift lands in the ReplaceFunctions catch
+ * (Global.vb:2483) and the %PopUpChoice[...]% text survives verbatim -- no
+ * output, and no script line consumed.  Only an interactive host with somewhere
+ * to ask (the Glk frontend, its story window standing in for the dialog) should
+ * install one, reproducing what the runner does on Windows without disturbing
+ * headless transcripts.
+ */
+typedef int (*a5_popup_choice_cb) (void *ctx, const char *prompt,
+                                   const char *choice1, const char *choice2);
+extern void a5text_set_popup_choice_cb (a5_popup_choice_cb cb, void *ctx);
 
 /*
  * The Display() ALR boundary (clsUserSession.Display -> Global.ReplaceALRs):

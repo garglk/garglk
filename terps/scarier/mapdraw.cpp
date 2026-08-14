@@ -21,7 +21,7 @@
 
    Geometry follows the Adrift 5 runner's Map.vb, and the software
    rasteriser below stands in for the GDI+ calls it makes (FillPolygon /
-   DrawBezier / DrawEllipse / DrawString).  The ADRIFT 4 runner draws its map
+   DrawBezier / DrawCurve / DrawEllipse / DrawString).  The ADRIFT 4 runner draws its map
    out of VB control arrays instead, with a look of its own; we render both
    engines' maps the same way rather than carrying two rasterisers, so what
    differs between them is only where the nodes come from -- authored in
@@ -311,6 +311,41 @@ draw_bezier (map_surface_t *s, double x0, double y0, double x1, double y1,
     }
   if (dash_phase != NULL)
     *dash_phase = phase;
+}
+
+/* GDI+ DrawCurve (default tension 0.5): Cardinal spline through `pts`.
+   Map.vb uses this when a Link has author-dragged OrigMidPoints / <Anchor>s
+   (RecalculateLinks + DrawLinks), instead of the four-point Bezier. */
+static void
+draw_curve (map_surface_t *s, const double *pts, int n, int wd,
+            unsigned int rgb, int alpha, int dash, int *dash_phase)
+{
+  const double tension = 0.5;
+  int i;
+
+  if (n < 2 || pts == NULL)
+    return;
+  if (n == 2)
+    {
+      draw_line (s, (int) pts[0], (int) pts[1], (int) pts[2], (int) pts[3],
+                 wd, rgb, alpha, dash);
+      return;
+    }
+  for (i = 0; i < n - 1; i++)
+    {
+      double x0 = pts[2 * i], y0 = pts[2 * i + 1];
+      double x3 = pts[2 * (i + 1)], y3 = pts[2 * (i + 1) + 1];
+      double xm1 = (i > 0) ? pts[2 * (i - 1)] : x0;
+      double ym1 = (i > 0) ? pts[2 * (i - 1) + 1] : y0;
+      double xp2 = (i + 2 < n) ? pts[2 * (i + 2)] : x3;
+      double yp2 = (i + 2 < n) ? pts[2 * (i + 2) + 1] : y3;
+      double x1 = x0 + (x3 - xm1) * tension / 3.0;
+      double y1 = y0 + (y3 - ym1) * tension / 3.0;
+      double x2 = x3 - (xp2 - x0) * tension / 3.0;
+      double y2 = y3 - (yp2 - y0) * tension / 3.0;
+      draw_bezier (s, x0, y0, x1, y1, x2, y2, x3, y3, wd, rgb, alpha, dash,
+                   dash_phase);
+    }
 }
 
 static void
@@ -782,11 +817,158 @@ rel_point (const proj_t *p, const map_node_t *n, double xp, double yp,
   *y = px_y (p, n->y + n->h * yp / 100.0);
 }
 
-/* GetBezierAssister (Map.vb:1592): the control point that bows a connector
-   out of the node in its own direction. */
+/* In and Out have no direction on the plan, so the runner picks the edge they
+   leave by from where the other room lies (GetLinkPoint, Map.vb:775-816),
+   remembering it on the node as eInEdge / eOutEdge.  That is what puts a room's
+   IN badge on the side facing the room it lets you into. */
+static int
+inout_edge (const map_node_t *n, const map_node_t *dn)
+{
+  if (dn == NULL)
+    return DIR_N;               /* no node to aim at: the runner's fallback */
+  if (dn->x > n->x + n->w)
+    return DIR_E;
+  if (dn->x + dn->w < n->x)
+    return DIR_W;
+  if (dn->y > n->y)
+    return DIR_S;
+  return DIR_N;
+}
+
+/* Badge sites: the eight half-winds between the drawn compass stubs.
+   Cardinals (N/E/S/W) and diagonals (NE/SE/SW/NW) own the edge centres and
+   corners; badges sit on the subdivisions between them -- which is also
+   where ADRIFT 5's ptIn/ptOut land (Map.vb:902-928).
+        NNW          NNE
+     WNW                ENE
+     WSW                ESE
+        SSW          SSE */
+enum {
+  BADGE_NNE, BADGE_ENE, BADGE_ESE, BADGE_SSE,
+  BADGE_SSW, BADGE_WSW, BADGE_WNW, BADGE_NNW,
+  /* Compass ports: used when a badge exit coincides with a compass exit. */
+  BADGE_N, BADGE_E, BADGE_S, BADGE_W,
+  BADGE_NE, BADGE_SE, BADGE_SW, BADGE_NW
+};
+
 static void
-bezier_assister (const proj_t *p, const map_node_t *n, int dir, double dist,
-                 double *x, double *y)
+badge_pct (int site, double *xp, double *yp)
+{
+  switch (site)
+    {
+    case BADGE_NNE: *xp = 75;  *yp = 0;   break;
+    case BADGE_ENE: *xp = 100; *yp = 25;  break;
+    case BADGE_ESE: *xp = 100; *yp = 75;  break;
+    case BADGE_SSE: *xp = 75;  *yp = 100; break;
+    case BADGE_SSW: *xp = 25;  *yp = 100; break;
+    case BADGE_WSW: *xp = 0;   *yp = 75;  break;
+    case BADGE_WNW: *xp = 0;   *yp = 25;  break;
+    case BADGE_NNW: *xp = 25;  *yp = 0;   break;
+    case BADGE_N:   *xp = 50;  *yp = 0;   break;
+    case BADGE_E:   *xp = 100; *yp = 50;  break;
+    case BADGE_S:   *xp = 50;  *yp = 100; break;
+    case BADGE_W:   *xp = 0;   *yp = 50;  break;
+    case BADGE_NE:  *xp = 100; *yp = 0;   break;
+    case BADGE_SE:  *xp = 100; *yp = 100; break;
+    case BADGE_SW:  *xp = 0;   *yp = 100; break;
+    case BADGE_NW:  *xp = 0;   *yp = 0;   break;
+    default:        *xp = 25;  *yp = 0;   break;
+    }
+}
+
+static int
+compass_site (int dir)
+{
+  switch (dir)
+    {
+    case DIR_N:  return BADGE_N;
+    case DIR_E:  return BADGE_E;
+    case DIR_S:  return BADGE_S;
+    case DIR_W:  return BADGE_W;
+    case DIR_NE: return BADGE_NE;
+    case DIR_SE: return BADGE_SE;
+    case DIR_SW: return BADGE_SW;
+    case DIR_NW: return BADGE_NW;
+    default:     return -1;
+    }
+}
+
+static const map_link_t *
+find_dir_link (const map_node_t *n, int dir)
+{
+  int l;
+
+  if (n == NULL)
+    return NULL;
+  for (l = 0; l < n->n_links; l++)
+    if (n->links[l].dir == dir)
+      return &n->links[l];
+  return NULL;
+}
+
+/* In/Out on a facing edge: opposite half-winds (the runner's ptIn/ptOut). */
+static int
+inout_site (int dir, int edge)
+{
+  int in = (dir == DIR_IN);
+
+  switch (edge)
+    {
+    case DIR_E: return in ? BADGE_ENE : BADGE_ESE;
+    case DIR_W: return in ? BADGE_WSW : BADGE_WNW;
+    case DIR_S: return in ? BADGE_SSE : BADGE_SSW;
+    default:    return in ? BADGE_NNW : BADGE_NNE;
+    }
+}
+
+/* Up/Down primary half-wind on a facing edge (never the cardinal midpoint,
+   so they clear N/E/S/W stubs). */
+static int
+ud_site_primary (int dir, int edge)
+{
+  int up = (dir == DIR_UP);
+
+  switch (edge)
+    {
+    case DIR_E: return up ? BADGE_ENE : BADGE_ESE;
+    case DIR_W: return up ? BADGE_WNW : BADGE_WSW;
+    case DIR_S: return up ? BADGE_SSE : BADGE_SSW;
+    default:    return up ? BADGE_NNE : BADGE_NNW;
+    }
+}
+
+/* Adjacent corner half-wind when Up/Down's primary is taken by In/Out. */
+static int
+ud_site_alt (int site)
+{
+  switch (site)
+    {
+    case BADGE_ENE: return BADGE_NNE;
+    case BADGE_ESE: return BADGE_SSE;
+    case BADGE_WNW: return BADGE_NNW;
+    case BADGE_WSW: return BADGE_SSW;
+    case BADGE_NNE: return BADGE_ENE;
+    case BADGE_NNW: return BADGE_WNW;
+    case BADGE_SSE: return BADGE_ESE;
+    default:        return BADGE_WSW; /* BADGE_SSW */
+    }
+}
+
+static void
+badge_site_point (const proj_t *p, const map_node_t *n, int site,
+                  double *x, double *y)
+{
+  double xp, yp;
+  badge_pct (site, &xp, &yp);
+  rel_point (p, n, xp, yp, x, y);
+}
+
+/* GetBezierAssister (Map.vb:1592): the control point that bows a connector
+   out of the node in its own direction.  In and Out are absent here on
+   purpose -- see the straight-line note in map_render. */
+static void
+bezier_assister (const proj_t *p, const map_node_t *n, int dir,
+                 double dist, double *x, double *y)
 {
   double ox, oy;
   int scale = p->cam->scale > 0 ? p->cam->scale : 1;
@@ -835,6 +1017,124 @@ page_node (const map_page_t *page, const char *key)
   return NULL;
 }
 
+/* Opposite badge direction (Up<->Down, In<->Out). */
+static int
+badge_opposite (int dir)
+{
+  switch (dir)
+    {
+    case DIR_UP:   return DIR_DOWN;
+    case DIR_DOWN: return DIR_UP;
+    case DIR_IN:   return DIR_OUT;
+    case DIR_OUT:  return DIR_IN;
+    default:       return -1;
+    }
+}
+
+/* Node to aim a badge at for edge placement: the movement destination, when it
+   has a node on this page.
+
+   Spatterlight extension when it does not: look for a same-page room whose
+   return badge exit (DestinationAnchor, else the opposite of SourceAnchor)
+   points back here, closest match winning -- AoS High In Oak Tree Down ->
+   Dummy on another page, while Middle of Woods Up -> oak.  The runner has no
+   counterpart; it would leave the badge on its default site.  This only
+   chooses which edge the badge sits on, so the worst a wrong guess does is
+   put it on an odd side of the box. */
+static const map_node_t *
+badge_face_node (const map_page_t *page, const map_node_t *n,
+                 const map_link_t *link)
+{
+  const map_node_t *dn, *best = NULL;
+  int want, i, best_d2 = -1;
+
+  if (page == NULL || n == NULL || n->key == NULL || link == NULL)
+    return NULL;
+  dn = (link->dest != NULL) ? page_node (page, link->dest) : NULL;
+  if (dn != NULL)
+    return dn;
+
+  want = link->dst_anchor;
+  if (want != DIR_UP && want != DIR_DOWN && want != DIR_IN && want != DIR_OUT)
+    want = badge_opposite (link->dir);
+  if (want < 0)
+    return NULL;
+
+  for (i = 0; i < page->n_nodes; i++)
+    {
+      const map_node_t *m = &page->nodes[i];
+      const map_link_t *back;
+      int dx, dy, d2;
+
+      if (m == n || m->key == NULL)
+        continue;
+      back = find_dir_link (m, want);
+      if (back == NULL || back->dest == NULL
+          || strcmp (back->dest, n->key) != 0)
+        continue;
+      dx = m->x - n->x;
+      dy = m->y - n->y;
+      d2 = dx * dx + dy * dy;
+      if (best == NULL || d2 < best_d2)
+        {
+          best = m;
+          best_d2 = d2;
+        }
+    }
+  return best;
+}
+
+/* The page the runner would switch to: the player's own (SelectNode), or the
+   first one when the player is somewhere the map does not place.  Returns 0
+   when there is no page to pick, leaving *key alone. */
+static int
+player_page_key (const map_t *map, const char *player_key, int *key)
+{
+  const map_node_t *pn;
+
+  if (map == NULL)
+    return 0;
+  pn = map_find (map, player_key);
+  if (pn != NULL)
+    {
+      *key = pn->page;
+      return 1;
+    }
+  if (map->n_pages > 0)
+    {
+      *key = map->pages[0].key;
+      return 1;
+    }
+  return 0;
+}
+
+int
+map_has_content (const map_t *map, const map_view_t *view,
+                 const char *player_key)
+{
+  const map_page_t *page;
+  int key = 0, i;
+
+  if (!player_page_key (map, player_key, &key))
+    return 0;
+  page = page_by_key (map, key);
+  if (page == NULL)
+    return 0;
+
+  /* The same two tests pass 3 of map_render applies before it draws a box.
+     A hidden room counts for nothing even when seen, which is exactly the
+     case that matters: the staging rooms games park the player in during
+     their opening screens are hidden. */
+  for (i = 0; i < page->n_nodes; i++)
+    {
+      if (page->nodes[i].hidden)
+        continue;
+      if (view_seen (view, page->nodes[i].key))
+        return 1;
+    }
+  return 0;
+}
+
 /* The manual zoom ladder ("glk zoom in/out").  The automatic fit never goes
    above MAP_SCALE_MAX, but a player asking to zoom in can usefully get closer
    than the fit would; past 32 the boxes stop gaining anything. */
@@ -877,12 +1177,8 @@ map_frame (const map_t *map, const map_view_t *view,
   if (map == NULL || dst == NULL)
     return;
 
-  /* The runner switches to the page the player is on (SelectNode). */
   pn = map_find (map, player_key);
-  if (pn != NULL)
-    cam->page = pn->page;
-  else if (map->n_pages > 0)
-    cam->page = map->pages[0].key;
+  player_page_key (map, player_key, &cam->page);
 
   page = page_by_key (map, cam->page);
   if (page == NULL)
@@ -998,37 +1294,58 @@ draw_out_arrow (map_surface_t *s, const proj_t *p, const map_node_t *n,
   draw_arrowhead (s, x1, y1, dx, dy, wd * 2 + 2, map_fg, alpha);
 }
 
-/* The IN / OUT bubble on a node edge (DrawInOutIcon, Map.vb:1530), which we
-   extend to Up and Down where those are badge links (ADRIFT 4, whose runner
-   put a little icon on the room box instead of drawing a connector). */
+typedef struct {
+  int up_site, down_site;
+  int in_site, out_site;
+} a4_badge_pos_t;
+
+/* ADRIFT 3/4 badge sites -- same fixed placement as master before the #158
+   experiment: Up at ENE, Down at WSW, In/Out on the north-edge quarters
+   (inout_pct with edge North).  The half-wind enum is shared with A5 layout;
+   A3/A4 still do not chase compass stubs. */
 static void
-draw_dir_icon (map_surface_t *s, const proj_t *p, const map_node_t *n,
-               int dir, int alpha)
+a4_badge_pos (const map_node_t *n, a4_badge_pos_t *pos)
+{
+  (void) n;
+  pos->up_site = BADGE_ENE;
+  pos->down_site = BADGE_WSW;
+  pos->in_site = BADGE_NNW;
+  pos->out_site = BADGE_NNE;
+}
+
+/* The IN / OUT / UP / DOWN bubble on a node edge (DrawInOutIcon, Map.vb:1530;
+   Form29.doicon for ADRIFT 4 Up/Down).  `xp`/`yp` are percents of the box. */
+static void
+draw_dir_icon_xy (map_surface_t *s, const proj_t *p, const map_node_t *n,
+                  int dir, double xp, double yp, int alpha)
 {
   double cx, cy;
   const char *letter;
   unsigned int rgb;
-  int xp, yp;
   int r = p->cam->scale / 2;
   if (r < 3)
     r = 3;
-  /* The runner picks the edge from where the destination lies; without the
-     full edge bookkeeping we give each badge a fixed spot -- IN and OUT along
-     the top edge, UP high on the right edge, DOWN low on the left edge --
-     which keeps the four from colliding, and keeps UP and DOWN off the
-     corners where the NE and SW connectors attach. */
   switch (dir)
     {
-    case DIR_IN:   letter = "I"; rgb = ICON_IN;   xp = 25;  yp = 0;   break;
-    case DIR_OUT:  letter = "O"; rgb = ICON_OUT;  xp = 75;  yp = 0;   break;
-    case DIR_UP:   letter = "U"; rgb = ICON_UP;   xp = 100; yp = 25;  break;
-    case DIR_DOWN: letter = "D"; rgb = ICON_DOWN; xp = 0;   yp = 75;  break;
+    case DIR_IN:   letter = "I"; rgb = ICON_IN;   break;
+    case DIR_OUT:  letter = "O"; rgb = ICON_OUT;  break;
+    case DIR_UP:   letter = "U"; rgb = ICON_UP;   break;
+    case DIR_DOWN: letter = "D"; rgb = ICON_DOWN; break;
     default: return;
     }
   rel_point (p, n, xp, yp, &cx, &cy);
   fill_circle (s, (int) cx, (int) cy, r, rgb, alpha);
   draw_text (s, &kSmallFont, letter, 1, (int) cx - 2, (int) cy - 3,
              0xFFFFFF, alpha);
+}
+
+static void
+draw_dir_icon_site (map_surface_t *s, const proj_t *p, const map_node_t *n,
+                    int dir, int site, int alpha)
+{
+  double xp, yp;
+  badge_pct (site, &xp, &yp);
+  draw_dir_icon_xy (s, p, n, dir, xp, yp, alpha);
 }
 
 /* The ADRIFT 4 runner had two pictures per icon: the normal one when the
@@ -1046,6 +1363,434 @@ badge_alpha (const map_view_t *view, const map_link_t *lk, int alpha)
   return alpha / 2;
 }
 
+/* Which badges a node wears, and on which half-wind / compass site.
+ *
+ * An In/Out connector is recorded on one room only, but the runner puts a
+ * badge on both ends of it: DrawLinks finishes by drawing the opposite badge
+ * on the destination node (Map.vb:1517), which is how the room you step into
+ * gets its OUT even though the <Link> lives on the room outside.  `far` is
+ * that badge; `own` is the one the node draws for a link of its own
+ * (Map.vb:1326-1343), and only `own` answers to HasRouteInDirection.
+ *
+ * Up/Down get the same far-end treatment for A5 badge connectors.  Far-end
+ * badges gate on the destination's Movements (bHasIn/Out/Up/Down), not on
+ * duplex -- DrawInOutIcon (Map.vb:1535) -- so a one-way In still yields an
+ * Out on a dest that has its own Out leading elsewhere.
+ *
+ * Spatterlight extension: when a badge exit shares its destination and
+ * restriction style with a compass exit on the same node, the badge sits on
+ * that compass port (`on_compass_*`) and its badge-to-badge connector is
+ * omitted -- the compass link already draws the line.  A far badge that
+ * arrives via a coincident compass exit parks on that link's
+ * DestinationAnchor port (e.g. Behind Bar Down+South -> Cellar: D on South,
+ * U on Cellar's North) so it meets the line instead of floating on a
+ * half-wind. */
+typedef struct {
+  int in_edge, out_edge, up_edge, down_edge;   /* facing edges, pre-site */
+  int in_site, out_site, up_site, down_site;   /* half-wind / compass sites */
+  unsigned char far_in, far_out;
+  unsigned char far_up, far_down;
+  unsigned char has_in, has_out, has_up, has_down;
+  unsigned char on_compass_in, on_compass_out;
+  unsigned char on_compass_up, on_compass_down;
+  unsigned char in_site_fixed, out_site_fixed;
+  unsigned char up_site_fixed, down_site_fixed;
+} inout_badge_t;
+
+static int
+site_taken_io (const inout_badge_t *b, int site)
+{
+  return (b->has_in && b->in_site == site)
+      || (b->has_out && b->out_site == site);
+}
+
+/* Geometric opposite for compass dirs (movement-only twins have no Map Link
+   DestinationAnchor). */
+static int
+compass_opposite (int dir)
+{
+  switch (dir)
+    {
+    case DIR_N:  return DIR_S;
+    case DIR_E:  return DIR_W;
+    case DIR_S:  return DIR_N;
+    case DIR_W:  return DIR_E;
+    case DIR_NE: return DIR_SW;
+    case DIR_SE: return DIR_NW;
+    case DIR_SW: return DIR_NE;
+    case DIR_NW: return DIR_SE;
+    default:     return -1;
+    }
+}
+
+/* When `link` coincides with a compass exit, the port on the destination where
+   that compass connector arrives (twin Map Link's DestinationAnchor, else the
+   geometric opposite of the twin direction).  -1 if no twin. */
+static int
+badge_compass_arrival (const map_node_t *n, const map_link_t *link)
+{
+  const map_link_t *twin_lk;
+  int twin;
+
+  if (n == NULL || link == NULL || link->dest == NULL)
+    return -1;
+  /* compass_twin is set by a5map from Movements (Map Links alone miss
+     compass exits that only exist as movements). */
+  if (!link->has_compass_twin)
+    return -1;
+  twin = link->compass_twin;
+  twin_lk = find_dir_link (n, twin);
+  if (twin_lk != NULL && twin_lk->dst_anchor >= 0
+      && compass_site (twin_lk->dst_anchor) >= 0)
+    return twin_lk->dst_anchor;
+  return compass_opposite (twin);
+}
+
+/* Pin a far badge to a compass arrival port so it sits on the compass line. */
+static void
+fix_far_compass_site (inout_badge_t *b, int dst_anchor, int arrival_dir)
+{
+  int cs = compass_site (arrival_dir);
+
+  if (cs < 0 || b == NULL)
+    return;
+  switch (dst_anchor)
+    {
+    case DIR_IN:
+      b->in_site = cs;
+      b->in_site_fixed = 1;
+      break;
+    case DIR_OUT:
+      b->out_site = cs;
+      b->out_site_fixed = 1;
+      break;
+    case DIR_UP:
+      b->up_site = cs;
+      b->up_site_fixed = 1;
+      break;
+    case DIR_DOWN:
+      b->down_site = cs;
+      b->down_site_fixed = 1;
+      break;
+    default:
+      break;
+    }
+}
+
+/* If this badge direction has an own link that twins a compass exit, park the
+   badge on that compass port and remember to skip its badge connector. */
+static void
+try_compass_port (inout_badge_t *x, const map_node_t *n, int dir,
+                  int *site, unsigned char *on_compass)
+{
+  const map_link_t *lk = find_dir_link (n, dir);
+  int twin, cs;
+
+  if (lk == NULL || lk->dest == NULL || !lk->has_compass_twin)
+    return;
+  twin = lk->compass_twin;
+  cs = compass_site (twin);
+  if (cs < 0)
+    return;
+  *site = cs;
+  *on_compass = 1;
+}
+
+static void
+finalize_badge_sites (inout_badge_t *b, const map_page_t *page)
+{
+  int i;
+
+  for (i = 0; i < page->n_nodes; i++)
+    {
+      inout_badge_t *x = &b[i];
+      const map_node_t *n = &page->nodes[i];
+
+      if (x->has_in)
+        {
+          if (!x->in_site_fixed)
+            {
+              x->in_site = inout_site (DIR_IN, x->in_edge);
+              try_compass_port (x, n, DIR_IN, &x->in_site, &x->on_compass_in);
+            }
+        }
+      if (x->has_out)
+        {
+          if (!x->out_site_fixed)
+            {
+              x->out_site = inout_site (DIR_OUT, x->out_edge);
+              try_compass_port (x, n, DIR_OUT, &x->out_site,
+                               &x->on_compass_out);
+            }
+        }
+
+      if (x->has_up)
+        {
+          if (!x->up_site_fixed)
+            {
+              x->up_site = ud_site_primary (DIR_UP, x->up_edge);
+              if (site_taken_io (x, x->up_site))
+                {
+                  int alt = ud_site_alt (x->up_site);
+                  if (!site_taken_io (x, alt))
+                    x->up_site = alt;
+                }
+              try_compass_port (x, n, DIR_UP, &x->up_site, &x->on_compass_up);
+            }
+        }
+      if (x->has_down)
+        {
+          if (!x->down_site_fixed)
+            {
+              x->down_site = ud_site_primary (DIR_DOWN, x->down_edge);
+              if (site_taken_io (x, x->down_site)
+                  || (x->has_up && x->up_site == x->down_site))
+                {
+                  int alt = ud_site_alt (x->down_site);
+                  if (!site_taken_io (x, alt)
+                      && !(x->has_up && x->up_site == alt))
+                    x->down_site = alt;
+                }
+              try_compass_port (x, n, DIR_DOWN, &x->down_site,
+                                &x->on_compass_down);
+            }
+        }
+    }
+}
+
+/* Record the edge an In/Out badge sits on, and whether it got there from a
+   link ending at this node rather than one leaving it. */
+static void
+inout_mark (inout_badge_t *b, int dir, int edge, int far)
+{
+  if (dir == DIR_IN)
+    {
+      b->in_edge = edge;
+      b->has_in = 1;
+      b->far_in |= (unsigned char) (far != 0);
+    }
+  else
+    {
+      b->out_edge = edge;
+      b->has_out = 1;
+      b->far_out |= (unsigned char) (far != 0);
+    }
+}
+
+static void
+ud_mark (inout_badge_t *b, int dir, int edge, int far)
+{
+  if (dir == DIR_UP)
+    {
+      b->up_edge = edge;
+      b->has_up = 1;
+      b->far_up |= (unsigned char) (far != 0);
+    }
+  else if (dir == DIR_DOWN)
+    {
+      b->down_edge = edge;
+      b->has_down = 1;
+      b->far_down |= (unsigned char) (far != 0);
+    }
+}
+
+/* Dest has a Movement on `dir` (FileIO.vb bHasIn / bHasOut / bHasUp /
+   bHasDown).  DrawLinks' far In/Out icon gates on this, not duplex. */
+static int
+node_has_badge_dir (const map_node_t *n, int dir)
+{
+  if (n == NULL)
+    return 0;
+  switch (dir)
+    {
+    case DIR_IN:   return n->has_in;
+    case DIR_OUT:  return n->has_out;
+    case DIR_UP:   return n->has_up;
+    case DIR_DOWN: return n->has_down;
+    default:       return 0;
+    }
+}
+
+/* Arrival half-wind on dest for a badge connector.  Prefer the layout site
+   when dest already wears that badge; otherwise the facing-edge primary. */
+static int
+arrival_badge_site (const inout_badge_t *b, const map_node_t *dn,
+                    const map_node_t *src, int dst_anchor)
+{
+  int edge = inout_edge (dn, src);
+
+  switch (dst_anchor)
+    {
+    case DIR_IN:
+      return (b != NULL && b->has_in) ? b->in_site : inout_site (DIR_IN, edge);
+    case DIR_OUT:
+      return (b != NULL && b->has_out) ? b->out_site
+                                      : inout_site (DIR_OUT, edge);
+    case DIR_UP:
+      return (b != NULL && b->has_up) ? b->up_site
+                                     : ud_site_primary (DIR_UP, edge);
+    case DIR_DOWN:
+      return (b != NULL && b->has_down) ? b->down_site
+                                       : ud_site_primary (DIR_DOWN, edge);
+    default:
+      return BADGE_NNE;
+    }
+}
+
+/* True when `n` authors a Map <Link> whose SourceAnchor is `dir`. */
+static int
+node_has_link_dir (const map_node_t *n, int dir)
+{
+  int l;
+  if (n == NULL)
+    return 0;
+  for (l = 0; l < n->n_links; l++)
+    if (n->links[l].dir == dir)
+      return 1;
+  return 0;
+}
+
+/* Ensure the per-page badge scratch array exists. */
+static inout_badge_t *
+inout_badge_buf (inout_badge_t *b, const map_page_t *page)
+{
+  if (b != NULL)
+    return b;
+  return (inout_badge_t *) calloc ((size_t) page->n_nodes,
+                                   sizeof (inout_badge_t));
+}
+
+/* Walk the page's In/Out (and A5 Up/Down) links once and record both ends of
+   each, the way RecalculateLinks does (Map.vb:824).  Far-end badges are
+   recorded when the destination has a Movement on DestinationAnchor
+   (bHas*), matching DrawInOutIcon -- including one-way links whose dest
+   Out/In goes elsewhere.  ADRIFT 4's badge links have no geometry to share,
+   so this returns NULL and a4_badge_pos places them.
+   Returns NULL when the page has nothing to record, which most do. */
+static inout_badge_t *
+inout_layout (const map_page_t *page, const map_view_t *view)
+{
+  inout_badge_t *b = NULL;
+  int i, l;
+
+  for (i = 0; i < page->n_nodes; i++)
+    {
+      const map_node_t *n = &page->nodes[i];
+      if (!view_seen (view, n->key))
+        continue;
+
+      for (l = 0; l < n->n_links; l++)
+        {
+          const map_link_t *link = &n->links[l];
+          const map_node_t *dn;
+          int dst_anchor;
+
+          if (link->badge)
+            continue;
+          if (link->dir != DIR_IN && link->dir != DIR_OUT
+              && link->dir != DIR_UP && link->dir != DIR_DOWN)
+            continue;
+          b = inout_badge_buf (b, page);
+          if (b == NULL)
+            return NULL;
+
+          dn = (link->dest != NULL) ? page_node (page, link->dest) : NULL;
+          {
+            const map_node_t *face = badge_face_node (page, n, link);
+
+            if (link->dir == DIR_IN || link->dir == DIR_OUT)
+              inout_mark (&b[i], link->dir, inout_edge (n, face), 0);
+            else if (link->dir == DIR_UP || link->dir == DIR_DOWN)
+              ud_mark (&b[i], link->dir, inout_edge (n, face), 0);
+          }
+          if (dn == NULL || !view_seen (view, dn->key))
+            continue;
+          dst_anchor = link->dst_anchor;
+          /* Arrival badge if dest has that Movement (not duplex-only). */
+          if (!node_has_badge_dir (dn, dst_anchor))
+            continue;
+
+          if (dst_anchor == DIR_IN || dst_anchor == DIR_OUT)
+            inout_mark (&b[dn - page->nodes], dst_anchor,
+                        inout_edge (dn, n), 1);
+          else if (dst_anchor == DIR_UP || dst_anchor == DIR_DOWN)
+            ud_mark (&b[dn - page->nodes], dst_anchor,
+                     inout_edge (dn, n), 1);
+          else
+            continue;
+          /* Coincident with a compass exit: sit the far badge on that
+             connector's arrival port (Behind Bar Down+South -> U on Cellar
+             North) instead of a half-wind that misses the line. */
+          {
+            int arrival = badge_compass_arrival (n, link);
+            if (arrival >= 0)
+              fix_far_compass_site (&b[dn - page->nodes], dst_anchor, arrival);
+          }
+        }
+
+      /* Map.vb DrawNode (1312-1321): a Movement to an *unseen* room draws an
+         In/Out icon (or Up stub) even when the author never wrote a Map
+         <Link> for that direction -- Alyas of Starhollow's By Longhouse has
+         In→In Longhouse as a Movement only.  Compass directions already get
+         pass-2 stubs the same way; badge dirs were skipped there.
+
+         Up and Down follow Spatterlight's badge convention rather than those
+         lines literally: the runner has no Up/Down badge at all, so it sends
+         Up to DrawOutArrow and skips Down outright (the loop is wrapped in
+         `If eDir <> DirectionsEnum.Down`).  Since we already draw a seen
+         Up/Down Link as a U/D disc, an unseen one gets the same disc, and
+         Down comes along for symmetry. */
+      if (view != NULL && view->exit_dest != NULL)
+        {
+          static const int badge_dirs[] = {
+            DIR_IN, DIR_OUT, DIR_UP, DIR_DOWN
+          };
+          int di;
+
+          for (di = 0; di < 4; di++)
+            {
+              int dir = badge_dirs[di];
+              const char *dest;
+              const map_node_t *face;
+              int already;
+
+              if (!node_has_badge_dir (n, dir))
+                continue;
+              if (node_has_link_dir (n, dir))
+                continue;       /* Link path above already recorded this */
+              if (b != NULL)
+                {
+                  already = (dir == DIR_IN) ? b[i].has_in
+                          : (dir == DIR_OUT) ? b[i].has_out
+                          : (dir == DIR_UP) ? b[i].has_up
+                          : b[i].has_down;
+                  if (already)
+                    continue;   /* far badge from someone else's Link */
+                }
+              dest = view->exit_dest (view->ctx, n->key, dir);
+              if (dest == NULL || dest[0] == '\0')
+                continue;
+              if (view_seen (view, dest))
+                continue;       /* seen dest needs a Link for a badge */
+              b = inout_badge_buf (b, page);
+              if (b == NULL)
+                return NULL;
+              /* Face the dest's map node even while unseen (RecalculateNodes
+                 walks every node; GetLinkPoint on a reverse DestAnchor does
+                 the same for eInEdge).  Missing/off-page → North default. */
+              face = page_node (page, dest);
+              if (dir == DIR_IN || dir == DIR_OUT)
+                inout_mark (&b[i], dir, inout_edge (n, face), 0);
+              else
+                ud_mark (&b[i], dir, inout_edge (n, face), 0);
+            }
+        }
+    }
+  if (b != NULL)
+    finalize_badge_sites (b, page);
+  return b;
+}
+
 void
 map_render (const map_t *map, const map_view_t *view,
               const char *player_key, const map_camera_t *cam,
@@ -1053,6 +1798,7 @@ map_render (const map_t *map, const map_view_t *view,
 {
   const map_page_t *page;
   const map_node_t *active;
+  inout_badge_t *badges;
   proj_t p;
   int i, l, wd;
 
@@ -1070,6 +1816,7 @@ map_render (const map_t *map, const map_view_t *view,
   wd = cam->scale / 5;          /* Map.vb:1433, pen width = iScale / 5 */
   if (wd < 1)
     wd = 1;
+  badges = inout_layout (page, view);
 
   /* Pass 1: connectors, so the room boxes sit on top of them. */
   for (i = 0; i < page->n_nodes; i++)
@@ -1086,8 +1833,8 @@ map_render (const map_t *map, const map_view_t *view,
           int alpha, dash, phase = 0;
           int dst_anchor;
 
-          if (link->dir == DIR_IN || link->dir == DIR_OUT || link->badge)
-            continue;           /* drawn as badges below */
+          if (link->badge)
+            continue;           /* ADRIFT 4 Up/Down/In/Out: icons only */
           if (link->dest == NULL)
             continue;
 
@@ -1097,12 +1844,25 @@ map_render (const map_t *map, const map_view_t *view,
               /* Destination unseen or on another page: stub arrow only. */
               continue;
             }
-          if (link->dir == DIR_UP || link->dir == DIR_DOWN)
-            {
-              /* In plan view Z drops out, so an up/down link degenerates to a
-                 straight run between the two room centres; that is exactly
-                 what the runner shows until you rotate the map. */
-            }
+
+          /* Badge-style exits (In/Out/Up/Down) only draw a connector while the
+             route is currently allowed -- same HasRouteInDirection gate the
+             badges themselves use.  Compass links keep the dotted-only gate
+             below, matching Map.vb's DashStyle.Dot path. */
+          if ((link->dir == DIR_IN || link->dir == DIR_OUT
+               || link->dir == DIR_UP || link->dir == DIR_DOWN)
+              && view != NULL && view->exit_dest != NULL
+              && view->exit_dest (view->ctx, n->key, link->dir) == NULL)
+            continue;
+
+          /* Badge exit coincides with a compass exit: the compass connector
+             already draws the line; sit the badge on that port instead. */
+          if (badges != NULL
+              && ((link->dir == DIR_IN && badges[i].on_compass_in)
+                  || (link->dir == DIR_OUT && badges[i].on_compass_out)
+                  || (link->dir == DIR_UP && badges[i].on_compass_up)
+                  || (link->dir == DIR_DOWN && badges[i].on_compass_down)))
+            continue;
 
           /* Nodes on a different level than the player's fade out
              (Map.vb:1436). */
@@ -1127,18 +1887,154 @@ map_render (const map_t *map, const map_view_t *view,
                 dash = 0;
             }
 
+          /* Self-link: DrawOutArrow, not a curve through the box
+             (Map.vb:1474).  Skip self-Down the way the runner does.  This
+             sits below the route gates because the runner reaches it with
+             the pen already built: a restricted self-link whose restrictions
+             currently fail has left DrawLinks at Map.vb:1429 (Cloak of
+             Darkness's Foyer, North -> itself behind "Task6 Must
+             BeComplete", draws nothing), and an off-level one carries the
+             faded alpha rather than a flat 100.  ADRIFT 4's runner has no
+             such rule -- a Line control from a room to itself is just a
+             point -- so line_links keeps its own behaviour. */
+          if (!map->line_links
+              && n->key != NULL && strcmp (link->dest, n->key) == 0)
+            {
+              if (link->dir == DIR_DOWN)
+                continue;
+              if (link->dir != DIR_IN && link->dir != DIR_OUT)
+                draw_out_arrow (dst, &p, n, link->dir, wd, alpha);
+              continue;
+            }
+
           dst_anchor = link->dst_anchor;
           if (dst_anchor < 0)
             dst_anchor = link->dir;
 
-          link_point (&p, n, link->dir, &x0, &y0);
-          link_point (&p, dn, dst_anchor, &x3, &y3);
-          dist = sqrt ((x3 - x0) * (x3 - x0) + (y3 - y0) * (y3 - y0));
-          bezier_assister (&p, n, link->dir, dist, &x1, &y1);
-          bezier_assister (&p, dn, dst_anchor, dist, &x2, &y2);
+          /* In/Out and Up/Down connectors run badge to badge at the half-wind
+             sites inout_layout resolved.  Compass links still leave from a
+             face midpoint. */
+          if (link->dir == DIR_IN || link->dir == DIR_OUT
+              || link->dir == DIR_UP || link->dir == DIR_DOWN)
+            {
+              int site = BADGE_NNE;
+              if (badges == NULL)
+                continue;
+              if (link->dir == DIR_IN)
+                site = badges[i].in_site;
+              else if (link->dir == DIR_OUT)
+                site = badges[i].out_site;
+              else if (link->dir == DIR_UP)
+                site = badges[i].up_site;
+              else
+                site = badges[i].down_site;
+              badge_site_point (&p, n, site, &x0, &y0);
+            }
+          else
+            link_point (&p, n, link->dir, &x0, &y0);
+          if (dst_anchor == DIR_IN || dst_anchor == DIR_OUT
+              || dst_anchor == DIR_UP || dst_anchor == DIR_DOWN)
+            {
+              int j = (int) (dn - page->nodes);
+              int site;
 
-          draw_bezier (dst, x0, y0, x1, y1, x2, y2, x3, y3, wd, map_fg,
-                       alpha, dash, &phase);
+              if (badges == NULL)
+                continue;
+              site = arrival_badge_site (&badges[j], dn, n, dst_anchor);
+              badge_site_point (&p, dn, site, &x3, &y3);
+            }
+          else
+            link_point (&p, dn, dst_anchor, &x3, &y3);
+
+          dist = sqrt ((x3 - x0) * (x3 - x0) + (y3 - y0) * (y3 - y0));
+          if (map->line_links)
+            {
+              /* ADRIFT 4.  Form29.dolink sets the X1/Y1/X2/Y2 of a Line
+                 control, which is a straight segment, and it takes only one
+                 of the two coordinates from the destination: a North or South
+                 link is vertical at the *source* room's centre column and an
+                 East or West one horizontal at the source's centre row,
+                 whatever column or row the destination ended up in.  So a
+                 skewed link sets off towards the destination's row and stops
+                 level with it without ever meeting the box -- which is what
+                 run400 draws.  (The eight-point diagonals need no such fix:
+                 their two anchors are already the corners the runner uses.) */
+              switch (link->dir)
+                {
+                case DIR_N: case DIR_S: x3 = x0; break;
+                case DIR_E: case DIR_W: y3 = y0; break;
+                default: break;
+                }
+              x1 = x0; y1 = y0;
+              x2 = x3; y2 = y3;
+              draw_bezier (dst, x0, y0, x1, y1, x2, y2, x3, y3, wd, map_fg,
+                           alpha, dash, &phase);
+            }
+          else if (link->n_mids > 0 && link->mids != NULL)
+            {
+              /* Author-dragged <Anchor> midpoints: DrawCurve through
+                 start, mids, end (Map.vb RecalculateLinks / DrawLinks).
+                 Absolute map-unit coords, same as node X/Y. */
+              int np = link->n_mids + 2;
+              double *pts = (double *) malloc ((size_t) np * 2
+                                               * sizeof (double));
+              int mi;
+              if (pts == NULL)
+                continue;
+              pts[0] = x0;
+              pts[1] = y0;
+              for (mi = 0; mi < link->n_mids; mi++)
+                {
+                  pts[2 * (mi + 1)] = px_x (&p, link->mids[mi].x);
+                  pts[2 * (mi + 1) + 1] = px_y (&p, link->mids[mi].y);
+                }
+              pts[2 * (np - 1)] = x3;
+              pts[2 * (np - 1) + 1] = y3;
+              draw_curve (dst, pts, np, wd, map_fg, alpha, dash, &phase);
+              /* Tangent for a one-way arrow: last mid -> end. */
+              x1 = pts[2 * (np - 2)];
+              y1 = pts[2 * (np - 2) + 1];
+              x2 = x1;
+              y2 = y1;
+              free (pts);
+            }
+          else if (link->dir == DIR_IN || link->dir == DIR_OUT
+              || link->dir == DIR_UP || link->dir == DIR_DOWN
+              || dst_anchor == DIR_IN || dst_anchor == DIR_OUT
+              || dst_anchor == DIR_UP || dst_anchor == DIR_DOWN)
+            {
+              /* No bow: a badge connector is a straight run between the two
+                 badges however far apart they are.  Checked against run500
+                 5.0.36 on Alyas of Starhollow, whose In Longhouse -> By
+                 Longhouse link crosses ten map units diagonally and still
+                 arrives dead straight, where a compass link over that distance
+                 visibly bellies out. */
+              x1 = x0; y1 = y0;
+              x2 = x3; y2 = y3;
+              draw_bezier (dst, x0, y0, x1, y1, x2, y2, x3, y3, wd, map_fg,
+                           alpha, dash, &phase);
+            }
+          else
+            {
+              bezier_assister (&p, n, link->dir, dist, &x1, &y1);
+              bezier_assister (&p, dn, dst_anchor, dist, &x2, &y2);
+              draw_bezier (dst, x0, y0, x1, y1, x2, y2, x3, y3, wd, map_fg,
+                           alpha, dash, &phase);
+            }
+
+          /* One-way (Not Duplex): AdjustableArrowCap at the destination end
+             (Map.vb:1450).  Duplex links stay round-capped. */
+          if (!link->duplex && !map->line_links)
+            {
+              double adx = x3 - x2, ady = y3 - y2;
+              if (adx * adx + ady * ady < 0.01)
+                {
+                  adx = x3 - x0;
+                  ady = y3 - y0;
+                }
+              draw_arrowhead (dst, x3, y3, adx, ady, wd * 2 + 2, map_fg,
+                              alpha);
+            }
         }
     }
 
@@ -1157,7 +2053,8 @@ map_render (const map_t *map, const map_view_t *view,
           for (d = 0; d < 12; d++)
             {
               const char *dest;
-              if (d == DIR_IN || d == DIR_OUT)
+              /* In/Out and Up/Down are badge icons, not compass stubs. */
+              if (d == DIR_IN || d == DIR_OUT || d == DIR_UP || d == DIR_DOWN)
                 continue;
               dest = view->exit_dest (view->ctx, n->key, d);
               if (dest == NULL || dest[0] == '\0')
@@ -1173,13 +2070,15 @@ map_render (const map_t *map, const map_view_t *view,
   for (i = 0; i < page->n_nodes; i++)
     {
       const map_node_t *n = &page->nodes[i];
-      int x0, y0, x1, y1, alpha, is_player;
+      int x0, y0, x1, y1, alpha, bopq, is_player;
       const map_link_t *b_in = NULL, *b_out = NULL;
       const map_link_t *b_up = NULL, *b_down = NULL;
       unsigned int fill;
 
       if (!view_seen (view, n->key))
         continue;
+      if (n->hidden)
+        continue;               /* Location <Hide>: no box (Map.vb:1156) */
 
       x0 = px_x (&p, n->x);
       y0 = px_y (&p, n->y);
@@ -1207,15 +2106,16 @@ map_render (const map_t *map, const map_view_t *view,
             b_in = lk;
           else if (lk->dir == DIR_OUT)
             b_out = lk;
-          else if (lk->dir == DIR_UP && lk->badge)
+          else if (lk->dir == DIR_UP)
             b_up = lk;
-          else if (lk->dir == DIR_DOWN && lk->badge)
+          else if (lk->dir == DIR_DOWN)
             b_down = lk;
         }
-      /* The ADRIFT 5 runner's IN/OUT badges only show while the route is
-         currently usable (the HasRouteInDirection gates, Map.vb:1328/1337) --
-         Grandpa's Ranch's Living Room gains its OUT badge when the front
-         door is opened. */
+      /* Badge icons only show while the route is currently usable (the
+         HasRouteInDirection gates, Map.vb:1328/1337 for In/Out -- Grandpa's
+         Ranch's Living Room gains its OUT badge when the front door is
+         opened).  ADRIFT 4 leaves ever_blocked NULL, so its badges always
+         show.  The matching connector gate is in pass 1 above. */
       if (view != NULL && view->ever_blocked != NULL && view->exit_dest != NULL)
         {
           if (b_in != NULL
@@ -1224,16 +2124,71 @@ map_render (const map_t *map, const map_view_t *view,
           if (b_out != NULL
               && view->exit_dest (view->ctx, n->key, DIR_OUT) == NULL)
             b_out = NULL;
+          if (b_up != NULL
+              && view->exit_dest (view->ctx, n->key, DIR_UP) == NULL)
+            b_up = NULL;
+          if (b_down != NULL
+              && view->exit_dest (view->ctx, n->key, DIR_DOWN) == NULL)
+            b_down = NULL;
         }
-      if (b_in != NULL)
-        draw_dir_icon (dst, &p, n, DIR_IN, badge_alpha (view, b_in, alpha));
-      if (b_out != NULL)
-        draw_dir_icon (dst, &p, n, DIR_OUT, badge_alpha (view, b_out, alpha));
-      if (b_up != NULL)
-        draw_dir_icon (dst, &p, n, DIR_UP, badge_alpha (view, b_up, alpha));
-      if (b_down != NULL)
-        draw_dir_icon (dst, &p, n, DIR_DOWN,
-                       badge_alpha (view, b_down, alpha));
+      /* ADRIFT 4's badges are the runner's little bitmaps, painted over the
+         room box rather than blended into it, and there is no second level
+         for the off-level alpha to mean anything on: draw them opaque, so a
+         badge stays legible on the filled-in player box.  ADRIFT 5's are part
+         of the drawing and keep the node's own alpha. */
+      bopq = map->line_links ? 255 : alpha;
+      /* A3/A4: fixed sites matching master (U ENE, D WSW, I/O north-edge
+         quarters).  A5 uses the sites inout_layout resolved. */
+      if (badges == NULL
+          && (b_up != NULL || b_down != NULL
+              || (b_in != NULL && b_in->badge)
+              || (b_out != NULL && b_out->badge)))
+        {
+          a4_badge_pos_t a4;
+          a4_badge_pos (n, &a4);
+          if (b_in != NULL)
+            draw_dir_icon_site (dst, &p, n, DIR_IN, a4.in_site,
+                                badge_alpha (view, b_in, bopq));
+          if (b_out != NULL)
+            draw_dir_icon_site (dst, &p, n, DIR_OUT, a4.out_site,
+                                badge_alpha (view, b_out, bopq));
+          if (b_up != NULL)
+            draw_dir_icon_site (dst, &p, n, DIR_UP, a4.up_site,
+                                badge_alpha (view, b_up, bopq));
+          if (b_down != NULL)
+            draw_dir_icon_site (dst, &p, n, DIR_DOWN, a4.down_site,
+                                badge_alpha (view, b_down, bopq));
+        }
+      else if (badges != NULL)
+        {
+          /* Own Link badge (b_* non-NULL after the route gate), far badge
+             from somebody else's Link (DrawLinks, not route-gated), or a
+             Movement-only badge toward an unseen room (no <Link>, Map.vb
+             DrawNode stub path -- has_* set without a matching SourceAnchor
+             Link).  A Link whose route is currently blocked leaves has_* set
+             but b_* NULL; those must stay hidden. */
+          if (b_in != NULL || badges[i].far_in
+              || (badges[i].has_in && !node_has_link_dir (n, DIR_IN)))
+            draw_dir_icon_site (dst, &p, n, DIR_IN, badges[i].in_site,
+                                b_in != NULL ? badge_alpha (view, b_in, alpha)
+                                              : alpha);
+          if (b_out != NULL || badges[i].far_out
+              || (badges[i].has_out && !node_has_link_dir (n, DIR_OUT)))
+            draw_dir_icon_site (dst, &p, n, DIR_OUT, badges[i].out_site,
+                                b_out != NULL ? badge_alpha (view, b_out, alpha)
+                                               : alpha);
+          if (b_up != NULL || badges[i].far_up
+              || (badges[i].has_up && !node_has_link_dir (n, DIR_UP)))
+            draw_dir_icon_site (dst, &p, n, DIR_UP, badges[i].up_site,
+                                b_up != NULL ? badge_alpha (view, b_up, alpha)
+                                              : alpha);
+          if (b_down != NULL || badges[i].far_down
+              || (badges[i].has_down && !node_has_link_dir (n, DIR_DOWN)))
+            draw_dir_icon_site (dst, &p, n, DIR_DOWN, badges[i].down_site,
+                                b_down != NULL
+                                  ? badge_alpha (view, b_down, alpha)
+                                  : alpha);
+        }
 
       if (view != NULL && view->name != NULL)
         {
@@ -1244,6 +2199,8 @@ map_render (const map_t *map, const map_view_t *view,
                         alpha == 50 ? 90 : 255);
         }
     }
+
+  free (badges);
 }
 
 const char *
