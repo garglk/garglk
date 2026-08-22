@@ -98,7 +98,7 @@ if(INTERFACE STREQUAL "QT")
     set_property(SOURCE ${GARGLKINI_CXX} ${THEME_DARK_CXX} ${THEME_DARK_H} ${THEME_LIGHT_CXX} ${THEME_LIGHT_H} PROPERTY SKIP_AUTOMOC ON)
 
     if(NOT WITH_NATIVE_FILE_DIALOGS)
-        set_property(SOURCE sysqt.cpp launchqt.cpp APPEND PROPERTY COMPILE_DEFINITIONS GARGLK_CONFIG_NO_NATIVE_FILE_DIALOGS)
+        set_property(SOURCE sysqt.cpp launchqt.cpp menubarqt.cpp APPEND PROPERTY COMPILE_DEFINITIONS GARGLK_CONFIG_NO_NATIVE_FILE_DIALOGS)
     endif()
 endif()
 
@@ -148,7 +148,7 @@ if(INTERFACE STREQUAL "COCOA")
     target_sources(garglk-common PRIVATE sysmac.mm)
     target_compile_options(garglk-common PRIVATE "-Wno-deprecated-declarations")
 else()
-    target_sources(garglk-common PRIVATE sysqt.cpp)
+    target_sources(garglk-common PRIVATE sysqt.cpp ipc.cpp ipclientqt.cpp menubarqt.cpp)
     find_package(Threads REQUIRED)
     target_link_libraries(garglk-common PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 endif()
@@ -204,7 +204,7 @@ if(WITH_LAUNCHER)
         target_sources(gargoyle PRIVATE launchmac.mm)
         target_compile_options(gargoyle PRIVATE "-Wno-deprecated-declarations")
     else()
-        target_sources(gargoyle PRIVATE launchqt.cpp)
+        target_sources(gargoyle PRIVATE launchqt.cpp sessionqt.cpp)
 
         # For AppImage, interpreters are installed in the same directory as the
         # launcher, so don't provide GARGLK_CONFIG_INTERPRETER_DIR: in its
@@ -226,8 +226,8 @@ else()
     set(QT_VERSION "6" CACHE STRING "Specify which major Qt version to use (5 or 6)")
     option(WITH_KDE "Use KDE Frameworks (improves discovery of a text editor for config file editing)" OFF)
 
-    find_package(Qt${QT_VERSION} COMPONENTS Widgets REQUIRED CONFIG)
-    target_link_libraries(garglk-common PRIVATE Qt${QT_VERSION}::Widgets)
+    find_package(Qt${QT_VERSION} COMPONENTS Widgets Network REQUIRED CONFIG)
+    target_link_libraries(garglk-common PRIVATE Qt${QT_VERSION}::Widgets Qt${QT_VERSION}::Network)
 
     # QDBus exists on Windows, but almost nobody will be running DBus
     # there, so using QDBus would effectively just require shipping the
@@ -257,7 +257,7 @@ else()
     endif()
 
     if(WITH_LAUNCHER)
-        target_link_libraries(gargoyle PRIVATE Qt${QT_VERSION}::Widgets)
+        target_link_libraries(gargoyle PRIVATE Qt${QT_VERSION}::Widgets Qt${QT_VERSION}::Network)
     endif()
 
     target_compile_definitions(garglk-common PRIVATE GARGLK_CONFIG_TICK)

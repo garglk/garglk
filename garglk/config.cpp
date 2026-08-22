@@ -253,6 +253,11 @@ bool gli_conf_fluidsynth_reverb = true;
 
 bool gli_conf_fullscreen = false;
 
+bool gli_conf_menu_bar = true;
+
+bool gli_conf_ipc = true;
+std::string gli_conf_ipc_server;
+
 bool gli_wait_on_quit = true;
 
 bool gli_conf_stylehint = true;
@@ -799,6 +804,12 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 gli_conf_fluidsynth_chorus = asbool(arg);
             } else if (cmd == "fullscreen") {
                 gli_conf_fullscreen = asbool(arg);
+            } else if (cmd == "menu_bar") {
+                gli_conf_menu_bar = asbool(arg);
+            } else if (cmd == "ipc") {
+                gli_conf_ipc = asbool(arg);
+            } else if (cmd == "ipc_server") {
+                gli_conf_ipc_server = arg;
             } else if (cmd == "zoom") {
                 gli_zoom = config_atleast(parse_double(arg), 0.1);
             } else if (cmd == "scaler") {

@@ -18,6 +18,7 @@
 // along with Gargoyle; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+#include <QAction>
 #include <QApplication>
 #include <QChar>
 #include <QClipboard>
@@ -31,9 +32,12 @@
 #include <QFrame>
 #include <QGraphicsView>
 #include <QHBoxLayout>
+#include <QKeySequence>
 #include <QLabel>
 #include <QList>
 #include <QMainWindow>
+#include <QMenu>
+#include <QMenuBar>
 #include <QMessageBox>
 #include <QMoveEvent>
 #include <QObject>
@@ -51,6 +55,7 @@
 #include <QStringList>
 #include <QTimer>
 #include <QUrl>
+#include <QVector>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QtGlobal>
@@ -105,6 +110,8 @@
 #include "garversion.h"
 #include "glk.h"
 #include "garglk.h"
+#include "ipclientqt.h"
+#include "menubarqt.h"
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #define HAS_QT6
@@ -120,8 +127,69 @@ static const std::unordered_map<FileFilter, std::pair<QString, QString>> filters
     {FileFilter::Data, {"Data files (*.glkdata)", "glkdata"}},
 };
 
+static QString find_gargoyle_launcher()
+{
+    // Prefer the path recorded by the launcher when it started this
+    // interpreter; that covers non-standard layouts (e.g. build trees).
+    if (auto *env = std::getenv("GARGLK_LAUNCHER"); env != nullptr && env[0] != '\0') {
+        QFileInfo info(QString::fromLocal8Bit(env));
+        if (info.exists() && info.isFile()) {
+            return info.canonicalFilePath();
+        }
+    }
+
+    QDir appdir(QCoreApplication::applicationDirPath());
+#ifdef Q_OS_WIN
+    const QString name = "gargoyle.exe";
+#else
+    const QString name = "gargoyle";
+#endif
+
+    // AppImage/Windows/dev builds keep interpreters next to gargoyle.
+    // Unix installs typically put interpreters in libexec/gargoyle and
+    // the launcher in bin/, one or two levels up. CMake build trees put
+    // the launcher in ../garglk/.
+    const QStringList candidates = {
+        appdir.absoluteFilePath(name),
+        appdir.absoluteFilePath(QString("../%1").arg(name)),
+        appdir.absoluteFilePath(QString("../garglk/%1").arg(name)),
+        appdir.absoluteFilePath(QString("../bin/%1").arg(name)),
+        appdir.absoluteFilePath(QString("../../bin/%1").arg(name)),
+    };
+
+    for (const auto &candidate : candidates) {
+        QFileInfo info(candidate);
+        if (info.exists() && info.isFile()) {
+            return info.canonicalFilePath();
+        }
+    }
+
+    return QStandardPaths::findExecutable("gargoyle");
+}
+
 static QApplication *app;
 static garglk::Window *window;
+
+static bool launch_gargoyle(const QString &game = {})
+{
+    auto launcher = find_gargoyle_launcher();
+    if (launcher.isEmpty()) {
+        QMessageBox::warning(window, "Warning", "Unable to find the Gargoyle launcher.");
+        return false;
+    }
+
+    QStringList args;
+    if (!game.isEmpty()) {
+        args << game;
+    }
+
+    if (!QProcess::startDetached(launcher, args)) {
+        QMessageBox::warning(window, "Warning", "Unable to start Gargoyle.");
+        return false;
+    }
+
+    return true;
+}
 
 static bool refresh_needed = true;
 
@@ -142,20 +210,52 @@ static void handle_input(const QString &input, bool from_paste)
     }
 }
 
+static QTimer *ipc_timer = nullptr;
+static bool ipc_timed_out = false;
+
 void glk_request_timer_events(glui32 ms)
 {
+    if (garglk::ipc_client::active()) {
+        if (ipc_timer == nullptr) {
+            ipc_timer = new QTimer(app);
+            ipc_timer->setTimerType(Qt::TimerType::PreciseTimer);
+            QObject::connect(ipc_timer, &QTimer::timeout, []() {
+                ipc_timed_out = true;
+            });
+        }
+        if (ipc_timer->isActive()) {
+            ipc_timer->stop();
+        }
+        if (ms > static_cast<glui32>(std::numeric_limits<int>::max())) {
+            ms = static_cast<glui32>(std::numeric_limits<int>::max());
+        }
+        if (ms != 0) {
+            ipc_timer->setInterval(static_cast<int>(ms));
+            ipc_timer->start();
+        }
+        return;
+    }
+
     window->start_timer(ms);
 }
 
 void gli_notification_waiting()
 {
+    if (garglk::ipc_client::active()) {
+        QApplication::postEvent(app, new QEvent(QEvent::None));
+        return;
+    }
     QApplication::postEvent(window, new QEvent(QEvent::None));
 }
 
 void garglk::winabort(const std::string &msg)
 {
     std::cerr << "fatal: " << msg << std::endl;
-    QMessageBox::critical(nullptr, "Error", msg.c_str());
+    if (garglk::ipc_client::active()) {
+        garglk::ipc_client::abort_dialog(QString::fromStdString(msg));
+    } else {
+        QMessageBox::critical(nullptr, "Error", msg.c_str());
+    }
     gli_exit(EXIT_FAILURE);
 }
 
@@ -174,6 +274,27 @@ enum class Action { Open, Save };
 
 static std::string winchoosefile(const QString &prompt, FileFilter filter, Action action)
 {
+    if (garglk::ipc_client::active()) {
+        QString dir;
+        if (gli_conf_gamedata_location == GamedataLocation::Dedicated && gli_workfile.has_value()) {
+            auto path = QFileInfo(QString::fromStdString(*gli_workfile));
+            if (!path.fileName().isEmpty()) {
+                QDir basedir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+                QDir savepath = QDir(basedir.filePath("gamedata")).filePath(path.fileName());
+                if (savepath.mkpath(savepath.absolutePath())) {
+                    dir = savepath.absolutePath();
+                }
+            }
+        } else if (gli_conf_gamedata_location == GamedataLocation::Gamedir) {
+            dir = QString::fromStdString(gli_workdir);
+        }
+
+        if (action == Action::Open) {
+            return garglk::ipc_client::open_dialog(prompt, filter, dir);
+        }
+        return garglk::ipc_client::save_dialog(prompt, filter, dir);
+    }
+
     QString filename;
     QFileDialog::Options options;
 #ifdef GARGLK_CONFIG_NO_NATIVE_FILE_DIALOGS
@@ -274,10 +395,23 @@ garglk::Window::Window() :
     // doesn't really matter anyway.
     m_settings(new QSettings("io.github.garglk", "Gargoyle", this))
 {
+    setCentralWidget(m_view);
+
     m_timer->setTimerType(Qt::TimerType::PreciseTimer);
     connect(m_timer, &QTimer::timeout, this, [&]() {
         m_timed_out = true;
     });
+
+    if (gli_conf_menu_bar) {
+        setup_file_menu(this, m_settings, launch_gargoyle, [] { gli_exit(0); });
+    } else {
+        menuBar()->hide();
+    }
+}
+
+void garglk::Window::note_recent_file(const QString &path)
+{
+    garglk::note_recent_file(m_settings, path);
 }
 
 void garglk::Window::showEvent(QShowEvent *event)
@@ -303,7 +437,7 @@ void garglk::Window::showEvent(QShowEvent *event)
     // window is first shown, by which point the true scale has reliably
     // arrived in practice.
     QTimer::singleShot(50, this, [this]() {
-        updateBufferSize(size());
+        updateBufferSize(m_view->size());
     });
 #endif
 }
@@ -312,7 +446,7 @@ void garglk::Window::showEvent(QShowEvent *event)
 bool garglk::Window::event(QEvent *event)
 {
     if (event->type() == QEvent::DevicePixelRatioChange) {
-        updateBufferSize(size());
+        updateBufferSize(m_view->size());
     }
 
     return QMainWindow::event(event);
@@ -363,9 +497,9 @@ void garglk::Window::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
 
-    m_view->resize(event->size());
-
-    updateBufferSize(event->size());
+    // Buffer size follows the central view (below the menu bar), not the
+    // full window.
+    updateBufferSize(m_view->size());
 
     event->accept();
 }
@@ -808,31 +942,64 @@ void wininit()
 
 void winopen()
 {
+    int defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
+    int defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
+    QSize size(defw, defh);
+
+    bool do_fullscreen = gli_conf_fullscreen;
+    bool do_move = false;
+    QPoint position;
+
+    // Prefer IPC session parent when enabled and available.
+    if (garglk::ipc_client::connect_to_parent()) {
+        unsigned char r = gli_window_color[0];
+        unsigned char g = gli_window_color[1];
+        unsigned char b = gli_window_color[2];
+
+        if (gli_conf_save_window_size) {
+            // Stored sizes aren't available without a local QSettings window;
+            // use defaults. Parent may still restore via its own settings later.
+        }
+
+        garglk::ipc_client::init_window(do_move, 0, 0, size.width(), size.height(),
+                do_fullscreen, r, g, b);
+
+        if (gli_workfile.has_value()) {
+            // Recent files are tracked by the parent session on open.
+        }
+
+        wintitle();
+        return;
+    }
+
     window = new garglk::Window();
 
     window->setMinimumSize(gli_wmarginx * 2, gli_wmarginy * 2);
 
-    int defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
-    int defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
-    QSize size(defw, defh);
     if (gli_conf_save_window_size) {
         auto stored_size = window->settings()->value("window/size");
         if (stored_size.canConvert<QSize>()) {
             size = stored_size.toSize();
         }
     }
-    window->resize(size);
+
+    // Requested size is for the game view; grow the window to fit the
+    // menu bar above it when enabled.
+    int menu_h = gli_conf_menu_bar ? window->menuBar()->sizeHint().height() : 0;
+    window->resize(size.width(), size.height() + menu_h);
 
     if (gli_conf_save_window_location) {
-        auto position = window->settings()->value("window/position");
-        if (position.canConvert<QPoint>()) {
-            window->move(position.toPoint());
+        auto stored_position = window->settings()->value("window/position");
+        if (stored_position.canConvert<QPoint>()) {
+            window->move(stored_position.toPoint());
         }
     }
 
-    wintitle();
+    if (gli_workfile.has_value()) {
+        window->note_recent_file(QString::fromStdString(*gli_workfile));
+    }
 
-    bool do_fullscreen = gli_conf_fullscreen;
+    wintitle();
 
     if (gli_conf_save_window_location || gli_conf_save_window_size) {
         auto fullscreen = window->settings()->value("window/fullscreen");
@@ -858,6 +1025,11 @@ void wintitle()
         title = QString("%1 - %2").arg(QString::fromStdString(gli_story_name), QString::fromStdString(gli_program_name));
     } else {
         title = QString::fromStdString(gli_program_name);
+    }
+
+    if (garglk::ipc_client::active()) {
+        garglk::ipc_client::set_title(title);
+        return;
     }
 
     window->setWindowTitle(title);
@@ -964,7 +1136,27 @@ std::optional<std::string> garglk::winappdir()
 
 bool garglk::winisfullscreen()
 {
+    if (garglk::ipc_client::active()) {
+        return garglk::ipc_client::is_fullscreen();
+    }
     return window->isFullScreen();
+}
+
+static void refresh_display()
+{
+    if (!refresh_needed) {
+        return;
+    }
+
+    if (garglk::ipc_client::active()) {
+        gli_windows_redraw();
+        garglk::ipc_client::set_contents(gli_image_rgb.width(), gli_image_rgb.height(),
+                gli_image_rgb.data(), gli_image_rgb.size());
+        refresh_needed = false;
+        return;
+    }
+
+    window->refresh();
 }
 
 void gli_tick()
@@ -986,6 +1178,32 @@ void gli_tick()
 void gli_select(event_t *event, bool polled)
 {
     gli_event_clearevent(event);
+
+    if (garglk::ipc_client::active()) {
+        garglk::ipc_client::poll();
+        app->processEvents(QEventLoop::ExcludeUserInputEvents);
+        refresh_display();
+        gli_dispatch_event(event, polled);
+
+        if (!polled) {
+            while (event->type == evtype_None && !ipc_timed_out) {
+                refresh_display();
+                app->processEvents(QEventLoop::AllEvents | QEventLoop::WaitForMoreEvents, 50);
+                garglk::ipc_client::poll();
+                refresh_display();
+                gli_dispatch_event(event, polled);
+            }
+        }
+
+        if (event->type == evtype_None && ipc_timed_out) {
+            gli_event_store(evtype_Timer, nullptr, 0, 0);
+            gli_dispatch_event(event, polled);
+            ipc_timed_out = false;
+        }
+
+        process_events.store(false, std::memory_order_relaxed);
+        return;
+    }
 
     app->processEvents();
 

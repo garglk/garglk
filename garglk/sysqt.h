@@ -10,6 +10,7 @@
 #include <QResizeEvent>
 #include <QSettings>
 #include <QShowEvent>
+#include <QString>
 #include <QTimer>
 #include <QWheelEvent>
 #include <QWidget>
@@ -54,7 +55,8 @@ public:
     bool timed_out() const { return m_timed_out; }
     void reset_timeout() { m_timed_out = false; }
 
-    const QSettings *settings() { return m_settings; }
+    const QSettings *settings() const { return m_settings; }
+    void note_recent_file(const QString &path);
 
 protected:
     void showEvent(QShowEvent *) override;
