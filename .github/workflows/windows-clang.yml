@@ -69,12 +69,11 @@ jobs:
       - name: Assemble results
         run: |
           mkdir gargoyle-staging
-          cp cmake-build\garglk\gargoyle.exe gargoyle-staging
-          cp cmake-build\garglk\*.dll gargoyle-staging
+          # Native Windows builds colocate runtimes in the CMake build directory root.
+          cp cmake-build\*.exe gargoyle-staging
+          cp cmake-build\*.dll gargoyle-staging
           cp cmake-build\*.ttf gargoyle-staging
           cp cmake-build\*.otf gargoyle-staging
-          cp cmake-build\terps\*.exe gargoyle-staging
-          cp cmake-build\terps\frankendrift\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.Gargoyle\FrankenDrift.GlkRunner.Gargoyle.exe gargoyle-staging
 
       - name: Deploy Qt files
         run: |

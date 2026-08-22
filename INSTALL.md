@@ -430,11 +430,21 @@ needed):
 vcpkg install freetype sndfile mpg123 libopenmpt libjpeg-turbo --triplet x64-windows
 ```
 
-Invoke cmake as follows (adjust Qt and vcpkg paths accordingly):
+Configure from an empty build directory (adjust Qt and vcpkg paths accordingly):
 
 ```
 cmake -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link -DINTERFACE=QT -DCMAKE_PREFIX_PATH=D:/Qt/6.5.2/msvc2019_64 -DCMAKE_TOOLCHAIN_FILE=D:/vcpkg/scripts/buildsystems/vcpkg.cmake -DSOUND=QT ..
 ```
+
+Then build:
+
+```
+ninja
+```
+
+On Windows, this places `gargoyle.exe`, `garglk.dll`, the interpreters, and
+(via a `windeployqt` post-build step) the Qt runtime into the CMake build
+directory root. You can run `gargoyle.exe` from that directory directly.
 
 Building an installer from this configuration is not yet supported.
 

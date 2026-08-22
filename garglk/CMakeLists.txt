@@ -440,6 +440,35 @@ target_link_libraries(garglk PUBLIC garglk-common)
 add_library(garglk-gpl2)
 target_link_libraries(garglk-gpl2 PUBLIC garglk-common)
 
+# Native Windows builds: deploy Qt next to garglk.dll so the colocated
+# build-tree binaries are double-clickable. Cross-builds (MinGW on Linux)
+# assemble a dist tree separately via windows.sh / package-windows.sh.
+if(WIN32 AND CMAKE_HOST_WIN32 AND INTERFACE STREQUAL "QT")
+    find_program(GARGLK_WINDEPLOYQT
+        NAMES windeployqt${QT_VERSION} windeployqt
+        HINTS
+            "${Qt${QT_VERSION}_DIR}/../../../bin"
+            "${CMAKE_PREFIX_PATH}"
+            "${CMAKE_PREFIX_PATH}/bin"
+    )
+    if(GARGLK_WINDEPLOYQT)
+        add_custom_command(TARGET garglk POST_BUILD
+            COMMAND "${GARGLK_WINDEPLOYQT}"
+                --no-compiler-runtime
+                --no-system-d3d-compiler
+                --no-system-dxc-compiler
+                --no-opengl-sw
+                --exclude-plugins ffmpegmediaplugin,qopensslbackend,qpdf
+                --skip-plugin-types iconengines,imageformats,tls
+                "$<TARGET_FILE:garglk>"
+            COMMENT "Deploying Qt runtime next to garglk.dll"
+            VERBATIM
+        )
+    else()
+        message(WARNING "windeployqt not found; the Windows build tree may not run without Qt on PATH")
+    endif()
+endif()
+
 target_include_directories(garglk-common PRIVATE ../support/xbrz)
 target_link_libraries(garglk PRIVATE xbrz)
 target_link_libraries(garglk-gpl2 PRIVATE xbrz-null)
