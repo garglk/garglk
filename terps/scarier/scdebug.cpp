@@ -567,12 +567,9 @@ static void
 debug_print_player (scr_gameref_t game)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[2];
   const scr_char *playername;
 
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "PlayerName";
-  playername = prop_get_string (bundle, "S<-ss", vt_key);
+  playername = prop_get_global_string (bundle, "PlayerName");
   if_print_debug ("Player ");
   debug_print_quoted (playername);
 }
@@ -581,7 +578,6 @@ static void
 debug_print_room (scr_gameref_t game, scr_int room)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[3];
   scr_char buffer[32];
   const scr_char *name;
 
@@ -594,10 +590,7 @@ debug_print_room (scr_gameref_t game, scr_int room)
       return;
     }
 
-  vt_key[0].string = "Rooms";
-  vt_key[1].integer = room;
-  vt_key[2].string = "Short";
-  name = prop_get_string (bundle, "S<-sis", vt_key);
+  name = prop_get_indexed_string (bundle, "Rooms", room, "Short");
   snprintf (buffer, sizeof(buffer), "%ld ", room);
   if_print_debug (buffer);
   debug_print_quoted (name);
@@ -607,7 +600,6 @@ static void
 debug_print_object (scr_gameref_t game, scr_int object)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[3];
   scr_bool bstatic;
   scr_char buffer[32];
   const scr_char *prefix, *name;
@@ -621,14 +613,9 @@ debug_print_object (scr_gameref_t game, scr_int object)
       return;
     }
 
-  vt_key[0].string = "Objects";
-  vt_key[1].integer = object;
-  vt_key[2].string = "Static";
-  bstatic = prop_get_boolean (bundle, "B<-sis", vt_key);
-  vt_key[2].string = "Prefix";
-  prefix = prop_get_string (bundle, "S<-sis", vt_key);
-  vt_key[2].string = "Short";
-  name = prop_get_string (bundle, "S<-sis", vt_key);
+  bstatic = prop_get_indexed_boolean (bundle, "Objects", object, "Static");
+  prefix = prop_get_indexed_string (bundle, "Objects", object, "Prefix");
+  name = prop_get_indexed_string (bundle, "Objects", object, "Short");
   if (bstatic)
     if_print_debug ("Static ");
   else
@@ -644,7 +631,6 @@ static void
 debug_print_npc (scr_gameref_t game, scr_int npc)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[3];
   scr_char buffer[32];
   const scr_char *prefix, *name;
 
@@ -657,12 +643,8 @@ debug_print_npc (scr_gameref_t game, scr_int npc)
       return;
     }
 
-  vt_key[0].string = "NPCs";
-  vt_key[1].integer = npc;
-  vt_key[2].string = "Prefix";
-  prefix = prop_get_string (bundle, "S<-sis", vt_key);
-  vt_key[2].string = "Name";
-  name = prop_get_string (bundle, "S<-sis", vt_key);
+  prefix = prop_get_indexed_string (bundle, "NPCs", npc, "Prefix");
+  name = prop_get_indexed_string (bundle, "NPCs", npc, "Name");
   snprintf (buffer, sizeof(buffer), "%ld ", npc);
   if_print_debug (buffer);
   debug_print_quoted (prefix);
@@ -674,7 +656,6 @@ static void
 debug_print_event (scr_gameref_t game, scr_int event)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[3];
   scr_char buffer[32];
   const scr_char *name;
 
@@ -687,10 +668,7 @@ debug_print_event (scr_gameref_t game, scr_int event)
       return;
     }
 
-  vt_key[0].string = "Events";
-  vt_key[1].integer = event;
-  vt_key[2].string = "Short";
-  name = prop_get_string (bundle, "S<-sis", vt_key);
+  name = prop_get_indexed_string (bundle, "Events", event, "Short");
   snprintf (buffer, sizeof(buffer), "%ld ", event);
   if_print_debug (buffer);
   debug_print_quoted (name);
@@ -728,7 +706,7 @@ debug_print_variable (scr_gameref_t game, scr_int variable)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
   const scr_var_setref_t vars = gs_get_vars (game);
-  scr_vartype_t vt_key[3], vt_rvalue;
+  scr_vartype_t vt_rvalue;
   scr_char buffer[32];
   scr_int var_type;
   const scr_char *name;
@@ -742,10 +720,7 @@ debug_print_variable (scr_gameref_t game, scr_int variable)
       return;
     }
 
-  vt_key[0].string = "Variables";
-  vt_key[1].integer = variable;
-  vt_key[2].string = "Name";
-  name = prop_get_string (bundle, "S<-sis", vt_key);
+  name = prop_get_indexed_string (bundle, "Variables", variable, "Name");
 
   if (var_get (vars, name, &var_type, &vt_rvalue))
     {
@@ -844,9 +819,7 @@ debug_game (scr_gameref_t game, scr_command_type_t type)
   if_print_debug ("    Version ");
   if_print_debug (version);
 
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "Perspective";
-  perspective = prop_get_integer (bundle, "I<-ss", vt_key);
+  perspective = prop_get_global_integer (bundle, "Perspective");
   switch (perspective)
     {
     case 0:
@@ -863,27 +836,20 @@ debug_game (scr_gameref_t game, scr_command_type_t type)
       break;
     }
 
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "WaitTurns";
-  waitturns = prop_get_integer (bundle, "I<-ss", vt_key);
+  waitturns = prop_get_global_integer (bundle, "WaitTurns");
   if_print_debug (", Waitturns ");
   snprintf (buffer, sizeof(buffer), "%ld", waitturns);
   if_print_debug (buffer);
 
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "Sound";
-  has_sound = prop_get_boolean (bundle, "B<-ss", vt_key);
-  vt_key[1].string = "Graphics";
-  has_graphics = prop_get_boolean (bundle, "B<-ss", vt_key);
+  has_sound = prop_get_global_boolean (bundle, "Sound");
+  has_graphics = prop_get_global_boolean (bundle, "Graphics");
   if (has_sound)
     if_print_debug (", Sound");
   if (has_graphics)
     if_print_debug (", Graphics");
   if_print_debug_character ('\n');
 
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "BattleSystem";
-  has_battle = prop_get_boolean (bundle, "B<-ss", vt_key);
+  has_battle = prop_get_global_boolean (bundle, "BattleSystem");
   if (has_battle)
     if_print_debug ("    Battle system\n");
 
@@ -1392,17 +1358,14 @@ debug_dump_variable (scr_gameref_t game, scr_int variable)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
   const scr_var_setref_t vars = gs_get_vars (game);
-  scr_vartype_t vt_key[3], vt_rvalue;
+  scr_vartype_t vt_rvalue;
   const scr_char *name;
   scr_int var_type;
 
   debug_print_variable (game, variable);
   if_print_debug_character ('\n');
 
-  vt_key[0].string = "Variables";
-  vt_key[1].integer = variable;
-  vt_key[2].string = "Name";
-  name = prop_get_string (bundle, "S<-sis", vt_key);
+  name = prop_get_indexed_string (bundle, "Variables", variable, "Name");
 
   if_print_debug ("    Value = ");
   if (var_get (vars, name, &var_type, &vt_rvalue))
@@ -2057,7 +2020,7 @@ debug_compare_variable (scr_gameref_t from, scr_gameref_t with, scr_int variable
   const scr_prop_setref_t bundle = from->bundle;
   const scr_var_setref_t from_var = from->vars;
   const scr_var_setref_t with_var = with->vars;
-  scr_vartype_t vt_key[3], vt_rvalue, vt_rvalue2 = {0};
+  scr_vartype_t vt_rvalue, vt_rvalue2 = {0};
   const scr_char *name;
   scr_int var_type, var_type2;
   scr_bool equal = FALSE;
@@ -2065,10 +2028,7 @@ debug_compare_variable (scr_gameref_t from, scr_gameref_t with, scr_int variable
   if (from->bundle != with->bundle)
     scr_fatal ("debug_compare_variable: property sharing malfunction\n");
 
-  vt_key[0].string = "Variables";
-  vt_key[1].integer = variable;
-  vt_key[2].string = "Name";
-  name = prop_get_string (bundle, "S<-sis", vt_key);
+  name = prop_get_indexed_string (bundle, "Variables", variable, "Name");
 
   if (!var_get (from_var, name, &var_type, &vt_rvalue)
       || !var_get (with_var, name, &var_type2, &vt_rvalue2))

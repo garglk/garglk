@@ -30,16 +30,18 @@
  * already-placed rooms aside whenever two want the same cell.  We port that
  * algorithm rather than invent one (scmap.cpp).
  *
- * Once either engine has produced a map_t, everything below is common, so a v4
- * map and a v5 map look alike in Spatterlight -- even though the ADRIFT 4
- * runner's own map, built out of Visual Basic control arrays, looked nothing
- * like the ADRIFT 5 one.  Geometry follows the Adrift 5 runner's Map.vb,
- * whose plan view is the one a player sees unless they drag the map:
- * X to the right, Y downward, one map unit = `scale` pixels.
+ * Once either engine has produced a map_t, almost everything below is common,
+ * so a v4 map and a v5 map look alike in Spatterlight -- even though the
+ * ADRIFT 4 runner's own map, built out of Visual Basic control arrays, looked
+ * nothing like the ADRIFT 5 one.  Geometry follows the Adrift 5 runner's
+ * Map.vb, whose plan view is the one a player sees unless they drag the map:
+ * X to the right, Y downward, one map unit = `scale` pixels.  The one thing
+ * that does not carry over is the shape of a connector, because a VB Line
+ * control cannot bow: see map_s.line_links.
  *
  * This module is deliberately free of Glk and of both engines: it rasterises
  * into a plain RGB surface, so a map can be rendered and diffed headlessly
- * (test/a5map_dump.cpp).
+ * (test/adrift5/harness/a5map_dump.cpp).
  */
 
 #ifndef MAPDRAW_H
@@ -72,8 +74,21 @@ typedef struct map_link_s {
   int dst_anchor;             /* direction the connector enters the dest by  */
   const char *dest;           /* destination room key                        */
   int dotted;                 /* the movement is restricted                  */
+  int duplex;                 /* dest's DestinationAnchor movement returns
+                                 here.  A one-way (not duplex) connector
+                                 gets an arrow head at the destination end.
+                                 Set by a5map; ADRIFT 4 leaves it 0 and is
+                                 excluded by map.line_links               */
+  /* A compass Movement shares this badge link's dest (+ restriction style):
+     the badge parks on that port and draws no connector of its own.  Set by
+     a5map, which needs the movement table to find it.  The flag is what the
+     renderer tests, because a loader that calloc()s its links -- scmap does
+     -- would otherwise be claiming a twin due North. */
+  unsigned char has_compass_twin;
+  int compass_twin;           /* DIR_N..DIR_NW, when has_compass_twin        */
   int badge;                  /* drawn as a badge on the box, not a line
-                                 (ADRIFT 4 Up/Down; In/Out are always badges) */
+                                 (ADRIFT 4 Up/Down/In/Out; A5 draws Up/Down
+                                 connectors badge-to-badge instead) */
   map_pt_t *mids;             /* author-dragged waypoints (ADRIFT 5 only)    */
   int n_mids;
 } map_link_t;
@@ -84,6 +99,12 @@ typedef struct map_node_s {
   int x, y, z;                /* top-left corner, in map units               */
   int w, h;                   /* size in map units                           */
   int page;
+  int hidden;                 /* Location <Hide>: the runner omits the box
+                                 but still draws connectors to a seen hidden
+                                 room (Map.vb:1156 DrawNode vs DrawLinks)    */
+  /* Location has a Movement in this badge direction (FileIO.vb bHasIn/Out/
+     Up/Down).  Far-end In/Out icons gate on these, not on duplex. */
+  unsigned char has_in, has_out, has_up, has_down;
   map_link_t *links;
   int n_links;
 } map_node_t;
@@ -98,6 +119,13 @@ typedef struct map_page_s {
 typedef struct map_s {
   map_page_t *pages;
   int n_pages;
+  /* ADRIFT 4 connectors are Visual Basic Line controls (Form29.dolink), so
+     they are straight by construction, and axis-locked: only one of each
+     line's two coordinates comes from the destination.  ADRIFT 5's Map.vb
+     bows a compass connector into a cubic Bezier between the two rooms' own
+     anchor points instead (GetBezierAssister).  The ADRIFT 4 mapper sets this;
+     the ADRIFT 5 loader leaves it clear. */
+  int line_links;
   /* Keys and labels normally alias the loader's own storage (in ADRIFT 5, the
      XML document).  A loader with nothing to alias -- the ADRIFT 4 mapper has
      only room numbers, so it must spell its keys out -- parks the strings here
@@ -124,11 +152,22 @@ typedef struct map_surface_s {
 extern map_surface_t *map_surface_new (int w, int h);
 extern void map_surface_free (map_surface_t *s);
 
-/* The two colours the map is drawn in, normally the Glk buffer's normal
-   style: `background` fills the map and the room boxes, `text` draws the
-   connectors, borders and labels, and the player's room is their inversion.
-   Black on white until the host says otherwise. */
+/* The host's text style, normally the Glk buffer's style_Normal.  Black on
+   white until the host says otherwise.  How the two colours are spent on the
+   drawing depends on the scheme below. */
 extern void map_set_palette (unsigned int background, unsigned int text);
+
+/* MAP_SCHEME_STANDARD spends them flat: `background` fills the map and the
+   room boxes, `text` draws the connectors, borders and labels, and the
+   player's room is their inversion.  MAP_SCHEME_DERIVED treats them as paper
+   and ink and mixes room fills, a you-are-here amber, faded link greys and
+   contrast-picked labels out of them.  Standard until the host says
+   otherwise; the setting is the host's to remember. */
+enum {
+  MAP_SCHEME_STANDARD = 0,
+  MAP_SCHEME_DERIVED = 1
+};
+extern void map_set_colour_scheme (int scheme);
 
 /* What the renderer needs to know about the run.  Keeping this a callback
    table is what lets the map be drawn from the headless harness (and diffed)
@@ -182,6 +221,14 @@ extern int map_zoom_step (int scale, int dir);
 extern void map_render (const map_t *map, const map_view_t *view,
                         const char *player_key, const map_camera_t *cam,
                         map_surface_t *dst);
+
+/* Whether map_render would put anything at all on the page the player is on:
+   at least one room that has been seen and is not hidden.  Games that run
+   their title and options screens from a hidden staging room draw a blank
+   rectangle until the player reaches somewhere real, which is worth not
+   opening a pane for. */
+extern int map_has_content (const map_t *map, const map_view_t *view,
+                            const char *player_key);
 
 /* Which room is at pixel (px,py) of a `w` x `h` map view?  NULL if none.
    Lets a click walk there. */

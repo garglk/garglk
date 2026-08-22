@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include <algorithm>
 #include <memory>
@@ -247,12 +248,25 @@ static std::vector<std::string> current_obj_ref_keys (a5_state_t *st);
 /* Render the room view as REAL output -- marking_display=1 so its <DisplayOnce>
    segments retire -- restoring the previous marking flag afterwards.  The common
    wrapper around render_look_string at every final-state Display site (and, via
-   a5run_look, the frontend's post-UNDO room redisplay). */
+   a5run_look, the frontend's post-UNDO room redisplay).
+
+   Unlike the game-start/restore views (Display(ViewLocation) at vb:229/3142,
+   whose ViewLocation getter evaluates OUTSIDE Display, bDisplaying=False), a
+   look/movement room view is the stock Look task's AggregateOutput
+   "%Player%.Location.Description", replaced INSIDE Display under
+   bDisplaying=True -- so its %CharacterName% renders run clsCharacter.Name's
+   Introduced dance (definite-article upgrade + marking, clsCharacter.vb:331-334;
+   SampleConversation's second room shows "the old lady" after the conversation
+   introduced her).  Set intro_active for the render to match. */
 std::string
 render_look_marked (a5_run_t *run)
 {
   a5_mark_guard mg (run->st, 1);
-  return render_look_string (run);
+  int pia = run->st->intro_active;
+  run->st->intro_active = 1;
+  std::string v = render_look_string (run);
+  run->st->intro_active = pia;
+  return v;
 }
 
 /* ----------------------------------------- specific-override task dispatch */
@@ -784,7 +798,10 @@ execute_task_with_overrides (a5_run_t *run, const a5_task_t *parent,
                   { resp_add_fail (run, fm); any_child_fail_output = 1; }
                 else
                   {
-                    char *fmsg = a5text_describe (st, fm);
+                    /* vb:1247 hands sRestrictionText to AddResponse raw, with no
+                       ReplaceFunctions on any path, so it expands inside Display. */
+                    char *fmsg;
+                    { a5_intro_guard ig (st, 1); fmsg = a5text_describe (st, fm); }
                     /* The runner buffers this restriction text in htblResponsesFail and
                        flushes it after the passes; a later sibling override that
                        PASSES with output for the same reference cancels it
@@ -1020,7 +1037,12 @@ execute_task_with_overrides (a5_run_t *run, const a5_task_t *parent,
             }
         }
       else if (comp != NULL)
-        emit_completion (run, comp, out);
+        {
+          /* defer_text is gated on parent->aggregate, so this render stands in
+             for the runner's Display-time expansion: bDisplaying. */
+          a5_intro_guard ig (st, 1);
+          emit_completion (run, comp, out);
+        }
       if (after_buf.len > 0) { sb_pspace (out); sb_puts (out, after_buf.p); }
       free (after_buf.p);
     }
@@ -1057,7 +1079,10 @@ execute_task_with_overrides (a5_run_t *run, const a5_task_t *parent,
             a5restr_fail_message (st, child->restrictions);
           if (fm != NULL)
             {
-              char *fmsg = a5text_describe (st, fm);
+              /* vb:1247 hands sRestrictionText to AddResponse raw, with no
+                 ReplaceFunctions on any path, so it expands inside Display. */
+              char *fmsg;
+              { a5_intro_guard ig (st, 1); fmsg = a5text_describe (st, fm); }
               if (msg_has_output (fmsg))
                 {
                   sb_pspace (out);
@@ -1183,7 +1208,8 @@ run_general (a5_run_t *run, const a5_task_t *parent, const a5_match_t *m,
       run->resp = NULL;
       /* No child override passed for an "all" command: replace the buffered
          per-item fail messages with the general task's FailOverride (the runner's
-         htblResponsesPass.Count=0 branch). */
+         htblResponsesPass.Count=0 branch).  vb:789 renders it with a literal
+         Display(task.FailOverride.ToString), hence under bDisplaying. */
       if (all_failover)
         {
           bool any_pass = false;
@@ -1191,7 +1217,9 @@ run_general (a5_run_t *run, const a5_task_t *parent, const a5_match_t *m,
             if (e.is_pass) { any_pass = true; break; }
           if (!any_pass)
             {
-              char *fo = a5text_describe (st, parent->fail_override);
+              char *fo;
+              { a5_intro_guard ig (st, 1);
+                fo = a5text_describe (st, parent->fail_override); }
               rm.ents.clear ();
               rm.nmut = 0;
               if (msg_has_output (fo))
@@ -1417,6 +1445,13 @@ update_seen (a5_state_t *st)
          furniture. */
       if (ploc != NULL && a5state_character_at_location (st, i, ploc))
         st->char_seen[i] = 1;
+      /* PrepareForNextTurn also RESETS Introduced for any non-player character
+         the player can no longer see (clsUserSession.vb:3794-3797), so a
+         character re-encountered later gets the indefinite article again
+         (SampleConversation: after leaving the garden, `look` in the south room
+         still says "an old lady", not "the old lady"). */
+      else if (st->char_introduced != NULL)
+        st->char_introduced[i] = 0;
     }
   /* Mark every object currently visible in the player's room as seen
      (clsCharacter.HasSeenObject), so HaveBeenSeenByCharacter persists once an
@@ -1492,6 +1527,42 @@ enqueue_loc_trigger_tasks (a5_run_t *run, const char *old_loc, const char *new_l
 
 /* ---- run_action per-kind handlers (extracted from run_action) ---- */
 
+/* The optional property-value operand of a Move/group action: FileIO parses
+   `<what> <key1> [value tokens...] <to> <key2>`, joining elements 2..len-3
+   (space-separated) into act.sPropertyValue whenever the payload has more than
+   4 tokens (FileIO.vb:498-517; the MoveCharacter and Add/RemoveLocationToGroup
+   branches repeat the identical loop). */
+static std::string
+withprop_value (const std::vector<std::string> &tk)
+{
+  std::string v;
+  if (tk.size () > 4)
+    for (size_t i = 2; i + 2 < tk.size (); i++)
+      { if (i > 2) v += ' '; v += tk[i]; }
+  return v;
+}
+
+/* The With-Property selector test shared by the MoveObject / MoveCharacter /
+   MoveLocation bulk sources (clsUserSession.vb:2058/2292/2542): HasProperty,
+   and -- unless the property is a SelectionOnly (valueless) marker, where
+   presence alone matches -- GetPropertyValue must string-equal the action's
+   sPropertyValue operand.  The merged (runtime + static) table is consulted so
+   a property added at runtime via SetProperty is seen here. */
+static int
+withprop_matches (const a5_state_t *st, const char *entkey,
+                  const char *propkey, const std::string &propval)
+{
+  const a5_propdef_t *pd;
+  const char *v;
+  if (!a5state_entity_has_prop (st, entkey, propkey))
+    return 0;
+  pd = a5model_propdef (st->adv, propkey);
+  if (pd != NULL && streq (pd->type, "SelectionOnly"))
+    return 1;
+  v = a5state_entity_prop (st, entkey, propkey);
+  return propval == (v != NULL ? v : "");
+}
+
 /* clsUserSession.vb:1479 MoveObjectWhat: the source of an object-set action is
    either a single Object or one of the "Everything*" sets (a group's members,
    everything held/worn by a character, inside/on an object, at a location, or
@@ -1501,6 +1572,7 @@ enqueue_loc_trigger_tasks (a5_run_t *run, const char *old_loc, const char *new_l
 static int
 collect_object_source (a5_state_t *st, const std::string &what,
                        const char *srckey, const char *rawkey,
+                       const std::string &propval,
                        std::vector<int> &targets)
 {
   if (what == "Object")
@@ -1544,18 +1616,19 @@ collect_object_source (a5_state_t *st, const std::string &what,
     }
   else if (what == "EverythingAtLocation")
     {
+      /* clsUserSession.vb:1484: `Not ob.IsStatic AndAlso DynamicExistWhere =
+         InLocation` -- the sweep takes DYNAMIC objects directly in the room
+         only; static furniture stays put. */
       for (int i = 0; i < st->adv->n_objects; i++)
-        if (st->obj[i].where == A5_OWHERE_LOCATION
+        if (!st->obj[i].is_static
+            && st->obj[i].where == A5_OWHERE_LOCATION
             && streq (st->obj[i].key, srckey))
           targets.push_back (i);
     }
   else if (what == "EverythingWithProperty")
     {
-      /* Merged (runtime + static) test, matching clsObject.HasProperty: a
-         property added at runtime via SetProperty must be seen here, exactly as
-         the character EveryoneWithProperty branch already does. */
       for (int i = 0; i < st->adv->n_objects; i++)
-        if (a5state_entity_has_prop (st, st->adv->objects[i].key, rawkey))
+        if (withprop_matches (st, st->adv->objects[i].key, rawkey, propval))
           targets.push_back (i);
     }
   else
@@ -1571,16 +1644,19 @@ act_move_object (a5_run_t *run, const char * /*kind*/,
   a5_state_t *st = run->st;
   if (tk.size () < 4)
     return;
-  /* tk[0] is the source selector, tk[1] the source entity; tk[2] is the
-     destination kind and tk[3] the destination key.  Collect the affected
-     object indices, then apply the same per-object move to each. */
+  /* tk[0] is the source selector, tk[1] the source entity; the destination
+     kind/key pair reads from the END of the payload, because a WithProperty
+     selector may carry a multi-token property value in between
+     (withprop_value).  Collect the affected object indices, then apply the
+     same per-object move to each. */
   const std::string &what = tk[0];
   const char *srckey = act_key (st, tk[1].c_str ());
-  const std::string &to = tk[2];
-  const char *k2 = act_key (st, tk[3].c_str ());
+  const std::string &to = tk[tk.size () - 2];
+  const char *k2 = act_key (st, tk[tk.size () - 1].c_str ());
   std::vector<int> targets;
 
-  if (!collect_object_source (st, what, srckey, tk[1].c_str (), targets))
+  if (!collect_object_source (st, what, srckey, tk[1].c_str (),
+                              withprop_value (tk), targets))
     return;
 
   for (int oi : targets)
@@ -1665,7 +1741,7 @@ act_object_group (a5_run_t *run, const char *kind,
   if (tk.size () < 4)
     return;
   int add = streq (kind, "AddObjectToGroup");
-  const char *grp = tk[3].c_str ();
+  const char *grp = tk[tk.size () - 1].c_str ();
   const char *srckey = act_key (st, tk[1].c_str ());
   std::vector<int> targets;
   /* The selector enum is MoveObject's (clsAction shares AddToGroupWhat with
@@ -1673,8 +1749,11 @@ act_object_group (a5_run_t *run, const char *kind,
      Quest Giver's setup task seeds its live deck with
      `AddObjectToGroup EverythingInGroup daz6QuestDeckM ToGroup daz6CurrentQue`,
      and with only the single-Object form implemented the deck stayed at its
-     three authored members, so the game dealt from 3 cards instead of 20. */
-  if (!collect_object_source (st, tk[0], srckey, tk[1].c_str (), targets))
+     three authored members, so the game dealt from 3 cards instead of 20.
+     The group key reads from the END: a WithProperty selector may put a
+     multi-token property value between key1 and "ToGroup". */
+  if (!collect_object_source (st, tk[0], srckey, tk[1].c_str (),
+                              withprop_value (tk), targets))
     return;
   for (int oi : targets)
     a5state_set_object_in_group (st, grp, st->adv->objects[oi].key, add);
@@ -1733,14 +1812,15 @@ act_character_group (a5_run_t *run, const char *kind,
     return;
   const std::string &who = tk[0];
   const char *whok = act_key (st, tk[1].c_str ());
-  const char *grp = tk[3].c_str ();
+  const char *grp = tk[tk.size () - 1].c_str ();
   int add = streq (kind, "AddCharacterToGroup");
   std::vector<int> cis;
   if (who == "EveryoneWithProperty")
     {
+      std::string propval = withprop_value (tk);
       for (int i = 0; i < st->adv->n_characters; i++)
-        if (a5state_entity_has_prop (st, st->adv->characters[i].key,
-                                     tk[1].c_str ()))
+        if (withprop_matches (st, st->adv->characters[i].key,
+                              tk[1].c_str (), propval))
           cis.push_back (i);
     }
   else if (!collect_character_who (st, who, whok, cis))
@@ -1793,6 +1873,39 @@ object_host_location (a5_state_t *st, const char *objkey, const char *cur,
   return NULL;
 }
 
+/* Display(sText) straight to the runner's sOutputText (clsUserSession.vb:298):
+   an action's immediate output precedes the task's buffered response, so when
+   run_task published a splice point, insert there (with the pSpace join rules
+   on both seams); otherwise append -- an After message already follows the
+   action position.  Recorded offsets into the sink (the deferred-Look slot)
+   are shifted past the insertion. */
+static void
+imm_display (a5_run_t *run, const char *msg, sb_t *out)
+{
+  sb_t *sink = run->imm_sink;
+  size_t at;
+  if (sink == NULL || run->imm_pos < 0 || (size_t) run->imm_pos > sink->len)
+    {
+      sb_pspace (out);
+      sb_puts (out, msg);
+      return;
+    }
+  at = (size_t) run->imm_pos;
+  std::string ins;
+  if (at > 0 && sink->p[at - 1] != '\n' && sink->p[at - 1] != A5_CLS_MARK)
+    ins += "  ";
+  ins += msg;
+  if (at < sink->len && sink->p[at] != '\n' && sink->p[at] != ' ')
+    ins += "  ";
+  sb_splice (sink, at, 0, ins.c_str ());
+  run->imm_pos = (long) (at + ins.size ());
+  if (run->look_pending && run->look_pos >= at)
+    run->look_pos += ins.size ();
+  if (run->exec_scope != NULL && run->exec_scope->look_sink == sink
+      && run->exec_scope->look_off >= (long) at)
+    run->exec_scope->look_off += (long) ins.size ();
+}
+
 static void
 act_move_character (a5_run_t *run, const char * /*kind*/,
                     const std::vector<std::string> &tk, const char * /*body*/,
@@ -1811,10 +1924,10 @@ act_move_character (a5_run_t *run, const char * /*kind*/,
   std::vector<int> cis;
   if (who == "EveryoneWithProperty")
     {
+      std::string propval = withprop_value (tk);
       for (int i = 0; i < st->adv->n_characters; i++)
-        if (a5_prop_find (st->adv->characters[i].props,
-                          st->adv->characters[i].n_props, whok) != NULL
-            || a5state_entity_prop (st, st->adv->characters[i].key, whok) != NULL)
+        if (withprop_matches (st, st->adv->characters[i].key,
+                              tk[1].c_str (), propval))
           cis.push_back (i);
     }
   else if (!collect_character_who (st, who, whok, cis))
@@ -1822,11 +1935,14 @@ act_move_character (a5_run_t *run, const char * /*kind*/,
   if (cis.empty ())
     return;
 
-  const std::string &to = tk[2];
+  /* The destination pair reads from the END of the payload (a WithProperty
+     selector may carry a multi-token property value in between). */
+  const std::string &to = (tk.size () >= 4) ? tk[tk.size () - 2] : tk[2];
   /* Every MoveCharacterTo variant that takes a target (location, group,
      furniture, container, character, direction) reads it from the same token;
      act_key is a pure lookup, so resolve it once for the whole action. */
-  const char *k2 = (tk.size () >= 4) ? act_key (st, tk[3].c_str ()) : NULL;
+  const char *k2 = (tk.size () >= 4)
+    ? act_key (st, tk[tk.size () - 1].c_str ()) : NULL;
   /* ToLocationGroup: the runner computes dest.Key = group.RandomKey ONCE per action
      (clsUserSession.vb:1767), so the whole MoveCharacter draws a single
      RandomKey and sends every affected character to the SAME room -- e.g.
@@ -1859,7 +1975,8 @@ act_move_character (a5_run_t *run, const char * /*kind*/,
          character that was riding a carrier stops riding it the moment it is
          sent anywhere else -- Penrhyn drops Arkell to Location2/Hidden once he
          is broken, and he must no longer be "on Ralph's shoulder". */
-      if (to != "OntoCharacter" && st->char_onchar != NULL)
+      if (to != "OntoCharacter" && to != "ToSwitchWith"
+          && st->char_onchar != NULL)
         st->char_onchar[ci] = NULL;
       if (to == "ToLocationGroup")
         relocate_char (run, ci, group_dest, 1, out);
@@ -1867,10 +1984,26 @@ act_move_character (a5_run_t *run, const char * /*kind*/,
         {
           const char *canon = a5parse_canonical_direction (k2);
           const char *here = st->char_loc[ci];
+          const a5_xml_node_t *blocked = NULL;
           const char *dest;
           if (canon == NULL) canon = k2;    /* already canonical */
-          dest = here ? a5restr_exit_in_direction (st, k1, here, canon, NULL)
+          dest = here ? a5restr_exit_in_direction (st, k1, here, canon,
+                                                   &blocked)
                       : NULL;
+          if (dest == NULL && blocked != NULL)
+            {
+              /* Route restriction failed: the runner Displays the blocking
+                 restriction's message and abandons the move (clsUserSession.vb:
+                 1748 Display(sRestrictionText)) -- immediate output, so it
+                 precedes the task's buffered completion message.  It is a
+                 literal Display() call, hence bDisplaying. */
+              char *fmsg;
+              { a5_intro_guard ig (st, 1);
+                fmsg = a5text_describe (st, blocked); }
+              if (msg_has_output (fmsg))
+                imm_display (run, fmsg, out);
+              free (fmsg);
+            }
           if (dest != NULL)
             {
               /* destination may be a location group -> first member */
@@ -2030,16 +2163,16 @@ act_move_character (a5_run_t *run, const char * /*kind*/,
             }
           else
             {
-              /* Neither is the player: exchange the two characters' places. */
-              const char *tloc = st->char_loc[bi];
-              const char *tonobj = st->char_onobj[bi];
-              char tin = st->char_in[bi];
-              st->char_loc[bi]   = st->char_loc[ci];
-              st->char_onobj[bi] = st->char_onobj[ci];
-              st->char_in[bi]    = st->char_in[ci];
-              st->char_loc[ci]   = tloc;
-              st->char_onobj[ci] = tonobj;
-              st->char_in[ci]    = tin;
+              /* Neither is the player.  The runner's swap (clsUserSession.vb:
+                 1837) exchanges the two clsCharacterLocation references -- but
+                 `dest` was pre-filled from ch's ORIGINAL location (vb:1727) and
+                 the shared epilogue `ch.Move(dest)` (vb:1902) then moves k1
+                 straight back.  Net observable effect, bug and all: k2 ends up
+                 at k1's original place; k1 stays exactly where it was. */
+              st->char_loc[bi]    = st->char_loc[ci];
+              st->char_onobj[bi]  = st->char_onobj[ci];
+              st->char_in[bi]     = st->char_in[ci];
+              st->char_onchar[bi] = st->char_onchar[ci];
             }
         }
       /* other MoveCharacterToEnum forms: best-effort no-op */
@@ -2475,6 +2608,14 @@ act_set_property (a5_run_t *run, const char * /*kind*/,
         if (rk != NULL && rk[0] != '\0') val = rk;
       }
   }
+  /* A ValueList property stores the label's mapped INTEGER (FD clsProperty
+     Value setter, clsProperty.vb:180-186; the model's static values get the
+     same mapping at load, a5_fix_valuelist_props). */
+  if (pt != NULL && streq (pt, "ValueList"))
+    {
+      const char *mv = a5model_valuelist_value (pd, val.c_str ());
+      if (mv != NULL) val = mv;
+    }
   a5state_set_prop (st, k1, tk[1].c_str (), val.c_str ());
   /* The runner derives an object's location live from its DynamicLocation property, so
      `SetProperty <obj> DynamicLocation Hidden` (Galen's Quest hides the meteor
@@ -2720,7 +2861,7 @@ act_set_tasks (a5_run_t *run, const char * /*kind*/,
              AlienDiver's ShowCardsP3 (Repeatable=0, `Unset` then Execute'd
              over the crafted cards to stamp each a unique CardId) then stamped
              only the first card, so `pc`'s CardId==%number% matched every held
-             card and over-awarded colored fragments. */
+             card and over-awarded coloured fragments. */
           bool tt_done_at_entry = (tti >= 0 && st->task_done[tti]);
 
           /* One execution of the target task with the references bound from
@@ -2794,7 +2935,10 @@ act_set_tasks (a5_run_t *run, const char * /*kind*/,
                   const a5_xml_node_t *fm = st->restriction_text;
                   if (fm != NULL)
                     {
-                      char *fmsg = a5text_describe (st, fm);
+                      /* vb:1247 hands sRestrictionText to AddResponse raw, with no
+                         ReplaceFunctions on any path, so it expands inside Display. */
+                      char *fmsg;
+                      { a5_intro_guard ig (st, 1); fmsg = a5text_describe (st, fm); }
                       if (msg_has_output (fmsg))
                         {
                           if (run->resp != NULL)
@@ -2917,7 +3061,17 @@ act_set_tasks (a5_run_t *run, const char * /*kind*/,
   else if (tk[0] == "Unset" || tk[0] == "Clear")
     {
       if (tk.size () >= 2)
-        { int ti = a5state_task_index (st, tk[1].c_str ()); if (ti >= 0) st->task_done[ti] = 0; }
+        {
+          int ti = a5state_task_index (st, tk[1].c_str ());
+          if (ti >= 0 && st->task_done[ti])
+            {
+              /* Unsetting a *completed* task fires UnCompletion controls
+                 before the flag clears (clsUserSession's SetTasks-Unset case,
+                 vb:2938-2980); unsetting an already-unset task is a no-op. */
+              ev_on_task_uncompleted (run, st->adv->tasks[ti].key, out);
+              st->task_done[ti] = 0;
+            }
+        }
     }
 }
 
@@ -3004,7 +3158,10 @@ act_location_group (a5_run_t *run, const char *kind,
      `RemoveLocationFromGroup LocationOf %Player% FromGroup TimeTraps` removed
      nothing and The Hotel kept tolling the bell every turn. */
   const char *k1  = act_key (st, tk[1].c_str ());
-  const char *grp = tk[3].c_str ();
+  /* The group key reads from the END of the payload: an EverywhereWithProperty
+     selector may carry a multi-token property value in between (FileIO.vb's
+     Add/RemoveLocationToGroup parse repeats the same middle-join). */
+  const char *grp = tk[tk.size () - 1].c_str ();
   int add = streq (kind, "AddLocationToGroup");
   std::vector<std::string> locs;
   if (what == "Location")
@@ -3034,11 +3191,10 @@ act_location_group (a5_run_t *run, const char *kind,
     }
   else if (what == "EverywhereWithProperty")
     {
-      /* Merged (runtime + static, incl. group-inherited) test -- see the
-         MoveObject branch. */
+      std::string propval = withprop_value (tk);
       for (int i = 0; i < st->adv->n_locations; i++)
         { const a5_location_t *l = &st->adv->locations[i];
-          if (a5state_entity_has_prop (st, l->key, k1))
+          if (withprop_matches (st, l->key, tk[1].c_str (), propval))
             locs.push_back (l->key); }
     }
   else
@@ -3399,8 +3555,22 @@ run_task (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out)
          (LostLabyrinth's riding OneOf: 2 draws, first one shown); for the usual
          static view the two renders draw nothing and agree, so this is
          draw- and output-neutral. */
+      /* The probes run inside Display in the runner (bDisplaying=True AND
+         bTestingOutput=True, vb:1177-1203), so they DO run clsCharacter.Name's
+         Introduced dance and record PronounKeys entries -- which is why, with a
+         character in view, the second probe pronoun-replaces the name recorded
+         by the first ("she") and the response pins to the FIRST probe's text
+         (vb:1200).  That pinned text must therefore be a bDisplaying render:
+         set intro_active for both probes (marking stays 0 -- bTestingOutput
+         keeps DisplayOnce retirement off).  SampleConversation `s` after the
+         chat: the pinned view says "the old lady", and the probe's Introduced
+         mark plus the end-of-turn visibility reset makes the next `look` say
+         "an old lady" again. */
+      int probe_pia = run->st->intro_active;
+      run->st->intro_active = 1;
       std::string e1;
       { a5_mark_guard mg (run->st, 0); e1 = render_look_string (run); }
+      run->st->intro_active = probe_pia;
 
       /* The response slot is reserved BEFORE the actions run (vb:1189
          iResponsePosition), so any output the actions produce follows the
@@ -3423,7 +3593,9 @@ run_task (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out)
       run->cur_score_ti = saved_sti;
 
       std::string e2;
+      run->st->intro_active = 1;
       { a5_mark_guard mg (run->st, 0); e2 = render_look_string (run); }
+      run->st->intro_active = probe_pia;
 
       if (e1 != e2)
         {
@@ -3532,6 +3704,12 @@ run_task (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out)
   int   flat_pre_ink = 0;
   int   flat_inter = 0;
   sb_t  flat_abuf; sb_init (&flat_abuf);
+  /* Immediate-Display splice point: where this task's output begins in `out`,
+     recorded BEFORE the Before message is emitted.  An action Display that the
+     runner sends straight to sOutputText (vb:1748) precedes the buffered
+     response, i.e. lands here.  (imm frame set around the action loop below,
+     flat paths only.) */
+  long imm0 = (long) out->len;
   if (before && comp != NULL)
     {
       if (run->resp != NULL)
@@ -3594,6 +3772,11 @@ run_task (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out)
               free (e1);
               free (e2);
               free (m1);
+              /* Finalize.  For a non-aggregate task this is vb:1185/1204's
+                 eager replace, the one completion render the runner makes with
+                 bDisplaying clear; an aggregate task skips that line entirely
+                 and its raw template expands inside Display instead. */
+              a5_intro_guard ig (run->st, t->aggregate);
               emit_completion (run, comp, out);   /* finalize: 3rd render + display */
             }
         }
@@ -3623,6 +3806,9 @@ run_task (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out)
             a5_mark_guard mg (run->st, 1);
             flat_raw = a5text_eval_description (run->st, comp);
             run->st->marking_display = 0;   /* the frozen re-render is a test */
+            /* vb:1177's probe: bTestingOutput AND bDisplaying (the freeze above
+               is CompletionMessage.ToString, which precedes both). */
+            a5_intro_guard ig (run->st, 1);
             flat_pre = a5text_process_frozen (run->st, flat_raw, &flat_pre_ink,
                                               &flat_pre_marked);
           }
@@ -3665,11 +3851,20 @@ run_task (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out)
   if (act != NULL)
     {
       int saved_sti = run->cur_score_ti;
+      sb_t *prev_isink = run->imm_sink;
+      long  prev_ipos = run->imm_pos;
       run->cur_score_ti = self_ti;
+      /* Flat paths only: the resp path's flush order and the Look dance keep
+         their existing append behaviour.  defer_look is fine -- the splice
+         helper shifts look_pos when it inserts ahead of a recorded slot. */
+      if (run->resp == NULL)
+        { run->imm_sink = out; run->imm_pos = imm0; }
       const a5_xml_node_t *c;
       for (c = act->first_child; c != NULL; c = c->next)
         run_action (run, c->name, c->text, depth, flat_inter ? &flat_abuf : out);
       run->cur_score_ti = saved_sti;
+      run->imm_sink = prev_isink;
+      run->imm_pos = prev_ipos;
     }
 
   if (local_defer_look)
@@ -3711,6 +3906,7 @@ run_task (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out)
       char *post;
       {
         a5_mark_guard mg (run->st, 0);
+        a5_intro_guard ig (run->st, 1);        /* vb:1199's probe */
         post = a5text_process_frozen (run->st, flat_raw, NULL, &post_marked);
       }
       /* Compare the MARKED renders: that is the string the runner holds in
@@ -3731,6 +3927,7 @@ run_task (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out)
           char *fin;
           {
             a5_mark_guard mg (run->st, 1);
+            a5_intro_guard ig (run->st, t->aggregate);   /* vb:1204 finalize */
             fin = a5text_process_frozen (run->st, flat_raw, &fin_ink,
                                          &fin_marked);
           }
@@ -3814,6 +4011,7 @@ run_task (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out)
                   char *m;
                   {
                     a5_mark_guard mg (st2, 1);
+                    a5_intro_guard ig (st2, 1);   /* aggregate: Display render */
                     m = a5text_process_frozen (st2, rawtext.c_str (),
                                                &ink, &mk);
                   }
@@ -3837,13 +4035,22 @@ run_task (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out)
           size_t sink0 = run->comp_defers->size ();
           size_t out0 = out->len;
           run->st->expr_defer = run->comp_defers;
-          emit_completion (run, comp, out);
+          {
+            a5_intro_guard ig (run->st, 1);     /* aggregate: Display render */
+            emit_completion (run, comp, out);
+          }
           run->st->expr_defer = NULL;
           if (out->len == out0)
             run->comp_defers->resize (sink0);
         }
       else
-        emit_completion (run, comp, out);
+        {
+          /* vb:1211's eager finalize for a non-aggregate After message (the
+             flag is clear); an aggregate landing here has no defer sink to
+             hold its draws, but it is still a Display-time expansion. */
+          a5_intro_guard ig (run->st, t->aggregate);
+          emit_completion (run, comp, out);
+        }
     }
 }
 

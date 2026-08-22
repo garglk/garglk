@@ -311,8 +311,27 @@ typedef struct a5_adventure_s {
   const char *ifid;                 /* Babel IFID from the plaintext <ifid>
                                        tag in the <ifindex> metadata block
                                        (owned; NULL when the file embeds none) */
+  const char *release;              /* <release><version> from the same
+                                       <ifindex> block (%release%'s
+                                       BabelTreatyInfo ... Release.Version);
+                                       owned; NULL when absent               */
+  int map_pane_open;                /* The author's Runner window layout, if
+                                       the Blorb carries one (a5blorb.h,
+                                       a5blorb_find_layout): 1 when its Map
+                                       pane is open, 0 when closed, -1 when
+                                       the game ships no layout at all.  This
+                                       is what makes a game start with its map
+                                       showing in run500.exe                  */
   int show_first_location;          /* <ShowFirstLocation> (default 1): show
                                        the start room after the intro          */
+  uint32_t bg_colour;               /* <BackgroundColour>, <InputColour>,      */
+  uint32_t input_colour;            /* <OutputColour> and <LinkColour>: the    */
+  uint32_t output_colour;           /* author's Runner palette, held as        */
+  uint32_t link_colour;             /* 0xRRGGBB.  The XML carries them as OLE
+                                       (blue-green-red) integers in decimal and
+                                       omits any that matches the Runner
+                                       default, so these are always set -- see
+                                       ADRIFT-5-XML.md 2.6                      */
   int show_exits;                   /* <ShowExits> (default 1): append the
                                        "Exits are .../An exit leads ..." listing
                                        to each location view (clsAdventure.
@@ -403,6 +422,38 @@ extern int a5model_upgrade_answer (a5_adventure_t *a, int yes);
    this game (hard-wired allow-list, keyed on the Babel IFID); default is NO. */
 extern int a5model_upgrade_forced_yes (const a5_adventure_t *a);
 
+/*
+ * Non-NULL when the adventure cannot be played at all, in which case the return
+ * is the runner's own error text for the host to show.  Today the only such
+ * case is an adventure with zero locations: clsUserSession.OpenAdventure
+ * vb:433 (FrankenDrift's clsUserSession.vb:278) ends the load with
+ * ErrMsg("This adventure has no locations.  Cannot continue.") / Return False.
+ *
+ * The check sits AFTER the title and Introduction Displays (vb:377-378), so a
+ * host must call this once the intro has been presented, not at load time --
+ * the real Runner does open its window and print the game title before putting
+ * up the "ADRIFT Error" dialog (verified against run500.exe 5.0.36).
+ */
+extern const char *a5model_load_error (const a5_adventure_t *a);
+
+/* Non-zero when any of the four palette fields differs from the Runner's own
+   default, i.e. when the author chose a colour scheme rather than accepting the
+   one every ADRIFT 5 game starts from.  A host that would otherwise show the
+   story in its own theme uses this to decide whether the adventure has a look
+   worth honouring. */
+extern int a5model_custom_palette (const a5_adventure_t *a);
+
+/* Offer every authored string in the adventure to `accept`, depth-first, and
+   return non-zero as soon as one is accepted (nothing further is visited).
+   The strings arrive as the XML parser left them -- entity-decoded, so any
+   markup the author embedded reads as the "<font ...>" the Runner sees.  This
+   is a raw walk of the parse tree rather than of the object model: it carries
+   no promise about which record a string belongs to, only that a caller
+   grepping for authored markup sees all of it. */
+extern int a5model_scan_text (const a5_adventure_t *a,
+                              int (*accept) (const char *text, void *opaque),
+                              void *opaque);
+
 extern void a5model_free (a5_adventure_t *adv);
 
 /* Property lookup within a record's property array. */
@@ -426,6 +477,8 @@ extern const a5_character_t *a5model_character (const a5_adventure_t *a, const c
 extern const a5_task_t      *a5model_task      (const a5_adventure_t *a, const char *key);
 extern const a5_variable_t  *a5model_variable  (const a5_adventure_t *a, const char *key);
 extern const a5_propdef_t   *a5model_propdef   (const a5_adventure_t *a, const char *key);
+extern const char *a5model_valuelist_value (const a5_propdef_t *pd,
+                                            const char *label);
 
 /* Resolve an <img>/<audio> src reference (an original file path) to its Blorb
    resource number via <FileMappings>, matching on the path's basename.  Returns

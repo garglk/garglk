@@ -53,15 +53,12 @@ enum
 /* HTML-like tag enumerated values, passed to os_print_tag(). */
 enum
 { SCR_TAG_UNKNOWN = 0, SCR_TAG_ITALICS, SCR_TAG_ENDITALICS, SCR_TAG_BOLD,
-  SCR_TAG_ENDBOLD, SCR_TAG_UNDERLINE, SCR_TAG_ENDUNDERLINE, SCR_TAG_COLOR,
-  SCR_TAG_ENDCOLOR, SCR_TAG_FONT, SCR_TAG_ENDFONT, SCR_TAG_BGCOLOR, SCR_TAG_CENTER,
-  SCR_TAG_ENDCENTER, SCR_TAG_RIGHT, SCR_TAG_ENDRIGHT, SCR_TAG_WAIT, SCR_TAG_WAITKEY,
-  SCR_TAG_CLS,
+  SCR_TAG_ENDBOLD, SCR_TAG_UNDERLINE, SCR_TAG_ENDUNDERLINE, SCR_TAG_COLOUR,
+  SCR_TAG_ENDCOLOUR, SCR_TAG_FONT, SCR_TAG_ENDFONT, SCR_TAG_BGCOLOUR,
+  SCR_TAG_CENTER, SCR_TAG_ENDCENTER, SCR_TAG_RIGHT, SCR_TAG_ENDRIGHT,
+  SCR_TAG_WAIT, SCR_TAG_WAITKEY, SCR_TAG_CLS,
 
   /* British spelling equivalents. */
-  SCR_TAG_COLOUR = SCR_TAG_COLOR,
-  SCR_TAG_ENDCOLOUR = SCR_TAG_ENDCOLOR,
-  SCR_TAG_BGCOLOUR = SCR_TAG_BGCOLOR,
   SCR_TAG_CENTRE = SCR_TAG_CENTER,
   SCR_TAG_ENDCENTRE = SCR_TAG_ENDCENTER
 };
@@ -161,6 +158,15 @@ extern void scr_set_game_capacity_recompute (scr_game game, scr_bool flag);
 
 extern scr_bool scr_does_game_use_sounds (scr_game);
 extern scr_bool scr_does_game_use_graphics (scr_game);
+
+/* Offer every authored string in the TAF to `accept`, returning TRUE as soon as
+   one is accepted (nothing further is visited).  The strings arrive as the
+   author wrote them, markup included, which is how a host greps a game for the
+   tags it cares about -- ADRIFT <=4 keeps no header fields for any of them. */
+extern scr_bool scr_game_scan_strings (scr_game game,
+                                       scr_bool (*accept) (const scr_char *text,
+                                                           void *opaque),
+                                       void *opaque);
 
 typedef void *scr_game_hint;
 extern scr_game_hint scr_get_first_game_hint (scr_game game);

@@ -46,10 +46,13 @@ typedef struct a5_objloc_s {
 } a5_objloc_t;
 
 /* One SetLook stack entry (clsEvent.clsLookText): rendered look text gated on a
-   location/group key. */
+   location/group key.  The stack is per-event in the runner (clsEvent's own
+   stackLookText); entries carry the owning event's key so the viewer can
+   replay the runner's "For Each e In htblEvents ... e.LookText()" walk. */
 typedef struct a5_looktext_s {
   char *loc_key;          /* OnlyApplyAt gate (owned)                          */
   char *text;             /* rendered look text (owned)                        */
+  char *event_key;        /* owning event (owned; "" for legacy saves)         */
 } a5_looktext_t;
 
 /* A runtime property override (set by SetProperty actions in Phase 3). */
@@ -91,6 +94,15 @@ typedef struct a5_state_s {
                               char is On/In another character (ExistWhere
                               On/InCharacter, e.g. Edith riding the Player), else
                               NULL; effective location resolves through the carrier */
+
+  /* Turn-start snapshot backing the %Prev...% functions.  The runner stamps
+     every object's/character's PrevParent in PrepareForNextTurn
+     (clsUserSession.vb:5214-5218) and PreviousFunction peeks the recorded
+     previous game state (Global.vb:596); a placement snapshot taken at the
+     same point serves both.  Keys alias the model/DOM (stable), not owned. */
+  a5_objloc_t *obj_prev;      /* [adv->n_objects] placement at last turn start */
+  const char **char_prevpar;  /* [adv->n_characters] parent key (carrier object/
+                                 character, else location) at last turn start  */
 
   long  *var_num;         /* [adv->n_variables] numeric value                  */
   char **var_text;        /* [adv->n_variables] text value (owned), or NULL    */
@@ -232,11 +244,21 @@ typedef struct a5_state_s {
   int   ref_objects_suppress_singular;
 
   /* SetLook event sub-event "look stack" (clsEvent.stackLookText): each SetLook
-     pushes a (location/group gate, rendered text) entry; a5text_view_location
-     appends the most-recent entry whose gate matches the player's location.
-     Unused by the shipped corpus, but ported for faithfulness.  Owned. */
+     pushes a (location/group gate, rendered text, owning event) entry;
+     a5text_view_location walks the model's events in order and appends each
+     RUNNING event's most-recent entry whose gate matches the player's location
+     (clsEvent.LookText only answers while Status = Running -- a finished or
+     paused event's look text vanishes).  Unused by the shipped corpus, but
+     ported for faithfulness.  Owned. */
   a5_looktext_t *looks;
   int n_looks, cap_looks;
+
+  /* Live event-status query for the SetLook gate above: event runtime lives in
+     the run layer, which installs this at init so state/text code can ask
+     "is event #i Running?".  NULL (e.g. a bare a5run_dump peek before the run
+     starts) answers no for every event. */
+  int (*ev_running) (void *ctx, int event_index);
+  void *ev_running_ctx;
 
   /* <DisplayOnce> description segments that have already been shown (keyed by
      the segment's DOM node).  `marking_display` is set while rendering real
@@ -247,15 +269,31 @@ typedef struct a5_state_s {
   int n_disp_once, cap_disp_once;
   int marking_display;
 
-  /* Set while rendering text that the runner hands to Display() with its %functions%
-     still UNREPLACED -- conversation topic replies (ExecuteConversation
-     AddResponses the raw Description; Display -> ReplaceALRs -> ReplaceFunctions
-     then renders it under bDisplaying=True).  Only such renders run
-     clsCharacter.Name's Introduced dance (definite-article upgrade + marking).
-     Task completion messages are pre-replaced OUTSIDE bDisplaying
-     (clsUserSession.vb:1186), the room view builds its names programmatically
-     (clsLocation.vb:151), and the NPC walk announcements compose with .Name
-     before Display (clsCharacter.vb:1558) -- none of those upgrade or mark.
+  /* The runner's UserSession.bDisplaying.  Only a render made while it is set
+     runs clsCharacter.Name's bDisplaying block (clsCharacter.vb:330-357): the
+     definite-article upgrade of an already-Introduced descriptor, the Introduced
+     marking itself, the PronounKeys ledger, and -- the part that bites -- the
+     first/second-person pronoun substitution that turns `%Player%.Name` into
+     "You".  Outside it, `.Name` always falls through to the descriptor branch.
+
+     bDisplaying is True for exactly two things: the whole body of Display()
+     (which is where ReplaceALRs -> ReplaceFunctions/ReplaceExpressions actually
+     run, Global.vb:523), and the task-completion probe renders at
+     clsUserSession.vb:1177-1182 / 1199-1203.  So a task's completion message
+     renders under bDisplaying UNLESS it is the eager finalize replacement --
+     the three `If Not task.AggregateOutput Then sMessage =
+     ReplaceExpressions(ReplaceFunctions(sMessage))` lines at vb:1185/1204/1211,
+     the only completion renders the runner performs with the flag clear.
+     AggregateOutput defaults to TRUE (clsTask.vb:318), so the common case is a
+     raw template handed to AddResponse and expanded later inside Display.
+     Restriction-failure messages are likewise stored raw (vb:1247/1260).
+     Hence, at each completion render site: probe renders pass 1, the finalize
+     passes the task's `aggregate` flag -- see a5_intro_guard.
+
+     Still OUTSIDE Display, and so still unset: the game-start/restore room views
+     evaluate ViewLocation before Display gets it (vb:229/3142, incl. CharHereDesc
+     at clsLocation.vb:154), and the NPC walk announcements compose with .Name
+     first (clsCharacter.vb:1558) -- neither upgrades, marks, nor pronominalises.
      Transient render state, not saved. */
   int intro_active;
 
@@ -367,6 +405,10 @@ typedef struct a5_state_s {
 extern a5_state_t *a5state_new  (const a5_adventure_t *adv);
 extern void        a5state_free (a5_state_t *st);
 
+/* Refresh the %Prev...% turn-start snapshot (obj_prev / char_prevpar) from the
+   current placements -- the PrepareForNextTurn PrevParent stamp. */
+extern void a5state_stamp_prev (a5_state_t *st);
+
 /* Index helpers (linear; -1 if absent). */
 extern int a5state_object_index    (const a5_state_t *st, const char *key);
 extern int a5state_character_index (const a5_state_t *st, const char *key);
@@ -397,11 +439,14 @@ extern const char *a5state_player_key (const a5_state_t *st);
 extern int a5state_in_group_or_location (const a5_state_t *st,
                                          const char *charkey, const char *key);
 
-/* SetLook look-text stack (clsEvent): push a rendered look entry; fetch the
-   most-recent one whose location/group gate matches the player (or NULL). */
+/* SetLook look-text stack (clsEvent): push a rendered look entry tagged with
+   its owning event; fetch event `evkey`'s most-recent entry whose location/
+   group gate matches the player (or NULL) -- the per-event half of
+   clsEvent.LookText (the caller applies the Status = Running gate). */
 extern void        a5state_push_look (a5_state_t *st, const char *loc_key,
-                                      const char *text);
-extern const char *a5state_player_look (const a5_state_t *st);
+                                      const char *text, const char *event_key);
+extern const char *a5state_event_look (const a5_state_t *st,
+                                       const char *event_key);
 
 /*
  * Does object `oi` exist at location `lockey`?  When `directly` is set, only a
@@ -412,6 +457,15 @@ extern int a5state_object_at_location     (const a5_state_t *st, int oi,
                                            const char *lockey, int directly);
 extern int a5state_object_key_at_location (const a5_state_t *st, const char *objkey,
                                            const char *lockey, int directly);
+
+/*
+ * Is `lockey` one of object `oi`'s location roots (clsObject.LocationRoots,
+ * clsObject.vb:460)?  Unlike ExistsAtLocation, a held/worn/part-of-character
+ * object roots at the carrier's location only when the carrier is strictly
+ * At Location.  Backs %LocationOf[object]%.
+ */
+extern int a5state_object_location_root   (const a5_state_t *st, int oi,
+                                           const char *lockey);
 
 /*
  * Is object `oi` *visible* at location `lockey`?  Like a5state_object_at_location
@@ -547,6 +601,24 @@ struct a5_mark_guard {
   ~a5_mark_guard () { st->marking_display = prev; }
   a5_mark_guard (const a5_mark_guard &) = delete;
   a5_mark_guard &operator= (const a5_mark_guard &) = delete;
+};
+
+/* Scoped set of st->intro_active -- the runner's ambient bDisplaying (see the
+   field's own comment).  Same shape and rationale as a5_mark_guard: the two
+   flags travel together at almost every render site, and hand-rolled
+   save/set/restore triples around them are what let the completion-message
+   paths drift out of sync with the runner in the first place.
+   Declare the guard instead:  a5_intro_guard ig (st, t->aggregate); */
+struct a5_intro_guard {
+  a5_state_t *st;
+  int prev;
+  a5_intro_guard (a5_state_t *s, int value) : st (s), prev (s->intro_active)
+  {
+    s->intro_active = value;
+  }
+  ~a5_intro_guard () { st->intro_active = prev; }
+  a5_intro_guard (const a5_intro_guard &) = delete;
+  a5_intro_guard &operator= (const a5_intro_guard &) = delete;
 };
 
 #endif

@@ -94,6 +94,43 @@ static const scr_char *const SER_VERSION_HEADER = "\xAC" "400052";
 enum { BUFFER_SIZE = 4096 };
 
 /*
+ * Pre-4.0 saved games.
+ *
+ * ADRIFT 3.8 and 3.9 store a saved game in their own layout, and obfuscate it
+ * with the Visual Basic PRNG rather than deflating it.  When ser_pre_v4 is set
+ * the writers below emit that layout, so run390.exe accepts a save we wrote;
+ * ser_load_game turns it on from the container format, so we accept one it
+ * wrote.  The differences from 4.0 are:
+ *
+ *   - no version line, and no player-name line;
+ *   - an object's location is always a bare position (an unmoved static is -1,
+ *     never a room list), and it carries no trailing "unmoved" flag;
+ *   - openness is space-padded, with "open" and "closed" exchanged (the same
+ *     swap parse_fixup_openable_key applies when reading a pre-4.0 .taf);
+ *   - the battle blocks carry Strength and Defence only, written bare -- 3.9
+ *     has no Accuracy or Agility and no "lo" bounds;
+ *   - NPC walk steps are not stored at all, so a restored walk starts over.
+ *
+ * Decoded from run390.exe's own saves of The Hangover and Melbourne Beach; a
+ * save written here restores in run390.exe with the right room, score and
+ * inventory.  3.8 is inference: it shares the obfuscation and the openness
+ * swap, but has not been checked against a 3.8 Runner.
+ */
+static scr_bool ser_pre_v4 = FALSE;
+
+/*
+ * ser_openness_pre_v4()
+ *
+ * Exchange the pre-4.0 "open" and "closed" openness values.  Its own inverse,
+ * so the same call serves the writer and the reader.
+ */
+static scr_int
+ser_openness_pre_v4 (scr_int openness)
+{
+  return (openness == 5 || openness == 6) ? 11 - openness : openness;
+}
+
+/*
  * Deflate level for the next serialization run.  File saves keep zlib's
  * default level; per-turn undo memos (memo_save_game) select Z_BEST_SPEED
  * instead -- they are in-memory only, overwritten every 16 turns, and the
@@ -133,6 +170,29 @@ ser_flush (scr_bool is_final)
   static z_stream stream;
 
   scr_int status;
+
+  /*
+   * A pre-4.0 save is not compressed at all: the plain text goes out xor'd
+   * with the PRNG keystream, which taf_obfuscate_reset() started in
+   * ser_save_game().  Nothing here touches the deflate state, so the 4.0 path
+   * below is unaffected.
+   */
+  if (ser_pre_v4)
+    {
+      if (ser_buffer_length > 0)
+        {
+          taf_obfuscate_buffer (ser_buffer, ser_buffer_length);
+          ser_callback (ser_opaque, ser_buffer, ser_buffer_length);
+          ser_buffer_length = 0;
+        }
+
+      if (is_final)
+        {
+          scr_free (ser_buffer);
+          ser_buffer = NULL;
+        }
+      return;
+    }
 
   /* If this is an initial call, initialize deflation. */
   if (!initialized)
@@ -419,25 +479,38 @@ ser_save_battle_block (scr_gameref_t game, scr_int npc)
                                         : gs_npc_battle (game, npc);
   scr_int stamina = (npc < 0) ? gs_playerstamina (game)
                              : gs_npc_stamina (game, npc);
+  /* 3.9 writes these bare; 4.0 space-pads them. */
+  void (*const emit) (scr_int) = ser_pre_v4 ? ser_buffer_int
+                                            : ser_buffer_int_special;
   scr_int index_;
 
   if (npc >= 0)
-    ser_buffer_int_special (battle->attitude);
-  ser_buffer_int_special (battle->maxstamina);
-  ser_buffer_int_special (stamina);
+    emit (battle->attitude);
+  emit (battle->maxstamina);
+  emit (stamina);
   for (index_ = 0; index_ < BATTLE_ATTR_COUNT; index_++)
     {
       const scr_int slot = SER_BATTLE_SLOTS[index_];
-      ser_buffer_int_special (battle->max[slot]);
-      ser_buffer_int_special (battle->hi[slot]);
-      ser_buffer_int_special (battle->lo[slot]);
+
+      /*
+       * 3.9 knows only the strength-versus-defence model, and keeps no "lo"
+       * bound, so it stores the first two slots' max and hi and nothing else:
+       * seven values for the player, nine for an NPC.
+       */
+      if (ser_pre_v4 && slot != BATTLE_STRENGTH && slot != BATTLE_DEFENSE)
+        continue;
+
+      emit (battle->max[slot]);
+      emit (battle->hi[slot]);
+      if (!ser_pre_v4)
+        emit (battle->lo[slot]);
     }
   if (npc < 0)
-    ser_buffer_int_special (gs_playerwield (game));
+    emit (gs_playerwield (game));
   else
     {
-      ser_buffer_int_special (battle->speed);
-      ser_buffer_int_special (gs_npc_attackcounter (game, npc));
+      emit (battle->speed);
+      emit (gs_npc_attackcounter (game, npc));
     }
 }
 
@@ -579,7 +652,11 @@ ser_object_static_rooms (scr_gameref_t game, scr_int object)
 static void
 ser_save_object_location (scr_gameref_t game, scr_int object)
 {
-  if (!obj_is_static (game, object))
+  /*
+   * Pre-4.0 has no room list: every object, static or not, is the bare
+   * position, which for an unmoved static is -1.
+   */
+  if (ser_pre_v4 || !obj_is_static (game, object))
     {
       ser_buffer_int (gs_object_position (game, object));
       return;
@@ -649,25 +726,43 @@ static scr_int
 ser_variable_at (scr_prop_setref_t bundle, scr_int index_,
                  const scr_char **name)
 {
-  scr_vartype_t vt_key[3];
+  *name = prop_get_indexed_string (bundle, "Variables", index_, "Name");
+  return prop_get_indexed_integer (bundle, "Variables", index_, "Type");
+}
 
-  vt_key[0].string = "Variables";
-  vt_key[1].integer = index_;
-  vt_key[2].string = "Name";
-  *name = prop_get_string (bundle, "S<-sis", vt_key);
-  vt_key[2].string = "Type";
-  return prop_get_integer (bundle, "I<-sis", vt_key);
+
+/*
+ * ser_game_is_pre_v4()
+ *
+ * TRUE if this game came from a version 3.8 or 3.9 .taf.  "Version" is
+ * published by parse_add_version() as the TAF_VERSION_* integer.
+ */
+static scr_bool
+ser_game_is_pre_v4 (scr_prop_setref_t bundle)
+{
+  scr_vartype_t vt_key[1];
+
+  vt_key[0].string = "Version";
+  return prop_get_integer (bundle, "I<-s", vt_key) < TAF_VERSION_400;
 }
 
 
 /*
  * ser_save_game()
+ * ser_save_game_to_file()
  *
  * Serialize a game and save its state using the given callback and opaque.
+ *
+ * ser_save_game_to_file() is the one that produces a file for the player, and
+ * for a pre-4.0 game it writes that game's native save format so the original
+ * Runner can read it.  ser_save_game() always writes the full 4.0 layout, and
+ * is what the undo ring and the Spatterlight autosave use: the pre-4.0 layout
+ * is lossy (no walk steps, no Accuracy or Agility, no "unmoved" flags) in ways
+ * an undo must not be.  Both are read back by ser_load_game().
  */
-void
-ser_save_game (scr_gameref_t game,
-               scr_write_callbackref_t callback, void *opaque)
+static void
+ser_save_game_internal (scr_gameref_t game, scr_write_callbackref_t callback,
+                        void *opaque, scr_bool runner_compatible)
 {
   const scr_var_setref_t vars = gs_get_vars (game);
   const scr_prop_setref_t bundle = gs_get_bundle (game);
@@ -679,6 +774,11 @@ ser_save_game (scr_gameref_t game,
   ser_callback = callback;
   ser_opaque = opaque;
 
+  /* Select the save layout, and start the keystream if it is the pre-4.0 one. */
+  ser_pre_v4 = runner_compatible && ser_game_is_pre_v4 (bundle);
+  if (ser_pre_v4)
+    taf_obfuscate_reset ();
+
   /* Reset the immutable-input cache if this is not the game it was built
    * for; the undo ring calls this every turn, so the reads cached below
    * matter. */
@@ -687,8 +787,10 @@ ser_save_game (scr_gameref_t game,
   /*
    * Write the ADRIFT v4 version line first, so the real Runner (and other v4
    * interpreters) recognise the file as one of theirs.  See SER_VERSION_HEADER.
+   * Pre-4.0 saves have no version line at all.
    */
-  ser_buffer_string (SER_VERSION_HEADER);
+  if (!ser_pre_v4)
+    ser_buffer_string (SER_VERSION_HEADER);
 
   /* Write the game name. */
   vt_key[0].string = "Globals";
@@ -707,12 +809,15 @@ ser_save_game (scr_gameref_t game,
 
   /*
    * Write the player block in ADRIFT layout: the player name (the Runner's
-   * first player field, which older SCARIER saves omitted), then room, parent,
-   * position and gender.
+   * first player field, which older SCARIER saves and pre-4.0 saves omit),
+   * then room, parent, position and gender.
    */
   vt_key[0].string = "Globals";
-  vt_key[1].string = "PlayerName";
-  ser_buffer_string (prop_get_string (bundle, "S<-ss", vt_key));
+  if (!ser_pre_v4)
+    {
+      vt_key[1].string = "PlayerName";
+      ser_buffer_string (prop_get_string (bundle, "S<-ss", vt_key));
+    }
   ser_buffer_int (gs_playerroom (game) + 1);
   ser_buffer_int (gs_playerparent (game));
   ser_buffer_int (gs_playerposition (game));
@@ -750,12 +855,21 @@ ser_save_game (scr_gameref_t game,
       ser_buffer_boolean (gs_object_seen (game, index_));
       ser_buffer_int (gs_object_parent (game, index_));
       if (gs_object_openness (game, index_) != 0)
-        ser_buffer_int (gs_object_openness (game, index_));
+        {
+          if (ser_pre_v4)
+            ser_buffer_int_special
+                (ser_openness_pre_v4 (gs_object_openness (game, index_)));
+          else
+            ser_buffer_int (gs_object_openness (game, index_));
+        }
 
+      /* A pre-4.0 game's objects all have CurrentState zero (the 3.9 grammar
+       * defaults it), so this never fires for a pre-4.0 save. */
       if (gs_object_state (game, index_) != 0)
         ser_buffer_int (gs_object_state (game, index_));
 
-      ser_buffer_boolean (gs_object_unmoved (game, index_));
+      if (!ser_pre_v4)
+        ser_buffer_boolean (gs_object_unmoved (game, index_));
     }
 
   /* Save tasks information. */
@@ -810,8 +924,12 @@ ser_save_game (scr_gameref_t game,
       if (battle_is_enabled (game))
         ser_save_battle_block (game, index_);
 
-      for (walk = 0; walk < gs_npc_walkstep_count (game, index_); walk++)
-        ser_buffer_int_special (gs_npc_walkstep (game, index_, walk));
+      /* Pre-4.0 stores no walk steps; a restored walk starts over there. */
+      if (!ser_pre_v4)
+        {
+          for (walk = 0; walk < gs_npc_walkstep_count (game, index_); walk++)
+            ser_buffer_int_special (gs_npc_walkstep (game, index_, walk));
+        }
     }
 
   /* Save each variable.  The count and each name/type pair are immutable,
@@ -874,6 +992,21 @@ ser_save_game (scr_gameref_t game,
   ser_flush (TRUE);
   ser_callback = NULL;
   ser_opaque = NULL;
+  ser_pre_v4 = FALSE;
+}
+
+void
+ser_save_game (scr_gameref_t game,
+               scr_write_callbackref_t callback, void *opaque)
+{
+  ser_save_game_internal (game, callback, opaque, FALSE);
+}
+
+void
+ser_save_game_to_file (scr_gameref_t game,
+                       scr_write_callbackref_t callback, void *opaque)
+{
+  ser_save_game_internal (game, callback, opaque, TRUE);
 }
 
 
@@ -895,7 +1028,7 @@ ser_save_game_prompted (scr_gameref_t game)
   opaque = if_open_saved_game (TRUE);
   if (opaque)
     {
-      ser_save_game (game, if_write_saved_game, opaque);
+      ser_save_game_to_file (game, if_write_saved_game, opaque);
       if_close_saved_game (opaque);
       return TRUE;
     }
@@ -1005,9 +1138,17 @@ ser_restore_battle_block (scr_gameref_t game, scr_int npc)
   for (index_ = 0; index_ < BATTLE_ATTR_COUNT; index_++)
     {
       const scr_int slot = SER_BATTLE_SLOTS[index_];
+
+      /* A pre-4.0 save stores Strength and Defence only, and no "lo" bound;
+       * what it omits keeps the values battle_start() seeded, which is what
+       * the 3.9 Runner effectively has too -- it never uses them. */
+      if (ser_pre_v4 && slot != BATTLE_STRENGTH && slot != BATTLE_DEFENSE)
+        continue;
+
       battle->max[slot] = ser_get_int ();
       battle->hi[slot] = ser_get_int ();
-      battle->lo[slot] = ser_get_int ();
+      if (!ser_pre_v4)
+        battle->lo[slot] = ser_get_int ();
     }
   if (npc < 0)
     gs_set_playerwield (game, ser_get_int ());
@@ -1081,17 +1222,21 @@ ser_object_parent_valid (scr_gameref_t game, scr_int position, scr_int parent)
 /*
  * ser_restore_object_location()
  *
- * Read an object's location.  In Runner format a static object is a room list
- * (count then that many room indices), whose values we discard -- a static
+ * Read an object's location.  In 4.0 Runner format a static object is a room
+ * list (count then that many room indices), whose values we discard -- a static
  * object's location is taken from its bundle "Where" list, and relocated-static
- * state is not separately persisted (as in legacy SCARIER saves).  A dynamic
- * object, or any object in a legacy save, is a single position integer.
+ * state is not separately persisted (as in legacy SCARIER saves).  A pre-4.0
+ * save has no room list: a static is a bare position, discarded for the same
+ * reason.  A dynamic object, or any object in a legacy save, is a single
+ * position integer.
  */
 static void
 ser_restore_object_location (scr_gameref_t game, scr_int object,
                              scr_bool runner_format)
 {
-  if (runner_format && obj_is_static (game, object))
+  if (ser_pre_v4 && obj_is_static (game, object))
+    (void) ser_get_int ();
+  else if (runner_format && !ser_pre_v4 && obj_is_static (game, object))
     {
       scr_int count = ser_get_int (), index_;
       ser_reject_if (count < 0 || count > gs_room_count (game));
@@ -1172,6 +1317,17 @@ ser_load_game (scr_gameref_t game,
   if (!ser_tas)
     return FALSE;
 
+  /*
+   * The container tells us the layout: only run390.exe -- and ser_save_game_-
+   * to_file() for a pre-4.0 game -- writes a PRNG-obfuscated save, so an
+   * obfuscated stream is a pre-4.0 Runner save.  Everything else is a zlib
+   * stream, either 4.0 Runner format or legacy SCARIER, told apart below by the
+   * version line.  This keeps 4.0-format saves we wrote earlier for a 3.9 game
+   * readable.
+   */
+  ser_pre_v4 = taf_get_version (ser_tas) < TAF_VERSION_400;
+  runner_format = ser_pre_v4;
+
   /* Reset line counter for error messages. */
   ser_tasline = 1;
 
@@ -1190,6 +1346,7 @@ ser_load_game (scr_gameref_t game,
       /* Destroy the TAF (TAS) file and return fail status. */
       taf_destroy (ser_tas);
       ser_tas = NULL;
+      ser_pre_v4 = FALSE;
       return FALSE;
     }
 
@@ -1201,7 +1358,7 @@ ser_load_game (scr_gameref_t game,
    * whose first line is already the GameName.  See SER_VERSION_HEADER.
    */
   gamename = ser_get_string ();
-  if ((scr_byte) gamename[0] == SER_VERSION_LEAD)
+  if (!ser_pre_v4 && (scr_byte) gamename[0] == SER_VERSION_LEAD)
     {
       runner_format = TRUE;
       gamename = ser_get_string ();
@@ -1244,8 +1401,9 @@ ser_load_game (scr_gameref_t game,
   /* Restore the score. */
   new_game->score = ser_get_int ();
 
-  /* Skip the player name (Runner format only; absent in legacy SCARIER saves). */
-  if (runner_format)
+  /* Skip the player name (4.0 Runner format only; absent in legacy SCARIER
+   * saves and in pre-4.0 Runner saves). */
+  if (runner_format && !ser_pre_v4)
     (void) ser_get_string ();
 
   /* Restore the rest of the player block, validating untrusted indices. */
@@ -1306,15 +1464,23 @@ ser_load_game (scr_gameref_t game,
       vt_key[1].integer = index_;
       vt_key[2].string = "Openable";
       openable = prop_get_integer (bundle, "I<-sis", vt_key);
-      gs_set_object_openness (new_game, index_,
-                              openable != 0 ? ser_get_int () : 0);
+      if (openable == 0)
+        gs_set_object_openness (new_game, index_, 0);
+      else if (ser_pre_v4)
+        gs_set_object_openness (new_game, index_,
+                                ser_openness_pre_v4 (ser_get_int ()));
+      else
+        gs_set_object_openness (new_game, index_, ser_get_int ());
 
       vt_key[2].string = "CurrentState";
       currentstate = prop_get_integer (bundle, "I<-sis", vt_key);
       gs_set_object_state (new_game, index_,
                            currentstate != 0 ? ser_get_int () : 0);
 
-      gs_set_object_unmoved (new_game, index_, ser_get_boolean ());
+      /* Pre-4.0 does not store "unmoved"; the value gs_create() derived from
+       * OnlyWhenNotMoved stands, exactly as it does in the 3.9 Runner. */
+      if (!ser_pre_v4)
+        gs_set_object_unmoved (new_game, index_, ser_get_boolean ());
     }
 
   /* Restore tasks information. */
@@ -1337,10 +1503,8 @@ ser_load_game (scr_gameref_t game,
       /* Verify and restore the starter task, if any. */
       if (task > 0)
         {
-          vt_key[0].string = "Events";
-          vt_key[1].integer = index_;
-          vt_key[2].string = "StarterType";
-          startertype = prop_get_integer (bundle, "I<-sis", vt_key);
+          startertype = prop_get_indexed_integer (bundle, "Events", index_,
+                                                  "StarterType");
           if (startertype != 3)
             scr_longjmp (ser_tas_error, 1);
 
@@ -1368,8 +1532,14 @@ ser_load_game (scr_gameref_t game,
       if (runner_format && battle_is_enabled (new_game))
         ser_restore_battle_block (new_game, index_);
 
-      for (walk = 0; walk < gs_npc_walkstep_count (new_game, index_); walk++)
-        gs_set_npc_walkstep (new_game, index_, walk, ser_get_int ());
+      /* Pre-4.0 stores no walk steps, so the walk restarts from gs_create()'s
+       * initial state -- the same thing the 3.9 Runner does. */
+      if (!ser_pre_v4)
+        {
+          for (walk = 0; walk < gs_npc_walkstep_count (new_game, index_);
+               walk++)
+            gs_set_npc_walkstep (new_game, index_, walk, ser_get_int ());
+        }
     }
 
   /* Restore each variable. */
@@ -1463,6 +1633,7 @@ ser_load_game (scr_gameref_t game,
   /* Done with TAF (TAS) file; destroy it and return successfully. */
   taf_destroy (ser_tas);
   ser_tas = NULL;
+  ser_pre_v4 = FALSE;
   return TRUE;
 }
 

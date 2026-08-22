@@ -601,6 +601,68 @@ a5_load_propdefs (a5_adventure_t *a)
                 });
 }
 
+/* The label -> integer mapping of a ValueList property definition: the
+   propdef's <ValueList><Label>/<Value> pairs (FD clsProperty.ValueList, an
+   OrdinalIgnoreCase dictionary).  Returns the <Value> text (a string in the
+   same document) or NULL when the label is unknown. */
+const char *
+a5model_valuelist_value (const a5_propdef_t *pd, const char *label)
+{
+  const a5_xml_node_t *c;
+  if (pd == NULL || pd->node == NULL || label == NULL)
+    return NULL;
+  for (c = pd->node->first_child; c != NULL; c = c->next)
+    if (strcmp (c->name, "ValueList") == 0)
+      {
+        const char *l = a5xml_child_text (c, "Label");
+        const char *v = a5xml_child_text (c, "Value");
+        if (l != NULL && v != NULL && strcasecmp (l, label) == 0)
+          return v;
+      }
+  return NULL;
+}
+
+/* FD's clsProperty stores a ValueList property's value as the label's mapped
+   INTEGER (the Value getter returns IntData.ToString, clsProperty.vb:152; the
+   setter maps a label through the ValueList dictionary, vb:180-186), so
+   %obj%.Weight reads "81" for a "Very heavy" boulder and the library's
+   MaxWeight/MaxBulk carry restrictions sum real numbers.  Scarier keeps prop
+   values as raw doc strings; repoint a label-valued ValueList prop at the
+   propdef's own <ValueList><Value> text (same document, stable lifetime).
+   An already-numeric value stays as-is (the label lookup misses, matching
+   FD's SafeInt passthrough). */
+static void
+a5_fix_valuelist_props (a5_adventure_t *a)
+{
+  auto fix = [&] (a5_prop_t *props, int n)
+  {
+    for (int i = 0; i < n; i++)
+      {
+        a5_prop_t *p = &props[i];
+        const a5_propdef_t *pd;
+        const char *v;
+        if (p->value == NULL)
+          continue;
+        pd = a5model_propdef (a, p->key);
+        if (pd == NULL || pd->type == NULL
+            || strcmp (pd->type, "ValueList") != 0)
+          continue;
+        v = a5model_valuelist_value (pd, p->value);
+        if (v != NULL)
+          p->value = v;
+      }
+  };
+  int i;
+  for (i = 0; i < a->n_objects; i++)
+    fix (a->objects[i].props, a->objects[i].n_props);
+  for (i = 0; i < a->n_characters; i++)
+    fix (a->characters[i].props, a->characters[i].n_props);
+  for (i = 0; i < a->n_locations; i++)
+    fix (a->locations[i].props, a->locations[i].n_props);
+  for (i = 0; i < a->n_groups; i++)
+    fix (a->groups[i].props, a->groups[i].n_props);
+}
+
 static void
 a5_load_alrs (a5_adventure_t *a)
 {
@@ -842,6 +904,17 @@ a5model_key_index (const a5_adventure_t *a, int kind, const char *key)
   return -1;
 }
 
+/* The Runner's own palette (Global.vb DEFAULT_*COLOUR, stored there as ARGB),
+   held as 0xRRGGBB in the order the four fields sit in a5_adventure_t: black
+   background, red input, teal output, and a pale cyan for hyperlinks.  Shared
+   by the loader, which falls back on these for an element the file omits, and
+   by a5model_custom_palette, which recognises the author's own choices by
+   them; keeping one table is what stops the two drifting apart. */
+static const struct { const char *name; uint32_t dflt; } A5_COLOURS[] = {
+  {"BackgroundColour", 0x000000}, {"InputColour",  0xd22527},
+  {"OutputColour",     0x19a58a}, {"LinkColour",   0x4bd7bc}
+};
+
 a5_adventure_t *
 a5model_from_doc (a5_xml_doc_t *doc)
 {
@@ -856,6 +929,9 @@ a5model_from_doc (a5_xml_doc_t *doc)
     return NULL;
   a->doc = doc;
   a->root = root;
+  /* Not adventure data: the Runner layout rides alongside the game in its
+     container, so a document on its own ships no answer (see a5model_load). */
+  a->map_pane_open = -1;
   a->title = a5xml_child_text (root, "Title");
   a->author = a5xml_child_text (root, "Author");
   a->version = a5xml_child_text (root, "Version");
@@ -866,6 +942,39 @@ a5model_from_doc (a5_xml_doc_t *doc)
   {
     const char *sfl = a5xml_child_text (root, "ShowFirstLocation");
     a->show_first_location = !(sfl != NULL && strcmp (sfl, "0") == 0);
+  }
+  /* <BackgroundColour> / <InputColour> / <OutputColour> / <LinkColour>: the
+     palette the author chose for the Runner's output pane.  ADRIFT writes them
+     as Windows OLE colour integers -- BLUE, GREEN, RED byte order -- rendered
+     in decimal (ADRIFT-5-XML.md 2.6), and omits any element that still holds
+     the Runner default, so a missing element means "the default", not "no
+     colour".  Held here in the ordinary 0xRRGGBB order; the defaults are the
+     Runner's own, in A5_COLOURS above. */
+  {
+    uint32_t *field[4];
+    int i;
+
+    field[0] = &a->bg_colour;    field[1] = &a->input_colour;
+    field[2] = &a->output_colour; field[3] = &a->link_colour;
+    for (i = 0; i < 4; i++)
+      {
+        const char *text = a5xml_child_text (root, A5_COLOURS[i].name);
+        if (text != NULL && text[0] != '\0')
+          {
+            /* Read signed and mask: ADRIFT writes the value through VB's
+               CInt, so a file that stored an ARGB rather than an OLE colour
+               arrives negative, with the alpha byte to be dropped.  In an OLE
+               integer the LOW byte is red and the high byte blue (pure red is
+               0x0000FF, cyan 0xFFFF00), so swapping the outer two bytes gives
+               0xRRGGBB. */
+            uint32_t ole = (uint32_t) strtol (text, NULL, 10) & 0xffffffu;
+            *field[i] = ((ole & 0x0000ffu) << 16)
+                        | (ole & 0x00ff00u)
+                        | ((ole & 0xff0000u) >> 16);
+          }
+        else
+          *field[i] = A5_COLOURS[i].dflt;
+      }
   }
   /* <ShowExits> gates the "Exits are .../An exit leads ..." listing appended
      to every location view; absent => true (clsAdventure.bShowExits default).
@@ -937,6 +1046,7 @@ a5model_from_doc (a5_xml_doc_t *doc)
   a5_load_variables (a);
   a5_load_groups (a);
   a5_apply_group_properties (a);
+  a5_fix_valuelist_props (a);
   a5_load_alrs (a);
   a5_load_udfs (a);
   a5_load_hints (a);
@@ -956,10 +1066,9 @@ a5model_from_doc (a5_xml_doc_t *doc)
  * will not contain the ASCII tag by chance.  Returns an owned copy or NULL.
  */
 static char *
-a5_scan_ifid (const uint8_t *buf, uint32_t len)
+a5_scan_tag (const uint8_t *buf, uint32_t len, const char *open)
 {
-  static const char open[] = "<ifid>";
-  const uint32_t open_len = 6;
+  const uint32_t open_len = (uint32_t) strlen (open);
   uint32_t i;
   if (buf == NULL || len < open_len)
     return NULL;
@@ -985,6 +1094,37 @@ a5_scan_ifid (const uint8_t *buf, uint32_t len)
   return NULL;
 }
 
+/* Literal substring test over a buffer that need not be NUL-terminated. */
+static int
+a5_buf_contains (const uint8_t *buf, uint32_t len, const char *needle)
+{
+  const uint32_t nl = (uint32_t) strlen (needle);
+  uint32_t i;
+  if (buf == NULL || len < nl)
+    return 0;
+  for (i = 0; i + nl <= len; i++)
+    if (memcmp (buf + i, needle, nl) == 0)
+      return 1;
+  return 0;
+}
+
+static char *
+a5_scan_ifid (const uint8_t *buf, uint32_t len)
+{
+  return a5_scan_tag (buf, len, "<ifid>");
+}
+
+/* The same <ifindex> block's <releases><attached><release><version> -- what
+   %release% renders (BabelTreatyInfo.Stories(0).Releases.Attached.Release
+   .Version, Global.vb:1766).  The compound open-tag scan keys on the
+   <release> wrapper so the block's other <version>-bearing tags
+   (<compilerversion>) cannot match. */
+static char *
+a5_scan_release (const uint8_t *buf, uint32_t len)
+{
+  return a5_scan_tag (buf, len, "<release><version>");
+}
+
 a5_adventure_t *
 a5model_load (const char *path)
 {
@@ -994,6 +1134,7 @@ a5model_load (const char *path)
   uint32_t file_len, payload_len, header, region_len, xml_len;
   uint8_t *xml;
   char *ifid;
+  char *release;
   a5_blorb_chunk_t chunk;
   a5_xml_doc_t *doc;
   a5_adventure_t *adv;
@@ -1056,21 +1197,40 @@ a5model_load (const char *path)
         memcpy (size_hex, payload + 12, 4);
         size_hex[4] = '\0';
         header = 16 + (uint32_t) strtoul (size_hex, NULL, 16);
-        obfuscated = 1;
       }
     else
       {
         /* Pre-5.0.20 layout: the deflate stream follows the 12-byte version
-           header directly.  For a BARE .taf the runner treats this layout as NOT
-           obfuscated (FileIO.vb:816 "Pre 5.0.20 ... bObfuscate = False") --
-           it is also the layout of the game data embedded in ADRIFT 5
-           .exe-wrapped games (the virtual human).  A BLORB Exec chunk takes a
-           different the runner path (FileIO.vb:753): same 12-byte header offset, but
-           obfuscation is decided by the Blorb metadata (bDeObfuscate), which
-           is true for every ADRIFT-Developer-built blorb -- RtC.blorb is
-           exactly this old-layout-but-obfuscated shape. */
+           header directly.  It is also the layout of the game data embedded in
+           ADRIFT 5 .exe-wrapped games (the virtual human). */
         header = 12;
-        obfuscated = from_blorb;
+      }
+
+    if (from_blorb)
+      {
+        /* A BLORB Exec chunk takes its own runner path (FileIO.vb:751), where
+           the layout picks only the header offset and obfuscation is decided
+           by the Blorb metadata instead:
+
+             bDeObfuscate = clsBlorb.MetaData Is Nothing _
+                            OrElse MetaData.OuterXml.Contains("compilerversion")
+
+           i.e. a blorb the ADRIFT Generator wrote (its iFiction carries
+           <compilerversion>), or one with no iFiction chunk at all, is
+           obfuscated; a blorb whose metadata came from elsewhere -- Jacaranda
+           Jim's 2011 release was rewrapped with a Babel-written IFmd -- is
+           plain deflate.  Skybreak has no IFmd and RtC.blorb has one with
+           compilerversion, so both stay obfuscated. */
+        a5_blorb_chunk_t meta;
+        obfuscated = 1;
+        if (a5blorb_find_metadata (file_buf, file_len, &meta))
+          obfuscated = a5_buf_contains (meta.data, meta.size, "compilerversion");
+      }
+    else
+      {
+        /* A bare .taf in the old layout is not obfuscated (FileIO.vb:816,
+           "Pre 5.0.20 ... bObfuscate = False"). */
+        obfuscated = (is_zero_size || has_ifindex);
       }
   }
   if (header + 14 > payload_len)
@@ -1084,6 +1244,17 @@ a5model_load (const char *path)
      scrambles the payload region (the <ifindex> block lies outside it, but scan
      first to be safe across layouts). */
   ifid = a5_scan_ifid (file_buf, file_len);
+  release = a5_scan_release (file_buf, file_len);
+
+  /* Likewise the author's Runner window layout, which lives in a chunk of its
+     own beside the game (see a5blorb_find_layout): read it while the whole
+     file is still to hand, since only the answer outlives file_buf. */
+  int map_pane_open = -1;
+  {
+    a5_blorb_chunk_t layout;
+    if (from_blorb && a5blorb_find_layout (file_buf, file_len, &layout))
+      map_pane_open = a5blorb_layout_pane_open (layout.data, layout.size, "Map");
+  }
 
   if (obfuscated)
     a5_deobfuscate (payload, header, region_len);
@@ -1092,6 +1263,7 @@ a5model_load (const char *path)
   if (xml == NULL)
     {
       free (ifid);
+      free (release);
       return NULL;
     }
 
@@ -1121,6 +1293,7 @@ a5model_load (const char *path)
     {
       free (xml);
       free (ifid);
+      free (release);
       return NULL;
     }
 
@@ -1129,9 +1302,14 @@ a5model_load (const char *path)
     {
       a5xml_free (doc);
       free (ifid);
+      free (release);
     }
   else
-    adv->ifid = ifid;   /* ownership transfers; a5model_free releases it */
+    {
+      adv->ifid = ifid;   /* ownership transfers; a5model_free releases them */
+      adv->release = release;
+      adv->map_pane_open = map_pane_open;
+    }
   return adv;
 }
 
@@ -1296,6 +1474,61 @@ a5model_upgrade_forced_yes (const a5_adventure_t *a)
   return 0;
 }
 
+const char *
+a5model_load_error (const a5_adventure_t *a)
+{
+  if (a == NULL || a->n_locations == 0)
+    return "This adventure has no locations.  Cannot continue.";
+  return NULL;
+}
+
+int
+a5model_custom_palette (const a5_adventure_t *a)
+{
+  const uint32_t *field[4];
+  int i;
+
+  if (a == NULL)
+    return 0;
+  field[0] = &a->bg_colour;    field[1] = &a->input_colour;
+  field[2] = &a->output_colour; field[3] = &a->link_colour;
+  for (i = 0; i < 4; i++)
+    {
+      if (*field[i] != A5_COLOURS[i].dflt)
+        return 1;
+    }
+  return 0;
+}
+
+/* Depth-first over the parse tree, stopping at the first text the caller
+   accepts.  Nodes with no text of their own are still walked for children. */
+static int
+a5model_scan_node (const a5_xml_node_t *n,
+                   int (*accept) (const char *, void *), void *opaque)
+{
+  const a5_xml_node_t *c;
+
+  if (n == NULL)
+    return 0;
+  if (n->text != NULL && n->text[0] != '\0' && accept (n->text, opaque))
+    return 1;
+  for (c = n->first_child; c != NULL; c = c->next)
+    {
+      if (a5model_scan_node (c, accept, opaque))
+        return 1;
+    }
+  return 0;
+}
+
+int
+a5model_scan_text (const a5_adventure_t *a,
+                   int (*accept) (const char *, void *), void *opaque)
+{
+  if (a == NULL || accept == NULL)
+    return 0;
+  return a5model_scan_node (a->root, accept, opaque);
+}
+
 void
 a5model_free (a5_adventure_t *a)
 {
@@ -1367,6 +1600,7 @@ a5model_free (a5_adventure_t *a)
     free (a->upgrade_owned[i]);  /* corrected BracketSequence copies */
   free (a->upgrade_owned);
   free ((void *) a->ifid);
+  free ((void *) a->release);
   a5xml_free (a->doc);
   free (a);
 }

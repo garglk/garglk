@@ -34,6 +34,22 @@ char *sb_finish (sb_t *b);
    at (see a5text.h). */
 void  sb_resolve_cls (sb_t *b, size_t floor);
 
+/* <del>: delete the last output glyph before offset `from` (pass b->len for
+   "the end of the buffer").  Walks back over presentation / ALR marks and
+   whole spanning-mark payloads without removing them, then pops one UTF-8
+   codepoint -- newlines included, so a <del> can undo a <br> or a paragraph
+   break.  Returns the number of bytes removed, 0 when the walk found no glyph
+   at all (an empty or marks-only buffer). */
+size_t sb_del_glyph (sb_t *b, size_t from);
+
+/* Apply every A5_DEL_MARK in the buffer to the accumulated turn text, in
+   source order, removing the markers themselves.  <del> is a whole-turn
+   operator in the runner (see a5text.h): a message that opens with <del> has
+   no glyph of its own to eat, so the plain renderer leaves a marker and this
+   pass -- finish_turn, after sb_resolve_cls, so a <cls> that wipes the marker
+   wins -- deletes back across the pSpace join into the previous message. */
+void  sb_resolve_del (sb_t *b);
+
 /* Replace the oldn-byte span at `off` with the NUL-terminated `s` (grows or
    shrinks the buffer).  Out-of-range arguments are ignored. */
 void  sb_splice (sb_t *b, size_t off, size_t oldn, const char *s);
