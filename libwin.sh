@@ -19,6 +19,19 @@ copy_plugin() {
     cp "${plugins_dir}/${plugin_path}.dll" "build/dist/plugins/${subdir}"
 }
 
+# Select a MinGW/LLVM objdump that understands all Windows PE arches.
+resolve_pe_objdump() {
+    if [[ -n "${MINGW_TRIPLE:-}" ]] && command -v "${MINGW_TRIPLE}-objdump" >/dev/null 2>&1
+    then
+        echo "${MINGW_TRIPLE}-objdump"
+    elif command -v llvm-objdump >/dev/null 2>&1
+    then
+        echo "llvm-objdump"
+    else
+        echo "objdump"
+    fi
+}
+
 # Recursively discover and copy DLL dependencies from all PE files in
 # build/dist (binaries and plugins). For each DLL named in any import
 # table, search for it and copy it into build/dist, then continue
@@ -41,6 +54,9 @@ copy_dll_deps() {
     local qt_dir="$1"
     shift
     local search_paths=("$@")
+    local pe_objdump
+    pe_objdump=$(resolve_pe_objdump)
+    local copied=0
     while true
     do
         local changed=false
@@ -65,10 +81,17 @@ copy_dll_deps() {
                 then
                     cp "${dir}/${dll}" build/dist
                     changed=true
+                    copied=$((copied + 1))
                     break
                 fi
             done
-        done < <(find build/dist \( -iname "*.exe" -o -iname "*.dll" \) -exec objdump -p {} + 2>/dev/null | sed -n "s/.*DLL Name: //p" | sort -u)
+        done < <(find build/dist \( -iname "*.exe" -o -iname "*.dll" \) -exec "${pe_objdump}" -p {} + 2>/dev/null | sed -n "s/.*DLL Name: //p" | sort -u)
         $changed || break
     done
+    if [[ "${copied}" -eq 0 ]]
+    then
+        echo "error: copy_dll_deps found no copyable DLL dependencies (using ${pe_objdump})" >&2
+        "${pe_objdump}" -p build/dist/libgarglk.dll 2>&1 | head -5 >&2 || true
+        return 1
+    fi
 }
