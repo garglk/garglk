@@ -85,27 +85,72 @@ std::string garglk::ConfigFile::format_type() const {
     }
 }
 
-// Auto-detecting the display scale factor is not currently done
-// because Qt on Wayland reports the integer buffer scale (e.g. 2.0
-// for 125%) rather than the true fractional scale. The Wayland
-// protocol wl_output::scale is integer-only, and while
-// wp_fractional_scale_v1 provides the true fractional scale, Qt does
-// not expose it through QScreen or QWindow devicePixelRatio().
+// The number of device pixels per logical pixel, i.e. the display's
+// scale factor. The render buffer is sized in device pixels, so every
+// font size, cell metric, and margin has to be scaled to match, or
+// glyphs get rasterized too small and drawn into a buffer that's too
+// big. That scaling happens by folding this into gli_zoom below.
 //
-// Therefore gli_backingscalefactor remains at its default 1.0
-// on non-macOS platforms. Users on HiDPI displays can set zoom
-// manually in garglk.ini.
+// This is a correctness factor, and is distinct from the user-facing
+// "zoom" setting, which is a preference: how much larger than normal
+// the user wants everything. The two multiply, so a user on a 2x
+// display who also wants a 1.5x larger UI ends up at an effective 3.0.
 //
-// Note:
-//   - QScreen::devicePixelRatio() — returns 2.0 for 1.25x scaling.
-//   - QWindow::devicePixelRatio() on a temporary window — also
-//     returns 2.0.
+// Each backend sets this in wininit(), before gli_read_config() runs:
 //
-// To get the true scale, we would need to use the native Wayland
-// protocol (wp_fractional_scale_v1) directly, or we could try computing
-// the scale from `QScreen::logicalDotsPerInch() / 96.0` but if Qt also
-// rounds DPI to match the integer buffer scale, we'd get 192 (2.0)
-// and still be wrong.
+//   - Cocoa (sysmac.mm) hardcodes BACKING_SCALE_FACTOR (2.0).
+//   - Qt (sysqt.cpp) reads QScreen::devicePixelRatio(), except on
+//     Wayland (see below), where it is left at the 1.0 default.
+//
+// Wayland is excluded because Qt rounds the scale up to an integer
+// there, and no synchronous source of the true fractional scale
+// exists. Measured under Wayland with Qt 6.11.1, reading
+// QScreen::devicePixelRatio() before any window is created, and the
+// window's devicePixelRatioF() once it has settled:
+//
+//   compositor   QScreen   window (settled)
+//   ----------   -------   ----------------
+//         100%      1.00               1.00
+//         125%      2.00               1.25
+//         150%      2.00               1.50
+//         200%      2.00               2.00
+//
+// The QScreen column is all wininit() has to work with, since gli_zoom
+// is consumed once during startup and baked into font sizes and cell
+// metrics before any window exists. Using it would put text 1.6x too
+// big at 125%, and 1.33x too big at 150%, because updateBufferSize()
+// sizes the render buffer from the *window's* ratio instead.
+//
+// The rounding also isn't recoverable: 125% and 200% both report a
+// QScreen ratio of exactly 2.00, so they cannot be told apart at
+// startup. That rules out screen-based detection on Wayland for good,
+// rather than pending some future Qt fix.
+//
+// Two other avenues that look promising and aren't:
+//
+//   - QScreen::logicalDotsPerInch() is exactly 96.0 at every scale
+//     above, so logicalDpi / 96.0 always comes out to 1.0.
+//   - QScreen::physicalDotsPerInch() does track the scale (127.33,
+//     101.86, 84.87, 63.67 for the four rows above, exact ratios of
+//     1, 1.25, 1.5 and 2), but only relative to a scale-1.0 baseline
+//     that isn't knowable at runtime.
+//
+// The true value is available, just not in time. The window reports it
+// once the compositor's async wp_fractional_scale_v1 preferred_scale
+// event arrives, delivered as QEvent::DevicePixelRatioChange (see
+// garglk::Window::event() in sysqt.cpp). Its delivery is uneven:
+// showEvent() is too early, reporting the rounded value at every
+// scale; the event fires twice at 125% and 150%, so only the last
+// value is meaningful; and it never fires at all at 100% or 200%,
+// where the initial value was already correct, so its absence carries
+// no information. Making use of it would mean re-applying gli_zoom and
+// reloading fonts after startup, which isn't possible today -- the
+// multiply below happens once, in place.
+//
+// Until that changes, Wayland users on HiDPI displays can compensate
+// by setting zoom manually in garglk.ini. Users on other platforms
+// should not: the scale is detected there, and zoom multiplies on top
+// of it.
 double gli_backingscalefactor = 1.0;
 double gli_zoom = 1.0;
 

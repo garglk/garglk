@@ -787,6 +787,21 @@ void wininit()
     app = new QApplication(argc, argv);
     QApplication::setApplicationVersion(GARGOYLE_VERSION);
 
+    // The render buffer is sized in physical pixels (see
+    // updateBufferSize()), so the zoom must be derived from the same
+    // scale, or glyphs get rasterized at 1x into a 2x buffer and come
+    // out half-size. This has to happen before gli_read_config(), which
+    // is what folds gli_backingscalefactor into gli_zoom and bakes the
+    // result into font sizes, cell metrics, and margins.
+    //
+    // Wayland is excluded: Qt reports the rounded integer buffer scale
+    // there rather than the true fractional scale (see the comment on
+    // gli_backingscalefactor in config.cpp), so this value can't be
+    // trusted. Wayland keeps the existing behavior of a 1.0 factor.
+    if (!QApplication::platformName().startsWith(QLatin1String("wayland"))) {
+        gli_backingscalefactor = QApplication::primaryScreen()->devicePixelRatio();
+    }
+
     // The convention on Windows & Mac is capitalized directories,
     // whereas on Unix it's all lowercase. Qt uses the application name
     // when finding paths with QStandardDirectories, so set the expected
@@ -810,10 +825,14 @@ void winopen()
 {
     window = new garglk::Window();
 
-    window->setMinimumSize(gli_wmarginx * 2, gli_wmarginy * 2);
+    // Qt window geometry is in logical pixels, but the metrics here are
+    // in physical pixels (see gli_backingscalefactor in wininit()), so
+    // scale back down. This is a no-op when the factor is 1.0.
+    window->setMinimumSize(std::round(gli_wmarginx * 2 / gli_backingscalefactor),
+                           std::round(gli_wmarginy * 2 / gli_backingscalefactor));
 
-    int defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
-    int defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
+    int defw = std::round((gli_wmarginx * 2 + gli_cellw * gli_cols) / gli_backingscalefactor);
+    int defh = std::round((gli_wmarginy * 2 + gli_cellh * gli_rows) / gli_backingscalefactor);
     QSize size(defw, defh);
     if (gli_conf_save_window_size) {
         auto stored_size = window->settings()->value("window/size");
