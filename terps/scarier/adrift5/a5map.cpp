@@ -110,20 +110,79 @@ parse_anchors (map_link_t *link, const a5_xml_node_t *lk)
   link->n_mids = im;
 }
 
+/* True when `dir` is a plan-view compass direction (not Up/Down/In/Out). */
+static int
+is_compass_dir (int dir)
+{
+  return dir == DIR_N || dir == DIR_E || dir == DIR_S || dir == DIR_W
+      || dir == DIR_NE || dir == DIR_SE || dir == DIR_SW || dir == DIR_NW;
+}
+
+/* Compass exit on `loc` that shares destination and restriction style with a
+   badge link.  Basement Up→Kitchen coincides with East→Kitchen even though only
+   Kitchen authors the East-West Map Link. */
+static int
+find_compass_twin_same_dest (const a5_location_t *loc, const char *dest,
+                             int dotted)
+{
+  int d, cdotted;
+  const char *md;
+
+  if (loc == NULL || dest == NULL)
+    return -1;
+  for (d = 0; d < MAP_N_DIRS; d++)
+    {
+      if (!is_compass_dir (d))
+        continue;
+      md = movement_dest (loc, map_dirs[d], &cdotted);
+      if (md != NULL && strcmp (md, dest) == 0 && cdotted == dotted)
+        return d;
+    }
+  return -1;
+}
+
 /* One connector leaving a node (<Link>).  Returns 0 if the link has no usable
    source anchor, in which case the slot is left untouched and skipped. */
 static int
 parse_link (map_link_t *link, const a5_xml_node_t *lk,
-            const a5_location_t *loc)
+            const a5_adventure_t *adv, const a5_location_t *loc)
 {
   const char *src = a5xml_child_text (lk, "SourceAnchor");
   int d = dir_index (src);
+  const a5_location_t *dest_loc;
+  const char *back;
 
   if (d < 0)
     return 0;
   link->dir = d;
   link->dst_anchor = dir_index (a5xml_child_text (lk, "DestinationAnchor"));
   link->dest = movement_dest (loc, src, &link->dotted);
+  link->has_compass_twin = 0;
+  link->compass_twin = -1;
+  /* Up/Down stay as ordinary links here: mapdraw draws U/D badges and a
+     badge-to-badge connector (same pattern as In/Out).  ADRIFT 4 sets
+     link.badge so its Up/Down stay icon-only. */
+  /* Duplex from movements (FileIO.vb), not from whether dest has a Map Link:
+     Grandpa Ranch's Tunnel has Up to Basement but no <Link>, while Basement
+     has the Down <Link> with DestinationAnchor Up. */
+  link->duplex = 0;
+  if (link->dest != NULL && link->dst_anchor >= 0 && loc != NULL
+      && loc->key != NULL)
+    {
+      dest_loc = a5model_location (adv, link->dest);
+      back = movement_dest (dest_loc, map_dirs[link->dst_anchor], NULL);
+      if (back != NULL && strcmp (back, loc->key) == 0)
+        link->duplex = 1;
+    }
+  /* Badge/compass coincidence from movements (Map Links alone miss Basement
+     East, which is only a Movement while Kitchen owns the West Map Link). */
+  if ((d == DIR_UP || d == DIR_DOWN || d == DIR_IN || d == DIR_OUT)
+      && link->dest != NULL)
+    {
+      link->compass_twin
+        = find_compass_twin_same_dest (loc, link->dest, link->dotted);
+      link->has_compass_twin = (link->compass_twin >= 0);
+    }
   parse_anchors (link, lk);
   return 1;
 }
@@ -151,6 +210,17 @@ parse_node (map_node_t *node, const a5_xml_node_t *nd,
   node->page = page_key;
 
   loc = a5model_location (adv, node->key);
+  if (loc != NULL && loc->node != NULL)
+    node->hidden = a5xml_bool (a5xml_child_text (loc->node, "Hide"));
+  /* FileIO.vb:4071-4074 -- Movements, not Map Links, set bHas*. */
+  if (movement_dest (loc, "In", NULL) != NULL)
+    node->has_in = 1;
+  if (movement_dest (loc, "Out", NULL) != NULL)
+    node->has_out = 1;
+  if (movement_dest (loc, "Up", NULL) != NULL)
+    node->has_up = 1;
+  if (movement_dest (loc, "Down", NULL) != NULL)
+    node->has_down = 1;
 
   n_links = a5xml_count (nd, "Link");
   if (n_links <= 0)
@@ -166,7 +236,7 @@ parse_node (map_node_t *node, const a5_xml_node_t *nd,
         continue;
       if (il >= n_links)
         break;
-      if (parse_link (&node->links[il], lk, loc))
+      if (parse_link (&node->links[il], lk, adv, loc))
         il++;
     }
   node->n_links = il;

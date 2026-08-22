@@ -70,6 +70,11 @@ conv_contains_word (const std::string &sentence, const std::string &check)
   return 1;
 }
 
+/* A5_TRACE_CONV=1: print every Ask/Tell topic's keyword score, in the order
+   they are considered.  The order is load (document) order, and the tie-break
+   below keeps the FIRST best -- see find_conv_node's note on FrankenDrift. */
+static const char *dbg_conv (void) { static const char *v = getenv ("A5_TRACE_CONV"); return v; }
+
 static int
 topic_has_children (const a5_character_t *ch, const char *key)
 {
@@ -103,6 +108,12 @@ emit_topic_conv (a5_run_t *run, const char *ctx_key,
   int pia = st->intro_active;
   st->ctx_char = ctx_key;
   st->intro_active = 1;
+  /* A reply is REAL output: clsUserSession runs it through Display with
+     bTestingOutput False, so its <DisplayOnce> segments retire and the topic
+     moves on to its next alternative when it is asked again.  Dinner Plans
+     leans on this -- each of Anna's four topics has one description per
+     evening, keyed only on the first one having been used up. */
+  a5_mark_guard mg (st, 1);
   emit_conv (a5text_describe (st, conversation), out);
   st->intro_active = pia;
   st->ctx_char = pc;
@@ -120,7 +131,8 @@ capture_restr_text (a5_state_t *st, const a5_xml_node_t *restrictions,
     return;
   const a5_xml_node_t *fm = a5restr_fail_message (st, restrictions);
   if (fm != NULL)
-    { char *t2 = a5text_describe (st, fm); *restr_text = t2; free (t2); }
+    { a5_intro_guard ig (st, 1);          /* fail text expands in Display (vb:1247) */
+      char *t2 = a5text_describe (st, fm); *restr_text = t2; free (t2); }
 }
 
 /*
@@ -130,6 +142,21 @@ capture_restr_text (a5_state_t *st, const a5_xml_node_t *restrictions,
  * Greet/Farewell topics just by restrictions.  When a candidate matches its
  * trigger but fails its restrictions, its restriction fail-message is captured
  * into *restr_text (last wins), so the caller can surface it as the default.
+ *
+ * TIE-BREAK / ITERATION ORDER (measured 2026-08-11, Dinner Plans).  The score
+ * comparison is the runner's own (`>` for matches, then `>` for percent), so
+ * the FIRST topic considered wins a tie -- and we consider them in the order
+ * the model lists them, which is the order FileIO adds them (verified: FD's
+ * loader logs Topic1..Topic13 in document order).  FrankenDrift then iterates
+ * `htblTopics.Values`, a Dictionary that by playing time has been rebuilt by
+ * the state machinery, so its enumeration is a stable but scrambled slot order
+ * (Topic11, 4, 13, 6, 5, 7, 2, 3, 12, 1, ... for Emily) -- a .NET artifact, not
+ * anything in the runner source.  It only shows when two topics score exactly
+ * equal, which needs one keyword to be a superset phrase of another's: Emily's
+ * Topic1 "pizza" and Topic2 "pizza bella" both score 1 match / 100% on `ask
+ * emily about pizza bella`, and FD answers Topic2 where we answer Topic1.
+ * Leave the order alone: matching FD here would mean emulating .NET dictionary
+ * internals, and document order is what the source it ports actually implies.
  */
 static const a5_topic_t *
 find_conv_node (a5_run_t *run, const a5_character_t *ch, int conv_type,
@@ -186,6 +213,9 @@ find_conv_node (a5_run_t *run, const a5_character_t *ch, int conv_type,
             }
           double pct = kws.empty () ? 0.0 : (double) matched / (double) kws.size ();
           if (low_priority && pct == 1.0) pct = 0.001;
+          if (dbg_conv ())
+            fprintf (stderr, "[conv cand %s kw='%s' matched=%d pct=%.3f]\n",
+                     tp->key, tp->keywords, matched, pct);
           if (matched > best_matches
               || (matched == best_matches && pct > best_pct))
             { best = tp; best_pct = pct; best_matches = matched; }
@@ -225,6 +255,7 @@ exec_conversation (a5_run_t *run, const char *char_key, int conv_type,
   a5_state_t *st = run->st;
   const a5_character_t *conv_ch;
   const a5_topic_t *topic = NULL;
+  const a5_topic_t *intro_emitted = NULL;
   std::string restr_text;
 
   if (char_key == NULL || char_key[0] == '\0')
@@ -258,6 +289,7 @@ exec_conversation (a5_run_t *run, const char *char_key, int conv_type,
       if (intro != NULL)
         {
           emit_topic_conv (run, conv_ch->key, intro->conversation, out);
+          intro_emitted = intro;
           a5state_set_conv_node (st, intro->key);
           if (intro->is_ask || intro->is_tell || intro->is_command)
             {
@@ -294,7 +326,13 @@ exec_conversation (a5_run_t *run, const char *char_key, int conv_type,
 
   if (topic != NULL)
     {
-      emit_topic_conv (run, conv_ch->key, topic->conversation, out);
+      /* A pure Greet's main lookup can re-find the very topic just emitted as
+         the intro.  The runner emits both, but AddResponse (clsUserSession.vb:
+         1296) keys responses by message TEXT and merges the duplicate, so only
+         one copy is displayed.  Skip the re-emission; the node bookkeeping and
+         actions below still run (the runner runs them from this block too). */
+      if (topic != intro_emitted)
+        emit_topic_conv (run, conv_ch->key, topic->conversation, out);
       if (topic_has_children (conv_ch, topic->key))
         a5state_set_conv_node (st, topic->key);
       else if (!topic->stay_in_node)

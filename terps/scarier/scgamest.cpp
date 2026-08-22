@@ -76,7 +76,20 @@ gs_carried_recompute (scr_gameref_t gs)
 static void
 gs_carried_track (scr_gameref_t gs, scr_int object, scr_int old_pos, scr_int new_pos)
 {
-  if (!gs->carried_ready || old_pos == new_pos)
+  if (old_pos == new_pos)
+    return;
+
+  /*
+   * A wielded weapon that leaves the player's hands -- dropped, thrown, given
+   * away, put down, worn -- is no longer wielded, and the wield never falls
+   * back to another carried weapon (Runner, settled live 2026-08-01).  Restore
+   * bypasses this by assigning positions directly, so a restored wield is
+   * whatever the save says.
+   */
+  if (object == gs->playerwield && old_pos == OBJ_HELD_PLAYER)
+    gs->playerwield = -1;
+
+  if (!gs->carried_ready)
     return;
 
   if (new_pos == OBJ_HELD_PLAYER)
@@ -1168,10 +1181,18 @@ gs_populate (scr_gameref_t game, scr_var_setref_t vars,
   game->playerwield = -1;
   memset (&game->playerbattle, 0, sizeof (game->playerbattle));
 
-  /* Initialize score notifications from game properties. */
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "NoScoreNotify";
-  game->notify_score_change = !prop_get_boolean (bundle, "B<-ss", vt_key);
+  /* Score-change notifications start off.  The TAF does carry a NoScoreNotify
+     global, but no Runner reads it: "(Your score has increased by N)" exists
+     only in run400.exe -- run370/380/390 have no such string at all -- and
+     run400 gates it on Options -> High Scores/Scoring -> "Notify when score
+     changes", a persisted *user* preference read at startup as
+     GetSetting("ADRIFT", "Runner", "NotifyScore", CStr(False)) and saved back
+     by notify_Click.  A fresh installation therefore never notifies, which is
+     the state to match here; the `notify` command stands in for the menu item.
+     Verified live in run400 and run390 (make_arena_probe.py config SC and
+     make_39_endprobe.py both score +3 on an ordinary turn, in silence).  See
+     RUNNER_TESTS_TODO.md section 4. */
+  game->notify_score_change = FALSE;
 
   /* Miscellaneous state defaults. */
   game->turns = 0;
@@ -1198,6 +1219,7 @@ gs_populate (scr_gameref_t game, scr_var_setref_t vars,
   game->has_notified = FALSE;
   game->is_admin = FALSE;
   game->has_completed = FALSE;
+  game->pending_endgame = 0;
   game->waitcounter = 0;
   game->do_again = FALSE;
   game->redo_sequence = 0;
@@ -1415,6 +1437,7 @@ gs_copy (scr_gameref_t to, scr_gameref_t from)
   to->has_notified = from->has_notified;
   to->is_admin = from->is_admin;
   to->has_completed = from->has_completed;
+  to->pending_endgame = from->pending_endgame;
 
   to->waitturns = from->waitturns;
 

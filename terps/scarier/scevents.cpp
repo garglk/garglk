@@ -132,12 +132,9 @@ evt_cached_integer (scr_gameref_t game, scr_int event, scr_int field,
   if (!(cached->known & ((scr_uint) 1 << field)))
     {
       const scr_prop_setref_t bundle = gs_get_bundle (game);
-      scr_vartype_t vt_key[3];
 
-      vt_key[0].string = "Events";
-      vt_key[1].integer = event;
-      vt_key[2].string = name;
-      cached->value[field] = prop_get_integer (bundle, "I<-sis", vt_key);
+      cached->value[field] = prop_get_indexed_integer (bundle, "Events", event,
+                                                       name);
       cached->known |= (scr_uint) 1 << field;
     }
   return cached->value[field];
@@ -152,12 +149,9 @@ evt_cached_boolean (scr_gameref_t game, scr_int event, scr_int field,
   if (!(cached->known & ((scr_uint) 1 << field)))
     {
       const scr_prop_setref_t bundle = gs_get_bundle (game);
-      scr_vartype_t vt_key[3];
 
-      vt_key[0].string = "Events";
-      vt_key[1].integer = event;
-      vt_key[2].string = name;
-      cached->value[field] = prop_get_boolean (bundle, "B<-sis", vt_key);
+      cached->value[field] = prop_get_indexed_boolean (bundle, "Events", event,
+                                                       name);
       cached->known |= (scr_uint) 1 << field;
     }
   return (scr_bool) cached->value[field];
@@ -330,20 +324,17 @@ evt_move_object (scr_gameref_t game, scr_int object, scr_int destination)
 
 
 /*
- * evt_fixup_v390_v380_immediate_restart()
+ * evt_taf_version()
  *
- * Versions 3.9 and 3.8 differ from version 4.0 on immediate restart; they
- * "miss" the event start actions and move one step into the event without
- * comment.  It's arguable if this is a feature or a bug; nevertheless, we
- * can do the same thing here, though it's ugly.
+ * Return the game's TAF version.  It is immutable, so it is read once per
+ * game and cached (evt_cache_entry synchronizes the cache, including the
+ * version slot, to this game).
  */
-static scr_bool
-evt_fixup_v390_v380_immediate_restart (scr_gameref_t game, scr_int event)
+static scr_int
+evt_taf_version (scr_gameref_t game, scr_int event)
 {
   scr_int version;
 
-  /* The TAF version is immutable; read it once per game.  (evt_cache_entry
-   * synchronizes the cache, including the version slot, to this game.) */
   evt_cache_entry (game, event);
   version = evt_cache_version;
   if (version == 0)
@@ -355,20 +346,59 @@ evt_fixup_v390_v380_immediate_restart (scr_gameref_t game, scr_int event)
       version = prop_get_integer (bundle, "I<-s", vt_key);
       evt_cache_version = version;
     }
+  return version;
+}
+
+
+static void evt_start_event (scr_gameref_t game, scr_int event,
+                             scr_bool silent);
+
+/*
+ * evt_fixup_v390_v380_immediate_restart()
+ *
+ * Versions 3.9 and 3.8 differ from version 4.0 on immediate restart: run390
+ * re-arms the event WITHOUT printing its StartText, where run400 prints it
+ * every time round.  Both give the restarted event its full authored length.
+ *
+ * Arbitrated live 2026-08-04 (RUNNER_TESTS_TODO.md section 8), probe
+ * test/adrift4/harness/make_39_evtimeprobe.py against run390.exe and the EV9 twin against
+ * run400.exe:
+ *
+ *   run390, Time1=Time2=5, RestartType=1, StarterType 1: "E FINISH." on turns
+ *     5, 10, 15 -- period 5, and no StartText on either restart.
+ *   run390, Time1=Time2=1, StarterType 1, 2 and 3 (variants b, c, e): the
+ *     FinishText every turn, the StartText only on the very first start.
+ *   run390, variant f -- the exact "Priest Coughs" shape, StartText plus
+ *     LookText and no FinishText: one StartText at the trigger, then silence,
+ *     and the LookText only in an explicit `look`.
+ *   run400, the same event in a 4.0 taf: "E FINISH.  E START." every 5 turns.
+ *
+ * Only the immediate restart is silent.  Variant d (RestartType=2, restart
+ * after a delay) prints its StartText on every re-arm in run390 too, because
+ * that path goes back through ES_WAITING and the normal start.
+ *
+ * `silent` suppresses the StartText alone: Obj1 still moves and the start
+ * resource still plays.  Neither of those halves has been probed on a 3.9
+ * restart -- what is measured is the text.
+ */
+static scr_bool
+evt_fixup_v390_v380_immediate_restart (scr_gameref_t game, scr_int event)
+{
+  const scr_int version = evt_taf_version (game, event);
+
   if (version < TAF_VERSION_400)
     {
-      scr_int time1, time2;
-
       if (evt_trace)
         scr_trace ("Event: applying 3.9/3.8 restart fixup\n");
 
-      /* Set to running state. */
-      gs_set_event_state (game, event, ES_RUNNING);
-
-      /* Set up event time to be one less than a proper start. */
-      time1 = evt_cached_integer (game, event, EVT_TIME1, "Time1");
-      time2 = evt_cached_integer (game, event, EVT_TIME2, "Time2");
-      gs_set_event_time (game, event, scr_randomint (time1, time2) - 1);
+      /*
+       * Re-arm silently.  The length roll belongs to evt_start_event();
+       * rolling a second one here would churn the RNG stream on every restart,
+       * and taking a turn off the clock -- which SCARE did, and which the
+       * 2026-08-04 pass kept -- makes the period one short of what run390
+       * measures.
+       */
+      evt_start_event (game, event, TRUE);
     }
 
   /* Return TRUE if we applied the fixup. */
@@ -379,10 +409,12 @@ evt_fixup_v390_v380_immediate_restart (scr_gameref_t game, scr_int event)
 /*
  * evt_start_event()
  *
- * Change an event from WAITING to RUNNING.
+ * Change an event from WAITING to RUNNING.  With `silent`, everything happens
+ * except the StartText: that is the game-load start, where the real Runners
+ * print into a screen the intro then clears (see evt_start_load_events()).
  */
 static void
-evt_start_event (scr_gameref_t game, scr_int event)
+evt_start_event (scr_gameref_t game, scr_int event, scr_bool silent)
 {
   const scr_filterref_t filter = gs_get_filter (game);
   const scr_prop_setref_t bundle = gs_get_bundle (game);
@@ -402,7 +434,7 @@ evt_start_event (scr_gameref_t game, scr_int event)
       vt_key[1].integer = event;
       vt_key[2].string = "StartText";
       starttext = prop_get_string (bundle, "S<-sis", vt_key);
-      if (!scr_strempty (starttext))
+      if (!scr_strempty (starttext) && !silent)
         {
           pf_buffer_paragraph_line (filter, starttext);
         }
@@ -439,6 +471,26 @@ static scr_int
 evt_get_starter_type (scr_gameref_t game, scr_int event)
 {
   return evt_cached_integer (game, event, EVT_STARTER_TYPE, "StarterType");
+}
+
+
+/*
+ * evt_is_zero_length()
+ *
+ * TRUE for an event authored with no duration at all, Time1 == Time2 == 0.
+ * Such an event behaves quite unlike a one-turn event in the real Runners --
+ * see the "parks" comment in evt_tick_event() -- so it is worth a name.
+ *
+ * The test is on the AUTHORED length, not on the rolled one: a length rolled
+ * from a range that happens to include zero was never probed, and the 3.9/3.8
+ * immediate-restart fixup deliberately runs an event with one turn already
+ * spent, which would otherwise be mistaken for a parked event.
+ */
+static scr_bool
+evt_is_zero_length (scr_gameref_t game, scr_int event)
+{
+  return evt_cached_integer (game, event, EVT_TIME1, "Time1") == 0
+         && evt_cached_integer (game, event, EVT_TIME2, "Time2") == 0;
 }
 
 
@@ -518,8 +570,34 @@ evt_finish_event (scr_gameref_t game, scr_int event)
           if (evt_trace)
             scr_trace ("Event: event cleared task %ld\n", task);
         }
+      else if (evt_taf_version (game, event) < TAF_VERSION_400)
+        {
+          /*
+           * The 3.9 Runner dispatches the task by its command text through
+           * the task matcher rather than running it by index: a runnable
+           * `*` wildcard task earlier in the list steals the execution, and
+           * a restricted match is passed over silently, its FailMessage
+           * unprinted.  The dispatch is not gated on the affected task's
+           * own runnability -- a wildcard can fire even when the affected
+           * task could not run here.  See run_event_task() and
+           * RUNNER_TESTS_TODO.md section 2; "thetest" depends on the
+           * stealing.
+           */
+          if (evt_trace)
+            scr_trace ("Event: event dispatching task %ld forwards\n", task);
+
+          run_event_task (game, task);
+        }
       else if (task_can_run_task_directional (game, task, TRUE))
         {
+          /*
+           * The 4.0 Runner runs the affected task directly: no wildcard
+           * interception, and failing restrictions print their FailMessage
+           * (which task_run_task does) -- Shadowpeak's ambient bell/rat
+           * lines are exactly such prints.  Both halves verified live
+           * against run390/run400 with the same gen400-converted probe;
+           * see RUNNER_TESTS_TODO.md section 2.
+           */
           if (evt_trace)
             scr_trace ("Event: event running task %ld forwards\n", task);
 
@@ -535,8 +613,41 @@ evt_finish_event (scr_gameref_t game, scr_int event)
   /* Handle possible restart. */
   restarttype = evt_cached_integer (game, event, EVT_RESTART_TYPE,
                                     "RestartType");
+
+  /*
+   * A ZERO-length event that restarts "after a delay" does not come back at
+   * all when its start is immediate or a task -- probed live 2026-08-02 in
+   * run400 (probe EV5 events H2 and H3, make_arena_probe.py) and in run390
+   * (make_39_fwprobe.py variant b): the affected task fires once and then
+   * nothing, no matter how often the starter task is re-run afterwards, and
+   * no LookText appears in the room description in between, so the event is
+   * not sitting in a running state either.  Re-arming it here instead made
+   * the affected task fire EVERY turn, which is how TheADRIFTProject's
+   * "#Pill Check" ran a turn early.
+   *
+   * Restart-immediately is deliberately NOT gated: run400 really does start
+   * such an event again -- EV5's H1 printed its StartText a second time and
+   * showed its LookText in every later room description -- it just never
+   * finishes again, which evt_tick_event() handles by parking it.
+   */
+  if (restarttype == 2
+      && (evt_get_starter_type (game, event) == 1
+          || evt_get_starter_type (game, event) == 3)
+      && evt_is_zero_length (game, event))
+    {
+      if (evt_trace)
+        scr_trace ("Event: zero-length event %ld will not restart\n", event);
+
+      gs_set_event_state (game, event, ES_FINISHED);
+      gs_set_event_time (game, event, 0);
+      restarttype = -1;
+    }
+
   switch (restarttype)
     {
+    case -1:                   /* Zero-length one-shot, handled above. */
+      break;
+
     case 0:                    /* Don't restart. */
       startertype = evt_get_starter_type (game, event);
       switch (startertype)
@@ -558,7 +669,7 @@ evt_finish_event (scr_gameref_t game, scr_int event)
       if (evt_fixup_v390_v380_immediate_restart (game, event))
         break;
       else
-        evt_start_event (game, event);
+        evt_start_event (game, event, FALSE);
       break;
 
     case 2:                    /* Restart after delay. */
@@ -569,7 +680,7 @@ evt_finish_event (scr_gameref_t game, scr_int event)
           if (evt_fixup_v390_v380_immediate_restart (game, event))
             break;
           else
-            evt_start_event (game, event);
+            evt_start_event (game, event, FALSE);
           break;
 
         case 2:                /* Random delay. */
@@ -782,7 +893,7 @@ evt_tick_event (scr_gameref_t game, scr_int event)
          */
         if (gs_event_time (game, event) == 0)
           {
-            evt_start_event (game, event);
+            evt_start_event (game, event, FALSE);
 
             /* If the event time was set to zero, finish immediately. */
             if (gs_event_time (game, event) <= 0)
@@ -800,10 +911,22 @@ evt_tick_event (scr_gameref_t game, scr_int event)
 
         if (gs_event_time (game, event) <= 0)
           {
-            evt_start_event (game, event);
+            evt_start_event (game, event, FALSE);
 
-            /* If the event time was set to zero, finish immediately. */
-            if (gs_event_time (game, event) <= 0)
+            /*
+             * If the event time was set to zero, finish immediately -- unless
+             * the event has no length at all, in which case it PARKS: started
+             * but never finishing.  A zero-length event reached off a running
+             * clock behaves quite differently from one reached at game start
+             * or off a starter task, both of which finish on the spot.  Probed
+             * live in run400 2026-08-02 (probe EV4): the event printed its
+             * StartText on the turn the delay expired, then showed its LookText
+             * in every later room description and never printed its FinishText
+             * or ran its affected task.  Del Sol's "physics distraction 3" is
+             * exactly this shape.
+             */
+            if (gs_event_time (game, event) <= 0
+                && !evt_is_zero_length (game, event))
               evt_finish_event (game, event);
           }
       }
@@ -843,6 +966,21 @@ evt_tick_event (scr_gameref_t game, scr_int event)
           }
 
         /*
+         * A zero-length event that got here is parked: it was started off a
+         * clock or by an immediate restart, and in the real Runner it stays
+         * running for the rest of the game -- its LookText keeps appearing in
+         * the room description, and its end never arrives.  Leave the clock
+         * alone, or the decrement below would take it negative and "finish"
+         * an event the Runner never finishes.
+         */
+        if (evt_is_zero_length (game, event))
+          {
+            if (evt_trace)
+              scr_trace ("Event: zero-length event %ld is parked\n", event);
+            break;
+          }
+
+        /*
          * Decrement the event's time, and print any notifications for a set
          * number of turns from the event end.
          */
@@ -868,7 +1006,7 @@ evt_tick_event (scr_gameref_t game, scr_int event)
          */
         if (evt_starter_task_is_complete (game, event))
           {
-            evt_start_event (game, event);
+            evt_start_event (game, event, FALSE);
 
             /* If the event time was set to zero, finish immediately. */
             if (gs_event_time (game, event) <= 0)
@@ -985,6 +1123,81 @@ evt_tick_events (scr_gameref_t game)
       if (state == ES_RUNNING
           && (prior_state == ES_PAUSED || prior_state == ES_WAITING))
         evt_tick_event (game, event);
+    }
+}
+
+
+/*
+ * evt_start_load_events()
+ * evt_finish_load_events()
+ *
+ * The two halves of an immediate event's game-load start, called either side
+ * of the opening room description (scrunner.cpp).
+ *
+ * Both Runners start a StarterType=1 event while the game is still loading,
+ * BEFORE the first room description is printed -- probed live 2026-08-02 in
+ * run400 (probe EV6 in test/adrift4/harness/make_arena_probe.py) and run390
+ * (make_39_fwprobe.py variant "e"), a plain length-3 immediate event carrying
+ * all three texts.  Two things follow, and both are visible:
+ *
+ *   - its LookText is part of the OPENING room description, because the event
+ *     is already running when that description is composed;
+ *   - its StartText is never seen at all, having been printed into the screen
+ *     the intro then clears.
+ *
+ * Everything else about the event is unchanged, including when it ends: the
+ * probe's length-3 event finished on the third command turn in both Runners
+ * and in SCARIER.  So this is purely a matter of moving the start earlier and
+ * dropping its text -- hence the `silent` start here, and the +1 that leaves
+ * the following startup tick's decrement landing on the rolled length.
+ *
+ * The finish half stays BELOW the description: a zero-length immediate event
+ * prints its FinishText, runs its TaskAffected and (RestartType=1) restarts
+ * with a visible StartText, all after the room text -- run400 probe EV5's
+ * turn 0 reads "A bare arena.  H1 LOOK.  H2 LOOK.  H1 FINISH.  H1 TASK.  H1
+ * START. ...".  Which is why this is two calls and not one.
+ */
+void
+evt_start_load_events (scr_gameref_t game)
+{
+  scr_int event;
+
+  for (event = 0; event < gs_event_count (game); event++)
+    {
+      if (gs_event_state (game, event) != ES_WAITING
+          || gs_event_time (game, event) != 0)
+        continue;
+
+      evt_start_event (game, event, TRUE);
+
+      /*
+       * The same compensation the tick's immediate-start branch applies (see
+       * evt_tick_event()): the startup tick that follows decrements a running
+       * event once, so a length-N event has to leave the load carrying N+1.
+       * A zero-length event keeps its zero and is finished below.
+       */
+      if (gs_event_time (game, event) > 0)
+        gs_set_event_time (game, event, gs_event_time (game, event) + 1);
+    }
+}
+
+void
+evt_finish_load_events (scr_gameref_t game)
+{
+  scr_int event;
+
+  /*
+   * The only events that can be RUNNING with no time left at this point are
+   * the zero-length ones evt_start_load_events() just started -- nothing else
+   * has ticked yet.  (A restart puts one back into RUNNING at zero, but at an
+   * index this loop has already passed, so it parks as the Runner's does
+   * rather than finishing twice.)
+   */
+  for (event = 0; event < gs_event_count (game); event++)
+    {
+      if (gs_event_state (game, event) == ES_RUNNING
+          && gs_event_time (game, event) <= 0)
+        evt_finish_event (game, event);
     }
 }
 

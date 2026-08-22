@@ -219,6 +219,16 @@ typedef struct scr_game_s
   scr_bool is_running;
   scr_bool has_completed;
 
+  /* The ending an EndGame task action has armed, held until the end of the
+   * turn: 0 for none, otherwise the action's Var1 plus one (so 1 = win,
+   * 2 = lose, 3 = dead, 4 = "just stop").  The Runner keeps the same thing in
+   * a byte of its own, but numbers it differently -- its EndGame handler maps
+   * Var1 0,1,2,3 to 1,3,2,4 (0008D66E) and its endmessage switches on that --
+   * so the two are not interchangeable.  Set inside the turn and consumed by
+   * task_print_end_game_message(); never live across a command, so it is not
+   * part of the saved stream. */
+  scr_int pending_endgame;
+
   /* Player's setting for waitturns; overrides the game's. */
   scr_int waitturns;
 

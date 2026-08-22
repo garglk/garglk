@@ -659,6 +659,11 @@ scr_quit_game (scr_game game)
  * game commands, in that they prompt the user for a stream to write or read.
  * These alternative forms allow the caller to directly specify the data
  * streams.
+ *
+ * The two that write a save file the player keeps produce a pre-4.0 game's own
+ * save format, so the original Runner can read it; scr_save_game_to_callback()
+ * is the engine-snapshot form the Spatterlight autosave uses, and stays on the
+ * lossless 4.0 layout.  Loading auto-detects either.  See ser_save_game().
  */
 scr_bool
 scr_save_game_to_filename (scr_game game, const scr_char *filename)
@@ -685,7 +690,7 @@ scr_save_game_to_filename (scr_game game, const scr_char *filename)
   scr_bool status = TRUE;
   try
     {
-      run_save (game_, if_file_write_callback, stream);
+      run_save_to_file (game_, if_file_write_callback, stream);
     }
   catch (const scr_fatal_error &error)
     {
@@ -713,7 +718,7 @@ scr_save_game_to_stream (scr_game game, FILE *stream)
 
   try
     {
-      run_save (game_, if_file_write_callback, stream);
+      run_save_to_file (game_, if_file_write_callback, stream);
     }
   catch (const scr_fatal_error &error)
     {
@@ -1329,6 +1334,48 @@ scr_does_game_use_graphics (scr_game game)
     return FALSE;
 
   return res_has_graphics (game_);
+}
+
+
+/*
+ * scr_game_scan_strings()
+ *
+ * Offer every line of the TAF to `accept`, stopping at the first it takes.
+ *
+ * The TAF is the game as the author wrote it -- one string per line, markup and
+ * all -- and the bundle keeps it for the life of the game, so this costs a walk
+ * and no memory.  Reading it back rather than the property tree is deliberate:
+ * a caller looking for authored markup wants every string the file carries,
+ * including the ones the parser files somewhere it has no accessor for.
+ */
+scr_bool
+scr_game_scan_strings (scr_game game,
+                       scr_bool (*accept) (const scr_char *, void *),
+                       void *opaque)
+{
+  const scr_gameref_t game_ = (scr_gameref_t) game;
+  scr_prop_setref_t bundle;
+  scr_tafref_t taf;
+
+  if (if_game_error (game_, "scr_game_scan_strings"))
+    return FALSE;
+  if (accept == NULL)
+    return FALSE;
+
+  bundle = gs_get_bundle (game_);
+  taf = prop_get_taf (bundle);
+  if (taf == NULL)
+    return FALSE;
+
+  taf_first_line (taf);
+  while (taf_more_lines (taf))
+    {
+      const scr_char *line = taf_next_line (taf);
+
+      if (line != NULL && accept (line, opaque))
+        return TRUE;
+    }
+  return FALSE;
 }
 
 
