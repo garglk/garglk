@@ -264,6 +264,17 @@ struct a5_run_s {
      per-turn completion-message emission is byte-identical to before. */
   int    immediate_emit;
 
+  /* Immediate-Display splice point (clsUserSession Display(sRestrictionText),
+     vb:1748): an action that Displays DIRECTLY -- today only a failed
+     MoveCharacter InDirection's route-restriction message -- goes to the
+     runner's sOutputText ahead of the task's buffered response, so on the flat
+     path run_task records where this task's Before message begins and the
+     action splices its text THERE instead of appending.  imm_sink NULL = no
+     splice point (resp/Look paths); the action then appends at its own
+     position, which already precedes an After message. */
+  sb_t  *imm_sink = NULL;
+  long   imm_pos = -1;
+
   /* Sticky per-After-children-scan flag: some completion message evaluated
      since the caller cleared it had a NON-BLANK raw template -- the runner's
      AddResponse bHasOutput test, which counts a whitespace-only "\n" template
@@ -507,6 +518,7 @@ void drain_tasks_to_run (a5_run_t *run, sb_t *out);
 void a5run_flush_display_defers (a5_run_t *run, sb_t *out);
 void a5run_flush_display_defers_from (a5_run_t *run, sb_t *out, size_t from);
 void ev_on_task_completed (a5_run_t *run, const char *task_key, sb_t *out);
+void ev_on_task_uncompleted (a5_run_t *run, const char *task_key, sb_t *out);
 
 /* a5run_ref.cpp (reference resolution + multiple-object references) */
 void bind_reference (a5_state_t *st, const char *group, const char *value,

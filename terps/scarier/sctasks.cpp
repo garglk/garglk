@@ -25,6 +25,7 @@
  */
 
 #include <assert.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -203,55 +204,68 @@ task_forget_game (const void *game)
 }
 
 /*
- * task_can_run_task_directional()
+ * task_state_allows_run()
  *
- * Return TRUE if player is in a room where the task can be run and the task
- * is runnable in the given direction.
+ * The half of the runnability test that has nothing to do with where the
+ * player is standing: a completed task is not re-runnable forwards unless it
+ * is repeatable or has repeat text to print, and a task is only runnable in
+ * reverse if it is reversible.
+ *
+ * Split out from task_can_run_task_directional() so that the two halves can be
+ * asked separately -- see task_is_room_refused() below.
  */
-scr_bool
-task_can_run_task_directional (scr_gameref_t game,
-                               scr_int task, scr_bool forwards)
+static scr_bool
+task_is_repeatable (scr_gameref_t game, scr_int task)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[5];
-  scr_int type;
   scr_task_props_t *cached;
 
-#ifdef SCARIER_DUMP_TOOLS
-  /* Reusable structural-dump / NPC-trace instrumentation; see scdump.c.
-   * Compiled only into the headless walkthrough harness (-DSCARIER_DUMP_TOOLS);
-   * a normal Spatterlight build omits this entirely. */
-  scr_dump_structure_once (game);
-#endif
+  cached = task_cache_entry (game, task);
+  if (cached->repeatable == TASK_CACHE_UNKNOWN)
+    {
+      cached->repeatable = prop_get_indexed_boolean (bundle, "Tasks", task,
+                                                     "Repeatable")
+                           ? TASK_CACHE_TRUE : TASK_CACHE_FALSE;
+    }
+  return cached->repeatable == TASK_CACHE_TRUE;
+}
+
+
+static scr_bool
+task_repeattext_is_empty (scr_gameref_t game, scr_int task)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_task_props_t *cached;
+
+  cached = task_cache_entry (game, task);
+  if (cached->repeattext_empty == TASK_CACHE_UNKNOWN)
+    {
+      const scr_char *repeattext;
+
+      repeattext = prop_get_indexed_string (bundle, "Tasks", task,
+                                            "RepeatText");
+      cached->repeattext_empty = scr_strempty (repeattext)
+                                 ? TASK_CACHE_TRUE : TASK_CACHE_FALSE;
+    }
+  return cached->repeattext_empty == TASK_CACHE_TRUE;
+}
+
+
+static scr_bool
+task_state_allows_run (scr_gameref_t game, scr_int task, scr_bool forwards)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_task_props_t *cached;
 
   cached = task_cache_entry (game, task);
 
   /* If already run, non-repeatable tasks are not re-runnable forwards. */
   if (forwards && gs_task_done (game, task))
     {
-      if (cached->repeatable == TASK_CACHE_UNKNOWN)
-        {
-          vt_key[0].string = "Tasks";
-          vt_key[1].integer = task;
-          vt_key[2].string = "Repeatable";
-          cached->repeatable = prop_get_boolean (bundle, "B<-sis", vt_key)
-                               ? TASK_CACHE_TRUE : TASK_CACHE_FALSE;
-        }
-      if (cached->repeatable == TASK_CACHE_FALSE)
+      if (!task_is_repeatable (game, task))
         return FALSE;
 
-      if (cached->repeattext_empty == TASK_CACHE_UNKNOWN)
-        {
-          const scr_char *repeattext;
-
-          vt_key[0].string = "Tasks";
-          vt_key[1].integer = task;
-          vt_key[2].string = "RepeatText";
-          repeattext = prop_get_string (bundle, "S<-sis", vt_key);
-          cached->repeattext_empty = scr_strempty (repeattext)
-                                     ? TASK_CACHE_TRUE : TASK_CACHE_FALSE;
-        }
-      if (cached->repeattext_empty == TASK_CACHE_FALSE)
+      if (!task_repeattext_is_empty (game, task))
         return FALSE;
     }
 
@@ -260,15 +274,33 @@ task_can_run_task_directional (scr_gameref_t game,
     {
       if (cached->reversible == TASK_CACHE_UNKNOWN)
         {
-          vt_key[0].string = "Tasks";
-          vt_key[1].integer = task;
-          vt_key[2].string = "Reversible";
-          cached->reversible = prop_get_boolean (bundle, "B<-sis", vt_key)
+          cached->reversible = prop_get_indexed_boolean (bundle, "Tasks", task,
+                                                         "Reversible")
                                ? TASK_CACHE_TRUE : TASK_CACHE_FALSE;
         }
       if (cached->reversible == TASK_CACHE_FALSE)
         return FALSE;
     }
+
+  return TRUE;
+}
+
+
+/*
+ * task_where_allows_run()
+ *
+ * The other half: TRUE if the player is standing in a room the task's Where
+ * room list covers.
+ */
+static scr_bool
+task_where_allows_run (scr_gameref_t game, scr_int task)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_vartype_t vt_key[5];
+  scr_int type;
+  scr_task_props_t *cached;
+
+  cached = task_cache_entry (game, task);
 
   /* Check room list for the task and return it. */
   if (cached->where_type == 0)
@@ -333,9 +365,79 @@ task_can_run_task_directional (scr_gameref_t game,
       }
 
     default:
-      scr_fatal ("task_can_run_task_directional: invalid type, %ld\n", type);
+      scr_fatal ("task_where_allows_run: invalid type, %ld\n", type);
       return FALSE;
     }
+}
+
+
+/*
+ * task_can_run_task_directional()
+ *
+ * Return TRUE if player is in a room where the task can be run and the task
+ * is runnable in the given direction.
+ */
+scr_bool
+task_can_run_task_directional (scr_gameref_t game,
+                               scr_int task, scr_bool forwards)
+{
+#ifdef SCARIER_DUMP_TOOLS
+  /* Reusable structural-dump / NPC-trace instrumentation; see scdump.c.
+   * Compiled only into the headless walkthrough harness (-DSCARIER_DUMP_TOOLS);
+   * a normal Spatterlight build omits this entirely. */
+  scr_dump_structure_once (game);
+#endif
+
+  return task_state_allows_run (game, task, forwards)
+         && task_where_allows_run (game, task);
+}
+
+
+/*
+ * task_is_room_refused()
+ *
+ * Return TRUE if the player's room is what stands between this task and a run
+ * in the given direction: its Where room list does not cover where the player
+ * is standing.
+ *
+ * Pre-4.0 Runners answer a command that matches such a task with a refusal of
+ * their own rather than the game's DontUnderstand text; see run_task_refusal()
+ * in scrunner.c.
+ *
+ * Whether the task has already been run is deliberately NOT part of the test.
+ * The Runner checks the room ahead of the task's state, and answers a task that
+ * is both done and out of its rooms with the room refusal rather than "You have
+ * already done that." (measured live -- probe task "theta").  The reverse
+ * direction still asks task_state_allows_run(), which for a backwards run tests
+ * only the reversibility flag.
+ */
+scr_bool
+task_is_room_refused (scr_gameref_t game, scr_int task, scr_bool forwards)
+{
+  return !task_where_allows_run (game, task)
+         && (forwards || task_state_allows_run (game, task, FALSE));
+}
+
+
+/*
+ * task_is_done_refused()
+ *
+ * Return TRUE if the only thing standing between this task and a forwards run
+ * is that it has already been done and is not repeatable -- the player is in a
+ * room the task's Where list covers, but the task is spent.
+ *
+ * The Runners answer such a command with the task's RepeatText, or with "You
+ * have already done that." when there is none; see run_task_refusal() in
+ * scrunner.c.  The room half is deliberately part of the test, because a task
+ * that is both done and out of its rooms gets the room refusal instead
+ * (measured live -- probe task "theta").
+ */
+scr_bool
+task_is_done_refused (scr_gameref_t game, scr_int task)
+{
+  return gs_task_done (game, task)
+         && !task_is_repeatable (game, task)
+         && task_where_allows_run (game, task);
 }
 
 
@@ -366,6 +468,21 @@ static void
 task_move_object (scr_gameref_t game, scr_int object, scr_int var2, scr_int var3)
 {
   const scr_var_setref_t vars = gs_get_vars (game);
+
+  /*
+   * Ignore negative object indexes, as evt_move_object() does.  Var1 = 2 is
+   * "the referenced object", and a task reached by redirection (or matched by
+   * a pattern with no %object%) has none, so var_get_ref_object() hands back
+   * -1.  The Runner's Select Case simply moves nothing; SCARE used to walk
+   * into gs_object_*() and abort on its range assertion.  Mortality's task
+   * 314 [? the return] does exactly this.
+   */
+  if (object < 0)
+    {
+      if (task_trace)
+        scr_trace ("Task: ignoring move of unset object %ld\n", object);
+      return;
+    }
 
   /* Select action depending on var2. */
   switch (var2)
@@ -1030,15 +1147,13 @@ task_run_change_score_action (scr_gameref_t game, scr_int task, scr_int var1)
           if (task_trace)
             scr_trace ("Task: already scored task %ld\n", var1);
 
-          /* Version 3.8 games permit tasks to rescore. */
+          /* Version 3.8 and 3.7 games permit tasks to rescore. */
           vt_key[0].string = "Version";
           version = prop_get_integer (bundle, "I<-s", vt_key);
-          if (version == TAF_VERSION_380)
+          if (version <= TAF_VERSION_380)
             {
-              vt_key[0].string = "Tasks";
-              vt_key[1].integer = task;
-              vt_key[2].string = "SingleScore";
-              increase_score = !prop_get_boolean (bundle, "B<-sis", vt_key);
+              increase_score = !prop_get_indexed_boolean (bundle, "Tasks",
+                                                          task, "SingleScore");
 
               if (increase_score)
                 {
@@ -1085,7 +1200,12 @@ task_run_set_task_action (scr_gameref_t game, scr_int var1, scr_int var2)
   /* Select based on var1. */
   if (var1 == 0)
     {
-      /* Redirect forwards. */
+      /*
+       * Redirect forwards.  Once the game has ended, this dispatch is a no-op;
+       * the guard lives at the top of task_run_task(), exactly as the Runner
+       * puts it at the top of its RunTask.  Plain in-line actions are *not*
+       * dropped; see task_run_task_actions() below.
+       */
       if (task_can_run_task_directional (game, var2, TRUE))
         {
           if (task_trace)
@@ -1112,16 +1232,153 @@ task_run_set_task_action (scr_gameref_t game, scr_int var1, scr_int var2)
 
 
 /*
- * task_run_end_game_action()
+ * task_print_end_game_summary()
  *
- * End of game task action.
+ * Print the Runner's end-of-game score summary.  Form1.endmessage builds it as
+ *
+ *   If MaxScore > 0 Then
+ *     t &= "You scored" & Str(score) & " out of the maximum" & Str(MaxScore)
+ *          & "!" & CRLF
+ *     t &= "That is" & Str(Int(score * (100 / MaxScore))) & "% of the game!"
+ *          & CRLF
+ *     If <the win branch> Then                       ' NOT on a loss or death
+ *       If score = MaxScore Then t &= "Well done - you scored maximum points!"
+ *                           Else t &= "You finished " & CStr(MaxScore - score)
+ *                                     & " points short."
+ *       t &= CRLF & CRLF
+ *   t &= "[Press any key to end]"
+ *
+ * VB's Str() prepends a space for a non-negative number, which is where the
+ * single spaces around the two figures come from; CStr() does not, hence the
+ * literal trailing space in "You finished ".  The percentage divides in
+ * floating point and truncates with Int(), so 3 out of 8 is 37%, not 38 -- the
+ * `score` command's integer (score * 100) / MaxScore agrees here but is not the
+ * same expression, so keep this one as written.
+ *
+ * Measured live, MaxScore 8 and score 3, in run400 (arena config SC in
+ * make_arena_probe.py, plus SC0 for MaxScore 0) and in run390
+ * (make_39_endprobe.py), which agree line for line:
+ *
+ *   win    WinText / the two lines / "You finished 5 points short." / blank
+ *   lose   "Better luck next time." / the two lines / blank
+ *   dead   "I'm afraid you are dead!" / the two lines / blank
+ *          (pre-4.0 words that sentence from the perspective; see
+ *          lib_get_death_message())
+ *   ended  nothing at all
+ *   MaxScore 0, win: run400 prints the banner and nothing else, not even the
+ *                    blank line; run390 prints the summary anyway, at 100%
+ *
+ * A UTF-16LE census puts every string of the summary in all four Runners
+ * (run370/380/390/400), so this is not gated on 4.0, and 3.7 and 3.8 have since
+ * been driven live too: run370 finishing castle.taf and run380 finishing
+ * microwaveman.taf print these lines exactly as below.  See
+ * RUNNER_TESTS_TODO.md section 4.
  */
-static scr_bool
-task_run_end_game_action (scr_gameref_t game, scr_int var1)
+static void
+task_print_end_game_summary (scr_gameref_t game, scr_bool is_win)
 {
   const scr_filterref_t filter = gs_get_filter (game);
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_bool status = FALSE;
+  scr_vartype_t vt_key[2];
+  scr_int max_score, percent, version;
+  scr_char buffer[32];
+
+  vt_key[0].string = "Globals";
+  vt_key[1].string = "MaxScore";
+  max_score = prop_get_integer (bundle, "I<-ss", vt_key);
+
+  vt_key[0].string = "Version";
+  version = prop_get_integer (bundle, "I<-s", vt_key);
+
+  /* The MaxScore > 0 guard arrived with 4.0.  A scoreless 4.0 game gets no
+     summary and no trailing blank line -- measured in run400 on arena config
+     SC0 and again on TheAmulet.taf, whose MaxScore is 0 -- but run390 prints
+     the summary regardless, and reports a scoreless game as 100% complete:
+     ECOD3.taf (MaxScore 0) ends with "You scored 0 out of the maximum 0!" /
+     "That is 100% of the game!" / "Well done - you scored maximum points!".
+     Whether 3.9 special-cases the divide or only the equal-scores case cannot
+     be told apart at 0 out of 0, and no 3.7 or 3.8 game in the corpus has a
+     MaxScore of 0, so this treats the whole pre-4.0 range alike. */
+  if (max_score <= 0)
+    {
+      if (version >= TAF_VERSION_400)
+        return;
+      percent = 100;
+    }
+  else
+    percent = (scr_int) floor (game->score * (100.0 / max_score));
+
+  pf_buffer_string (filter, "You scored ");
+  snprintf (buffer, sizeof (buffer), "%ld", game->score);
+  pf_buffer_string (filter, buffer);
+  pf_buffer_string (filter, " out of the maximum ");
+  snprintf (buffer, sizeof (buffer), "%ld", max_score);
+  pf_buffer_string (filter, buffer);
+  pf_buffer_string (filter, "!\n");
+
+  pf_buffer_string (filter, "That is ");
+  snprintf (buffer, sizeof (buffer), "%ld", percent);
+  pf_buffer_string (filter, buffer);
+  pf_buffer_string (filter, "% of the game!\n");
+
+  /* Only the win branch weighs the score against the maximum. */
+  if (is_win)
+    {
+      if (game->score == max_score)
+        pf_buffer_string (filter, "Well done - you scored maximum points!\n");
+      else
+        {
+          pf_buffer_string (filter, "You finished ");
+          snprintf (buffer, sizeof (buffer), "%ld", max_score - game->score);
+          pf_buffer_string (filter, buffer);
+          pf_buffer_string (filter, " points short.\n");
+        }
+    }
+}
+
+
+/*
+ * task_print_end_game_message()
+ *
+ * Print the ending armed by an EndGame task action, if any, and clear it.
+ *
+ * The Runners do this at the *end of the turn*, not where the action ran.
+ * run400's turn driver is
+ *
+ *     If gameover = 0 Then Form1.evaluate       ' 0005C65C
+ *     If gameover > 0 Then Form1.endmessage     ' 0005C681
+ *
+ * so the EndGame action only sets the gameover byte (0008D66E, mapping Var1
+ * 0,1,2,3 to 1,3,2,4) and every score, variable and text change the rest of
+ * the turn makes lands *before* the summary is composed.  Form1.endmessage
+ * (0005DDAC) then reads MaxScore and score for itself.
+ * Measured live: chicago.taf task 23 is "end game (win)" followed by "+10
+ * points", and run390 finishes on 75 where printing at the action gives 65.
+ * The corpus has 42 tasks in 32 games that put an EndGame action somewhere
+ * other than last.  See RUNNER_TESTS_TODO.md section 4.
+ */
+void
+task_print_end_game_message (scr_gameref_t game)
+{
+  const scr_filterref_t filter = gs_get_filter (game);
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_vartype_t vt_version;
+  scr_bool is_pre_400;
+  scr_int var1;
+
+  if (game->pending_endgame == 0)
+    return;
+
+  var1 = game->pending_endgame - 1;
+  game->pending_endgame = 0;
+
+  /* Every message below is concatenated onto the turn's accumulated text with
+     no separator of its own, so whether that text is already terminated is the
+     whole difference between the versions: 4.0 ends a task's text block with a
+     line terminator, pre-4.0 does not.  Ours always does (pf_buffer_paragraph_
+     line), so for a pre-4.0 game take that terminator back first. */
+  vt_version.string = "Version";
+  is_pre_400 = prop_get_integer (bundle, "I<-s", &vt_version) < TAF_VERSION_400;
 
   /* Print a message based on var1. */
   switch (var1)
@@ -1136,46 +1393,114 @@ task_run_end_game_action (scr_gameref_t game, scr_int var1)
         vt_key[1].string = "WinText";
         wintext = prop_get_string (bundle, "S<-ss", vt_key);
 
-        /* Print WinText, if any defined, otherwise a default. */
+        /* run400's endmessage is, for a win, exactly
+         *
+         *     out = out & WinText & vbCrLf                  ' 0005DDF8
+         *
+         * -- no separator of any kind, and the line terminator regardless of
+         * whether the WinText is empty.  The terminator is measured in run400
+         * itself: microbe_willie.taf has an empty WinText, and run400 leaves a
+         * blank line between the winning task's text and the score summary.
+         *
+         * Whether WinText lands on a line of its own therefore depends on what
+         * the turn's accumulated text already ends with, and that is where the
+         * versions part company.  4.0 terminates a task's text block, so run400
+         * finishing ptbad.taf prints "...a few more minutes of your time." and
+         * then "You Win! Yay!" underneath -- and that task's CompleteText ends
+         * at the full stop, with no trailing <br> of its own (taftool.py unpack
+         * of ptbad.taf), so the break is the Runner's.  Pre-4.0 does not, so run380
+         * finishing microwaveman.taf runs the two together as "You win the
+         * game.You have destroyed Coffee Man...", and run390 finishing
+         * ECOD3.taf, whose task text ends "<br><br>", leaves *two* blank lines
+         * before the summary rather than one.  All three measured live.
+         *
+         * So for a pre-4.0 game take our own section terminator back, and in
+         * every version add one after.
+         *
+         * Print WinText, if any is defined.  There is no default: the Runners'
+           "Congratulations!" is a *status bar caption*, not a line of game text.
+           run400's endmessage writes it to Form1.StatusBar1 panel 1 (decompiled
+           at 0x000571AC, immediately alongside "You are dead!" at 0x00057205),
+           and those are the literals' only references.  Measured live on two
+           empty-WinText games, one at each end of the version range: run400
+           finishing TheAmulet.taf and run370 finishing castle.taf both print the
+           winning task's own CompleteText and then go straight to the score
+           summary, with the location panel switched to "Congratulations!".  See
+           RUNNER_TESTS_TODO.md section 4. */
+        if (is_pre_400)
+          pf_undo_auto_break (filter);
         if (!scr_strempty (wintext))
-          {
-            pf_buffer_string (filter, wintext);
-            pf_buffer_character (filter, '\n');
-          }
-        else
-          pf_buffer_string (filter, "Congratulations!\n");
+          pf_buffer_string (filter, wintext);
+        pf_buffer_character (filter, '\n');
 
         /* Handle any associated WinRes resource. */
         vt_key[0].string = "Globals";
         vt_key[1].string = "WinRes";
         res_handle_resource (game, "ss", vt_key);
 
-        status = TRUE;
+        task_print_end_game_summary (game, TRUE);
         break;
       }
 
+    /* Both losing endings open with two line breaks of their own, on top of
+     * whatever the turn's text left behind -- run400 builds them as
+     * "out & vbCrLf & vbCrLf & <message> & vbCrLf", the lose branch inline at
+     * 0005DFDC and the death branch in the shared General.Sub_22_70
+     * (000523BF), which is also where a Battle System death lands.  So a 4.0
+     * game shows *two* blank lines before the message: measured live on
+     * QuestI.taf, whose task 3 "#Check for Death from Hunger" is an ACT type=6
+     * v1=2, where run400 leaves three line pitches between the task's text and
+     * "I'm afraid you are dead!". */
     case 1:
-      pf_buffer_string (filter, "Better luck next time.\n");
-      status = TRUE;
+      if (is_pre_400)
+        pf_undo_auto_break (filter);
+      pf_buffer_string (filter, "\n\nBetter luck next time.\n");
+      task_print_end_game_summary (game, FALSE);
       break;
 
     case 2:
-      pf_buffer_string (filter, "I'm afraid you are dead!\n");
-      status = TRUE;
+      if (is_pre_400)
+        pf_undo_auto_break (filter);
+      pf_buffer_string (filter, "\n\n");
+      pf_buffer_string (filter, lib_get_death_message (game));
+      pf_buffer_character (filter, '\n');
+      task_print_end_game_summary (game, FALSE);
       break;
 
     case 3:
+      /* "Just stop": the Runner prints no message and no summary either. */
       break;
 
     default:
-      scr_fatal ("task_run_end_game_action: invalid type, %ld\n", var1);
+      scr_fatal ("task_print_end_game_message: invalid type, %ld\n", var1);
     }
+}
+
+
+/*
+ * task_run_end_game_action()
+ *
+ * End of game task action.  Arms the ending and stops the game; the message
+ * and the score summary are printed at the end of the turn, by
+ * task_print_end_game_message() above.  A second EndGame action in the same
+ * turn displaces the first: run400's handler (0008D66E) writes its gameover
+ * byte unconditionally, and it is the "execute task" action, not this one,
+ * that first tests the byte and skips (0008D621).
+ */
+static scr_bool
+task_run_end_game_action (scr_gameref_t game, scr_int var1)
+{
+  if (var1 < 0 || var1 > 3)
+    scr_fatal ("task_run_end_game_action: invalid type, %ld\n", var1);
+
+  game->pending_endgame = var1 + 1;
 
   /* Stop the game, and note that it's not resumeable. */
   game->is_running = FALSE;
   game->has_completed = TRUE;
 
-  return status;
+  /* "Just stop" prints nothing, so it reports nothing done. */
+  return var1 != 3;
 }
 
 
@@ -1332,9 +1657,9 @@ task_run_task_action (scr_gameref_t game, scr_int task, scr_int action)
 /*
  * task_run_task_actions()
  *
- * Run every task action associated with the task.  If any action ends the
- * game, return immediately.  Returns TRUE if any action ran and itself
- * returned TRUE.
+ * Run every task action associated with the task.  Actions after one that
+ * ends the game still run, with output muted; see the comment on the loop.
+ * Returns TRUE if any action ran and itself returned TRUE.
  */
 static scr_bool
 task_run_task_actions (scr_gameref_t game, scr_int task)
@@ -1361,13 +1686,21 @@ task_run_task_actions (scr_gameref_t game, scr_int task)
     }
 
   /*
-   * Run all task actions, capturing any TRUE status returned.  If any task
-   * ends the game, run the remaining tasks silently.
+   * Run all task actions, capturing any TRUE status returned.  If an action
+   * ends the game, run the remaining ones silently rather than exiting the
+   * loop early.
    *
-   * This seems a little counterintuitive; a more conventional thing would be
-   * to just exit the actions loop early.  However, Adrift appears to plough
-   * on, and there may be an action that changes the score in here somewhere,
-   * so we'll do the same.
+   * This seems counterintuitive, but it is what the Runner does, and it was
+   * confirmed against run400 with the "EG" arena probe (see
+   * test/adrift4/harness/make_arena_probe.py): a task whose actions are
+   * "end game" then "+7 points" finishes on 7 out of 7, exactly as when the
+   * two are the other way round.  Nothing the trailing actions print is
+   * shown, hence the muting.  The Runner's own action executor
+   * (mdlSpreadTheLoad.Sub_20_11) reads its gameover flag exactly once, inside
+   * the EndGame handler at 0008D621, where it guards re-printing the ending
+   * -- there is no test at the loop head.  The one kind of action it *does*
+   * drop after the ending is Execute Task, because that dispatches through
+   * RunTask, which does have such a test; see task_run_task().
    */
   status = FALSE;
   muted = FALSE;
@@ -1435,6 +1768,53 @@ task_start_npc_walks (scr_gameref_t game, scr_int task)
 
 
 /*
+ * task_suppresses_additional_message()
+ *
+ * TRUE if this Runner would drop the task's AdditionalMessage because the
+ * turn's output already ends in two spaces.  3.80 games only.
+ *
+ * The Runners build a turn's text by concatenating onto one string, two
+ * spaces between the pieces, and check first whether the string already ends
+ * in a separator.  run380 bundled that check with the "is there a message at
+ * all" one and put the append inside both, so an AdditionalMessage is lost
+ * whenever what came before ended in two spaces:
+ *
+ *   0004D001  If AdditionalMessage <> "" And Right(out, 2) <> "  " Then
+ *   0004D04F      out = out & "  " & AdditionalMessage
+ *   0004D074  End If
+ *
+ * Its neighbours in the same sub are written correctly -- the CompleteText at
+ * 0004CF26 and the room description at 0004CFB4 guard only the separator, and
+ * append (or call viewroom) either way.  run370 at 00041C60 has no check at
+ * all and always appends.  3.90 and 4.00 moved the test into a sub of its own
+ * (Form1.pspace at 0002C880 in run390, General.Sub_22_58 at 0004A948 in
+ * run400) that the callers invoke before appending, which fixes it.
+ *
+ * Measured live in run380 on jb2000.taf, whose task 14 ends its CompleteText
+ * with 42 spaces and whose AdditionalMessage the Runner never shows.  Probes
+ * hijacking its four unrestricted tasks pin the rule down: one trailing space
+ * prints, two or more do not; a trailing tab prints; 42 trailing dots print,
+ * so it is not length; spaces in the middle of the text print; leading spaces
+ * on the AdditionalMessage itself change nothing; and turning on "show room
+ * description" restores the message, because the room description lands in
+ * between and the string no longer ends in spaces.  See RUNNER_TESTS_TODO.md
+ * section 4.
+ */
+static scr_bool
+task_suppresses_additional_message (scr_gameref_t game)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_vartype_t vt_key[1];
+
+  vt_key[0].string = "Version";
+  if (prop_get_integer (bundle, "I<-s", vt_key) != TAF_VERSION_380)
+    return FALSE;
+
+  return pf_ends_with_double_space (gs_get_filter (game));
+}
+
+
+/*
  * task_run_task_unrestricted()
  *
  * Run a task, providing restrictions permit, in the given direction.  Return
@@ -1466,10 +1846,8 @@ task_run_task_unrestricted (scr_gameref_t game, scr_int task, scr_bool forwards)
       /* If not yet done, we can hardly reverse it. */
       if (gs_task_done (game, task))
         {
-          vt_key[0].string = "Tasks";
-          vt_key[1].integer = task;
-          vt_key[2].string = "ReverseMessage";
-          reversemessage = prop_get_string (bundle, "S<-sis", vt_key);
+          reversemessage = prop_get_indexed_string (bundle, "Tasks", task,
+                                                    "ReverseMessage");
           if (!scr_strempty (reversemessage))
             {
               pf_buffer_paragraph_line (filter, reversemessage);
@@ -1577,7 +1955,14 @@ task_run_task_unrestricted (scr_gameref_t game, scr_int task, scr_bool forwards)
       task_start_npc_walks (game, task);
     }
 
-  /* Append any room description and additional message for the task. */
+  /*
+   * Append any room description and additional message for the task.  Both
+   * are printed even when an action above has just ended the game: measured
+   * live on topaz.taf (run400), whose task 22 "wear ring" is a single "end
+   * game (win)" action with a room description and "The two of you set out
+   * into the forest." as its AdditionalMessage, and the Runner shows both,
+   * ahead of the ending.  marooned.taf task 29 says the same for run380.
+   */
   vt_key[2].string = "ShowRoomDesc";
   showroomdesc = prop_get_integer (bundle, "I<-sis", vt_key);
   if (showroomdesc != 0)
@@ -1589,7 +1974,8 @@ task_run_task_unrestricted (scr_gameref_t game, scr_int task, scr_bool forwards)
 
   vt_key[2].string = "AdditionalMessage";
   additionalmessage = prop_get_string (bundle, "S<-sis", vt_key);
-  if (!scr_strempty (additionalmessage))
+  if (!scr_strempty (additionalmessage)
+      && !task_suppresses_additional_message (game))
     {
       pf_buffer_paragraph_line (filter, additionalmessage);
       status |= TRUE;
@@ -1621,6 +2007,32 @@ task_run_task (scr_gameref_t game, scr_int task, scr_bool forwards)
     {
       scr_trace ("Task: running task %ld %s, depth %ld\n",
                 task, forwards ? "forwards" : "backwards", recursion_depth);
+    }
+
+  /*
+   * Refuse to run anything once the game has ended.  This is the Runner's own
+   * first act in the equivalent routine: mdlSpreadTheLoad.Sub_20_22 opens at
+   * file offset 0005F750 with
+   *
+   *     ImpAdLdUI1 <gameover> ; CI2UI1 ; LitI2_Byte 0 ; GtI2 ; BranchF ; ExitProc
+   *
+   * i.e. "If gameOver > 0 Then Exit Sub", ahead of restrictions, completion
+   * text and actions alike.  The one caller that can reach here after an
+   * ending is the type-5 Execute Task action, whose branch in the action
+   * executor (Sub_20_11 @ 0008D5D1) calls RunTask unguarded -- so the Runner
+   * refuses the *dispatch*, not the callee's completion.  Measured with the
+   * "EG" arena probe: "printlast" (end game, then execute a task that scores)
+   * finishes on 0 out of 7, while its "printfirst" control -- the same two
+   * actions in the other order -- finishes on 7.  The action *loop* has no
+   * such test, which is why in-line actions behind an ending still run; see
+   * task_run_task_actions().
+   */
+  if (!game->is_running)
+    {
+      if (task_trace)
+        scr_trace ("Task: game over, not running task %ld\n", task);
+
+      return FALSE;
     }
 
   /* Check restrictions. */

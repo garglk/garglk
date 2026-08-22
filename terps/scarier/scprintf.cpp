@@ -91,7 +91,7 @@ typedef struct
 } scr_html_tags_t;
 
 static const scr_html_tags_t HTML_TAGS_TABLE[] = {
-  {"bgcolour", 8, SCR_TAG_BGCOLOR}, {"bgcolor", 7, SCR_TAG_BGCOLOR},
+  {"bgcolour", 8, SCR_TAG_BGCOLOUR}, {"bgcolor", 7, SCR_TAG_BGCOLOUR},
   {"waitkey", 7, SCR_TAG_WAITKEY},
   {"center", 6, SCR_TAG_CENTER}, {"/center", 7, SCR_TAG_ENDCENTER},
   {"centre", 6, SCR_TAG_CENTER}, {"/centre", 7, SCR_TAG_ENDCENTER},
@@ -101,7 +101,7 @@ static const scr_html_tags_t HTML_TAGS_TABLE[] = {
   {"i", 1, SCR_TAG_ITALICS}, {"/i", 2, SCR_TAG_ENDITALICS},
   {"b", 1, SCR_TAG_BOLD}, {"/b", 2, SCR_TAG_ENDBOLD},
   {"u", 1, SCR_TAG_UNDERLINE}, {"/u", 2, SCR_TAG_ENDUNDERLINE},
-  {"c", 1, SCR_TAG_COLOR}, {"/c", 2, SCR_TAG_ENDCOLOR},
+  {"c", 1, SCR_TAG_COLOUR}, {"/c", 2, SCR_TAG_ENDCOLOUR},
   {NULL, 0, SCR_TAG_UNKNOWN}
 };
 
@@ -117,6 +117,10 @@ typedef struct scr_filter_s
   scr_bool new_sentence;
   scr_bool is_muted;
   scr_bool needs_filtering;
+  /* Buffer length just after pf_buffer_paragraph_line() supplied a trailing
+     newline of its own; -1 if the last one did not, or if anything has been
+     buffered since.  See pf_undo_auto_break(). */
+  scr_int auto_break_at;
 } scr_filter_t;
 
 
@@ -169,6 +173,7 @@ pf_create (void)
   filter->new_sentence = FALSE;
   filter->is_muted = FALSE;
   filter->needs_filtering = FALSE;
+  filter->auto_break_at = -1;
 
   return filter;
 }
@@ -509,7 +514,7 @@ pf_output_tag (const scr_char *contents)
 
           next = contents[entry->length];
           if (next == NUL || scr_isspace (next)
-              || (entry->tag == SCR_TAG_BGCOLOR && next == '='))
+              || (entry->tag == SCR_TAG_BGCOLOUR && next == '='))
             break;
         }
     }
@@ -527,7 +532,7 @@ pf_output_tag (const scr_char *contents)
    * argument (to match <font colour=...> for the client.
    */
   argument = contents;
-  argument += (entry->tag != SCR_TAG_BGCOLOR) ? entry->length : 0;
+  argument += (entry->tag != SCR_TAG_BGCOLOUR) ? entry->length : 0;
   while (scr_isspace (argument[0]))
     argument++;
   if_print_tag (entry->tag, argument);
@@ -963,6 +968,14 @@ pf_transfer_buffer (scr_filterref_t filter)
       filter->is_muted = FALSE;
       filter->needs_filtering = FALSE;
 
+      /*
+       * Deliberately not resetting auto_break_at: task running transfers the
+       * buffer out, runs task actions, then prepends it back, and the note of
+       * our own trailing newline has to survive that round trip.  It stays
+       * meaningless while the buffer is empty, since it can only match a
+       * buffer length equal to the transferred text's own.
+       */
+
       /* Return the allocated buffered text. */
       return retval;
     }
@@ -986,6 +999,7 @@ pf_empty (scr_filterref_t filter)
   filter->new_sentence = FALSE;
   filter->is_muted = FALSE;
   filter->needs_filtering = FALSE;
+  filter->auto_break_at = -1;
 }
 
 
@@ -1018,6 +1032,9 @@ pf_buffer_string (scr_filterref_t filter, const scr_char *string)
       /* Clear new sentence, and note as currently needing filtering. */
       filter->needs_filtering = TRUE;
       filter->new_sentence = FALSE;
+
+      /* Anything buffered invalidates a note of our own trailing newline. */
+      filter->auto_break_at = -1;
     }
 }
 
@@ -1111,9 +1128,183 @@ pf_buffer_paragraph_line (scr_filterref_t filter, const scr_char *string)
 
   pf_buffer_paragraph (filter, string);
 
+  filter->auto_break_at = -1;
   buffered = pf_get_buffer (filter);
   if (!buffered || !pf_text_ends_with_break (buffered))
+    {
+      size_t before = filter->buffer.size ();
+
+      pf_buffer_character (filter, '\n');
+
+      /* Note the terminator as ours, so that pf_undo_auto_break() can take it
+         back.  Muting makes the call above a no-op, hence the length test. */
+      if (filter->buffer.size () > before)
+        filter->auto_break_at = (scr_int) filter->buffer.size ();
+    }
+}
+
+
+/*
+ * pf_undo_auto_break()
+ *
+ * Take back the line terminator that the last pf_buffer_paragraph_line()
+ * supplied of its own accord, if it is still the last thing in the buffer.
+ * Returns TRUE if one was removed.
+ *
+ * The pre-4.0 Runners do not terminate a task's text: whatever is printed
+ * next either supplies its own separator or runs straight on from where the
+ * text stopped.  (4.0 does terminate it, which is why the one caller so far,
+ * task_print_end_game_message(), asks for this on a pre-4.0 game only.)
+ * SCARIER instead ends each section with a newline, which is right for almost
+ * every caller but wrong for the ones that the Runner butts up against the
+ * text with nothing in between.  Measured live in run380 finishing
+ * microwaveman.taf, where the winning task's "You win the game." and the
+ * game's WinText appear as one run-on line, "You win the game.You have
+ * destroyed Coffee Man...".  Only that section's own terminator is taken
+ * back; a break the author wrote is left alone, which is why the position is
+ * recorded rather than a flag.
+ */
+scr_bool
+pf_undo_auto_break (scr_filterref_t filter)
+{
+  assert (pf_is_valid (filter));
+
+  if (filter->auto_break_at >= 0
+      && (size_t) filter->auto_break_at == filter->buffer.size ()
+      && !filter->buffer.empty ()
+      && filter->buffer[filter->buffer.size () - 1] == '\n')
+    {
+      filter->buffer.erase (filter->buffer.size () - 1);
+      filter->auto_break_at = -1;
+      return TRUE;
+    }
+
+  return FALSE;
+}
+
+
+/*
+ * pf_ends_with_double_space()
+ *
+ * TRUE if the text buffered so far ends in two spaces, ignoring a trailing
+ * newline that pf_buffer_paragraph_line() supplied of its own accord.
+ *
+ * The Runners assemble a turn's output by concatenating onto one string, and
+ * separate the pieces with two spaces.  Before adding that separator they ask
+ * whether the string already ends in one, so an author's own trailing spaces
+ * are not doubled up.  run380 wrote the test for the task's AdditionalMessage
+ * the wrong way round -- see task_run_task_unrestricted() -- and that is the
+ * only caller so far.  The auto-break is skipped because it is ours and not
+ * the Runner's: it stands where the Runner's string simply stopped.
+ */
+scr_bool
+pf_ends_with_double_space (scr_filterref_t filter)
+{
+  size_t length;
+
+  assert (pf_is_valid (filter));
+
+  length = filter->buffer.size ();
+  if (filter->auto_break_at >= 0
+      && (size_t) filter->auto_break_at == length
+      && length > 0
+      && filter->buffer[length - 1] == '\n')
+    length--;
+
+  return length >= 2
+         && filter->buffer[length - 1] == ' '
+         && filter->buffer[length - 2] == ' ';
+}
+
+
+/*
+ * pf_text_trailing_breaks()
+ * pf_buffer_paragraph_break()
+ *
+ * Ensure that whatever is buffered next opens a new paragraph: if the buffer
+ * already holds text, top it up with breaks until it ends in a blank line.
+ * Does nothing on an empty buffer, so a paragraph never opens with leading
+ * whitespace.
+ *
+ * This exists for the inline room name.  The Adrift runner does not print room
+ * names into the transcript at all -- the name lives in the status bar, and a
+ * task with "Show room description" set, or a plain "look", runs the room
+ * description straight on from whatever preceded it.  SCARIER prints the name
+ * inline, so it is interrupting the runner's prose with a heading of its own;
+ * giving that heading a blank line above it keeps it reading as a heading
+ * rather than as another sentence of the paragraph it just cut into.
+ */
+static scr_int
+pf_text_trailing_breaks (const scr_char *text)
+{
+  scr_int length, count;
+
+  count = 0;
+  for (length = strlen (text); length > 0; )
+    {
+      if (text[length - 1] == '\n')
+        {
+          length -= 1;
+          count++;
+        }
+      else if (length >= 4 && !scr_strncasecmp (text + length - 4, "<br>", 4))
+        {
+          length -= 4;
+          count++;
+        }
+      else
+        break;
+    }
+
+  return count;
+}
+
+void
+pf_buffer_paragraph_break (scr_filterref_t filter)
+{
+  const scr_char *buffered;
+  scr_int breaks;
+
+  assert (pf_is_valid (filter));
+
+  /* Nothing buffered means nothing to separate from. */
+  buffered = pf_get_buffer (filter);
+  if (!buffered || scr_strempty (buffered))
+    return;
+
+  for (breaks = pf_text_trailing_breaks (buffered); breaks < 2; breaks++)
     pf_buffer_character (filter, '\n');
+}
+
+
+/*
+ * pf_buffer_join()
+ *
+ * Append a string as a continuation of the current output line, with the
+ * Adrift runner's two-space sentence separator.  The runner builds a turn's
+ * output as one paragraph joined with two spaces; our section printers
+ * instead terminate each section with a newline of their own.  To join text
+ * onto the previous section the way the runner does -- event look text runs
+ * on after the room's character lines -- remove a single terminating newline
+ * first, then separate with two spaces unless the text before it ends with
+ * an author's own break.
+ */
+void
+pf_buffer_join (scr_filterref_t filter, const scr_char *string)
+{
+  assert (pf_is_valid (filter));
+  assert (string);
+
+  if (!filter->is_muted && !filter->buffer.empty ())
+    {
+      if (filter->buffer.back () == '\n')
+        filter->buffer.pop_back ();
+
+      if (!filter->buffer.empty ()
+          && !pf_text_ends_with_break (filter->buffer.c_str ()))
+        pf_append_string (filter, "  ");
+    }
+  pf_buffer_string (filter, string);
 }
 
 
@@ -1134,6 +1325,11 @@ pf_prepend_string (scr_filterref_t filter, const scr_char *string)
   /* Ignore the call if the printfilter is muted. */
   if (!filter->is_muted)
     {
+      /* Prepending leaves the tail of the buffer alone, so a note of our own
+         trailing newline survives it -- including down the empty-buffer path
+         below, which routes through pf_buffer_string() and would clear it. */
+      const scr_int auto_break_at = filter->auto_break_at;
+
       if (!filter->buffer.empty ())
         {
           /* Take a copy of the current buffered string. */
@@ -1157,6 +1353,8 @@ pf_prepend_string (scr_filterref_t filter, const scr_char *string)
       else
         /* No data, so the call is equivalent to a normal buffer. */
         pf_buffer_string (filter, string);
+
+      filter->auto_break_at = auto_break_at;
     }
 }
 
@@ -1431,7 +1629,7 @@ scr_char *
 pf_filter_input (const scr_char *string, scr_prop_setref_t bundle)
 {
   scr_vartype_t vt_key[3];
-  scr_int synonym_count;
+  scr_int synonym_count, index_;
   std::string buffer;
   scr_bool modified;
   const scr_char *current;
@@ -1457,13 +1655,38 @@ pf_filter_input (const scr_char *string, scr_prop_setref_t bundle)
   offset = strspn (current, WHITESPACE);
   while (current[offset] != NUL)
     {
-      scr_int index_, extent;
+      scr_int span;
 
-      /* Search for a synonym match at this index into the buffer. */
-      extent = 0;
+      /*
+       * Look for a synonym match at this point.  The first one to match fires;
+       * every synonym after it in the list gets a look at the text that one
+       * just wrote, but only as a whole -- a later synonym fires again only if
+       * its original is the entire replacement.  'span' is the length of that
+       * replacement region, or zero while nothing has fired yet.
+       *
+       * Both halves of that rule are needed, and each is pinned by a game:
+       *
+       *  o Lair of the Vampire maps "harris" to "steve" *and* "steve" back to
+       *    "harris", so that both spellings reach one NPC.  run400 accepts
+       *    "ask harris about key" -- the game's own walkthrough opens with it
+       *    -- so the second synonym must fire on the first one's output.
+       *    Stopping at the first match, as we used to, left a "steve" the
+       *    character has no alias for and made the cellmate unaddressable.
+       *
+       *  o Yak Shaving maps "flags", then "line", then "clothes" all onto
+       *    "clothes line".  run400 answers "x flags" with the laundry
+       *    description, so the "line" and "clothes" synonyms must *not* fire
+       *    on the words inside the "clothes line" the first one wrote --
+       *    neither is the whole of it.  Letting them would spiral: "x flags"
+       *    grows a "clothes line" per pass without bound.
+       *
+       * Both behaviours were read off the real Runner under Wine.
+       */
+      span = 0;
       for (index_ = 0; index_ < synonym_count; index_++)
         {
-          const scr_char *original;
+          const scr_char *original, *replacement;
+          scr_int extent, length;
 
           /* Retrieve the synonym original string. */
           vt_key[0].string = "Synonyms";
@@ -1473,18 +1696,12 @@ pf_filter_input (const scr_char *string, scr_prop_setref_t bundle)
 
           /* Compare the original at this point. */
           extent = pf_compare_words (current + offset, original);
-          if (extent > 0)
-            break;
-        }
+          if (extent == 0)
+            continue;
 
-      /*
-       * If a synonym found was, index_ indicates it, and extent shows how
-       * much of the buffer to replace with it.
-       */
-      if (index_ < synonym_count && extent > 0)
-        {
-          const scr_char *replacement;
-          scr_int length;
+          /* Once something has fired, only an exact re-match counts. */
+          if (span > 0 && extent != span)
+            continue;
 
           /*
            * If not yet copied, copy the input string into the buffer now and
@@ -1507,12 +1724,16 @@ pf_filter_input (const scr_char *string, scr_prop_setref_t bundle)
           /* Splice the replacement in for the matched extent. */
           buffer.replace (offset, extent, replacement, length);
           current = buffer.c_str ();
-
-          /* Adjust offset to skip over the replacement. */
-          offset += length;
+          span = length;
 
           if (pf_trace)
             scr_trace ("Printfilter: synonym \"%s\"\n", buffer.c_str ());
+        }
+
+      if (span > 0)
+        {
+          /* Adjust offset to skip over the replacement region. */
+          offset += span;
         }
       else
         {

@@ -142,10 +142,46 @@ os_print_tag (scr_int tag, const scr_char *argument)
          * solution file maps one line to one game command regardless of how
          * many <waitkey> tags the game's text embeds.
          */
+        /*
+         * Derivation aid: SCR_MARK_WAITKEY=1 notes each pause on stderr (after
+         * the flush above, so with 2>&1 the marker lands in transcript order).
+         * Combined with SCR_SKIP_WAITKEY=1 -- which keeps the command list in
+         * sync -- that turns "how many blank lines does this solution need, and
+         * where?" into a read rather than a bisection.  Without the skip, the
+         * marker also names the line the pause just ate, which is what tells a
+         * deliberate filler apart from a real command going missing (see
+         * harness/waitkey_audit.py).
+         */
+        int mark_waitkey = getenv ("SCR_MARK_WAITKEY") != NULL;
+
+        if (mark_waitkey)
+          {
+            fflush (stdout);
+            fprintf (stderr, "[WAITKEY]\n");
+          }
         if (getenv ("SCR_SKIP_WAITKEY"))
           break;
-        if (!feof (stdin))
-          fgets (dummy, sizeof (dummy), stdin);
+        /*
+         * Honour the '#' comment convention os_read_line applies below.  A
+         * comment is documentation, not input, so a pause must not be able to
+         * eat one: doing so hid the swallow (the route still ran in full,
+         * because the free filler happened to be the header) and made the
+         * behaviour depend on whether a solution file was commented -- 25 of
+         * the wired rows were relying on exactly that accident.
+         */
+        dummy[0] = '\0';
+        while (!feof (stdin) && fgets (dummy, sizeof (dummy), stdin)
+               && dummy[strspn (dummy, " \t")] == '#')
+          dummy[0] = '\0';
+        if (mark_waitkey)
+          {
+            scr_int length = strlen (dummy);
+
+            while (length > 0 && (dummy[length - 1] == '\n'
+                                  || dummy[length - 1] == '\r'))
+              dummy[--length] = '\0';
+            fprintf (stderr, "[WAITKEY ate \"%s\"]\n", dummy);
+          }
         break;
       }
     }
@@ -230,6 +266,8 @@ os_show_graphic (const scr_char *filepath, scr_int offset, scr_int length)
 scr_bool
 os_read_line (scr_char *buffer, scr_int length)
 {
+  scr_bool echo_input;
+
   full_flush ();
   if (feof (stdin))
     {
@@ -245,7 +283,24 @@ os_read_line (scr_char *buffer, scr_int length)
       exit (EXIT_SUCCESS);
     }
 
+  /*
+   * Derivation aid: with SCR_ECHO_INPUT set, echo the command back after the
+   * '>' prompt.  Piped input is not a terminal, so nothing else puts the
+   * command into the transcript, and pairing a response with the command that
+   * produced it otherwise means counting prompts by hand.
+   *
+   * The echoing prompt is laid out as "\n> command\n", which is the shape
+   * a5run_dump gives the ADRIFT 5 goldens, so both corpora's transcripts read
+   * the same way.  Without the echo the bare '>' stays glued to the front of
+   * the game's reply (">You move north.") the way it always has.
+   */
+  echo_input = getenv ("SCR_ECHO_INPUT") != NULL;
+
+  if (echo_input)
+    putchar ('\n');
   putchar ('>');
+  if (echo_input)
+    putchar (' ');
   fflush (stdout);
   if (!fgets (buffer, length, stdin))
     {
@@ -263,7 +318,7 @@ os_read_line (scr_char *buffer, scr_int length)
    * command, so nothing legitimate is lost.
    *
    * This is UNCONDITIONAL (not gated behind SCARIER_DUMP_TOOLS): the commented
-   * solution files in adrift-walkthroughs/ are the documented validation corpus,
+   * solution files in test/adrift4/ are the documented validation corpus,
    * and gating comment-skipping behind the dump build meant a plain build
    * silently mis-executed them -- the comment tokens desynced the route into a
    * spurious "death", which once led to a wrong "the walkthrough no longer wins,
@@ -278,6 +333,15 @@ os_read_line (scr_char *buffer, scr_int length)
           scr_quit_game (game);
           exit (EXIT_SUCCESS);
         }
+    }
+
+  /* The other half of the echo above: the command itself. */
+  if (echo_input)
+    {
+      fputs (buffer, stdout);
+      if (buffer[0] != '\0' && buffer[strlen (buffer) - 1] != '\n')
+        putchar ('\n');
+      fflush (stdout);
     }
 
   return TRUE;

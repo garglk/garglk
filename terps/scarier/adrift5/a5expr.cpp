@@ -1000,8 +1000,19 @@ expr_replace_impl (a5_state_t *st, const char *text, int expression)
   const char *p = text ? text : "";
   while (*p)
     {
-      /* a key token starts at a word boundary */
-      int boundary = (p == text) || !is_key_char (p[-1]);
+      /* A key token starts where the runner's regex could start a `firstkey`
+         (Global.vb:630): `%?[A-Za-z][\w\|_]*%?`.  That demands a LETTER, not
+         merely a word char, so a digit / '_' / '|' to the left is a legal
+         start -- .NET tries every offset in turn and the earlier ones simply
+         fail to match.  (A *letter* to the left is different: the greedy
+         earlier attempt swallows this token, and since we advance p past a
+         whole unresolvable key token we reproduce that skip.)  Requiring a
+         full non-word char here made TASP's
+         `[kristenconversation...=%rotato%%Character1%.Property3]` stall: with
+         the rotating variable rendered the text reads "=2Character1.Property3"
+         and the digit blocked the OO pass, so the raw key leaked out and no
+         TextOverride matched it. */
+      int boundary = (p == text) || !isalpha ((unsigned char) p[-1]);
       if (boundary && (isalpha ((unsigned char) *p)))
         {
           const char *k = p;

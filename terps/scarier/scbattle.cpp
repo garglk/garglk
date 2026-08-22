@@ -131,11 +131,8 @@ scr_bool
 battle_is_enabled (scr_gameref_t game)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[2];
 
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "BattleSystem";
-  return prop_get_boolean (bundle, "B<-ss", vt_key);
+  return prop_get_global_boolean (bundle, "BattleSystem");
 }
 
 
@@ -672,8 +669,15 @@ battle_eff_strength (scr_gameref_t game, scr_int npc, scr_int weapon)
   value = battle_roll (lo, hi);
   if (weapon >= 0)
     {
-      /* A "shoot" weapon (method 3) supplies all of the strength itself. */
-      if (battle_object_battle (game, weapon, "Method") == 3)
+      /*
+       * A "shoot" weapon (method 3) supplies all of the strength itself --
+       * but only from version 4.0 on.  The 3.9 Runner adds HitValue to base
+       * strength regardless of method: a Str-10 player with a HitValue-30
+       * Method-3 blaster one-shots a 35-stamina enemy in run390, where
+       * run400 needs two 30-damage hits (RUNNER_TESTS_TODO.md, 2026-08-01).
+       */
+      if (!battle_legacy
+          && battle_object_battle (game, weapon, "Method") == 3)
         value = 0;
       value += battle_object_battle (game, weapon, "HitValue");
     }
@@ -817,7 +821,9 @@ battle_kill (scr_gameref_t game, scr_int npc, scr_bool visible)
 
   if (npc < 0)
     {
-      pf_buffer_string (filter, "\nI'm afraid you are dead!\n");
+      pf_buffer_character (filter, '\n');
+      pf_buffer_string (filter, lib_get_death_message (game));
+      pf_buffer_character (filter, '\n');
       game->is_running = FALSE;
       game->has_completed = TRUE;
       return;
@@ -826,18 +832,11 @@ battle_kill (scr_gameref_t game, scr_int npc, scr_bool visible)
   /* Note where the NPC dies before anything can relocate it. */
   room = gs_npc_location (game, npc) - 1;
 
-  task = battle_npc_battle_task (game, npc, "KilledTask");
-  if (task >= 0)
-    task_run_task (game, task, TRUE);
-  else if (visible)
-    {
-      pf_buffer_character (filter, '\n');
-      battle_print_combatant (game, npc, 0);
-      pf_buffer_string (filter, " falls down, dead.\n");
-    }
-
   /* Re-home the dead NPC's held and worn objects to that room, so its
-   * inventory is not orphaned along with the hidden character. */
+   * inventory is not orphaned along with the hidden character.  The Runner
+   * does this before the KilledTask runs (Battles.bas Proc_11_3, the
+   * -200/-300 sweep ahead of the task dispatch), so a KilledTask restriction
+   * can already see the corpse's effects lying in the room. */
   if (room >= 0)
     {
       for (object = 0; object < gs_object_count (game); object++)
@@ -848,6 +847,36 @@ battle_kill (scr_gameref_t game, scr_int npc, scr_bool visible)
               && gs_object_parent (game, object) == npc)
             gs_object_to_room (game, object, room);
         }
+    }
+
+  /* A set KilledTask replaces the default death message outright -- verified
+   * live in run400 2026-08-01 (probe pKT: "Player hit Robot.  KILLEDTASK
+   * FIRED.", no "falls down, dead."), and the 3.9 Runner dispatches it the
+   * same way (probe p39kt).  The default corpse line is 4.0-only: run390
+   * prints NOTHING when a task-less NPC dies (probed live, and the string
+   * " falls down, dead." does not exist anywhere in its binary).
+   *
+   * The dispatch goes through the Runner's general run-task routine
+   * (Battles.bas Sub_12_4 -> mdlSpreadTheLoad.Sub_20_22), which refuses a
+   * task the player is not currently eligible to run -- silently, with no
+   * corpse line either, since the KilledTask is still set.  Verified live in
+   * run400 2026-08-02 with Del Sol: killing the stamina-0 teacher Moreland in
+   * Chemistry prints only the hit line, and her chem-dream-only KilledTask
+   * (the game's win) never fires.  Same gate as the type-5 exec action. */
+  task = battle_npc_battle_task (game, npc, "KilledTask");
+  if (task >= 0)
+    {
+      /* A dispatch the player is not eligible for is dropped in silence --
+       * no task text and no corpse line either (probe KT2: a done
+       * non-repeatable KilledTask re-killed prints only the hit line). */
+      if (task_can_run_task_directional (game, task, TRUE))
+        task_run_task (game, task, TRUE);
+    }
+  else if (visible && !battle_legacy)
+    {
+      pf_buffer_character (filter, '\n');
+      battle_print_combatant (game, npc, 0);
+      pf_buffer_string (filter, " falls down, dead.\n");
     }
 
   /* Remove the dead NPC from play (location zero is "hidden"). */
@@ -884,41 +913,118 @@ battle_apply_damage (scr_gameref_t game, scr_int npc, scr_int damage,
   else
     gs_set_npc_stamina (game, npc, stamina);
 
-  /* Run the NPC's low-stamina task when dropping below 10% of maximum. */
+  /* Run the NPC's low-stamina task when dropping below 10% of maximum.  The
+   * Runner tests `stamina < max / 10` in floating point (Battles.bas
+   * Proc_11_0, CDbl throughout) and re-runs the task on EVERY qualifying hit
+   * -- verified live in run400 2026-08-01 (probe pKT: STAMINATASK FIRED on
+   * both hits inside the window, default death line on the killing blow).
+   * `stamina * 10 < maximum` is the integer-exact form of the float test;
+   * plain integer `maximum / 10` truncates and misses the boundary when
+   * maximum is not a multiple of 10 (e.g. max 95, stamina 9). */
   maximum = battle_attribute_max (game, npc, "Stamina");
-  if (maximum > 0 && stamina < maximum / 10)
+  if (maximum > 0 && stamina * 10 < maximum)
     {
+      /* StaminaTask goes through the same gated run-task routine as
+       * KilledTask (Battles.bas Sub_12_1 -> Sub_20_22, no gating at the call
+       * site) -- see the room-eligibility note in battle_kill. */
       task = battle_npc_battle_task (game, npc, "StaminaTask");
-      if (task >= 0)
+      if (task >= 0 && task_can_run_task_directional (game, task, TRUE))
         task_run_task (game, task, TRUE);
     }
 }
+
+/* Attack verbs by weapon method code, base (player) form; NPCs append "s". */
+static const scr_char *const BATTLE_METHOD_VERBS[6]
+    = {"chop", "cut", "hit", "shoot", "stab", "throw"};
 
 /*
  * battle_resolve()
  *
  * Resolve a single attack from attacker against target with the given wielded
- * weapon (-1 for none).  Combat messages are printed only when visible.
+ * weapon (-1 for none).  Combat messages are printed only when visible, and
+ * follow the Runner's narration (Battles.bas Proc_11_1/Proc_11_2): an armed
+ * attack names the weapon with its method verb ("You shoot Robot with the
+ * blaster.", "You throw the knife at Robot."), an armed miss is "<npc> manages
+ * to avoid your attack with <weapon>." / "<npc> attacks you with <weapon>,
+ * but you manage to avoid it.", and bare hands keep the plain "hit"/"avoid
+ * <x>'s attack" forms.  A landed player throw also drops the weapon in the
+ * room (see the comment in the hit branch below).
  */
 static void
 battle_resolve (scr_gameref_t game, scr_int attacker, scr_int target,
                 scr_int weapon, scr_bool visible)
 {
   const scr_filterref_t filter = gs_get_filter (game);
+  scr_int method;
+
+  method = (weapon >= 0) ? battle_object_battle (game, weapon, "Method") : -1;
+  if (method < 0 || method > 5)
+    method = -1;
+
+  /*
+   * Every armed player attack persists the weapon as the wield, before the
+   * hit test -- so a miss persists it too (Battles.bas Proc_11_1 sets
+   * global_78 on entry).  A landed throw clears it again below.
+   */
+  if (attacker == BATTLE_PLAYER && weapon >= 0)
+    gs_set_playerwield (game, weapon);
 
   if (battle_unconfigured
       || battle_legacy
       || battle_eff_accuracy (game, attacker, weapon)
          > battle_eff_agility (game, target))
     {
-      scr_int damage = battle_eff_strength (game, attacker, weapon)
+      /*
+       * A landed player throw (method 5) leaves the weapon behind, in BOTH
+       * Runners (settled live 2026-08-01, probes pTD/p39td): it lands in the
+       * player's room and the wielded ref is cleared.  run400 clears the ref
+       * *before* the damage roll (Battles.bas loc_45E457), so a 4.0 throw
+       * deals base strength only -- the weapon's HitValue never contributes.
+       * run390 one-shots the same probe: 3.9 adds HitValue regardless of
+       * method (its usual rule), so only the 4.0 half excludes the weapon
+       * from the strength roll.  The weapon's Accuracy still applies to the
+       * hit test above, and a *missed* throw keeps the weapon (decompile:
+       * the move is inside the hit branch only).  NPC throws neither drop
+       * nor lose HitValue (Proc_11_2 has no equivalent of either).
+       */
+      const scr_bool player_throw = (method == 5 && attacker < 0);
+      scr_int damage = battle_eff_strength (game, attacker,
+                                            (player_throw && !battle_legacy)
+                                                ? -1 : weapon)
                       - battle_eff_defence (game, target);
 
       if (visible)
         {
           battle_print_combatant (game, attacker, 0);
-          pf_buffer_string (filter, (attacker < 0) ? " hit " : " hits ");
-          battle_print_combatant (game, target, 1);
+          if (method == 5)
+            {
+              pf_buffer_string (filter, (attacker < 0) ? " throw "
+                                                       : " throws ");
+              lib_print_object_np (game, weapon);
+              pf_buffer_string (filter, " at ");
+              battle_print_combatant (game, target, 1);
+            }
+          else if (method >= 0)
+            {
+              pf_buffer_character (filter, ' ');
+              pf_buffer_string (filter, BATTLE_METHOD_VERBS[method]);
+              if (attacker >= 0)
+                pf_buffer_character (filter, 's');
+              pf_buffer_character (filter, ' ');
+              battle_print_combatant (game, target, 1);
+              pf_buffer_string (filter, " with ");
+              lib_print_object_np (game, weapon);
+            }
+          else
+            {
+              pf_buffer_string (filter, (attacker < 0) ? " hit " : " hits ");
+              battle_print_combatant (game, target, 1);
+            }
+        }
+      if (player_throw)
+        {
+          gs_object_to_room (game, weapon, gs_playerroom (game));
+          gs_set_playerwield (game, -1);
         }
       if (damage > 0)
         {
@@ -932,11 +1038,33 @@ battle_resolve (scr_gameref_t game, scr_int attacker, scr_int target,
     }
   else if (visible)
     {
-      battle_print_combatant (game, target, 0);
-      pf_buffer_string (filter, (target < 0) ? " manage to avoid "
-                                             : " manages to avoid ");
-      battle_print_combatant (game, attacker, 2);
-      pf_buffer_string (filter, " attack.\n");
+      if (method < 0)
+        {
+          battle_print_combatant (game, target, 0);
+          pf_buffer_string (filter, (target < 0) ? " manage to avoid "
+                                                 : " manages to avoid ");
+          battle_print_combatant (game, attacker, 2);
+          pf_buffer_string (filter, " attack.\n");
+        }
+      else if (attacker < 0)
+        {
+          battle_print_combatant (game, target, 0);
+          pf_buffer_string (filter, " manages to avoid your attack with ");
+          lib_print_object_np (game, weapon);
+          pf_buffer_string (filter, ".\n");
+        }
+      else
+        {
+          battle_print_combatant (game, attacker, 0);
+          pf_buffer_string (filter, " attacks ");
+          battle_print_combatant (game, target, 1);
+          pf_buffer_string (filter, " with ");
+          lib_print_object_np (game, weapon);
+          pf_buffer_string (filter, ", but ");
+          battle_print_combatant (game, target, 1);
+          pf_buffer_string (filter, (target < 0) ? " manage to avoid it.\n"
+                                                 : " manages to avoid it.\n");
+        }
     }
 }
 
@@ -1056,14 +1184,17 @@ battle_weapon_method (scr_gameref_t game, scr_int object)
 }
 
 /*
- * battle_player_default_weapon()
+ * battle_player_wielded_weapon()
  *
- * Return the weapon the player would attack with by default: the explicitly
- * wielded weapon if it is still held and a weapon, otherwise the best carried
- * weapon (-1 for bare hands).
+ * Return the weapon the player has wielded, or -1 for none.  The wield is a
+ * persistent reference, not a per-attack default (Runner: Battles.bas
+ * global_78, settled live 2026-08-01): "wield", "attack ... with" and every
+ * other armed blow set it, and it is cleared -- never replaced by another
+ * carried weapon -- when the weapon leaves the player's hands.  The held and
+ * is-a-weapon checks are belt-and-braces against a stale reference.
  */
 scr_int
-battle_player_default_weapon (scr_gameref_t game)
+battle_player_wielded_weapon (scr_gameref_t game)
 {
   const scr_int wielded = gs_playerwield (game);
 
@@ -1071,19 +1202,48 @@ battle_player_default_weapon (scr_gameref_t game)
       && gs_object_position (game, wielded) == OBJ_HELD_PLAYER
       && battle_object_is_weapon (game, wielded))
     return wielded;
+  return -1;
+}
+
+/*
+ * battle_player_weapon_count()
+ * battle_player_best_weapon()
+ *
+ * Count the weapons the player is carrying, and return the carried weapon
+ * with the highest hit value (-1 for none).  With no wield set, a bare attack
+ * auto-selects a solitary carried weapon, but asks rather than pick among two
+ * or more (Battles.bas attack handler, Proc_11_10/Proc_11_12).
+ */
+scr_int
+battle_player_weapon_count (scr_gameref_t game)
+{
+  scr_int object, count = 0;
+
+  for (object = 0; object < gs_object_count (game); object++)
+    {
+      if (battle_object_is_weapon (game, object)
+          && gs_object_position (game, object) == OBJ_HELD_PLAYER)
+        count++;
+    }
+  return count;
+}
+
+scr_int
+battle_player_best_weapon (scr_gameref_t game)
+{
   return battle_best_weapon (game, -1);
 }
 
 /*
  * battle_combatant_weapon()
  *
- * Return the weapon a combatant fights with: the player's default weapon
+ * Return the weapon a combatant fights with: the player's wielded weapon
  * (npc < 0) or an NPC's best carried weapon (-1 for bare hands).
  */
 scr_int
 battle_combatant_weapon (scr_gameref_t game, scr_int npc)
 {
-  return (npc < 0) ? battle_player_default_weapon (game)
+  return (npc < 0) ? battle_player_wielded_weapon (game)
                    : battle_best_weapon (game, npc);
 }
 
@@ -1116,16 +1276,49 @@ battle_attribute_report (scr_gameref_t game, scr_int npc, const scr_char *base,
 }
 
 /*
+ * battle_attribute_bonus()
+ *
+ * The equipment share of an effective attribute, for the status table's
+ * parenthesized column: the wielded weapon's HitValue for strength and its
+ * Accuracy for accuracy, the worn armour's summed ProtectionValue for
+ * defence.  Agility and stamina take no equipment bonus (the Runner's status
+ * prints no parenthesis on those rows).
+ */
+scr_int
+battle_attribute_bonus (scr_gameref_t game, scr_int npc, const scr_char *base)
+{
+  const scr_int weapon = battle_combatant_weapon (game, npc);
+
+  if (strcmp (base, "Strength") == 0)
+    return (weapon >= 0) ? battle_object_battle (game, weapon, "HitValue") : 0;
+  if (strcmp (base, "Accuracy") == 0)
+    return (weapon >= 0) ? battle_object_battle (game, weapon, "Accuracy") : 0;
+  if (strcmp (base, "Defense") == 0)
+    {
+      scr_int object, value = 0;
+
+      for (object = 0; object < gs_object_count (game); object++)
+        {
+          if (battle_object_worn_by (game, object, npc))
+            value += battle_object_battle (game, object, "ProtectionValue");
+        }
+      return value;
+    }
+  return 0;
+}
+
+/*
  * battle_player_attack()
  *
- * Resolve a player-initiated attack on an NPC.  When weapon is -1 the player's
- * default weapon (wielded, else best carried, else bare hands) is used.
+ * Resolve a player-initiated attack on an NPC.  When weapon is -1 the wielded
+ * weapon, if any, is used (bare hands otherwise) -- the bare-attack auto-select
+ * and the ask-with-two-carried-weapons cases live in the command layer.
  */
 void
 battle_player_attack (scr_gameref_t game, scr_int npc, scr_int weapon)
 {
   if (weapon < 0)
-    weapon = battle_player_default_weapon (game);
+    weapon = battle_player_wielded_weapon (game);
   battle_resolve (game, BATTLE_PLAYER, npc, weapon, TRUE);
 }
 
