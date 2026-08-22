@@ -31,6 +31,16 @@ option(WITH_BABEL "Display Treaty of Babel-derived author and title if possible"
 option(APPIMAGE "Tweak some settings to aid in AppImage building" OFF)
 option(DIST_INSTALL "Install to ${PROJECT_SOURCE_DIR}/build/dist for packaging" OFF)
 
+# Windows has no rpath, and no separate interpreter directory: the
+# launcher looks for interpreters next to itself, and both it and they
+# need libgarglk alongside as well. Put all runtime output in a single
+# directory so the build tree can be run in place, without installing.
+# Multi-config generators append a per-configuration subdirectory to
+# this, so Debug and Release still don't collide.
+if(WIN32 AND NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+endif()
+
 if(MSVC)
     # MSVC defaults to the equivalent of "-fvisibility=hidden", which the code is not set up to support.
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)

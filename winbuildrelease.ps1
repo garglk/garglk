@@ -69,19 +69,11 @@ mkdir $stagedir
 Copy-Item "$builddir\*.ttf" "$stagedir"
 Copy-Item "$builddir\*.otf" "$stagedir"
 Copy-Item "$builddir\*.exe" "$stagedir"
-Copy-Item "$builddir\garglk\gargoyle.exe" "$stagedir"
-Copy-Item "$builddir\garglk\*.dll" "$stagedir"
-Copy-Item "$builddir\terps\*.exe" "$stagedir"
-Copy-Item "$builddir\terps\tads\*.exe" "$stagedir"
+Copy-Item "$builddir\*.dll" "$stagedir"
 if ($withPdbs) {
-    Copy-Item "$builddir\garglk\*.pdb" "$stagedir"
-    Copy-Item "$builddir\terps\*.pdb" "$stagedir"
-    Copy-Item "$builddir\terps\tads\*.pdb" "$stagedir"
-}
-
-if ($withFrankendrift) {
-    Copy-Item "$builddir\terps\frankendrift\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.Gargoyle\FrankenDrift.GlkRunner.Gargoyle.exe" "$stagedir"
-    if ($withPdbs) {
+    Copy-Item "$builddir\*.pdb" "$stagedir"
+    if ($withFrankendrift) {
+        # NativeAOT writes its PDB next to the project, not to the build root.
         Copy-Item "$builddir\terps\frankendrift\FrankenDrift.GlkRunner\FrankenDrift.GlkRunner.Gargoyle\*.pdb" "$stagedir"
     }
 }

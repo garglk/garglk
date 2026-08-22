@@ -440,6 +440,32 @@ target_link_libraries(garglk PUBLIC garglk-common)
 add_library(garglk-gpl2)
 target_link_libraries(garglk-gpl2 PUBLIC garglk-common)
 
+# Running out of the build directory on Windows also needs the Qt DLLs
+# there. windeployqt copies them in, but only needs to be run once per
+# build directory, so provide it as a target to invoke by hand ("ninja
+# deployqt") instead of paying for it on every relink. Cross-compiled
+# builds don't get this: windeployqt is a Windows program, and the
+# cross-compiling scripts deploy Qt themselves.
+if(WIN32 AND CMAKE_HOST_WIN32 AND INTERFACE STREQUAL "QT")
+    if(TARGET Qt${QT_VERSION}::windeployqt)
+        set(GARGLK_WINDEPLOYQT "Qt${QT_VERSION}::windeployqt")
+    else()
+        find_program(GARGLK_WINDEPLOYQT windeployqt
+            HINTS "${QT${QT_VERSION}_INSTALL_PREFIX}/${QT${QT_VERSION}_INSTALL_BINS}")
+    endif()
+
+    if(GARGLK_WINDEPLOYQT)
+        add_custom_target(deployqt
+            COMMAND "${GARGLK_WINDEPLOYQT}" --no-compiler-runtime "$<TARGET_FILE:garglk>"
+            COMMENT "Deploying the Qt runtime next to garglk.dll"
+            VERBATIM
+        )
+        add_dependencies(deployqt garglk)
+    else()
+        message(STATUS "windeployqt not found; the \"deployqt\" target is unavailable")
+    endif()
+endif()
+
 target_include_directories(garglk-common PRIVATE ../support/xbrz)
 target_link_libraries(garglk PRIVATE xbrz)
 target_link_libraries(garglk-gpl2 PRIVATE xbrz-null)
