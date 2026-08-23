@@ -128,6 +128,7 @@ then
 fi
 
 export PATH="${mingw_location}/bin:${PATH}"
+export MINGW_TRIPLE="${target}"
 
 nproc=$(getconf _NPROCESSORS_ONLN)
 
