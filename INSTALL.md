@@ -436,6 +436,17 @@ Invoke cmake as follows (adjust Qt and vcpkg paths accordingly):
 cmake -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link -DINTERFACE=QT -DCMAKE_PREFIX_PATH=D:/Qt/6.5.2/msvc2019_64 -DCMAKE_TOOLCHAIN_FILE=D:/vcpkg/scripts/buildsystems/vcpkg.cmake -DSOUND=QT ..
 ```
 
+Windows builds place `gargoyle.exe`, `garglk.dll`, and the interpreters all
+together in the build directory, so the build tree can be run in place. To copy
+the Qt runtime in alongside them, run:
+
+```
+ninja deployqt
+```
+
+This only needs doing once per build directory. `gargoyle.exe` can then be
+started directly from there, without installing anything.
+
 Building an installer from this configuration is not yet supported.
 
 ## Building on Haiku

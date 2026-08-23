@@ -77,6 +77,17 @@ add_custom_command(TARGET frankendrift
     COMMAND ${CMAKE_COMMAND} -E rm "${CMAKE_CURRENT_SOURCE_DIR}/${GARGLK_FRANKEN_DYLIB_NAME}"
 )
 
+# dotnet publishes into this directory, not to a CMake target output
+# directory, so on Windows copy the result next to the rest of the
+# runtime output, where the launcher looks for interpreters.
+if(WIN32)
+    add_custom_command(TARGET frankendrift
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_BINARY_DIR}/FrankenDrift.GlkRunner.Gargoyle${GARGLK_FRANKEN_EXT}"
+            "$<TARGET_FILE_DIR:garglk>"
+    )
+endif()
 
 add_dependencies(frankendrift garglk)
 
