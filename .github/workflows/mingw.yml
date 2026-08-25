@@ -5,6 +5,18 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  # Must match the container ubuntu-cross builds the assets in: the host
+  # Qt in mingw-llvm-host-qt6 is native Linux and inherits that glibc.
+  UBUNTU: "24.04"
+  # llvm-mingw publishes only ubuntu-22.04 host tarballs; that is the
+  # host build of LLVM and runs fine on newer Ubuntu.
+  LLVM_MINGW: "20260616"
+  LLVM_MINGW_HOST: "msvcrt-ubuntu-22.04-x86_64"
+  # Sysroots come from a release rather than raw/master, so the tarballs
+  # never enter the assets repo's git history.
+  ASSET_RELEASE: "mingw-llvm-24.04"
+
 jobs:
   build:
     strategy:
@@ -17,12 +29,12 @@ jobs:
 
     runs-on: ubuntu-latest
     container:
-      image: amd64/ubuntu:22.04
+      image: amd64/ubuntu:24.04
       options: --privileged
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Update packages
         run: apt update
@@ -44,13 +56,15 @@ jobs:
       - name: Set up MinGW environment
         run: |
           mkdir /usr/llvm-mingw
-          wget https://github.com/mstorsjo/llvm-mingw/releases/download/20231128/llvm-mingw-20231128-msvcrt-ubuntu-20.04-x86_64.tar.xz
-          bsdtar --strip-components 1 -x -v -f llvm-mingw-20231128-msvcrt-ubuntu-20.04-x86_64.tar.xz -C /usr/llvm-mingw
+          wget https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW}/llvm-mingw-${LLVM_MINGW}-${LLVM_MINGW_HOST}.tar.xz
+          bsdtar --strip-components 1 -x -v -f llvm-mingw-${LLVM_MINGW}-${LLVM_MINGW_HOST}.tar.xz -C /usr/llvm-mingw
           rm /usr/llvm-mingw/${{ matrix.arch }}-w64-mingw32/include
           cp -a /usr/llvm-mingw/generic-w64-mingw32/include /usr/llvm-mingw/${{ matrix.arch }}-w64-mingw32
-          wget https://github.com/garglk/assets/raw/master/mingw-llvm/mingw-llvm-${{ matrix.arch }}-22.04.tar.xz
-          bsdtar xfv mingw-llvm-${{ matrix.arch }}-22.04.tar.xz -C /usr/llvm-mingw
-          wget -P /usr/llvm-mingw/bin https://github.com/garglk/assets/raw/master/mingw-llvm/${{ matrix.arch }}-w64-mingw32-pkg-config
+          assets=https://github.com/garglk/assets/releases/download/${ASSET_RELEASE}
+          wget ${assets}/mingw-llvm-${{ matrix.arch }}-${UBUNTU}.tar.xz
+          bsdtar xf mingw-llvm-${{ matrix.arch }}-${UBUNTU}.tar.xz -C /usr/llvm-mingw
+          wget ${assets}/mingw-llvm-host-qt6-${UBUNTU}.tar.xz
+          bsdtar xf mingw-llvm-host-qt6-${UBUNTU}.tar.xz -C /usr/llvm-mingw
           mkdir NSIS
           cd NSIS
           wget https://nsis.sourceforge.io/mediawiki/images/7/78/FontName-0.7.zip
@@ -65,17 +79,20 @@ jobs:
       - name: Build
         run: |
           echo $(date +"%Y%m%d").$(echo $GITHUB_SHA | cut -b 1-7) > VERSION
-          ./windows.sh -5a ${{ matrix.arch }}
+          ./windows.sh -a ${{ matrix.arch }}
+
+      - name: Package
+        run: ./package-windows.sh ${{ matrix.arch }}
 
       - name: Upload installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Gargoyle-installer-${{ matrix.arch }}
           path: gargoyle-*.exe
         if: ${{ matrix.arch == 'i686' || matrix.arch == 'x86_64' }}
 
       - name: Upload standalone
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Gargoyle-standalone-${{ matrix.arch }}
           path: gargoyle-*.zip
