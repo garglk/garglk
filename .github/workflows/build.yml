@@ -9,16 +9,32 @@ jobs:
   build:
     strategy:
       matrix:
-        feature: ["-DWITH_SDL=OFF", "-DWITH_TTS=OFF", "-DWITH_BABEL=OFF", "-DSOUND=QT", "-DWITH_KDE=ON", "-DJPEGLIB=IJG"]
+        include:
+          - feature: "-DSOUND=QT"
+            qt: 6
+          - feature: "-DSOUND=QT"
+            qt: 5
+          - feature: "-DSOUND=SDL2"
+            qt: 6
+          - feature: "-DSOUND=SDL3"
+            qt: 6
+          - feature: "-DWITH_TTS=OFF"
+            qt: 6
+          - feature: "-DIMAGES=SYSTEM"
+            qt: 6
+          - feature: "-DIMAGES=SYSTEM -DJPEGLIB=IJG"
+            qt: 6
+          - feature: "-DWITH_KDE=ON"
+            qt: 6
 
     runs-on: ubuntu-latest
     container:
-      image: amd64/ubuntu:24.04
+      image: amd64/ubuntu:26.04
       options: --privileged
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Update packages
         run: apt update
@@ -34,14 +50,18 @@ jobs:
           libfontconfig1-dev
           libfreetype-dev
           libjpeg-dev
-          libkf5kio-dev
-          libkf5service-dev
+          libkf6kio-dev
+          libkf6service-dev
           libmpg123-dev
           libopenmpt-dev
           libsdl2-mixer-dev
+          libsdl3-dev
           libsndfile-dev
           libspeechd-dev
           libturbojpeg0-dev
+          qt6-base-dev
+          qt6-base-dev-tools
+          qt6-multimedia-dev
           qtbase5-dev
           qtbase5-dev-tools
           qtmultimedia5-dev
@@ -50,7 +70,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr ${{ matrix.feature }} -DWITH_INTERPRETERS=OFF -DWITH_LAUNCHER=OFF -DQT_VERSION=5
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr ${{ matrix.feature }} -DWITH_INTERPRETERS=OFF -DWITH_LAUNCHER=OFF -DQT_VERSION=${{ matrix.qt }}
 
       - name: Build
         run: |

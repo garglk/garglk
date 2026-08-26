@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configure vcpkg binary caching
         shell: pwsh
@@ -83,7 +83,7 @@ jobs:
         run: Compress-Archive -Path gargoyle-staging -DestinationPath gargoyle-win-clang-fd-${{ matrix.arch }}.zip
 
       - name: Upload archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gargoyle-win-clang-${{ matrix.arch }}.zip
           path: gargoyle-*.zip

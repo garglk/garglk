@@ -11,9 +11,9 @@ jobs:
     strategy:
       matrix:
         version:
-          - 20.04
           - 22.04
           - 24.04
+          - 26.04
 
     runs-on: ubuntu-latest
     container:
@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Update packages
         run: apt update
@@ -52,7 +52,7 @@ jobs:
 
       - name: Upload DEB
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Gargoyle-Ubuntu-${{ matrix.version }}
           path: ~/deb_factory/gargoyle*.deb
