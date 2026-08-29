@@ -306,6 +306,7 @@ bool gli_conf_safeclicks = false;
 bool gli_conf_per_game_config = true;
 
 GamedataLocation gli_conf_gamedata_location = GamedataLocation::Default;
+std::string gli_conf_gamedata_dir;
 
 Scaler gli_conf_scaler = Scaler::None;
 
@@ -625,6 +626,26 @@ constexpr const T &config_atleast(const T &value, const T &min)
     return value;
 }
 
+// gamedata_location is a bit odd in that it takes fixed atoms/strings,
+// but _also_ can be given an absolute path to a directory. As long as
+// the normal atoms never contain a directory separator, they won't
+// clash, even if it does feel sloppy. This function checks whether a
+// value is an absolute path and thus a candidate for a "fixed" location.
+static bool is_gamedata_path(const std::string &path)
+{
+    // libstdc++ (at least with gcc 14) doesn't parse UNC paths: both
+    // \\server\share and //server/share are _not_ considered absolute.
+    // These should be absolute (libc++ and MSVC both get this right),
+    // so for libstdc++, short-circuit and do a simple check here.
+#if defined(_WIN32) && defined(__GLIBCXX__)
+    if (path.rfind("\\\\", 0) == 0 || path.rfind("//", 0) == 0) {
+        return true;
+    }
+#endif
+
+    return std::filesystem::path(path).is_absolute();
+}
+
 static void readoneconfig(const std::string &fname, const std::string &argv0, const std::optional<std::string> &gamefile)
 {
     std::vector<std::string> matches = {argv0};
@@ -914,8 +935,11 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                     gli_conf_gamedata_location = GamedataLocation::Dedicated;
                 } else if (arg == "gamedir") {
                     gli_conf_gamedata_location = GamedataLocation::Gamedir;
+                } else if (is_gamedata_path(arg)) {
+                    gli_conf_gamedata_location = GamedataLocation::Fixed;
+                    gli_conf_gamedata_dir = arg;
                 } else {
-                    throw ConfigError(Format("unknown gamedata location: {}", arg));
+                    throw ConfigError(Format("unknown gamedata location: {} (must be default, dedicated, gamedir, or an absolute path)", arg));
                 }
             } else if (cmd == "game_info") {
                 if (arg == "never") {
