@@ -174,13 +174,11 @@ enum class Action { Open, Save };
 
 static std::string winchoosefile(const QString &prompt, FileFilter filter, Action action)
 {
-    QString filename;
-    QFileDialog::Options options;
-#ifdef GARGLK_CONFIG_NO_NATIVE_FILE_DIALOGS
-    options |= QFileDialog::DontUseNativeDialog;
-#endif
+    QFileDialog dialog(window, prompt);
 
-    QString dir = "";
+#ifdef GARGLK_CONFIG_NO_NATIVE_FILE_DIALOGS
+    dialog.setOption(QFileDialog::DontUseNativeDialog);
+#endif
 
     if (gli_conf_gamedata_location == GamedataLocation::Dedicated && gli_workfile.has_value()) {
         auto path = QFileInfo(QString::fromStdString(*gli_workfile));
@@ -188,22 +186,26 @@ static std::string winchoosefile(const QString &prompt, FileFilter filter, Actio
             QDir basedir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
             QDir savepath = QDir(basedir.filePath("gamedata")).filePath(path.fileName());
             if (savepath.mkpath(savepath.absolutePath())) {
-                dir = savepath.absolutePath();
+                dialog.setDirectory(savepath.absolutePath());
             }
         }
     } else if (gli_conf_gamedata_location == GamedataLocation::Gamedir) {
-        dir = QString::fromStdString(gli_workdir);
+        dialog.setDirectory(QString::fromStdString(gli_workdir));
     }
 
     if (action == Action::Open) {
-        QString filterstring = QString("%1;;All files (*)").arg(filters.at(filter).first);
-        filename = QFileDialog::getOpenFileName(window, prompt, dir, filterstring, nullptr, options);
+        dialog.setAcceptMode(QFileDialog::AcceptOpen);
+        dialog.setFileMode(QFileDialog::ExistingFile);
+        dialog.setNameFilters({filters.at(filter).first, "All files (*)"});
     } else {
-        if (dir == "") {
-            dir += ".";
-        }
-        dir += QString("/Untitled.%1").arg(filters.at(filter).second);
-        filename = QFileDialog::getSaveFileName(window, prompt, dir, filters.at(filter).first, nullptr, options);
+        dialog.setAcceptMode(QFileDialog::AcceptSave);
+        dialog.setNameFilter(filters.at(filter).first);
+        dialog.selectFile(QString("Untitled.%1").arg(filters.at(filter).second));
+    }
+
+    QString filename;
+    if (dialog.exec() == QDialog::Accepted) {
+        filename = dialog.selectedFiles().value(0);
     }
 
     // toStdString() converts to UTF-8, which is not used by Windows (at

@@ -345,7 +345,6 @@ static void parsecolor(const std::string &str, Color &rgb)
 //        $HOME/.garglkrc (Unix only)
 //        <user settings directory>/Gargoyle (Haiku only)
 //        %APPDATA%/Gargoyle/garglk.ini (Windows only)
-//        <current directory>/garglk.ini (Windows only)
 //        $HOME/garglk.ini (macOS only)
 // 4. $GARGLK_RESOURCES/garglk.ini (macOS only)
 // 5. /etc/garglk.ini (or other location set at build time, Unix only)
@@ -373,17 +372,11 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::optional<std::string>
         configs.emplace_back(Format("{}/Gargoyle", settings_dir), ConfigFile::Type::User);
     }
 #elif defined(_WIN32)
-    // $APPDATA/Gargoyle/garglk.ini (Windows only). This has a higher
-    // priority than $PWD/garglk.ini since it's a more "proper" location.
+    // $APPDATA/Gargoyle/garglk.ini (Windows only).
     const char *appdata = std::getenv("APPDATA");
     if (appdata != nullptr) {
         configs.emplace_back(Format("{}/Gargoyle/garglk.ini", appdata), ConfigFile::Type::User);
     }
-
-    // current directory .ini
-    // Historically this has been the location of garglk.ini on Windows,
-    // so treat it as a user config there.
-    configs.emplace_back("garglk.ini", ConfigFile::Type::User);
 #else
 
     const char *home = std::getenv("HOME");

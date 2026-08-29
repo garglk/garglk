@@ -99,6 +99,14 @@ Section "DoInstall"
 
     WriteUninstaller "uninstall.exe"
 
+    ; CreateShortCut takes the shortcut's working directory from $OUTDIR,
+    ; which is still plugins\platforms from the SetOutPath above. Reset
+    ; it so that a Gargoyle started from the Start Menu gets the
+    ; installation directory as its working directory: that is the one
+    ; value it can recognize as "nobody chose this", which is what lets
+    ; it relocate to somewhere useful before opening a file dialog.
+    SetOutPath $INSTDIR
+
     !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
 	CreateDirectory "$SMPROGRAMS\$SMFOLDER"
 	CreateShortCut "$SMPROGRAMS\$SMFOLDER\Gargoyle.lnk" "$INSTDIR\gargoyle.exe" "" "$INSTDIR\gargoyle.exe" 0
