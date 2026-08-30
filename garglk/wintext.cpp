@@ -313,6 +313,15 @@ static int line_text_x0(window_textbuffer_t *dwin, const tbline_t &ln,
     return text_x0 + (avail - textw);
 }
 
+// Return the character's horizontal midpoint in subpixels.
+static int char_midpoint(window_textbuffer_t *dwin, const tbline_t &ln, int text_x0, int index, int spw)
+{
+    int left = calcwidth(dwin, ln.chars, ln.attrs, 0, index, spw);
+    int right = calcwidth(dwin, ln.chars, ln.attrs, 0, index + 1, spw);
+
+    return text_x0 + (left + right) / 2;
+}
+
 void win_textbuffer_redraw(window_t *win)
 {
     window_textbuffer_t *dwin = win->winbuffer();
@@ -330,7 +339,7 @@ void win_textbuffer_redraw(window_t *win)
     // not, but do this to silence the warning.
     int sx0 = 0, sx1 = 0;
     bool selleft = false, selright = false;
-    int tx, tsc, tsw, lsc, rsc;
+    int tsc, lsc, rsc;
 
     dwin->lines[0].len = dwin->numchars;
 
@@ -436,49 +445,23 @@ void win_textbuffer_redraw(window_t *win)
         // find and highlight selected characters
         if (selrow && !gli_claimselect) {
             lsc = 0;
-            rsc = 0;
-            selchar = false;
-            // optimized case for all chars selected
-            if (selleft && selright) {
-                rsc = linelen > 0 ? linelen - 1 : 0;
-                selchar = ((calcwidth(dwin, ln.chars, ln.attrs, lsc, rsc, spw) / GLI_SUBPIX) != 0);
-            } else {
-                // optimized case for leftmost char selected
-                if (selleft) {
-                    tsc = linelen > 0 ? linelen - 1 : 0;
-                    selchar = ((calcwidth(dwin, ln.chars, ln.attrs, lsc, tsc, spw) / GLI_SUBPIX) != 0);
-                } else {
-                    // find the substring contained by the selection
-                    tx = text_x0 / GLI_SUBPIX;
-                    // measure string widths until we find left char
-                    for (tsc = 0; tsc < linelen; tsc++) {
-                        tsw = calcwidth(dwin, ln.chars, ln.attrs, 0, tsc, spw) / GLI_SUBPIX;
-                        if (tsw + tx >= sx0 ||
-                                (tsw + tx + GLI_SUBPIX >= sx0 && ln.chars[tsc] != ' ')) {
-                            lsc = tsc;
-                            selchar = true;
-                            break;
-                        }
-                    }
-                }
-                if (selchar) {
-                    // optimized case for rightmost char selected
-                    if (selright) {
-                        rsc = linelen > 0 ? linelen - 1 : 0;
-                    } else {
-                        // measure string widths until we find right char
-                        for (tsc = lsc; tsc < linelen; tsc++) {
-                            tsw = calcwidth(dwin, ln.chars, ln.attrs, lsc, tsc, spw) / GLI_SUBPIX;
-                            if (tsw + sx0 < sx1) {
-                                rsc = tsc;
-                            }
-                        }
-                        if (lsc != 0 && rsc == 0) {
-                            rsc = lsc;
-                        }
-                    }
+            rsc = linelen - 1;
+            if (!selleft) {
+                while (lsc < linelen
+                        && char_midpoint(dwin, ln, text_x0, lsc, spw) < sx0 * GLI_SUBPIX) {
+                    lsc++;
                 }
             }
+            if (!selright) {
+                rsc = lsc - 1;
+                for (tsc = lsc; tsc < linelen; tsc++) {
+                    if (char_midpoint(dwin, ln, text_x0, tsc, spw) >= sx1 * GLI_SUBPIX) {
+                        break;
+                    }
+                    rsc = tsc;
+                }
+            }
+            selchar = lsc <= rsc;
             // reverse colors for selected chars
             if (selchar) {
                 for (tsc = lsc; tsc <= rsc; tsc++) {
@@ -487,7 +470,7 @@ void win_textbuffer_redraw(window_t *win)
                 }
             }
             // add newline only if this is a real paragraph break, not just a wrapped line
-            if ((ln.len == 0 || ln.len == (rsc + 1)) && ln.newline) {
+            if ((ln.len == 0 || (selchar && ln.len == rsc + 1)) && ln.newline) {
                 dwin->copybuf.push_back('\n');
             }
         }
@@ -496,7 +479,7 @@ void win_textbuffer_redraw(window_t *win)
         gli_put_hyperlink(0, x0 / GLI_SUBPIX, y,
                 x1 / GLI_SUBPIX, y + gli_leading);
 
-        // fill in background colors
+        // Derive widths from pixel endpoints so adjacent runs tile exactly.
         color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
         gli_draw_rect(x0 / GLI_SUBPIX, y,
                 (x1 - x0) / GLI_SUBPIX, gli_leading,
@@ -510,17 +493,19 @@ void win_textbuffer_redraw(window_t *win)
                 auto font = ln.attrs[a].font(dwin->styles);
                 color = ln.attrs[a].bg(dwin->styles);
                 w = gli_string_width_uni(font, &ln.chars[a], b - a, spw);
-                gli_draw_rect(x / GLI_SUBPIX, y,
-                        w / GLI_SUBPIX, gli_leading,
+                int rx0 = x / GLI_SUBPIX;
+                int rx1 = (x + w) / GLI_SUBPIX;
+                gli_draw_rect(rx0, y,
+                        rx1 - rx0, gli_leading,
                         color);
                 if (link != 0) {
                     if (gli_underline_hyperlinks) {
-                        gli_draw_rect(x / GLI_SUBPIX + 1, y + gli_baseline + 1,
-                                w / GLI_SUBPIX + 1, 1,
+                        gli_draw_rect(rx0 + 1, y + gli_baseline + 1,
+                                rx1 - rx0 + 1, 1,
                                 gli_link_color);
                     }
-                    gli_put_hyperlink(link, x / GLI_SUBPIX, y,
-                            x / GLI_SUBPIX + w / GLI_SUBPIX,
+                    gli_put_hyperlink(link, rx0, y,
+                            rx1,
                             y + gli_leading);
                 }
                 x += w;
@@ -531,16 +516,18 @@ void win_textbuffer_redraw(window_t *win)
         auto font = ln.attrs[a].font(dwin->styles);
         color = ln.attrs[a].bg(dwin->styles);
         w = gli_string_width_uni(font, &ln.chars[a], b - a, spw);
-        gli_draw_rect(x / GLI_SUBPIX, y, w / GLI_SUBPIX,
+        int rx0 = x / GLI_SUBPIX;
+        int rx1 = (x + w) / GLI_SUBPIX;
+        gli_draw_rect(rx0, y, rx1 - rx0,
                 gli_leading, color);
         if (link != 0) {
             if (gli_underline_hyperlinks) {
-                gli_draw_rect(x / GLI_SUBPIX + 1, y + gli_baseline + 1,
-                        w / GLI_SUBPIX + 1, 1,
+                gli_draw_rect(rx0 + 1, y + gli_baseline + 1,
+                        rx1 - rx0 + 1, 1,
                         gli_link_color);
             }
-            gli_put_hyperlink(link, x / GLI_SUBPIX, y,
-                    x / GLI_SUBPIX + w / GLI_SUBPIX,
+            gli_put_hyperlink(link, rx0, y,
+                    rx1,
                     y + gli_leading);
         }
         x += w;
