@@ -1150,8 +1150,6 @@ static void win_textbuffer_init_impl(window_t *win, void *buf, int maxlen, int i
     window_textbuffer_t *dwin = win->winbuffer();
     int pw;
 
-    gli_tts_flush();
-
     // because '>' prompt is ugly without extra space
     if (dwin->numchars != 0 && dwin->chars[dwin->numchars - 1] == '>') {
         win_textbuffer_putchar_uni(win, ' ');

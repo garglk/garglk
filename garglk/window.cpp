@@ -847,6 +847,8 @@ void glk_request_char_event(window_t *win)
         return;
     }
 
+    gli_tts_flush();
+
     switch (win->type) {
     case wintype_TextBuffer:
     case wintype_TextGrid:
@@ -869,6 +871,8 @@ void glk_request_char_event_uni(window_t *win)
         gli_strict_warning("request_char_event_uni: window already has keyboard request");
         return;
     }
+
+    gli_tts_flush();
 
     switch (win->type) {
     case wintype_TextBuffer:
@@ -893,6 +897,8 @@ void glk_request_line_event(window_t *win, char *buf, glui32 maxlen,
         gli_strict_warning("request_line_event: window already has keyboard request");
         return;
     }
+
+    gli_tts_flush();
 
     switch (win->type) {
     case wintype_TextBuffer:
@@ -921,6 +927,8 @@ void glk_request_line_event_uni(window_t *win, glui32 *buf, glui32 maxlen,
         gli_strict_warning("request_line_event_uni: window already has keyboard request");
         return;
     }
+
+    gli_tts_flush();
 
     switch (win->type) {
     case wintype_TextBuffer:

@@ -745,6 +745,12 @@ void winkey(NSEvent *evt)
         {{NSEventModifierFlagCommand, NSKEY_C}, []{ winclipsend(); }},
         {{NSEventModifierFlagCommand, NSKEY_V}, []{ winclipreceive(); }},
 
+        // toggle TTS
+        {{NSEventModifierFlagCommand | NSEventModifierFlagOption, NSKEY_T}, [] {
+            gli_conf_speak = !gli_conf_speak;
+            gli_initialize_tts();
+        }},
+
         // info
         {{NSEventModifierFlagCommand, NSKEY_PERIOD}, show_paths},
         {{NSEventModifierFlagShift | NSEventModifierFlagCommand, NSKEY_T}, show_themes},

@@ -170,6 +170,7 @@ in place of `Ctrl`):
 * `Ctrl`+`Shift`+`s`: Save the scrollback buffer to a file, effectively creating
   an ad hoc transcript.
 * `Alt`+`Enter` (or `Command`-`Ctrl`-`f` on Mac): Toggle fullscreen.
+* `Ctrl`+`Alt`+`t` (or `Command`+`Option`+`t` on Mac): Toggle text-to-speech.
 
 In addition, Gargoyle supports many readline/Emacs-style line-editor bindings:
 
