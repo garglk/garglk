@@ -37,10 +37,12 @@
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QList>
 #include <QMessageBox>
 #include <QProcess>
 #include <QPushButton>
+#include <QStandardPaths>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -314,6 +316,26 @@ int main(int argc, char **argv)
     garglk::theme::init();
 
     auto story = parse_args(app);
+
+#ifdef _WIN32
+    // Resolve the story path while the working directory it might be
+    // relative to is still current.
+    if (!story.isEmpty()) {
+        story = QFileInfo(story).absoluteFilePath();
+    }
+
+    // On Windows, when started from the start menu, Gargoyle's CWD is
+    // set to the install directory. That means that default file
+    // dialogs open there, which is not a useful location. If the CWD is
+    // in fact there, change dir to the desktop. If the CWD is anywhere
+    // else, assume it's the user's doing and leave it alone.
+    if (QDir::currentPath() == QCoreApplication::applicationDirPath()) {
+        auto desktop = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
+        if (!desktop.isEmpty()) {
+            QDir::setCurrent(desktop);
+        }
+    }
+#endif
 
     if (story.isEmpty()) {
         story = winbrowsefile();
