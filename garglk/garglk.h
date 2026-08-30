@@ -1018,6 +1018,8 @@ struct window_textbuffer_t {
     int inmax;
     long infence;
     long incurs;
+    // First character displayed on the input line.
+    int inview = 0;
     attr_t origattr;
     gidispatch_rock_t inarrayrock;
 
