@@ -191,6 +191,8 @@ static std::string winchoosefile(const QString &prompt, FileFilter filter, Actio
         }
     } else if (gli_conf_gamedata_location == GamedataLocation::Gamedir) {
         dialog.setDirectory(QString::fromStdString(gli_workdir));
+    } else if (gli_conf_gamedata_location == GamedataLocation::Fixed) {
+        dialog.setDirectory(QString::fromStdString(gli_conf_gamedata_dir));
     }
 
     if (action == Action::Open) {

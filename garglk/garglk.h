@@ -688,9 +688,13 @@ enum class GamedataLocation {
     Default,
     Dedicated,
     Gamedir,
+    Fixed,
 };
 
 extern GamedataLocation gli_conf_gamedata_location;
+
+// Only meaningful when gli_conf_gamedata_location is Fixed.
+extern std::string gli_conf_gamedata_dir;
 
 enum class Scaler {
     None,
