@@ -130,7 +130,8 @@ static void reflow(window_t *win)
     s = dwin->scrollmax < SCROLLBACK ? dwin->scrollmax : SCROLLBACK - 1;
 
     for (k = s; k >= 0; k--) {
-        if (k == 0 && win->line_request) {
+        // Preserve pending line input across reflow.
+        if (k == 0 && (win->line_request || win->line_request_uni)) {
             inputbyte = p + dwin->infence;
         }
 
@@ -313,13 +314,29 @@ static int line_text_x0(window_textbuffer_t *dwin, const tbline_t &ln,
     return text_x0 + (avail - textw);
 }
 
-// Return the character's horizontal midpoint in subpixels.
-static int char_midpoint(window_textbuffer_t *dwin, const tbline_t &ln, int text_x0, int index, int spw)
+// Return the character's horizontal midpoint in subpixels, relative to first.
+static int char_midpoint(window_textbuffer_t *dwin, const tbline_t &ln, int text_x0, int first, int index, int spw)
 {
-    int left = calcwidth(dwin, ln.chars, ln.attrs, 0, index, spw);
-    int right = calcwidth(dwin, ln.chars, ln.attrs, 0, index + 1, spw);
+    int left = calcwidth(dwin, ln.chars, ln.attrs, first, index, spw);
+    int right = calcwidth(dwin, ln.chars, ln.attrs, first, index + 1, spw);
 
     return text_x0 + (left + right) / 2;
+}
+
+static void scroll_input_into_view(window_textbuffer_t *dwin, int avail)
+{
+    if (dwin->inview > dwin->incurs) {
+        dwin->inview = dwin->incurs;
+    }
+
+    while (dwin->inview < dwin->incurs && calcwidth(dwin, dwin->chars, dwin->attrs, dwin->inview, dwin->incurs, -1) >= avail) {
+        dwin->inview++;
+    }
+
+    // Reveal text to the left when space permits.
+    while (dwin->inview > 0 && calcwidth(dwin, dwin->chars, dwin->attrs, dwin->inview - 1, dwin->numchars, -1) < avail) {
+        dwin->inview--;
+    }
 }
 
 void win_textbuffer_redraw(window_t *win)
@@ -411,8 +428,14 @@ void win_textbuffer_redraw(window_t *win)
             linelen--;
         }
 
+        int first = 0;
+        if (i == 0 && dwin->inbuf != nullptr) {
+            scroll_input_into_view(dwin, pw - gli_caret_shape * 2 * GLI_SUBPIX);
+            first = dwin->inview;
+        }
+
         // kill characters that would overwrite the scroll bar
-        while (linelen > 1 && calcwidth(dwin, ln.chars, ln.attrs, 0, linelen, -1) >= pw) {
+        while (linelen > first + 1 && calcwidth(dwin, ln.chars, ln.attrs, first, linelen, -1) >= pw) {
             linelen--;
         }
 
@@ -444,18 +467,18 @@ void win_textbuffer_redraw(window_t *win)
 
         // find and highlight selected characters
         if (selrow && !gli_claimselect) {
-            lsc = 0;
+            lsc = first;
             rsc = linelen - 1;
             if (!selleft) {
                 while (lsc < linelen
-                        && char_midpoint(dwin, ln, text_x0, lsc, spw) < sx0 * GLI_SUBPIX) {
+                        && char_midpoint(dwin, ln, text_x0, first, lsc, spw) < sx0 * GLI_SUBPIX) {
                     lsc++;
                 }
             }
             if (!selright) {
                 rsc = lsc - 1;
                 for (tsc = lsc; tsc < linelen; tsc++) {
-                    if (char_midpoint(dwin, ln, text_x0, tsc, spw) >= sx1 * GLI_SUBPIX) {
+                    if (char_midpoint(dwin, ln, text_x0, first, tsc, spw) >= sx1 * GLI_SUBPIX) {
                         break;
                     }
                     rsc = tsc;
@@ -486,8 +509,8 @@ void win_textbuffer_redraw(window_t *win)
                 color);
 
         x = text_x0;
-        a = 0;
-        for (b = 0; b < linelen; b++) {
+        a = first;
+        for (b = first; b < linelen; b++) {
             if (ln.attrs[a] != ln.attrs[b]) {
                 link = ln.attrs[a].hyper;
                 auto font = ln.attrs[a].font(dwin->styles);
@@ -542,7 +565,7 @@ void win_textbuffer_redraw(window_t *win)
         //
 
         if (gli_focuswin == win && i == 0 && (win->line_request || win->line_request_uni)) {
-            w = calcwidth(dwin, dwin->chars, dwin->attrs, 0, dwin->incurs, spw);
+            w = calcwidth(dwin, dwin->chars, dwin->attrs, first, dwin->incurs, spw);
             if (w < pw - gli_caret_shape * 2 * GLI_SUBPIX) {
                 gli_draw_caret(text_x0 + w, y + gli_baseline);
             }
@@ -553,8 +576,8 @@ void win_textbuffer_redraw(window_t *win)
         //
 
         x = text_x0;
-        a = 0;
-        for (b = 0; b < linelen; b++) {
+        a = first;
+        for (b = first; b < linelen; b++) {
             if (ln.attrs[a] != ln.attrs[b]) {
                 link = ln.attrs[a].hyper;
                 font = ln.attrs[a].font(dwin->styles);
@@ -1118,6 +1141,7 @@ void win_textbuffer_clear(window_t *win)
     dwin->dashed = 0;
 
     dwin->numchars = 0;
+    dwin->inview = 0;
 
     for (i = 0; i < dwin->scrollback; i++) {
         dwin->lines[i].len = 0;
@@ -1170,6 +1194,7 @@ static void win_textbuffer_init_impl(window_t *win, void *buf, int maxlen, int i
     dwin->inmax = maxlen;
     dwin->infence = dwin->numchars;
     dwin->incurs = dwin->numchars;
+    dwin->inview = 0;
     dwin->origattr = win->attr;
     win->attr.set(style_Input);
 
@@ -1540,7 +1565,12 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
 
     case keycode_Left:
         if (dwin->incurs <= dwin->infence) {
-            return;
+            // Reveal a prompt hidden to the left of the input fence.
+            if (dwin->inview == 0) {
+                return;
+            }
+            dwin->inview--;
+            break;
         }
         dwin->incurs--;
         break;
@@ -1553,10 +1583,11 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
         break;
 
     case keycode_Home:
-        if (dwin->incurs <= dwin->infence) {
+        if (dwin->incurs <= dwin->infence && dwin->inview == 0) {
             return;
         }
         dwin->incurs = dwin->infence;
+        dwin->inview = 0;
         break;
 
     case keycode_End:
