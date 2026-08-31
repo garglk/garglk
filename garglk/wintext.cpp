@@ -49,6 +49,25 @@ static void touch(window_textbuffer_t *dwin, int line)
     winrepaint(win->bbox.x0, y - 2, win->bbox.x1, y + gli_leading + 2);
 }
 
+static void clear_unread_marker(window_textbuffer_t *dwin)
+{
+    // touch() assumes scrollpos == 0; all callers meet that condition.
+    if (dwin->unread_marker_line.has_value() && *dwin->unread_marker_line < dwin->height) {
+        touch(dwin, *dwin->unread_marker_line);
+    }
+    dwin->unread_marker_line.reset();
+}
+
+// Rectangles are not clipped to their window, so square mode needs a margin.
+static int unread_marker_mode()
+{
+    if (gli_conf_unread_marker == 2 && gli_tmarginx <= 0) {
+        return 0;
+    }
+
+    return gli_conf_unread_marker;
+}
+
 static void touchscroll(window_textbuffer_t *dwin)
 {
     window_t *win = dwin->owner;
@@ -203,6 +222,7 @@ static void reflow(window_t *win)
     // terribly sorry about this...
     dwin->lastseen = 0;
     dwin->scrollpos = 0;
+    dwin->unread_marker_line.reset();
 
     if (inputbyte != -1) {
         dwin->infence = dwin->numchars;
@@ -369,6 +389,19 @@ void win_textbuffer_redraw(window_t *win)
 
     // check if any part of buffer is selected
     selbuf = gli_check_selection(x0 / GLI_SUBPIX, y0, x1 / GLI_SUBPIX, y1);
+
+    // Erase the old marker when the boundary moves.
+    if (dwin->prev_unread_marker_line != dwin->unread_marker_line
+            && dwin->prev_unread_marker_line.has_value()
+            && *dwin->prev_unread_marker_line < dwin->scrollback) {
+        dwin->lines[*dwin->prev_unread_marker_line].dirty = true;
+        // Line repainting does not cover the margin square.
+        if (unread_marker_mode() == 2) {
+            Color bg = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
+            gli_draw_rect(win->bbox.x0, win->bbox.y0,
+                    gli_tmarginx, win->bbox.y1 - win->bbox.y0, bg);
+        }
+    }
 
     for (i = dwin->scrollpos + dwin->height - 1; i >= dwin->scrollpos; i--) {
         // top of line
@@ -595,6 +628,44 @@ void win_textbuffer_redraw(window_t *win)
     }
 
     //
+    // draw unread marker
+    //
+
+    if (unread_marker_mode() != 0
+            && dwin->unread_marker_line.has_value()
+            && *dwin->unread_marker_line >= dwin->scrollpos
+            && *dwin->unread_marker_line < dwin->scrollpos + dwin->height) {
+        int marker_y = y0 + (dwin->height - (*dwin->unread_marker_line - dwin->scrollpos) - 1) * gli_leading;
+        // Use effective Normal colors, including style hints and overrides.
+        attr_t normal;
+        Color tfg = normal.fg(dwin->styles);
+        Color tbg = normal.bg(dwin->styles);
+        Color marker_color((tfg[0] * 3 + tbg[0]) / 4,
+                           (tfg[1] * 3 + tbg[1]) / 4,
+                           (tfg[2] * 3 + tbg[2]) / 4);
+        if (unread_marker_mode() == 1) {
+            gli_draw_rect(x0 / GLI_SUBPIX, marker_y,
+                    x1 / GLI_SUBPIX - x0 / GLI_SUBPIX, 1,
+                    marker_color);
+        } else {
+            // Bottom-align a square about half the cap height.
+            int marker_size = static_cast<int>(gli_conf_propsize * 0.4);
+            if (marker_size < 3) {
+                marker_size = 3;
+            }
+            if (marker_size > gli_tmarginx) {
+                marker_size = gli_tmarginx;
+            }
+            int marker_x = win->bbox.x0 + (gli_tmarginx - marker_size) / 2;
+            gli_draw_rect(marker_x, marker_y + gli_baseline - marker_size,
+                    marker_size, marker_size,
+                    marker_color);
+        }
+    }
+
+    dwin->prev_unread_marker_line = dwin->unread_marker_line;
+
+    //
     // draw more prompt
     //
 
@@ -775,6 +846,9 @@ static void scrolloneline(window_textbuffer_t *dwin, bool forced, bool flow_brea
 
     dwin->lastseen += lines_to_scroll;
     dwin->scrollmax += lines_to_scroll;
+    if (dwin->unread_marker_line.has_value()) {
+        *dwin->unread_marker_line += lines_to_scroll;
+    }
 
     if (dwin->scrollmax > dwin->scrollback - lines_to_scroll
             || dwin->lastseen > dwin->scrollback - lines_to_scroll) {
@@ -1162,6 +1236,7 @@ void win_textbuffer_clear(window_t *win)
     dwin->lastseen = 0;
     dwin->scrollpos = 0;
     dwin->scrollmax = 0;
+    dwin->unread_marker_line.reset();
 
     for (i = 0; i < dwin->height; i++) {
         touch(dwin, i);
@@ -1284,6 +1359,8 @@ void win_textbuffer_cancel_line(window_t *win, event_t *ev)
         touch(dwin, 0);
     }
 
+    clear_unread_marker(dwin);
+
     if (gli_unregister_arr != nullptr) {
         const char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
         (*gli_unregister_arr)(inbuf, inmax, const_cast<char *>(typedesc), inarrayrock);
@@ -1297,6 +1374,7 @@ bool gcmd_accept_scroll(window_t *win, glui32 arg)
 {
     window_textbuffer_t *dwin = win->winbuffer();
     int pageht = dwin->height - 2; // 1 for prompt, 1 for overlap
+    int old_scrollpos = dwin->scrollpos;
     bool startpos = dwin->scrollpos != 0;
 
     switch (arg) {
@@ -1336,6 +1414,16 @@ bool gcmd_accept_scroll(window_t *win, glui32 arg)
     }
     if (dwin->scrollpos < 0) {
         dwin->scrollpos = 0;
+    }
+    if (dwin->scrollpos > old_scrollpos) {
+        // Scrolling up retires the marker.
+        dwin->unread_marker_line.reset();
+    }
+    bool is_more_ack = arg == ' ' || arg == keycode_PageDown || arg == keycode_End;
+    if (is_more_ack && old_scrollpos > 0 && dwin->scrollpos == 0) {
+        // The prompt occupies the bottom row, making old_scrollpos the
+        // first newly visible buffer line.
+        dwin->unread_marker_line = old_scrollpos;
     }
     touchscroll(dwin);
 
@@ -1380,6 +1468,7 @@ void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)
 
     win->char_request = false;
     win->char_request_uni = false;
+    clear_unread_marker(dwin);
     gli_event_store(evtype_CharInput, win, key, 0);
 }
 
@@ -1479,6 +1568,8 @@ static void acceptline(window_t *win, glui32 keycode)
         dwin->numchars = dwin->infence;
         touch(dwin, 0);
     }
+
+    clear_unread_marker(dwin);
 
     if (gli_unregister_arr != nullptr) {
         const char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
