@@ -32,6 +32,7 @@
 
 #include "format.h"
 
+#include "font.h"
 #include "glk.h"
 #include "garglk.h"
 
@@ -57,8 +58,6 @@ using namespace std::literals;
 #define mul255(a, b) ((static_cast<short>(a) * (b) + 127) / 255)
 #define mulhigh(a, b) ((static_cast<int>(a) * (b) + (1 << (GAMMA_BITS - 1)) - 1) / GAMMA_MAX)
 #define grayscale(r, g, b) ((30 * (r) + 59 * (g) + 11 * (b)) / 100)
-
-static std::string convert_ft_error(FT_Error err, const std::string &basemsg);
 
 namespace {
 
@@ -88,7 +87,7 @@ public:
     public:
         LoadError(FT_Error err, std::string filename, const std::string &basemsg) :
             m_filename(std::move(filename)),
-            m_what(convert_ft_error(err, basemsg))
+            m_what(garglk::convert_ft_error(err, basemsg))
         {
         }
 
@@ -172,24 +171,6 @@ bool garglk::set_lcdfilter(const std::string &filter)
 //
 // Font loading
 //
-
-static std::string convert_ft_error(FT_Error err, const std::string &basemsg)
-{
-    // FT_Error_String() was introduced in FreeType 2.10.0.
-#if FREETYPE_MAJOR == 2 && FREETYPE_MINOR < 10
-    const char *errstr = nullptr;
-#else
-    // If FreeType was not built with FT_CONFIG_OPTION_ERROR_STRINGS,
-    // this will always be null.
-    const char *errstr = FT_Error_String(err);
-#endif
-
-    if (errstr == nullptr) {
-        return Format("{} (error code {})", basemsg, err);
-    } else {
-        return Format("{}: {}", basemsg, errstr);
-    }
-}
 
 namespace {
 
@@ -310,7 +291,7 @@ FontEntry Font::getglyph(glui32 cid)
 
         err = FT_Load_Glyph(m_face.get(), gid, load_flags);
         if (err != 0) {
-            throw std::runtime_error(convert_ft_error(err, "FT_Load_Glyph"));
+            throw std::runtime_error(garglk::convert_ft_error(err, "FT_Load_Glyph"));
         }
 
         // A bitmap-only font ignores FT_LOAD_NO_BITMAP, so this can be a
@@ -340,7 +321,7 @@ FontEntry Font::getglyph(glui32 cid)
         }
 
         if (err != 0) {
-            throw std::runtime_error(convert_ft_error(err, "FT_Render_Glyph"));
+            throw std::runtime_error(garglk::convert_ft_error(err, "FT_Render_Glyph"));
         }
 
         const FT_Bitmap *bitmap = &m_face->glyph->bitmap;
@@ -352,7 +333,7 @@ FontEntry Font::getglyph(glui32 cid)
         if (bitmap->pixel_mode != FT_PIXEL_MODE_GRAY && bitmap->pixel_mode != FT_PIXEL_MODE_LCD) {
             err = FT_Bitmap_Convert(ftlib, bitmap, converted.get(), 1);
             if (err != 0) {
-                throw std::runtime_error(convert_ft_error(err, "FT_Bitmap_Convert"));
+                throw std::runtime_error(garglk::convert_ft_error(err, "FT_Bitmap_Convert"));
             }
 
             bitmap = converted.get();
@@ -571,7 +552,7 @@ void gli_initialize_fonts()
 
     err = FT_Init_FreeType(&ftlib);
     if (err != 0) {
-        garglk::winabort(convert_ft_error(err, "Unable to initialize FreeType"));
+        garglk::winabort(garglk::convert_ft_error(err, "Unable to initialize FreeType"));
     }
 
     std::vector<std::string> problem_fonts;
@@ -603,10 +584,54 @@ void gli_initialize_fonts()
     // "built-in/fallback fonts", but with existing configs out there,
     // it's not meant to be.
     fontload();
-    if (!garglk::fontreplace(gli_conf_monofont, FontType::Monospace) && gli_conf_monofont != DEFAULT_MONO_FONT) {
+
+    bool mono_found = false;
+    bool prop_found = false;
+
+#ifdef GARGLK_CONFIG_X11FONTS
+    // monoxfont and propxfont use XLFD names instead of fontconfig.
+    if (gli_conf_monoxfont.has_value() || gli_conf_propxfont.has_value()) {
+        if (!garglk::x11_fonts_available()) {
+            problem_fonts.emplace_back("No X11 fonts were found on this system, so monoxfont and propxfont can't be used.");
+        }
+    }
+
+    auto use_xfont = [&problem_fonts](const std::string &xlfd, FontType type) {
+        const char *what = type == FontType::Monospace ? "monospace" : "proportional";
+        const char *setting = type == FontType::Monospace ? "monofont" : "propfont";
+
+        auto result = garglk::fontreplace_x11(xlfd, type);
+        switch (result.status) {
+        case garglk::XFontResult::Status::Loaded:
+            return true;
+        case garglk::XFontResult::Status::NoMatch:
+            problem_fonts.push_back(Format("No X11 {} font matches \"{}\", falling back to {}.", what, xlfd, setting));
+            break;
+        case garglk::XFontResult::Status::Unusable:
+            problem_fonts.push_back(Format("X11 {} font \"{}\" can't be loaded ({}), falling back to {}.", what, xlfd, result.reason, setting));
+            break;
+        }
+
+        return false;
+    };
+
+    if (gli_conf_monoxfont.has_value()) {
+        mono_found = use_xfont(*gli_conf_monoxfont, FontType::Monospace);
+    }
+
+    if (gli_conf_propxfont.has_value()) {
+        prop_found = use_xfont(*gli_conf_propxfont, FontType::Proportional);
+    }
+#endif
+
+    if (!mono_found &&
+        !garglk::fontreplace(gli_conf_monofont, FontType::Monospace) && gli_conf_monofont != DEFAULT_MONO_FONT)
+    {
         problem_fonts.push_back(Format("Unable to find monospace font \"{}\", using fallback.", gli_conf_monofont));
     }
-    if (!garglk::fontreplace(gli_conf_propfont, FontType::Proportional) && gli_conf_propfont != DEFAULT_PROP_FONT) {
+    if (!prop_found &&
+        !garglk::fontreplace(gli_conf_propfont, FontType::Proportional) && gli_conf_propfont != DEFAULT_PROP_FONT)
+    {
         problem_fonts.push_back(Format("Unable to find proportional font \"{}\", using fallback.", gli_conf_propfont));
     }
     fontunload();
@@ -788,7 +813,7 @@ int Font::charkern(glui32 c0, glui32 c1)
 
     err = FT_Get_Kerning(m_face.get(), g0, g1, FT_KERNING_UNFITTED, &v);
     if (err != 0) {
-        throw std::runtime_error(convert_ft_error(err, "FT_Get_Kerning"));
+        throw std::runtime_error(garglk::convert_ft_error(err, "FT_Get_Kerning"));
     }
 
     int value = (v.x * GLI_SUBPIX) / 64.0;

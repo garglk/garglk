@@ -9,6 +9,7 @@ option(WITH_BUNDLED_FMT "Use Gargoyle's bundled fmt library instead of the syste
 
 if(UNIX AND NOT APPLE)
     option(WITH_FREEDESKTOP "Install freedesktop.org application, icon, and MIME files" ON)
+    option(WITH_X11_FONTS "Support naming fonts by X Logical Font Description" ON)
     set(GARGLKINI "${CMAKE_INSTALL_FULL_SYSCONFDIR}/garglk.ini")
     if(NOT APPIMAGE)
         option(INSTALL_GARGLKINI "Install an example config file to ${GARGLKINI}" OFF)
@@ -421,6 +422,16 @@ elseif(UNIX)
     pkg_check_modules(FONTCONFIG REQUIRED IMPORTED_TARGET fontconfig)
     target_sources(garglk-common PRIVATE fontfc.cpp)
     target_link_libraries(garglk-common PRIVATE PkgConfig::FONTCONFIG)
+
+    if(WITH_X11_FONTS)
+        set(X11_FONT_DIR "/usr/share/fonts" CACHE STRING "Directory tree to scan for X11 fonts (fonts.dir)")
+        set(X11_FS_CONFIG "/etc/X11/fs/config" CACHE STRING "X font server config to read a font catalogue from")
+        target_sources(garglk-common PRIVATE fontx11.cpp)
+        target_compile_definitions(garglk-common PRIVATE
+            GARGLK_CONFIG_X11FONTS
+            X11_FONT_DIR="${X11_FONT_DIR}"
+            X11_FS_CONFIG="${X11_FS_CONFIG}")
+    endif()
 elseif(WIN32)
     target_sources(garglk-common PRIVATE fontwin.cpp)
     target_link_libraries(garglk-common PRIVATE winmm shlwapi)

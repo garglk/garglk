@@ -101,6 +101,14 @@ In addition, Gargoyle supports the following options:
   configuration directory. Defaults to false. Available only on non-Apple Unix
   platforms.
 
+- `WITH_X11_FONTS`: If true (the default), support naming fonts by X Logical
+  Font Description, as with `monoxfont` in `garglk.ini`. This reads `fonts.dir`
+  out of font directories and needs no X server, but a system with no X11 fonts
+  has no use for it. `X11_FONT_DIR` sets the directory tree scanned for them
+  (`/usr/share/fonts` by default), and `X11_FS_CONFIG` the X font server
+  configuration read for a font catalogue (`/etc/X11/fs/config`). Available only
+  on non-Apple Unix platforms.
+
 - `WITH_KDE`: If true, KDE Frameworks will be used.
 
 - `WITH_TTS`: Takes one of four values: "ON", "OFF", "AUTO", or "DYNAMIC".

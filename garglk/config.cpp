@@ -157,6 +157,8 @@ double gli_zoom = 1.0;
 FontFiles gli_conf_prop, gli_conf_mono;
 
 std::string gli_conf_monofont = DEFAULT_MONO_FONT;
+std::optional<std::string> gli_conf_propxfont;
+std::optional<std::string> gli_conf_monoxfont;
 std::string gli_conf_propfont = DEFAULT_PROP_FONT;
 double gli_conf_monosize = 12.6; // good size for Gargoyle Mono
 double gli_conf_propsize = 14.7; // good size for Gargoyle Serif
@@ -707,6 +709,12 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 gli_conf_prop.z.override = arg;
             } else if (cmd == "propfont") {
                 gli_conf_propfont = arg;
+            } else if (cmd == "monoxfont" || cmd == "propxfont") {
+#ifdef GARGLK_CONFIG_X11FONTS
+                (cmd[0] == 'm' ? gli_conf_monoxfont : gli_conf_propxfont) = arg;
+#else
+                throw ConfigError("X11 fonts are not supported on this platform");
+#endif
             } else if (cmd == "leading") {
                 gli_leading = config_atleast(parse_int(arg), 1);
             } else if (cmd == "baseline") {

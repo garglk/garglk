@@ -5,7 +5,34 @@
 #include <optional>
 #include <unordered_map>
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
+#include "format.h"
+
 #include "garglk.h"
+
+namespace garglk {
+
+inline std::string convert_ft_error(FT_Error err, const std::string &basemsg)
+{
+    // FT_Error_String() was introduced in FreeType 2.10.0.
+#if FREETYPE_MAJOR == 2 && FREETYPE_MINOR < 10
+    const char *errstr = nullptr;
+#else
+    // If FreeType was not built with FT_CONFIG_OPTION_ERROR_STRINGS,
+    // this will always be null.
+    const char *errstr = FT_Error_String(err);
+#endif
+
+    if (errstr == nullptr) {
+        return Format("{} (error code {})", basemsg, err);
+    } else {
+        return Format("{}: {}", basemsg, errstr);
+    }
+}
+
+}
 
 class FontFiller {
 public:
