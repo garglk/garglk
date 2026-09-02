@@ -1034,6 +1034,9 @@ struct window_textbuffer_t {
 
     // for copy selection
     std::vector<glui32> copybuf;
+
+    // Selected range within the current line input, inclusive.
+    std::optional<std::pair<int, int>> input_selection;
 };
 
 struct window_graphics_t {
@@ -1216,6 +1219,7 @@ glui32 gli_strlen_uni(const glui32 *s);
 void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1);
 glui32 gli_get_hyperlink(int x, int y);
 void gli_clear_selection();
+bool gli_selection_active();
 bool gli_check_selection(int x0, int y0, int x1, int y1);
 bool gli_get_selection(int x0, int y0, int x1, int y1, int *rx0, int *rx1);
 void gli_clipboard_copy(const std::vector<glui32> &buf);

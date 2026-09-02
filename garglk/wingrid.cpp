@@ -256,12 +256,15 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
         gli_focuswin = win;
     }
 
+    bool consumed = false;
+
     if (win->mouse_request) {
         gli_event_store(evtype_MouseInput, win, x / gli_cellw, y / gli_leading);
         win->mouse_request = false;
         if (gli_conf_safeclicks) {
             gli_forceclick = true;
         }
+        consumed = true;
     }
 
     if (win->hyper_request) {
@@ -272,7 +275,14 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
             if (gli_conf_safeclicks) {
                 gli_forceclick = true;
             }
+            consumed = true;
         }
+    }
+
+    // Move the input cursor if the click was not otherwise consumed.
+    if (!consumed && (win->line_request || win->line_request_uni) && y / gli_leading == dwin->inorgy) {
+        dwin->incurs = std::clamp(x / gli_cellw - dwin->inorgx, 0, dwin->inlen);
+        touch(dwin, dwin->inorgy);
     }
 }
 
