@@ -603,6 +603,8 @@ extern int gli_tmarginy;
 extern double gli_backingscalefactor;
 extern double gli_zoom;
 
+extern bool gli_conf_monoantialias;
+extern bool gli_conf_propantialias;
 extern bool gli_conf_lcd;
 extern std::array<unsigned char, 5> gli_conf_lcd_weights;
 
