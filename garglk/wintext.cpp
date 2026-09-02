@@ -239,12 +239,13 @@ static void reflow(window_t *win)
 void win_textbuffer_rearrange(window_t *win, rect_t *box)
 {
     window_textbuffer_t *dwin = win->winbuffer();
-    int newwid, newhgt;
+    int newwid, newhgt, newpixwid;
     int rnd;
 
     dwin->owner->bbox = *box;
 
-    newwid = (box->x1 - box->x0 - gli_tmarginx * 2 - gli_scroll_width) / gli_cellw;
+    newpixwid = box->x1 - box->x0 - gli_tmarginx * 2 - gli_scroll_width;
+    newwid = newpixwid / gli_cellw;
     newhgt = (box->y1 - box->y0 - gli_tmarginy * 2) / gli_cellh;
 
     // align text with bottom
@@ -252,8 +253,15 @@ void win_textbuffer_rearrange(window_t *win, rect_t *box)
     win->yadj = (box->y1 - box->y0 - rnd);
     dwin->owner->bbox.y0 += (box->y1 - box->y0 - rnd);
 
-    if (newwid != dwin->width) {
+    // Text is wrapped against the exact pixel width (see
+    // win_textbuffer_putchar_uni), so a resize of even a single pixel can
+    // change where words break. Reflowing only when the character width
+    // changes leaves the layout stale for up to a cell's worth of pixels,
+    // and win_textbuffer_redraw then truncates the overhanging characters
+    // instead of wrapping them.
+    if (newwid != dwin->width || newpixwid != dwin->pixel_width) {
         dwin->width = newwid;
+        dwin->pixel_width = newpixwid;
         reflow(win);
     }
 

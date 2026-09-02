@@ -990,6 +990,10 @@ struct window_textbuffer_t {
     window_t *owner;
 
     int width = -1, height = -1;
+    // Pixel width available for text at the time of the last reflow; lines
+    // are wrapped at exact pixel widths, so this, not `width`, is what
+    // decides whether a resize invalidates the current layout.
+    std::optional<int> pixel_width;
     int spaced = 0;
     int dashed = 0;
 
