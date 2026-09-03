@@ -38,9 +38,11 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_OUTLINE_H
+#include FT_BITMAP_H
 #include FT_LCD_FILTER_H
 
 #ifdef _WIN32
+#define NOMINMAX
 #include <shlwapi.h>
 #include <windows.h>
 #endif
@@ -62,6 +64,8 @@ namespace {
 
 struct Bitmap {
     int w, h, lsb, top, pitch;
+    // True when data holds one byte per subpixel rather than per pixel.
+    bool lcd = false;
     std::vector<unsigned char> data;
 };
 
@@ -111,6 +115,7 @@ public:
 
 private:
     UniqueFace m_face;
+    bool m_monospace = false;
     bool m_make_bold = false;
     bool m_make_oblique = false;
     bool m_kerned = false;
@@ -188,6 +193,88 @@ static std::string convert_ft_error(FT_Error err, const std::string &basemsg)
 
 namespace {
 
+// Synthesized bold and italic are made by transforming the outline, which a
+// glyph that came from a bitmap doesn't have; the calls are no-ops on one. Do
+// it to the pixels instead. Each is what X itself did: bold is a double strike,
+// and italic a shear about the baseline.
+Bitmap embolden_bitmap(const Bitmap &bitmap)
+{
+    if (bitmap.w == 0 || bitmap.h == 0) {
+        return bitmap;
+    }
+
+    Bitmap bold = bitmap;
+    bold.w = bitmap.w + 1;
+    bold.pitch = bold.w;
+    bold.data.assign(static_cast<std::size_t>(bold.w) * bold.h, 0);
+
+    for (int y = 0; y < bitmap.h; y++) {
+        for (int x = 0; x < bitmap.w; x++) {
+            auto coverage = bitmap.data[y * bitmap.pitch + x];
+            auto &left = bold.data[y * bold.pitch + x];
+            auto &right = bold.data[y * bold.pitch + x + 1];
+            left = std::max(left, coverage);
+            right = std::max(right, coverage);
+        }
+    }
+
+    return bold;
+}
+
+Bitmap oblique_bitmap(const Bitmap &bitmap)
+{
+    if (bitmap.w == 0 || bitmap.h == 0) {
+        return bitmap;
+    }
+
+    // Rows above the baseline move right and rows below move left, by the
+    // same slope the oblique matrix applies to outlines.
+    auto shift = [&bitmap](int y) {
+        return static_cast<int>(std::lround((bitmap.top - y) * 0.1875));
+    };
+
+    int most = shift(0);
+    int least = shift(bitmap.h - 1);
+
+    Bitmap slanted = bitmap;
+    slanted.w = bitmap.w + (most - least);
+    slanted.pitch = slanted.w;
+    slanted.lsb = bitmap.lsb + least;
+    slanted.data.assign(static_cast<std::size_t>(slanted.w) * slanted.h, 0);
+
+    for (int y = 0; y < bitmap.h; y++) {
+        int offset = shift(y) - least;
+        for (int x = 0; x < bitmap.w; x++) {
+            slanted.data[y * slanted.pitch + offset + x] = bitmap.data[y * bitmap.pitch + x];
+        }
+    }
+
+    return slanted;
+}
+
+// Owns the target of FT_Bitmap_Convert, which must be released whether or not
+// anything was converted into it.
+class ConvertedBitmap {
+public:
+    ConvertedBitmap() {
+        FT_Bitmap_Init(&m_bitmap);
+    }
+
+    ~ConvertedBitmap() {
+        FT_Bitmap_Done(ftlib, &m_bitmap);
+    }
+
+    ConvertedBitmap(const ConvertedBitmap &) = delete;
+    ConvertedBitmap &operator=(const ConvertedBitmap &) = delete;
+
+    FT_Bitmap *get() {
+        return &m_bitmap;
+    }
+
+private:
+    FT_Bitmap m_bitmap;
+};
+
 FontEntry Font::getglyph(glui32 cid)
 {
     FT_Vector v;
@@ -196,22 +283,39 @@ FontEntry Font::getglyph(glui32 cid)
     FontEntry entry;
     std::size_t datasize;
 
+    bool antialias = m_monospace ? gli_conf_monoantialias : gli_conf_propantialias;
+
     gid = FT_Get_Char_Index(m_face.get(), cid);
     if (gid == 0) {
         throw std::out_of_range(Format("no glyph for {}", cid));
     }
 
     for (int x = 0; x < GLI_SUBPIX; x++) {
-        v.x = (x * 64) / GLI_SUBPIX;
+        // Keep aliased glyphs on the pixel grid.
+        v.x = antialias ? (x * 64) / GLI_SUBPIX : 0;
         v.y = 0;
 
         FT_Set_Transform(m_face.get(), nullptr, &v);
 
-        err = FT_Load_Glyph(m_face.get(), gid,
-                FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
+        // Prefer bitmap strikes for aliased text, unless the style must be synthesized.
+        bool use_strikes = !antialias && !m_make_bold && !m_make_oblique;
+
+        // Hint aliased outlines so stems and advances align to the pixel grid.
+        FT_Int32 load_flags = use_strikes ? FT_LOAD_DEFAULT : FT_LOAD_NO_BITMAP;
+        if (antialias) {
+            load_flags |= FT_LOAD_NO_HINTING;
+        } else {
+            load_flags |= FT_LOAD_TARGET_MONO;
+        }
+
+        err = FT_Load_Glyph(m_face.get(), gid, load_flags);
         if (err != 0) {
             throw std::runtime_error(convert_ft_error(err, "FT_Load_Glyph"));
         }
+
+        // A bitmap-only font ignores FT_LOAD_NO_BITMAP, so this can be a
+        // bitmap even where an outline was asked for.
+        bool from_bitmap = m_face->glyph->format == FT_GLYPH_FORMAT_BITMAP;
 
         if (m_make_bold) {
             FT_Outline_Embolden(&m_face->glyph->outline, FT_MulFix(m_face->units_per_EM, m_face->size->metrics.y_scale) / 24);
@@ -221,7 +325,9 @@ FontEntry Font::getglyph(glui32 cid)
             FT_Outline_Transform(&m_face->glyph->outline, &ftmat);
         }
 
-        if (gli_conf_lcd) {
+        if (!antialias) {
+            err = FT_Render_Glyph(m_face->glyph, FT_RENDER_MODE_MONO);
+        } else if (gli_conf_lcd) {
             if (use_freetype_preset_filter) {
                 FT_Library_SetLcdFilter(ftlib, freetype_preset_filter);
             } else {
@@ -237,15 +343,49 @@ FontEntry Font::getglyph(glui32 cid)
             throw std::runtime_error(convert_ft_error(err, "FT_Render_Glyph"));
         }
 
-        datasize = m_face->glyph->bitmap.pitch * m_face->glyph->bitmap.rows;
+        const FT_Bitmap *bitmap = &m_face->glyph->bitmap;
+
+        // Expand packed pixels to 8-bit coverage values; strikes are allowed
+        // 1, 2 or 4 bits per pixel, all of which pack several to the byte.
+        ConvertedBitmap converted;
+        int grays = 256;
+        if (bitmap->pixel_mode != FT_PIXEL_MODE_GRAY && bitmap->pixel_mode != FT_PIXEL_MODE_LCD) {
+            err = FT_Bitmap_Convert(ftlib, bitmap, converted.get(), 1);
+            if (err != 0) {
+                throw std::runtime_error(convert_ft_error(err, "FT_Bitmap_Convert"));
+            }
+
+            bitmap = converted.get();
+            grays = bitmap->num_grays;
+        }
+
         entry.adv = (m_face->glyph->advance.x * GLI_SUBPIX + 32) / 64;
 
         entry.glyph[x].lsb = m_face->glyph->bitmap_left;
         entry.glyph[x].top = m_face->glyph->bitmap_top;
-        entry.glyph[x].w = m_face->glyph->bitmap.width;
-        entry.glyph[x].h = m_face->glyph->bitmap.rows;
-        entry.glyph[x].pitch = m_face->glyph->bitmap.pitch;
-        entry.glyph[x].data.assign(&m_face->glyph->bitmap.buffer[0], &m_face->glyph->bitmap.buffer[datasize]);
+        entry.glyph[x].w = bitmap->width;
+        entry.glyph[x].h = bitmap->rows;
+        entry.glyph[x].lcd = bitmap->pixel_mode == FT_PIXEL_MODE_LCD;
+        entry.glyph[x].pitch = bitmap->pitch;
+
+        datasize = bitmap->pitch * bitmap->rows;
+        entry.glyph[x].data.assign(&bitmap->buffer[0], &bitmap->buffer[datasize]);
+
+        // Conversion widens the pixels but leaves the values in the source's
+        // range: 2 levels for monochrome, 4 and 16 for the packed gray formats.
+        if (grays != 256) {
+            for (auto &coverage : entry.glyph[x].data) {
+                coverage = coverage * 255 / (grays - 1);
+            }
+        }
+
+        if (from_bitmap && m_make_bold) {
+            entry.glyph[x] = embolden_bitmap(entry.glyph[x]);
+        }
+
+        if (from_bitmap && m_make_oblique) {
+            entry.glyph[x] = oblique_bitmap(entry.glyph[x]);
+        }
     }
 
     return entry;
@@ -375,7 +515,8 @@ static std::vector<Font> make_substitution_fonts(FontFace fontface)
 }
 
 Font::Font(FontFace fontface, UniqueFace face, const std::string &fontpath) :
-    m_face(std::move(face))
+    m_face(std::move(face)),
+    m_monospace(fontface.monospace)
 {
     int err = 0;
     double aspect, size;
@@ -763,7 +904,7 @@ int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb,
         int px = x / GLI_SUBPIX;
         int sx = x % GLI_SUBPIX;
 
-        if (gli_conf_lcd) {
+        if (glyphs[sx].lcd) {
             draw_bitmap_lcd_gamma(glyphs[sx], px, y, rgb);
         } else {
             draw_bitmap_gamma(glyphs[sx], px, y, rgb);

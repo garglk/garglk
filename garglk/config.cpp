@@ -245,6 +245,8 @@ int gli_scroll_width = 0;
 int gli_caret_shape = 2;
 bool gli_underline_hyperlinks = true;
 
+bool gli_conf_monoantialias = true;
+bool gli_conf_propantialias = true;
 bool gli_conf_lcd = true;
 std::array<unsigned char, 5> gli_conf_lcd_weights = {28, 56, 85, 56, 28};
 
@@ -783,6 +785,13 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             } else if (cmd == "windowcolor") {
                 parsecolor(arg, gli_window_color);
                 parsecolor(arg, gli_window_save);
+            } else if (cmd == "antialias") {
+                gli_conf_monoantialias = asbool(arg);
+                gli_conf_propantialias = asbool(arg);
+            } else if (cmd == "monoantialias") {
+                gli_conf_monoantialias = asbool(arg);
+            } else if (cmd == "propantialias") {
+                gli_conf_propantialias = asbool(arg);
             } else if (cmd == "lcd") {
                 gli_conf_lcd = asbool(arg);
             } else if (cmd == "lcdfilter") {
