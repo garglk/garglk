@@ -175,6 +175,17 @@ void show_game_info(const GameInfo &info, bool show_once);
 std::optional<GameInfo> get_game_info(std::string filename);
 std::string downcase(const std::string &string);
 bool fontreplace(const std::string &font, FontType type);
+
+// The reason is set only when matching fonts cannot be loaded.
+struct XFontResult {
+    enum class Status { Loaded, NoMatch, Unusable };
+
+    Status status;
+    std::string reason;
+};
+
+XFontResult fontreplace_x11(const std::string &xlfd, FontType type);
+bool x11_fonts_available();
 std::vector<ConfigFile> configs(const std::optional<std::string> &gamepath);
 void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, const std::function<void(const std::string &cmd, const std::string &arg, int lineno)> &callback);
 std::string user_config();
@@ -668,6 +679,8 @@ extern std::string gli_conf_propfont;
 extern FontFiles gli_conf_prop;
 extern std::string gli_conf_monofont;
 extern FontFiles gli_conf_mono;
+extern std::optional<std::string> gli_conf_propxfont;
+extern std::optional<std::string> gli_conf_monoxfont;
 
 extern double gli_conf_gamma;
 extern double gli_conf_propsize;
