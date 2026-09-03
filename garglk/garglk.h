@@ -1090,6 +1090,9 @@ struct window_textbuffer_t {
 
     // Selected range within the current line input, inclusive.
     std::optional<std::pair<int, int>> input_selection;
+
+    // Keyboard selection anchor; incurs is the other end.
+    std::optional<long> input_anchor;
 };
 
 struct window_graphics_t {
@@ -1129,7 +1132,7 @@ extern void win_blank_redraw(window_t *win);
 
 extern void win_pair_rearrange(window_t *win, const rect_t *box);
 extern void win_pair_redraw(window_t *win);
-extern void win_pair_click(window_pair_t *dwin, int x, int y);
+extern void win_pair_click(window_pair_t *dwin, int x, int y, int clicks);
 
 extern void win_textgrid_rearrange(window_t *win, rect_t *box);
 extern void win_textgrid_redraw(window_t *win);
@@ -1152,8 +1155,10 @@ extern void win_textbuffer_clear(window_t *win);
 extern void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen);
 extern void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int initlen);
 extern void win_textbuffer_cancel_line(window_t *win, event_t *ev);
-extern void win_textbuffer_click(window_textbuffer_t *dwin, int x, int y);
+extern void win_textbuffer_click(window_textbuffer_t *dwin, int x, int y, int clicks);
 extern bool win_textbuffer_pages(window_t *win);
+extern void win_textbuffer_store_selection(window_textbuffer_t *dwin);
+extern void win_textbuffer_delete_selection(window_textbuffer_t *dwin);
 extern void gcmd_buffer_accept_readchar(window_t *win, glui32 arg);
 extern void gcmd_buffer_accept_readline(window_t *win, glui32 arg);
 extern bool gcmd_accept_scroll(window_t *win, glui32 arg);
@@ -1177,14 +1182,14 @@ extern void gli_windows_redraw();
 extern void gli_windows_size_change(int w, int h, bool post_arrange_event);
 extern void gli_windows_unechostream(stream_t *str);
 
-extern void gli_window_click(window_t *win, int x, int y);
-extern void gli_windows_click(int x, int y);
+extern void gli_window_click(window_t *win, int x, int y, int clicks);
+extern void gli_windows_click(int x, int y, int clicks);
 
 void gli_redraw_rect(int x0, int y0, int x1, int y1);
 
 void gli_input_handle_key(glui32 key);
 void gli_input_handle_key_paste(glui32 key);
-void gli_input_handle_click(int x, int y);
+void gli_input_handle_click(int x, int y, int clicks);
 void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2);
 
 extern stream_t *gli_new_stream(int type, int readable, int writable,
@@ -1271,15 +1276,25 @@ glui32 gli_parse_utf8(const unsigned char *buf, glui32 buflen, glui32 *out, glui
 
 glui32 gli_strlen_uni(const glui32 *s);
 
+enum class SelectionGranularity {
+    Character,
+    Word,
+    Line,
+};
+
 void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1);
 glui32 gli_get_hyperlink(int x, int y);
 extern bool gli_overlays_used;
 void gli_clear_selection();
 bool gli_selection_active();
+void gli_store_input_selection();
+void gli_delete_input_selection();
 bool gli_check_selection(int x0, int y0, int x1, int y1);
 bool gli_get_selection(int x0, int y0, int x1, int y1, int *rx0, int *rx1);
 void gli_clipboard_copy(const std::vector<glui32> &buf);
 void gli_start_selection(int x, int y);
+void gli_click_selection(int x, int y, SelectionGranularity granularity);
+SelectionGranularity gli_selection_granularity();
 void gli_resize_mask(unsigned int x, unsigned int y);
 void gli_move_selection(int x, int y);
 void gli_notification_waiting();

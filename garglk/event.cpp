@@ -201,9 +201,9 @@ void gli_input_handle_key_paste(glui32 key)
     gli_input_handle_key(key, true);
 }
 
-void gli_input_handle_click(int x, int y)
+void gli_input_handle_click(int x, int y, int clicks)
 {
-    gli_windows_click(x, y);
+    gli_windows_click(x, y, clicks);
 }
 
 static void gli_select_or_poll(event_t *event, bool polled)

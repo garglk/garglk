@@ -2,11 +2,13 @@
 #define GARGLK_SYSQT_H
 
 #include <QCloseEvent>
+#include <QElapsedTimer>
 #include <QKeyEvent>
 #include <QMainWindow>
 #include <QMouseEvent>
 #include <QMoveEvent>
 #include <QPaintEvent>
+#include <QPoint>
 #include <QResizeEvent>
 #include <QSettings>
 #include <QShowEvent>
@@ -36,11 +38,17 @@ protected:
     void keyPressEvent(QKeyEvent *) override;
     void mouseMoveEvent(QMouseEvent *) override;
     void mousePressEvent(QMouseEvent *) override;
+    void mouseDoubleClickEvent(QMouseEvent *) override;
     void mouseReleaseEvent(QMouseEvent *) override;
     void wheelEvent(QWheelEvent *) override;
 
 private:
+    int count_click(const QPoint &pos);
+
     bool m_fullscreen_from_maximized = false;
+    QElapsedTimer m_click_timer;
+    QPoint m_click_pos;
+    int m_clicks = 0;
 };
 
 class Window : public QMainWindow {

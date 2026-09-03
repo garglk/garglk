@@ -212,7 +212,7 @@ void win_pair_redraw(window_t *win)
     }
 }
 
-void win_pair_click(window_pair_t *dwin, int x, int y)
+void win_pair_click(window_pair_t *dwin, int x, int y, int clicks)
 {
     int x0, y0, x1, y1;
 
@@ -227,7 +227,7 @@ void win_pair_click(window_pair_t *dwin, int x, int y)
         x1 = dwin->child1->bbox.x1;
         y1 = dwin->child1->bbox.y1;
         if (x >= x0 && x < x1 && y >= y0 && y < y1) {
-            gli_window_click(dwin->child1, x, y);
+            gli_window_click(dwin->child1, x, y, clicks);
         }
     }
 
@@ -237,7 +237,7 @@ void win_pair_click(window_pair_t *dwin, int x, int y)
         x1 = dwin->child2->bbox.x1;
         y1 = dwin->child2->bbox.y1;
         if (x >= x0 && x < x1 && y >= y0 && y < y1) {
-            gli_window_click(dwin->child2, x, y);
+            gli_window_click(dwin->child2, x, y, clicks);
         }
     }
 }

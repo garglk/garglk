@@ -550,11 +550,17 @@ void garglk::View::keyPressEvent(QKeyEvent *event)
     refresh_needed = true;
 
     static const std::map<QKeySequence::StandardKey, std::function<void()>> sequences = {
-        {QKeySequence::Cut,                []{ winclipsend(QClipboard::Clipboard); }},
-        {QKeySequence::Copy,               []{ winclipsend(QClipboard::Clipboard); }},
+        {QKeySequence::Cut,                []{ gli_store_input_selection(); winclipsend(QClipboard::Clipboard); gli_delete_input_selection(); }},
+        {QKeySequence::Copy,               []{ gli_store_input_selection(); winclipsend(QClipboard::Clipboard); }},
         {QKeySequence::Paste,              []{ winclipreceive(QClipboard::Clipboard); }},
         {QKeySequence::MoveToPreviousWord, []{ gli_input_handle_key(keycode_SkipWordLeft); }},
         {QKeySequence::MoveToNextWord,     []{ gli_input_handle_key(keycode_SkipWordRight); }},
+        {QKeySequence::SelectPreviousChar, []{ gli_input_handle_key(keycode_SelectLeft); }},
+        {QKeySequence::SelectNextChar,     []{ gli_input_handle_key(keycode_SelectRight); }},
+        {QKeySequence::SelectPreviousWord, []{ gli_input_handle_key(keycode_SelectWordLeft); }},
+        {QKeySequence::SelectNextWord,     []{ gli_input_handle_key(keycode_SelectWordRight); }},
+        {QKeySequence::SelectStartOfLine,  []{ gli_input_handle_key(keycode_SelectHome); }},
+        {QKeySequence::SelectEndOfLine,    []{ gli_input_handle_key(keycode_SelectEnd); }},
         {QKeySequence::DeleteStartOfWord,  []{ gli_input_handle_key(keycode_DeleteWordLeft); }},
         {QKeySequence::DeleteEndOfWord,    []{ gli_input_handle_key(keycode_DeleteWordRight); }},
         {QKeySequence::Quit,               []{ gli_exit(0); }},
@@ -715,6 +721,23 @@ void garglk::View::mouseMoveEvent(QMouseEvent *event)
     event->accept();
 }
 
+// Qt reports the third click as an ordinary press, so count it here.
+int garglk::View::count_click(const QPoint &pos)
+{
+    if (m_click_timer.isValid()
+            && !m_click_timer.hasExpired(QApplication::doubleClickInterval())
+            && (pos - m_click_pos).manhattanLength() <= QApplication::startDragDistance()) {
+        m_clicks = std::min(m_clicks + 1, 3);
+    } else {
+        m_clicks = 1;
+    }
+
+    m_click_timer.restart();
+    m_click_pos = pos;
+
+    return m_clicks;
+}
+
 void garglk::View::mousePressEvent(QMouseEvent *event)
 {
     // Mouse events report **logical** pixel coordinates
@@ -724,12 +747,18 @@ void garglk::View::mousePressEvent(QMouseEvent *event)
     double dpr = devicePixelRatioF();
 
     if (event->button() == Qt::LeftButton) {
-        gli_input_handle_click(std::round(event->pos().x() * dpr), std::round(event->pos().y() * dpr));
+        gli_input_handle_click(std::round(event->pos().x() * dpr), std::round(event->pos().y() * dpr),
+                count_click(event->pos()));
     } else if (event->button() == Qt::MiddleButton) {
         winclipreceive(QClipboard::Selection);
     }
 
     event->accept();
+}
+
+void garglk::View::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    mousePressEvent(event);
 }
 
 void garglk::View::mouseReleaseEvent(QMouseEvent *event)
