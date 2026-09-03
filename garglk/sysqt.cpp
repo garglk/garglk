@@ -406,7 +406,7 @@ void garglk::View::inputMethodEvent(QInputMethodEvent *event)
 
 void garglk::View::refresh()
 {
-    if (!gli_drawselect) {
+    if (!gli_drawselect || gli_force_redraw) {
         gli_windows_redraw();
     } else {
         gli_drawselect = false;
