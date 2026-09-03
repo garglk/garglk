@@ -555,6 +555,8 @@ void garglk::View::keyPressEvent(QKeyEvent *event)
         {QKeySequence::Paste,              []{ winclipreceive(QClipboard::Clipboard); }},
         {QKeySequence::MoveToPreviousWord, []{ gli_input_handle_key(keycode_SkipWordLeft); }},
         {QKeySequence::MoveToNextWord,     []{ gli_input_handle_key(keycode_SkipWordRight); }},
+        {QKeySequence::DeleteStartOfWord,  []{ gli_input_handle_key(keycode_DeleteWordLeft); }},
+        {QKeySequence::DeleteEndOfWord,    []{ gli_input_handle_key(keycode_DeleteWordRight); }},
         {QKeySequence::Quit,               []{ gli_exit(0); }},
         {QKeySequence::Delete,             []{ gli_input_handle_key(keycode_Erase); }},
         {QKeySequence::MoveToStartOfLine,  []{ gli_input_handle_key(keycode_Home); }},
@@ -571,9 +573,12 @@ void garglk::View::keyPressEvent(QKeyEvent *event)
         {{RealCtrl, Qt::Key_E}, []{ gli_input_handle_key(keycode_End); }},
         {{RealCtrl, Qt::Key_F}, []{ gli_input_handle_key(keycode_Right); }},
         {{RealCtrl, Qt::Key_H}, []{ gli_input_handle_key(keycode_Delete); }},
+        {{RealCtrl, Qt::Key_K}, []{ gli_input_handle_key(keycode_KillLine); }},
         {{RealCtrl, Qt::Key_N}, []{ gli_input_handle_key(keycode_Down); }},
         {{RealCtrl, Qt::Key_P}, []{ gli_input_handle_key(keycode_Up); }},
         {{RealCtrl, Qt::Key_U}, []{ gli_input_handle_key(keycode_Escape); }},
+        {{RealCtrl, Qt::Key_W}, []{ gli_input_handle_key(keycode_DeleteWordLeft); }},
+        {{RealCtrl, Qt::Key_Y}, []{ gli_input_handle_key(keycode_Yank); }},
 
 #ifdef Q_OS_WIN
         // Qt doesn't assign Ctrl-Q to QKeySequence::Quit on Windows.

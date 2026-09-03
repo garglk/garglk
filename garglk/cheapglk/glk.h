@@ -580,6 +580,10 @@ extern glui32 garglk_add_resource_from_file(glui32 usage, const char *filename, 
 #define keycode_MouseWheelDown      (0xffffefff)
 #define keycode_SkipWordLeft        (0xfffff000)
 #define keycode_SkipWordRight       (0xfffff001)
+#define keycode_DeleteWordLeft      (0xfffff002)
+#define keycode_DeleteWordRight     (0xfffff003)
+#define keycode_KillLine            (0xfffff004)
+#define keycode_Yank                (0xfffff005)
 
 #ifdef __cplusplus
 }

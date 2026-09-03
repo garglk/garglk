@@ -42,13 +42,16 @@
 #define NSKEY_E         0x0e
 #define NSKEY_F         0x03
 #define NSKEY_H         0x04
+#define NSKEY_K         0x28
 #define NSKEY_N         0x2d
 #define NSKEY_P         0x23
 #define NSKEY_S         0x01
 #define NSKEY_T         0x11
 #define NSKEY_U         0x20
 #define NSKEY_V         0x09
+#define NSKEY_W         0x0d
 #define NSKEY_X         0x07
+#define NSKEY_Y         0x10
 
 #define NSKEY_PERIOD    0x2f
 
