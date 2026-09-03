@@ -10,7 +10,7 @@ set -eux
 # -m: Build both x86_64 and ARM DMG on Mac.
 # -n: Notarize the resulting binary (Mac only).
 # -w: Build Windows releases. MSVC is used for x86_64 and aarch64
-#     (Qt 6, FrankenDrift), MinGW for i686 and armv7 (Qt 5).
+#     (Qt 6), MinGW for i686 and armv7 (Qt 5).
 
 fatal() {
     echo "${@}" >&2
@@ -57,9 +57,9 @@ then
     fi
 
     rm -rf Gargoyle.app Gargoyle-x86_64.app
-    PATH=/usr/local/bin:$PATH ./gargoyle_osx.sh -cfn
+    PATH=/usr/local/bin:$PATH ./gargoyle_osx.sh -cn
     mv Gargoyle.app Gargoyle-x86_64.app
-    PATH=/opt/homebrew/bin:$PATH ./gargoyle_osx.sh -cfn
+    PATH=/opt/homebrew/bin:$PATH ./gargoyle_osx.sh -cn
 
     binaries=(Gargoyle.app/Contents/Frameworks/*.dylib Gargoyle.app/Contents/PlugIns/* Gargoyle.app/Contents/MacOS/Gargoyle)
 

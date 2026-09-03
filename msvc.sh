@@ -19,8 +19,10 @@ set -ex
 # x86_64
 # aarch64
 #
-# FrankenDrift and SCARE are built by default for ADRIFT games. To build
-# SCARIER (ADRIFT 3.8, 3.9, 4, and 5) instead of both, pass the -s flag.
+# Scarier is built by default, handling ADRIFT 3.8, 3.9, 4, and 5. To
+# additionally build Scare and use it for ADRIFT 4 and earlier, pass the
+# -s flag; to additionally build FrankenDrift and use it for ADRIFT 5,
+# pass the -f flag.
 
 . "$(dirname "$0")/libwin.sh"
 
@@ -30,11 +32,10 @@ fatal() {
 }
 
 GARGOYLE_QT_HOME=""
-GARGOYLE_FRANKENDRIFT="ON"
-GARGOYLE_SCARE="ON"
-GARGOYLE_SCARIER="OFF"
+GARGOYLE_FRANKENDRIFT="OFF"
+GARGOYLE_SCARE="OFF"
 
-while getopts "a:cQ:s" o
+while getopts "a:cfQ:s" o
 do
     case "${o}" in
         a)
@@ -43,16 +44,17 @@ do
         c)
             GARGOYLE_CLEAN=1
             ;;
+        f)
+            GARGOYLE_FRANKENDRIFT="ON"
+            ;;
         Q)
             GARGOYLE_QT_HOME="${OPTARG}"
             ;;
         s)
-            GARGOYLE_FRANKENDRIFT="OFF"
-            GARGOYLE_SCARE="OFF"
-            GARGOYLE_SCARIER="ON"
+            GARGOYLE_SCARE="ON"
             ;;
         *)
-            fatal "Usage: $0 [-a x86_64|aarch64] [-cs] [-Q /path/to/Qt]"
+            fatal "Usage: $0 [-a x86_64|aarch64] [-cfs] [-Q /path/to/Qt]"
             ;;
     esac
 done
@@ -102,7 +104,7 @@ nproc=$(getconf _NPROCESSORS_ONLN)
 (
 mkdir build-msvc
 cd build-msvc
-cmake .. "${cmake_qt_args[@]}" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${toolchain}" -DSOUND=QT -DWITH_BUNDLED_FMT=ON -DDIST_INSTALL=ON -DWITH_FRANKENDRIFT="${GARGOYLE_FRANKENDRIFT}" -DWITH_SCARE="${GARGOYLE_SCARE}" -DWITH_SCARIER="${GARGOYLE_SCARIER}"
+cmake .. "${cmake_qt_args[@]}" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${toolchain}" -DSOUND=QT -DWITH_BUNDLED_FMT=ON -DDIST_INSTALL=ON -DWITH_FRANKENDRIFT="${GARGOYLE_FRANKENDRIFT}" -DWITH_SCARE="${GARGOYLE_SCARE}"
 make -j${nproc}
 make install
 )

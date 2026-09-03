@@ -70,8 +70,11 @@ if(UNIX AND NOT DIST_INSTALL)
     endif()
 endif()
 
+# These two are declared here rather than in terps/ because the launcher needs
+# to know whether they were built: each takes precedence over Scarier for the
+# ADRIFT format it handles.
+option(WITH_SCARE "Build the SCARE interpreter (ADRIFT 3.8, 3.9, and 4)" OFF)
 option(WITH_FRANKENDRIFT "Build the FrankenDrift interpreter for ADRIFT 5 games (requires the .NET 8 SDK)" OFF)
-option(WITH_SCARIER "Build the SCARIER interpreter (ADRIFT 3.8, 3.9, 4, and 5)" OFF)
 add_subdirectory(garglk)
 
 if(WITH_FRANKENDRIFT AND NOT BUILD_SHARED_LIBS)
@@ -91,5 +94,4 @@ if(WITH_BABEL)
 endif()
 
 include(FeatureSummary)
-add_feature_info(FrankenDrift WITH_FRANKENDRIFT "the FrankenDrift interpreter for ADRIFT 5 games")
 feature_summary(WHAT ALL)

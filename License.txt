@@ -27,6 +27,8 @@ Magnetic is copyright (c) Niclas Karlsson, David Kinder, Stefan Meier and Paul D
 
 SCARE is copyright (c) Simon Baldwin. It is released under the terms of the GNU General Public License.
 
+SCARIER is copyright (c) Simon Baldwin, Mark J. Tilford and Petter Sjolund. It is released under the terms of the GNU General Public License.
+
 ScottFree is copyright (c) Alan Cox. It is released under the terms of the GNU General Public License.
 
 TADS is copyright (c) Michael J. Roberts. It is released under the terms of the GNU General Public License.
