@@ -734,6 +734,10 @@ void winkey(NSEvent *evt)
         {{NSEventModifierFlagOption, NSKEY_DOWN},  []{ gli_input_handle_key(keycode_PageDown); }},
         {{NSEventModifierFlagOption, NSKEY_UP},    []{ gli_input_handle_key(keycode_PageUp); }},
 
+        // alt/option modified delete key
+        {{NSEventModifierFlagOption, NSKEY_BACK}, []{ gli_input_handle_key(keycode_DeleteWordLeft); }},
+        {{NSEventModifierFlagOption, NSKEY_DEL},  []{ gli_input_handle_key(keycode_DeleteWordRight); }},
+
         // command modified arrow key
         {{NSEventModifierFlagCommand, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_Home); }},
         {{NSEventModifierFlagCommand, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_End); }},
@@ -762,9 +766,12 @@ void winkey(NSEvent *evt)
         {{NSEventModifierFlagControl, NSKEY_E}, []{ gli_input_handle_key(keycode_End); }},
         {{NSEventModifierFlagControl, NSKEY_F}, []{ gli_input_handle_key(keycode_Right); }},
         {{NSEventModifierFlagControl, NSKEY_H}, []{ gli_input_handle_key(keycode_Delete); }},
+        {{NSEventModifierFlagControl, NSKEY_K}, []{ gli_input_handle_key(keycode_KillLine); }},
         {{NSEventModifierFlagControl, NSKEY_N}, []{ gli_input_handle_key(keycode_Down); }},
         {{NSEventModifierFlagControl, NSKEY_P}, []{ gli_input_handle_key(keycode_Up); }},
         {{NSEventModifierFlagControl, NSKEY_U}, []{ gli_input_handle_key(keycode_Escape); }},
+        {{NSEventModifierFlagControl, NSKEY_W}, []{ gli_input_handle_key(keycode_DeleteWordLeft); }},
+        {{NSEventModifierFlagControl, NSKEY_Y}, []{ gli_input_handle_key(keycode_Yank); }},
 
         // unmodified key for line editing
         {{0, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_Left); }},

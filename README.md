@@ -180,6 +180,18 @@ In addition, Gargoyle supports many readline/Emacs-style line-editor bindings:
 * `Ctrl`+`e`: Go to the end of the line.
 * `Ctrl`+`f`: Move the cursor to the right.
 * `Ctrl`+`h`: Erase the character to the left of the cursor.
+* `Ctrl`+`k`: Erase from the cursor to the end of the line.
 * `Ctrl`+`n`: Next history entry.
 * `Ctrl`+`p`: Previous history entry.
 * `Ctrl`+`u`: Erase entire line.
+* `Ctrl`+`w`: Erase the word to the left of the cursor.
+* `Ctrl`+`y`: Re-insert the text erased by the most recent `Ctrl`+`k`,
+  `Ctrl`+`u`, or word deletion.
+
+Word-at-a-time editing follows the platform's own conventions, using `Ctrl` on
+Windows and Unix, and `Option` on Mac:
+
+* `Ctrl`/`Option`+`Left`: Move the cursor to the previous word.
+* `Ctrl`/`Option`+`Right`: Move the cursor to the next word.
+* `Ctrl`/`Option`+`Backspace`: Erase the word to the left of the cursor.
+* `Ctrl`/`Option`+`Delete`: Erase the word to the right of the cursor.

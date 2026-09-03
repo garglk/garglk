@@ -1600,6 +1600,49 @@ static void acceptline(window_t *win, glui32 keycode)
     }
 }
 
+// Start of the word to the left of the cursor.
+static long word_left(const window_textbuffer_t *dwin)
+{
+    long pos = dwin->incurs;
+
+    while (pos > dwin->infence && dwin->chars[pos - 1] == ' ') {
+        pos--;
+    }
+    while (pos > dwin->infence && dwin->chars[pos - 1] != ' ') {
+        pos--;
+    }
+
+    return pos;
+}
+
+// End of the word to the right of the cursor.
+static long word_right(const window_textbuffer_t *dwin)
+{
+    long pos = dwin->incurs;
+
+    while (pos < dwin->numchars && dwin->chars[pos] != ' ') {
+        pos++;
+    }
+    while (pos < dwin->numchars && dwin->chars[pos] == ' ') {
+        pos++;
+    }
+
+    return pos;
+}
+
+// Text most recently removed by a kill command, restored by keycode_Yank.
+static std::vector<glui32> killbuf;
+
+static void kill_text(window_textbuffer_t *dwin, long start, long end)
+{
+    if (start >= end) {
+        return;
+    }
+
+    killbuf.assign(&dwin->chars[start], &dwin->chars[end]);
+    put_text_uni(dwin, nullptr, 0, start, end - start);
+}
+
 // Delete a completed selection confined to the current line input. The
 // deletion clears the selection by way of touch(), so the same range
 // cannot be deleted twice.
@@ -1747,6 +1790,18 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
 
     // Delete keys, during line input.
 
+    case keycode_DeleteWordLeft:
+        kill_text(dwin, word_left(dwin), dwin->incurs);
+        break;
+
+    case keycode_DeleteWordRight:
+        kill_text(dwin, dwin->incurs, word_right(dwin));
+        break;
+
+    case keycode_KillLine:
+        kill_text(dwin, dwin->incurs, dwin->numchars);
+        break;
+
     case keycode_Delete:
         if (delete_input_selection(dwin)) {
             break;
@@ -1771,8 +1826,22 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
         if (dwin->infence >= dwin->numchars) {
             return;
         }
-        put_text_uni(dwin, nullptr, 0, dwin->infence, dwin->numchars - dwin->infence);
+        kill_text(dwin, dwin->infence, dwin->numchars);
         break;
+
+    case keycode_Yank: {
+        if (killbuf.empty()) {
+            return;
+        }
+        delete_input_selection(dwin);
+        int avail = dwin->inmax - (dwin->numchars - dwin->infence);
+        int len = std::min<int>(killbuf.size(), avail);
+        if (len <= 0) {
+            return;
+        }
+        put_text_uni(dwin, killbuf.data(), len, dwin->incurs, 0);
+        break;
+    }
 
     // Regular keys
 
