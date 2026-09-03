@@ -4,8 +4,9 @@
 # Prerequisites:
 #  - rpm-build, make and gcc (as it's a c file) packages must be installed
 #
-# SCARE is built by default for ADRIFT games. To build SCARIER (ADRIFT
-# 3.8, 3.9, 4, and 5) instead, pass the -s flag.
+# Scarier is built by default, handling ADRIFT 3.8, 3.9, 4, and 5. To
+# additionally build Scare and use it for ADRIFT 4 and earlier, pass the
+# -s flag.
 
 set -e
 
@@ -15,10 +16,8 @@ fatal() {
 }
 
 frankendrift="OFF"
-scare="ON"
-scare_spec="%{_libexecdir}/gargoyle/scare"
-scarier="OFF"
-scarier_spec=
+scare="OFF"
+scare_spec=
 
 while getopts "fs" o
 do
@@ -28,10 +27,8 @@ do
             frankendrift="ON"
             ;;
         s)
-            scare="OFF"
-            scare_spec=
-            scarier="ON"
-            scarier_spec="%{_libexecdir}/gargoyle/scarier"
+            scare="ON"
+            scare_spec="%{_libexecdir}/gargoyle/scare"
             ;;
         *)
             fatal "Usage: $0 [-fs]"
@@ -51,7 +48,7 @@ PKG_DIR=/tmp/${PKG_NAME}
 #Build Gargoyle
 mkdir build-rpm
 pushd build-rpm
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DWITH_FRANKENDRIFT="${frankendrift}" -DWITH_SCARE="${scare}" -DWITH_SCARIER="${scarier}"
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DWITH_FRANKENDRIFT="${frankendrift}" -DWITH_SCARE="${scare}"
 make -j$(nproc)
 make install DESTDIR=${PKG_DIR}
 popd
@@ -107,8 +104,8 @@ ${frankendrift_spec}
 %{_libexecdir}/gargoyle/git
 %{_libexecdir}/gargoyle/alan2
 %{_libexecdir}/gargoyle/glulxe
+%{_libexecdir}/gargoyle/scarier
 ${scare_spec}
-${scarier_spec}
 %{_libexecdir}/gargoyle/alan3
 %{_libexecdir}/gargoyle/hugo
 %{_libexecdir}/gargoyle/plus

@@ -8,8 +8,9 @@
 # this is also provded by QTads. Build with the -t flag to avoid
 # installation of this icon.
 #
-# SCARE is built by default for ADRIFT games. To build SCARIER (ADRIFT
-# 3.8, 3.9, 4, and 5) instead, pass the -s flag.
+# Scarier is built by default, handling ADRIFT 3.8, 3.9, 4, and 5. To
+# additionally build Scare and use it for ADRIFT 4 and earlier, pass the
+# -s flag.
 
 set -e
 
@@ -19,8 +20,7 @@ fatal() {
 }
 
 frankendrift="OFF"
-scare="ON"
-scarier="OFF"
+scare="OFF"
 
 while getopts "fst" o
 do
@@ -29,8 +29,7 @@ do
             frankendrift="ON"
             ;;
         s)
-            scare="OFF"
-            scarier="ON"
+            scare="ON"
             ;;
         t)
             NO_TADS_ICON=1
@@ -54,7 +53,7 @@ PKG_DEB_ROOT=${DEB_ROOT_DIR}/${PKG_NAME}/debian
 #Build Gargoyle
 mkdir build-debian
 pushd build-debian
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DQT_VERSION=5 -DWITH_FRANKENDRIFT="${frankendrift}" -DWITH_SCARE="${scare}" -DWITH_SCARIER="${scarier}"
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DQT_VERSION=5 -DWITH_FRANKENDRIFT="${frankendrift}" -DWITH_SCARE="${scare}"
 make -j$(nproc)
 make install DESTDIR=${PKG_DIR}
 popd
@@ -114,7 +113,7 @@ Description: graphical player for Interactive Fiction games
  IF you wanted to play. Instead, Gargoyle provides unified player.
  .
  Gargoyle is based on the standard interpreters for the formats it
- supports: .taf (Adrift games, played with Scare), .dat (AdvSys),
+ supports: .taf (Adrift games, played with Scarier), .dat (AdvSys),
  *.agx/.d$$ (AGiliTy), .a3c (Alan3), .jacl/.j2 (JACL), .l9/.sna (Level
  9), .mag (Magnetic), *.saga (Scott Adams Grand Adventures), .gam/.t3
  (TADS), *.z1/.z2/.z3/.z4/.z5/.z6/.z7/.z8/.zlb/.zblorb (Inform

@@ -15,8 +15,9 @@ set -ex
 # Images are loaded via Qt by default. To use system image libraries
 # (libpng/libturbojpeg) instead, pass the -i flag.
 #
-# SCARE is built by default for ADRIFT games. To build SCARIER (ADRIFT
-# 3.8, 3.9, 4, and 5) instead, pass the -s flag.
+# Scarier is built by default, handling ADRIFT 3.8, 3.9, 4, and 5. To
+# additionally build Scare and use it for ADRIFT 4 and earlier, pass the
+# -s flag.
 #
 # Sound uses Qt by default. To use SDL2 instead, pass the -2 flag; to
 # use SDL3, pass the -3 flag.
@@ -49,8 +50,7 @@ QT_VERSION="6"
 GARGOYLE_SOUND="QT"
 GARGOYLE_IMAGES="QT"
 GARGOYLE_QT_HOME=""
-GARGOYLE_SCARE="ON"
-GARGOYLE_SCARIER="OFF"
+GARGOYLE_SCARE="OFF"
 
 while getopts "235a:cgiQ:s" o
 do
@@ -80,8 +80,7 @@ do
             GARGOYLE_QT_HOME="${OPTARG}"
             ;;
         s)
-            GARGOYLE_SCARE="OFF"
-            GARGOYLE_SCARIER="ON"
+            GARGOYLE_SCARE="ON"
             ;;
         *)
             fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-235cgis] [-Q /path/to/Qt]"
@@ -136,7 +135,7 @@ mkdir build-mingw
 
 (
 cd build-mingw
-env MINGW_TRIPLE=${target} MINGW_LOCATION=${mingw_location} cmake .. ${CMAKE_QT6} -DCMAKE_TOOLCHAIN_FILE=../Toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DSOUND=${GARGOYLE_SOUND} -DIMAGES=${GARGOYLE_IMAGES} -DQT_VERSION=${QT_VERSION} -DWITH_SCARE=${GARGOYLE_SCARE} -DWITH_SCARIER=${GARGOYLE_SCARIER} -DDIST_INSTALL=ON
+env MINGW_TRIPLE=${target} MINGW_LOCATION=${mingw_location} cmake .. ${CMAKE_QT6} -DCMAKE_TOOLCHAIN_FILE=../Toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DSOUND=${GARGOYLE_SOUND} -DIMAGES=${GARGOYLE_IMAGES} -DQT_VERSION=${QT_VERSION} -DWITH_SCARE=${GARGOYLE_SCARE} -DDIST_INSTALL=ON
 make -j${nproc}
 make install
 )

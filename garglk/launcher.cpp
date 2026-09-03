@@ -42,16 +42,20 @@
 #include "garglk.h"
 #include "launcher.h"
 
-#ifdef WITH_SCARIER
-#define T_ADRIFT    "scarier"
-#define T_ADRIFT5   "scarier"
-#else
+// Scarier handles both ADRIFT 4 and ADRIFT 5, so it's what these
+// default to. Scare and FrankenDrift each handle just one of the two, so
+// if either was built it was asked for specifically, and it wins for the
+// format it covers.
+#ifdef WITH_SCARE
 #define T_ADRIFT    "scare"
-#define T_ADRIFT5   "FrankenDrift.GlkRunner.Gargoyle"
+#else
+#define T_ADRIFT    "scarier"
 #endif
 
-#if defined(WITH_SCARIER) || defined(WITH_FRANKENDRIFT)
-#define HAVE_ADRIFT5
+#ifdef WITH_FRANKENDRIFT
+#define T_ADRIFT5   "FrankenDrift.GlkRunner.Gargoyle"
+#else
+#define T_ADRIFT5   "scarier"
 #endif
 
 #define T_ADVSYS    "advsys"
@@ -167,9 +171,7 @@ static const std::unordered_map<std::string, Format> extensions = {
 // Map formats to default interpreters
 static const std::unordered_map<Format, Interpreter> interpreters = {
     {Format::Adrift, Interpreter(T_ADRIFT)},
-#ifdef HAVE_ADRIFT5
     {Format::Adrift5, Interpreter(T_ADRIFT5)},
-#endif
     {Format::AdvSys, Interpreter(T_ADVSYS)},
     {Format::AGT, Interpreter(T_AGT, {"-gl"})},
     {Format::Alan2, Interpreter(T_ALAN2)},
@@ -207,15 +209,8 @@ static bool call_winterp(Format format, const std::string &game)
 
         return call_winterp(interpreter, game);
     } catch (const std::out_of_range &) {
-#ifndef HAVE_ADRIFT5
-        if (format == Format::Adrift5) {
-            garglk::winmsg("Adrift 5 games are not supported by this build of Gargoyle");
-            return false;
-        }
-#endif
-
-        // This should never occur: apart from Adrift 5, handled above,
-        // all known game formats always have interpreters.
+        // This should never occur: all known game formats always have
+        // interpreters.
         garglk::winmsg("This game type is not supported");
         return false;
     }

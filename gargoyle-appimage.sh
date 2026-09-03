@@ -12,8 +12,7 @@ fatal() {
 }
 
 frankendrift="OFF"
-scare="ON"
-scarier="OFF"
+scare="OFF"
 
 while getopts "cfs" o
 do
@@ -25,8 +24,7 @@ do
             frankendrift="ON"
             ;;
         s)
-            scare="OFF"
-            scarier="ON"
+            scare="ON"
             ;;
         *)
             fatal "Usage: $0 [-cfs]"
@@ -44,7 +42,7 @@ https://github.com/garglk/assets/raw/appimage/linuxdeploy-plugin-appimage-x86_64
 https://github.com/garglk/assets/raw/appimage/linuxdeploy-plugin-qt-x86_64.AppImage
 EOF
 chmod +x linuxdeploy*
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DAPPIMAGE=TRUE -DWITH_FRANKENDRIFT="${frankendrift}" -DWITH_SCARE="${scare}" -DWITH_SCARIER="${scarier}"
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DAPPIMAGE=TRUE -DWITH_FRANKENDRIFT="${frankendrift}" -DWITH_SCARE="${scare}"
 make "-j$(nproc)"
 make install DESTDIR=AppDir
 
