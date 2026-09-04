@@ -424,6 +424,27 @@ Releases are created with the `windows.sh` script, which builds Gargoyle with
 MinGW and then creates an installer via the `install.nsi` file. This uses the
 Nullsoft Scriptable Install System, which is available for Linux.
 
+### Cross-compiling the MinGW build with Docker
+
+The `gargoyle_docker_mingw.sh` script cross-compiles Gargoyle for Windows using
+the provided `Dockerfile` (LLVM MinGW and Qt 6 dependencies from the
+[garglk/assets](https://github.com/garglk/assets) releases).
+
+The llvm-mingw toolchain is x86_64-hosted, so the image is always built for
+`linux/amd64`, including on ARM/Apple Silicon hosts.
+
+x86_64 is built by default:
+
+    $ ./gargoyle_docker_mingw.sh
+
+Other architectures are selected with `-a` (`i686`, `x86_64`, `aarch64`, or
+`armv7`):
+
+    $ ./gargoyle_docker_mingw.sh -a aarch64
+
+This writes `gargoyle-<version>-windows-<arch>.zip` in the repository root. For
+`i686` and `x86_64`, an NSIS installer (`.exe`) is also produced.
+
 ### Clang on Windows
 
 Support for building Gargoyle on Windows using Clang for Windows is currently
