@@ -287,6 +287,7 @@ bool gli_conf_caps = false;
 
 bool gli_conf_graphics = true;
 bool gli_conf_sound = true;
+bool gli_conf_controller = true;
 bool gli_conf_speak = false;
 bool gli_conf_speak_input = false;
 std::string gli_conf_speak_language;
@@ -844,6 +845,8 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 gli_conf_graphics = asbool(arg);
             } else if (cmd == "sound") {
                 gli_conf_sound = asbool(arg);
+            } else if (cmd == "controller") {
+                gli_conf_controller = asbool(arg);
             } else if (cmd == "zbleep") {
                 std::istringstream argstream(arg);
                 std::string number, frequency, duration;
@@ -1130,6 +1133,7 @@ void garglk_startup(int argc, char *argv[])
     gli_initialize_fonts();
     gli_initialize_windows();
     gli_initialize_sound();
+    gli_initialize_controller();
 
     winopen();
 

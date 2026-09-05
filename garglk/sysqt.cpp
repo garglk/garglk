@@ -128,6 +128,13 @@ static bool refresh_needed = true;
 static constexpr int TICK_PERIOD_MILLIS = 10;
 static std::atomic<bool> process_events(false);
 
+// Nominal ~60Hz poll interval. Actual cadence is an upper bound, not a
+// guarantee: like Window::m_timer, this only fires when something
+// calls app->processEvents() (see gli_tick()/process_events above), so
+// it can lag behind 16ms during heavy interpretation or a long-running
+// opcode.
+static constexpr int CONTROLLER_POLL_PERIOD_MILLIS = 16;
+
 static void handle_input(const QString &input, bool from_paste)
 {
     auto fn = from_paste ? gli_input_handle_key_paste :
@@ -879,6 +886,41 @@ void winopen()
     } else {
         window->show();
     }
+
+#ifdef GARGLK_CONFIG_CONTROLLER
+    // Polls for gamepad/Steam Controller input. This isn't
+    // window-scoped the way Window::m_timer is (that's per-window glk
+    // timeout handling); it's owned here, once, at the same app-wide
+    // lifetime as "window" itself. Set up here rather than in
+    // wininit() specifically so gli_conf_controller (read from the
+    // config file between the two) can gate whether it's created at
+    // all -- if the user has disabled it, no timer exists, not just a
+    // no-op poll every tick.
+    //
+    // CoarseTimer, not PreciseTimer: unlike Window::m_timer, which
+    // implements glk's own timer-event API and must fire when a game
+    // asks it to, this only needs to feel responsive at a nominal
+    // ~60Hz -- there's no caller relying on exact timing, so there's
+    // no reason to pay CoarseTimer's power/wakeup-coalescing cost to
+    // avoid jitter nothing depends on.
+    if (gli_conf_controller) {
+        auto *controller_timer = new QTimer(app);
+        controller_timer->setTimerType(Qt::TimerType::CoarseTimer);
+        QObject::connect(controller_timer, &QTimer::timeout, app, []() {
+            // activeWindow() alone would stay non-null while an
+            // in-process modal dialog (a QMessageBox, a file picker)
+            // has real keyboard focus, letting gamepad input leak into
+            // the game behind it -- something a real keystroke can't
+            // do, since Qt routes it to the modal widget instead.
+            // Comparing against the game window specifically excludes
+            // that case, matching what a real key press would do.
+            if (QApplication::activeWindow() == window && gli_controller_poll()) {
+                refresh_needed = true;
+            }
+        });
+        controller_timer->start(CONTROLLER_POLL_PERIOD_MILLIS);
+    }
+#endif
 }
 
 void wintitle()
