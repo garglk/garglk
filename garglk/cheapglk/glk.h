@@ -514,10 +514,12 @@ extern strid_t glk_stream_open_resource_uni(glui32 filenum, glui32 rock);
 // called by "normal" Glk programs.
 extern void garglk_startup(int argc, char *argv[]);
 
+#ifdef GLK_MODULE_FILEREF_GET_NAME
 #ifdef __GNUC__
 __attribute__((__deprecated__("Use glkunix_fileref_get_filename instead")))
 #endif
 extern const char *garglk_fileref_get_name(frefid_t fref);
+#endif /* GLK_MODULE_FILEREF_GET_NAME */
 
 extern void garglk_set_program_name(const char *name);
 extern void garglk_set_program_info(const char *info);
@@ -533,6 +535,8 @@ extern void garglk_unput_string_uni(const glui32 *str);
 extern glui32 garglk_unput_string_count(const char *str);
 extern glui32 garglk_unput_string_count_uni(const glui32 *str);
 
+#ifdef GLK_MODULE_GARGLKTEXT
+
 #define zcolor_Transparent   ((glui32)0xfffffffc)
 #define zcolor_Cursor        ((glui32)0xfffffffd)
 #define zcolor_Current       ((glui32)0xfffffffe)
@@ -543,11 +547,19 @@ extern void garglk_set_zcolors_stream(strid_t str, glui32 fg, glui32 bg);
 extern void garglk_set_reversevideo(glui32 reverse);
 extern void garglk_set_reversevideo_stream(strid_t str, glui32 reverse);
 
+#endif /* GLK_MODULE_GARGLKTEXT */
+
+#ifdef GLK_MODULE_GARGLKBLEEP
 extern void garglk_zbleep(glui32 number);
+#endif /* GLK_MODULE_GARGLKBLEEP */
 
 extern int garglk_tads_os_banner_size(winid_t win);
 
+#ifdef GLK_MODULE_GARGLKWINSIZE
 extern void garglk_window_get_size_pixels(winid_t win, glui32 *width, glui32 *height);
+#endif /* GLK_MODULE_GARGLKWINSIZE */
+
+#ifdef GLK_MODULE_GARGLK_FILE_RESOURCES
 
 /* Some game formats include graphics and/or sound, but not in a Blorb file. To
  * support this, Gargoyle provides this function to add either an image or sound
@@ -573,6 +585,8 @@ extern void garglk_window_get_size_pixels(winid_t win, glui32 *width, glui32 *he
  * 3. From a PIC or SND file
  */
 extern glui32 garglk_add_resource_from_file(glui32 usage, const char *filename, glui32 offset, glui32 len);
+
+#endif /* GLK_MODULE_GARGLK_FILE_RESOURCES */
 
 #ifdef GLK_MODULE_GARGLKOVERLAY
 
