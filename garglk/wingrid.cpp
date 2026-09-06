@@ -32,6 +32,12 @@ static void touch(window_textgrid_t *dwin, int line)
     int y = win->bbox.y0 + line * gli_leading;
     dwin->lines[line].dirty = true;
     winrepaint(win->bbox.x0, y, win->bbox.x1, y + gli_leading);
+
+    // A transparent window cannot erase its previous contents, so rebuild the
+    // frame beneath it.
+    if (win->is_transparent()) {
+        gli_force_redraw = true;
+    }
 }
 
 void win_textgrid_rearrange(window_t *win, rect_t *box)
@@ -74,15 +80,18 @@ void win_textgrid_redraw(window_t *win) {
 
     // Draw a run of identically-styled cells over the interval [start,end) at (x,y).
     // Return the width of the drawn area.
-    auto draw_run = [&dwin](const tgline_t *ln, int start, int end, int x, int y) -> int {
-        glui32 link    = ln->attrs[start].hyper;
+    auto draw_run = [&dwin, win](const tgline_t *ln, int start, int end, int x, int y) -> int {
+        glui32 link    = ln->attrs[start].hyperlink();
         auto   font    = ln->attrs[start].font(dwin->styles);
         Color  fgcolor = link != 0 ? gli_link_color
                                    : ln->attrs[start].fg(dwin->styles);
         Color  bgcolor = ln->attrs[start].bg(dwin->styles);
         int    w       = (end - start) * gli_cellw;
 
-        gli_draw_rect(x, y, w, gli_leading, bgcolor);
+        // Reverse-video runs retain their fill in transparent overlays.
+        if (!win->is_transparent() || ln->attrs[start].reversed(dwin->styles)) {
+            gli_draw_rect(x, y, w, gli_leading, bgcolor);
+        }
 
         if (link != 0) {
             if (gli_underline_hyperlinks) {

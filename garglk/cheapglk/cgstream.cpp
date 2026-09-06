@@ -1799,7 +1799,7 @@ static void gli_set_hyperlink(stream_t *str, glui32 linkval)
 
     switch (str->type) {
     case strtype_Window:
-        str->win->attr.hyper = linkval;
+        str->win->attr.set_hyperlink(linkval);
         break;
     }
 }

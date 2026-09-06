@@ -48,6 +48,11 @@ static void touch(window_textbuffer_t *dwin, int line)
     dwin->lines[line].dirty = true;
     gli_clear_selection();
     winrepaint(win->bbox.x0, y - 2, win->bbox.x1, y + gli_leading + 2);
+
+    // Rebuild the frame beneath a transparent overlay.
+    if (win->is_transparent()) {
+        gli_force_redraw = true;
+    }
 }
 
 static void clear_unread_marker(window_textbuffer_t *dwin)
@@ -77,6 +82,10 @@ static void touchscroll(window_textbuffer_t *dwin)
     winrepaint(win->bbox.x0, win->bbox.y0, win->bbox.x1, win->bbox.y1);
     for (i = 0; i < dwin->scrollmax; i++) {
         dwin->lines[i].dirty = true;
+    }
+
+    if (win->is_transparent()) {
+        gli_force_redraw = true;
     }
 }
 
@@ -236,6 +245,12 @@ static void reflow(window_t *win)
     touchscroll(dwin);
 }
 
+// Transparent overlays neither draw nor reserve space for a scrollbar.
+static int scroll_width(const window_t *win)
+{
+    return win->is_transparent() ? 0 : gli_scroll_width;
+}
+
 void win_textbuffer_rearrange(window_t *win, rect_t *box)
 {
     window_textbuffer_t *dwin = win->winbuffer();
@@ -244,7 +259,7 @@ void win_textbuffer_rearrange(window_t *win, rect_t *box)
 
     dwin->owner->bbox = *box;
 
-    newpixwid = box->x1 - box->x0 - gli_tmarginx * 2 - gli_scroll_width;
+    newpixwid = box->x1 - box->x0 - gli_tmarginx * 2 - scroll_width(win);
     newwid = newpixwid / gli_cellw;
     newhgt = (box->y1 - box->y0 - gli_tmarginy * 2) / gli_cellh;
 
@@ -368,6 +383,19 @@ static void scroll_input_into_view(window_textbuffer_t *dwin, int avail)
     }
 }
 
+// Whether the next redraw will raise a [more] prompt. more_request is not set
+// until drawing, which is too late for the overlay pass.
+bool win_textbuffer_pages(window_t *win)
+{
+    if (win->type != wintype_TextBuffer) {
+        return false;
+    }
+
+    const window_textbuffer_t *dwin = win->winbuffer();
+
+    return dwin->scrollpos != 0 && dwin->height > 1;
+}
+
 void win_textbuffer_redraw(window_t *win)
 {
     window_textbuffer_t *dwin = win->winbuffer();
@@ -390,7 +418,7 @@ void win_textbuffer_redraw(window_t *win)
     dwin->lines[0].len = dwin->numchars;
 
     x0 = (win->bbox.x0 + gli_tmarginx) * GLI_SUBPIX;
-    x1 = (win->bbox.x1 - gli_tmarginx - gli_scroll_width) * GLI_SUBPIX;
+    x1 = (win->bbox.x1 - gli_tmarginx - scroll_width(win)) * GLI_SUBPIX;
     y0 = win->bbox.y0 + gli_tmarginy;
     y1 = win->bbox.y1 - gli_tmarginy;
 
@@ -405,7 +433,7 @@ void win_textbuffer_redraw(window_t *win)
             && *dwin->prev_unread_marker_line < dwin->scrollback) {
         dwin->lines[*dwin->prev_unread_marker_line].dirty = true;
         // Line repainting does not cover the margin square.
-        if (unread_marker_mode() == 2) {
+        if (unread_marker_mode() == 2 && !win->is_transparent()) {
             Color bg = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
             gli_draw_rect(win->bbox.x0, win->bbox.y0,
                     gli_tmarginx, win->bbox.y1 - win->bbox.y0, bg);
@@ -470,7 +498,7 @@ void win_textbuffer_redraw(window_t *win)
         Color color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
         while (i > 0 && linelen > 1 && ln.chars[linelen - 1] == ' '
                 && ln.attrs[linelen - 1].bgcolor == color
-                && !ln.attrs[linelen - 1].reverse) {
+                && !ln.attrs[linelen - 1].reversed(dwin->styles)) {
             linelen--;
         }
 
@@ -555,24 +583,29 @@ void win_textbuffer_redraw(window_t *win)
                 x1 / GLI_SUBPIX, y + gli_leading);
 
         // Derive widths from pixel endpoints so adjacent runs tile exactly.
-        color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
-        gli_draw_rect(x0 / GLI_SUBPIX, y,
-                (x1 - x0) / GLI_SUBPIX, gli_leading,
-                color);
+        // Transparent overlays fill only reverse-video runs below.
+        if (!win->is_transparent()) {
+            color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
+            gli_draw_rect(x0 / GLI_SUBPIX, y,
+                    (x1 - x0) / GLI_SUBPIX, gli_leading,
+                    color);
+        }
 
         x = text_x0;
         a = first;
         for (b = first; b < linelen; b++) {
             if (ln.attrs[a] != ln.attrs[b]) {
-                link = ln.attrs[a].hyper;
+                link = ln.attrs[a].hyperlink();
                 auto font = ln.attrs[a].font(dwin->styles);
                 color = ln.attrs[a].bg(dwin->styles);
                 w = gli_string_width_uni(font, &ln.chars[a], b - a, spw);
                 int rx0 = x / GLI_SUBPIX;
                 int rx1 = (x + w) / GLI_SUBPIX;
-                gli_draw_rect(rx0, y,
-                        rx1 - rx0, gli_leading,
-                        color);
+                if (!win->is_transparent() || ln.attrs[a].reversed(dwin->styles)) {
+                    gli_draw_rect(rx0, y,
+                            rx1 - rx0, gli_leading,
+                            color);
+                }
                 if (link != 0) {
                     if (gli_underline_hyperlinks) {
                         gli_draw_rect(rx0 + 1, y + gli_baseline + 1,
@@ -587,14 +620,16 @@ void win_textbuffer_redraw(window_t *win)
                 a = b;
             }
         }
-        link = ln.attrs[a].hyper;
+        link = ln.attrs[a].hyperlink();
         auto font = ln.attrs[a].font(dwin->styles);
         color = ln.attrs[a].bg(dwin->styles);
         w = gli_string_width_uni(font, &ln.chars[a], b - a, spw);
         int rx0 = x / GLI_SUBPIX;
         int rx1 = (x + w) / GLI_SUBPIX;
-        gli_draw_rect(rx0, y, rx1 - rx0,
-                gli_leading, color);
+        if (!win->is_transparent() || ln.attrs[a].reversed(dwin->styles)) {
+            gli_draw_rect(rx0, y, rx1 - rx0,
+                    gli_leading, color);
+        }
         if (link != 0) {
             if (gli_underline_hyperlinks) {
                 gli_draw_rect(rx0 + 1, y + gli_baseline + 1,
@@ -607,10 +642,12 @@ void win_textbuffer_redraw(window_t *win)
         }
         x += w;
 
-        color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
-        gli_draw_rect(x / GLI_SUBPIX, y,
-                x1 / GLI_SUBPIX - x / GLI_SUBPIX, gli_leading,
-                color);
+        if (!win->is_transparent()) {
+            color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
+            gli_draw_rect(x / GLI_SUBPIX, y,
+                    x1 / GLI_SUBPIX - x / GLI_SUBPIX, gli_leading,
+                    color);
+        }
 
         //
         // draw caret
@@ -631,7 +668,7 @@ void win_textbuffer_redraw(window_t *win)
         a = first;
         for (b = first; b < linelen; b++) {
             if (ln.attrs[a] != ln.attrs[b]) {
-                link = ln.attrs[a].hyper;
+                link = ln.attrs[a].hyperlink();
                 font = ln.attrs[a].font(dwin->styles);
                 color = link != 0 ? gli_link_color : ln.attrs[a].fg(dwin->styles);
                 x = gli_draw_string_uni(x, y + gli_baseline,
@@ -639,7 +676,7 @@ void win_textbuffer_redraw(window_t *win)
                 a = b;
             }
         }
-        link = ln.attrs[a].hyper;
+        link = ln.attrs[a].hyperlink();
         font = ln.attrs[a].font(dwin->styles);
         color = link != 0 ? gli_link_color : ln.attrs[a].fg(dwin->styles);
         gli_draw_string_uni(x, y + gli_baseline,
@@ -688,17 +725,21 @@ void win_textbuffer_redraw(window_t *win)
     // draw more prompt
     //
 
-    if (dwin->scrollpos != 0 && dwin->height > 1) {
+    if (win_textbuffer_pages(win)) {
         x = x0 + SLOP;
         y = y0 + (dwin->height - 1) * gli_leading;
 
         gli_put_hyperlink(0, x0 / GLI_SUBPIX, y,
                 x1/GLI_SUBPIX, y + gli_leading);
 
-        Color color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
-        gli_draw_rect(x / GLI_SUBPIX, y,
-                x1 / GLI_SUBPIX - x / GLI_SUBPIX, gli_leading,
-                color);
+        // A transparent window shows the [more] prompt over whatever is
+        // beneath it, with no backing fill of its own.
+        if (!win->is_transparent()) {
+            Color color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
+            gli_draw_rect(x / GLI_SUBPIX, y,
+                    x1 / GLI_SUBPIX - x / GLI_SUBPIX, gli_leading,
+                    color);
+        }
 
         w = gli_string_width_uni(gli_more_font,
                 gli_more_prompt.data(), gli_more_prompt_len, -1);
@@ -709,7 +750,7 @@ void win_textbuffer_redraw(window_t *win)
             x = x1 - SLOP - w;
         }
 
-        color = gli_override_fg.has_value() ? gli_more_color : win->fgcolor;
+        Color color = gli_override_fg.has_value() ? gli_more_color : win->fgcolor;
         gli_draw_string_uni(x, y + gli_baseline,
                 gli_more_font, color,
                 gli_more_prompt.data(), gli_more_prompt_len, -1);
@@ -772,7 +813,7 @@ void win_textbuffer_redraw(window_t *win)
     // try to claim scroll keys
     dwin->owner->scroll_request = dwin->scrollmax > dwin->height;
 
-    if (dwin->owner->scroll_request && gli_scroll_width != 0) {
+    if (dwin->owner->scroll_request && scroll_width(win) != 0) {
         int t0, t1;
         x0 = win->bbox.x1 - gli_scroll_width;
         x1 = win->bbox.x1;
@@ -1074,7 +1115,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
         gli_tts_speak(&ch, 1);
     }
 
-    pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2 - gli_scroll_width) * GLI_SUBPIX;
+    pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2 - scroll_width(win)) * GLI_SUBPIX;
     pw = pw - 2 * SLOP - dwin->radjw - dwin->ladjw;
 
     Color color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
@@ -1181,7 +1222,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     linelen = dwin->numchars;
     while (linelen > 1 && dwin->chars[linelen - 1] == ' '
             && dwin->attrs[linelen - 1].bgcolor == color
-            && !dwin->attrs[linelen - 1].reverse) {
+            && !dwin->attrs[linelen - 1].reversed(dwin->styles)) {
         linelen--;
     }
 
@@ -1923,7 +1964,7 @@ bool win_textbuffer_draw_picture(std::shared_ptr<picture_t> pic, window_textbuff
 
     pic = gli_picture_scale(pic.get(), gli_zoom_int(width), gli_zoom_int(height));
 
-    hyperlink = dwin->owner->attr.hyper;
+    hyperlink = dwin->owner->attr.hyperlink();
 
     return put_picture(dwin, pic, align, hyperlink);
 }
@@ -1948,7 +1989,7 @@ static void position_input_cursor(window_textbuffer_t *dwin, int sx, int sy)
     }
 
     int x0 = (win->bbox.x0 + gli_tmarginx) * GLI_SUBPIX;
-    int x1 = (win->bbox.x1 - gli_tmarginx - gli_scroll_width) * GLI_SUBPIX;
+    int x1 = (win->bbox.x1 - gli_tmarginx - scroll_width(win)) * GLI_SUBPIX;
     const tbline_t &ln = dwin->lines[0];
     int linelen = dwin->numchars;
 
@@ -1999,10 +2040,12 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
         }
     }
 
-    if (sx > win->bbox.x1 - gli_scroll_width) {
-        if (sy < win->bbox.y0 + gli_tmarginy + gli_scroll_width) {
+    const int scrollw = scroll_width(win);
+
+    if (scrollw != 0 && sx > win->bbox.x1 - scrollw) {
+        if (sy < win->bbox.y0 + gli_tmarginy + scrollw) {
             gcmd_accept_scroll(win, keycode_Up);
-        } else if (sy > win->bbox.y1 - gli_tmarginy - gli_scroll_width) {
+        } else if (sy > win->bbox.y1 - gli_tmarginy - scrollw) {
             gcmd_accept_scroll(win, keycode_Down);
         } else if (sy < (win->bbox.y0 + win->bbox.y1) / 2) {
             gcmd_accept_scroll(win, keycode_PageUp);

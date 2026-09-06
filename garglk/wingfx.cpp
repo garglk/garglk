@@ -125,7 +125,7 @@ bool win_graphics_draw_picture(std::shared_ptr<picture_t> pic, window_graphics_t
     glsi32 xpos, glsi32 ypos,
     glui32 imagewidth, glui32 imageheight)
 {
-    glui32 hyperlink = dwin->owner->attr.hyper;
+    glui32 hyperlink = dwin->owner->attr.hyperlink();
     xpos = gli_zoom_int(xpos);
     ypos = gli_zoom_int(ypos);
 

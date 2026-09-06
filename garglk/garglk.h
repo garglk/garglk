@@ -492,6 +492,10 @@ struct window_graphics_t;
 #define SCROLLBACK 512
 #define HISTORYLEN 100
 
+// limit number of text rows/columns
+#define MAX_TEXT_COLUMNS 255
+#define MAX_TEXT_ROWS 255
+
 #define GLI_SUBPIX 8
 
 extern std::string gli_program_name;
@@ -526,6 +530,21 @@ extern int gli_cellh;
 struct rect_t {
     int x0, y0;
     int x1, y1;
+
+    bool operator==(const rect_t &other) const {
+        return x0 == other.x0 && y0 == other.y0 &&
+               x1 == other.x1 && y1 == other.y1;
+    }
+};
+
+// Position and drawing mode requested by garglk_window_set_overlay().
+struct Overlay {
+    rect_t box;
+    bool transparent = false;
+
+    bool operator==(const Overlay &other) const {
+        return box == other.box && transparent == other.transparent;
+    }
 };
 
 struct picture_t {
@@ -829,7 +848,6 @@ struct attr_t {
     glui32 style = 0;
     std::optional<Color> fgcolor;
     std::optional<Color> bgcolor;
-    glui32 hyper = 0;
 
     bool operator!=(const attr_t &other) const {
         return reverse != other.reverse ||
@@ -842,8 +860,14 @@ struct attr_t {
     void set(glui32 style_);
     void clear();
     [[nodiscard]] FontFace font(const Styles &styles) const;
+    [[nodiscard]] bool reversed(const Styles &styles) const;
     [[nodiscard]] Color bg(const Styles &styles) const;
     [[nodiscard]] Color fg(const Styles &styles) const;
+    [[nodiscard]] glui32 hyperlink() const;
+    void set_hyperlink(glui32 linkval);
+
+private:
+    glui32 hyper = 0;
 };
 
 struct glk_window_struct {
@@ -859,6 +883,16 @@ struct glk_window_struct {
     window_t *parent = nullptr; // pair window which contains this one
     rect_t bbox;
     int yadj = 0;
+
+    std::optional<Overlay> overlay;
+
+    // Cached to detect when pager visibility changes.
+    bool pager_hidden = false;
+
+    [[nodiscard]] bool is_transparent() const {
+        return overlay.has_value() && overlay->transparent;
+    }
+
     std::variant<
         std::unique_ptr<window_textgrid_t>,
         std::unique_ptr<window_textbuffer_t>,
@@ -1119,6 +1153,7 @@ extern void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int i
 extern void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int initlen);
 extern void win_textbuffer_cancel_line(window_t *win, event_t *ev);
 extern void win_textbuffer_click(window_textbuffer_t *dwin, int x, int y);
+extern bool win_textbuffer_pages(window_t *win);
 extern void gcmd_buffer_accept_readchar(window_t *win, glui32 arg);
 extern void gcmd_buffer_accept_readline(window_t *win, glui32 arg);
 extern bool gcmd_accept_scroll(window_t *win, glui32 arg);
@@ -1143,6 +1178,7 @@ extern void gli_windows_size_change(int w, int h, bool post_arrange_event);
 extern void gli_windows_unechostream(stream_t *str);
 
 extern void gli_window_click(window_t *win, int x, int y);
+extern void gli_windows_click(int x, int y);
 
 void gli_redraw_rect(int x0, int y0, int x1, int y1);
 
@@ -1237,6 +1273,7 @@ glui32 gli_strlen_uni(const glui32 *s);
 
 void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1);
 glui32 gli_get_hyperlink(int x, int y);
+extern bool gli_overlays_used;
 void gli_clear_selection();
 bool gli_selection_active();
 bool gli_check_selection(int x0, int y0, int x1, int y1);

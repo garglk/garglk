@@ -108,22 +108,79 @@ void garglk_window_get_size_pixels(window_t *win, glui32 *width, glui32 *height)
     // For text windows, the size should be reported in pixels, and
     // since glk_window_get_size() does integer division, this can't
     // just multiply by gli_cellw/gli_cellh; calculate directly.
-    if (win->type == wintype_TextGrid) {
-        wid = win->bbox.x1 - win->bbox.x0;
-        hgt = win->bbox.y1 - win->bbox.y0;
-    } else if (win->type == wintype_TextBuffer) {
-        wid = win->bbox.x1 - win->bbox.x0;
-        wid -= std::min<glui32>(wid, gli_tmarginx * 2);
-        hgt = win->bbox.y1 - win->bbox.y0;
-        hgt -= std::min<glui32>(hgt, gli_tmarginy * 2);
+    //
+    // Unzoom the edges, not the span, so that origin plus size lands on
+    // the far edge garglk_window_get_origin_pixels() would report.
+    if (win->type == wintype_TextGrid || win->type == wintype_TextBuffer) {
+        int x0 = win->bbox.x0, x1 = win->bbox.x1;
+        int y0 = win->bbox.y0, y1 = win->bbox.y1;
+
+        if (win->type == wintype_TextBuffer) {
+            x0 = std::min(x0 + gli_tmarginx, x1);
+            x1 = std::max(x1 - gli_tmarginx, x0);
+            y0 = std::min(y0 + gli_tmarginy, y1);
+            y1 = std::max(y1 - gli_tmarginy, y0);
+        }
+
+        wid = gli_unzoom_int(x1) - gli_unzoom_int(x0);
+        hgt = gli_unzoom_int(y1) - gli_unzoom_int(y0);
     }
 
     if (width != nullptr) {
-        *width = wid / gli_zoom;
+        *width = wid;
     }
 
     if (height != nullptr) {
-        *height = hgt / gli_zoom;
+        *height = hgt;
+    }
+}
+
+void garglk_window_get_origin_pixels(window_t *win, glsi32 *x, glsi32 *y)
+{
+    if (win == nullptr) {
+        gli_strict_warning("window_get_origin_pixels: invalid ref");
+        return;
+    }
+
+    int x0 = win->bbox.x0;
+    int y0 = win->bbox.y0;
+
+    // Match garglk_window_get_size_pixels(), which excludes text-buffer margins.
+    if (win->type == wintype_TextBuffer) {
+        x0 += gli_tmarginx;
+        y0 += gli_tmarginy;
+    }
+
+    if (x != nullptr) {
+        *x = gli_unzoom_int(x0);
+    }
+
+    if (y != nullptr) {
+        *y = gli_unzoom_int(y0);
+    }
+}
+
+void garglk_get_cell_size_pixels(double *width, double *height)
+{
+    // Do not round: callers use this value to map positions to grid cells.
+    if (width != nullptr) {
+        *width = gli_cellw / gli_zoom;
+    }
+
+    if (height != nullptr) {
+        *height = gli_cellh / gli_zoom;
+    }
+}
+
+void garglk_cells_in_pixels(glui32 width, glui32 height, glui32 *columns, glui32 *rows)
+{
+    // Match the zoom, truncation and limits of a text grid.
+    if (columns != nullptr) {
+        *columns = gli_cellw > 0 ? std::min<glui32>(gli_zoom_int(width) / gli_cellw, MAX_TEXT_COLUMNS) : 0;
+    }
+
+    if (rows != nullptr) {
+        *rows = gli_cellh > 0 ? std::min<glui32>(gli_zoom_int(height) / gli_cellh, MAX_TEXT_ROWS) : 0;
     }
 }
 

@@ -19,6 +19,22 @@
 #include "glk.h"
 #include "garglk.h"
 
+// True if this window (or all of its descendants) is outside the layout.
+static bool gli_window_takes_no_space(window_t *win)
+{
+    if (win->overlay.has_value()) {
+        return true;
+    }
+
+    if (win->type != wintype_Pair) {
+        return false;
+    }
+
+    const window_pair_t *dwin = win->winpair();
+    return gli_window_takes_no_space(dwin->child1) &&
+           gli_window_takes_no_space(dwin->child2);
+}
+
 void win_pair_rearrange(window_t *win, const rect_t *box)
 {
     window_pair_t *dwin = win->winpair();
@@ -28,6 +44,20 @@ void win_pair_rearrange(window_t *win, const rect_t *box)
     window_t *ch1, *ch2;
 
     win->bbox = *box;
+
+    // Give the full box to the remaining tiled child. Keep dwin->size intact
+    // so clearing the overlay restores the old split.
+    if (gli_window_takes_no_space(dwin->child1) || gli_window_takes_no_space(dwin->child2)) {
+        rect_t full = *box;
+        rect_t empty {box->x0, box->y0, box->x0, box->y0};
+
+        gli_window_rearrange(dwin->child1,
+            gli_window_takes_no_space(dwin->child1) ? &empty : &full);
+        gli_window_rearrange(dwin->child2,
+            gli_window_takes_no_space(dwin->child2) ? &empty : &full);
+
+        return;
+    }
 
     if (dwin->vertical) {
         min = win->bbox.x0;
@@ -147,8 +177,18 @@ void win_pair_redraw(window_t *win)
 
     dwin = win->winpair();
 
-    gli_window_redraw(dwin->child1);
-    gli_window_redraw(dwin->child2);
+    // Overlays are drawn after the tree, by gli_windows_redraw().
+    if (!dwin->child1->overlay.has_value()) {
+        gli_window_redraw(dwin->child1);
+    }
+    if (!dwin->child2->overlay.has_value()) {
+        gli_window_redraw(dwin->child2);
+    }
+
+    // There is no divider when either child is outside the layout.
+    if (gli_window_takes_no_space(dwin->child1) || gli_window_takes_no_space(dwin->child2)) {
+        return;
+    }
 
     if (!dwin->backward) {
         child = dwin->child1;
@@ -180,19 +220,24 @@ void win_pair_click(window_pair_t *dwin, int x, int y)
         return;
     }
 
-    x0 = dwin->child1->bbox.x0;
-    y0 = dwin->child1->bbox.y0;
-    x1 = dwin->child1->bbox.x1;
-    y1 = dwin->child1->bbox.y1;
-    if (x >= x0 && x < x1 && y >= y0 && y < y1) {
-        gli_window_click(dwin->child1, x, y);
+    // gli_windows_click() has already hit-tested overlays.
+    if (!dwin->child1->overlay.has_value()) {
+        x0 = dwin->child1->bbox.x0;
+        y0 = dwin->child1->bbox.y0;
+        x1 = dwin->child1->bbox.x1;
+        y1 = dwin->child1->bbox.y1;
+        if (x >= x0 && x < x1 && y >= y0 && y < y1) {
+            gli_window_click(dwin->child1, x, y);
+        }
     }
 
-    x0 = dwin->child2->bbox.x0;
-    y0 = dwin->child2->bbox.y0;
-    x1 = dwin->child2->bbox.x1;
-    y1 = dwin->child2->bbox.y1;
-    if (x >= x0 && x < x1 && y >= y0 && y < y1) {
-        gli_window_click(dwin->child2, x, y);
+    if (!dwin->child2->overlay.has_value()) {
+        x0 = dwin->child2->bbox.x0;
+        y0 = dwin->child2->bbox.y0;
+        x1 = dwin->child2->bbox.x1;
+        y1 = dwin->child2->bbox.y1;
+        if (x >= x0 && x < x1 && y >= y0 && y < y1) {
+            gli_window_click(dwin->child2, x, y);
+        }
     }
 }
