@@ -47,6 +47,8 @@ bool gli_claimselect = false;
 static int last_x = 0;
 static int last_y = 0;
 
+static SelectionGranularity gli_select_granularity = SelectionGranularity::Character;
+
 void gli_resize_mask(unsigned int x, unsigned int y)
 {
     gli_mask.initialized = true;
@@ -136,9 +138,38 @@ void gli_start_selection(int x, int y)
     gli_mask.select.x1 = 0;
     gli_mask.select.y1 = 0;
 
+    gli_select_granularity = SelectionGranularity::Character;
     gli_claimselect = false;
     gli_force_redraw = true;
     gli_windows_redraw();
+}
+
+void gli_click_selection(int x, int y, SelectionGranularity granularity)
+{
+    int tx, ty;
+
+    if (!gli_mask.initialized || gli_mask.hor == 0 || gli_mask.ver == 0) {
+        gli_strict_warning("click_selection: mask not initialized");
+        return;
+    }
+
+    tx = x < gli_mask.hor ? x : gli_mask.hor;
+    ty = y < gli_mask.ver ? y : gli_mask.ver;
+
+    gli_mask.select.x0 = last_x = tx;
+    gli_mask.select.y0 = last_y = ty;
+    gli_mask.select.x1 = tx + 1;
+    gli_mask.select.y1 = ty;
+
+    gli_select_granularity = granularity;
+    gli_claimselect = false;
+    gli_force_redraw = true;
+    gli_windows_redraw();
+}
+
+SelectionGranularity gli_selection_granularity()
+{
+    return gli_select_granularity;
 }
 
 void gli_move_selection(int x, int y)

@@ -628,6 +628,12 @@ extern void garglk_cells_in_pixels(glui32 width, glui32 height, glui32 *columns,
 #define keycode_DeleteWordRight     (0xfffff003)
 #define keycode_KillLine            (0xfffff004)
 #define keycode_Yank                (0xfffff005)
+#define keycode_SelectLeft          (0xfffff006)
+#define keycode_SelectRight         (0xfffff007)
+#define keycode_SelectWordLeft      (0xfffff008)
+#define keycode_SelectWordRight     (0xfffff009)
+#define keycode_SelectHome          (0xfffff00a)
+#define keycode_SelectEnd           (0xfffff00b)
 
 #ifdef __cplusplus
 }

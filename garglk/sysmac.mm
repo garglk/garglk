@@ -734,6 +734,18 @@ void winkey(NSEvent *evt)
         {{NSEventModifierFlagOption, NSKEY_DOWN},  []{ gli_input_handle_key(keycode_PageDown); }},
         {{NSEventModifierFlagOption, NSKEY_UP},    []{ gli_input_handle_key(keycode_PageUp); }},
 
+        {{NSEventModifierFlagShift, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_SelectLeft); }},
+        {{NSEventModifierFlagShift, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_SelectRight); }},
+
+        {{NSEventModifierFlagOption | NSEventModifierFlagShift, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_SelectWordLeft); }},
+        {{NSEventModifierFlagOption | NSEventModifierFlagShift, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_SelectWordRight); }},
+
+        {{NSEventModifierFlagCommand | NSEventModifierFlagShift, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_SelectHome); }},
+        {{NSEventModifierFlagCommand | NSEventModifierFlagShift, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_SelectEnd); }},
+
+        {{NSEventModifierFlagShift, NSKEY_HOME}, []{ gli_input_handle_key(keycode_SelectHome); }},
+        {{NSEventModifierFlagShift, NSKEY_END},  []{ gli_input_handle_key(keycode_SelectEnd); }},
+
         // alt/option modified delete key
         {{NSEventModifierFlagOption, NSKEY_BACK}, []{ gli_input_handle_key(keycode_DeleteWordLeft); }},
         {{NSEventModifierFlagOption, NSKEY_DEL},  []{ gli_input_handle_key(keycode_DeleteWordRight); }},
@@ -745,8 +757,8 @@ void winkey(NSEvent *evt)
         {{NSEventModifierFlagCommand, NSKEY_UP},    []{ gli_input_handle_key(keycode_PageUp); }},
 
         // menu commands
-        {{NSEventModifierFlagCommand, NSKEY_X}, []{ winclipsend(); }},
-        {{NSEventModifierFlagCommand, NSKEY_C}, []{ winclipsend(); }},
+        {{NSEventModifierFlagCommand, NSKEY_X}, []{ gli_store_input_selection(); winclipsend(); gli_delete_input_selection(); }},
+        {{NSEventModifierFlagCommand, NSKEY_C}, []{ gli_store_input_selection(); winclipsend(); }},
         {{NSEventModifierFlagCommand, NSKEY_V}, []{ winclipreceive(); }},
 
         // toggle TTS
@@ -890,7 +902,7 @@ void winmouse(NSEvent *evt)
 
     switch ([evt type]) {
     case NSEventTypeLeftMouseDown: {
-        gli_input_handle_click(x, y);
+        gli_input_handle_click(x, y, std::min<int>([evt clickCount], 3));
         [gargoyle setCursor:kArrowCursor];
         break;
     }

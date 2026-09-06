@@ -396,6 +396,19 @@ bool win_textbuffer_pages(window_t *win)
     return dwin->scrollpos != 0 && dwin->height > 1;
 }
 
+// Return the keyboard selection as a half-open range.
+static std::optional<std::pair<long, long>> keyboard_selection(const window_textbuffer_t *dwin)
+{
+    if (dwin->inbuf == nullptr || !dwin->input_anchor.has_value() || *dwin->input_anchor == dwin->incurs) {
+        return std::nullopt;
+    }
+
+    long anchor = *dwin->input_anchor;
+    long curs = dwin->incurs;
+
+    return std::make_pair(std::min(anchor, curs), std::max(anchor, curs));
+}
+
 void win_textbuffer_redraw(window_t *win)
 {
     window_textbuffer_t *dwin = win->winbuffer();
@@ -558,6 +571,29 @@ void win_textbuffer_redraw(window_t *win)
                     rsc = tsc;
                 }
             }
+            switch (gli_selection_granularity()) {
+            case SelectionGranularity::Character:
+                break;
+
+            case SelectionGranularity::Word:
+                if (linelen > 0) {
+                    lsc = std::min(lsc, linelen - 1);
+                    rsc = std::max(rsc, lsc);
+                    while (lsc > first && (ln.chars[lsc - 1] == ' ') == (ln.chars[lsc] == ' ')) {
+                        lsc--;
+                    }
+                    while (rsc + 1 < linelen && (ln.chars[rsc + 1] == ' ') == (ln.chars[rsc] == ' ')) {
+                        rsc++;
+                    }
+                }
+                break;
+
+            case SelectionGranularity::Line:
+                lsc = first;
+                rsc = linelen - 1;
+                break;
+            }
+
             selchar = lsc <= rsc;
             // reverse colors for selected chars
             if (selchar) {
@@ -575,6 +611,17 @@ void win_textbuffer_redraw(window_t *win)
             // add newline only if this is a real paragraph break, not just a wrapped line
             if ((ln.len == 0 || (selchar && ln.len == rsc + 1)) && ln.newline) {
                 dwin->copybuf.push_back('\n');
+            }
+        }
+
+        if (i == 0 && dwin->inbuf != nullptr) {
+            auto selection = keyboard_selection(dwin);
+            if (selection.has_value()) {
+                long lsel = std::max<long>(selection->first, first);
+                long rsel = std::min<long>(selection->second, linelen);
+                for (long tsel = lsel; tsel < rsel; tsel++) {
+                    ln.attrs[tsel].reverse = !ln.attrs[tsel].reverse;
+                }
             }
         }
 
@@ -1032,6 +1079,9 @@ static void put_text_uni(window_textbuffer_t *dwin, glui32 *buf, int len, int po
         return;
     }
 
+    // Edits clear the keyboard selection.
+    dwin->input_anchor.reset();
+
     if (diff != 0 && pos + oldlen < dwin->numchars) {
         std::memmove(dwin->chars + pos + len,
                 dwin->chars + pos + oldlen,
@@ -1334,6 +1384,7 @@ static void win_textbuffer_init_impl(window_t *win, void *buf, int maxlen, int i
     dwin->infence = dwin->numchars;
     dwin->incurs = dwin->numchars;
     dwin->inview = 0;
+    dwin->input_anchor.reset();
     dwin->origattr = win->attr;
     win->attr.set(style_Input);
 
@@ -1671,6 +1722,30 @@ static long word_right(const window_textbuffer_t *dwin)
     return pos;
 }
 
+// Return the word or whitespace run at pos as a half-open range.
+static std::pair<long, long> word_at(const window_textbuffer_t *dwin, long pos)
+{
+    if (pos >= dwin->numchars) {
+        pos = dwin->numchars - 1;
+    }
+    if (pos < dwin->infence) {
+        return {dwin->infence, dwin->infence};
+    }
+
+    bool space = dwin->chars[pos] == ' ';
+    long start = pos;
+    long end = pos;
+
+    while (start > dwin->infence && (dwin->chars[start - 1] == ' ') == space) {
+        start--;
+    }
+    while (end < dwin->numchars && (dwin->chars[end] == ' ') == space) {
+        end++;
+    }
+
+    return {start, end};
+}
+
 // Text most recently removed by a kill command, restored by keycode_Yank.
 static std::vector<glui32> killbuf;
 
@@ -1684,20 +1759,79 @@ static void kill_text(window_textbuffer_t *dwin, long start, long end)
     put_text_uni(dwin, nullptr, 0, start, end - start);
 }
 
-// Delete a completed selection confined to the current line input. The
-// deletion clears the selection by way of touch(), so the same range
-// cannot be deleted twice.
-static bool delete_input_selection(window_textbuffer_t *dwin)
+// Move the cursor, extending or clearing the keyboard selection.
+static void move_cursor(window_textbuffer_t *dwin, long pos, bool extend)
 {
+    if (extend) {
+        if (!dwin->input_anchor.has_value()) {
+            dwin->input_anchor = dwin->incurs;
+        }
+    } else {
+        dwin->input_anchor.reset();
+    }
+
+    dwin->incurs = pos;
+}
+
+// Return the active input selection as a half-open range.
+static std::optional<std::pair<long, long>> selection_range(const window_textbuffer_t *dwin)
+{
+    auto keyboard = keyboard_selection(dwin);
+    if (keyboard.has_value()) {
+        return keyboard;
+    }
+
     if (!gli_selection_active() || !dwin->input_selection.has_value()) {
-        return false;
+        return std::nullopt;
     }
 
     auto [start, end] = *dwin->input_selection;
 
-    put_text_uni(dwin, nullptr, 0, start, end - start + 1);
+    return std::pair<long, long>(start, end + 1);
+}
+
+static bool delete_input_selection(window_textbuffer_t *dwin)
+{
+    auto selection = selection_range(dwin);
+    if (!selection.has_value()) {
+        return false;
+    }
+
+    auto [start, end] = *selection;
+
+    put_text_uni(dwin, nullptr, 0, start, end - start);
 
     return true;
+}
+
+// Word deletion over a selection still updates the kill buffer.
+static bool kill_selection(window_textbuffer_t *dwin)
+{
+    auto selection = selection_range(dwin);
+    if (!selection.has_value()) {
+        return false;
+    }
+
+    kill_text(dwin, selection->first, selection->second);
+
+    return true;
+}
+
+void win_textbuffer_delete_selection(window_textbuffer_t *dwin)
+{
+    delete_input_selection(dwin);
+}
+
+void win_textbuffer_store_selection(window_textbuffer_t *dwin)
+{
+    auto selection = keyboard_selection(dwin);
+    if (!selection.has_value()) {
+        return;
+    }
+
+    auto [start, end] = *selection;
+
+    gli_clipboard_copy(std::vector<glui32>(&dwin->chars[start], &dwin->chars[end]));
 }
 
 // Any key, during line input.
@@ -1775,67 +1909,89 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
         }
         break;
 
-    // Cursor movement keys, during line input.
+    // Select variants extend the selection. Unshifted left and right
+    // collapse it toward the corresponding edge.
 
     case keycode_Left:
+    case keycode_SelectLeft: {
+        bool extend = arg == keycode_SelectLeft;
+        auto selection = keyboard_selection(dwin);
+        if (!extend && selection.has_value()) {
+            move_cursor(dwin, selection->first, false);
+            break;
+        }
         if (dwin->incurs <= dwin->infence) {
             // Reveal a prompt hidden to the left of the input fence.
-            if (dwin->inview == 0) {
+            if (extend || dwin->inview == 0) {
                 return;
             }
             dwin->inview--;
             break;
         }
-        dwin->incurs--;
+        move_cursor(dwin, dwin->incurs - 1, extend);
         break;
+    }
 
     case keycode_Right:
+    case keycode_SelectRight: {
+        bool extend = arg == keycode_SelectRight;
+        auto selection = keyboard_selection(dwin);
+        if (!extend && selection.has_value()) {
+            move_cursor(dwin, selection->second, false);
+            break;
+        }
         if (dwin->incurs >= dwin->numchars) {
             return;
         }
-        dwin->incurs++;
+        move_cursor(dwin, dwin->incurs + 1, extend);
         break;
+    }
 
     case keycode_Home:
-        if (dwin->incurs <= dwin->infence && dwin->inview == 0) {
+    case keycode_SelectHome: {
+        bool extend = arg == keycode_SelectHome;
+        if (dwin->incurs <= dwin->infence && dwin->inview == 0
+                && !keyboard_selection(dwin).has_value()) {
             return;
         }
-        dwin->incurs = dwin->infence;
+        move_cursor(dwin, dwin->infence, extend);
         dwin->inview = 0;
         break;
+    }
 
     case keycode_End:
-        if (dwin->incurs >= dwin->numchars) {
+    case keycode_SelectEnd: {
+        bool extend = arg == keycode_SelectEnd;
+        if (dwin->incurs >= dwin->numchars && !keyboard_selection(dwin).has_value()) {
             return;
         }
-        dwin->incurs = dwin->numchars;
+        move_cursor(dwin, dwin->numchars, extend);
         break;
+    }
 
     case keycode_SkipWordLeft:
-        while (dwin->incurs > dwin->infence && dwin->chars[dwin->incurs - 1] == ' ') {
-            dwin->incurs--;
-        }
-        while (dwin->incurs > dwin->infence && dwin->chars[dwin->incurs - 1] != ' ') {
-            dwin->incurs--;
-        }
+    case keycode_SelectWordLeft:
+        move_cursor(dwin, word_left(dwin), arg == keycode_SelectWordLeft);
         break;
 
     case keycode_SkipWordRight:
-        while (dwin->incurs < dwin->numchars && dwin->chars[dwin->incurs] != ' ') {
-            dwin->incurs++;
-        }
-        while (dwin->incurs < dwin->numchars && dwin->chars[dwin->incurs] == ' ') {
-            dwin->incurs++;
-        }
+    case keycode_SelectWordRight:
+        move_cursor(dwin, word_right(dwin), arg == keycode_SelectWordRight);
         break;
 
     // Delete keys, during line input.
 
     case keycode_DeleteWordLeft:
+        if (kill_selection(dwin)) {
+            break;
+        }
         kill_text(dwin, word_left(dwin), dwin->incurs);
         break;
 
     case keycode_DeleteWordRight:
+        if (kill_selection(dwin)) {
+            break;
+        }
         kill_text(dwin, dwin->incurs, word_right(dwin));
         break;
 
@@ -1974,18 +2130,18 @@ void win_textbuffer_flow_break(window_textbuffer_t *dwin)
     scrolloneline(dwin, false, true);
 }
 
-// Move the input cursor to the caret position nearest the click.
-static void position_input_cursor(window_textbuffer_t *dwin, int sx, int sy)
+// Move to the nearest caret and return the character under the click.
+static std::optional<long> position_input_cursor(window_textbuffer_t *dwin, int sx, int sy)
 {
     window_t *win = dwin->owner;
 
     if ((!win->line_request && !win->line_request_uni) || dwin->scrollpos != 0) {
-        return;
+        return std::nullopt;
     }
 
     int liney = win->bbox.y0 + gli_tmarginy + (dwin->height - 1) * gli_leading;
     if (sy < liney || sy >= liney + gli_leading) {
-        return;
+        return std::nullopt;
     }
 
     int x0 = (win->bbox.x0 + gli_tmarginx) * GLI_SUBPIX;
@@ -2000,8 +2156,19 @@ static void position_input_cursor(window_textbuffer_t *dwin, int sx, int sy)
     int first = dwin->inview;
     int lo = std::max(static_cast<int>(dwin->infence), first);
 
+    // Let clicks on the prompt fall through to selection. Drawing keeps a
+    // click on a midpoint in the character to its left, so bias past it.
+    int input_x0 = calcwidth(dwin, ln.chars, ln.attrs, first, lo, -1);
+    int cut = lo > first
+        ? char_midpoint(dwin, ln, 0, first, lo - 1, -1) + 1
+        : input_x0;
+
+    if (click_x < cut) {
+        return std::nullopt;
+    }
+
     int curs = lo;
-    int best = std::abs(click_x - calcwidth(dwin, ln.chars, ln.attrs, first, curs, -1));
+    int best = std::abs(click_x - input_x0);
 
     for (int i = lo + 1; i <= dwin->numchars; i++) {
         int dist = std::abs(click_x - calcwidth(dwin, ln.chars, ln.attrs, first, i, -1));
@@ -2014,9 +2181,25 @@ static void position_input_cursor(window_textbuffer_t *dwin, int sx, int sy)
 
     dwin->incurs = curs;
     touch(dwin, 0);
+
+    // If the caret snapped right, the clicked character is to its left.
+    if (click_x < calcwidth(dwin, ln.chars, ln.attrs, first, curs, -1)) {
+        return std::max<long>(curs - 1, dwin->infence);
+    }
+
+    return curs;
 }
 
-void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
+// Center a zero-height click so selection logic includes its row.
+static int click_row_middle(const window_textbuffer_t *dwin, int sy)
+{
+    int top = dwin->owner->bbox.y0 + gli_tmarginy;
+    int row = std::max(0, (sy - top) / gli_leading);
+
+    return top + row * gli_leading + gli_leading / 2;
+}
+
+void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy, int clicks)
 {
     window_t *win = dwin->owner;
     bool gh = false;
@@ -2056,9 +2239,30 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
     }
 
     if (!gh && !gs) {
-        position_input_cursor(dwin, sx, sy);
+        auto clicked = position_input_cursor(dwin, sx, sy);
 
+        if (clicks > 1 && clicked.has_value()) {
+            auto [start, end] = clicks == 2
+                ? word_at(dwin, *clicked)
+                : std::make_pair(dwin->infence, static_cast<long>(dwin->numchars));
+
+            dwin->input_anchor = start;
+            dwin->incurs = end;
+            touch(dwin, 0);
+            return;
+        }
+
+        dwin->input_anchor.reset();
         gli_copyselect = true;
+
+        // Printed text uses mouse selection widened during drawing.
+        if (clicks > 1) {
+            gli_click_selection(sx, click_row_middle(dwin, sy), clicks == 2
+                    ? SelectionGranularity::Word
+                    : SelectionGranularity::Line);
+            return;
+        }
+
         gli_start_selection(sx, sy);
     }
 }

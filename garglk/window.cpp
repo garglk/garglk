@@ -1315,7 +1315,7 @@ static bool window_contains(const window_t *win, int x, int y)
 // Offer the click to visible overlays, newest first, then fall through.
 // Text buffers take it as they always do; grids and graphics only while
 // they wait for mouse input. Hyperlinks are disabled once any window floats.
-void gli_windows_click(int x, int y)
+void gli_windows_click(int x, int y, int clicks)
 {
     for (window_t *win = gli_windowlist; win != nullptr; win = win->next) {
         // pager_hidden is the state the frame was drawn with.
@@ -1328,7 +1328,7 @@ void gli_windows_click(int x, int y)
         }
 
         if (window_contains(win, x, y)) {
-            gli_window_click(win, x, y);
+            gli_window_click(win, x, y, clicks);
             return;
         }
     }
@@ -1336,18 +1336,33 @@ void gli_windows_click(int x, int y)
     // Pair windows hit-test their children; a floating root must be tested here.
     if (gli_rootwin != nullptr &&
         (!gli_rootwin->overlay.has_value() || window_contains(gli_rootwin, x, y))) {
-        gli_window_click(gli_rootwin, x, y);
+        gli_window_click(gli_rootwin, x, y, clicks);
     }
 }
 
-void gli_window_click(window_t *win, int x, int y)
+// Mouse selections are collected during drawing; keyboard selections are not.
+void gli_store_input_selection()
+{
+    if (gli_focuswin != nullptr && gli_focuswin->type == wintype_TextBuffer) {
+        win_textbuffer_store_selection(gli_focuswin->winbuffer());
+    }
+}
+
+void gli_delete_input_selection()
+{
+    if (gli_focuswin != nullptr && gli_focuswin->type == wintype_TextBuffer) {
+        win_textbuffer_delete_selection(gli_focuswin->winbuffer());
+    }
+}
+
+void gli_window_click(window_t *win, int x, int y, int clicks)
 {
     switch (win->type) {
     case wintype_Pair:
-        win_pair_click(win->winpair(), x, y);
+        win_pair_click(win->winpair(), x, y, clicks);
         break;
     case wintype_TextBuffer:
-        win_textbuffer_click(win->winbuffer(), x, y);
+        win_textbuffer_click(win->winbuffer(), x, y, clicks);
         break;
     case wintype_TextGrid:
         win_textgrid_click(win->wingrid(), x, y);
