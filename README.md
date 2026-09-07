@@ -195,3 +195,20 @@ Windows and Unix, and `Option` on Mac:
 * `Ctrl`/`Option`+`Right`: Move the cursor to the next word.
 * `Ctrl`/`Option`+`Backspace`: Erase the word to the left of the cursor.
 * `Ctrl`/`Option`+`Delete`: Erase the word to the right of the cursor.
+
+## Gamepad / Steam Controller support
+
+When built with the `WITH_CONTROLLER` option (see INSTALL.md), Gargoyle
+reads input from the first connected game controller:
+
+* D-pad: Arrow keys (movement, scrollback navigation).
+* `A`: Confirm, equivalent to `Return`.
+* `B`: Cancel, equivalent to `Escape`.
+* Left shoulder / Right shoulder: Page up / Page down through scrollback.
+
+This can be turned off at runtime, without a rebuild, by setting
+`controller 0` in the configuration file. Only available with the Qt
+interface; see INSTALL.md for details.
+
+Controllers are only detected at startup; connecting one after Gargoyle
+has launched requires a restart to be picked up.
