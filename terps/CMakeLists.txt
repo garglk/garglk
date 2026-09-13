@@ -384,7 +384,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# SCARIER (from Spatterlight 1.5.2) for Adrift 4 and 5 games
+# SCARIER (from Spatterlight 1.5.4) for Adrift 4 and 5 games
 #
 if(WITH_SCARIER)
     find_package(ZLIB REQUIRED)
