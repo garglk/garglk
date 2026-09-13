@@ -19,6 +19,7 @@
 #import <Cocoa/Cocoa.h>
 
 #include <cstdlib>
+#include <optional>
 #include <string>
 
 #include "font.h"
@@ -28,10 +29,10 @@
 static NSMutableArray *gli_registered_fonts = nil;
 static NSDistributedLock *gli_font_lock = nil;
 
-bool garglk::fontreplace(const std::string &font, FontType type)
+std::optional<FontFiles> garglk::fontlookup(const std::string &font)
 {
     if (font.empty()) {
-        return false;
+        return std::nullopt;
     }
 
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
@@ -43,7 +44,7 @@ bool garglk::fontreplace(const std::string &font, FontType type)
     NSArray *fontMatches =
         [fontFamilyDescriptor matchingFontDescriptorsWithMandatoryKeys: nil];
 
-    FontFiller filler(type);
+    FontFiller filler;
 
     for (NSFontDescriptor *sysfont in fontMatches) {
         // find path for font
@@ -56,7 +57,6 @@ bool garglk::fontreplace(const std::string &font, FontType type)
 
         if (fontPathRef && CFStringGetLength(fontPathRef) > 0) {
             NSString *fontPath = (__bridge NSString *)fontPathRef;
-            NSLog(@"fontPath: %@", fontPath);
 
             std::string file = [fontPath UTF8String];
             auto traits = [sysfont symbolicTraits];
@@ -79,7 +79,19 @@ bool garglk::fontreplace(const std::string &font, FontType type)
 
     [pool drain];
 
-    return filler.fill();
+    return filler.files();
+}
+
+bool garglk::fontreplace(const std::string &font, FontType type)
+{
+    auto files = fontlookup(font);
+    if (!files.has_value()) {
+        return false;
+    }
+
+    FontFiles &dest = type == FontType::Monospace ? gli_conf_mono : gli_conf_prop;
+    dest = *files;
+    return true;
 }
 
 void fontload()
