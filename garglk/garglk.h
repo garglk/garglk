@@ -93,6 +93,17 @@ struct FontFace {
     bool italic;
 };
 
+struct FontFiles {
+    struct {
+        std::optional<std::string> base;
+        std::optional<std::string> override;
+
+        const std::optional<std::string> &fontpath() const {
+            return override.has_value() ? override : base;
+        }
+    } r, b, i, z;
+};
+
 // Taken from Boost 1.81.0.
 // Copyright (c) 2019 Vinnie Falco (vinnie.falco@gmail.com).
 constexpr std::size_t hash_combine(std::size_t seed, std::size_t h) noexcept {
@@ -186,6 +197,9 @@ struct XFontResult {
 
 XFontResult fontreplace_x11(const std::string &xlfd, FontType type);
 bool x11_fonts_available();
+// Resolve an installed font family to Regular/Bold/Italic/BoldItalic
+// file paths without mutating the configured mono/prop fonts.
+std::optional<FontFiles> fontlookup(const std::string &font);
 std::vector<ConfigFile> configs(const std::optional<std::string> &gamepath);
 void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, const std::function<void(const std::string &cmd, const std::string &arg, int lineno)> &callback);
 std::string user_config();
@@ -594,6 +608,8 @@ struct style_t {
     // CSS border-style:solid for span vs paragraph boxes.
     bool span_border = false;
     bool para_border = false;
+    // CSS font-family resolved to an interned family table entry.
+    std::optional<std::uint16_t> family_id;
 
     bool operator==(const style_t &other) const {
         return font == other.font &&
@@ -614,7 +630,8 @@ struct style_t {
                text_indent == other.text_indent &&
                para_bg == other.para_bg &&
                span_border == other.span_border &&
-               para_border == other.para_border;
+               para_border == other.para_border &&
+               family_id == other.family_id;
     }
 
     bool operator!=(const style_t &other) const {
@@ -735,17 +752,6 @@ extern int gli_scroll_width;
 
 extern int gli_baseline;
 extern int gli_leading;
-
-struct FontFiles {
-    struct {
-        std::optional<std::string> base;
-        std::optional<std::string> override;
-
-        const std::optional<std::string> &fontpath() const {
-            return override.has_value() ? override : base;
-        }
-    } r, b, i, z;
-};
 
 #define DEFAULT_MONO_FONT	"Gargoyle Mono"
 #define DEFAULT_PROP_FONT	"Gargoyle Serif"
@@ -912,6 +918,7 @@ struct attr_t {
     std::optional<bool> underline;
     std::optional<double> size;
     std::optional<glui32> justification;
+    std::optional<std::uint16_t> family_id;
     // Paragraph geometry: when unset, the value comes from the style snapshot.
     std::optional<float> margin_left;
     std::optional<float> margin_right;
@@ -940,6 +947,7 @@ struct attr_t {
                underline == other.underline &&
                size == other.size &&
                justification == other.justification &&
+               family_id == other.family_id &&
                margin_left == other.margin_left &&
                margin_right == other.margin_right &&
                text_indent == other.text_indent &&
@@ -961,6 +969,7 @@ struct attr_t {
     void clear_css();
     [[nodiscard]] FontFace font(const Styles &styles) const;
     [[nodiscard]] bool reversed(const Styles &styles) const;
+    [[nodiscard]] std::optional<std::uint16_t> family(const Styles &styles) const;
     [[nodiscard]] double fontsize(const Styles &styles) const;
     [[nodiscard]] glui32 just(const Styles &styles) const;
     [[nodiscard]] bool underlined(const Styles &styles) const;
@@ -1341,8 +1350,8 @@ void gli_initialize_fonts();
 void gli_draw_pixel(int x, int y, const Color &rgb);
 void gli_draw_clear(const Color &rgb);
 void gli_draw_rect(int x, int y, int w, int h, const Color &rgb);
-int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb, const glui32 *text, int len, int spacewidth, std::optional<double> fontsize = std::nullopt);
-int gli_string_width_uni(FontFace face, const glui32 *text, int len, int spacewidth, std::optional<double> fontsize = std::nullopt);
+int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb, const glui32 *text, int len, int spacewidth, std::optional<double> fontsize = std::nullopt, std::optional<std::uint16_t> family_id = std::nullopt);
+int gli_string_width_uni(FontFace face, const glui32 *text, int len, int spacewidth, std::optional<double> fontsize = std::nullopt, std::optional<std::uint16_t> family_id = std::nullopt);
 void gli_draw_caret(int x, int y);
 void gli_draw_picture(const picture_t *pic, int x0, int y0, int dx0, int dy0, int dx1, int dy1);
 
@@ -1408,6 +1417,15 @@ bool gli_css_active();
 bool gli_css_input_wants_border(const window_t *win);
 bool gli_css_image_wants_border(const window_t *win);
 bool gli_css_window_wants_border(const window_t *win);
+
+// Interned CSS font-family: file paths for r/b/i/z plus whether the
+// family should use monospace metrics (aspect, dash/space rules).
+struct CssFontFamily {
+    FontFiles files;
+    bool monospace = false;
+};
+
+const CssFontFamily *gli_css_get_family(std::uint16_t id);
 
 // unicode case mapping
 

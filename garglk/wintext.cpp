@@ -404,13 +404,15 @@ static int calcwidth(window_textbuffer_t *dwin,
     for (b = startchar; b < numchars; b++) {
         if (attrs[a] != attrs[b]) {
             w += gli_string_width_uni(attrs[a].font(dwin->styles),
-                    chars + a, b - a, spw, attrs[a].fontsize(dwin->styles));
+                    chars + a, b - a, spw, attrs[a].fontsize(dwin->styles),
+                    attrs[a].family(dwin->styles));
             a = b;
         }
     }
 
     w += gli_string_width_uni(attrs[a].font(dwin->styles),
-            chars + a, b - a, spw, attrs[a].fontsize(dwin->styles));
+            chars + a, b - a, spw, attrs[a].fontsize(dwin->styles),
+            attrs[a].family(dwin->styles));
 
     return w;
 }
@@ -842,7 +844,8 @@ void win_textbuffer_redraw(window_t *win)
             if (ln.attrs[a] != ln.attrs[b]) {
                 auto font = ln.attrs[a].font(dwin->styles);
                 w = gli_string_width_uni(font, &ln.chars[a], b - a, spw,
-                        ln.attrs[a].fontsize(dwin->styles));
+                        ln.attrs[a].fontsize(dwin->styles),
+                        ln.attrs[a].family(dwin->styles));
                 draw_run_background(ln, a, x, w);
                 x += w;
                 a = b;
@@ -850,7 +853,8 @@ void win_textbuffer_redraw(window_t *win)
         }
         auto font = ln.attrs[a].font(dwin->styles);
         w = gli_string_width_uni(font, &ln.chars[a], b - a, spw,
-                ln.attrs[a].fontsize(dwin->styles));
+                ln.attrs[a].fontsize(dwin->styles),
+                ln.attrs[a].family(dwin->styles));
         draw_run_background(ln, a, x, w);
         x += w;
 
@@ -907,7 +911,8 @@ void win_textbuffer_redraw(window_t *win)
                         : ln.attrs[a].fg(dwin->styles, win_bg);
                 x = gli_draw_string_uni(x, y + gli_baseline,
                         font, color, &ln.chars[a], b - a, spw,
-                        ln.attrs[a].fontsize(dwin->styles));
+                        ln.attrs[a].fontsize(dwin->styles),
+                        ln.attrs[a].family(dwin->styles));
                 a = b;
             }
         }
@@ -918,7 +923,8 @@ void win_textbuffer_redraw(window_t *win)
                 : ln.attrs[a].fg(dwin->styles, win_bg);
         gli_draw_string_uni(x, y + gli_baseline,
                 font, color, &ln.chars[a], linelen - a, spw,
-                ln.attrs[a].fontsize(dwin->styles));
+                ln.attrs[a].fontsize(dwin->styles),
+                ln.attrs[a].family(dwin->styles));
 
         // CSS_Span / CSS_Hyperlink border-style: one box per line fragment run.
         if (linelen > first) {
@@ -930,7 +936,8 @@ void win_textbuffer_redraw(window_t *win)
                 }
                 w = gli_string_width_uni(ln.attrs[a].font(dwin->styles),
                         &ln.chars[a], b - a, spw,
-                        ln.attrs[a].fontsize(dwin->styles));
+                        ln.attrs[a].fontsize(dwin->styles),
+                        ln.attrs[a].family(dwin->styles));
                 if (ln.attrs[a].spanborder(dwin->styles) && w > 0) {
                     int rx0 = x / GLI_SUBPIX - 1;
                     int rx1 = (x + w) / GLI_SUBPIX + 1;
