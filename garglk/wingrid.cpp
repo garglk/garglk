@@ -83,9 +83,12 @@ void win_textgrid_redraw(window_t *win) {
     auto draw_run = [&dwin, win](const tgline_t *ln, int start, int end, int x, int y) -> int {
         glui32 link    = ln->attrs[start].hyperlink();
         auto   font    = ln->attrs[start].font(dwin->styles);
-        Color  fgcolor = link != 0 ? gli_link_color
-                                   : ln->attrs[start].fg(dwin->styles);
-        Color  bgcolor = ln->attrs[start].bg(dwin->styles);
+        auto   size    = ln->attrs[start].fontsize(dwin->styles);
+        Color  win_bg = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
+        Color  fgcolor = (link != 0 && !ln->attrs[start].fgcolor.has_value())
+                                   ? gli_link_color
+                                   : ln->attrs[start].fg(dwin->styles, win_bg);
+        Color  bgcolor = ln->attrs[start].bg(dwin->styles, win_bg);
         int    w       = (end - start) * gli_cellw;
 
         // Reverse-video runs retain their fill in transparent overlays.
@@ -94,14 +97,19 @@ void win_textgrid_redraw(window_t *win) {
         }
 
         if (link != 0) {
-            if (gli_underline_hyperlinks) {
+            bool draw_ul = ln->attrs[start].underline.has_value()
+                    ? *ln->attrs[start].underline
+                    : gli_underline_hyperlinks;
+            if (draw_ul) {
                 gli_draw_rect(x, y + gli_baseline + 1, w, 1, gli_link_color);
             }
             gli_put_hyperlink(link, x, y, x + w, y + gli_leading);
+        } else if (ln->attrs[start].underlined(dwin->styles)) {
+            gli_draw_rect(x, y + gli_baseline + 1, w, 1, fgcolor);
         }
 
         for (int i = start; i < end; i++) {
-            gli_draw_string_uni(x * GLI_SUBPIX, y + gli_baseline, font, fgcolor, &ln->chars[i], 1, -1);
+            gli_draw_string_uni(x * GLI_SUBPIX, y + gli_baseline, font, fgcolor, &ln->chars[i], 1, -1, size);
             x += gli_cellw;
         }
 

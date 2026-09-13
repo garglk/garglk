@@ -30,6 +30,7 @@
 #include <QFileInfo>
 #include <QFrame>
 #include <QGraphicsView>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QList>
@@ -46,6 +47,7 @@
 #include <QScreen>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QStyleHints>
 #include <QTextBrowser>
 #include <QString>
 #include <QStringList>
@@ -932,6 +934,17 @@ void winrepaint(int x0, int y0, int x1, int y1)
 
 bool windark()
 {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    switch (QGuiApplication::styleHints()->colorScheme()) {
+    case Qt::ColorScheme::Dark:
+        return true;
+    case Qt::ColorScheme::Light:
+        return false;
+    case Qt::ColorScheme::Unknown:
+        break;
+    }
+#endif
+
 #if GARGLK_CONFIG_HAS_QDBUS
     // https://flatpak.github.io/xdg-desktop-portal/
     QDBusInterface interface("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop", "org.freedesktop.portal.Settings");
@@ -949,8 +962,7 @@ bool windark()
     }
 #endif
 
-    // From https://stackoverflow.com/a/69705673/1017090
-    // Is there really no builtin way in Qt to check this?
+    // Fallback when the platform does not report a color scheme.
     QLabel label("");
     auto text_hsv_value = label.palette().color(QPalette::WindowText).value();
     auto bg_hsv_value = label.palette().color(QPalette::Window).value();

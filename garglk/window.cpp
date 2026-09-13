@@ -220,9 +220,17 @@ winid_t glk_window_open(winid_t splitwin,
             break;
         case wintype_TextGrid:
             newwin->window = std::make_unique<window_textgrid_t>(newwin.get());
+            // Style CSS first (may set explicit flags), then CSS_Window
+            // inherited properties apply to every style that did not override.
+            gli_css_apply_hints_to_styles(newwin->wingrid()->styles, wintype_TextGrid);
+            gli_css_apply_window_hints(newwin.get());
+            gli_css_snapshot_targets(newwin.get());
             break;
         case wintype_TextBuffer:
             newwin->window = std::make_unique<window_textbuffer_t>(newwin.get());
+            gli_css_apply_hints_to_styles(newwin->winbuffer()->styles, wintype_TextBuffer);
+            gli_css_apply_window_hints(newwin.get());
+            gli_css_snapshot_targets(newwin.get());
             break;
         case wintype_Graphics:
             newwin->window = std::make_unique<window_graphics_t>(newwin.get());
@@ -936,6 +944,19 @@ void gli_window_redraw(window_t *win)
         win_graphics_redraw(win);
         break;
     }
+
+    // CSS_Window border-style:solid — stroke the window chrome (currentcolor).
+    if (gli_css_window_wants_border(win)) {
+        int y0 = win->yadj != 0 ? win->bbox.y0 - win->yadj : win->bbox.y0;
+        int x0 = win->bbox.x0;
+        int x1 = win->bbox.x1;
+        int y1 = win->bbox.y1;
+        Color border = win->fgcolor;
+        gli_draw_rect(x0, y0, x1 - x0, 1, border);
+        gli_draw_rect(x0, y1 - 1, x1 - x0, 1, border);
+        gli_draw_rect(x0, y0, 1, y1 - y0, border);
+        gli_draw_rect(x1 - 1, y0, 1, y1 - y0, border);
+    }
 }
 
 void gli_window_refocus(window_t *win)
@@ -1603,6 +1624,7 @@ void attr_t::set(glui32 style_)
     bgcolor.reset();
     reverse = false;
     style = style_;
+    clear_css();
 }
 
 void attr_t::clear()
@@ -1612,11 +1634,97 @@ void attr_t::clear()
     reverse = false;
     hyper = 0;
     style = 0;
+    clear_css();
+}
+
+void attr_t::clear_css()
+{
+    bold.reset();
+    italic.reset();
+    monospace.reset();
+    underline.reset();
+    size.reset();
+    justification.reset();
+    margin_left.reset();
+    margin_right.reset();
+    text_indent.reset();
+    para_bgcolor.reset();
+    span_border.reset();
+    para_border.reset();
+    css_paint = false;
+    fg_transparent = false;
 }
 
 FontFace attr_t::font(const Styles &styles) const
 {
-    return styles[style].font;
+    FontFace face = styles[style].font;
+
+    if (bold.has_value()) {
+        face.bold = *bold;
+    }
+    if (italic.has_value()) {
+        face.italic = *italic;
+    }
+    if (monospace.has_value()) {
+        face.monospace = *monospace;
+    }
+
+    return face;
+}
+
+double attr_t::fontsize(const Styles &styles) const
+{
+    if (size.has_value()) {
+        return *size;
+    }
+    if (styles[style].size.has_value()) {
+        return *styles[style].size;
+    }
+
+    return font(styles).monospace ? gli_conf_monosize : gli_conf_propsize;
+}
+
+glui32 attr_t::just(const Styles &styles) const
+{
+    return justification.value_or(styles[style].justification);
+}
+
+bool attr_t::underlined(const Styles &styles) const
+{
+    return underline.value_or(styles[style].underline);
+}
+
+float attr_t::marginl(const Styles &styles) const
+{
+    return margin_left.value_or(static_cast<float>(styles[style].margin_left));
+}
+
+float attr_t::marginr(const Styles &styles) const
+{
+    return margin_right.value_or(static_cast<float>(styles[style].margin_right));
+}
+
+float attr_t::indent(const Styles &styles) const
+{
+    return text_indent.value_or(static_cast<float>(styles[style].text_indent));
+}
+
+std::optional<Color> attr_t::parabg(const Styles &styles) const
+{
+    if (para_bgcolor.has_value()) {
+        return para_bgcolor;
+    }
+    return styles[style].para_bg;
+}
+
+bool attr_t::spanborder(const Styles &styles) const
+{
+    return span_border.value_or(styles[style].span_border);
+}
+
+bool attr_t::paraborder(const Styles &styles) const
+{
+    return para_border.value_or(styles[style].para_border);
 }
 
 static Color zcolor_LightGrey = Color(181, 181, 181);
@@ -1647,7 +1755,7 @@ bool attr_t::reversed(const Styles &styles) const
     return reverse || (styles[style].reverse && !gli_override_reverse);
 }
 
-Color attr_t::bg(const Styles &styles) const
+Color attr_t::bg(const Styles &styles, Color window_bg) const
 {
     bool revset = reversed(styles);
 
@@ -1659,26 +1767,37 @@ Color attr_t::bg(const Styles &styles) const
                         gli_override_bg.has_value() ? gli_override_bg :
                         std::nullopt;
 
+    auto pbg = parabg(styles);
+
     if (!revset) {
-        return zcolor_Background.value_or(styles[style].bg);
+        // With a paragraph content-box fill and no span bgcolor, glyph-run
+        // backgrounds must match the box so they do not paint over it.
+        if (pbg.has_value() && !bgcolor.has_value() && !gli_override_bg.has_value()) {
+            return *pbg;
+        }
+        return zcolor_Background.value_or(gli_style_background(styles, style, window_bg));
+    } else if (pbg.has_value()) {
+        // Reverse + para: content box becomes the original foreground.
+        return zcolor_Foreground.value_or(gli_style_foreground(styles, style));
     } else {
         if (zcolor_Foreground.has_value()) {
-            if (zcolor_Foreground == zcolor_Background) {
+            if (zcolor_Foreground == zcolor_Background && !css_paint) {
                 return rgbshift(*zcolor_Foreground);
             } else {
                 return *zcolor_Foreground;
             }
         } else {
-            if (styles[style].fg == zcolor_Background) {
+            Color style_fg = gli_style_foreground(styles, style);
+            if (style_fg == zcolor_Background) {
                 return zcolor_LightGrey;
             } else {
-                return styles[style].fg;
+                return style_fg;
             }
         }
     }
 }
 
-Color attr_t::fg(const Styles &styles) const
+Color attr_t::fg(const Styles &styles, Color window_bg) const
 {
     bool revset = reversed(styles);
 
@@ -1690,21 +1809,36 @@ Color attr_t::fg(const Styles &styles) const
                         gli_override_bg.has_value() ? gli_override_bg :
                         std::nullopt;
 
+    auto pbg = parabg(styles);
+
+    // CSS color:transparent — paint with the effective background.
+    if (fg_transparent && !revset) {
+        if (pbg.has_value()) {
+            return *pbg;
+        }
+        return zcolor_Background.value_or(gli_style_background(styles, style, window_bg));
+    }
+
     if (!revset) {
         if (zcolor_Foreground.has_value()) {
-            if (zcolor_Foreground == zcolor_Background) {
+            if (zcolor_Foreground == zcolor_Background && !css_paint) {
                 return rgbshift(*zcolor_Foreground);
             } else {
                 return *zcolor_Foreground;
             }
         } else {
-            if (styles[style].fg == zcolor_Background) {
+            Color style_fg = gli_style_foreground(styles, style);
+            if (style_fg == zcolor_Background) {
                 return zcolor_LightGrey;
             } else {
-                return styles[style].fg;
+                return style_fg;
             }
         }
+    } else if (pbg.has_value()) {
+        // Reverse with CSS_Paragraph background: text takes the para color
+        // (Spatterlight swaps GlkParaBackground with the foreground).
+        return *pbg;
     } else {
-        return zcolor_Background.value_or(styles[style].bg);
+        return zcolor_Background.value_or(gli_style_background(styles, style, window_bg));
     }
 }

@@ -1800,6 +1800,7 @@ static void gli_set_hyperlink(stream_t *str, glui32 linkval)
     switch (str->type) {
     case strtype_Window:
         str->win->attr.set_hyperlink(linkval);
+        gli_css_refresh_window_attr(str->win);
         break;
     }
 }
@@ -1831,6 +1832,7 @@ static void gli_set_style(stream_t *str, glui32 val)
     switch (str->type) {
     case strtype_Window:
         str->win->attr.style = val;
+        gli_css_refresh_window_attr(str->win);
         if (str->win->echostr != nullptr) {
             gli_set_style(str->win->echostr, val);
         }
