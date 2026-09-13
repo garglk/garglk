@@ -36,6 +36,11 @@
  *   SCR_TRACE_JUDY   per-turn one-line dump of every NPC's current room, for
  *                   pinning down a wandering NPC's deterministic walk.
  *
+ *   SCR_TRACE_OBJ    per-turn dump of object positions and states, either every
+ *                   object ("1"/"all") or a comma-separated index list.  The
+ *                   companion to SCR_DUMP_OBJLOC for games that move objects
+ *                   about at run time.
+ *
  *   SCR_TRACE_VARS   per-turn dump of the game's own named integer variables,
  *                   either all of them ("1"/"all") or a comma-separated
  *                   subset.  For games whose timers, NPC moods and progress
@@ -183,6 +188,19 @@ scr_dump_structure_once (scr_gameref_t game)
                * against MaxCarried.  Absent (-1/0) for 3.9 and 4.0 games. */
               swk[2].string = "SizeWeightClass";
               if (prop_get (bundle, "I<-sis", &bv, swk)) swclass = bv.integer;
+              /* The raw .taf Parent field, printed even when Position says the
+               * object is not inside/on anything: the Runner's recursive
+               * weight scan (Sub_22_63) matches children on this field alone,
+               * with no position check, so a stale Parent silently adds an
+               * elsewhere-located object's weight to this container's. */
+              {
+                scr_int rawpar = -1;
+                swk[2].string = "Parent";
+                if (prop_get (bundle, "I<-sis", &bv, swk)) rawpar = bv.integer;
+                fprintf (stderr, "OBJLOC-RAWPAR obj=%ld rawparent=%ld"
+                         " runner_parent=%ld\n",
+                         i, rawpar, gs_object_runner_parent (game, i));
+              }
               fprintf (stderr,
                        "OBJLOC obj=%ld pos=%ld room=%ld parent=%ld effroom=%ld"
                        " static=%ld unmoved=%ld open=%ld state=%ld hit=%ld"
@@ -294,6 +312,38 @@ scr_dump_structure_once (scr_gameref_t game)
       s = scdump_object_name (game, oo);
       fprintf (stderr, "CONTAINER idx=%ld obj=%ld [%s]\n", i, oo, s ? s : "");
     }
+
+  /* Stateful-object enumeration (Openable != 0 or CurrentState != 0, in
+   * object order).  Task object-state restrictions and change-object-status
+   * actions address this list 1-based; room-alt type 1 Var2 does NOT (it is
+   * a 1-based global object number -- see lib_use_room_alt). */
+  {
+    scr_int idx = 0;
+    for (i = 0; i < gs_object_count (game); i++)
+      {
+        scr_vartype_t pk[3], pv;
+        scr_int openable, curstate;
+        const scr_char *states = NULL, *s;
+        pk[0].string = "Objects";
+        pk[1].integer = i;
+        pk[2].string = "Openable";
+        openable = prop_get (bundle, "I<-sis", &pv, pk) ? pv.integer : 0;
+        pk[2].string = "CurrentState";
+        curstate = prop_get (bundle, "I<-sis", &pv, pk) ? pv.integer : 0;
+        if (openable == 0 && curstate == 0)
+          continue;
+        idx++;
+        pk[2].string = "States";
+        if (prop_get (bundle, "S<-sis", &pv, pk))
+          states = pv.string;
+        s = scdump_object_name (game, i);
+        fprintf (stderr,
+                 "STATEFUL idx=%ld obj=%ld [%s] openable=%ld curstate=%ld"
+                 " states=[%s]\n",
+                 idx, i, s ? s : "", openable, curstate,
+                 states ? states : "");
+      }
+  }
 
   /* Static-object room membership (the "Where" list). Dynamic objects are
    * located via the debugger; statics have no single position, so list every
@@ -420,6 +470,36 @@ scr_dump_structure_once (scr_gameref_t game)
       }
   }
 
+  /*
+   * ALRs (output-rewrite rules applied to the finished turn text).
+   *
+   * Worth dumping for a reason that has nothing to do with the game: an ALR's
+   * *Original* string is the author's own transcription of a **Runner**
+   * message, typed while looking at the real Runner's output.  That makes the
+   * corpus' ALR tables a free, offline oracle for library wording -- see the
+   * asteroid_after measurement in test/adrift4/notes/WINE-TRANSCRIPTS-TODO.md,
+   * where `Which valve.` and `Which satellite.   satellite,  satellite or
+   * satellite?` pin run400's ambiguity message and its
+   * `tense(Prefix) & " " & Short` list construction without launching Wine.
+   */
+  {
+    scr_vartype_t yk[3];
+    scr_int yc, yi;
+    yk[0].string = "ALRs";
+    yc = prop_get_child_count (bundle, "I<-s", yk);
+    for (yi = 0; yi < yc; yi++)
+      {
+        const scr_char *orig, *repl;
+        yk[1].integer = yi;
+        yk[2].string = "Original";
+        orig = prop_get_string (bundle, "S<-sis", yk);
+        yk[2].string = "Replacement";
+        repl = prop_get_string (bundle, "S<-sis", yk);
+        fprintf (stderr, "ALR [%s] -> [%s]\n",
+                 orig ? orig : "", repl ? repl : "");
+      }
+  }
+
   /* Synonyms (input-rewrite rules applied before task/library matching). */
   {
     scr_vartype_t yk[3];
@@ -444,7 +524,7 @@ scr_dump_structure_once (scr_gameref_t game)
     {
       scr_vartype_t k[5], vt;
       const scr_char *cmd;
-      scr_int wtype, wroom, acount, rcount, rep;
+      scr_int wtype, wroom, acount, rcount, rep, rev;
 
       scr_int ccount, ci;
       k[0].string = "Tasks";
@@ -470,6 +550,8 @@ scr_dump_structure_once (scr_gameref_t game)
 
       k[2].string = "Repeatable";
       rep = prop_get_boolean (bundle, "B<-sis", k);
+      k[2].string = "Reversible";
+      rev = prop_get_boolean (bundle, "B<-sis", k);
       k[2].string = "Actions";
       acount = prop_get_child_count (bundle, "I<-sis", k);
       k[2].string = "Restrictions";
@@ -497,9 +579,9 @@ scr_dump_structure_once (scr_gameref_t game)
         if (prop_get (bundle, "S<-sis", &vt, k) && !scr_strempty (vt.string))
           rpt = 1;
         fprintf (stderr,
-                 "TASK %ld where=%ld room=%ld restr=%ld rep=%ld rpt=%ld"
+                 "TASK %ld where=%ld room=%ld restr=%ld rep=%ld rev=%ld rpt=%ld"
                  " score=%ld srd=%ld mask=[%s] cmd=[%s]\n",
-                 t, wtype, wroom, rcount, rep, rpt, score, srd,
+                 t, wtype, wroom, rcount, rep, rev, rpt, score, srd,
                  mask ? mask : "", cmd ? cmd : "");
       }
 
@@ -535,6 +617,40 @@ scr_dump_structure_once (scr_gameref_t game)
         if (h2 && *h2) fprintf (stderr, "    HINT2=[%s]\n", h2);
       }
 
+      /* The task's own text.  A wording measurement against a Runner
+       * transcript stands or falls on knowing which words the author wrote:
+       * the dump used to show only the command, so an engine-supplied phrase
+       * and an authored one looked alike.  CompleteText is what the task
+       * prints when it runs, AdditionalMessage what task_run_task_
+       * unrestricted() appends after the actions, RepeatText what answers a
+       * second typing (see run_task_refusal()), and ReverseMessage what an
+       * "un-doing" of the task says.  humbug's task 80 "put * sweet on *
+       * plinth" is the worked example: its CompleteText is a bare "I put the
+       * sweet on the plinth.", so neither of the two "Okay."s the Runner
+       * prefixes to it is authored -- both come from the game's own
+       * self-containing ALR [I put ] -> [Okay.  I put ], one per filter pass
+       * the turn runs (see pf_refilter()). */
+      {
+        const scr_char *tt;
+        static const char *const text_fields[] =
+          { "CompleteText", "AdditionalMessage", "RepeatText",
+            "ReverseMessage", NULL };
+        static const char *const text_labels[] =
+          { "COMPLETE", "ADDMSG", "REPEATTEXT", "REVERSE", NULL };
+        scr_int f;
+
+        for (f = 0; text_fields[f]; f++)
+          {
+            k[2].string = text_fields[f];
+            if (prop_get (bundle, "S<-sis", &vt, k)
+                && !scr_strempty (vt.string))
+              {
+                tt = vt.string;
+                fprintf (stderr, "    %s=[%s]\n", text_labels[f], tt);
+              }
+          }
+      }
+
       /* Print any extra command alternatives (Command[1..]) -- these are the
        * synonym/wildcard forms ADRIFT matches in addition to Command[0]. */
       for (ci = 1; ci < ccount; ci++)
@@ -544,6 +660,34 @@ scr_dump_structure_once (scr_gameref_t game)
           k[3].integer = ci;
           ac = prop_get_string (bundle, "S<-sisi", k);
           fprintf (stderr, "    ALTCMD[%ld]=[%s]\n", ci, ac ? ac : "");
+        }
+
+      /* The reverse half of a reversible task.  A reversible task matches its
+       * ReverseCommand patterns as well as its Command ones, so those strings
+       * are typeable too -- and when the ReverseMessage is empty the reverse
+       * run prints nothing, which makes the whole turn silent and sends a
+       * pre-4.0 Runner to the game's DontUnderstand string instead of the
+       * library (see silent-task rule).  lifesimulation's task 10 "turn on tv"
+       * is the worked example: its ReverseCommand is the bare literal "turn
+       * off tv" with no ReverseMessage, and only that exact string diverges,
+       * which is why five probe drives could not find a pattern in it
+       * (2026-09-05).  The dump used to show neither the flag nor the reverse
+       * commands, so the task looked like an ordinary one-way task. */
+      if (prop_get_indexed_boolean (bundle, "Tasks", t, "Reversible"))
+        {
+          scr_int rc, rccount;
+
+          k[2].string = "ReverseCommand";
+          rccount = prop_get_child_count (bundle, "I<-sis", k);
+          fprintf (stderr, "    REVERSIBLE rcmds=%ld\n", rccount);
+          for (rc = 0; rc < rccount; rc++)
+            {
+              const scr_char *rcs;
+              k[2].string = "ReverseCommand";
+              k[3].integer = rc;
+              rcs = prop_get_string (bundle, "S<-sisi", k);
+              fprintf (stderr, "    REVCMD[%ld]=[%s]\n", rc, rcs ? rcs : "");
+            }
         }
 
       for (i = 0; i < rcount; i++)
@@ -582,8 +726,21 @@ scr_dump_structure_once (scr_gameref_t game)
               s = prop_get_string (bundle, "S<-sisi", tk);
               snprintf (nm, sizeof nm, " task%ld=[%s]", v1 - 1, s ? s : "");
             }
-          fprintf (stderr, "    RESTR type=%ld v1=%ld v2=%ld v3=%ld%s\n",
-                   rtype, v1, v2, v3, nm);
+          /*
+           * The FailMessage decides how a failing restriction looks from the
+           * outside: with one, 4.0 prints it and eats the command; with none,
+           * the refusal is silent and the turn falls through to the library
+           * and then to "I don't understand ...".  Two divergences have now
+           * been chased that turn on exactly that difference, so dump it.
+           */
+          {
+            const scr_char *fail;
+            k[4].string = "FailMessage";
+            fail = prop_get_string (bundle, "S<-sisis", k);
+            fprintf (stderr,
+                     "    RESTR type=%ld v1=%ld v2=%ld v3=%ld%s fail=[%s]\n",
+                     rtype, v1, v2, v3, nm, fail ? fail : "");
+          }
         }
 
       for (i = 0; i < acount; i++)
@@ -701,6 +858,66 @@ scr_dump_structure_once (scr_gameref_t game)
                    stx && stx[0] ? 'S' : '-',
                    ltx && ltx[0] ? 'L' : '-',
                    ftx && ftx[0] ? 'F' : '-');
+          if (stx && stx[0]) fprintf (stderr, "   S: %s\n", stx);
+          if (ltx && ltx[0]) fprintf (stderr, "   L: %s\n", ltx);
+          if (ftx && ftx[0]) fprintf (stderr, "   F: %s\n", ftx);
+          /* PrefTime1/2 -- "show this N turns before the event ends", compared
+           * against the POST-decrement clock.  These are the only event texts
+           * that are neither Start, Look nor Finish, and a measurement that
+           * does not know an event carries one reads its wording as an
+           * unexplained divergence (FarFromHome 2026-09-05 spent a session on
+           * "The tide washes in" before finding it here). */
+          {
+            scr_int pt;
+            const scr_char *px;
+            int which;
+
+            for (which = 1; which <= 2; which++)
+              {
+                char field[16];
+
+                pt = 0; px = NULL;
+                snprintf (field, sizeof field, "PrefTime%d", which);
+                ek[2].string = field;
+                if (prop_get (bundle, "I<-sis", &evt, ek)) pt = evt.integer;
+                snprintf (field, sizeof field, "PrefText%d", which);
+                ek[2].string = field;
+                if (prop_get (bundle, "S<-sis", &evt, ek)) px = evt.string;
+                if (px && px[0])
+                  fprintf (stderr, "   P%d(at %ld): %s\n", which, pt, px);
+              }
+          }
+          /* The event's own room list, which gates every one of those texts. */
+          {
+            scr_vartype_t wk[5];
+            scr_int type, rc, r;
+
+            wk[0].string = "Events";
+            wk[1].integer = e;
+            wk[2].string = "Where";
+            wk[3].string = "Type";
+            type = prop_get (bundle, "I<-siss", &evt, wk) ? evt.integer : -1;
+            fprintf (stderr, "   where type=%ld", type);
+            if (type == ROOMLIST_ONE_ROOM)
+              {
+                wk[3].string = "Room";
+                if (prop_get (bundle, "I<-siss", &evt, wk))
+                  fprintf (stderr, " room=%ld", evt.integer);
+              }
+            else if (type == ROOMLIST_SOME_ROOMS)
+              {
+                wk[3].string = "Rooms";
+                rc = prop_get_child_count (bundle, "I<-siss", wk);
+                fprintf (stderr, " rooms[%ld]:", rc);
+                for (r = 0; r < rc; r++)
+                  {
+                    wk[4].integer = r;
+                    if (prop_get (bundle, "B<-sissi", &evt, wk) && evt.boolean)
+                      fprintf (stderr, " %ld", r);
+                  }
+              }
+            fprintf (stderr, "\n");
+          }
         }
       }
   }
@@ -720,7 +937,30 @@ scr_dump_structure_once (scr_gameref_t game)
         nk[1].integer = n;
         nk[2].string = "Name";      if (prop_get (bundle, "S<-sis", &nv, nk)) nm = nv.string;
         nk[2].string = "StartRoom"; if (prop_get (bundle, "I<-sis", &nv, nk)) sr = nv.integer;
-        fprintf (stderr, "NPC %ld [%s] startRoom=%ld\n", n, nm ? nm : "", sr - 1);
+        fprintf (stderr, "NPC %ld [%s] startRoom=%ld", n, nm ? nm : "", sr - 1);
+
+        /* Prefix and aliases: the 4.0 battle narration names an NPC by
+         * "<Prefix> <Alias[0]>" rather than by Name (see battle_print_name()
+         * in scbattle.cpp), so a battle diff wants them visible. */
+        {
+          scr_int alias_count, a;
+
+          nk[2].string = "Prefix";
+          if (prop_get (bundle, "S<-sis", &nv, nk) && nv.string
+              && nv.string[0] != '\0')
+            fprintf (stderr, " prefix=[%s]", nv.string);
+
+          nk[2].string = "Alias";
+          alias_count = prop_get_child_count (bundle, "I<-sis", nk);
+          for (a = 0; a < alias_count; a++)
+            {
+              nk[3].integer = a;
+              if (prop_get (bundle, "S<-sisi", &nv, nk) && nv.string
+                  && nv.string[0] != '\0')
+                fprintf (stderr, " alias=[%s]", nv.string);
+            }
+        }
+        fprintf (stderr, "\n");
 
         /* Battle System configuration for this NPC, read straight from the
          * bundle (NPCs[n].Battle.<attr>).  4.0 games store <attr>Lo/<attr>Hi
@@ -770,7 +1010,7 @@ scr_dump_structure_once (scr_gameref_t game)
             scr_int loop = 0, st = 0, ct = 0, mo = 0, ot = 0, sp = 0, mc = 0;
             scr_int rc, s;
             nk[3].integer = w;
-            nk[4].string = "BLoop";       if (prop_get (bundle, "B<-sisis", &nv, nk)) loop = nv.integer;
+            nk[4].string = "Loop";       if (prop_get (bundle, "B<-sisis", &nv, nk)) loop = nv.integer;
             nk[4].string = "StartTask";   if (prop_get (bundle, "I<-sisis", &nv, nk)) st = nv.integer;
             nk[4].string = "CharTask";    if (prop_get (bundle, "I<-sisis", &nv, nk)) ct = nv.integer;
             nk[4].string = "MeetObject";  if (prop_get (bundle, "I<-sisis", &nv, nk)) mo = nv.integer;
@@ -781,14 +1021,21 @@ scr_dump_structure_once (scr_gameref_t game)
                      "  WALK %ld loop=%ld startTask=%ld charTask=%ld(task%ld)"
                      " meetChar=%ld meetObj=%ld objTask=%ld(task%ld) stopTask=%ld\n",
                      w, loop, st, ct, ct - 1, mc, mo, ot, ot - 1, sp);
+            nk[4].string = "ChangedDesc";
+            fprintf (stderr, "    changeddesc [%s]\n",
+                     prop_get (bundle, "S<-sisis", &nv, nk) && nv.string
+                     ? nv.string : "");
             nk[4].string = "Rooms";
             rc = prop_get_child_count (bundle, "I<-sisis", nk);
             for (s = 0; s < rc; s++)
               {
-                scr_int rm = 0;
+                scr_int rm = 0, tm = 0;
                 nk[5].integer = s;
                 if (prop_get (bundle, "I<-sisisi", &nv, nk)) rm = nv.integer;
-                fprintf (stderr, "    step %ld dest=%ld\n", s, rm);
+                nk[4].string = "Times";
+                if (prop_get (bundle, "I<-sisisi", &nv, nk)) tm = nv.integer;
+                nk[4].string = "Rooms";
+                fprintf (stderr, "    step %ld dest=%ld times=%ld\n", s, rm, tm);
               }
           }
       }
@@ -871,8 +1118,9 @@ scr_dump_structure_once (scr_gameref_t game)
                   {
                     scr_int obj = obj_stateful_object (game, v1 - 1);
                     const scr_char *s = scdump_object_name (game, obj);
-                    fprintf (stderr, " gateObj=%ld [%s] wantState=%ld\n",
-                             obj, s ? s : "", v2);
+                    fprintf (stderr, " gateObj=%ld [%s] wantState=%ld"
+                             " rawV1=%ld\n",
+                             obj, s ? s : "", v2, v1);
                   }
               }
           }
@@ -941,18 +1189,50 @@ scr_dump_npc_trace (scr_gameref_t game)
   /* SCR_TRACE_PLAYER: just the player's room each turn (maze-mapping aid). */
   if (trace_player)
     {
-      fprintf (stderr, "PLAYERROOM room=%ld stamina=%ld",
+      fprintf (stderr, "PLAYERROOM room=%ld stamina=%ld\n",
                gs_playerroom (game), game->playerstamina);
-      {
-        const scr_char *ov = trace_obj;
-        if (ov)
-          {
-            scr_int oi = atol (ov);
-            fprintf (stderr, " obj%ld_pos=%ld state=%ld", oi,
-                     gs_object_position (game, oi), gs_object_state (game, oi));
-          }
-      }
-      fprintf (stderr, "\n");
+      fflush (stderr);
+    }
+
+  /*
+   * SCR_TRACE_OBJ: per-turn position and state of the objects named by a
+   * comma-separated index list, or of every object for "1"/"all".  Games that
+   * scatter their objects to random rooms at run time (House Of Horror opens
+   * its front door and re-rolls twenty of them) cannot be routed from the
+   * static OBJLOC dump at all; this is where the objects actually are.
+   */
+  if (trace_obj)
+    {
+      scr_bool all = (strcmp (trace_obj, "1") == 0
+                      || strcmp (trace_obj, "all") == 0);
+      scr_int count = gs_object_count (game), object;
+
+      for (object = 0; object < count; object++)
+        {
+          if (!all)
+            {
+              const scr_char *scan = trace_obj;
+              scr_bool wanted = FALSE;
+
+              /* Match `object` against one entry of the comma-separated list. */
+              while (scan && *scan)
+                {
+                  if (atol (scan) == object)
+                    {
+                      wanted = TRUE;
+                      break;
+                    }
+                  scan = strchr (scan, ',');
+                  if (scan)
+                    scan++;
+                }
+              if (!wanted)
+                continue;
+            }
+          fprintf (stderr, "OBJTRACE obj=%ld pos=%ld state=%ld\n", object,
+                   gs_object_position (game, object),
+                   gs_object_state (game, object));
+        }
       fflush (stderr);
     }
 

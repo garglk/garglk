@@ -751,33 +751,138 @@ battle_speed_roll (scr_gameref_t game, scr_int npc)
 }
 
 /*
- * battle_print_combatant()
+ * How the 4.0 battle narration names an NPC.  BATTLE_NAME_NAME is the plain
+ * Name; the other two prefer "<Prefix> <Alias[0]>" to it, unconditionally or
+ * only from an enemy.
+ */
+enum {
+  BATTLE_NAME_NAME = 0,
+  BATTLE_NAME_ALIAS = 1,
+  BATTLE_NAME_ENEMY_ALIAS = 2
+};
+
+/*
+ * The grammatical form a combatant's name is printed in.  SUBJECT and
+ * SUBJECT_CAPITALISED differ only for an NPC: the Runner puts some of its
+ * leading names, and only some, through its one-line capitaliser.  See
+ * battle_print_combatant().
+ */
+enum {
+  BATTLE_FORM_SUBJECT = 0,
+  BATTLE_FORM_OBJECT = 1,
+  BATTLE_FORM_POSSESSIVE = 2,
+  BATTLE_FORM_SUBJECT_CAPITALISED = 3
+};
+
+/*
+ * battle_print_npc_name()
  *
- * Print the name of a combatant.  form selects the grammatical form: 0 for a
- * capitalised subject ("You" / "Goblin"), 1 for an object/lowercase form
- * ("you" / "Goblin"), 2 for a possessive ("your" / "Goblin's").
+ * Print an NPC as a battle message names it.  The Runner's two attack
+ * procedures do not use the NPC's Name: given a first alias they narrate the
+ * fight with "<Prefix> <Alias[0]>" instead -- Orient Express calls its enemy
+ * "Igotta Bigbottom" in the room listing but "the large man" in every blow,
+ * and "Ivill Getyou" is "BIG BOSS" (measured against run400's own transcript,
+ * Adrift_36_orient_express.txt, 2026-08-25).
+ *
+ * The two procedures differ in when they take the alias.  Proc_11_1, the
+ * player's blow (Battles.bas @45E1CE), takes it from any NPC with one.
+ * Proc_11_2, an NPC's blow (@464F20 for the attacker, @464FF2 for the
+ * target), tests the combatant's Battle.Attitude -- the record byte at +172 --
+ * and takes the alias only from an enemy (attitude 2); an ally or a neutral
+ * keeps its Name.  Both join the prefix in raw, so an authored "the young "
+ * prints its own second space.
+ *
+ * Nothing else follows the rule: the corpse line reads the Name field
+ * directly (@44B115), and so does every room listing.  Nor does the pre-4.0
+ * battle system, whose narration is a different set of strings altogether and
+ * names by Name (run390 Form1.frm @4595DB) -- hence the battle_legacy guard
+ * in the caller.
  */
 static void
-battle_print_combatant (scr_gameref_t game, scr_int npc, scr_int form)
+battle_print_npc_name (scr_gameref_t game, scr_int npc, scr_int naming)
 {
   const scr_filterref_t filter = gs_get_filter (game);
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[3];
-  const scr_char *name;
+  const scr_char *alias, *prefix;
+  scr_vartype_t vt_key[4];
 
-  if (npc < 0)
+  if (naming == BATTLE_NAME_NAME
+      || (naming == BATTLE_NAME_ENEMY_ALIAS && battle_attitude (game, npc) != 2))
     {
-      pf_buffer_string (filter, (form == 0) ? "You"
-                                : (form == 1) ? "you" : "your");
+      lib_print_npc_np (game, npc);
       return;
     }
 
   vt_key[0].string = "NPCs";
   vt_key[1].integer = npc;
-  vt_key[2].string = "Name";
-  name = prop_get_string (bundle, "S<-sis", vt_key);
-  pf_buffer_string (filter, name);
-  if (form == 2)
+  vt_key[2].string = "Alias";
+  vt_key[3].integer = 0;
+  alias = prop_get_child_count (bundle, "I<-sis", vt_key) > 0
+          ? prop_get_string (bundle, "S<-sisi", vt_key) : NULL;
+  if (!alias || alias[0] == '\0')
+    {
+      lib_print_npc_np (game, npc);
+      return;
+    }
+
+  prefix = prop_get_indexed_string (bundle, "NPCs", npc, "Prefix");
+  if (prefix && prefix[0] != '\0')
+    {
+      pf_buffer_string (filter, prefix);
+      pf_buffer_character (filter, ' ');
+    }
+  pf_buffer_string (filter, alias);
+}
+
+/*
+ * battle_print_combatant()
+ *
+ * Print the name of a combatant.  form selects the grammatical form: SUBJECT
+ * and SUBJECT_CAPITALISED for a subject ("You" / "Goblin"), OBJECT for an
+ * object/lowercase form ("you" / "Goblin"), POSSESSIVE for a possessive
+ * ("your" / "Goblin's").  naming picks how an NPC is named; see
+ * battle_print_npc_name().
+ *
+ * SUBJECT_CAPITALISED forces the NPC's name to an initial capital, the way
+ * the Runner's one-line capitaliser Proc_21_3_446BB4 does -- run400.bas
+ * @84060, literally UCase(Left(s, 1)) & Right(s, Len(s) - 1), with an early
+ * exit on the empty string.  It matters because a battle name is usually the
+ * NPC's *alias*, and an alias is authored in the lowercase form it takes
+ * mid-sentence: trabula.taf names its soldier "a soldier", so the blow that
+ * opens a turn reads "A soldier attacks you with the rapier, but you manage
+ * to avoid it." while the corpse line, printed from the Name field, reads
+ * "Soldier falls down, dead." (measured, Adrift_119_trabula.txt t8/t29).
+ *
+ * The Runner capitalises at exactly five sites, all of them in Proc_11_2 (an
+ * NPC's blow) and all of them the *attacker* leading the sentence: the two
+ * bare-handed hits (Battles.bas loc_4650C6 landed, loc_46510D no damage), the
+ * armed hit before the method verb is chosen (loc_4651FA, so a throw is
+ * capitalised too), and both armed misses (loc_4653A3 against the player,
+ * loc_46543F against another NPC).  Nothing else is: the bare-handed miss
+ * leads with the raw target name (loc_465185 pushes var_8C unwrapped) and
+ * names the attacker raw in the possessive after it, Proc_11_1 -- the
+ * player's blow, which always opens with "You" -- has no call to the
+ * capitaliser at all, and neither does the corpse line (Proc_11_3 @44B115
+ * reads the Name field directly).
+ */
+static void
+battle_print_combatant (scr_gameref_t game, scr_int npc, scr_int form,
+                        scr_int naming)
+{
+  const scr_filterref_t filter = gs_get_filter (game);
+
+  if (npc < 0)
+    {
+      pf_buffer_string (filter,
+                        (form == BATTLE_FORM_OBJECT) ? "you"
+                        : (form == BATTLE_FORM_POSSESSIVE) ? "your" : "You");
+      return;
+    }
+
+  if (form == BATTLE_FORM_SUBJECT_CAPITALISED)
+    pf_new_sentence (filter);
+  battle_print_npc_name (game, npc, naming);
+  if (form == BATTLE_FORM_POSSESSIVE)
     pf_buffer_string (filter, "'s");
 }
 
@@ -870,17 +975,25 @@ battle_kill (scr_gameref_t game, scr_int npc, scr_bool visible)
        * no task text and no corpse line either (probe KT2: a done
        * non-repeatable KilledTask re-killed prints only the hit line). */
       if (task_can_run_task_directional (game, task, TRUE))
-        task_run_task (game, task, TRUE);
+        run_task_run_by_index (game, task);
     }
   else if (visible && !battle_legacy)
     {
       pf_buffer_character (filter, '\n');
-      battle_print_combatant (game, npc, 0);
+      battle_print_combatant (game, npc,
+                              BATTLE_FORM_SUBJECT, BATTLE_NAME_NAME);
       pf_buffer_string (filter, " falls down, dead.\n");
     }
 
-  /* Remove the dead NPC from play (location zero is "hidden"). */
+  /*
+   * Remove the dead NPC from play.  The Runner stamps -5 into the room field
+   * (run400 Battles.bas @44B127) -- "not a room", like the 0 we use, but with
+   * two readers of its own; see the `dead` flag in scgamest.h.  This runs
+   * after the KilledTask, so a task that moved the corpse is overwritten at
+   * both engines.
+   */
   gs_set_npc_location (game, npc, 0);
+  gs_set_npc_dead (game, npc, TRUE);
 }
 
 /*
@@ -929,7 +1042,7 @@ battle_apply_damage (scr_gameref_t game, scr_int npc, scr_int damage,
        * site) -- see the room-eligibility note in battle_kill. */
       task = battle_npc_battle_task (game, npc, "StaminaTask");
       if (task >= 0 && task_can_run_task_directional (game, task, TRUE))
-        task_run_task (game, task, TRUE);
+        run_task_run_by_index (game, task);
     }
 }
 
@@ -955,6 +1068,11 @@ battle_resolve (scr_gameref_t game, scr_int attacker, scr_int target,
                 scr_int weapon, scr_bool visible)
 {
   const scr_filterref_t filter = gs_get_filter (game);
+  /* The player's blow is Proc_11_1 and an NPC's is Proc_11_2, and they name
+     their combatants by different rules; see battle_print_npc_name(). */
+  const scr_int naming = battle_legacy ? BATTLE_NAME_NAME
+                         : (attacker == BATTLE_PLAYER) ? BATTLE_NAME_ALIAS
+                         : BATTLE_NAME_ENEMY_ALIAS;
   scr_int method;
 
   method = (weapon >= 0) ? battle_object_battle (game, weapon, "Method") : -1;
@@ -995,14 +1113,16 @@ battle_resolve (scr_gameref_t game, scr_int attacker, scr_int target,
 
       if (visible)
         {
-          battle_print_combatant (game, attacker, 0);
+          battle_print_combatant (game, attacker,
+                                  BATTLE_FORM_SUBJECT_CAPITALISED, naming);
           if (method == 5)
             {
               pf_buffer_string (filter, (attacker < 0) ? " throw "
                                                        : " throws ");
               lib_print_object_np (game, weapon);
               pf_buffer_string (filter, " at ");
-              battle_print_combatant (game, target, 1);
+              battle_print_combatant (game, target,
+                                      BATTLE_FORM_OBJECT, naming);
             }
           else if (method >= 0)
             {
@@ -1011,14 +1131,16 @@ battle_resolve (scr_gameref_t game, scr_int attacker, scr_int target,
               if (attacker >= 0)
                 pf_buffer_character (filter, 's');
               pf_buffer_character (filter, ' ');
-              battle_print_combatant (game, target, 1);
+              battle_print_combatant (game, target,
+                                      BATTLE_FORM_OBJECT, naming);
               pf_buffer_string (filter, " with ");
               lib_print_object_np (game, weapon);
             }
           else
             {
               pf_buffer_string (filter, (attacker < 0) ? " hit " : " hits ");
-              battle_print_combatant (game, target, 1);
+              battle_print_combatant (game, target,
+                                      BATTLE_FORM_OBJECT, naming);
             }
         }
       if (player_throw)
@@ -1040,28 +1162,30 @@ battle_resolve (scr_gameref_t game, scr_int attacker, scr_int target,
     {
       if (method < 0)
         {
-          battle_print_combatant (game, target, 0);
+          battle_print_combatant (game, target, BATTLE_FORM_SUBJECT, naming);
           pf_buffer_string (filter, (target < 0) ? " manage to avoid "
                                                  : " manages to avoid ");
-          battle_print_combatant (game, attacker, 2);
+          battle_print_combatant (game, attacker,
+                                  BATTLE_FORM_POSSESSIVE, naming);
           pf_buffer_string (filter, " attack.\n");
         }
       else if (attacker < 0)
         {
-          battle_print_combatant (game, target, 0);
+          battle_print_combatant (game, target, BATTLE_FORM_SUBJECT, naming);
           pf_buffer_string (filter, " manages to avoid your attack with ");
           lib_print_object_np (game, weapon);
           pf_buffer_string (filter, ".\n");
         }
       else
         {
-          battle_print_combatant (game, attacker, 0);
+          battle_print_combatant (game, attacker,
+                                  BATTLE_FORM_SUBJECT_CAPITALISED, naming);
           pf_buffer_string (filter, " attacks ");
-          battle_print_combatant (game, target, 1);
+          battle_print_combatant (game, target, BATTLE_FORM_OBJECT, naming);
           pf_buffer_string (filter, " with ");
           lib_print_object_np (game, weapon);
           pf_buffer_string (filter, ", but ");
-          battle_print_combatant (game, target, 1);
+          battle_print_combatant (game, target, BATTLE_FORM_OBJECT, naming);
           pf_buffer_string (filter, (target < 0) ? " manage to avoid it.\n"
                                                  : " manages to avoid it.\n");
         }

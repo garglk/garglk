@@ -30,12 +30,12 @@
  * from SCARE's zero-based numbering at the edges.
  */
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <string>
+#include <vector>
 
 #include "scarier.h"
 #include "scprotos.h"
@@ -82,8 +82,6 @@ typedef struct {
 
 /* Whether the last build gave up, for scmap_failed(). */
 static int scmap_last_fail = 0;
-
-static void sm_set_grid (sm_layout_t *L, int rno, int *x, int *y);
 
 
 /*
@@ -772,6 +770,140 @@ sm_exit (scr_gameref_t game, scr_int room, int dir, int *restricted)
 
 
 /*
+ * ------------------------------------------------------------ static cache
+ */
+
+/* Everything the map reads that cannot change while a game runs: NoMap,
+   HideOnMap, the raw exit table, and -- where provably constant -- the
+   filtered room name.  The map rebuilds at every prompt, and re-reading all
+   of this through prop_get()'s keyed tree walks was most of what a rebuild
+   cost; the property bundle is immutable once the .taf is parsed, so read it
+   once per game.  gs_destroy() calls scmap_forget_game() so a later game
+   allocated at the same address can't inherit the cache.
+
+   The room name is the one subtle entry, with two ways to change at runtime.
+   lib_get_room_name() itself is not a pure bundle read: a room alt whose
+   Changed string is non-empty renames the room whenever the alt's condition
+   -- task state, object state, location -- currently holds, so any such alt
+   makes the name dynamic.  And sm_view_name() runs the name through
+   pf_filter(), whose output can depend on runtime variable values; but
+   variable interpolation only ever fires on a '%', and an ALR pass only
+   rewrites a string when some ALR's Original occurs in it (pf_replace_alr()
+   matches with a case-sensitive strstr and ignores empty Originals).  So a
+   name from a room with no renaming alts, with no '%', and with no ALR
+   match comes back byte-for-byte, every time, whatever the game state.
+   Only such names are cached; the rest keep the per-call lookup. */
+typedef struct {
+  int hide;                     /* author flagged it "hide on map"           */
+  int exits[MAP_N_DIRS];        /* raw destination room number, 0 for none   */
+  int restricted[MAP_N_DIRS];   /* the exit has a movement restriction       */
+  scr_bool label_constant;      /* pf_filter() can never change the name     */
+  std::string label;            /* filtered, untagged; only if constant      */
+} sm_static_room_t;
+
+static const void *sm_cache_game = NULL;
+static scr_bool sm_cache_nomap = FALSE;
+static std::vector<sm_static_room_t> sm_cache;  /* [0] unused; rooms 1..n */
+
+static scr_bool
+sm_label_is_constant (scr_int room, const scr_char *name,
+                      scr_prop_setref_t bundle)
+{
+  scr_vartype_t vt_key[5];
+  scr_int alr_count, alr, alt_count, alt;
+
+  if (strchr (name, '%') != NULL)
+    return FALSE;
+
+  /* Any room alt with a non-empty Changed string can rename the room. */
+  vt_key[0].string = "Rooms";
+  vt_key[1].integer = room;
+  vt_key[2].string = "Alts";
+  alt_count = prop_get_child_count (bundle, "I<-sis", vt_key);
+  for (alt = 0; alt < alt_count; alt++)
+    {
+      const scr_char *changed;
+
+      vt_key[3].integer = alt;
+      vt_key[4].string = "Changed";
+      changed = prop_get_string (bundle, "S<-sisis", vt_key);
+      if (!scr_strempty (changed))
+        return FALSE;
+    }
+
+  vt_key[0].string = "ALRs";
+  alr_count = prop_get_child_count (bundle, "I<-s", vt_key);
+  for (alr = 0; alr < alr_count; alr++)
+    {
+      const scr_char *original;
+
+      vt_key[1].integer = alr;
+      vt_key[2].string = "Original";
+      original = prop_get_string (bundle, "S<-sis", vt_key);
+      if (original[0] != '\0' && strstr (name, original) != NULL)
+        return FALSE;
+    }
+  return TRUE;
+}
+
+static void
+sm_cache_ensure (scr_gameref_t game)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_int n, i;
+
+  if (sm_cache_game == game)
+    return;
+
+  n = gs_room_count (game);
+  sm_cache.assign (n + 1, sm_static_room_t ());
+  sm_cache_nomap = sm_global_bool (game, "NoMap");
+
+  for (i = 1; i <= n; i++)
+    {
+      sm_static_room_t &entry = sm_cache[i];
+      scr_int room = sc_room (i);
+      const scr_char *name;
+      int d;
+
+      entry.hide = sm_room_bool (game, room, "HideOnMap") ? 1 : 0;
+      for (d = 0; d < MAP_N_DIRS; d++)
+        entry.exits[d] = sm_exit (game, room, d, &entry.restricted[d]);
+
+      name = lib_get_room_name (game, room);
+      entry.label_constant = sm_label_is_constant (room, name, bundle);
+      if (entry.label_constant)
+        {
+          scr_char *filtered;
+
+          filtered = pf_filter (name, gs_get_vars (game), bundle);
+          pf_strip_tags (filtered);
+          entry.label.assign (filtered);
+          scr_free (filtered);
+        }
+    }
+
+  sm_cache_game = game;
+}
+
+/*
+ * scmap_forget_game()
+ *
+ * Drop any static map data cached for the given game.  Called from
+ * gs_destroy() so a stale cache can never outlive its game.
+ */
+void
+scmap_forget_game (const void *game)
+{
+  if (sm_cache_game == game)
+    {
+      sm_cache_game = NULL;
+      sm_cache.clear ();
+    }
+}
+
+
+/*
  * ------------------------------------------------------------ view
  */
 
@@ -817,6 +949,11 @@ sm_view_name (void *ctx, const char *lockey)
   if (room < 0 || room >= gs_room_count (game))
     return NULL;
 
+  /* A name the filter provably can't alter is served from the cache. */
+  sm_cache_ensure (game);
+  if (sm_cache[room + 1].label_constant)
+    return sm_cache[room + 1].label.c_str ();
+
   filtered = pf_filter (lib_get_room_name (game, room),
                         gs_get_vars (game), gs_get_bundle (game));
   pf_strip_tags (filtered);
@@ -854,7 +991,8 @@ sm_view_exit_dest (void *ctx, const char *lockey, int dir)
   /* Ask whether there is an exit at all before asking whether it can be used:
      a game without the eight-point compass has no Exits[8..11] to look at, and
      lib_can_go() would go looking for their restrictions. */
-  dest = sm_exit (game, room, dir, NULL);
+  sm_cache_ensure (game);
+  dest = sm_cache[room + 1].exits[dir];
   if (dest <= 0)
     return NULL;
   if (!lib_can_go (game, room, dir))
@@ -963,7 +1101,8 @@ scmap_build (scr_gameref_t game, const map_view_t *view)
     return NULL;
 
   /* The author can turn the map off altogether. */
-  if (sm_global_bool (game, "NoMap"))
+  sm_cache_ensure (game);
+  if (sm_cache_nomap)
     return NULL;
 
   n = (int) gs_room_count (game);
@@ -989,10 +1128,10 @@ scmap_build (scr_gameref_t game, const map_view_t *view)
       L.rooms[i].seen = (view != NULL && view->seen != NULL)
                         ? (view->seen (view->ctx, key) ? 1 : 0)
                         : (gs_room_seen (game, room) ? 1 : 0);
-      L.rooms[i].hide = sm_room_bool (game, room, "HideOnMap") ? 1 : 0;
-      for (d = 0; d < MAP_N_DIRS; d++)
-        L.rooms[i].exits[d] = sm_exit (game, room, d,
-                                       &L.rooms[i].restricted[d]);
+      L.rooms[i].hide = sm_cache[i].hide;
+      memcpy (L.rooms[i].exits, sm_cache[i].exits, sizeof L.rooms[i].exits);
+      memcpy (L.rooms[i].restricted, sm_cache[i].restricted,
+              sizeof L.rooms[i].restricted);
     }
 
   /* Standing in a room the author hid from the map, the runner drew no map at
@@ -1123,8 +1262,7 @@ scmap_build (scr_gameref_t game, const map_view_t *view)
       for (d = 0; d < MAP_N_DIRS; d++)
         {
           int dest = L.rooms[rno].exits[d];
-          int is_badge = (d == DIR_UP || d == DIR_DOWN
-                          || d == DIR_IN || d == DIR_OUT);
+          int is_badge = map_is_badge_dir (d);
           char key[16];
 
           if (dest <= 0 || dest > n || dest == rno)

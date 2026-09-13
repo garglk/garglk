@@ -118,6 +118,8 @@ A5SEXPR_HARNESS := test/adrift5/harness/a5sexpr_test.cpp
 A5SEXPR_BIN     := test/adrift5/harness/a5sexpr_test
 A5SAVE_HARNESS  := test/adrift5/harness/a5_save_test.cpp
 A5SAVE_BIN      := test/adrift5/harness/a5_save_test
+A5DUP_HARNESS   := test/adrift5/harness/a5_exprdup_test.cpp
+A5DUP_BIN       := test/adrift5/harness/a5_exprdup_test
 # Shared XML fragments + build helper for the four synthetic-adventure tests.
 A5FIX_HDR       := test/adrift5/harness/a5_test_fixtures.h
 
@@ -146,7 +148,7 @@ WHERE_TAF  := test/adrift4/harness/where_refusal.taf \
               test/adrift4/harness/where_refusal_3p.taf
 WHERE_PROBES := where_refusal where_refusal_1p where_refusal_3p
 
-.PHONY: test test-fd sanitize taf clean capacitytest capacitybless wheretest wherebless scmap a5dump a5model a5text a5run a5map a5parsetest a5runtest a5walkthroughs a5walkthroughs-golden a5probetafs a5maptest a5distest a5walktest a5objtest a5savetest a5sexprtest v4walkthroughs scprojregress gamescheck gamesfetch vendorcheck
+.PHONY: test test-fd sanitize taf clean capacitytest capacitybless wheretest wherebless scmap a5dump a5model a5text a5run a5map a5parsetest a5runtest a5walkthroughs a5walkthroughs-golden a5probetafs a5maptest a5distest a5walktest a5objtest a5savetest a5duptest a5sexprtest v4walkthroughs scprojregress gamescheck gamesfetch vendorcheck
 # ADRIFT 5 game files live in an untracked (gitignored) folder under test/ so the
 # harnesses can find them by a stable in-repo path; the games themselves are
 # copyrighted and not committed.  Override A5_GAMES_DIR / A5_BULLETS to relocate.
@@ -167,7 +169,7 @@ V4_GAMES_DIR ?= test/adrift4/games
 # Covers unit harnesses, capacity, gamescheck, a5runtest, v4 walkthroughs,
 # a5maptest, scprojregress, and golden-backed a5 walkthroughs (rows without an
 # *_expected.txt are SKIPPED -- those need `test-fd`).
-test: $(BIN) $(TAF) $(PREC_BIN) $(PREC_TAF) $(BADP_BIN) $(BADP_TAF) $(CORRUPT_BIN) $(QUIT_BIN) $(A5PARSE_BIN) $(A5SEXPR_BIN) $(A5DIS_BIN) $(A5WALK_BIN) $(A5OBJ_BIN) $(A5SAVE_BIN)
+test: $(BIN) $(TAF) $(PREC_BIN) $(PREC_TAF) $(BADP_BIN) $(BADP_TAF) $(CORRUPT_BIN) $(QUIT_BIN) $(A5PARSE_BIN) $(A5SEXPR_BIN) $(A5DIS_BIN) $(A5WALK_BIN) $(A5OBJ_BIN) $(A5SAVE_BIN) $(A5DUP_BIN)
 	./$(BIN) $(TAF)
 	./$(PREC_BIN) $(PREC_TAF)
 	./$(BADP_BIN) $(BADP_TAF)
@@ -179,6 +181,7 @@ test: $(BIN) $(TAF) $(PREC_BIN) $(PREC_TAF) $(BADP_BIN) $(BADP_TAF) $(CORRUPT_BI
 	./$(A5WALK_BIN)
 	./$(A5OBJ_BIN)
 	./$(A5SAVE_BIN)
+	./$(A5DUP_BIN)
 	@$(MAKE) -f Makefile.headless vendorcheck
 	@$(MAKE) -f Makefile.headless capacitytest
 	@$(MAKE) -f Makefile.headless wheretest
@@ -346,6 +349,8 @@ sanitize: $(TAF) $(PREC_TAF) $(BADP_TAF) $(SAN_RAND_OBJ)
 	$(SAN_ENV) ./$(A5OBJ_BIN)_san
 	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(A5_RUN_SRC) $(A5SAVE_HARNESS) $(SAN_RAND_OBJ) $(LDLIBS) -o $(A5SAVE_BIN)_san
 	$(SAN_ENV) ./$(A5SAVE_BIN)_san
+	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(A5_RUN_SRC) $(A5DUP_HARNESS) $(SAN_RAND_OBJ) $(LDLIBS) -o $(A5DUP_BIN)_san
+	$(SAN_ENV) ./$(A5DUP_BIN)_san
 	@echo "sanitize: all self-contained harnesses ASan/UBSan-clean"
 
 # RNG object built with sanitizers, for the a5 run-pipeline sanitize builds.
@@ -464,6 +469,13 @@ a5savetest: $(A5SAVE_BIN)
 	./$(A5SAVE_BIN)
 $(A5SAVE_BIN): $(A5_RUN_SRC) $(A5SAVE_HARNESS) $(A5_RUN_HDRS) $(A5FIX_HDR) $(A5_RAND_OBJ)
 	$(CXX) $(CXXFLAGS) $(A5_RUN_SRC) $(A5SAVE_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
+
+# Identical `<#..#>` bodies in one block show one value (runner replace-all
+# ReplaceExpressions) while every occurrence still draws; part of `test`.
+a5duptest: $(A5DUP_BIN)
+	./$(A5DUP_BIN)
+$(A5DUP_BIN): $(A5_RUN_SRC) $(A5DUP_HARNESS) $(A5_RUN_HDRS) $(A5FIX_HDR) $(A5_RAND_OBJ)
+	$(CXX) $(CXXFLAGS) $(A5_RUN_SRC) $(A5DUP_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
 
 # The TAFs are checked in; these targets only refresh them from the generators.
 # Container size/capacity goldens.  Regenerate with:

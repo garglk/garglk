@@ -22,6 +22,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <optional>
 #include <string>
 
 #include "format.h"
@@ -129,10 +130,10 @@ static bool find_font_file(const std::string &facename, std::string &filepath)
     return find_font_file_with_key(HKEY_LOCAL_MACHINE, FONT_SUBKEY, facename, filepath);
 }
 
-bool garglk::fontreplace(const std::string &font, FontType type)
+std::optional<FontFiles> garglk::fontlookup(const std::string &font)
 {
     if (font.empty()) {
-        return false;
+        return std::nullopt;
     }
 
     LOGFONTA logfont;
@@ -143,14 +144,26 @@ bool garglk::fontreplace(const std::string &font, FontType type)
 
     hdc = GetDC(0);
 
-    FontFiller filler(type);
+    FontFiller filler;
 
     std::snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", font.c_str());
     EnumFontFamiliesExA(hdc, &logfont, reinterpret_cast<FONTENUMPROCA>(font_cb), reinterpret_cast<LPARAM>(&filler), 0);
 
     ReleaseDC(0, hdc);
 
-    return filler.fill();
+    return filler.files();
+}
+
+bool garglk::fontreplace(const std::string &font, FontType type)
+{
+    auto files = fontlookup(font);
+    if (!files.has_value()) {
+        return false;
+    }
+
+    FontFiles &dest = type == FontType::Monospace ? gli_conf_mono : gli_conf_prop;
+    dest = *files;
+    return true;
 }
 
 void fontload()

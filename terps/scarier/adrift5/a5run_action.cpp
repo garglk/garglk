@@ -1256,6 +1256,40 @@ a5run_flush_display_defers (a5_run_t *run, sb_t *out)
   a5run_flush_display_defers_from (run, out, 0);
 }
 
+char *
+a5run_draw_defer_entry (a5_run_t *run, size_t idx,
+                        std::unordered_map<size_t, std::string> &vals)
+{
+  const std::string &entry = (*run->display_defers)[idx];
+  const char *body = entry.c_str ();
+  long orig = -1;
+  if (body[0] == '\005')
+    {
+      /* Repeat of entry <orig> within one block: draw, then show <orig>. */
+      char *q = NULL;
+      orig = strtol (body + 1, &q, 10);
+      body = (q != NULL && *q == '\005') ? q + 1 : body;
+    }
+  char *val;
+  if (body[0] == '\003')
+    /* Raw `<#..#>` body held whole (its %ref[RAND]% substitution draws):
+       substitute AND reduce here, at the flush. */
+    val = a5text_eval_expression (run->st, body + 1);
+  else
+    val = (body[0] == '\001')
+            ? a5text_process_noalr (run->st, body + 1)
+            : a5_eval_sexpr (body);
+  if (val == NULL)
+    val = strdup ("");
+  if (orig >= 0 && vals.count ((size_t) orig))
+    {
+      free (val);
+      val = strdup (vals[(size_t) orig].c_str ());
+    }
+  vals[idx] = val;
+  return val;
+}
+
 /* Partial flush: draw + splice only the sink entries from index `from` on,
    leaving earlier entries (and their sentinels in `out`) pending.  An
    event/walk/LocationTrigger-fired task is its own AttemptToExecuteTask in the
@@ -1314,6 +1348,7 @@ a5run_flush_display_defers_from (a5_run_t *run, sb_t *out, size_t from)
       slot_entry[sslots[i]] = spos[i].second;
   }
 
+  std::unordered_map<size_t, std::string> drawn;
   for (size_t s = 0; s < slot_entry.size (); s++)
     {
       size_t k = slot_entry[s];
@@ -1326,14 +1361,8 @@ a5run_flush_display_defers_from (a5_run_t *run, sb_t *out, size_t from)
           std::string v = render_look_marked (run);
           val = strdup (v.c_str ());
         }
-      else if (!body.empty () && body[0] == '\003')
-        /* Raw `<#..#>` body held whole (its %ref[RAND]% substitution draws):
-           substitute AND reduce here, at the flush. */
-        val = a5text_eval_expression (run->st, body.c_str () + 1);
       else
-        val = (!body.empty () && body[0] == '\001')
-                ? a5text_process_noalr (run->st, body.c_str () + 1)
-                : a5_eval_sexpr (body.c_str ());
+        val = a5run_draw_defer_entry (run, k, drawn);
       char mark[24];
       int ml = snprintf (mark, sizeof mark, "\004%d\004", (int) k);
       char *at = out->p != NULL ? strstr (out->p, mark) : NULL;

@@ -304,17 +304,48 @@ scr_platform_rand (scr_uint new_seed)
     }
 }
 
+static scr_uint congruential_state = 1;
+
+/*
+ * congruential_step()
+ *
+ * Advance the random state, using constants from Park & Miller (1988).
+ * To keep the values the same for both 32 and 64 bit longs, mask out any
+ * bits above the bottom 32.  The cycle length is 2^30.
+ */
+static void
+congruential_step (void)
+{
+  congruential_state = (congruential_state * 16807 + 2147483647) & 0xffffffff;
+}
+
 static scr_int
 scr_congruential_rand (scr_uint new_seed)
 {
   static scr_bool is_seeded = FALSE;
-  static scr_uint rand_state = 1;
 
   /* If reseeding, seed with the value supplied, and note seeded. */
   if (new_seed > 0)
     {
-      rand_state = new_seed;
+      congruential_state = new_seed;
       is_seeded = TRUE;
+
+      /*
+       * Discard one value before returning any, so that the seed itself is
+       * never one step away from the first result.  The generator's additive
+       * constant is 2147483647, so for every seed below 127774 the state after
+       * a single step lands in [2^31, 2^32) -- the top bit is pinned to 1, and
+       * scr_randomint()'s multiply-shift then maps that to the TOP HALF of
+       * whatever range it is given, whatever the seed.  Before this warm-up the
+       * first draw of a session was therefore constant: rand(0,1) returned 1
+       * for all of seeds 1..127773, rand(1,6) never returned 1-3, and so on.
+       * Games whose very first roll is a coin flip had that flip decided for
+       * them -- Scandal.taf's opening sea-battle turn could never come up "the
+       * Croatoan fires", where run400 fires about half the time.  One step is
+       * enough; from the second draw on every range tested is uniform across
+       * seeds.
+       */
+      congruential_step ();
       return 0;
     }
   else
@@ -322,22 +353,18 @@ scr_congruential_rand (scr_uint new_seed)
       /* If not explicitly seeded yet, generate a seed from time(). */
       if (!is_seeded)
         {
-          rand_state = (scr_uint) time (NULL);
+          congruential_state = (scr_uint) time (NULL);
           is_seeded = TRUE;
+          congruential_step ();
         }
 
-      /*
-       * Advance random state, using constants from Park & Miller (1988).
-       * To keep the values the same for both 32 and 64 bit longs, mask out
-       * any bits above the bottom 32.
-       */
-      rand_state = (rand_state * 16807 + 2147483647) & 0xffffffff;
+      congruential_step ();
 
       /*
        * Discard the lowest bit as a way to map 32-bits unsigned to a 32-bit
        * positive signed.
        */
-      return rand_state >> 1;
+      return congruential_state >> 1;
     }
 }
 
@@ -397,12 +424,7 @@ scr_rand (void)
 scr_int
 scr_randomint (scr_int low, scr_int high)
 {
-  /*
-   * If the range is invalid, just return the low value given.  This mimics
-   * Adrift under the same conditions.
-   */
-  if (high < low)
-    return low;
+  const scr_int span = high - low + 1;
 
   /*
    * Map into the range with a multiply-shift on the full 31-bit value rather
@@ -412,9 +434,56 @@ scr_randomint (scr_int low, scr_int high)
    * small-range result to one value forever -- seen live as a Battle System
    * enemy that never switched targets.  Scaling from the top also matches
    * the Runner's VB6 Int(Rnd * N), which consumes the high part of Rnd.
+   *
+   * Both author-facing callers -- the "change variable to/by a random value"
+   * task action (task_run_change_variable_action) and the `rand(x,y)`
+   * expression function -- are literally `Int(Rnd * ((hi - lo) + 1)) + lo` in
+   * the Runner (run400 48D1E0/48D261 in execute_action, 485C44 in the
+   * expression evaluator), so a range the author entered BACKWARDS is not
+   * rejected there: the span goes negative, Rnd is still drawn, and VB's Int()
+   * floors towards minus infinity.  `rand(-3,-10)` therefore yields -9..-4 --
+   * one inside each entered bound -- and NOT a constant -3.  Measured on
+   * hyper_b_s.taf, whose whole scripted battle is two backwards ranges
+   * (FLARERATHP += rand(-3,-10), HP += rand(-3,-15), five firings each):
+   * run400 takes 8, 5, 9, 5, 7 off the rat and 13, 8, 8, 10, 8 off the
+   * player, none of them the flat 3 that returning `low` produced -- which is
+   * why the rat could never be killed.  With this, scarier reproduces that
+   * fight exactly over all ten draws.  A span of -1 (`rand(-1,-3)`) makes
+   * Int(Rnd * -1) = -1, so such an action is a constant -2, not -1.
+   *
+   * floor(-x) == -ceil(x), so the negative span is the same multiply-shift
+   * rounded the other way.  A zero span (high == low - 1) draws and yields
+   * low, as Int(Rnd * 0) does.
    */
+  if (span > 0)
+    {
+      return low + (scr_int) (((unsigned long long) scr_rand ()
+                               * (unsigned long long) span) >> 31);
+    }
+
+  return low - (scr_int) (((unsigned long long) scr_rand ()
+                           * (unsigned long long) -span
+                           + 0x7fffffffULL) >> 31);
+}
+
+scr_int
+scr_randomint_exclusive (scr_int low, scr_int high)
+{
+  /*
+   * The Runners roll event lengths and delays as lo + Int(Rnd * (hi - lo)),
+   * so the high bound is never drawn unless it equals the low one -- unlike
+   * the author-facing rand(x,y) expression, which is inclusive.  Rnd is
+   * consumed even when the range is degenerate, so draw unconditionally to
+   * keep the stream cadence identical either way.
+   */
+  if (high <= low)
+    {
+      scr_rand ();
+      return low;
+    }
+
   return low + (scr_int) (((unsigned long long) scr_rand ()
-                           * (unsigned long long) (high - low + 1)) >> 31);
+                           * (unsigned long long) (high - low)) >> 31);
 }
 
 

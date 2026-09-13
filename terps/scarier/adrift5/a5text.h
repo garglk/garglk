@@ -129,22 +129,31 @@
      - <c> and <font colour="..."> leave an A5_COLOUR_MARK-delimited colour
        span, \027<value>\027, and their close tags leave A5_ENDCOLOUR_MARK, so
        the host can draw the enclosed text in the Adrift colour the author
-       asked for (a Glk host through garglk_set_zcolors, under "glk colour").
+       asked for (a Glk host through garglk_set_zcolors / CSS color, under
+       "glk colour").
        <value> is the tag's colour token verbatim and lowercased -- a name
        ("red"), a hex triplet ("#ff0000") -- or empty for a <font> that names
        no colour, which inherits the enclosing one so that its </font> still
        pops symmetrically.  <c> writes the reserved token "input", since the
        colour it asks for is the adventure's InputColour rather than anything
        spelled out in the text; no Adrift colour name collides with it.
-     - a <center>, <right>, <b>, <i>, or <u> span still open when a Display commit
-       ends dies with that commit: the Runner renders each commit through its
-       own Source2HTML parse, so an unclosed tag never bleeds into the next
-       commit's text.  The turn assembler (sb_resolve_cls, a5sb.cpp) leaves
-       A5_COMMIT_MARK at a boundary whose commit dangles a span, and the host
-       resets its span state there -- Death Shack's Introduction opens
-       <center> and never closes it, yet the Runner shows the first room
-       description (the next commit, clsUserSession.vb game-start)
-       left-aligned.
+     - <u> / </u> leave A5_UNDERLINE_MARK / A5_ENDUNDERLINE_MARK.
+     - <font face="..." size=...> (with or without colour=) leaves an
+       A5_FONT_MARK-delimited payload \010face\177size\010 (face and/or size
+       may be empty; \177 separates them) and </font> leaves A5_ENDFONT_MARK
+       when a face/size was pushed, so the host can set CSS font-family /
+       font-size.  Colour and face/size stack independently on the same
+       <font> open.  The open mark is \x08 (BS), not A5_DEL_MARK (\x1F), and
+       the close is \x0B (VT), not the display-defer `\004…\004` sentinel.
+     - a <center>, <right>, <b>, <i>, <u>, colour, or font face/size span still
+       open when a Display commit ends dies with that commit: the Runner
+       renders each commit through its own Source2HTML parse, so an unclosed
+       tag never bleeds into the next commit's text.  The turn assembler
+       (sb_resolve_cls, a5sb.cpp) leaves A5_COMMIT_MARK at a boundary whose
+       commit dangles a span, and the host resets its span state there --
+       Death Shack's Introduction opens <center> and never closes it, yet the
+       Runner shows the first room description (the next commit,
+       clsUserSession.vb game-start) left-aligned.
      - <wait N> leaves an A5_WAIT_MARK-delimited delay, \026<seconds>\026
        (the tag's argument verbatim; fractions allowed), so the host can run
        a timed pause where the tag sits, the way the Runner's rendering
@@ -154,10 +163,11 @@
 
    finish_turn keeps all of these in the returned turn text; a host that never
    enables interactive mode (the headless dump / ground-truth harness) sees no
-   behaviour change.  \x06 (ACK), \x07 (BEL), \x0e (SO), \x0f (SI), \x10 (DLE),
+   behaviour change.  \x06 (ACK), \x07 (BEL), \x08 (BS), \x0b (VT), \x0e (SO),
+   \x0f (SI), \x10 (DLE),
    \x11 (DC1), \x12 (DC2), \x13 (DC3), \x14 (DC4), \x15 (NAK), \x16 (SYN),
    \x17 (ETB), \x18 (CAN), \x19 (EM), \x1a (SUB), \x1b (ESC), \x1c (FS),
-   \x1d (GS) and \x1e (RS) never occur in game text. */
+   \x1d (GS), \x1e (RS), \x1f (US) and \x04 (EOT) never occur in game text. */
 #define A5_IMG_MARK '\006'
 #define A5_WAITKEY_MARK '\007'
 #define A5_CENTER_MARK '\016'
@@ -177,6 +187,10 @@
 #define A5_ENDRIGHT_MARK '\034'
 #define A5_UNDERLINE_MARK '\035'
 #define A5_ENDUNDERLINE_MARK '\036'
+#define A5_FONT_MARK '\010'
+#define A5_ENDFONT_MARK '\013'
+/* Separator inside an A5_FONT_MARK payload between face and size. */
+#define A5_FONT_SEP '\177'
 
 
 /* Interactive-presentation mode toggle (default off; see marks above). */

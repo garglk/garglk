@@ -401,6 +401,11 @@ extern int a5model_key_index (const a5_adventure_t *a, int kind, const char *key
 /* Full pipeline: read a Blorb/.taf file, deobfuscate, inflate, parse, model. */
 extern a5_adventure_t *a5model_load (const char *path);
 
+/* Same pipeline from an in-memory file image. Takes ownership of file_buf
+   (always frees it, including on failure). Used by Glk hosts that already have
+   the game open as a stream (e.g. Emglken with FILESYSTEM=0). */
+extern a5_adventure_t *a5model_load_buffer (uint8_t *file_buf, uint32_t file_len);
+
 /*
  * The "Adventure Upgrade" question (FileIO.vb:634, headless answer semantics in
  * FrankenDrift.Headless AskYesNoQuestion): when a5model_upgrade_pending returns

@@ -1,0 +1,25 @@
+Vendored support files, so that terps/scarier is self-contained
+===============================================================
+
+Gargoyle takes Scarier as a drop-in copy of this whole directory (see the
+scarier block in gargoyle's terps/CMakeLists.txt).  Anything the engine needs
+that lives outside terps/scarier in the Spatterlight tree therefore has to have
+a copy in here, or the copied folder will not build.
+
+  randomness.c
+  randomness.h   Verbatim copies of terps/common_utils/randomness.[ch], the
+                 shared seedable erkyrath RNG.  The Spatterlight app and
+                 Makefile.headless both build the originals, NOT these; these
+                 exist only for out-of-tree builds.  Keep them byte-identical:
+                 `make -f Makefile.headless vendorcheck`, part of the default
+                 `test` target, fails if they drift.
+
+  sc_garglk.c
+  sc_garglk.h    strndup() for toolchains without one -- MinGW and MSVC, where
+                 Gargoyle's CMake probe defines GARGLK_NEEDS_STRNDUP.  Empty
+                 translation unit everywhere else, and no part of the
+                 Spatterlight build.  Included by adrift5/a5restr.cpp and
+                 adrift5/a5text.cpp.
+
+Fixes made here in the Gargoyle tree belong upstream in the Spatterlight tree
+first; the copy only ever travels one way.

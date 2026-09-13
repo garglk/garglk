@@ -424,39 +424,22 @@ restr_pass_task_object_location (scr_gameref_t game,
 
 
 /*
- * restr_pass_task_object_state()
+ * restr_object_in_state()
  *
- * Evaluate restrictions relating to object states.  This function is called
- * from the library by lib_pass_alt_room(), so cannot be static.
+ * Test an already-resolved object's state against a state condition var2.
+ * Shared by task object-state restrictions (whose Var1 is a 1-based index
+ * into the STATEFUL object list) and room alternate descriptions of type 1
+ * (whose Var2 is a 1-based GLOBAL object number) -- the two authoring
+ * dialogs store different numberings for the same test.
  */
 scr_bool
-restr_pass_task_object_state (scr_gameref_t game, scr_int var1, scr_int var2)
+restr_object_in_state (scr_gameref_t game, scr_int object, scr_int var2)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  const scr_var_setref_t vars = gs_get_vars (game);
   scr_vartype_t vt_key[3];
-  scr_int object, openable, key;
+  scr_int openable, key;
 
-  if (restr_trace)
-    {
-      scr_trace ("Restr:"
-                " running object state restriction, %ld, %ld\n", var1, var2);
-    }
-
-  /* Find the object being addressed. */
-  if (var1 == 0)
-    object = var_get_ref_object (vars);
-  else
-    object = obj_stateful_object (game, var1 - 1);
-
-  /*
-   * If the restriction refers to "the referenced object" but the player's
-   * command bound no object (var_get_ref_object returns -1, e.g. a wildcard
-   * task command with no %object%), there is no object whose state can match,
-   * so the restriction simply fails.  Guarding here avoids passing a negative
-   * key down to prop_get_integer (which aborts); the Runner does not crash.
-   */
-  if (object < 0)
+  if (object < 0 || object >= gs_object_count (game))
     return FALSE;
 
   /* We're interested only in openable objects. */
@@ -464,6 +447,16 @@ restr_pass_task_object_state (scr_gameref_t game, scr_int var1, scr_int var2)
   vt_key[1].integer = object;
   vt_key[2].string = "Openable";
   openable = prop_get_integer (bundle, "I<-sis", vt_key);
+
+  if (restr_trace)
+    {
+      scr_trace ("Restr: object state test, var2 %ld:"
+                " object %ld, openable %ld, openness %ld, state %ld\n",
+                var2, object, openable,
+                gs_object_openness (game, object),
+                gs_object_state (game, object));
+    }
+
   if (openable > 0)
     {
       /* Is this object lockable? */
@@ -486,6 +479,37 @@ restr_pass_task_object_state (scr_gameref_t game, scr_int var1, scr_int var2)
     }
   else
     return gs_object_state (game, object) == var2 + 1;
+}
+
+
+/*
+ * restr_pass_task_object_state()
+ *
+ * Evaluate restrictions relating to object states.
+ */
+static scr_bool
+restr_pass_task_object_state (scr_gameref_t game, scr_int var1, scr_int var2)
+{
+  const scr_var_setref_t vars = gs_get_vars (game);
+  scr_int object;
+
+  /* Find the object being addressed. */
+  if (var1 == 0)
+    object = var_get_ref_object (vars);
+  else
+    object = obj_stateful_object (game, var1 - 1);
+
+  /*
+   * If the restriction refers to "the referenced object" but the player's
+   * command bound no object (var_get_ref_object returns -1, e.g. a wildcard
+   * task command with no %object%), there is no object whose state can match,
+   * so the restriction simply fails.  Guarding here avoids passing a negative
+   * key down to prop_get_integer (which aborts); the Runner does not crash.
+   */
+  if (object < 0)
+    return FALSE;
+
+  return restr_object_in_state (game, object, var2);
 }
 
 
@@ -562,7 +586,6 @@ restr_pass_task_char (scr_gameref_t game, scr_int var1, scr_int var2, scr_int va
   /* Player or NPC? */
   if (var1 == 0)
     {
-      scr_vartype_t vt_key[2];
       scr_int gender;
 
       /* Player -- decode based on var2. */
@@ -597,9 +620,7 @@ restr_pass_task_char (scr_gameref_t game, scr_int var1, scr_int var2, scr_int va
                                                                   var3 - 1);
 
         case 7:                /* Player gender */
-          vt_key[0].string = "Globals";
-          vt_key[1].string = "PlayerGender";
-          gender = prop_get_integer (bundle, "I<-ss", vt_key);
+          gender = prop_get_global_integer (bundle, "PlayerGender");
           return gender == var3;
 
         default:

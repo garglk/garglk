@@ -35,6 +35,7 @@
 #include <string.h>
 #include <time.h>
 
+#include <string>
 #include <vector>
 
 #include "scarier.h"
@@ -574,16 +575,58 @@ var_print_list (scr_gameref_t game, const var_list_t &list)
 
 
 /*
+ * var_use_alternate_format()
+ *
+ * Pick between the Runner's two listing styles for the contents of a
+ * container or a surface.  This is the same routine the room and examine
+ * listers go through -- run400 lists a container's or a surface's contents
+ * from one place, 0006A418, and %in_<object>%, %on_<object>% and the library
+ * listers all end up there -- so the choice is made on the same rule:
+ * one or two objects get the alternate (postfixed) "<list> is/are inside
+ * <cont>." format, three or more the normal (prefixed) "Inside <cont> is
+ * <list>." one, and before 3.9 the alternate format does not exist at all.
+ * See lib_list_in_object() in sclibrar.cpp for the derivation and for the
+ * live measurements behind it.
+ *
+ * The variables used to take the alternate format unconditionally.  Measured
+ * live in run400 under Wine 2026-08-24 on WhereAreMyKeys.taf, whose fridge is
+ * opened by a task whose CompleteText ends "%in_fridge%": with three objects
+ * in it the Runner answers "You open the fridge and the light comes on.  Well
+ * that's something. Inside the fridge is a tub of butter, a butter knife and
+ * a bottle of milk." (Adrift_23_where_are_my_keys.txt), where we printed "A tub of butter, a
+ * butter knife and a bottle of milk are inside the fridge."  The same replay
+ * shows the two-object case keeping the alternate format, from the library
+ * lister: `open unit` -> "A large knife and a jar of coffee are inside the
+ * kitchen unit."
+ */
+static scr_bool
+var_use_alternate_format (scr_gameref_t game, scr_int associate, size_t count)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+
+  if (prop_get_taf_version (bundle) < TAF_VERSION_390)
+    return FALSE;
+  if (count == 1 || count == 2)
+    return TRUE;
+
+  return obj_is_static (game, associate)
+         && gs_object_position (game, associate) == OBJ_PART_NPC;
+}
+
+
+/*
  * var_list_at_object()
  * var_list_in_object()
  * var_list_on_object()
  *
  * List the objects held in a given container object, or standing on a given
- * surface object.  `position` picks which, and `singular` and `plural` are
- * the phrase joining the list to the associate.
+ * surface object.  `position` picks which, `prefix` introduces the normal
+ * format, and `singular` and `plural` are the phrase joining the list to the
+ * associate in the alternate one.
  */
 static void
 var_list_at_object (scr_gameref_t game, scr_int associate, scr_int position,
+                    const scr_char *prefix,
                     const scr_char *singular, const scr_char *plural)
 {
   const scr_var_setref_t vars = gs_get_vars (game);
@@ -600,15 +643,26 @@ var_list_at_object (scr_gameref_t game, scr_int associate, scr_int position,
     }
   if (!list.empty ())
     {
-      var_print_list (game, list);
-      var_append_temp (vars,
-                       list.size () == 1
-                       ? var_select_plurality (game, list[0],
-                                               singular, plural)
-                       : plural);
+      if (var_use_alternate_format (game, associate, list.size ()))
+        {
+          var_print_list (game, list);
+          var_append_temp (vars,
+                           list.size () == 1
+                           ? var_select_plurality (game, list[0],
+                                                   singular, plural)
+                           : plural);
 
-      /* Print out the container or surface. */
-      var_print_object_np (game, associate);
+          /* Print out the container or surface. */
+          var_print_object_np (game, associate);
+        }
+      else
+        {
+          /* " is ", never " are " -- see lib_list_in_object_normal(). */
+          var_append_temp (vars, prefix);
+          var_print_object_np (game, associate);
+          var_append_temp (vars, " is ");
+          var_print_list (game, list);
+        }
       var_append_temp (vars, ".");
     }
 }
@@ -616,14 +670,14 @@ var_list_at_object (scr_gameref_t game, scr_int associate, scr_int position,
 static void
 var_list_in_object (scr_gameref_t game, scr_int container)
 {
-  var_list_at_object (game, container, OBJ_IN_OBJECT,
+  var_list_at_object (game, container, OBJ_IN_OBJECT, "Inside ",
                       " is inside ", " are inside ");
 }
 
 static void
 var_list_on_object (scr_gameref_t game, scr_int supporter)
 {
-  var_list_at_object (game, supporter, OBJ_ON_OBJECT,
+  var_list_at_object (game, supporter, OBJ_ON_OBJECT, "On ",
                       " is on ", " are on ");
 }
 
@@ -652,15 +706,25 @@ var_list_onin_object (scr_gameref_t game, scr_int associate)
   supporting = !list.empty ();
   if (supporting)
     {
-      var_print_list (game, list);
-      var_append_temp (vars,
-                       list.size () == 1
-                       ? var_select_plurality (game, list[0],
-                                               " is on ", " are on ")
-                       : " are on ");
+      if (var_use_alternate_format (game, associate, list.size ()))
+        {
+          var_print_list (game, list);
+          var_append_temp (vars,
+                           list.size () == 1
+                           ? var_select_plurality (game, list[0],
+                                                   " is on ", " are on ")
+                           : " are on ");
 
-      /* Print out the surface. */
-      var_print_object_np (game, associate);
+          /* Print out the surface. */
+          var_print_object_np (game, associate);
+        }
+      else
+        {
+          var_append_temp (vars, "On ");
+          var_print_object_np (game, associate);
+          var_append_temp (vars, " is ");
+          var_print_list (game, list);
+        }
     }
 
   /* List out the objects contained in this object. */
@@ -674,20 +738,41 @@ var_list_onin_object (scr_gameref_t game, scr_int associate)
     }
   if (!list.empty ())
     {
+      /*
+       * The nested clause -- something on the surface as well as in it -- is
+       * left as SCARE wrote it.  run400 reaches it with var_9E set and prints
+       * a prefixed ", and inside is <list>" there (see lib_list_in_object()),
+       * but no corpus row and no Runner replay exercises it, so the shape is
+       * unmeasured and this is not the change to guess it in.  The unnested
+       * clause is the one %in_<object>% would have produced, so it goes
+       * through the same selector.
+       */
       if (supporting)
-        var_append_temp (vars, ", and ");
-      var_print_list (game, list);
-      var_append_temp (vars,
-                       list.size () == 1
-                       ? var_select_plurality (game, list[0],
-                                               " is inside ", " are inside ")
-                       : " are inside");
-
-      /* Print out the container. */
-      if (!supporting)
         {
-          var_append_temp (vars, " ");
+          var_append_temp (vars, ", and ");
+          var_print_list (game, list);
+          var_append_temp (vars,
+                           list.size () == 1
+                           ? var_select_plurality (game, list[0],
+                                                   " is inside ", " are inside ")
+                           : " are inside");
+        }
+      else if (var_use_alternate_format (game, associate, list.size ()))
+        {
+          var_print_list (game, list);
+          var_append_temp (vars,
+                           list.size () == 1
+                           ? var_select_plurality (game, list[0],
+                                                   " is inside ", " are inside ")
+                           : " are inside ");
           var_print_object_np (game, associate);
+        }
+      else
+        {
+          var_append_temp (vars, "Inside ");
+          var_print_object_np (game, associate);
+          var_append_temp (vars, " is ");
+          var_print_list (game, list);
         }
       var_append_temp (vars, ".");
     }
@@ -726,6 +811,86 @@ var_return_string (const scr_char *value, scr_int *type, scr_vartype_t *vt_rvalu
 
 
 /*
+ * var_status_object()
+ *
+ * Find the object that a %status_<name>% marker names, and return its index,
+ * or -1 for no match.
+ *
+ * MEASURED 2026-09-07, run400 on p4STATUS.taf (Adrift_921-923.txt, all eleven
+ * commands echoed each time; make_400_statusprobe.py).  The probe holds two
+ * closed doors, object 0 in Alpha and object 1 in Bravo, and opens and closes
+ * them one at a time while reading `ST=[%status_door%]` out of each room's
+ * Long:
+ *
+ *   where    door 0   door 1   run400   scarier was
+ *   Bravo    closed   OPEN     closed   open
+ *   Alpha    closed   open     closed   open
+ *   Bravo    open     CLOSED   open     closed
+ *   Charlie  open     closed   open     closed
+ *
+ * run400 answers for object 0 in every cell and scarier answered for object 1
+ * in every cell: it is the LOWEST-indexed match, not the highest, and neither
+ * engine cares in the least where the player is or which door was last
+ * referred to (Charlie holds no door at all and still gets an answer).  The
+ * old code got the highest index because it asked the parser -- uip_match()
+ * over "%object%" walks every object and keeps the LAST that matched -- which
+ * also meant %status_% quietly rewrote the game's object references in the
+ * middle of rendering a room description.
+ *
+ * The same transcript pins what a name may be.  Object 2 is Prefix "a", Short
+ * "portal", Alias "gate", and object 5 is Prefix "the", Short "grate":
+ *
+ *   AL=[%status_gate%]        left verbatim   an Alias, bare
+ *   AP=[%status_a gate%]      left verbatim   an Alias, prefixed
+ *   PF=[%status_the grate%]   open            the Short, prefixed
+ *   PB=[%status_grate%]       open            the Short, bare
+ *
+ * so aliases are not searched at all, and the Short answers both with and
+ * without its Prefix.  A name that matches nothing is left in the text as it
+ * stands, percent signs and all -- which is why the branch below returns
+ * FALSE rather than a placeholder, pf_interpolate_vars() copying the marker
+ * through unchanged.  (aparty's `%status_the china cabinet%` is exactly that
+ * case: "china cabinet" is object 10's Alias, its Short being "china
+ * cupboard", so the Runner prints the marker.)
+ *
+ * Objects that are not openable are skipped rather than matched and then
+ * rejected: HA=[%status_hatch%] answers "open" for object 4 with object 3, an
+ * unopenable "hatch", sitting in front of it.
+ */
+static scr_int
+var_status_object (scr_gameref_t game, const scr_char *name)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_int object;
+
+  for (object = 0; object < gs_object_count (game); object++)
+    {
+      const scr_char *prefix, *shortname;
+      std::string prefixed;
+
+      if (prop_get_indexed_integer (bundle, "Objects", object, "Openable") == 0)
+        continue;
+
+      shortname = prop_get_indexed_string (bundle, "Objects", object, "Short");
+      if (scr_strcasecmp (name, shortname) == 0)
+        return object;
+
+      prefix = prop_get_indexed_string (bundle, "Objects", object, "Prefix");
+      if (scr_strempty (prefix))
+        continue;
+
+      prefixed.assign (prefix);
+      prefixed.append (1, ' ');
+      prefixed.append (shortname);
+      if (scr_strcasecmp (name, prefixed.c_str ()) == 0)
+        return object;
+    }
+
+  return -1;
+}
+
+
+/*
  * var_get_system()
  *
  * Construct a system variable, and return its type and value, or FALSE
@@ -741,13 +906,10 @@ var_get_system (scr_var_setref_t vars,
   /* Check name for known system variables. */
   if (strcmp (name, "author") == 0)
     {
-      scr_vartype_t vt_key[2];
       const scr_char *author;
 
       /* Get and return the global gameauthor string. */
-      vt_key[0].string = "Globals";
-      vt_key[1].string = "GameAuthor";
-      author = prop_get_string (bundle, "S<-ss", vt_key);
+      author = prop_get_global_string (bundle, "GameAuthor");
       if (scr_strempty (author))
         author = "[Author unknown]";
 
@@ -759,14 +921,12 @@ var_get_system (scr_var_setref_t vars,
       /* See if there is a referenced character. */
       if (vars->referenced_character != -1)
         {
-          scr_vartype_t vt_key[3];
           const scr_char *npc_name;
 
           /* Return the character name string. */
-          vt_key[0].string = "NPCs";
-          vt_key[1].integer = vars->referenced_character;
-          vt_key[2].string = "Name";
-          npc_name = prop_get_string (bundle, "S<-sis", vt_key);
+          npc_name = prop_get_indexed_string (bundle, "NPCs",
+                                              vars->referenced_character,
+                                              "Name");
           if (scr_strempty (npc_name))
             npc_name = "[Character unknown]";
 
@@ -849,13 +1009,10 @@ var_get_system (scr_var_setref_t vars,
 
   else if (strcmp (name, "maxscore") == 0)
     {
-      scr_vartype_t vt_key[2];
       scr_int maxscore;
 
       /* Return the maximum score. */
-      vt_key[0].string = "Globals";
-      vt_key[1].string = "MaxScore";
-      maxscore = prop_get_integer (bundle, "I<-ss", vt_key);
+      maxscore = prop_get_global_integer (bundle, "MaxScore");
 
       return var_return_integer (maxscore, type, vt_rvalue);
     }
@@ -1066,20 +1223,36 @@ var_get_system (scr_var_setref_t vars,
 
   else if (strcmp (name, "player") == 0)
     {
-      scr_vartype_t vt_key[2];
       const scr_char *playername;
 
       /*
        * Return player's name from properties, or just "Player" if not set
        * in the properties.
        */
-      vt_key[0].string = "Globals";
-      vt_key[1].string = "PlayerName";
-      playername = prop_get_string (bundle, "S<-ss", vt_key);
+      playername = prop_get_global_string (bundle, "PlayerName");
       if (scr_strempty (playername))
         playername = "Player";
 
       return var_return_string (playername, type, vt_rvalue);
+    }
+
+  else if (strcmp (name, "player_pronoun") == 0)
+    {
+      scr_int gender;
+
+      /*
+       * Not an ADRIFT variable: an internal token the 4.0 third-person
+       * library messages carry where the Runner reads Ary(5) rather than
+       * Ary(0).  run400 fills that slot at 48F76E/48F77F with "he" when
+       * Globals/PlayerGender is 0 and "she" otherwise -- there is no neuter
+       * form -- and uses it in ", and he is carrying ", ".  The most he can
+       * hold is ", " ... but he can move ", " somewhere he haven't been
+       * yet." and "Why would he want to run?".  The pre-4.0 Runners have no
+       * third person at all (lib_get_perspective() clamps it), so nothing
+       * outside those messages can reach this.
+       */
+      gender = prop_get_global_integer (bundle, "PlayerGender");
+      return var_return_string (gender == 0 ? "he" : "she", type, vt_rvalue);
     }
 
   else if (strcmp (name, "room") == 0)
@@ -1154,6 +1327,25 @@ var_get_system (scr_var_setref_t vars,
       memcpy (vars->temporary, state, strlen (state) + 1);
       scr_free (state);
 
+      /*
+       * MEASURED 2026-08-25, run400 on p4STATE.taf (Adrift_1_p4state.txt, all
+       * 29 commands echoed): %state_<obj>% comes back LOWER-CASED, over the
+       * whole string, wherever it sits in the sentence --
+       *
+       *   st panel   ST=[r1]                       (States "R1")
+       *   st sign    ST=[sur la gauche]            ("Sur la gauche")
+       *   st lever   ST=[in the up position]       ("In the UP position")
+       *   mid lever  MID: the lever reads in the up position today.
+       *
+       * and it is not a first-letter rule: "UP" and "R1" both lose their
+       * capitals.  The other two readers of the same States list do NOT --
+       * the examine lister prints "The lever is In the UP position." and
+       * %obstate% answers "OB=[In the UP position]", both verbatim, in the
+       * same transcript.  So the fold belongs here and nowhere else.
+       */
+      for (scr_char *cursor = vars->temporary; *cursor != NUL; cursor++)
+        *cursor = scr_tolower (*cursor);
+
       /* Restore saved referenced object and return. */
       vars->referenced_object = saved_ref_object;
       return var_return_string (vars->temporary, type, vt_rvalue);
@@ -1161,38 +1353,25 @@ var_get_system (scr_var_setref_t vars,
 
   else if (strncmp (name, "status_", 7) == 0)
     {
-      scr_int saved_ref_object = vars->referenced_object;
-      scr_vartype_t vt_key[3];
-      scr_bool is_openable;
-      scr_int openness;
+      scr_int object, openness;
       const scr_char *retval;
 
       /* Check there's enough information to return a value. */
       if (!game)
         {
           scr_error ("var_get_system: no game for status_\n");
-          return var_return_string ("[Status_ unavailable]", type, vt_rvalue);
-        }
-      if (!uip_match ("%object%", name + 7, game))
-        {
-          scr_error ("var_get_system: invalid object for status_\n");
-          return var_return_string ("[Status_ unavailable]", type, vt_rvalue);
+          return FALSE;
         }
 
-      /* Verify this is an openable object. */
-      vt_key[0].string = "Objects";
-      vt_key[1].integer = vars->referenced_object;
-      vt_key[2].string = "Openable";
-      is_openable = prop_get_integer (bundle, "I<-sis", vt_key) != 0;
-      if (!is_openable)
+      object = var_status_object (game, name + 7);
+      if (object == -1)
         {
-          vars->referenced_object = saved_ref_object;
-          scr_error ("var_get_system: stateless object for status_\n");
-          return var_return_string ("[Status_ unavailable]", type, vt_rvalue);
+          scr_error ("var_get_system: invalid object for status_\n");
+          return FALSE;
         }
 
       /* Return one of open, closed, or locked. */
-      openness = gs_object_openness (game, vars->referenced_object);
+      openness = gs_object_openness (game, object);
       switch (openness)
         {
         case OBJ_OPEN:
@@ -1209,8 +1388,6 @@ var_get_system (scr_var_setref_t vars,
           break;
         }
 
-      /* Restore saved referenced object and return. */
-      vars->referenced_object = saved_ref_object;
       return var_return_string (retval, type, vt_rvalue);
     }
 
@@ -1398,13 +1575,10 @@ var_get_system (scr_var_setref_t vars,
 
   else if (strcmp (name, "title") == 0)
     {
-      scr_vartype_t vt_key[2];
       const scr_char *gamename;
 
       /* Return the game's title. */
-      vt_key[0].string = "Globals";
-      vt_key[1].string = "GameName";
-      gamename = prop_get_string (bundle, "S<-ss", vt_key);
+      gamename = prop_get_global_string (bundle, "GameName");
       if (scr_strempty (gamename))
         gamename = "[Title unknown]";
 
@@ -1767,6 +1941,35 @@ var_get_ref_number (scr_var_setref_t vars)
 {
   assert (var_is_valid (vars));
   return vars->referenced_number;
+}
+
+/*
+ * var_is_number_referenced()
+ * var_restore_ref_number()
+ *
+ * Peek at, and put back, the whole referenced-number state -- the value and
+ * the "has one ever been set" flag that %number% substitution tests.  Used by
+ * scrunner.c to keep Scarier's own meta commands ("wait 5", "hist 3") from
+ * writing the game's referenced number: they match a %number% pattern, but the
+ * real Runner has no such commands and only ever sets its referenced number
+ * (run400 MemVar_49420C, written solely by numintext/numintext2 off the
+ * wildcard expansion in mdlSpreadTheLoad.Proc_19_36_45F268) while expanding a
+ * pattern that really contains %number%.
+ */
+scr_bool
+var_is_number_referenced (scr_var_setref_t vars)
+{
+  assert (var_is_valid (vars));
+  return vars->is_number_referenced;
+}
+
+void
+var_restore_ref_number (scr_var_setref_t vars,
+                        scr_int number, scr_bool is_referenced)
+{
+  assert (var_is_valid (vars));
+  vars->referenced_number = number;
+  vars->is_number_referenced = is_referenced;
 }
 
 const scr_char *

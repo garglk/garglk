@@ -796,9 +796,7 @@ debug_game (scr_gameref_t game, scr_command_type_t type)
     }
 
   if_print_debug ("Game ");
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "GameName";
-  gamename = prop_get_string (bundle, "S<-ss", vt_key);
+  gamename = prop_get_global_string (bundle, "GameName");
   debug_print_quoted (gamename);
   if_print_debug_character ('\n');
 
@@ -808,9 +806,7 @@ debug_game (scr_gameref_t game, scr_command_type_t type)
   debug_print_quoted (compiledate);
 
   if_print_debug (", Author ");
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "GameAuthor";
-  gameauthor = prop_get_string (bundle, "S<-ss", vt_key);
+  gameauthor = prop_get_global_string (bundle, "GameAuthor");
   debug_print_quoted (gameauthor);
   if_print_debug_character ('\n');
 

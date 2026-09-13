@@ -68,6 +68,22 @@ static const scr_char *const WHITESPACE = "\t\n\v\f\r ";
 /* Pattern matching trace flag. */
 static scr_bool uip_trace = FALSE;
 
+/*
+ * Antecedent article bookkeeping for the 4.0 pronoun echo.  Set by
+ * uip_replace_pronouns() when a pronoun was substituted this turn (the
+ * Runner leaves its antecedent alone for such commands), and by the library's
+ * unknown-verb handler, whose antecedent is definite; both are consumed and
+ * cleared by uip_assign_pronouns().  See uip_definite_form() below.
+ */
+static scr_bool uip_pronoun_used = FALSE;
+static scr_bool uip_pending_definite = FALSE;
+
+void
+uip_note_definite_reference (void)
+{
+  uip_pending_definite = TRUE;
+}
+
 /* Enumeration of tokens.  TOK_NONE represents a non-occurring token. */
 typedef enum
 {
@@ -269,7 +285,8 @@ uip_current_token_value (void)
 typedef enum
 {
   NODE_UNUSED = 0,
-  NODE_CHOICE, NODE_OPTIONAL, NODE_WILDCARD, NODE_WHITESPACE, NODE_JOIN,
+  NODE_CHOICE, NODE_OPTIONAL, NODE_WILDCARD, NODE_WHITESPACE,
+  NODE_HARD_WHITESPACE, NODE_JOIN,
   NODE_CHARACTER_REFERENCE, NODE_OBJECT_REFERENCE, NODE_TEXT_REFERENCE,
   NODE_NUMBER_REFERENCE, NODE_WORD, NODE_VARIABLE, NODE_LIST, NODE_EOS
 } scr_pttype_t;
@@ -702,6 +719,7 @@ static void
 uip_parse_list (scr_ptnoderef_t list)
 {
   scr_ptnoderef_t child, node;
+  scr_bool literal_only = TRUE;
 
   /* Add elements until a list terminator token is encountered. */
   child = list;
@@ -729,6 +747,16 @@ uip_parse_list (scr_ptnoderef_t list)
           /* Fall through. */
 
         case TOK_EOS:
+          /*
+           * A space between the end of a plain literal pattern and the end
+           * of the pattern is a space the input must have; see
+           * uip_match_whitespace().  Groups and wildcards make it moot, so
+           * only a pattern of nothing but words carries the mark.
+           */
+          if (literal_only && child != list
+              && child->type == NODE_WHITESPACE)
+            child->type = NODE_HARD_WHITESPACE;
+
           /* Place EOS at the appropriate link and return. */
           node = uip_new_node (NODE_EOS);
           if (child == list)
@@ -740,6 +768,8 @@ uip_parse_list (scr_ptnoderef_t list)
         default:
           /* Add the next node at the appropriate link. */
           node = uip_parse_element ();
+          if (node->type != NODE_WORD && node->type != NODE_WHITESPACE)
+            literal_only = FALSE;
           if (child == list)
             {
               child->left_child = node;
@@ -838,6 +868,9 @@ uip_debug_dump_node (scr_ptnoderef_t node, scr_int depth)
           break;
         case NODE_WHITESPACE:
           scr_trace (", whitespace");
+          break;
+        case NODE_HARD_WHITESPACE:
+          scr_trace (", hard whitespace");
           break;
         case NODE_JOIN:
           scr_trace (", join");
@@ -1050,7 +1083,7 @@ uip_match_variable (scr_ptnoderef_t node)
 }
 
 static scr_bool
-uip_match_whitespace (void)
+uip_match_whitespace (scr_bool hard)
 {
   /* If next character is space, read whitespace and return. */
   if (scr_isspace (uip_string[uip_posn]))
@@ -1062,14 +1095,34 @@ uip_match_whitespace (void)
     }
 
   /*
+   * A space the author left after the last WORD of a pattern is a space the
+   * input has to have, and the player's line is trimmed, so such a pattern
+   * matches nothing at all.  "Sommeril" has a task whose commands are "get
+   * placemat " (trailing space), "take placemat", "get placemat page" and
+   * three more; run400 answers `take placemat` with the task and `get
+   * placemat` with the library's "Take what?", the placemat being unlisted
+   * and so unreferenceable (measured 2026-09-05, Adrift_80.txt).  Without
+   * this the end-of-string rule below matched the stray space and the task
+   * claimed both.
+   *
+   * Only after a word: a trailing space after a [] or {} group is ignored,
+   * and the corpus is emphatic about it -- "Woof"'s "[chase/hunt]
+   * [bizet/Bizet/cat] " has to answer `chase cat`, and eight more rows
+   * (the_cat_in_the_tree, skydiver, apokalupsis, wax_worx, vendetta, hub,
+   * magicshow, house, valley) fail the same way if the space is made to
+   * count there.  uip_parse_list() marks the ones that do count.
+   */
+  if (hard)
+    return FALSE;
+
+  /*
    * No match.  However, if we're trying to match space, this is a word
    * boundary.  So... even though we're not sitting on a space, if the string
    * prior character is whitespace, "double-match" the space.
    *
    * Also, match if we haven't yet matched any text.  In effect, this means
-   * leading spaces on patterns will be ignored.
-   *
-   * TODO Is this what we want to happen?  It seems harmless, even useful.
+   * leading spaces on patterns will be ignored -- harmless, even useful,
+   * and long since validated by the walkthrough corpus.
    */
   if (uip_posn == 0 || scr_isspace (uip_string[uip_posn - 1]))
     return TRUE;
@@ -1415,6 +1468,131 @@ uip_skip_article (const scr_char *string, scr_int start)
 
 
 /*
+ * Strict %object% / %character% matching.
+ *
+ * MEASURED 2026-08-25 on p4BURN.taf under run400 (Adrift_12_p4burn.txt
+ * and Adrift_13_p4burn.txt, every command echoed).  A task command pattern is matched
+ * by the Runner at 458BBC: it takes the lowercased pattern, does a binary
+ * Replace() of "%object%" with the object's Short -- or, in the loop just
+ * below, one of its Aliases -- VERBATIM, and compares the result for exact
+ * equality with the lowercased input.  Nothing else takes part: no Prefix,
+ * no article, no partial name, and no case folding of the name itself.
+ *
+ *   task "PX %object%", object Short "coin"        px coin  -> runs
+ *                                                  PX coin  -> runs
+ *   task "pa %object%", object Short "Widget"      pa widget -> no
+ *                                                  pa Widget -> no
+ *   task "pa %object%", Short "brass key",         pa brass key       -> runs
+ *                       Prefix "a small"           pa key             -> no
+ *                                                  pa a brass key     -> no
+ *                                                  pa the brass key   -> no
+ *                                                  pa small brass key -> no
+ *   task "pa %object%", Short "gem", Alias "jewel" pa gem   -> runs
+ *                                                  pa jewel -> runs
+ *                                                  pa a gem -> no
+ *
+ * So an object whose Short carries a capital letter can never bind a bare
+ * %object% -- which is why The X-Files' task 24, `Burn %object%` over objects
+ * named "Memo", "Coffee Mug" and "Gun Holster", never fires in the Runner
+ * however the player phrases it.  Bisecting the game itself confirmed it:
+ * lowering the verb and the Short together makes `burn memo` run and print
+ * the CompleteText (Adrift_11_xfilesbisect.txt).
+ *
+ * %character% is NOT affected: its half of the same matcher (46918F) runs the
+ * NPC Name and each Alias through LCase() before the Replace(), where the
+ * object half (458BF4) substitutes the Short raw.  The asymmetry is the whole
+ * bug, and it is one-sided -- ADRIFTMAS Party's `[kiss {the} %character%]`
+ * over an NPC named "Mystery" runs in the Runner, and still runs here.
+ *
+ * MEASURED 2026-08-25 on p39CASE.taf under run390 (Adrift_1_p39case.txt, all
+ * 19 commands echoed): 3.90 substitutes just as strictly, but it DOES fold
+ * case.  The same cells, one Runner down --
+ *
+ *   task "pa %object%", Short "Widget"          pa widget -> runs
+ *                                               pa Widget -> runs
+ *   task "pa %object%", Short "brass key",      pa brass key       -> runs
+ *                       Prefix "a small"        pa key             -> no
+ *                                               pa a brass key     -> no
+ *                                               pa the brass key   -> no
+ *                                               pa small brass key -> no
+ *   task "pa %object%", Short "gem",            pa gem   -> runs
+ *                       Alias "jewel"           pa jewel -> runs
+ *                                               pa a gem / pa the gem -> no
+ *
+ * -- so strict binding starts at 3.90, and only the case fold is lost at 4.0.
+ * run390 does it in Form1.frm:13991ff, through c() and the seen byte at
+ * .global_44, rewriting the task command in place.  Neither run370.exe nor
+ * run380.exe contains the string "%object%" at all, so before 3.90 such a
+ * pattern matches nothing whatever the player types, and the tolerant matcher
+ * there is harmless.
+ *
+ * This is task-command matching only.  The library's own patterns and the
+ * variable functions go through the Runner's noun resolver, which is
+ * prefix- and case-tolerant, so the flag is set only around
+ * run_match_task_commands().
+ */
+static scr_bool uip_strict_reference = FALSE;
+
+/* Cleared for 3.90, which lower-cases the name it substitutes. */
+static scr_bool uip_strict_case = FALSE;
+
+/* Set for the duration of one uip_match_entity() call, because
+ * uip_compare_candidate() cannot otherwise tell an NPC from an object. */
+static scr_bool uip_strict_is_character = FALSE;
+
+void
+uip_set_strict_reference (scr_bool strict, scr_bool match_case)
+{
+  uip_strict_reference = strict;
+  uip_strict_case = match_case;
+}
+
+/*
+ * Whole-word containment for a trailing %object% (see uip_match_entity()).
+ * Off by default; run_all_commands() turns it on for one last library pass
+ * after every positional pass has declined, so that a verb whose pattern
+ * binds in place ("take off %object%") is never pre-empted by a shorter one
+ * ("take %object%") reaching past "off" to the object.
+ */
+static scr_bool uip_containment_enabled = FALSE;
+
+void
+uip_set_containment (scr_bool enabled)
+{
+  uip_containment_enabled = enabled;
+}
+
+
+/*
+ * uip_compare_reference_strict()
+ *
+ * The strict comparator described above: the name must appear at the current
+ * position exactly as authored -- 4.0 -- or bar its case -- 3.90 -- against a
+ * lowercased view of the input, and must end on a word boundary.  Returns the
+ * new position on match, else zero.
+ */
+static scr_int
+uip_compare_reference_strict (const scr_char *name)
+{
+  scr_int wpos, posn;
+
+  posn = uip_posn;
+  for (wpos = 0; name[wpos] != NUL; wpos++, posn++)
+    {
+      const scr_char wanted = uip_strict_case
+                              ? name[wpos] : scr_tolower (name[wpos]);
+
+      if (wanted != scr_tolower (uip_string[posn]))
+        return 0;
+    }
+
+  if (scr_isspace (uip_string[posn]) || uip_string[posn] == NUL)
+    return posn;
+  return 0;
+}
+
+
+/*
  * uip_compare_reference()
  *
  * Helper for %character% and %object% matchers.  Matches multiple words
@@ -1444,10 +1622,28 @@ uip_compare_reference (const scr_char *words)
 
       /*
        * If at space, advance over whitespace in words list.  Stop when we
-       * hit the end of the words list.
+       * hit the end of the words list -- unless the whitespace itself runs
+       * to the end.
+       *
+       * Whitespace at the very end of a name is not forgiven: the real
+       * Runner's c() matches the RAW stored Short/Alias with InStr and
+       * requires the character after the match to be a space, comma or
+       * end-of-input (run380.bas '429048; run390's c() LCases but keeps the
+       * same shape; the 4.0 strict comparator above already refuses), so a
+       * name authored with a trailing space can only match input holding
+       * two consecutive spaces -- which scr_normalize_string() never
+       * delivers.  Measured live 2026-08-31 on superliam.taf (3.80): object
+       * Short "necko wafers " makes `take necko wafers` answer "Take
+       * what?" in run380.exe, while the (task-matched) `eat necko wafers`
+       * still works.
        */
-      while (scr_isspace (words[wpos]) && words[wpos] != NUL)
-        wpos++;
+      if (scr_isspace (words[wpos]) && words[wpos] != NUL)
+        {
+          while (scr_isspace (words[wpos]) && words[wpos] != NUL)
+            wpos++;
+          if (words[wpos] == NUL)
+            return 0;
+        }
       if (words[wpos] == NUL)
         break;
 
@@ -1675,6 +1871,10 @@ uip_compare_candidate (const scr_uip_candidate_t &candidate)
 {
   size_t form;
 
+  /* 4.0 task commands substitute the bare name, and nothing else. */
+  if (uip_strict_reference && !uip_strict_is_character)
+    return uip_compare_reference_strict (candidate.plain);
+
   for (form = 0; form < candidate.forms.size (); form++)
     {
       scr_int extent = uip_compare_reference (candidate.forms[form].c_str ());
@@ -1684,6 +1884,62 @@ uip_compare_candidate (const scr_uip_candidate_t &candidate)
     }
 
   return 0;
+}
+
+
+/*
+ * uip_nothing_follows()
+ *
+ * True when a reference is the last thing its pattern can match: no sibling
+ * at all (it closes a group), or only the end-of-string marker.
+ */
+static scr_bool
+uip_nothing_follows (scr_ptnoderef_t node)
+{
+  scr_ptnoderef_t next = node->right_sibling;
+
+  /*
+   * A trailing " *" counts as nothing: the wildcard matches the empty
+   * string, so a containing reference that has consumed the whole line
+   * still satisfies "pull %object% *".  Vardock Bates (4.00, run400
+   * transcript 2026-08-29): `tirar de la palanca` -> synonym -> `pull de la
+   * palanca` answers "You pull la palanca, but nothing happens." -- the
+   * lever found by co() -- where we fell to "You pull, but nothing happens."
+   */
+  while (next && (next->type == NODE_WHITESPACE || next->type == NODE_WILDCARD))
+    next = next->right_sibling;
+
+  return !next || (next->type == NODE_EOS && !next->right_sibling);
+}
+
+
+/*
+ * uip_contains_words()
+ *
+ * True if 'words' occurs, case-insensitively and on word boundaries, anywhere
+ * in the input at or after the current position.
+ */
+static scr_bool
+uip_contains_words (const scr_char *words)
+{
+  const size_t length = strlen (words);
+  scr_int posn;
+
+  if (length == 0)
+    return FALSE;
+
+  for (posn = uip_posn; uip_string[posn] != NUL; posn++)
+    {
+      if (posn > 0 && !scr_isspace (uip_string[posn - 1]))
+        continue;
+      if (scr_strncasecmp (uip_string + posn, words, length) != 0)
+        continue;
+      if (scr_isspace (uip_string[posn + length])
+          || uip_string[posn + length] == NUL)
+        return TRUE;
+    }
+
+  return FALSE;
 }
 
 
@@ -1740,6 +1996,63 @@ uip_match_remainder (scr_ptnoderef_t node, scr_int extent)
 
 
 /*
+ * uip_case_folds_name()
+ *
+ * The last thing the Runner's character resolver does before it answers
+ * "yes, this command names that character".
+ *
+ * run400 Proc_21_40_45E99C picks the Name -- or, failing that, the LAST
+ * matching Alias (loc_45E623..45E67D assigns without breaking) -- with the
+ * case-insensitive whole-word test Proc_21_38_454CB0, lower-cases it into
+ * var_98 at loc_45E6A6..45E6B2, and then returns
+ *
+ *     InStr(1, cmd, var_98, 0)            ' loc_45E743, 45E8B3, 45E938
+ *
+ * with compare mode 0 = vbBinaryCompare.  That final test is CASE-SENSITIVE
+ * against the live command line, and it is a plain substring, the word
+ * boundaries having already been settled by the selection above.
+ *
+ * Normally it can never fail: the whole typed line was lower-cased before
+ * the parser ever saw it (run_player_input(), run400 loc_45C5DC), so a name
+ * that matched case-insensitively matches case-sensitively too.  The one
+ * way upper case gets back into a command is the game's own SYNONYM table,
+ * which rewrites whole words AFTER the LCase and splices the author's
+ * replacement text in verbatim.  A replacement that carries a capital
+ * therefore makes that character permanently unreferenceable by any library
+ * command -- only the author's own tasks, which match case-insensitively,
+ * can still reach them.
+ *
+ * Measured 2026-09-07 on Bandera.taf (4.00), whose SYNONYM table maps
+ * marife/Marife/marife' all to the capitalised "Marife'": run400 answers
+ * `x marife`, `x Marife` and `x MARIFE` alike with the ALR'd "You see no
+ * such thing." (Adrift_232_bandera.txt, Adrift_900_bandcase.txt), while
+ * `hablar con marife` and `besar a marife` reach her tasks.  Repacking the
+ * same game with the five replacements lower-cased makes `x marife` print
+ * her description (Adrift_901_bandlc.txt) -- the capital is the whole cause.
+ *
+ * Objects are not affected: the Runner resolves them through co()
+ * (Proc_21_39_46486C), which has no such trailing binary compare.
+ */
+static scr_bool
+uip_case_folds_name_in (const scr_char *command, const scr_char *name)
+{
+  std::string wanted (name);
+
+  for (auto &c : wanted)
+    c = scr_tolower (c);
+
+  return !wanted.empty ()
+         && strstr (command, wanted.c_str ()) != NULL;
+}
+
+static scr_bool
+uip_case_folds_name (const scr_char *name)
+{
+  return uip_case_folds_name_in (uip_string, name);
+}
+
+
+/*
  * uip_match_entity()
  * uip_match_character()
  * uip_match_object()
@@ -1761,6 +2074,8 @@ uip_match_entity (scr_ptnoderef_t node, scr_bool is_character)
     scr_trace ("UIParser: attempting to match %s\n",
                is_character ? "%character%" : "%object%");
 
+  uip_strict_is_character = is_character;
+
   /* Clear all current references. */
   if (is_character)
     gs_clear_npc_references (game);
@@ -1780,9 +2095,39 @@ uip_match_entity (scr_ptnoderef_t node, scr_bool is_character)
                                       ? game->npc_references
                                       : game->object_references;
 
-  /* Iterate entities, looking for a name or alias match. */
+  /*
+   * A trailing %object% in a library command is resolved the way the Runner's
+   * co() resolves it -- run400 Proc_21_39_46486C, run380 c() @429048 -- by
+   * whole-word containment: an object matches when its Short or any Alias
+   * occurs as whole words anywhere in the typed command, not only at the
+   * position the pattern has reached.  Measured on man_overboard (4.00) turn
+   * 49: `x silver key`, with a "silver key" nowhere in the game but "a key"
+   * in the room, examines the key; we answered "You see no such thing."
+   * The containing match consumes the rest of the input.  Task commands
+   * (strict, 4.0) and characters keep their positional matching, and so
+   * does any reference with more pattern after it, where the extent decides
+   * what the rest of the pattern sees.
+   */
+  const scr_bool contain = uip_containment_enabled && !is_character
+                           && !uip_strict_reference
+                           && uip_nothing_follows (node);
+  const scr_int input_end = strlen (uip_string);
+
+  /*
+   * Pass 0 is the positional match.  Passes 1 and 2 are the containment
+   * fallback, names first and then aliases, each taken only when the pass
+   * before it found nothing: "unlock iron chest with golden key" must bind
+   * the golden key alone even though every key answers to the alias "key"
+   * (shadowpeak), and only `x silver key`, which nothing matches in place,
+   * falls through to the key.
+   */
   max_extent = 0;
   entity_count = cache.size ();
+  for (scr_int pass = 0; pass < 3 && max_extent == 0; pass++)
+    {
+      if (pass > 0 && !contain)
+        break;
+
   for (index = 0; index < entity_count; index++)
     {
       const scr_uip_entity_t &entity = cache[index];
@@ -1799,14 +2144,35 @@ uip_match_entity (scr_ptnoderef_t node, scr_bool is_character)
                                                  ? entity.name
                                                  : entity.aliases[alias];
 
+          if (pass == 1 && alias >= 0)
+            break;
+          if (pass == 2 && alias < 0)
+            continue;
+
           if (uip_trace)
             scr_trace ("UIParser: trying %s%s\n",
                        alias < 0 ? "" : "alias ", candidate.plain);
 
-          if (candidate.leads.find (input_lead) == std::string::npos)
-            continue;
+          if (pass == 0)
+            {
+              if (!(uip_strict_reference && !is_character)
+                  && candidate.leads.find (input_lead) == std::string::npos)
+                continue;
 
-          extent = uip_compare_candidate (candidate);
+              extent = uip_compare_candidate (candidate);
+            }
+          else
+            extent = uip_contains_words (candidate.plain) ? input_end : 0;
+
+          /*
+           * A character has to survive the resolver's case-sensitive tail
+           * test as well -- see uip_case_folds_name().  Task commands go
+           * through a different Runner routine and are exempt.
+           */
+          if (extent > 0 && is_character && !uip_strict_reference
+              && !uip_case_folds_name (candidate.plain))
+            extent = 0;
+
           if (extent > 0 && uip_match_remainder (node, extent))
             {
               if (uip_trace)
@@ -1823,6 +2189,7 @@ uip_match_entity (scr_ptnoderef_t node, scr_bool is_character)
               references[index] = TRUE;
             }
         }
+    }
     }
 
   /* On match, advance position and return successfully. */
@@ -1874,7 +2241,10 @@ uip_match_node (scr_ptnoderef_t node)
       match = uip_match_variable (node);
       break;
     case NODE_WHITESPACE:
-      match = uip_match_whitespace ();
+      match = uip_match_whitespace (FALSE);
+      break;
+    case NODE_HARD_WHITESPACE:
+      match = uip_match_whitespace (TRUE);
       break;
     case NODE_JOIN:
       match = uip_match_join ();
@@ -1922,7 +2292,8 @@ uip_match_node (scr_ptnoderef_t node)
  * buffer passed in), or call uip_free_cleansed_string.
  */
 static scr_char *
-uip_cleanse_string (const scr_char *original, scr_char *buffer, scr_int length)
+uip_cleanse_string (const scr_char *original, scr_char *buffer, scr_int length,
+                    scr_bool trim_trailing = TRUE)
 {
   scr_int required;
   scr_char *string;
@@ -1935,8 +2306,25 @@ uip_cleanse_string (const scr_char *original, scr_char *buffer, scr_int length)
   string = (required < length) ? buffer : (decltype(+buffer)) scr_malloc (required);
   strncpy (string, original, required);
 
-  /* Trim, and return the string. */
-  scr_trim_string (string);
+  /*
+   * Trim, and return the string.  A PATTERN keeps its trailing space: the
+   * Runner treats one as a space the input must have, so a task command
+   * spelled "get placemat " matches nothing (see uip_match_whitespace()).
+   * Leading space is dropped from both -- uip_match_whitespace() ignores a
+   * leading one in the pattern anyway.
+   */
+  if (trim_trailing)
+    scr_trim_string (string);
+  else
+    {
+      scr_char *const start = string;
+      scr_int skip = 0;
+
+      while (scr_isspace (start[skip]))
+        skip++;
+      if (skip > 0)
+        memmove (start, start + skip, strlen (start + skip) + 1);
+    }
   return string;
 }
 
@@ -2019,7 +2407,7 @@ uip_match (const scr_char *pattern, const scr_char *string, scr_gameref_t game)
   else
     {
       /* Start tokenizer. */
-      cleansed = uip_cleanse_string (pattern, buffer, sizeof (buffer));
+      cleansed = uip_cleanse_string (pattern, buffer, sizeof (buffer), FALSE);
       if (uip_trace)
         scr_trace ("UIParser: pattern \"%s\"\n", cleansed);
       uip_tokenize_start (cleansed);
@@ -2119,11 +2507,12 @@ uip_replace_pronouns (scr_gameref_t game, const scr_char *string)
   while (current[offset] != NUL)
     {
       scr_int object, npc, extent;
-      const scr_char *prefix, *name;
+      const scr_char *prefix, *name, *echo;
+      std::string definite;
 
       /* Initially, no object or NPC, no names, and a zero extent. */
       object = npc = -1;
-      prefix = name = NULL;
+      prefix = name = echo = NULL;
       extent = 0;
 
       /*
@@ -2169,17 +2558,134 @@ uip_replace_pronouns (scr_gameref_t game, const scr_char *string)
           extent = 2;
         }
 
-      /* Assign prefix and name to the full object or NPC name, if any. */
+      /*
+       * Assign prefix and name to the full object or NPC name, if any.
+       *
+       * An object goes in as its whole noun phrase, prefix and all; a
+       * character goes in as its bare Name.  That asymmetry is the Runner's,
+       * and it holds in all four generations -- the two antecedents are
+       * separate variables, seeded with "Absolutely nothing" / "nothing" for
+       * the object and "Nobody" (4.0 adds "No male" / "No female") for the
+       * character, and the character one is assigned the Name field alone:
+       *
+       *   run370  loc_438332   MemVar_4460B4 = var_164(0)         [Name]
+       *   run370  loc_43B696   MemVar_4460AC = tense(Prefix) & " " & Short
+       *   run400  loc_47F3B9   MemVar_494184 = var_140(0)         [Name]
+       *
+       * Field 0 of a character really is the Name, not a prefix: run390's
+       * room lister builds "<(0)> is <(4)> <(8)>." at loc_459248 -- "Chloe is
+       * a girl." -- and matches the typed word against (0) and (8) at
+       * loc_4592B8.  We used to prepend the NPC's Prefix too, which turned
+       * "ask him about pens" into "ask the Harold about pens" (wrecked, 3.80)
+       * where the Runner writes "ask harold about pens".
+       */
       if (object > -1)
         {
           prefix = prop_get_indexed_string (bundle, "Objects", object,
                                             "Prefix");
           name = prop_get_indexed_string (bundle, "Objects", object, "Short");
+
+          /*
+           * An empty Prefix is an "a" prefix: every Runner's .taf loader
+           * substitutes the literal on the way in (run380 @4481B2, run370
+           * @43F5DA, run400 loc_4900EC), so the antecedent the Runner builds
+           * through Proc_21_31_448710 reads "a Cupboard".  Measured on
+           * man_overboard (4.00): `open it` after `x cupboard` echoes "(a
+           * Cupboard)", and likewise "(a wardrobe)", "(a pantry)", "(a
+           * toolbox)".  parse_trim_object_names does the substitution now, so
+           * the prefix read back here already carries it.
+           */
+
+          /*
+           * 4.0 keeps the antecedent as a string composed by whichever
+           * handler last set it, and the composer (run400 Proc_21_31_448710)
+           * has two modes: mode 1 is Prefix & " " & Short as authored, mode 0
+           * passes the prefix through tense (Proc_21_13_44F474: "a", "an" and
+           * "some" become "the", anything else is left alone).  Examine
+           * composes in mode 1 (loc_471749-471789), take/drop/open/close and
+           * the "I don't understand what you want me to do with" reply in
+           * mode 0 -- see uip_definite_form().  Measured on humbug (4.00,
+           * Adrift_5.txt, 2026-08-29): `x plane` then `x it` echoes "(a paper
+           * aeroplane)", `get plane` then `x it` "(the paper aeroplane)",
+           * `open satchel` "(the satchel)", `throw shovel` (no such verb)
+           * "(the shovel)"; "some gloves" and "an envelope" become "the
+           * gloves" / "the envelope" after `get` (Adrift_4.txt).
+           */
+          if (game->it_definite
+              && prop_get_taf_version (bundle) >= TAF_VERSION_400)
+            {
+              if (scr_compare_word (prefix, "a", 1))
+                definite = std::string ("the") + (prefix + 1);
+              else if (scr_compare_word (prefix, "an", 2))
+                definite = std::string ("the") + (prefix + 2);
+              else if (scr_compare_word (prefix, "some", 4))
+                definite = std::string ("the") + (prefix + 4);
+              else
+                definite = prefix;
+              prefix = definite.c_str ();
+            }
         }
       else if (npc > -1)
         {
-          prefix = prop_get_indexed_string (bundle, "NPCs", npc, "Prefix");
+          prefix = "";
           name = prop_get_indexed_string (bundle, "NPCs", npc, "Name");
+        }
+      else if (scr_compare_word (current + offset, "it", 2)
+               || scr_compare_word (current + offset, "them", 4))
+        {
+          /*
+           * No antecedent at all for "it"/"them".  The Runner's object
+           * antecedent is a pair of strings seeded at new game -- run400
+           * Proc_19_4_45AA98 calls Proc_21_41_448C24 (flag 0, "nothing",
+           * "Absolutely nothing") -- and never a "no reference" state, so
+           * the pronoun is still replaced: "nothing" goes into the command
+           * and "Absolutely nothing" is what the bracket echo prints.
+           * Measured on ptgood_again (4.00) turns 5-6: `x it` with nothing
+           * yet referenced answers "(Absolutely nothing)" then "You see no
+           * such thing."; `g` repeats "(x it)", "(Absolutely nothing)".
+           */
+          prefix = "";
+          name = "nothing";
+          echo = "Absolutely nothing";
+          extent = scr_compare_word (current + offset, "it", 2) ? 2 : 4;
+        }
+      else if (scr_compare_word (current + offset, "him", 3)
+               || scr_compare_word (current + offset, "he", 2)
+               || scr_compare_word (current + offset, "her", 3)
+               || scr_compare_word (current + offset, "she", 3))
+        {
+          /*
+           * The same thing for the character pronouns, and again the Runner
+           * has no "no reference" state -- the register is a seeded string,
+           * so him/he/her/she are rewritten even before anything has been
+           * referred to.  3.9 and 4.0 keep a register per gender, seeded
+           * "No male" and "No female" (run400 loc_45A7F9/45A800 in
+           * Proc_19_4_45AA98, run390 loc_434969/434970 in clear(); assigned
+           * the NPC's Name by gender byte at run400 loc_47F3B9/47F3D0 and
+           * run390 loc_4592D7/4592EE, which is Scarier's him_npc/her_npc).
+           * 3.7 and 3.8 have ONE character register for all four pronouns,
+           * seeded "Nobody" (run370 loc_42398D MemVar_4460B4, read by every
+           * branch of its() at 42CAFA/42CBC6/42CC9B/42CD67; run380
+           * loc_4289F1).  Unlike the object register there is no second
+           * lower-case copy: the echo and the text spliced into the command
+           * are the same string, and the whole command is lower-cased after
+           * the splice.
+           *
+           * Measured on showtime (4.00, Adrift_312_showtime.txt turn 59):
+           * `get her hand` with no female yet referenced answers
+           * "(No female)" and then runs the game's task, which survives
+           * because its command is the wildcard `get * hand` and the
+           * rewritten line is "get no female hand".
+           */
+          prefix = "";
+          if (prop_get_taf_version (bundle) >= TAF_VERSION_390)
+            name = (scr_compare_word (current + offset, "him", 3)
+                    || scr_compare_word (current + offset, "he", 2))
+                   ? "No male" : "No female";
+          else
+            name = "Nobody";
+          echo = name;
+          extent = scr_compare_word (current + offset, "he", 2) ? 2 : 3;
         }
 
       /*
@@ -2189,6 +2695,8 @@ uip_replace_pronouns (scr_gameref_t game, const scr_char *string)
       if (prefix && name && extent > 0)
         {
           std::string replacement;
+
+          uip_pronoun_used = TRUE;
 
           /*
            * If not yet copied, copy the input string into the buffer now and
@@ -2201,14 +2709,66 @@ uip_replace_pronouns (scr_gameref_t game, const scr_char *string)
               modified = TRUE;
             }
 
-          /* Build the replacement text: "<prefix> <name>". */
+          /* Build the replacement text: "<prefix> <name>", or just the name. */
           replacement.reserve (strlen (prefix) + 1 + strlen (name));
-          replacement.append (prefix);
-          replacement.push_back (' ');
+          if (prefix[0] != NUL)
+            {
+              replacement.append (prefix);
+              replacement.push_back (' ');
+            }
           replacement.append (name);
 
-          /* Splice the replacement in for the matched extent. */
+          /*
+           * Every Runner echoes the antecedent in round brackets on a line of
+           * its own before the command's response -- "(a trophy)".  4.0 does
+           * it whenever Options -> Display & Media... -> "References in
+           * brackets" is ticked, the reference setting Scarier models: run400
+           * Proc_19_49_461F38 (him/he/her/she/it/them branches, e.g. "it" at
+           * loc_461DA5) tests MemVar_4942BA then prints "(" & antecedent &
+           * ")" & vbCrLf through Proc_21_19_47B568.  Measured on adrift_maze
+           * (4.00) commands 24-25: "read it" answers "(a trophy)" then "It
+           * has the following engraved on it."
+           *
+           * 3.9 is the same line behind the same setting: run390 Sub its()
+           * @43D968 tests m_showbrackets (loc_43D6C2 for "it", 43D7BF "them",
+           * 43D884 "one") and prints "(" & MemVar_46811C & ")" through
+           * Proc_2_28_45CBD0; the menu item is read from ADRIFT\Runner
+           * "showbrackets" at loc_44526F with default True (loc_44526B).
+           * Measured on Archie's Birthday (3.90, run390, 2026-09-05): `x
+           * camcorder` then `take it` answers "(a camcorder)" then "You take
+           * a camcorder from the desk."; and on veteran (3.90, run390, same
+           * day) `x bag`, `take it`, `open it` echo "(a bag)" both times --
+           * 3.9's takes @455067 and drops @445BE6 compose the antecedent in
+           * mode 1 (authored Prefix), so unlike 4.0 there is no "the" form,
+           * which is why uip_definite_form() stays 4.00-only.  (An earlier
+           * reading of run390 had
+           * it keeping showbrackets only for the "ask about"/"talk about"
+           * rewrite at loc_459036/459107 and echoing nothing -- wrong.)
+           *
+           * 3.7 and 3.8 print the same line UNGATED -- run370 Sub Form1.its
+           * @2CA9C (loc_42CAFA ...) and run380 @326B4 have no Appearance menu
+           * -- with the same antecedents: the NPC's Name, or tense(Prefix) &
+           * " " & Short for an object, which is what 'replacement' holds.
+           * From P-code only; no 3.7/3.8 replay has been measured for it.
+           */
+          pf_buffer_reference (gs_get_filter (game),
+                               echo ? echo : replacement.c_str ());
+
+          /*
+           * Splice the replacement in for the matched extent, and lower-case
+           * the whole line again -- the Runner assigns
+           * `cmd = LCase(Left$ & antecedent & Right$)` after every splice
+           * (run400 Proc_19_49_461F38 loc_461ACB..461AD7 for "him",
+           * loc_461BA5..461BB1 for "he", and so on down the branches), so an
+           * authored capital in the Name never survives into the parsed
+           * command.  Without this, uip_case_folds_name() would refuse the
+           * very character the pronoun just named: "ask him about pens" in
+           * wrecked (3.80) becomes "ask harold about pens", not "ask Harold
+           * about pens".
+           */
           buffer.replace (offset, extent, replacement);
+          for (auto &c : buffer)
+            c = scr_tolower (c);
           current = buffer.c_str ();
 
           /* Adjust offset to skip over the replacement. */
@@ -2233,6 +2793,418 @@ uip_replace_pronouns (scr_gameref_t game, const scr_char *string)
 
 
 /*
+ * uip_lowered()
+ *
+ * Lower-cased copy of a string, for the Runner's LCase() comparisons.
+ */
+static std::string
+uip_lowered (const scr_char *string)
+{
+  std::string lowered (string);
+  for (auto &c : lowered)
+    c = scr_tolower (c);
+  return lowered;
+}
+
+/*
+ * uip_phrase_in()
+ *
+ * The Runner's c(): is the (lower-cased) phrase in the lower-cased command
+ * as a whole word or words -- run400 Proc_21_38_454CB0, an InStr() loop that
+ * accepts a hit only when what surrounds it is a space or the line's end.
+ */
+static scr_bool
+uip_phrase_in (const std::string &lowered, const scr_char *phrase)
+{
+  std::string wanted = uip_lowered (phrase);
+  if (wanted.empty ())
+    return FALSE;
+
+  for (std::string::size_type pos = lowered.find (wanted);
+       pos != std::string::npos; pos = lowered.find (wanted, pos + 1))
+    {
+      const std::string::size_type end = pos + wanted.size ();
+      const scr_bool left = pos == 0 || lowered[pos - 1] == ' ';
+      const scr_bool right = end == lowered.size () || lowered[end] == ' ';
+      if (left && right)
+        return TRUE;
+    }
+  return FALSE;
+}
+
+/*
+ * uip_npc_named()
+ *
+ * Does the command name this NPC?  run400 Proc_21_40_45E99C: c(LCase(Name))
+ * and, only if that fails, c(LCase(alias)) for each alias -- the alias loop
+ * assigns without breaking (loc_45E623..45E67D), so the LAST matching alias
+ * is the one that survives, while a matching Name jumps the loop entirely
+ * (loc_45E620).  There is no presence test -- an NPC two rooms away still
+ * counts.
+ *
+ * Whichever string was chosen is then lower-cased and looked for in the
+ * command with a case-SENSITIVE InStr; see uip_case_folds_name().
+ */
+static scr_bool
+uip_npc_named (scr_gameref_t game, scr_int npc, const std::string &lowered,
+               const scr_char *command)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  const scr_char *chosen = NULL;
+  scr_vartype_t vt_key[4];
+  scr_int alias_count, alias;
+
+  vt_key[0].string = "NPCs";
+  vt_key[1].integer = npc;
+  vt_key[2].string = "Name";
+  chosen = prop_get_string (bundle, "S<-sis", vt_key);
+  if (!uip_phrase_in (lowered, chosen))
+    {
+      chosen = NULL;
+
+      vt_key[2].string = "Alias";
+      alias_count = prop_get_child_count (bundle, "I<-sis", vt_key);
+      for (alias = 0; alias < alias_count; alias++)
+        {
+          const scr_char *alias_name;
+
+          vt_key[3].integer = alias;
+          alias_name = prop_get_string (bundle, "S<-sisi", vt_key);
+          if (!scr_strempty (alias_name) && uip_phrase_in (lowered, alias_name))
+            chosen = alias_name;
+        }
+    }
+
+  return chosen && uip_case_folds_name_in (command, chosen);
+}
+
+/*
+ * uip_last_npc_name()
+ *
+ * The "character most recently named by a command" register -- run400
+ * MemVar_494180, seeded "Nobody" at loc_45A7F5 (run370 MemVar_4460B4 the
+ * same) -- as the Runner prints it.
+ */
+static const scr_char *
+uip_last_npc_name (scr_gameref_t game, scr_int npc)
+{
+  scr_vartype_t vt_key[3];
+
+  if (npc == -1)
+    return "Nobody";
+
+  vt_key[0].string = "NPCs";
+  vt_key[1].integer = npc;
+  vt_key[2].string = "Name";
+  return prop_get_string (gs_get_bundle (game), "S<-sis", vt_key);
+}
+
+/*
+ * uip_note_named_npcs()
+ *
+ * Update the last-named-character register from a command about to run.
+ * run400 Proc_19_0_480674 loc_47F2C5..47F3A2 walks the NPCs in index order
+ * and assigns Name for every one Proc_21_40_45E99C finds in the line, so
+ * the highest-indexed match wins; it runs AFTER the routine's own "ask
+ * about" rewrite, which is why the rewrite sees the previous command's
+ * value (run_all_commands() keeps that by remembering the index it had
+ * before this ran).
+ *
+ * The loop is unconditional, and characters() itself is reached at 48B56E
+ * on EVERY line -- the task dispatch's early exits jump to 48B4E3, which is
+ * still above it -- so a line a task answered names its characters too.
+ * Measured 2026-09-05 (Adrift_79.txt, sommeril.taf): "ask about zzz" in the
+ * gargoyle's street echoes "(Nobody)" even with GARGOYLE listed in the room
+ * description, then the task-answered "give silver orb to gargoyle" makes
+ * the next "ask about zzz" echo "(GARGOYLE)".
+ */
+void
+uip_note_named_npcs (scr_gameref_t game, const scr_char *string)
+{
+  const std::string lowered = uip_lowered (string);
+  scr_int index_;
+
+  for (index_ = 0; index_ < gs_npc_count (game); index_++)
+    {
+      if (uip_npc_named (game, index_, lowered, string))
+        game->last_npc = index_;
+    }
+}
+
+/*
+ * uip_line_names_npc()
+ *
+ * TRUE if the line names any character at all -- the same walk over
+ * Proc_21_40_45E99C that run400 makes at loc_48B53C..48B569, whose result
+ * (var_29C) gates the DontUnderstand text at 48B585.  See the note in
+ * run_process_input_line().
+ */
+scr_bool
+uip_line_names_npc (scr_gameref_t game, const scr_char *string)
+{
+  const std::string lowered = uip_lowered (string);
+  scr_int index_;
+
+  for (index_ = 0; index_ < gs_npc_count (game); index_++)
+    {
+      if (uip_npc_named (game, index_, lowered, string))
+        return TRUE;
+    }
+  return FALSE;
+}
+
+/*
+ * uip_rewrite_references()
+ *
+ * The two "References in brackets" rewrites that fill in a character the
+ * player left out, each echoing what it assumed in round brackets on a line
+ * of its own (Scarier models the box ticked):
+ *
+ *   give X [no character named, no "to"]  ->  "(to Bob)"  give X to bob
+ *   ask about X / talk about X            ->  "(Bob)"     ask bob about X
+ *
+ * run400: the give rewrite is loc_48A98A..48AA38 in the input routine
+ * Proc_19_61_48C0F0 (c("give"), a Proc_21_40_45E99C count of zero, Not
+ * c("to")); the ask/talk rewrite opens the parser proper, Proc_19_0_480674
+ * loc_47F134..47F2BA (Left(cmd, 10) = "ask about ", Left(cmd, 11) = "talk
+ * about ").  Both take MemVar_494180 as it stands from the previous
+ * command, print through Proc_21_19_47B568 behind MemVar_4942BA, and splice
+ * LCase(Name) into the line.  run370 loc_43BED8/43BFC9 and loc_4380CF/
+ * 438185 (run380 the same) do both with no gate -- 3.7 has no Appearance
+ * menu.  run390 keeps only the ask/talk pair (loc_459036/459107, behind
+ * m_showbrackets) and has no "(to " literal, so the give rewrite is gated
+ * out there.  P-code only so far; vardock_bates turn 16 showed "(to
+ * Vagabundo)" live but after a lost command.
+ *
+ * Returns a fresh string if anything was rewritten, else NULL.
+ */
+/*
+ * uip_ask_echo_skip()
+ *
+ * The length of the "ask about " / "talk about " prefix this line carries,
+ * or zero if it carries neither.
+ */
+static std::string::size_type
+uip_ask_echo_skip (const std::string &lowered)
+{
+  if (lowered.compare (0, 10, "ask about ") == 0)
+    return 10;
+  if (lowered.compare (0, 11, "talk about ") == 0)
+    return 11;
+  return 0;
+}
+
+
+/*
+ * uip_print_ask_echo()
+ *
+ * Print the "(<npc>)" the ask/talk rewrite echoes, and say whether it did.
+ *
+ * The echo comes out BEFORE task matching.  run400 prints it from inside the
+ * parser proper, and a task that answers the line still prints after it --
+ * measured 2026-09-05 on two opposite task shapes: `SPAM.taf` turn 11, whose
+ * `* ingredients *` wildcard task answers `ask about ingredients` under a
+ * bare "(Nobody)" (Adrift_77.txt), and `sommeril.taf` turn 36, whose LITERAL
+ * task `ask about glass framed page` answers under "(GARGOYLE)"
+ * (Adrift_78.txt).  The literal case is the interesting one: it proves the
+ * echo is not suppressed by an earlier typed-command dispatch, and -- since
+ * a pattern spelled `ask about glass framed page` cannot match the rewritten
+ * `ask gargoyle about glass framed page` -- that the REWRITTEN string is the
+ * library's alone.  Tasks go on matching the line the player typed.
+ *
+ * So only the echo is hoisted here; uip_rewrite_references() still splices
+ * the name in, on the library path, where the give rewrite also stays (that
+ * one lives at run400 loc_48A98A, after the typed-command dispatch at
+ * 48A481, and a matched task does jump past it).
+ */
+scr_bool
+uip_print_ask_echo (scr_gameref_t game, const scr_char *string)
+{
+  const std::string lowered = uip_lowered (string);
+
+  if (uip_ask_echo_skip (lowered) == 0)
+    return FALSE;
+
+  pf_buffer_reference (gs_get_filter (game),
+                       uip_last_npc_name (game, game->last_npc));
+  return TRUE;
+}
+
+
+scr_char *
+uip_rewrite_references (scr_gameref_t game, const scr_char *string,
+                        scr_int prior_npc, scr_bool echo_printed)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  const scr_int version = prop_get_taf_version (bundle);
+  const scr_char *name = uip_last_npc_name (game, prior_npc);
+  const std::string lowered_name = uip_lowered (name);
+  std::string command (string);
+  std::string lowered = uip_lowered (string);
+  scr_bool modified = FALSE;
+
+  if ((version < TAF_VERSION_390 || version >= TAF_VERSION_400)
+      && uip_phrase_in (lowered, "give") && !uip_phrase_in (lowered, "to"))
+    {
+      scr_int index_;
+      scr_bool named = FALSE;
+
+      for (index_ = 0; index_ < gs_npc_count (game) && !named; index_++)
+        named = uip_npc_named (game, index_, lowered, command.c_str ());
+
+      if (!named)
+        {
+          const std::string echo = std::string ("to ") + name;
+
+          pf_buffer_reference (gs_get_filter (game), echo.c_str ());
+          command += " to ";
+          command += lowered_name;
+          lowered = uip_lowered (command.c_str ());
+          modified = TRUE;
+        }
+    }
+
+  const std::string::size_type skip = uip_ask_echo_skip (lowered);
+  if (skip > 0)
+    {
+      /* The echo is printed up front now; see uip_print_ask_echo(). */
+      if (!echo_printed)
+        pf_buffer_reference (gs_get_filter (game), name);
+      command = "ask " + lowered_name + " about " + command.substr (skip);
+      modified = TRUE;
+    }
+
+  if (modified && uip_trace)
+    scr_trace ("Parser: reference rewrite \"%s\"\n", command.c_str ());
+
+  return modified ? uip_strdup (command) : NULL;
+}
+
+
+/*
+ * uip_definite_form()
+ *
+ * Decide whether the object antecedent that 'command' just assigned is held
+ * in its definite ("the X") or indefinite (Prefix & " " & Short) form.  4.0
+ * only; every earlier Runner is left on the authored prefix.
+ *
+ * The Runner's antecedent is a string, composed by whichever code last called
+ * the setter Proc_21_41_448C24, in the composer mode that code chose:
+ *
+ *   co() (object resolution)   run390 twin co @43B69E: mode 0, definite, but
+ *                              only in its found-in-the-room branch; a held
+ *                              object resolves through the branch at 43B456
+ *                              that never stores.  Measured: `look in dustbin`
+ *                              then `x it` "(the dustbin)", `look in satchel`
+ *                              (held) leaves "(a satchel)".
+ *   examines @471749-471789    mode 1, indefinite: `x shovel` after `get
+ *                              shovel` is back to "(a shovel)"; so is `x the
+ *                              shovel`.
+ *   takes? @462AAC-462AD9      mode 0 at entry, before the task pre-match,
+ *                              which is why humbug's `get can`, intercepted by
+ *                              its "get * can *" FailMessage task, still
+ *                              leaves "(the can)"; a second `get shovel`
+ *                              ("already have") stays "(the shovel)".  Taking
+ *                              from a character goes another way: `Get
+ *                              Document` from Grandad leaves "(a document)"
+ *                              (Adrift_4.txt 1406).
+ *   takes @47BFCF/@47C058      mode 1 on the refusal paths; a failed `get
+ *                              shovel from satchel` left "(a shovel)".
+ *   drop helper @465F5E        mode 0: `drop shovel` "(the shovel)"; drops'
+ *                              refusal sites @46F77B/@46F81E are mode 1.
+ *   openclose @47585A ...      mode 0 at all four sites, the lock/unlock
+ *                              path (@476288-4762A1) included: "(the
+ *                              satchel)" after `open satchel` and `close
+ *                              satchel`; provenance's `unlock door` then
+ *                              `open it` "(the trap door)" is from P-code.
+ *   generaltasks @48A409       mode 0: `throw shovel` "(the shovel)".
+ *   put                        never touches it: `put shovel in satchel`
+ *                              (refused) and `put banana in dustbin` leave
+ *                              whatever was there.
+ *
+ * A command that used the pronoun leaves the antecedent exactly as it was:
+ * `drop it`, `x it`, `look at it`, `examine it` all echo the previous form
+ * (Adrift_5.txt 321-349), so the caller skips assignment altogether for
+ * those.  All measured on humbug, run400, 2026-08-29.
+ */
+enum uip_form_t
+{ UIP_FORM_KEEP, UIP_FORM_INDEFINITE, UIP_FORM_DEFINITE };
+
+static uip_form_t
+uip_definite_form (scr_gameref_t game, const scr_char *command,
+                   const scr_char *at, scr_int object)
+{
+  const scr_char *verb = command + strspn (command, WHITESPACE);
+  const scr_int was_at = gs_object_position (game->temporary, object);
+  const scr_bool was_held = was_at == OBJ_HELD_PLAYER
+                            || was_at == OBJ_WORN_PLAYER;
+  const scr_bool was_with_npc = was_at == OBJ_HELD_NPC
+                                || was_at == OBJ_WORN_NPC;
+  scr_bool has_from = FALSE;
+  const scr_char *scan;
+
+  if (uip_pending_definite)
+    return UIP_FORM_DEFINITE;
+
+  for (scan = verb; scan[0] != NUL; scan++)
+    {
+      if (scr_isspace (scan[0]) && scr_compare_word (scan + 1, "from", 4))
+        {
+          has_from = TRUE;
+          break;
+        }
+    }
+
+  /*
+   * The object named after "from" is the source, not the antecedent, and
+   * put's two objects are neither: `put banana in dustbin` left "(the
+   * banana)", `put shovel in satchel` "(a shovel)", and the failed `get
+   * shovel from satchel` "(a shovel)".
+   */
+  if (has_from && at > scan)
+    return UIP_FORM_KEEP;
+  if (scr_compare_word (verb, "put", 3) || scr_compare_word (verb, "insert", 6))
+    return UIP_FORM_KEEP;
+
+  if (scr_compare_word (verb, "x", 1)
+      || scr_compare_word (verb, "ex", 2)
+      || scr_compare_word (verb, "exam", 4)
+      || scr_compare_word (verb, "examine", 7)
+      || scr_compare_word (verb, "read", 4)
+      || ((scr_compare_word (verb, "l", 1)
+           || scr_compare_word (verb, "look", 4))
+          && strstr (verb, " at ")))
+    return UIP_FORM_INDEFINITE;
+
+  if (scr_compare_word (verb, "get", 3)
+      || scr_compare_word (verb, "take", 4)
+      || scr_compare_word (verb, "pick", 4))
+    {
+      if (was_with_npc)
+        return UIP_FORM_INDEFINITE;
+      if (has_from)
+        {
+          const scr_int now_at = gs_object_position (game, object);
+          return now_at == OBJ_HELD_PLAYER && !was_held
+                 ? UIP_FORM_DEFINITE : UIP_FORM_INDEFINITE;
+        }
+      return UIP_FORM_DEFINITE;
+    }
+
+  if (scr_compare_word (verb, "drop", 4))
+    return was_held ? UIP_FORM_DEFINITE : UIP_FORM_INDEFINITE;
+
+  if (scr_compare_word (verb, "open", 4) || scr_compare_word (verb, "close", 5)
+      || scr_compare_word (verb, "lock", 4)
+      || scr_compare_word (verb, "unlock", 6))
+    return UIP_FORM_DEFINITE;
+
+  /* co() alone: definite for a room object, untouched for a held one. */
+  return was_held ? UIP_FORM_KEEP : UIP_FORM_DEFINITE;
+}
+
+
+/*
  * uip_assign_pronouns()
  *
  * Search a player command for object and NPC names, and assign any found to
@@ -2251,6 +3223,18 @@ uip_assign_pronouns (scr_gameref_t game, const scr_char *string)
 
   if (uip_trace)
     scr_trace ("UIParser: pronoun assignment \"%s\"\n", string);
+
+  /*
+   * A 4.0 command that went through a pronoun leaves every antecedent as it
+   * was -- see uip_definite_form() -- so there is nothing to assign.
+   */
+  if (uip_pronoun_used && prop_get_taf_version (bundle) >= TAF_VERSION_400)
+    {
+      uip_pronoun_used = FALSE;
+      uip_pending_definite = FALSE;
+      return;
+    }
+  uip_pronoun_used = FALSE;
 
   /* Save var references so we can restore them later. */
   saved_ref_object = var_get_ref_object (vars);
@@ -2274,7 +3258,8 @@ uip_assign_pronouns (scr_gameref_t game, const scr_char *string)
           for (index_ = 0; index_ < gs_object_count (game); index_++)
             {
               if (game->object_references[index_]
-                  && gs_object_seen (game, index_)
+                  && (gs_object_seen (game, index_)
+                      || prop_get_taf_version (bundle) < TAF_VERSION_390)
                   && obj_indirectly_in_room (game,
                                              index_, gs_playerroom (game)))
                 {
@@ -2285,11 +3270,23 @@ uip_assign_pronouns (scr_gameref_t game, const scr_char *string)
 
           if (count == 1)
             {
-              game->it_object = object;
-              game->it_npc = -1;
+              uip_form_t form = UIP_FORM_INDEFINITE;
+
+              if (prop_get_taf_version (bundle) >= TAF_VERSION_400)
+                form = uip_definite_form (game, string, current, object);
+
+              if (form != UIP_FORM_KEEP)
+                {
+                  game->it_object = object;
+                  game->it_definite = form == UIP_FORM_DEFINITE;
+                  game->it_npc = -1;
+                }
 
               if (uip_trace)
-                scr_trace ("UIParser: object 'it/them' assigned %ld\n", object);
+                {
+                  scr_trace ("UIParser: object 'it/them' assigned %ld,"
+                             " form %d\n", object, (int) form);
+                }
             }
         }
 
@@ -2313,8 +3310,7 @@ uip_assign_pronouns (scr_gameref_t game, const scr_char *string)
 
           if (count == 1)
             {
-              scr_vartype_t vt_key[3];
-              scr_int version, gender;
+              scr_int gender;
 
               /*
                * Version 3.8 games lack NPC gender information, so for this
@@ -2323,9 +3319,7 @@ uip_assign_pronouns (scr_gameref_t game, const scr_char *string)
                * field either (its NPC record is version 3.8's), so it takes
                * the same treatment.
                */
-              vt_key[0].string = "Version";
-              version = prop_get_integer (bundle, "I<-s", vt_key);
-              if (version <= TAF_VERSION_380)
+              if (prop_get_taf_version (bundle) <= TAF_VERSION_380)
                 {
                   game->him_npc = npc;
                   game->her_npc = npc;
@@ -2340,10 +3334,8 @@ uip_assign_pronouns (scr_gameref_t game, const scr_char *string)
               else
                 {
                   /* Find the NPC gender, so we know the pronoun to assign. */
-                  vt_key[0].string = "NPCs";
-                  vt_key[1].integer = npc;
-                  vt_key[2].string = "Gender";
-                  gender = prop_get_integer (bundle, "I<-sis", vt_key);
+                  gender = prop_get_indexed_integer (bundle, "NPCs",
+                                                     npc, "Gender");
 
                   switch (gender)
                     {
@@ -2380,4 +3372,5 @@ uip_assign_pronouns (scr_gameref_t game, const scr_char *string)
   /* Restore variables references. */
   var_set_ref_object (vars, saved_ref_object);
   var_set_ref_character (vars, saved_ref_character);
+  uip_pending_definite = FALSE;
 }

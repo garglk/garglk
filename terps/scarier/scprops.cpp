@@ -932,6 +932,24 @@ prop_get_global_string (scr_prop_setref_t bundle, const scr_char *name)
 
 
 /*
+ * prop_get_taf_version()
+ *
+ * Fetch bundle["Version"], the TAF_VERSION_* constant recording which .taf
+ * format the game was parsed from.  Version gates are scattered through the
+ * engine -- many library messages and behaviours split on it -- and every
+ * one of them built this one-element vt_key by hand.
+ */
+scr_int
+prop_get_taf_version (scr_prop_setref_t bundle)
+{
+  scr_vartype_t vt_key[1];
+
+  vt_key[0].string = "Version";
+  return prop_get_integer (bundle, "I<-s", vt_key);
+}
+
+
+/*
  * prop_get_indexed_integer()
  * prop_get_indexed_boolean()
  * prop_get_indexed_string()

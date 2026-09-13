@@ -56,7 +56,8 @@ is_pres_mark (char c)
       || c == A5_ITALIC_MARK || c == A5_ENDITALIC_MARK
       || c == A5_UNDERLINE_MARK || c == A5_ENDUNDERLINE_MARK
       || c == A5_RIGHT_MARK || c == A5_ENDRIGHT_MARK
-      || c == A5_ENDCOLOUR_MARK || c == A5_ENDWINDOW_MARK;
+      || c == A5_ENDCOLOUR_MARK || c == A5_ENDFONT_MARK
+      || c == A5_ENDWINDOW_MARK;
 
 }
 
@@ -86,7 +87,7 @@ msg_has_output (const char *m)
   for (; *m != '\0'; m++)
     {
       if (*m == A5_IMG_MARK || *m == A5_WINDOW_MARK || *m == A5_SOUND_MARK
-          || *m == A5_WAIT_MARK || *m == A5_COLOUR_MARK)
+          || *m == A5_WAIT_MARK || *m == A5_COLOUR_MARK || *m == A5_FONT_MARK)
         {
           /* Skip the \006<number>\006 / \022<name>\022 / \024<index>\024 /
              \026<seconds>\026 / \027<colour>\027 span (or a stray mark). */
@@ -117,7 +118,8 @@ msg_ends_with_cls (const char *m)
       char c = m[n - 1];
       if (c == A5_CLS_MARK)
         return 1;
-      if (c == A5_SOUND_MARK || c == A5_WAIT_MARK || c == A5_COLOUR_MARK)
+      if (c == A5_SOUND_MARK || c == A5_WAIT_MARK || c == A5_COLOUR_MARK
+          || c == A5_FONT_MARK)
         {
           /* A trailing \024<index>\024 sound, \026<seconds>\026 wait or
              \027<colour>\027 colour span is presentation, not output -- step
