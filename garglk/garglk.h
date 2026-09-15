@@ -568,6 +568,9 @@ struct style_t {
     Color bg;
     Color fg;
     bool reverse;
+    // True once stylehint_BackColor has been set for this style. Styles
+    // without an explicit BackColor inherit style_Normal's background.
+    bool bg_explicit = false;
     glui32 justification = stylehint_just_LeftFlush;
 
     bool operator==(const style_t &other) const {
@@ -575,6 +578,7 @@ struct style_t {
                bg == other.bg &&
                fg == other.fg &&
                reverse == other.reverse &&
+               bg_explicit == other.bg_explicit &&
                justification == other.justification;
     }
 
@@ -584,6 +588,15 @@ struct style_t {
 };
 
 using Styles = std::array<style_t, style_NUMSTYLES>;
+
+// Effective background for a style: explicit BackColor if set, else Normal.
+inline Color gli_style_background(const Styles &styles, glui32 styl)
+{
+    if (styl == style_Normal || styles[styl].bg_explicit) {
+        return styles[styl].bg;
+    }
+    return styles[style_Normal].bg;
+}
 
 extern Canvas<3> gli_image_rgb;
 

@@ -52,6 +52,7 @@ void glk_stylehint_set(glui32 wintype, glui32 styl, glui32 hint, glsi32 val)
             style.bg = Color((val >> 16) & 0xff,
                              (val >> 8) & 0xff,
                              (val) & 0xff);
+            style.bg_explicit = true;
             break;
 
         case stylehint_ReverseColor:
@@ -129,6 +130,7 @@ void glk_stylehint_clear(glui32 wintype, glui32 styl, glui32 hint)
 
         case stylehint_BackColor:
             style.bg = def.bg;
+            style.bg_explicit = false;
             break;
 
         case stylehint_ReverseColor:
@@ -168,13 +170,23 @@ void glk_stylehint_clear(glui32 wintype, glui32 styl, glui32 hint)
 glui32 glk_style_distinguish(winid_t win, glui32 styl1, glui32 styl2)
 {
     try {
+        const Styles *styles = nullptr;
         if (win->type == wintype_TextGrid) {
-            window_textgrid_t *dwin = win->wingrid();
-            return dwin->styles.at(styl1) != dwin->styles.at(styl2);
+            styles = &win->wingrid()->styles;
+        } else if (win->type == wintype_TextBuffer) {
+            styles = &win->winbuffer()->styles;
         }
-        if (win->type == wintype_TextBuffer) {
-            window_textbuffer_t *dwin = win->winbuffer();
-            return dwin->styles.at(styl1) != dwin->styles.at(styl2);
+
+        if (styles != nullptr) {
+            style_t s1 = styles->at(styl1);
+            style_t s2 = styles->at(styl2);
+            // Compare effective backgrounds so unhinted styles that track
+            // Normal are not treated as distinct from it.
+            s1.bg = gli_style_background(*styles, styl1);
+            s2.bg = gli_style_background(*styles, styl2);
+            s1.bg_explicit = true;
+            s2.bg_explicit = true;
+            return s1 != s2;
         }
     } catch (const std::out_of_range &) {
     }
@@ -189,8 +201,9 @@ glui32 glk_style_measure(winid_t win, glui32 styl, glui32 hint, glui32 *result)
     }
 
     try {
-        const style_t &style = win->type == wintype_TextGrid ? win->wingrid()->styles.at(styl) :
-                                                               win->winbuffer()->styles.at(styl);
+        const Styles &styles = win->type == wintype_TextGrid ?
+            win->wingrid()->styles : win->winbuffer()->styles;
+        const style_t &style = styles.at(styl);
 
         switch (hint) {
         case stylehint_Indentation:
@@ -225,12 +238,14 @@ glui32 glk_style_measure(winid_t win, glui32 styl, glui32 hint, glui32 *result)
                 (style.fg[2]);
             return true;
 
-        case stylehint_BackColor:
+        case stylehint_BackColor: {
+            Color bg = gli_style_background(styles, styl);
             *result =
-                (style.bg[0] << 16) |
-                (style.bg[1] << 8) |
-                (style.bg[2]);
+                (bg[0] << 16) |
+                (bg[1] << 8) |
+                (bg[2]);
             return true;
+        }
 
         case stylehint_ReverseColor:
             *result = style.reverse;
