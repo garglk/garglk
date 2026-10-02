@@ -32,6 +32,19 @@ resolve_pe_objdump() {
     fi
 }
 
+# Print DLLs that something in build/dist loads at runtime via
+# LoadLibrary rather than importing, so they're invisible to objdump.
+#
+# sdl2-compat's SDL2.dll is a shim that LoadLibrary()s SDL3.dll and
+# forwards everything to it; classic SDL2 has no such string, so this
+# only fires for the compat build.
+runtime_loaded_dlls() {
+    if [[ -e build/dist/SDL2.dll ]] && grep -qa 'SDL3\.dll' build/dist/SDL2.dll
+    then
+        echo SDL3.dll
+    fi
+}
+
 # Recursively discover and copy DLL dependencies from all PE files in
 # build/dist (binaries and plugins). For each DLL named in any import
 # table, search for it and copy it into build/dist, then continue
@@ -85,7 +98,7 @@ copy_dll_deps() {
                     break
                 fi
             done
-        done < <(find build/dist \( -iname "*.exe" -o -iname "*.dll" \) -exec "${pe_objdump}" -p {} + 2>/dev/null | sed -n "s/.*DLL Name: //p" | sort -u)
+        done < <({ find build/dist \( -iname "*.exe" -o -iname "*.dll" \) -exec "${pe_objdump}" -p {} + 2>/dev/null | sed -n "s/.*DLL Name: //p"; runtime_loaded_dlls; } | sort -u)
         $changed || break
     done
     if [[ "${copied}" -eq 0 ]]
