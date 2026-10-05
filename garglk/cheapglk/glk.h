@@ -61,6 +61,9 @@ typedef int32_t glsi32;
 
 #define GLK_MODULE_FILEREF_GET_NAME
 
+#define GLK_MODULE_CSS_BASIC
+#define GLK_MODULE_CSS_SUPPORTS
+
 #define GLK_MODULE_GARGLKTEXT
 #define GLK_MODULE_GARGLKBLEEP
 #define GLK_MODULE_GARGLKWINSIZE
@@ -113,6 +116,8 @@ typedef struct glk_schannel_struct *schanid_t;
 #define gestalt_ResourceStream (22)
 #define gestalt_GraphicsCharInput (23)
 #define gestalt_DrawImageScale (24)
+#define gestalt_CSSBasic (0x1110)
+#define gestalt_CSSSupports (0x1119)  /* local/synchronous glk_css_supports */
 #define gestalt_GarglkText (0x1100)
 
 #define evtype_None (0)
@@ -500,6 +505,44 @@ extern strid_t glk_stream_open_resource(glui32 filenum, glui32 rock);
 extern strid_t glk_stream_open_resource_uni(glui32 filenum, glui32 rock);
 
 #endif /* GLK_MODULE_RESOURCE_STREAM */
+
+#ifdef GLK_MODULE_CSS_BASIC
+
+#define CSS_Span (0)
+#define CSS_Paragraph (1)
+#define CSS_Hyperlink (2)
+#define CSS_Image (3)
+#define CSS_Input (4)
+#define CSS_Window (5)
+
+extern void glk_css_hint_set(glui32 wintype, glui32 csstarget, glui32 style,
+    const char *prop, glui32 proplen, const char *val, glui32 vallen);
+extern void glk_css_hint_set_num(glui32 wintype, glui32 csstarget, glui32 style,
+    const char *prop, glui32 proplen, glsi32 val);
+extern void glk_css_hint_clear(glui32 wintype, glui32 csstarget, glui32 style,
+    const char *prop, glui32 proplen);
+
+extern void glk_css_inline_set(glui32 csstarget, const char *prop, glui32 proplen,
+    const char *val, glui32 vallen);
+extern void glk_css_inline_set_num(glui32 csstarget, const char *prop, glui32 proplen,
+    glsi32 val);
+extern void glk_css_inline_clear(glui32 csstarget, const char *prop, glui32 proplen);
+
+extern void glk_css_hint_clear_all_by_style(glui32 wintype, glui32 style);
+extern void glk_css_hint_clear_all_by_window(glui32 wintype);
+extern void glk_css_hint_clear_all_inline(void);
+
+#endif /* GLK_MODULE_CSS_BASIC */
+
+#ifdef GLK_MODULE_CSS_SUPPORTS
+/* Returns 1 if the library will honor this property/value via CSS Basic setters.
+ * prop/val are UTF-8 buffers (not NUL-terminated). Empty val (vallen == 0)
+ * asks whether the property is known at all. font-family accepts any
+ * syntactically plausible family list (does not probe installed fonts). */
+extern glui32 glk_css_supports(const char *prop, glui32 proplen,
+    const char *val, glui32 vallen);
+extern glui32 glk_css_supports_num(const char *prop, glui32 proplen, glsi32 val);
+#endif /* GLK_MODULE_CSS_SUPPORTS */
 
 /* XXX non-official Glk functions that may or may not exist */
 
