@@ -21,6 +21,7 @@
 #include <array>
 #include <functional>
 #include <memory>
+#include <new>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -29,6 +30,9 @@
 
 #include "garglk.h"
 #include "gi_blorb.h"
+
+// Non-standard
+#define giblorb_ID_GIF  (giblorb_make_id('G', 'I', 'F', ' '))
 
 namespace {
 
@@ -128,13 +132,15 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
         }
 
         static constexpr std::array<unsigned char, 8> png_sig{
-            137, 80, 78, 71, 13, 10, 26, 10
+            0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a
         };
 
         if (std::equal(png_sig.begin(), png_sig.end(), buf.begin())) {
             chunktype = giblorb_ID_PNG;
         } else if (buf[0] == 0xFF && buf[1] == 0xD8 && buf[2] == 0xFF) {
             chunktype = giblorb_ID_JPEG;
+        } else if (buf[0] == 'G' && buf[1] == 'I' && buf[2] == 'F' && buf[3] == '8' && (buf[4] == '7' || buf[4] == '9') && buf[5] == 'a') {
+            chunktype = giblorb_ID_GIF;
         } else {
             // Not a readable file. Forget it.
             gli_strict_warning(Format("unable to load image {}: unknown format", id));
@@ -145,6 +151,7 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
     static const std::unordered_map<int, std::function<Canvas<4>(const std::vector<unsigned char> &)>> loaders = {
         {giblorb_ID_PNG, gli_load_image_png},
         {giblorb_ID_JPEG, gli_load_image_jpeg},
+        {giblorb_ID_GIF, gli_load_image_gif},
     };
 
     try {
@@ -154,6 +161,8 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
         return pic;
     } catch (const ImageLoadError &e) {
         gli_strict_warning(Format("unable to load image {}: {}", id, e.what()));
+    } catch (const std::bad_alloc &) {
+        gli_strict_warning(Format("unable to load image {}: out of memory", id));
     } catch (const std::out_of_range &) {
     }
 
