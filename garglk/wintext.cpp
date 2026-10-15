@@ -1233,7 +1233,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     }
 
     if (gli_conf_spaces != 0 && !monospace
-            && dwin->styles[win->attr.style].bg == color
+            && gli_style_background(dwin->styles, win->attr.style) == color
             && !dwin->styles[win->attr.style].reverse) {
         // turn (period space space) into (period space)
         if (gli_conf_spaces == 1) {

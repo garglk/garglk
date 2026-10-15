@@ -1597,6 +1597,67 @@ void glk_window_set_background_color(winid_t win, glui32 color)
     win_graphics_set_background_color(win->wingraphics(), color);
 }
 
+#ifdef GLK_MODULE_WINDOW_BACKGROUND_IMMEDIATE
+void glk_window_set_background_color_immediate(winid_t win, glui32 color)
+{
+    if (win == nullptr) {
+        gli_strict_warning("window_set_background_color_immediate: invalid ref");
+        return;
+    }
+
+    if (win->type != wintype_Graphics
+            && win->type != wintype_TextBuffer
+            && win->type != wintype_TextGrid) {
+        gli_strict_warning("window_set_background_color_immediate: not a graphics, text buffer, or text grid window");
+        return;
+    }
+
+#ifdef GLK_MODULE_GARGLKTEXT
+    if (color == zcolor_Current || color == zcolor_Cursor || color == zcolor_Transparent) {
+        return;
+    }
+#endif
+
+    Color newcolor = gli_window_save;
+#ifdef GLK_MODULE_GARGLKTEXT
+    if (color != zcolor_Default) {
+#endif
+        newcolor = Color((color >> 16) & 0xff,
+                         (color >> 8) & 0xff,
+                         (color) & 0xff);
+#ifdef GLK_MODULE_GARGLKTEXT
+    }
+#endif
+
+    // Graphics: update the stored clear/resize color. Unlike text windows,
+    // there is no separate pane behind the canvas; matching Spatterlight,
+    // existing pixels are left alone until the next clear/resize.
+    if (win->type == wintype_Graphics) {
+        glui32 stored = (newcolor[0] << 16) | (newcolor[1] << 8) | newcolor[2];
+        win_graphics_set_background_color(win->wingraphics(), stored);
+        win->bgcolor = newcolor;
+        return;
+    }
+
+    win->bgcolor = newcolor;
+
+    if (win->type == wintype_TextBuffer) {
+        win->winbuffer()->styles[style_Normal].bg = newcolor;
+    } else if (win->type == wintype_TextGrid) {
+        win->wingrid()->styles[style_Normal].bg = newcolor;
+    }
+
+    // Text buffers own the page margin; keep it in sync (status grids do not).
+    if (win->type == wintype_TextBuffer) {
+        gli_window_color = newcolor;
+        gli_override_bg.reset();
+        win->attr.bgcolor.reset();
+    }
+
+    gli_force_redraw = true;
+}
+#endif /* GLK_MODULE_WINDOW_BACKGROUND_IMMEDIATE */
+
 void attr_t::set(glui32 style_)
 {
     fgcolor.reset();
@@ -1660,7 +1721,7 @@ Color attr_t::bg(const Styles &styles) const
                         std::nullopt;
 
     if (!revset) {
-        return zcolor_Background.value_or(styles[style].bg);
+        return zcolor_Background.value_or(gli_style_background(styles, style));
     } else {
         if (zcolor_Foreground.has_value()) {
             if (zcolor_Foreground == zcolor_Background) {
@@ -1705,6 +1766,6 @@ Color attr_t::fg(const Styles &styles) const
             }
         }
     } else {
-        return zcolor_Background.value_or(styles[style].bg);
+        return zcolor_Background.value_or(gli_style_background(styles, style));
     }
 }
