@@ -476,6 +476,61 @@ taf_unobfuscate (scr_tafref_t taf, scr_read_callbackref_t callback,
 
 
 /*
+ * taf_read_raw()
+ *
+ * Read an uncompressed, unobfuscated stream verbatim into the TAF.  Used only
+ * for the in-memory undo memos (see ser_set_raw_memo): those are a self-
+ * contained round trip we both write and read, so they skip the per-turn
+ * deflate that profiling put at ~20-48% of the interpreter, and this is the
+ * matching reader.  It is taf_unobfuscate() with the PRNG step removed -- same
+ * buffered taf_append_buffer() drain, no header keystream to synchronise.
+ */
+static scr_bool
+taf_read_raw (scr_tafref_t taf, scr_read_callbackref_t callback, void *opaque)
+{
+  scr_int bytes, used_bytes, total_bytes;
+
+  std::vector<scr_byte> buffer_storage (IN_BUFFER_SIZE);
+  scr_byte *const buffer = buffer_storage.data ();
+  used_bytes = 0;
+  total_bytes = 0;
+
+  do
+    {
+      /* Try to obtain more data. */
+      bytes = callback (opaque,
+                        buffer + used_bytes, IN_BUFFER_SIZE - used_bytes);
+
+      used_bytes += bytes;
+      if (used_bytes > 0)
+        {
+          scr_int consumed;
+
+          /* Add complete lines from this buffer to the TAF. */
+          consumed = taf_append_buffer (taf, buffer, used_bytes);
+
+          /* Move the unconsumed tail (a partial line) to the buffer start. */
+          memmove (buffer, buffer + consumed, IN_BUFFER_SIZE - consumed);
+          used_bytes -= consumed;
+          total_bytes += consumed;
+        }
+    }
+  while (bytes > 0);
+
+  taf->total_in_bytes = total_bytes;
+
+  if (used_bytes > 0)
+    scr_error ("taf_read_raw:"
+              " warning: %ld unhandled bytes in the buffer\n", used_bytes);
+
+  if (taf->is_unterminated)
+    scr_fatal ("taf_read_raw: unterminated final data slab\n");
+
+  return TRUE;
+}
+
+
+/*
  * taf_decompress()
  *
  * Decompress a version 4.0 TAF file from data read by repeated calls to the
@@ -811,6 +866,40 @@ scr_tafref_t
 taf_create_tas (scr_read_callbackref_t callback, void *opaque)
 {
   return taf_create_from_callback (callback, opaque, FALSE);
+}
+
+/*
+ * taf_create_tas_raw()
+ *
+ * Build a TAS from an uncompressed, unobfuscated stream -- the format
+ * ser_save_game() writes for undo memos when ser_set_raw_memo() is on.  There
+ * is nothing to sniff (the caller already knows it is raw) and nothing to
+ * inflate; the version is fixed at 4.0, matching the layout ser_save_game()
+ * always uses for memos.  Mirrors taf_create_from_callback()'s throw-safety.
+ */
+scr_tafref_t
+taf_create_tas_raw (scr_read_callbackref_t callback, void *opaque)
+{
+  scr_tafref_t taf;
+  assert (callback);
+
+  taf = taf_create_empty ();
+  taf->version = TAF_VERSION_400;
+
+  try
+    {
+      if (!taf_read_raw (taf, callback, opaque))
+        {
+          taf_destroy (taf);
+          return NULL;
+        }
+      return taf;
+    }
+  catch (...)
+    {
+      taf_destroy (taf);
+      throw;
+    }
 }
 
  

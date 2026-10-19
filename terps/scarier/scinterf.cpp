@@ -1283,7 +1283,7 @@ scr_set_game_notify_score_change (scr_game game, scr_bool flag)
  * Query and set how the player's carried load is accounted for.  When FALSE
  * (the default) SCARIER mirrors the real ADRIFT Runner, keeping a running total
  * updated on take/drop; when TRUE it recomputes the load afresh from currently
- * held objects on each check (legacy SCARIER behaviour).
+ * held objects on each check (legacy SCARE behaviour).
  */
 scr_bool
 scr_get_game_capacity_recompute (scr_game game)

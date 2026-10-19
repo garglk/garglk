@@ -292,7 +292,7 @@ task_state_allows_run (scr_gameref_t game, scr_int task, scr_bool forwards)
  * The other half: TRUE if the player is standing in a room the task's Where
  * room list covers.
  */
-static scr_bool
+scr_bool
 task_where_allows_run (scr_gameref_t game, scr_int task)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
@@ -484,6 +484,77 @@ task_move_object (scr_gameref_t game, scr_int object, scr_int var2, scr_int var3
       return;
     }
 
+  /*
+   * Static objects do not move for a task action.  run400's object mover
+   * (Sub_20_11 @0008C200) skips them at @0008C360 -- "If Objects(o).Static = 1
+   * Then <next object>" -- before any destination case runs, so the refusal
+   * covers every destination, not just the room ones.  Measured live
+   * (RUNNER_TESTS_TODO.md section 9): a task whose action moves the referenced
+   * object to "held by player" prints its completion text for "grab plaque"
+   * and leaves the plaque exactly where it was, and a move-to-hidden aimed at
+   * a static the player is already holding (an event put it there) is refused
+   * in the same way.  Only the by-index selector is limited to dynamics, so
+   * without this test the "referenced object" selector would reach statics.
+   *
+   * The event mover keeps its own copy of this decision -- and does not make
+   * it, which is why evt_move_object() is the one and only way a static can
+   * reach the player's hands.
+   */
+  if (obj_is_static (game, object))
+    {
+      if (task_trace)
+        scr_trace ("Task: ignoring move of static object %ld\n", object);
+      return;
+    }
+
+  /*
+   * A move action spends the object's "only when not moved" byte, exactly as
+   * the library take does.  run400's execute_action @0048C377-@0048C395 runs
+   * "If o(132) = 1 Then o(132) = &HFF" on the selected object immediately
+   * after the static refusal at @0048C371 and *before* the destination Select
+   * Case, so every destination spends it -- including a move back to the room
+   * the object started in, and including "to hidden".  Statics never reach it,
+   * their branch having jumped to the end of the action.
+   *
+   * zelda is the row that settled it: the small key is InitialPosition hidden
+   * with OnlyWhenNotMoved = 1 and a non-empty InRoomDesc, and the Like-Like
+   * task moves it into the Graveyard.  run400 answers "Also here is a small
+   * key." there, not the key's own description, because the move spent the
+   * byte.  See obj_shows_initial_description() in scobjcts.cpp for the other
+   * half of the model.
+   */
+  gs_set_object_unmoved (game, object, FALSE);
+
+  /*
+   * The Runner's task mover does its own carried-total accounting
+   * (Proc_19_10 in run400): if the object is currently in the player's
+   * possession (held or worn, recursing through carried containers and
+   * surfaces -- Proc_21_46), its size and weight come off the totals
+   * before the move; afterwards, a move to "held by player" adds size
+   * and weight back, and a move to "worn by player" adds weight only
+   * (worn things weigh but occupy no hand space, matching the loader's
+   * seeding).  The generic position tracker is suspended for the move so
+   * these rules replace, not compound, its take/drop model.
+   *
+   * The predicate is the Runner's own, not obj_indirectly_held_by_player():
+   * Proc_21_46 walks the bare container field and never looks at openness,
+   * so a task that lifts an object out of a CLOSED container the player is
+   * holding still refunds it.  Provenance's well puzzle is the case that
+   * settled it -- `close lid`, `lower bucket into well`, and the task
+   * swaps the empty canteen inside the shut bucket for a full one.  With
+   * the openness-aware predicate the empty canteen's 9/3 never came off,
+   * and every `count` for the rest of the game read 9 size and 3 weight
+   * high (measured against run400, 2026-08-23).
+   */
+  {
+    const scr_bool was_possessed = gs_runner_possessed (game, object);
+    const scr_int weight = obj_get_weight (game, object);
+    const scr_int size = obj_get_size (game, object);
+
+    gs_set_carried_suspend (game, TRUE);
+    if (was_possessed)
+      gs_carried_adjust (game, -weight, -size);
+
   /* Select action depending on var2. */
   switch (var2)
     {
@@ -526,6 +597,16 @@ task_move_object (scr_gameref_t game, scr_int object, scr_int var2, scr_int var3
       if (task_trace)
         scr_trace ("Task: moving object %ld into %ld\n", object, var3);
 
+      /*
+       * Runner quirk, faithfully kept: the "into object" branch repeats the
+       * possession-gated subtract (Proc_19_10 loc_48C48B) before it moves the
+       * object, on top of the universal one above -- the object is still in
+       * the player's possession when the gate re-runs, so a task that moves a
+       * carried object into a container takes its size and weight off the
+       * totals twice.  The "onto" branch has no such second subtract.
+       */
+      if (was_possessed)
+        gs_carried_adjust (game, -weight, -size);
       gs_object_move_into (game, object, obj_container_object (game, var3));
       break;
 
@@ -543,7 +624,22 @@ task_move_object (scr_gameref_t game, scr_int object, scr_int var2, scr_int var3
       if (var3 == 0)            /* Player */
         gs_object_player_get (game, object);
       else if (var3 == 1)       /* Ref character */
-        gs_object_npc_get (game, object, var_get_ref_character (vars));
+        {
+          const scr_int npc = var_get_ref_character (vars);
+
+          /*
+           * No referenced character: run400 abandons the move entirely,
+           * skipping the rest of its mover including the post-move seen
+           * re-check (Proc_19_10 tests its referenced-character global
+           * against the &HFF unset marker and exits, loc_48C650-48C65C).
+           */
+          if (npc < 0)
+            {
+              gs_set_carried_suspend (game, FALSE);
+              return;
+            }
+          gs_object_npc_get (game, object, npc);
+        }
       else                      /* NPC id */
         gs_object_npc_get (game, object, var3 - 2);
       break;
@@ -555,7 +651,18 @@ task_move_object (scr_gameref_t game, scr_int object, scr_int var2, scr_int var3
       if (var3 == 0)            /* Player */
         gs_object_player_wear (game, object);
       else if (var3 == 1)       /* Ref character */
-        gs_object_npc_wear (game, object, var_get_ref_character (vars));
+        {
+          const scr_int npc = var_get_ref_character (vars);
+
+          /* Unset referenced character: abandoned, as in the "held by"
+             case above (Proc_19_10 loc_48C79D-48C7A9). */
+          if (npc < 0)
+            {
+              gs_set_carried_suspend (game, FALSE);
+              return;
+            }
+          gs_object_npc_wear (game, object, npc);
+        }
       else                      /* NPC id */
         gs_object_npc_wear (game, object, var3 - 2);
       break;
@@ -575,6 +682,14 @@ task_move_object (scr_gameref_t game, scr_int object, scr_int var2, scr_int var3
         else if (var3 == 1)     /* Ref character */
           {
             npc = var_get_ref_character (vars);
+
+            /* Unset referenced character: abandoned, as in the "held by"
+               case above. */
+            if (npc < 0)
+              {
+                gs_set_carried_suspend (game, FALSE);
+                return;
+              }
             room = gs_npc_location (game, npc) - 1;
           }
         else                    /* NPC id */
@@ -597,6 +712,25 @@ task_move_object (scr_gameref_t game, scr_int object, scr_int var2, scr_int var3
                   " object move type %ld\n", var2);
       break;
     }
+
+    gs_set_carried_suspend (game, FALSE);
+
+    /* Post-move credit: into the player's hands or onto their back. */
+    if (gs_object_position (game, object) == OBJ_HELD_PLAYER)
+      gs_carried_adjust (game, weight, size);
+    else if (gs_object_position (game, object) == OBJ_WORN_PLAYER)
+      gs_carried_adjust (game, weight, 0);
+  }
+
+  /*
+   * The Runner's move-object action marks the moved object seen whenever
+   * the destination leaves it visible to the player (run400's executor,
+   * Proc_19_10, re-checks visibility after each destination case and sets
+   * the flag).  Without this, an object moved into a container in the
+   * player's presence would stay unreferenceable until re-listed.
+   */
+  if (obj_indirectly_in_room (game, object, gs_playerroom (game)))
+    gs_set_object_seen (game, object, TRUE);
 }
 
 
@@ -692,6 +826,7 @@ task_run_move_npc_action (scr_gameref_t game,
         {
         case 0:                /* To room */
           gs_move_player_to_room (game, var3);
+          obj_mark_room_statics_seen (game, var3);
           return;
 
         case 1:                /* To roomgroup part */
@@ -704,7 +839,10 @@ task_run_move_npc_action (scr_gameref_t game,
           {
             scr_int dest = lib_random_roomgroup_member (game, var3);
             if (dest >= 0)       /* Empty group: leave the player in place. */
-              gs_move_player_to_room (game, dest);
+              {
+                gs_move_player_to_room (game, dest);
+                obj_mark_room_statics_seen (game, dest);
+              }
           }
           return;
 
@@ -731,23 +869,38 @@ task_run_move_npc_action (scr_gameref_t game,
                 scr_trace ("Task: silently suppressed player move to hidden\n");
             }
           else
-            gs_move_player_to_room (game, room);
+            {
+              gs_move_player_to_room (game, room);
+              obj_mark_room_statics_seen (game, room);
+            }
           return;
 
         case 3:                /* To standing on */
-          gs_set_playerposition (game, 0);
-          gs_set_playerparent (game, obj_standable_object (game, var3 - 1));
-          return;
-
         case 4:                /* To sitting on */
-          gs_set_playerposition (game, 1);
-          gs_set_playerparent (game, obj_standable_object (game, var3 - 1));
-          return;
-
         case 5:                /* To lying on */
-          gs_set_playerposition (game, 2);
-          gs_set_playerparent (game, obj_lieable_object (game, var3 - 1));
-          return;
+          {
+            /* var2 3/4/5 map to positions 0/1/2; the parent is filtered by
+             * what the object can actually be on, so an object that is not
+             * standable (or not lieable) leaves the player on the floor in
+             * that posture.  Traced because a silent posture change is
+             * otherwise invisible: goldilocks' collapsing chair task sets
+             * "sitting on" a chair it destroys in the same breath, and the
+             * only sign of it is a "(Standing up first)" on the NEXT move. */
+            const scr_int position = var2 - 3;
+            const scr_int parent = (var2 == 5
+                                    ? obj_lieable_object (game, var3 - 1)
+                                    : obj_standable_object (game, var3 - 1));
+
+            if (task_trace)
+              {
+                scr_trace ("Task: player position %ld, parent object %ld"
+                           " (requested %ld)\n", position, parent, var3 - 1);
+              }
+
+            gs_set_playerposition (game, position);
+            gs_set_playerparent (game, parent);
+            return;
+          }
 
         default:
           /*
@@ -762,6 +915,7 @@ task_run_move_npc_action (scr_gameref_t game,
               && var3 >= 0 && var3 < gs_room_count (game))
             {
               gs_move_player_to_room (game, var3);
+              obj_mark_room_statics_seen (game, var3);
               return;
             }
           if (task_trace)
@@ -969,8 +1123,18 @@ task_run_change_variable_action (scr_gameref_t game,
    * a variable value, so interpolating here before doing that ensures that
    * any currently buffered text gets the values that were set when the text
    * was buffered.
+   *
+   * Version 4.0 does no such thing.  Its filter passes happen at the end of a
+   * completing task and at the flush -- both of them after this action has
+   * run -- so text buffered before the change comes out holding the value the
+   * change set, not the one it replaced.  Measured under run400.exe in Wine on
+   * 2026-08-24 with harness/make_400_alrsrcprobe.py, whose "victor" task has
+   * CompleteText "CT n=%n% TXT %w%." and one action setting n = 9 over an
+   * initial 5: the Runner answers "CT n=9 TXT qqball."  Pre-4.0 keeps the
+   * checkpoint, which is not measured either way.
    */
-  pf_checkpoint (filter, vars, bundle);
+  if (prop_get_taf_version (bundle) < TAF_VERSION_400)
+    pf_checkpoint (filter, vars, bundle);
 
   /* Get the name and type of the variable being addressed. */
   vt_key[0].string = "Variables";
@@ -1141,16 +1305,11 @@ task_run_change_score_action (scr_gameref_t game, scr_int task, scr_int var1)
       increase_score = !gs_task_scored (game, task);
       if (!increase_score)
         {
-          scr_vartype_t vt_key[3];
-          scr_int version;
-
           if (task_trace)
             scr_trace ("Task: already scored task %ld\n", var1);
 
           /* Version 3.8 and 3.7 games permit tasks to rescore. */
-          vt_key[0].string = "Version";
-          version = prop_get_integer (bundle, "I<-s", vt_key);
-          if (version <= TAF_VERSION_380)
+          if (prop_get_taf_version (bundle) <= TAF_VERSION_380)
             {
               increase_score = !prop_get_indexed_boolean (bundle, "Tasks",
                                                           task, "SingleScore");
@@ -1211,7 +1370,7 @@ task_run_set_task_action (scr_gameref_t game, scr_int var1, scr_int var2)
           if (task_trace)
             scr_trace ("Task: redirecting to task %ld\n", var2);
 
-          status = task_run_task (game, var2, TRUE);
+          status = run_task_run_by_index (game, var2);
         }
       else
         {
@@ -1279,16 +1438,11 @@ task_print_end_game_summary (scr_gameref_t game, scr_bool is_win)
 {
   const scr_filterref_t filter = gs_get_filter (game);
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[2];
   scr_int max_score, percent, version;
   scr_char buffer[32];
 
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "MaxScore";
-  max_score = prop_get_integer (bundle, "I<-ss", vt_key);
-
-  vt_key[0].string = "Version";
-  version = prop_get_integer (bundle, "I<-s", vt_key);
+  max_score = prop_get_global_integer (bundle, "MaxScore");
+  version = prop_get_taf_version (bundle);
 
   /* The MaxScore > 0 guard arrived with 4.0.  A scoreless 4.0 game gets no
      summary and no trailing blank line -- measured in run400 on arena config
@@ -1428,7 +1582,26 @@ task_print_end_game_message (scr_gameref_t game)
            summary, with the location panel switched to "Congratulations!".  See
            RUNNER_TESTS_TODO.md section 4. */
         if (is_pre_400)
-          pf_undo_auto_break (filter);
+          {
+            pf_undo_auto_break (filter);
+
+            /*
+             * 3.9 -- and 3.9 alone -- passes the accumulated text through
+             * pspace() before appending the WinText, unconditionally: the
+             * win branch of execute_task calls it even for an empty WinText
+             * (run390 loc_43F255, the sub itself @42C920).  Measured live on
+             * Richard.taf, whose winning task text and WinText join as
+             * "...you return to the staging area.  Rich smiles..."
+             * (Adrift_3_richard.txt) with neither side carrying authored
+             * spaces (the COMPLETE/WINTEXT dumps end "area." and start
+             * "Rich").  run380 is the measured butt-join above; run370
+             * shares 3.8's inline join style (no pspace sub exists in
+             * either) and keeps the butt-join.
+             */
+            if (prop_get_integer (bundle, "I<-s", &vt_version)
+                >= TAF_VERSION_390)
+              pf_buffer_pspace (filter);
+          }
         if (!scr_strempty (wintext))
           pf_buffer_string (filter, wintext);
         pf_buffer_character (filter, '\n');
@@ -1499,8 +1672,31 @@ task_run_end_game_action (scr_gameref_t game, scr_int var1)
   game->is_running = FALSE;
   game->has_completed = TRUE;
 
-  /* "Just stop" prints nothing, so it reports nothing done. */
-  return var1 != 3;
+  /*
+   * Nothing is printed here, whatever the ending, so this reports nothing
+   * done -- and in the Runner that is what decides whether the command is
+   * finished.  run400's task dispatcher (Proc_19_24_44CCE0, the `tasks()`
+   * of the older source) returns True only when the turn's output buffer
+   * (MemVar_4941B0) is non-empty once the task has run (loc_44CCC0..44CCCD);
+   * an End-Game action only sets the gameover byte, so a task whose only
+   * output would be the ending falls through to the library like any other
+   * silent task, and the ending is composed after that.  Measured 2026-08-29
+   * on relojero.taf (4.00), Adrift_1_relojero.txt: task 5 `arreglar *fenix`
+   * has no text and one End-Game (win) action, and run400 answers
+   * "Disculpa pero no te entiendo." (the game's DontUnderstand) and THEN the
+   * WinText.  Returning TRUE for a win or a loss here hid that refusal.
+   *
+   * This is a 4.0 rule only.  run390's tasks() (run390_3.bas 42BDC4) sets
+   * its result to True the moment checktask() finds a task and
+   * execute_task() has run it, with no look at what was printed, and
+   * run370's (run370.bas 4426B8; run380.bas 44E6AD) reports the gameover status byte; neither
+   * consults the output buffer, so the older Runners treat a silent End-Game
+   * task as a finished command -- no refusal before the ending.  Before 4.0
+   * the old rule stands: every ending but "Just stop" reports done.
+   */
+  if (prop_get_taf_version (gs_get_bundle (game)) < TAF_VERSION_400)
+    return var1 != 3;
+  return FALSE;
 }
 
 
@@ -1804,13 +2000,163 @@ static scr_bool
 task_suppresses_additional_message (scr_gameref_t game)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[1];
 
-  vt_key[0].string = "Version";
-  if (prop_get_integer (bundle, "I<-s", vt_key) != TAF_VERSION_380)
+  if (prop_get_taf_version (bundle) != TAF_VERSION_380)
     return FALSE;
 
   return pf_ends_with_double_space (gs_get_filter (game));
+}
+
+
+/*
+ * task_show_room_desc()
+ *
+ * Append the task's ShowRoomDesc room name, description and exits, if it has
+ * one.  Returns TRUE if anything was printed.
+ *
+ * The Runner emits this BEFORE it runs the task's actions, not after, so
+ * the description shows the world as it stood when the task matched -- with
+ * the one 4.0 exception in task_defers_room_desc().  Probe
+ * SRD in test/adrift4/harness/make_arena_probe.py measured all three sides of
+ * it live on run400:
+ *
+ *   alpha    move a room object into the player's hands, then show the room
+ *            -> "Also here is a widget." is STILL listed
+ *   beta     move a held object into the room, then show the room
+ *            -> the gizmo is NOT listed
+ *   gamma    redirect to a task whose CompleteText is "DELTA.", then show the
+ *            room -> the room text comes first, "DELTA." after it
+ *
+ * epsilon adds an AdditionalMessage and pins the whole emission order down:
+ * CompleteText, room description, action output, AdditionalMessage.  The
+ * wild one in the corpus is Space Boy task 24 ("{take/get} {them/goggles}",
+ * ShowRoomDesc = Treasure Island, action = move the goggles to held-by-
+ * player), where run400 duly reprints "Resting on the platform is an odd
+ * looking pair of goggles." for goggles the player is by then holding.
+ *
+ * Printing here also keeps the description out of the muting that
+ * task_run_task_actions() applies once an action ends the game, which is why
+ * topaz.taf task 22 shows its room ahead of the ending.
+ *
+ * The call sits ahead of the caller's buffer transfer, so the room text rides
+ * along with the CompleteText: one paragraph break between the two, and both
+ * interpolated at the final flush.  Emitting it after the transfer instead
+ * would interpolate it with the values in effect pre-action, but it would also
+ * land in an empty filter and so lose that paragraph break -- 120 corpus
+ * walkthroughs' worth of blank line.  Nothing has measured which set of
+ * variable values run400 uses here.
+ */
+static scr_bool
+task_show_room_desc (scr_gameref_t game, scr_int task)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_vartype_t vt_key[3];
+  scr_int showroomdesc;
+
+  vt_key[0].string = "Tasks";
+  vt_key[1].integer = task;
+  vt_key[2].string = "ShowRoomDesc";
+  showroomdesc = prop_get_integer (bundle, "I<-sis", vt_key);
+  if (showroomdesc == 0)
+    return FALSE;
+
+  /*
+   * Pre-3.9 Runners have no room-name heading anywhere -- see the
+   * "showshortroom" note on lib_describe_player_room().  Measured on the same
+   * run380 akron.taf replay, whose task 'west' into the factory shows the room
+   * with no heading: "You step into the factory itself.  Machines clang all
+   * around you. ..."
+   */
+  if (prop_get_taf_version (bundle) >= TAF_VERSION_390)
+    lib_print_room_name (game, showroomdesc - 1);
+  lib_print_room_description (game, showroomdesc - 1);
+  /*
+   * The run400 room builder appends the exits list itself when the
+   * ShowExits global is set (@00472BFF in Proc_19_63_472CA4), so
+   * task-driven room displays include it too.
+   */
+  lib_print_room_exits (game, showroomdesc - 1);
+
+  /*
+   * The newline terminating the block above is ours, not the Runner's --
+   * their flat output string simply stops where the description stopped, so
+   * run380's AdditionalMessage double-space test (see
+   * task_suppresses_additional_message()) reads the description's own tail.
+   * Note the terminator so pf_ends_with_double_space() can look through it.
+   * Measured live on superliam.taf (run380, 2026-08-31): tasks 23/24 show
+   * rooms whose Long ends "  ", and the Runner drops both AdditionalMessages.
+   */
+  pf_note_trailing_auto_break (gs_get_filter (game));
+  return TRUE;
+}
+
+
+/*
+ * task_defers_room_desc()
+ *
+ * TRUE when the task's ShowRoomDesc block is built AFTER its actions have run
+ * rather than before them.
+ *
+ * Probe SRD4 (make_arena_probe.py, transcript Adrift_949_SRD4.txt, run400
+ * 2026-09-07) walks the five field differences between probe SRD3 -- which
+ * showed that no SHAPE difference moves the block -- and lca.taf's task 237.
+ * Every cell has the same ShowRoomDesc = Back Room and the same two actions,
+ * "Bob -> Store" then "player -> Back Room", so a cell that omits "Bob is
+ * here, looking dangerous." is one whose block was built after the moves:
+ *
+ *   b0  CompleteText, nothing else                Bob listed
+ *   b1  empty CompleteText                        Bob listed
+ *   b2  empty CompleteText + AdditionalMessage    Bob NOT listed
+ *   b3  CompleteText + AdditionalMessage          Bob listed
+ *   b4  Repeatable = 0                            Bob listed
+ *   b5  Where = one room                          Bob listed
+ *   ne  all five at once (task 237 to the letter) Bob NOT listed
+ *
+ * So it is neither field alone: the block moves behind the actions exactly
+ * when the task has NO CompleteText and a NON-EMPTY AdditionalMessage.  Read
+ * against the Runner's one-string room block (lib_print_room_description()),
+ * the shape is that with no CompleteText to carry it out the description
+ * rides along with the AdditionalMessage instead, which is emitted after the
+ * actions -- and it still precedes that message, joined to it by the ordinary
+ * "  " the way b3's does.
+ *
+ * The two corpus rows this closes pull in opposite directions, which is what
+ * makes the pair the rule rather than a fit:
+ *
+ *   lca T252 (`ne`)         task 237, no CompleteText, an AdditionalMessage,
+ *                           ShowRoomDesc = Haunted House, actions move the
+ *                           player in and Daisy out -- run400 DROPS "The ever
+ *                           alluring Daisy is here.", scarier kept it.
+ *   ghosttown T19 (`u`)     task 129 `{go} [u/up]`, CompleteText "",
+ *                           AdditionalMessage "   ", ShowRoomDesc = the
+ *                           Kitchen, actions move Ninette in and then the
+ *                           player in -- run400 LISTS "Ninette is here.",
+ *                           scarier did not.
+ *
+ * ghosttown's AdditionalMessage is three spaces and prints nothing visible,
+ * so the test is on the FIELD, not on whether the message shows -- and, since
+ * scr_strempty() is whitespace-blind, not on scr_strempty() either.  Both
+ * halves are the Runner's own `<> ""`: raw emptiness, VB's test on the string
+ * it read out of the .taf.  (Only the AdditionalMessage half of that is
+ * measured; nothing in the corpus has a whitespace-only CompleteText for the
+ * other half to bite on, and reading them the same way is the assumption.)
+ *
+ * 4.0 only.  Nothing has measured the pre-4.0 Runners here, and their
+ * AdditionalMessage handling is entangled with the room block in its own way
+ * already (see task_suppresses_additional_message(), where the 3.8 double
+ * space test reads the description's tail).
+ */
+static scr_bool
+task_defers_room_desc (scr_gameref_t game,
+                       const scr_char *completetext,
+                       const scr_char *additionalmessage)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+
+  if (prop_get_taf_version (bundle) < TAF_VERSION_400)
+    return FALSE;
+
+  return completetext[0] == '\0' && additionalmessage[0] != '\0';
 }
 
 
@@ -1829,8 +2175,8 @@ task_run_task_unrestricted (scr_gameref_t game, scr_int task, scr_bool forwards)
   const scr_prop_setref_t bundle = gs_get_bundle (game);
   scr_vartype_t vt_key[3];
   const scr_char *completetext, *additionalmessage;
-  scr_int action_count, showroomdesc;
-  scr_bool status;
+  scr_int action_count;
+  scr_bool defer_room_desc, status;
 
   /* Start considering task output tracking. */
   status = FALSE;
@@ -1917,6 +2263,18 @@ task_run_task_unrestricted (scr_gameref_t game, scr_int task, scr_bool forwards)
   res_handle_resource (game, "sis", vt_key);
 
   /*
+   * Show the task's room, ahead of its actions -- unless this is one of the
+   * 4.0 tasks that defers the block behind them; see
+   * task_defers_room_desc().
+   */
+  vt_key[2].string = "AdditionalMessage";
+  additionalmessage = prop_get_string (bundle, "S<-sis", vt_key);
+  defer_room_desc = task_defers_room_desc (game, completetext,
+                                           additionalmessage);
+  if (!defer_room_desc)
+    status |= task_show_room_desc (game, task);
+
+  /*
    * Things get slightly tricky here.  We need to filter the completion text
    * for the task using any final variable values generated or modified by
    * task actions, but other task text, run by actions, according to the
@@ -1930,7 +2288,32 @@ task_run_task_unrestricted (scr_gameref_t game, scr_int task, scr_bool forwards)
    */
   vt_key[2].string = "Actions";
   action_count = prop_get_child_count (bundle, "I<-sis", vt_key);
-  if (action_count > 0)
+  if (action_count > 0 && prop_get_taf_version (bundle) >= TAF_VERSION_400)
+    {
+      /*
+       * Version 4.0 does none of that: the turn's text stays in the buffer
+       * while the actions run, so a task an action runs filters it along with
+       * its own (see pf_refilter()).  The probe's "uniform" task, whose
+       * CompleteText is "CTU ball." and whose one action runs the "zulu" task,
+       * answers "CTU qqqball." -- three walks, one of them zulu's.
+       *
+       * It is still hidden from the paragraph-spacing helpers, so that text an
+       * action prints opens its paragraph exactly as it does pre-4.0; only the
+       * filtering differs.  RAII, since the calls below can throw.
+       */
+      struct hide_guard
+      {
+        scr_filterref_t filter_;
+        size_t previous_;
+        explicit hide_guard (scr_filterref_t f)
+          : filter_ (f), previous_ (pf_hide_prefix (f)) { }
+        ~hide_guard () { pf_reveal_prefix (filter_, previous_); }
+      } guard (filter);
+
+      task_start_npc_walks (game, task);
+      status |= task_run_task_actions (game, task);
+    }
+  else if (action_count > 0)
     {
       /*
        * Take ownership of the current filter buffer text, then start NPC
@@ -1956,30 +2339,33 @@ task_run_task_unrestricted (scr_gameref_t game, scr_int task, scr_bool forwards)
     }
 
   /*
-   * Append any room description and additional message for the task.  Both
-   * are printed even when an action above has just ended the game: measured
-   * live on topaz.taf (run400), whose task 22 "wear ring" is a single "end
-   * game (win)" action with a room description and "The two of you set out
-   * into the forest." as its AdditionalMessage, and the Runner shows both,
-   * ahead of the ending.  marooned.taf task 29 says the same for run380.
+   * The AdditionalMessage trails the actions, and is printed even when one of
+   * them has just ended the game: measured live on topaz.taf (run400), whose
+   * task 22 "wear ring" is a single "end game (win)" action with a room
+   * description and "The two of you set out into the forest." as its
+   * AdditionalMessage, and the Runner shows both, ahead of the ending.
+   * marooned.taf task 29 says the same for run380.
    */
-  vt_key[2].string = "ShowRoomDesc";
-  showroomdesc = prop_get_integer (bundle, "I<-sis", vt_key);
-  if (showroomdesc != 0)
-    {
-      lib_print_room_name (game, showroomdesc - 1);
-      lib_print_room_description (game, showroomdesc - 1);
-      status |= TRUE;
-    }
+  if (defer_room_desc)
+    status |= task_show_room_desc (game, task);
 
-  vt_key[2].string = "AdditionalMessage";
-  additionalmessage = prop_get_string (bundle, "S<-sis", vt_key);
   if (!scr_strempty (additionalmessage)
       && !task_suppresses_additional_message (game))
     {
       pf_buffer_paragraph_line (filter, additionalmessage);
       status |= TRUE;
     }
+
+  /*
+   * A version 4.0 task that completes runs the output filter over the whole
+   * of the turn's buffered text on its way out -- variables interpolated
+   * where they stand and the ALR list walked -- and the turn's own flush then
+   * filters what it leaves behind a second time.  That is the whole of the
+   * "some text gets its ALRs applied twice" story; the measurements are in
+   * pf_refilter().
+   */
+  if (prop_get_taf_version (bundle) >= TAF_VERSION_400)
+    pf_refilter (filter, gs_get_vars (game), bundle);
 
   /* Return status -- TRUE if matched and we output something. */
   return status;

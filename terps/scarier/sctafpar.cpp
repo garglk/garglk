@@ -51,11 +51,10 @@ enum
   PARSE_MAX_DEPTH = 32
 };
 
-/* Multiline separator sequences for the various versions supported. */
+/* Multiline separators; every version before 4.0 shares the same one. */
 enum { SEPARATOR_SIZE = 3 };
 static const scr_byte V400_SEPARATOR[SEPARATOR_SIZE] = {0xbd, 0xd0, 0x00};
-static const scr_byte V390_SEPARATOR[SEPARATOR_SIZE] = {0x2a, 0x2a, 0x00};
-static const scr_byte V380_SEPARATOR[SEPARATOR_SIZE] = {0x2a, 0x2a, 0x00};
+static const scr_byte PRE_400_SEPARATOR[SEPARATOR_SIZE] = {0x2a, 0x2a, 0x00};
 
 
 /*
@@ -173,6 +172,14 @@ static const scr_parse_schema_t V400_PARSE_SCHEMA[] = {
   {NULL, NULL}
 };
 
+/*
+ * The room exit record is byte-for-byte identical in versions 3.9, 3.8 and
+ * 3.7, so those three schemas share one descriptor string; parse_special()
+ * matches on this same constant.
+ */
+static const scr_char V390_V380_ROOM_EXIT_DESC[] =
+  "{V390_V380_ROOM_EXIT:#Dest_#Var1_#Var2_ZVar3}";
+
 /* Version 3.9 TAF file properties descriptor table. */
 static const scr_parse_schema_t V390_PARSE_SCHEMA[] = {
   {"_GAME_",
@@ -198,8 +205,7 @@ static const scr_parse_schema_t V390_PARSE_SCHEMA[] = {
    " #Obj $AltDesc #TypeHideObjects <RESOURCE>Res <RESOURCE>LastRes"
    " <RESOURCE>Task1Res <RESOURCE>Task2Res <RESOURCE>AltRes"
    " ?!GNoMap:BHideOnMap |V390_ROOM:_Alts_|"},
-  {"ROOM_EXIT",
-   "{V390_V380_ROOM_EXIT:#Dest_#Var1_#Var2_ZVar3}"},
+  {"ROOM_EXIT", V390_V380_ROOM_EXIT_DESC},
   {"RESOURCE",
    "?GSound:$SoundFile,ZSoundLen,ZSoundOffset"
    " ?GGraphics:$GraphicFile,ZGraphicLen,ZGraphicOffset"},
@@ -262,6 +268,46 @@ static const scr_parse_schema_t V390_PARSE_SCHEMA[] = {
   {NULL, NULL}
 };
 
+/*
+ * Descriptor strings shared verbatim by the version 3.8 and version 3.7
+ * schemas, so that the version 3.7 table below holds only its genuine
+ * divergences from version 3.8.
+ */
+static const scr_char V380_V370_GLOBAL_DESC[] =
+  "$GameName $GameAuthor #MaxCarried |V380_MaxSize_MaxWt_| $DontUnderstand"
+  " #Perspective BShowExits #WaitTurns FDispFirstRoom FBattleSystem"
+  " EPlayerName FPromptName EPlayerDesc ZTask ZPosition ZParentObject"
+  " ZPlayerGender FEightPointCompass TNoScoreNotify FSound FGraphics"
+  " FStatusBox EStatusBoxText FEmbedded";
+static const scr_char V380_V370_ROOM_DESC[] =
+  "$Short $Long $LastDesc [8]<ROOM_EXIT>Exits $AddDesc1 #Task1 $AddDesc2"
+  " #Task2 #Obj $AltDesc #TypeHideObjects |V380_ROOM:_Alts_|";
+static const scr_char V380_V370_OBJECT_DESC[] =
+  "$Prefix $Short [1]$Alias BStatic $Description #InitialPosition #Task"
+  " BTaskNotDone $AltDesc ?BStatic:<ROOM_LIST1>Where #SurfaceContainer"
+  " FSurface ?#SurfaceContainer=2:TSurface FContainer"
+  " ?#SurfaceContainer=1:TContainer #Capacity |V380_OBJECT:#Capacity*10+2|"
+  " ?!BStatic:BWearable,#SizeWeight,|V380_OBJECT:_SizeWeight_|,#Parent"
+  " ?BStatic:{OBJECT:#Parent}"
+  " #Openable |V380_OBJECT:_Openable_,Key| #SitLie ?!BStatic:BEdible BReadable"
+  " ?BReadable:$ReadText ?!BStatic:BWeapon ZCurrentState FListFlag"
+  " EInRoomDesc ZOnlyWhenNotMoved";
+static const scr_char V380_V370_EVENT_DESC[] =
+  "$Short #StarterType ?#StarterType=2:#StartTime,#EndTime"
+  " ?#StarterType=3:#TaskNum #RestartType BTaskFinished #Time1 #Time2"
+  " $StartText $LookText $FinishText <ROOM_LIST0>Where #PauseTask"
+  " BPauserCompleted #PrefTime1 $PrefText1 #ResumeTask BResumerCompleted"
+  " #PrefTime2 $PrefText2 #Obj2 #Obj2Dest #Obj3 #Obj3Dest #Obj1 #Obj1Dest"
+  " #TaskAffected";
+static const scr_char V380_V370_NPC_DESC[] =
+  "$Name $Prefix [1]$Alias $Descr #StartRoom $AltText #Task V<TOPIC>Topics"
+  " V<WALK>Walks BShowEnterExit ?BShowEnterExit:$EnterText,$ExitText"
+  " $InRoomText ZGender";
+static const scr_char V380_V370_WALK_DESC[] =
+  "#NumStops BLoop #StartTask #CharTask #MeetObject"
+  " ?!#MeetObject=0:|V380_WALK:_MeetObject_| #ObjectTask ZMeetChar"
+  " {WALK:#Rooms_#Times} ZStoppingTask EChangedDesc";
+
 /* Version 3.8 TAF file properties descriptor table. */
 static const scr_parse_schema_t V380_PARSE_SCHEMA[] = {
   {"_GAME_",
@@ -271,27 +317,10 @@ static const scr_parse_schema_t V380_PARSE_SCHEMA[] = {
    " |V380_OBJECT:_InitialPositions_|"},
   {"HEADER",
    "MStartupText #StartRoom MWinText"},
-  {"GLOBAL",
-   "$GameName $GameAuthor #MaxCarried |V380_MaxSize_MaxWt_| $DontUnderstand"
-   " #Perspective BShowExits #WaitTurns FDispFirstRoom FBattleSystem"
-   " EPlayerName FPromptName EPlayerDesc ZTask ZPosition ZParentObject"
-   " ZPlayerGender FEightPointCompass TNoScoreNotify FSound FGraphics"
-   " FStatusBox EStatusBoxText FEmbedded"},
-  {"ROOM",
-   "$Short $Long $LastDesc [8]<ROOM_EXIT>Exits $AddDesc1 #Task1 $AddDesc2"
-   " #Task2 #Obj $AltDesc #TypeHideObjects |V380_ROOM:_Alts_|"},
-  {"ROOM_EXIT",
-   "{V390_V380_ROOM_EXIT:#Dest_#Var1_#Var2_ZVar3}"},
-  {"OBJECT",
-   "$Prefix $Short [1]$Alias BStatic $Description #InitialPosition #Task"
-   " BTaskNotDone $AltDesc ?BStatic:<ROOM_LIST1>Where #SurfaceContainer"
-   " FSurface ?#SurfaceContainer=2:TSurface FContainer"
-   " ?#SurfaceContainer=1:TContainer #Capacity |V380_OBJECT:#Capacity*10+2|"
-   " ?!BStatic:BWearable,#SizeWeight,|V380_OBJECT:_SizeWeight_|,#Parent"
-   " ?BStatic:{OBJECT:#Parent}"
-   " #Openable |V380_OBJECT:_Openable_,Key| #SitLie ?!BStatic:BEdible BReadable"
-   " ?BReadable:$ReadText ?!BStatic:BWeapon ZCurrentState FListFlag"
-   " EInRoomDesc ZOnlyWhenNotMoved"},
+  {"GLOBAL", V380_V370_GLOBAL_DESC},
+  {"ROOM", V380_V370_ROOM_DESC},
+  {"ROOM_EXIT", V390_V380_ROOM_EXIT_DESC},
+  {"OBJECT", V380_V370_OBJECT_DESC},
   {"ROOM_LIST1",
    "#Type {ROOM_LIST1}"},
   {"TASK",
@@ -307,23 +336,11 @@ static const scr_parse_schema_t V380_PARSE_SCHEMA[] = {
    "#Var1 #Var2 #Var3"},
   {"ROOM_LIST0",
    "#Type {ROOM_LIST0}"},
-  {"EVENT",
-   "$Short #StarterType ?#StarterType=2:#StartTime,#EndTime"
-   " ?#StarterType=3:#TaskNum #RestartType BTaskFinished #Time1 #Time2"
-   " $StartText $LookText $FinishText <ROOM_LIST0>Where #PauseTask"
-   " BPauserCompleted #PrefTime1 $PrefText1 #ResumeTask BResumerCompleted"
-   " #PrefTime2 $PrefText2 #Obj2 #Obj2Dest #Obj3 #Obj3Dest #Obj1 #Obj1Dest"
-   " #TaskAffected"},
-  {"NPC",
-   "$Name $Prefix [1]$Alias $Descr #StartRoom $AltText #Task V<TOPIC>Topics"
-   " V<WALK>Walks BShowEnterExit ?BShowEnterExit:$EnterText,$ExitText"
-   " $InRoomText ZGender"},
+  {"EVENT", V380_V370_EVENT_DESC},
+  {"NPC", V380_V370_NPC_DESC},
   {"TOPIC",
    "$Subject $Reply #Task $AltReply"},
-  {"WALK",
-   "#NumStops BLoop #StartTask #CharTask #MeetObject"
-   " ?!#MeetObject=0:|V380_WALK:_MeetObject_| #ObjectTask ZMeetChar"
-   " {WALK:#Rooms_#Times} ZStoppingTask EChangedDesc"},
+  {"WALK", V380_V370_WALK_DESC},
   {"ROOM_GROUP",
    "$Name {ROOM_GROUP:[]BList}"},
   {"SYNONYM",
@@ -370,27 +387,10 @@ static const scr_parse_schema_t V370_PARSE_SCHEMA[] = {
    " |V370_GLOBAL:_Synonyms_| |V370_TASK:_WinTask_|"},
   {"HEADER",
    "MStartupText #StartRoom MWinText #WinTask"},
-  {"GLOBAL",
-   "$GameName $GameAuthor #MaxCarried |V380_MaxSize_MaxWt_| $DontUnderstand"
-   " #Perspective BShowExits #WaitTurns FDispFirstRoom FBattleSystem"
-   " EPlayerName FPromptName EPlayerDesc ZTask ZPosition ZParentObject"
-   " ZPlayerGender FEightPointCompass TNoScoreNotify FSound FGraphics"
-   " FStatusBox EStatusBoxText FEmbedded"},
-  {"ROOM",
-   "$Short $Long $LastDesc [8]<ROOM_EXIT>Exits $AddDesc1 #Task1 $AddDesc2"
-   " #Task2 #Obj $AltDesc #TypeHideObjects |V380_ROOM:_Alts_|"},
-  {"ROOM_EXIT",
-   "{V390_V380_ROOM_EXIT:#Dest_#Var1_#Var2_ZVar3}"},
-  {"OBJECT",
-   "$Prefix $Short [1]$Alias BStatic $Description #InitialPosition #Task"
-   " BTaskNotDone $AltDesc ?BStatic:<ROOM_LIST1>Where #SurfaceContainer"
-   " FSurface ?#SurfaceContainer=2:TSurface FContainer"
-   " ?#SurfaceContainer=1:TContainer #Capacity |V380_OBJECT:#Capacity*10+2|"
-   " ?!BStatic:BWearable,#SizeWeight,|V380_OBJECT:_SizeWeight_|,#Parent"
-   " ?BStatic:{OBJECT:#Parent}"
-   " #Openable |V380_OBJECT:_Openable_,Key| #SitLie ?!BStatic:BEdible BReadable"
-   " ?BReadable:$ReadText ?!BStatic:BWeapon ZCurrentState FListFlag"
-   " EInRoomDesc ZOnlyWhenNotMoved"},
+  {"GLOBAL", V380_V370_GLOBAL_DESC},
+  {"ROOM", V380_V370_ROOM_DESC},
+  {"ROOM_EXIT", V390_V380_ROOM_EXIT_DESC},
+  {"OBJECT", V380_V370_OBJECT_DESC},
   {"ROOM_LIST1",
    "#Type {ROOM_LIST1}"},
   {"TASK",
@@ -406,23 +406,11 @@ static const scr_parse_schema_t V370_PARSE_SCHEMA[] = {
    "#Var1 #Var2"},
   {"ROOM_LIST0",
    "#Type {ROOM_LIST0}"},
-  {"EVENT",
-   "$Short #StarterType ?#StarterType=2:#StartTime,#EndTime"
-   " ?#StarterType=3:#TaskNum #RestartType BTaskFinished #Time1 #Time2"
-   " $StartText $LookText $FinishText <ROOM_LIST0>Where #PauseTask"
-   " BPauserCompleted #PrefTime1 $PrefText1 #ResumeTask BResumerCompleted"
-   " #PrefTime2 $PrefText2 #Obj2 #Obj2Dest #Obj3 #Obj3Dest #Obj1 #Obj1Dest"
-   " #TaskAffected"},
-  {"NPC",
-   "$Name $Prefix [1]$Alias $Descr #StartRoom $AltText #Task V<TOPIC>Topics"
-   " V<WALK>Walks BShowEnterExit ?BShowEnterExit:$EnterText,$ExitText"
-   " $InRoomText ZGender"},
+  {"EVENT", V380_V370_EVENT_DESC},
+  {"NPC", V380_V370_NPC_DESC},
   {"TOPIC",
    "$Subject $Reply #Task $AltReply"},
-  {"WALK",
-   "#NumStops BLoop #StartTask #CharTask #MeetObject"
-   " ?!#MeetObject=0:|V380_WALK:_MeetObject_| #ObjectTask ZMeetChar"
-   " {WALK:#Rooms_#Times} ZStoppingTask EChangedDesc"},
+  {"WALK", V380_V370_WALK_DESC},
   {"ROOM_GROUP",
    "$Name {ROOM_GROUP:[]BList}"},
   {"COMMAND",
@@ -439,9 +427,8 @@ static void parse_fixup_v370 (const scr_char *fixup);
 
 /*
  * Per-version parse descriptors, tying together everything that varies with
- * the TAF file version: the parse schema, the multiline separator (version
- * 3.7 shares version 3.8's), the fixup special handler, and the printable
- * version string.
+ * the TAF file version: the parse schema, the multiline separator, the fixup
+ * special handler, and the printable version string.
  */
 typedef struct
 {
@@ -454,9 +441,9 @@ typedef struct
 
 static const scr_parse_version_t PARSE_VERSIONS[] = {
   {TAF_VERSION_400, V400_PARSE_SCHEMA, V400_SEPARATOR, parse_fixup_v400, "4.00"},
-  {TAF_VERSION_390, V390_PARSE_SCHEMA, V390_SEPARATOR, parse_fixup_v390, "3.90"},
-  {TAF_VERSION_380, V380_PARSE_SCHEMA, V380_SEPARATOR, parse_fixup_v380, "3.80"},
-  {TAF_VERSION_370, V370_PARSE_SCHEMA, V380_SEPARATOR, parse_fixup_v370, "3.70"}
+  {TAF_VERSION_390, V390_PARSE_SCHEMA, PRE_400_SEPARATOR, parse_fixup_v390, "3.90"},
+  {TAF_VERSION_380, V380_PARSE_SCHEMA, PRE_400_SEPARATOR, parse_fixup_v380, "3.80"},
+  {TAF_VERSION_370, V370_PARSE_SCHEMA, PRE_400_SEPARATOR, parse_fixup_v370, "3.70"}
 };
 
 
@@ -902,11 +889,7 @@ parse_put_indexed_boolean (const scr_char *list_key,
 static scr_bool
 parse_get_global_boolean (const scr_char *name)
 {
-  scr_vartype_t vt_key[2];
-
-  vt_key[0].string = "Globals";
-  vt_key[1].string = name;
-  return prop_get_boolean (parse_bundle, "B<-ss", vt_key);
+  return prop_get_global_boolean (parse_bundle, name);
 }
 
 
@@ -1272,6 +1255,7 @@ parse_read_multiline (void)
 {
   const scr_byte *separator = parse_version->separator;
   const scr_char *line;
+  size_t used;
 
   /*
    * Own the growing buffer with RAII.  parse_get_taf_string() below can throw
@@ -1282,15 +1266,15 @@ parse_read_multiline (void)
 
   /* Take a simple copy of the first line. */
   line = parse_get_taf_string ();
-  multiline.reset ((scr_char *) scr_malloc (strlen (line) + 1));
-  memcpy (multiline.get (), line, strlen (line) + 1);
+  used = strlen (line);
+  multiline.reset ((scr_char *) scr_malloc (used + 1));
+  memcpy (multiline.get (), line, used + 1);
 
   /* Now concatenate until separator found. */
   line = parse_get_taf_string ();
   while (memcmp (line, separator, SEPARATOR_SIZE) != 0)
     {
       /* Room for what is there, a newline, this line, and the terminator. */
-      size_t used = strlen (multiline.get ());
       size_t size = used + strlen (line) + 2;
       scr_char *grown = (scr_char *) scr_realloc (multiline.get (), size);
       /*
@@ -1302,6 +1286,7 @@ parse_read_multiline (void)
       multiline.release ();
       multiline.reset (grown);
       snprintf (grown + used, size - used, "\n%s", line);
+      used = size - 1;
       line = parse_get_taf_string ();
     }
 
@@ -1440,9 +1425,28 @@ parse_clear_v400_resources_table (void)
  * order in which they are encountered when reading through the TAF file.
  *
  * A warning -- this function may return a new length.  Resources that
- * have been seen once already have non-useful (though apparently non-zero)
- * lengths; this function needs to handle that.  The caller needs to compare
+ * have been seen once already carry a negative length instead of their real
+ * one; this function needs to handle that.  The caller needs to compare
  * length with real_length to see if that happened.
+ *
+ * What the negative length is, is a back-reference: -N means "this is entry
+ * N of the game's resource table", counting from one.  That table holds each
+ * distinct resource *name* in the order the parse meets it, with the trailing
+ * "##" looping flag stripped before the comparison, and it counts entries
+ * whose length is zero -- resources named but not embedded -- just the same
+ * as embedded ones.  Only a slot with no name at all is passed over.  The
+ * rule reproduces all 535 negative records in the 427-game version 4.0
+ * corpus exactly, and the "##" stripping is not cosmetic: To_Hell_And_Beyond
+ * has 21 records that only line up once it is done (RUNNER_TESTS_TODO.md
+ * section 9).
+ *
+ * We resolve back-references by name rather than by index, which comes to
+ * the same thing and needs no separate count.  The one case where the
+ * distinction bites is a back-reference to a name that was only ever seen
+ * with a zero length -- a resource the author referred to but never embedded.
+ * Those names are not in our table, since the caller drops zero-length slots
+ * before we see them, so the lookup fails; see below for why that must not
+ * become a table entry.
  */
 static scr_int
 parse_get_v400_resource_offset (const scr_char *name,
@@ -1487,6 +1491,29 @@ parse_get_v400_resource_offset (const scr_char *name,
       return offset;
     }
 
+  /*
+   * A back-reference we could not resolve names a resource that is not in the
+   * TAF: every embedded resource enters the table at its first appearance, so
+   * the only way to miss is for that first appearance to have had a length of
+   * zero.  Report no data instead of adding an entry, because the entry would
+   * hold the back-reference itself as a length, and the offset of every
+   * resource added after it is measured from the one before -- a negative
+   * length there runs the whole chain backwards.  That was live: it put
+   * House's Atmos1.wav 8 bytes early and all ten of the resources
+   * MikeDesert_SuburbanProdigy3 embeds after its dangling ".\gold.jpg" 27
+   * bytes early, both endings' pictures among them.
+   */
+  if (length < 0)
+    {
+      if (parse_trace)
+        scr_trace ("Parse: dangling back-reference %ld for \"%s\"\n",
+                   length, clean_name);
+
+      scr_free (clean_name);
+      *real_length = 0;
+      return 0;
+    }
+
   /* Resize the resources table if required. */
   if (parse_resources_length == parse_resources_size)
     {
@@ -1526,15 +1553,18 @@ parse_get_v400_resource_offset (const scr_char *name,
  * Extra special handling for a version 4.0 resource; extracts details of
  * the sound or graphic just parsed, and adds an offset property if defined.
  *
- * A warning -- Adrift seems to use -ve numbers as lengths for resources
- * already parsed, where TAF files include the resource.  It's unclear
- * what the -ve values mean, so here we ignore them and work off the
- * resource file name given.  This means we have to look for length not
- * equal to zero, not just lengths greater than zero.
+ * Adrift uses -ve numbers as lengths for resources already parsed, where TAF
+ * files include the resource: -N means "see entry N of the resource table",
+ * counting from one over distinct names in encounter order.  We ignore the
+ * number and work off the resource file name given, which reaches the same
+ * entry; parse_get_v400_resource_offset() has the details, and the corpus
+ * evidence, above.  This is why we have to look for length not equal to
+ * zero, not just lengths greater than zero.
  *
- * TODO Work out what this means.  The -ve lengths look like a form of
- * 'resource number'; -(length+2) is tantalizingly close to the index into
- * our parse_resources table, but not always...
+ * Zero-length slots we drop here still occupy a numbered entry in Adrift's
+ * table.  That costs us nothing, since we never count -- but it does mean a
+ * back-reference can name a resource we have never recorded, and that case
+ * is handled where the lookup fails rather than here.
  */
 static void
 parse_handle_v400_resource (const scr_char *file_key,
@@ -1549,20 +1579,53 @@ parse_handle_v400_resource (const scr_char *file_key,
   length = parse_get_keyed_integer (length_key);
 
   /*
+   * Named but with no data of its own.  We drop it below; Adrift still counts
+   * it, so trace it -- a back-reference that lands here is why one can dangle.
+   */
+  if (parse_trace && length == 0
+      && !scr_strempty (file) && strcmp (file, "##") != 0)
+    scr_trace ("Parse: unembedded resource \"%s\"\n", file);
+
+  /*
    * If defined and has a length, rewrite the offset, and also the length
    * in case changed.
    */
   if (!scr_strempty (file) && length != 0)
     {
-      scr_int real_length;
+      scr_int real_length, offset;
 
-      parse_put_keyed_integer (offset_key,
-                               parse_get_v400_resource_offset (file, length,
-                                                               &real_length));
+      offset = parse_get_v400_resource_offset (file, length, &real_length);
+      parse_put_keyed_integer (offset_key, offset);
+
+      if (parse_trace)
+        scr_trace ("Parse: resource \"%s\" len %ld at %ld\n",
+                   file, real_length, offset);
 
       /* Rewrite length if changed. */
       if (real_length != length)
         parse_put_keyed_integer (length_key, real_length);
+    }
+}
+
+
+/*
+ * parse_optional_exit_record()
+ *
+ * Helper for parse_special(); parse an optional room exit record.  The next
+ * TAF integer is a flag, and when it is nonzero the exit is present and the
+ * flag is also its first field, so push it back and parse the record.
+ */
+static void
+parse_optional_exit_record (const scr_char *descriptor)
+{
+  scr_int flag;
+
+  /* Get next flag, and if true, pushback and parse. */
+  flag = parse_get_taf_integer ();
+  if (flag != 0)
+    {
+      parse_taf_pushback ();
+      parse_descriptor (descriptor);
     }
 }
 
@@ -1592,32 +1655,11 @@ parse_special (const scr_char *special)
 
   /* Parse a version 4.0 optional set of room exit information. */
   else if (strcmp (special, "{V400_ROOM_EXIT:#Dest_#Var1_#Var2_#Var3}") == 0)
-    {
-      scr_int flag;
+    parse_optional_exit_record ("#Dest #Var1 #Var2 #Var3");
 
-      /* Get next flag, and if true, pushback and parse. */
-      flag = parse_get_taf_integer ();
-      if (flag != 0)
-        {
-          parse_taf_pushback ();
-          parse_descriptor ("#Dest #Var1 #Var2 #Var3");
-        }
-    }
-
-  /* Parse version 3.9 and version 3.8 optional room exit information. */
-  else if (strcmp (special,
-                   "{V390_V380_ROOM_EXIT:#Dest_#Var1_#Var2_ZVar3}") == 0)
-    {
-      scr_int flag;
-
-      /* Get next flag, and if true, pushback and parse. */
-      flag = parse_get_taf_integer ();
-      if (flag != 0)
-        {
-          parse_taf_pushback ();
-          parse_descriptor ("#Dest #Var1 #Var2 ZVar3");
-        }
-    }
+  /* Parse version 3.9 and earlier optional room exit information. */
+  else if (strcmp (special, V390_V380_ROOM_EXIT_DESC) == 0)
+    parse_optional_exit_record ("#Dest #Var1 #Var2 ZVar3");
 
   /* Parse room lists, with optional extra room. */
   else if (strcmp (special, "{ROOM_LIST0}") == 0
@@ -2226,7 +2268,8 @@ parse_fixup_v380_action (scr_int type, scr_int var_count,
  * Helper for parse_fixup_v380(), converts a task movement into an action.
  */
 static void
-parse_fixup_v380_movement (scr_int mvar1, scr_int mvar2, scr_int mvar3)
+parse_fixup_v380_movement (scr_int mvar1, scr_int mvar2, scr_int mvar3,
+                           scr_bool is_v370)
 {
   scr_int var1;
 
@@ -2241,7 +2284,28 @@ parse_fixup_v380_movement (scr_int mvar1, scr_int mvar2, scr_int mvar3)
    */
   if (mvar1 == 1)
     {
-      if (mvar3 == 0 && mvar2 >= 2)
+      /*
+       * The 3.8 Runner's executor (run380 tasks() 44D1D4) loads movement
+       * Var2 minus one and moves the player only behind "If Var2 > 1" --
+       * meant to exclude the none/hidden entries, but it also excludes
+       * room 1, so a 3.8 task can never move the PLAYER to the game's
+       * first room; the object branch has no such guard.  Measured live
+       * 2026-08-31 on cave.taf run380: "climb down" at the halfway room
+       * (raw Var2 = 2) prints its CompleteText and leaves the player in
+       * place.  So raw 2 converts to no action at all.
+       *
+       * Version 3.7 is NOT affected: its player-move encoding sits one
+       * higher (the first room is raw Var2 = 3, which its identical
+       * "If Var2 > 1" post-decrement guard admits -- run370 tasks()
+       * 441E55 = 3.8's guard over 3.7's encoding).  3.8 shifted the
+       * encoding down by one and forgot the guard, 3.9 rewrote the
+       * executor around typed actions and the bug went away again.  By
+       * the time the 3.7 conversion reaches this function its values are
+       * already in 3.8 form, so the exclusion must not apply to it --
+       * alices_restaurant (arlo.taf, 3.70) moves the player to its first
+       * room, In Front of the Church, by task.
+       */
+      if (mvar3 == 0 && mvar2 >= (is_v370 ? 2 : 3))
         parse_fixup_v380_action (1, 3, 0, 0, mvar2 - 2);
       return;
     }
@@ -2332,16 +2396,13 @@ parse_fixup_v380_restr (scr_int type, scr_int var_count,
 static scr_int
 parse_v380_object_to_dynamic (scr_int last_object)
 {
-  scr_vartype_t vt_key[3];
   scr_int object, dynamic;
 
   dynamic = 0;
   for (object = 0; object <= last_object; object++)
     {
-      vt_key[0].string = "Objects";
-      vt_key[1].integer = object;
-      vt_key[2].string = "Static";
-      if (!prop_get_boolean (parse_bundle, "B<-sis", vt_key))
+      if (!prop_get_indexed_boolean (parse_bundle, "Objects",
+                                     object, "Static"))
         dynamic++;
     }
 
@@ -2400,7 +2461,7 @@ parse_fixup_v380_wear_restr (scr_int wearobj, const scr_char *failmessage)
   /* Ignore if no object selected. */
   if (wearobj > 0)
     {
-      scr_vartype_t vt_key[3];
+      scr_vartype_t vt_key;
       scr_int object_count, object, dynamic, obj_index;
 
       /*
@@ -2419,8 +2480,8 @@ parse_fixup_v380_wear_restr (scr_int wearobj, const scr_char *failmessage)
         }
 
       /* Get the count of objects defined. */
-      vt_key[0].string = "Objects";
-      object_count = prop_get_child_count (parse_bundle, "I<-s", vt_key);
+      vt_key.string = "Objects";
+      object_count = prop_get_child_count (parse_bundle, "I<-s", &vt_key);
 
       /* Convert wearobj from worn index to object index. */
       wearobj -= 2;
@@ -2428,13 +2489,12 @@ parse_fixup_v380_wear_restr (scr_int wearobj, const scr_char *failmessage)
         {
           scr_bool bstatic, wearable;
 
-          vt_key[1].integer = object;
-          vt_key[2].string = "Static";
-          bstatic = prop_get_boolean (parse_bundle, "B<-sis", vt_key);
+          bstatic = prop_get_indexed_boolean (parse_bundle, "Objects",
+                                              object, "Static");
           if (!bstatic)
             {
-              vt_key[2].string = "Wearable";
-              wearable = prop_get_boolean (parse_bundle, "B<-sis", vt_key);
+              wearable = prop_get_indexed_boolean (parse_bundle, "Objects",
+                                                   object, "Wearable");
               if (wearable)
                 wearobj--;
             }
@@ -2488,7 +2548,6 @@ static void
 parse_fixup_v380_objstate_restr (scr_int obj, scr_int ivar1, scr_int ivar2,
                                  const scr_char *failmessage)
 {
-  scr_vartype_t vt_key[3];
   scr_int object, dynamic, var2, var3;
 
   /* Ignore restrictions with no "type". */
@@ -2506,10 +2565,8 @@ parse_fixup_v380_objstate_restr (scr_int obj, scr_int ivar1, scr_int ivar2,
         {
           scr_int openable;
 
-          vt_key[0].string = "Objects";
-          vt_key[1].integer = object;
-          vt_key[2].string = "Openable";
-          openable = prop_get_integer (parse_bundle, "I<-sis", vt_key);
+          openable = prop_get_indexed_integer (parse_bundle, "Objects",
+                                               object, "Openable");
           if (openable > 0)
             stateful++;
         }
@@ -2552,6 +2609,10 @@ parse_fixup_v380_objstate_restr (scr_int obj, scr_int ivar1, scr_int ivar2,
   parse_fixup_v380_restr (0, 3, dynamic + 3, var2, var3, failmessage);
 }
 
+
+/* Shared by the version 3.8 and 3.7 "_Actions_" fixups; defined below with
+   the version 3.7 movement converter it calls. */
+static void parse_fixup_task_actions (scr_bool is_v370);
 
 /*
  * parse_fixup_v380()
@@ -2599,43 +2660,7 @@ parse_fixup_v380 (const scr_char *fixup)
 
   /* Create version 4.0 task actions from a version 3.8 task. */
   else if (strcmp (fixup, "|V380_TASK:_Actions_|") == 0)
-    {
-      scr_vartype_t vt_key;
-      scr_int score, movement;
-
-      /* Create any appropriate score change action. */
-      score = parse_get_keyed_integer ("Score");
-      if (score != 0)
-        parse_fixup_v380_action (4, 1, score, 0, 0);
-
-      /* Create any appropriate game ending actions. */
-      if (parse_get_keyed_boolean ("KillsPlayer"))
-        parse_fixup_v380_action (6, 1, 2, 0, 0);
-      if (parse_get_keyed_boolean ("WinGame"))
-        parse_fixup_v380_action (6, 1, 0, 0, 0);
-
-      /* Handle each defined movement for the task. */
-      for (movement = 0; movement < V380_TASK_MOVEMENTS; movement++)
-        {
-          scr_int mvar1, mvar2, mvar3;
-
-          vt_key.integer = movement;
-          parse_push_key (vt_key, PROP_KEY_INTEGER);
-          vt_key.string = "Movements";
-          parse_push_key (vt_key, PROP_KEY_STRING);
-
-          /* Retrieve the movement parameters. */
-          mvar1 = parse_get_keyed_integer ("Var1");
-          mvar2 = parse_get_keyed_integer ("Var2");
-          mvar3 = parse_get_keyed_integer ("Var3");
-
-          parse_pop_key ();
-          parse_pop_key ();
-
-          /* Create the corresponding task action. */
-          parse_fixup_v380_movement (mvar1, mvar2, mvar3);
-        }
-    }
+    parse_fixup_task_actions (FALSE);
 
   /* Create version 4.0 task restrictions from a version 3.8 task. */
   else if (strcmp (fixup, "|V380_TASK:_Restrictions_|") == 0)
@@ -2728,10 +2753,9 @@ parse_fixup_v380 (const scr_char *fixup)
       std::vector<scr_int> object_type (parse_checked_count (object_count));
       for (object = 0; object < object_count; object++)
         {
-          vt_key[1].integer = object;
-          vt_key[2].string = "SurfaceContainer";
-          object_type[object] = prop_get_integer (parse_bundle,
-                                                  "I<-sis", vt_key);
+          object_type[object] = prop_get_indexed_integer (parse_bundle,
+                                                          "Objects", object,
+                                                          "SurfaceContainer");
         }
 
       /* Adjust each object's initial position if necessary. */
@@ -2742,9 +2766,8 @@ parse_fixup_v380 (const scr_char *fixup)
           scr_int initialposition;
 
           /* Ignore static objects; we only want dynamic ones. */
-          vt_key[1].integer = object;
-          vt_key[2].string = "Static";
-          is_static = prop_get_boolean (parse_bundle, "B<-sis", vt_key);
+          is_static = prop_get_indexed_boolean (parse_bundle, "Objects",
+                                                object, "Static");
           if (is_static)
             continue;
 
@@ -2858,9 +2881,8 @@ parse_fixup_v380 (const scr_char *fixup)
         {
           scr_int score;
 
-          vt_key[1].integer = task;
-          vt_key[2].string = "Score";
-          score = prop_get_integer (parse_bundle, "I<-sis", vt_key);
+          score = prop_get_indexed_integer (parse_bundle, "Tasks",
+                                            task, "Score");
           if (score > 0)
             maxscore += score;
         }
@@ -2875,12 +2897,12 @@ parse_fixup_v380 (const scr_char *fixup)
   /* Convert walk meetobject from dynamic index to object. */
   else if (strcmp (fixup, "|V380_WALK:_MeetObject_|") == 0)
     {
-      scr_vartype_t vt_gkey[3];
+      scr_vartype_t vt_gkey;
       scr_int count, object_count, object;
 
       /* Get a count of objects. */
-      vt_gkey[0].string = "Objects";
-      object_count = prop_get_child_count (parse_bundle, "I<-s", vt_gkey);
+      vt_gkey.string = "Objects";
+      object_count = prop_get_child_count (parse_bundle, "I<-s", &vt_gkey);
 
       /* Convert dynamic index to object, and rewrite. */
       count = parse_get_keyed_integer ("MeetObject") - 1;
@@ -2888,9 +2910,8 @@ parse_fixup_v380 (const scr_char *fixup)
         {
           scr_bool bstatic;
 
-          vt_gkey[1].integer = object;
-          vt_gkey[2].string = "Static";
-          bstatic = prop_get_boolean (parse_bundle, "B<-sis", vt_gkey);
+          bstatic = prop_get_indexed_boolean (parse_bundle, "Objects",
+                                              object, "Static");
           if (!bstatic)
             count--;
         }
@@ -2980,25 +3001,78 @@ parse_fixup_v370_movement (scr_int mvar1, scr_int mvar2)
    */
   if (mvar1 == 1)
     {
-      parse_fixup_v380_movement (mvar1, mvar2 - 1, 0);
+      parse_fixup_v380_movement (mvar1, mvar2 - 1, 0, TRUE);
       return;
     }
 
   switch (mvar2)
     {
     case 0:                    /* Hidden */
-      parse_fixup_v380_movement (mvar1, 0, 0);
+      parse_fixup_v380_movement (mvar1, 0, 0, TRUE);
       break;
 
     case 1:                    /* Held by the player */
       /* Version 3.8's "held by" passes Var2 straight through as the holder,
          and there zero is the player (one is the referenced character).  */
-      parse_fixup_v380_movement (mvar1, 0, 3);
+      parse_fixup_v380_movement (mvar1, 0, 3, TRUE);
       break;
 
     default:                   /* Player's room, or a room */
-      parse_fixup_v380_movement (mvar1, mvar2 - 1, 0);
+      parse_fixup_v380_movement (mvar1, mvar2 - 1, 0, TRUE);
       break;
+    }
+}
+
+
+/*
+ * parse_fixup_task_actions()
+ *
+ * Shared handler for the version 3.8 and version 3.7 "_Actions_" task
+ * fixups: create version 4.0 task actions for the task's score, its game
+ * ending flags, and each of its movements.  The two versions differ only in
+ * that a version 3.7 task has no WinGame flag (its winning task is named
+ * once, in the header) and its movements are pairs rather than triples.
+ */
+static void
+parse_fixup_task_actions (scr_bool is_v370)
+{
+  scr_vartype_t vt_key;
+  scr_int score, movement;
+
+  /* Create any appropriate score change action. */
+  score = parse_get_keyed_integer ("Score");
+  if (score != 0)
+    parse_fixup_v380_action (4, 1, score, 0, 0);
+
+  /* Create any appropriate game ending actions. */
+  if (parse_get_keyed_boolean ("KillsPlayer"))
+    parse_fixup_v380_action (6, 1, 2, 0, 0);
+  if (!is_v370 && parse_get_keyed_boolean ("WinGame"))
+    parse_fixup_v380_action (6, 1, 0, 0, 0);
+
+  /* Handle each defined movement for the task. */
+  for (movement = 0; movement < V380_TASK_MOVEMENTS; movement++)
+    {
+      scr_int mvar1, mvar2, mvar3;
+
+      vt_key.integer = movement;
+      parse_push_key (vt_key, PROP_KEY_INTEGER);
+      vt_key.string = "Movements";
+      parse_push_key (vt_key, PROP_KEY_STRING);
+
+      /* Retrieve the movement parameters. */
+      mvar1 = parse_get_keyed_integer ("Var1");
+      mvar2 = parse_get_keyed_integer ("Var2");
+      mvar3 = is_v370 ? 0 : parse_get_keyed_integer ("Var3");
+
+      parse_pop_key ();
+      parse_pop_key ();
+
+      /* Create the corresponding task action. */
+      if (is_v370)
+        parse_fixup_v370_movement (mvar1, mvar2);
+      else
+        parse_fixup_v380_movement (mvar1, mvar2, mvar3, FALSE);
     }
 }
 
@@ -3022,40 +3096,7 @@ parse_fixup_v370 (const scr_char *fixup)
    * its own account -- the winning task is named once, in the header.
    */
   if (strcmp (fixup, "|V370_TASK:_Actions_|") == 0)
-    {
-      scr_vartype_t vt_key;
-      scr_int score, movement;
-
-      /* Create any appropriate score change action. */
-      score = parse_get_keyed_integer ("Score");
-      if (score != 0)
-        parse_fixup_v380_action (4, 1, score, 0, 0);
-
-      /* Create any appropriate game ending action. */
-      if (parse_get_keyed_boolean ("KillsPlayer"))
-        parse_fixup_v380_action (6, 1, 2, 0, 0);
-
-      /* Handle each defined movement for the task. */
-      for (movement = 0; movement < V380_TASK_MOVEMENTS; movement++)
-        {
-          scr_int mvar1, mvar2;
-
-          vt_key.integer = movement;
-          parse_push_key (vt_key, PROP_KEY_INTEGER);
-          vt_key.string = "Movements";
-          parse_push_key (vt_key, PROP_KEY_STRING);
-
-          /* Retrieve the movement parameters. */
-          mvar1 = parse_get_keyed_integer ("Var1");
-          mvar2 = parse_get_keyed_integer ("Var2");
-
-          parse_pop_key ();
-          parse_pop_key ();
-
-          /* Create the corresponding task action. */
-          parse_fixup_v370_movement (mvar1, mvar2);
-        }
-    }
+    parse_fixup_task_actions (TRUE);
 
   /*
    * Turn any renamed built-in command into a version 4.0 synonym.  Commands
@@ -3076,10 +3117,8 @@ parse_fixup_v370 (const scr_char *fixup)
         {
           const scr_char *word;
 
-          vt_key[0].string = "Commands";
-          vt_key[1].integer = command;
-          vt_key[2].string = "Word";
-          word = prop_get_string (parse_bundle, "S<-sis", vt_key);
+          word = prop_get_indexed_string (parse_bundle, "Commands",
+                                          command, "Word");
 
           /* Ignore an unset or unchanged command word. */
           if (!word || word[0] == NUL
@@ -3192,23 +3231,6 @@ parse_fixup_v400 (const scr_char *fixup)
 
 
 /*
- * parse_fixup()
- *
- * Handler for fixup special items to help with conversions from TAF version
- * 3.9 and version 3.8 formats into version 4.0.
- */
-static void
-parse_fixup (const scr_char *fixup)
-{
-  /*
-   * Pick the fixup handler specific to the TAF version.  This helps keep
-   * fixup code separate, rather than glommed into one large function.
-   */
-  parse_version->fixup (fixup);
-}
-
-
-/*
  * parse_element()
  *
  * Parse a class descriptor element.
@@ -3241,7 +3263,8 @@ parse_element (const scr_char *element)
       parse_special (element);
       break;
     case PARSE_FIXUP:
-      parse_fixup (element);
+      /* Hand fixups to the handler specific to the TAF file version. */
+      parse_version->fixup (element);
       break;
 
     case PARSE_INTEGER:
@@ -3326,6 +3349,105 @@ parse_class (const scr_char *class_)
 
   if (parse_trace)
     scr_trace ("Parse: leaving class %s\n", class_name);
+}
+
+
+/*
+ * parse_trim_object_names()
+ *
+ * Normalize object Prefix and Short exactly as the Runner's loader does, as
+ * post-processing after the TAF file has been successfully parsed.
+ *
+ * run400 reads the two fields back to back in mdlSpreadTheLoad.bas:7594-7653.
+ * After LineInput'ing Prefix (loc_4900E3) -- and substituting the literal "a"
+ * for an empty one (loc_4900EC) -- it loops
+ *
+ *   loc_490100..loc_49015C:  If Right(s, 1) = " " Then s = Left(s, Len(s) - 1)
+ *
+ * stripping every TRAILING space from the prefix; then, having LineInput'ed
+ * Short (loc_49016C), it loops
+ *
+ *   loc_490170..loc_4901CC:  If Left(s, 1) = " " Then s = Right(s, Len(s) - 1)
+ *
+ * stripping every LEADING space from the short name.  run370 (@43F5DA) and
+ * run380 (@4481B2) carry the same pair of loops, so this is not version-split.
+ *
+ * The trim belongs in the loader, not in the printers: every later consumer --
+ * the name builder that joins Prefix, " " and Short, the room and container
+ * listings, and the noun matcher that has to recognize what it printed -- sees
+ * the trimmed text in the Runner, so they all see it here too.
+ *
+ * Fourteen objects across nine corpus games are written with the spaces still
+ * on, among them Crime_Adventure's "an arcade token ", arlo's "the ", and
+ * ADRIFTMAS_Party's " bathroom door".
+ *
+ * The empty-Prefix substitution belongs here too, and it happens BEFORE the
+ * trailing-space strip, so the two are not interchangeable: an authored ""
+ * becomes the literal "a", while an authored " " is not empty, escapes the
+ * substitution, and is then trimmed to a genuinely empty prefix that no later
+ * code puts an article back into.  Both halves are measured -- probe ISARE
+ * (run400, Adrift_isare.txt, 2026-09-07) lists its no-prefix boots as "a
+ * boots" and its single-space rings as " rings", with the joining space and
+ * no article, and answers `where rings` with " rings are test arena."
+ *
+ * Doing it in the loader retires three downstream imitations of it (the
+ * "the "/"a " empty-prefix defaults in lib_print_object_np, lib_print_object
+ * and lib_print_object_raw, and the pronoun antecedent's own copy in
+ * scparser.cpp), and it also feeds the parser and the %objectN% expansions,
+ * which in the Runner see the substituted field like everything else.  No
+ * corpus game authors a whitespace-only object Prefix -- 27386 objects over
+ * 426 games, 2844 of them exactly empty and none whitespace-only -- so the
+ * second half of this is faithfulness, not a fix for a live game.
+ */
+static void
+parse_trim_object_names (scr_prop_setref_t bundle)
+{
+  scr_vartype_t vt_key[3];
+  scr_int objects_count, object;
+
+  /* Get the count of objects. */
+  vt_key[0].string = "Objects";
+  objects_count = prop_get_child_count (bundle, "I<-s", vt_key);
+
+  for (object = 0; object < objects_count; object++)
+    {
+      const scr_char *prefix, *short_name;
+      scr_int length;
+
+      vt_key[1].integer = object;
+
+      /* Substitute "a" for an empty prefix, then strip its trailing spaces. */
+      vt_key[2].string = "Prefix";
+      prefix = prop_get_string (bundle, "S<-sis", vt_key);
+      if (prefix[0] == NUL)
+        {
+          prop_put_string (bundle, "S<-sis", "a", vt_key);
+          prefix = prop_get_string (bundle, "S<-sis", vt_key);
+        }
+      length = strlen (prefix);
+      while (length > 0 && prefix[length - 1] == ' ')
+        length--;
+      if (prefix[length] != NUL)
+        {
+          scr_owned_string trimmed ((scr_char *) scr_malloc (length + 1));
+
+          memcpy (trimmed.get (), prefix, length);
+          trimmed.get ()[length] = NUL;
+          prop_put_string (bundle, "S<-sis", trimmed.get (), vt_key);
+        }
+
+      /* Strip leading spaces from the short name. */
+      vt_key[2].string = "Short";
+      short_name = prop_get_string (bundle, "S<-sis", vt_key);
+      if (short_name[0] == ' ')
+        {
+          const scr_char *trimmed = short_name;
+
+          while (*trimmed == ' ')
+            trimmed++;
+          prop_put_string (bundle, "S<-sis", trimmed, vt_key);
+        }
+    }
 }
 
 
@@ -3478,9 +3600,7 @@ parse_add_alrs_index (scr_prop_setref_t bundle)
     {
       const scr_char *original;
 
-      vt_key[1].integer = index_;
-      vt_key[2].string = "Original";
-      original = prop_get_string (bundle, "S<-sis", vt_key);
+      original = prop_get_indexed_string (bundle, "ALRs", index_, "Original");
       length = strlen (original);
 
       alr_lengths[index_] = length;
@@ -3526,7 +3646,7 @@ parse_add_alrs_index (scr_prop_setref_t bundle)
 static void
 parse_add_resources_offset (scr_prop_setref_t bundle, scr_tafref_t taf)
 {
-  scr_vartype_t vt_key[2], vt_value;
+  scr_vartype_t vt_key, vt_value;
   scr_bool embedded;
   scr_int offset;
 
@@ -3534,15 +3654,16 @@ parse_add_resources_offset (scr_prop_setref_t bundle, scr_tafref_t taf)
    * Get the resources offset from the TAF, or default to zero.  The resources
    * offset is one byte after the end of game data.
    */
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "Embedded";
-  embedded = prop_get_boolean (bundle, "B<-ss", vt_key);
+  embedded = prop_get_global_boolean (bundle, "Embedded");
   offset = embedded ? taf_get_game_data_length (taf) + 1 : 0;
 
+  if (parse_trace)
+    scr_trace ("Parse: resource base %ld\n", offset);
+
   /* Add this offset to the properties. */
-  vt_key[0].string = "ResourceOffset";
+  vt_key.string = "ResourceOffset";
   vt_value.integer = offset;
-  prop_put (bundle, "I->s", vt_value, vt_key);
+  prop_put (bundle, "I->s", vt_value, &vt_key);
 }
 
 
@@ -3612,7 +3733,9 @@ parse_game (scr_tafref_t taf, scr_prop_setref_t bundle)
   if (taf_more_lines (parse_taf))
     scr_error ("parse_game: unexpected trailing data\n");
 
-  /* Append post-processing walkalerts and move times. */
+  /* Trim object names as the loader does, then append post-processing
+     walkalerts and move times. */
+  parse_trim_object_names (parse_bundle);
   parse_add_walkalerts (parse_bundle);
   parse_add_movetimes (parse_bundle);
 

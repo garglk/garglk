@@ -121,7 +121,11 @@ static void reflow(window_t *win)
     int i, k, p, s;
     int x, f;
 
-    if (dwin->height < 4 || dwin->width < 20) {
+    // Skip only when there is no usable text area. Do not require height >= 4:
+    // nested proportional splits often leave short-but-wide panes (e.g. 25x3)
+    // that still need reflow after a width change, or mid-word wraps from a
+    // prior narrow layout stick forever.
+    if (dwin->width < 1 || dwin->height < 1) {
         return;
     }
 
@@ -274,10 +278,18 @@ void win_textbuffer_rearrange(window_t *win, rect_t *box)
     // changes leaves the layout stale for up to a cell's worth of pixels,
     // and win_textbuffer_redraw then truncates the overhanging characters
     // instead of wrapping them.
-    if (newwid != dwin->width || newpixwid != dwin->pixel_width) {
+    //
+    // Do not commit a new width while height < 1: reflow() cannot run yet, and
+    // updating width here would prevent a later height-only rearrange from
+    // noticing the change and reflowing.
+    bool need_reflow = (newwid != dwin->width || newpixwid != dwin->pixel_width);
+    bool did_reflow = false;
+    if (need_reflow && newhgt >= 1) {
         dwin->width = newwid;
         dwin->pixel_width = newpixwid;
         reflow(win);
+        need_reflow = false;
+        did_reflow = true;
     }
 
     if (newhgt != dwin->height) {
@@ -287,6 +299,13 @@ void win_textbuffer_rearrange(window_t *win, rect_t *box)
         }
 
         dwin->height = newhgt;
+
+        if (need_reflow && dwin->height >= 1) {
+            dwin->width = newwid;
+            dwin->pixel_width = newpixwid;
+            reflow(win);
+            did_reflow = true;
+        }
 
         // keep window within 'valid' lines
         if (dwin->scrollpos > dwin->scrollmax - dwin->height + 1) {
@@ -298,6 +317,19 @@ void win_textbuffer_rearrange(window_t *win, rect_t *box)
         touchscroll(dwin);
 
         dwin->copybuf.clear();
+    } else if (need_reflow && dwin->height >= 1) {
+        dwin->width = newwid;
+        dwin->pixel_width = newpixwid;
+        reflow(win);
+        did_reflow = true;
+    }
+
+    // After reflow, height is final. For panes that are not taking line input,
+    // keep the start of the buffer in view so titles printed first remain
+    // visible in short nested windows (csstest win_span_*).
+    if (did_reflow && !win->line_request && !win->line_request_uni
+            && dwin->height > 0 && dwin->scrollmax >= dwin->height) {
+        dwin->scrollpos = dwin->scrollmax - dwin->height + 1;
     }
 }
 
@@ -312,13 +344,15 @@ static int calcwidth(window_textbuffer_t *dwin,
     for (b = startchar; b < numchars; b++) {
         if (attrs[a] != attrs[b]) {
             w += gli_string_width_uni(attrs[a].font(dwin->styles),
-                    chars + a, b - a, spw);
+                    chars + a, b - a, spw, attrs[a].fontsize(dwin->styles),
+                    attrs[a].family(dwin->styles));
             a = b;
         }
     }
 
     w += gli_string_width_uni(attrs[a].font(dwin->styles),
-            chars + a, b - a, spw);
+            chars + a, b - a, spw, attrs[a].fontsize(dwin->styles),
+            attrs[a].family(dwin->styles));
 
     return w;
 }
@@ -330,23 +364,45 @@ static int calcwidth(window_textbuffer_t *dwin,
     return calcwidth(dwin, chars.data(), attrs.data(), startchar, numchars, spw);
 }
 
+// Left and right CSS margins for a line, in subpixels.
+static void line_margins(window_textbuffer_t *dwin, const tbline_t &ln,
+    int linelen, int &left, int &right)
+{
+    left = 0;
+    right = 0;
+
+    if (linelen <= 0) {
+        return;
+    }
+
+    const attr_t &attr = ln.attrs[0];
+    float ml = attr.marginl(dwin->styles);
+    float mr = attr.marginr(dwin->styles);
+    float ti = attr.indent(dwin->styles);
+    left = (ml + ti) * GLI_SUBPIX;
+    right = mr * GLI_SUBPIX;
+}
+
 // Horizontal origin for a line's text, honoring Justification stylehints.
 static int line_text_x0(window_textbuffer_t *dwin, const tbline_t &ln,
     int linelen, int x0, int x1, int spw)
 {
-    int text_x0 = x0 + SLOP + ln.lm;
+    int marginl, marginr;
+    line_margins(dwin, ln, linelen, marginl, marginr);
+
+    int text_x0 = x0 + SLOP + ln.lm + marginl;
 
     if (linelen <= 0) {
         return text_x0;
     }
 
-    glui32 just = dwin->styles[ln.attrs[0].style].justification;
+    glui32 just = ln.attrs[0].just(dwin->styles);
     if (just != stylehint_just_Centered && just != stylehint_just_RightFlush) {
         return text_x0;
     }
 
     int textw = calcwidth(dwin, ln.chars, ln.attrs, 0, linelen, spw);
-    int avail = x1 - x0 - ln.lm - ln.rm - 2 * SLOP;
+    int avail = x1 - x0 - ln.lm - ln.rm - marginl - marginr - 2 * SLOP;
     if (textw >= avail) {
         return text_x0;
     }
@@ -528,7 +584,7 @@ void win_textbuffer_redraw(window_t *win)
 
         // count spaces and width for full (left-right) justification
         glui32 line_just = linelen > 0
-            ? dwin->styles[ln.attrs[0].style].justification
+            ? ln.attrs[0].just(dwin->styles)
             : stylehint_just_LeftFlush;
         bool full_justify = (gli_conf_justify || line_just == stylehint_just_LeftRight)
             && line_just != stylehint_just_Centered
@@ -541,8 +597,10 @@ void win_textbuffer_redraw(window_t *win)
                 }
             }
             w = calcwidth(dwin, ln.chars, ln.attrs, 0, linelen, 0);
+            int marginl, marginr;
+            line_margins(dwin, ln, linelen, marginl, marginr);
             if (nsp != 0) {
-                spw = (x1 - x0 - ln.lm - ln.rm - 2 * SLOP - w) / nsp;
+                spw = (x1 - x0 - ln.lm - ln.rm - marginl - marginr - 2 * SLOP - w) / nsp;
             } else {
                 spw = 0;
             }
@@ -629,71 +687,110 @@ void win_textbuffer_redraw(window_t *win)
         gli_put_hyperlink(0, x0 / GLI_SUBPIX, y,
                 x1 / GLI_SUBPIX, y + gli_leading);
 
+        // Content-box (CSS_Paragraph background-color): full width inside
+        // margins, independent of glyph extent — matching Spatterlight.
+        int box_x0 = x0 + SLOP + ln.lm;
+        int box_x1 = x1 - ln.rm - SLOP;
+        std::optional<Color> para_box_color;
+        if (linelen > 0) {
+            auto pbg = ln.attrs[0].parabg(dwin->styles);
+            if (pbg.has_value()) {
+                float ml = ln.attrs[0].marginl(dwin->styles);
+                float mr = ln.attrs[0].marginr(dwin->styles);
+                // Like Spatterlight: fill uses margin-left/right only (not
+                // text-indent).
+                box_x0 += static_cast<int>(ml * GLI_SUBPIX);
+                box_x1 -= static_cast<int>(mr * GLI_SUBPIX);
+                para_box_color = ln.attrs[0].bg(dwin->styles);
+            }
+        }
+        bool has_para_bg = para_box_color.has_value();
+
         // Derive widths from pixel endpoints so adjacent runs tile exactly.
         // Transparent overlays fill only reverse-video runs below.
+        Color win_bg = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
         if (!win->is_transparent()) {
-            color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
             gli_draw_rect(x0 / GLI_SUBPIX, y,
                     (x1 - x0) / GLI_SUBPIX, gli_leading,
-                    color);
+                    win_bg);
         }
+
+        if (has_para_bg && box_x1 > box_x0) {
+            gli_draw_rect(box_x0 / GLI_SUBPIX, y,
+                    (box_x1 - box_x0) / GLI_SUBPIX, gli_leading,
+                    *para_box_color);
+        }
+
+        // Paint the background of a run of identically-styled
+        // characters, along with its hyperlink and CSS underlines.
+        // Transparent overlays fill only reverse-video runs.
+        auto draw_run_background = [dwin, win, y, has_para_bg, win_bg](const tbline_t &ln, int a, int x, int w) {
+            glui32 link = ln.attrs[a].hyperlink();
+            Color color = ln.attrs[a].bg(dwin->styles);
+            int rx0 = x / GLI_SUBPIX;
+            int rx1 = (x + w) / GLI_SUBPIX;
+
+            // Paragraph content-box already filled the line; only paint a
+            // glyph-run background when this run has an explicit span color
+            // or reverse without relying solely on the para fill.
+            bool paint_run = !has_para_bg
+                || ln.attrs[a].bgcolor.has_value()
+                || (ln.attrs[a].reversed(dwin->styles) && !ln.attrs[a].parabg(dwin->styles).has_value());
+
+            // Window-level CSS background-color already cleared the line.
+            // Do not paint opaque style.bg (often white) over it — matches
+            // Spatterlight, where the text view background shows through.
+            if (paint_run && color == win_bg && !ln.attrs[a].reversed(dwin->styles)
+                    && !ln.attrs[a].bgcolor.has_value()) {
+                paint_run = false;
+            }
+
+            if (paint_run && (!win->is_transparent() || ln.attrs[a].reversed(dwin->styles))) {
+                gli_draw_rect(rx0, y, rx1 - rx0, gli_leading, color);
+            }
+
+            if (link != 0) {
+                if (gli_underline_hyperlinks) {
+                    gli_draw_rect(rx0 + 1, y + gli_baseline + 1,
+                            rx1 - rx0 + 1, 1,
+                            gli_link_color);
+                }
+                gli_put_hyperlink(link, rx0, y, rx1, y + gli_leading);
+            } else if (ln.attrs[a].underlined(dwin->styles)) {
+                gli_draw_rect(rx0, y + gli_baseline + 1,
+                        rx1 - rx0, 1,
+                        ln.attrs[a].fg(dwin->styles));
+            }
+        };
 
         x = text_x0;
         a = first;
         for (b = first; b < linelen; b++) {
             if (ln.attrs[a] != ln.attrs[b]) {
-                link = ln.attrs[a].hyperlink();
                 auto font = ln.attrs[a].font(dwin->styles);
-                color = ln.attrs[a].bg(dwin->styles);
-                w = gli_string_width_uni(font, &ln.chars[a], b - a, spw);
-                int rx0 = x / GLI_SUBPIX;
-                int rx1 = (x + w) / GLI_SUBPIX;
-                if (!win->is_transparent() || ln.attrs[a].reversed(dwin->styles)) {
-                    gli_draw_rect(rx0, y,
-                            rx1 - rx0, gli_leading,
-                            color);
-                }
-                if (link != 0) {
-                    if (gli_underline_hyperlinks) {
-                        gli_draw_rect(rx0 + 1, y + gli_baseline + 1,
-                                rx1 - rx0 + 1, 1,
-                                gli_link_color);
-                    }
-                    gli_put_hyperlink(link, rx0, y,
-                            rx1,
-                            y + gli_leading);
-                }
+                w = gli_string_width_uni(font, &ln.chars[a], b - a, spw,
+                        ln.attrs[a].fontsize(dwin->styles),
+                        ln.attrs[a].family(dwin->styles));
+                draw_run_background(ln, a, x, w);
                 x += w;
                 a = b;
             }
         }
-        link = ln.attrs[a].hyperlink();
         auto font = ln.attrs[a].font(dwin->styles);
-        color = ln.attrs[a].bg(dwin->styles);
-        w = gli_string_width_uni(font, &ln.chars[a], b - a, spw);
-        int rx0 = x / GLI_SUBPIX;
-        int rx1 = (x + w) / GLI_SUBPIX;
-        if (!win->is_transparent() || ln.attrs[a].reversed(dwin->styles)) {
-            gli_draw_rect(rx0, y, rx1 - rx0,
-                    gli_leading, color);
-        }
-        if (link != 0) {
-            if (gli_underline_hyperlinks) {
-                gli_draw_rect(rx0 + 1, y + gli_baseline + 1,
-                        rx1 - rx0 + 1, 1,
-                        gli_link_color);
-            }
-            gli_put_hyperlink(link, rx0, y,
-                    rx1,
-                    y + gli_leading);
-        }
+        w = gli_string_width_uni(font, &ln.chars[a], b - a, spw,
+                ln.attrs[a].fontsize(dwin->styles),
+                ln.attrs[a].family(dwin->styles));
+        draw_run_background(ln, a, x, w);
         x += w;
 
         if (!win->is_transparent()) {
-            color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
-            gli_draw_rect(x / GLI_SUBPIX, y,
-                    x1 / GLI_SUBPIX - x / GLI_SUBPIX, gli_leading,
-                    color);
+            // Do not wipe the paragraph content-box with the window color.
+            int wipe_from = has_para_bg ? std::max(x, box_x1) : x;
+            if (wipe_from < x1) {
+                gli_draw_rect(wipe_from / GLI_SUBPIX, y,
+                        x1 / GLI_SUBPIX - wipe_from / GLI_SUBPIX, gli_leading,
+                        win_bg);
+            }
         }
 
         //
@@ -719,7 +816,9 @@ void win_textbuffer_redraw(window_t *win)
                 font = ln.attrs[a].font(dwin->styles);
                 color = link != 0 ? gli_link_color : ln.attrs[a].fg(dwin->styles);
                 x = gli_draw_string_uni(x, y + gli_baseline,
-                        font, color, &ln.chars[a], b - a, spw);
+                        font, color, &ln.chars[a], b - a, spw,
+                        ln.attrs[a].fontsize(dwin->styles),
+                        ln.attrs[a].family(dwin->styles));
                 a = b;
             }
         }
@@ -727,7 +826,9 @@ void win_textbuffer_redraw(window_t *win)
         font = ln.attrs[a].font(dwin->styles);
         color = link != 0 ? gli_link_color : ln.attrs[a].fg(dwin->styles);
         gli_draw_string_uni(x, y + gli_baseline,
-                font, color, &ln.chars[a], linelen - a, spw);
+                font, color, &ln.chars[a], linelen - a, spw,
+                ln.attrs[a].fontsize(dwin->styles),
+                ln.attrs[a].family(dwin->styles));
     }
 
     //
@@ -1167,6 +1268,8 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 
     pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2 - scroll_width(win)) * GLI_SUBPIX;
     pw = pw - 2 * SLOP - dwin->radjw - dwin->ladjw;
+    pw -= (win->attr.marginl(dwin->styles) + win->attr.marginr(dwin->styles) +
+            win->attr.indent(dwin->styles)) * GLI_SUBPIX;
 
     Color color = gli_override_bg.has_value() ? gli_window_color : win->bgcolor;
 
@@ -1209,7 +1312,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     // the font file itself is actually monospace: if the font is monor,
     // monob, monoi, or monoz, then this will be true, regardless of
     // what font the user actually set as the monospace font.
-    bool monospace = gli_tstyles[win->attr.style].font.monospace;
+    bool monospace = win->attr.font(dwin->styles).monospace;
 
     if (gli_conf_dashes != 0 && !monospace) {
         if (ch == '-') {

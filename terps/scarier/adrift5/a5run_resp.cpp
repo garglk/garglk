@@ -514,6 +514,7 @@ resp_flush (a5_run_t *run, resp_map *rm, sb_t *out)
             && text.find ('\004') != std::string::npos)
           {
             std::string res;
+            std::unordered_map<size_t, std::string> drawn;
             size_t p = 0;
             while (p < text.size ())
               {
@@ -526,13 +527,12 @@ resp_flush (a5_run_t *run, resp_map *rm, sb_t *out)
                         if (idx >= 0
                             && (size_t) idx < run->display_defers->size ())
                           {
-                            std::string &body = (*run->display_defers)[idx];
-                            char *val = (!body.empty () && body[0] == '\001')
-                                ? a5text_process_noalr (st, body.c_str () + 1)
-                                : a5_eval_sexpr (body.c_str ());
-                            if (val != NULL) res += val;
+                            char *val = a5run_draw_defer_entry (run, (size_t) idx,
+                                                                drawn);
+                            res += val;
                             free (val);
-                            body = "\001";       /* consumed: no re-draw */
+                            /* consumed: no re-draw */
+                            (*run->display_defers)[idx] = "\001";
                           }
                         p = q + 1;
                         continue;

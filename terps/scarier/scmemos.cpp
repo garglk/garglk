@@ -220,12 +220,14 @@ memo_save_game (scr_memo_setref_t memento, scr_gameref_t game)
   memo = memento->memo + memento->memo_cursor;
   memo->length = 0;
 
-  /* Serialize the given game into this memo.  Undo memos are in-memory
-   * only and rewritten every turn, so use the fast deflate level; file
-   * saves keep the default (see ser_set_fast_compression). */
-  ser_set_fast_compression (TRUE);
+  /* Serialize the given game into this memo.  Undo memos are in-memory only,
+   * rewritten every turn, and read back only by memo_load_game(), so they skip
+   * zlib entirely and store the raw serialized bytes (see ser_set_raw_memo):
+   * the per-turn deflate profiled at ~20-48% of the interpreter.  ser_load_game
+   * reads them back through taf_create_tas_raw(). */
+  ser_set_raw_memo (TRUE);
   ser_save_game (game, memo_save_game_callback, memo);
-  ser_set_fast_compression (FALSE);
+  ser_set_raw_memo (FALSE);
 
   /*
    * If serialization worked (failure would be a surprise), advance the
@@ -292,9 +294,12 @@ memo_load_game (scr_memo_setref_t memento, scr_gameref_t game)
 
       /*
        * Deserialize the given game from this memo; failure would be somewhat
-       * of a surprise here.
+       * of a surprise here.  Memos are stored raw (see memo_save_game); tell
+       * ser_load_game to read them back uncompressed.
        */
+      ser_set_raw_memo (TRUE);
       status = ser_load_game (game, memo_load_game_callback, memo);
+      ser_set_raw_memo (FALSE);
       if (!status)
         scr_error ("memo_load_game: warning: game load failed\n");
 

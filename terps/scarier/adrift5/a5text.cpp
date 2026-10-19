@@ -19,6 +19,7 @@
 #include "a5sexpr.h"
 #include "a5text.h"
 #include "a5util.h"
+#include <unordered_map>
 
 /* strndup() where the toolchain has none; empty everywhere else. */
 #include "../common_utils/sc_garglk.h"
@@ -3068,6 +3069,16 @@ expr_sub_draws_random (const char *body)
   return 0;
 }
 
+/* `\005<orig>\005` prefix for a display_defers entry that repeats entry
+   <orig>'s `<#..#>` body within one block (see replace_expressions). */
+static std::string
+defer_dup_prefix (size_t orig)
+{
+  char buf[32];
+  snprintf (buf, sizeof buf, "\005%d\005", (int) orig);
+  return std::string (buf);
+}
+
 /* Evaluate every `<#...#>` expression in `src` (the Adrift 5 runner ReplaceExpressions:
    substitute the body, then reduce it to its string value). */
 static char *
@@ -3075,6 +3086,22 @@ replace_expressions (a5_state_t *st, const char *src)
 {
   sb_t sb;
   const char *p = src;
+  /* Identical `<#..#>` bodies in ONE block show ONE value.  The runner's
+     ReplaceExpressions (Global.vb:510) collects its regex matches up front
+     and then does `sText = sText.Replace(m.Value, EvaluateExpression(..))`
+     per match -- a replace-ALL, so the first match's value lands in every
+     identical slot, while the later matches still call EvaluateExpression
+     (their OneOf/Rand/URand DRAW, keeping the RNG stream in step) and have
+     nowhere left to land.  The Last Expedition's "<#oneOf("Eight","Seven",..)#>
+     minutes later they both came to. .. <#same#> minutes later they both came
+     to their sense again" and Lost Coastlines' "<# Oneof("two","three","four")#>
+     return empty handed...<#same#> do not return at all" print the same number
+     twice in the runner.  Keyed on the raw body (the substituted text is
+     identical for identical raw bodies within one block); a deferred repeat
+     is pushed as `\005<orig>\005body` so the flush draws it but displays
+     entry <orig>'s value (a5run_draw_defer_entry). */
+  std::unordered_map<std::string, std::string> seen_val;
+  std::unordered_map<std::string, size_t> seen_slot;
 
   if (strstr (src, "<#") == NULL)
     return strdup (src);
@@ -3088,6 +3115,8 @@ replace_expressions (a5_state_t *st, const char *src)
           if (end != NULL)
             {
               char *inner = strndup (p + 2, (size_t) (end - (p + 2)));
+              const std::string key (inner);
+              const bool repeat = seen_val.count (key) || seen_slot.count (key);
               if (st->expr_defer != NULL && expr_sub_draws_random (inner))
                 {
                   /* Raw-body deferral (see expr_sub_draws_random): push the
@@ -3098,7 +3127,12 @@ replace_expressions (a5_state_t *st, const char *src)
                       (std::vector<std::string> *) st->expr_defer;
                   char mark[24];
                   snprintf (mark, sizeof mark, "\004%d\004", (int) sink->size ());
-                  sink->push_back (std::string ("\003") + inner);
+                  std::string body = std::string ("\003") + inner;
+                  if (repeat && seen_slot.count (key))
+                    body = defer_dup_prefix (seen_slot[key]) + body;
+                  else
+                    seen_slot[key] = sink->size ();
+                  sink->push_back (body);
                   sb_puts (&sb, mark);
                   free (inner);
                   p = end + 2;
@@ -3133,14 +3167,22 @@ replace_expressions (a5_state_t *st, const char *src)
                       (std::vector<std::string> *) st->expr_defer;
                   char mark[24];
                   snprintf (mark, sizeof mark, "\004%d\004", (int) sink->size ());
-                  sink->push_back (oo);
+                  std::string body (oo);
+                  if (repeat && seen_slot.count (key))
+                    body = defer_dup_prefix (seen_slot[key]) + body;
+                  else
+                    seen_slot[key] = sink->size ();
+                  sink->push_back (body);
                   sb_puts (&sb, mark);
                   free (inner); free (sub); free (oo);
                   p = end + 2;
                   continue;
                 }
-              char *val = a5_eval_sexpr (oo);
-              sb_puts (&sb, val);
+              char *val = a5_eval_sexpr (oo);     /* draws even on a repeat */
+              if (repeat && seen_val.count (key))
+                sb_puts (&sb, seen_val[key].c_str ());
+              else
+                { seen_val[key] = val; sb_puts (&sb, val); }
               free (inner); free (sub); free (oo); free (val);
               p = end + 2;
               continue;
@@ -3271,12 +3313,12 @@ process_inner_ex (a5_state_t *st, const char *src, int depth, int *pre_alr_ink)
       for (; *q; q++)
         {
           if (*q == A5_IMG_MARK || *q == A5_WINDOW_MARK || *q == A5_SOUND_MARK
-              || *q == A5_WAIT_MARK || *q == A5_COLOUR_MARK)
+              || *q == A5_WAIT_MARK || *q == A5_COLOUR_MARK || *q == A5_FONT_MARK)
             {
               /* Skip the \006<number>\006 / \022<name>\022 / \024<index>\024
-                 / \026<seconds>\026 / \027<colour>\027 span (the window name
-                 and the colour are presentation, not visible ink), or a stray
-                 unpaired mark. */
+                 / \026<seconds>\026 / \027<colour>\027 / \037<font>\037 span
+                 (the window name and the colour/font are presentation, not
+                 visible ink), or a stray unpaired mark. */
               const char *e = strchr (q + 1, *q);
               if (e == NULL)
                 continue;
@@ -3289,7 +3331,8 @@ process_inner_ex (a5_state_t *st, const char *src, int depth, int *pre_alr_ink)
                    && *q != A5_ITALIC_MARK && *q != A5_ENDITALIC_MARK
                    && *q != A5_UNDERLINE_MARK && *q != A5_ENDUNDERLINE_MARK
                    && *q != A5_RIGHT_MARK && *q != A5_ENDRIGHT_MARK
-                   && *q != A5_ENDCOLOUR_MARK && *q != A5_ENDWINDOW_MARK)
+                   && *q != A5_ENDCOLOUR_MARK && *q != A5_ENDFONT_MARK
+                   && *q != A5_ENDWINDOW_MARK)
 
             { *pre_alr_ink = 1; break; }
         }
@@ -3565,6 +3608,103 @@ a5_font_colour (const std::string &tag)
   return std::string ();
 }
 
+
+/* Parse face="..." from a <font ...> body.  Copies into out (cap bytes);
+   returns 1 if a non-empty face was found. */
+static int
+a5_parse_font_face_attr (const char *body, size_t len, char *out, size_t cap)
+{
+  size_t i, n;
+
+  if (out == NULL || cap == 0)
+    return 0;
+  out[0] = '\0';
+  for (i = 0; i + 4 < len; i++)
+    {
+      if ((body[i] == 'f' || body[i] == 'F')
+          && strncasecmp (body + i, "face", 4) == 0
+          && (i == 0 || body[i - 1] == ' ' || body[i - 1] == '\t'))
+        {
+          i += 4;
+          while (i < len && (body[i] == ' ' || body[i] == '\t'))
+            i++;
+          if (i >= len || body[i] != '=')
+            continue;
+          i++;
+          while (i < len && (body[i] == ' ' || body[i] == '\t'))
+            i++;
+          if (i < len && (body[i] == '"' || body[i] == '\''))
+            i++;
+          n = 0;
+          while (i < len && n + 1 < cap
+                 && body[i] != '"' && body[i] != '\''
+                 && body[i] != '>' )
+            {
+              if (body[i] == A5_FONT_SEP)
+                { i++; continue; }
+              out[n++] = body[i++];
+            }
+          /* Trim trailing spaces */
+          while (n > 0 && (out[n - 1] == ' ' || out[n - 1] == '\t'))
+            n--;
+          out[n] = '\0';
+          return n > 0;
+        }
+    }
+  return 0;
+}
+
+/* Parse size=N / size=+N / size=-N from a <font ...> body into out.
+   Returns 1 if a size token was found. */
+static int
+a5_parse_font_size_attr (const char *body, size_t len, char *out, size_t cap)
+{
+  size_t i, n;
+
+  if (out == NULL || cap == 0)
+    return 0;
+  out[0] = '\0';
+  for (i = 0; i + 4 < len; i++)
+    {
+      if ((body[i] == 's' || body[i] == 'S')
+          && strncasecmp (body + i, "size", 4) == 0
+          && (i == 0 || body[i - 1] == ' ' || body[i - 1] == '\t'))
+        {
+          i += 4;
+          while (i < len && (body[i] == ' ' || body[i] == '\t'))
+            i++;
+          if (i >= len || body[i] != '=')
+            continue;
+          i++;
+          while (i < len && (body[i] == ' ' || body[i] == '\t'))
+            i++;
+          if (i < len && (body[i] == '"' || body[i] == '\''))
+            i++;
+          n = 0;
+          while (i < len && n + 1 < cap
+                 && body[i] != '"' && body[i] != '\''
+                 && body[i] != ' ' && body[i] != '\t' && body[i] != '>')
+            out[n++] = body[i++];
+          out[n] = '\0';
+          return n > 0;
+        }
+    }
+  return 0;
+}
+
+/* Emit \010face\177size\010 font-open mark. */
+static void
+a5_emit_font_mark (sb_t *sb, const char *face, const char *size)
+{
+  sb_putc (sb, A5_FONT_MARK);
+  if (face != NULL)
+    sb_puts (sb, face);
+  sb_putc (sb, A5_FONT_SEP);
+  if (size != NULL)
+    sb_puts (sb, size);
+  sb_putc (sb, A5_FONT_MARK);
+}
+
 /* ----------------------------------------------------------- plain renderer */
 
 char *
@@ -3572,6 +3712,10 @@ a5text_render_plain (const char *src)
 {
   sb_t sb;
   const char *p = src;
+  /* Interactive face/size-push stack: 1 if the matching <font> emitted an
+     A5_FONT_MARK (so </font> must emit A5_ENDFONT_MARK). */
+  unsigned char font_pushed[32];
+  int font_depth = 0;
   sb_init (&sb);
 
   while (*p != '\0')
@@ -3678,9 +3822,8 @@ a5text_render_plain (const char *src)
           else if (a5_interactive_mode && strcmp (name, "/i") == 0)
             sb_putc (&sb, A5_ENDITALIC_MARK);
           else if (a5_interactive_mode && strcmp (name, "u") == 0)
-            /* Underline span opens; distinct marks so a future CSS/Glk host
-               can paint real underline.  Until then the Glk path styles them
-               like italic (Emphasized / Alert with bold). */
+            /* Underline span opens; CSS Basic paints real underline when
+               available, otherwise the Glk path styles them like italic. */
             sb_putc (&sb, A5_UNDERLINE_MARK);
           else if (a5_interactive_mode && strcmp (name, "/u") == 0)
             sb_putc (&sb, A5_ENDUNDERLINE_MARK);
@@ -3690,27 +3833,49 @@ a5text_render_plain (const char *src)
             sb_putc (&sb, A5_RIGHT_MARK);
           else if (a5_interactive_mode && strcmp (name, "/right") == 0)
             sb_putc (&sb, A5_ENDRIGHT_MARK);
-          else if (a5_interactive_mode
-                   && (strcmp (name, "c") == 0 || strcmp (name, "font") == 0))
+          else if (a5_interactive_mode && strcmp (name, "c") == 0)
             {
-              /* Colour span opens: \027<value>\027 (see a5text.h).  <c> asks
-                 for the adventure's InputColour, which is not spelled out in
-                 the text, so it writes the reserved token "input"; a <font>
-                 writes its colour= attribute, or nothing at all when it names
-                 no colour -- it then inherits the enclosing colour, and its
-                 </font> still has a span to pop.  Headlessly both tags drop to
-                 A5_ALR_MARK below, so ground truth is unchanged. */
+              /* Colour span opens: \027input\027 (see a5text.h).  <c> asks
+                 for the adventure's InputColour. */
               sb_putc (&sb, A5_COLOUR_MARK);
-              if (name[0] == 'c')
-                sb_puts (&sb, "input");
-              else
-                sb_puts (&sb, a5_font_colour (std::string (p + 1, tagend))
-                                .c_str ());
+              sb_puts (&sb, "input");
               sb_putc (&sb, A5_COLOUR_MARK);
             }
-          else if (a5_interactive_mode
-                   && (strcmp (name, "/c") == 0 || strcmp (name, "/font") == 0))
+          else if (a5_interactive_mode && strcmp (name, "/c") == 0)
             sb_putc (&sb, A5_ENDCOLOUR_MARK);
+          else if (a5_interactive_mode && strcmp (name, "font") == 0)
+            {
+              /* Colour and/or face/size.  Colour uses master's token payload;
+                 face/size leave an independent A5_FONT_MARK span for CSS. */
+              const char *body = p + 1;
+              size_t blen = (size_t) (tagend - (p + 1));
+              char face[64];
+              char size[16];
+              int have_face = a5_parse_font_face_attr (body, blen, face,
+                                                       sizeof face);
+              int have_size = a5_parse_font_size_attr (body, blen, size,
+                                                       sizeof size);
+
+              sb_putc (&sb, A5_COLOUR_MARK);
+              sb_puts (&sb, a5_font_colour (std::string (p + 1, tagend))
+                              .c_str ());
+              sb_putc (&sb, A5_COLOUR_MARK);
+              if ((have_face || have_size)
+                  && font_depth < (int) (sizeof font_pushed))
+                {
+                  a5_emit_font_mark (&sb, have_face ? face : "",
+                                     have_size ? size : "");
+                  font_pushed[font_depth++] = 1;
+                }
+              else if (font_depth < (int) (sizeof font_pushed))
+                font_pushed[font_depth++] = 0;
+            }
+          else if (a5_interactive_mode && strcmp (name, "/font") == 0)
+            {
+              if (font_depth > 0 && font_pushed[--font_depth])
+                sb_putc (&sb, A5_ENDFONT_MARK);
+              sb_putc (&sb, A5_ENDCOLOUR_MARK);
+            }
 
           else if (a5_interactive_mode && strcmp (name, "window") == 0)
             {
@@ -3790,7 +3955,7 @@ a5text_strip_pres_marks (char *s)
   for (r = w = s; *r != '\0'; r++)
     {
       if (*r == A5_IMG_MARK || *r == A5_WINDOW_MARK || *r == A5_SOUND_MARK
-          || *r == A5_WAIT_MARK || *r == A5_COLOUR_MARK)
+          || *r == A5_WAIT_MARK || *r == A5_COLOUR_MARK || *r == A5_FONT_MARK)
         {
           /* A spanning mark goes with its payload: \006<number>\006 and
              friends, or nothing at all if the closing mark is missing. */
@@ -3806,7 +3971,8 @@ a5text_strip_pres_marks (char *s)
           || *r == A5_ITALIC_MARK || *r == A5_ENDITALIC_MARK
           || *r == A5_UNDERLINE_MARK || *r == A5_ENDUNDERLINE_MARK
           || *r == A5_RIGHT_MARK || *r == A5_ENDRIGHT_MARK
-          || *r == A5_ENDCOLOUR_MARK || *r == A5_ENDWINDOW_MARK
+          || *r == A5_ENDCOLOUR_MARK || *r == A5_ENDFONT_MARK
+          || *r == A5_ENDWINDOW_MARK
           || *r == A5_CLS_MARK || *r == A5_PS_MARK || *r == A5_COMMIT_MARK)
         continue;
       *w++ = *r;

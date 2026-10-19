@@ -527,7 +527,7 @@ garglk::XFontResult garglk::fontreplace_x11(const std::string &xlfd, FontType ty
 
     const auto &regular_weight = regular.fields[XLFD_WEIGHT];
 
-    FontFiller filler(type);
+    FontFiller filler;
 
     filler.add(FontFiller::Style::Regular, regular.path);
 
@@ -550,9 +550,13 @@ garglk::XFontResult garglk::fontreplace_x11(const std::string &xlfd, FontType ty
     filler.add(FontFiller::Style::Italic, styled(regular_weight, italic));
     filler.add(FontFiller::Style::BoldItalic, styled("bold", italic));
 
-    if (!filler.fill()) {
+    auto files = filler.files();
+    if (!files.has_value()) {
         return {XFontResult::Status::Unusable, ""};
     }
+
+    FontFiles &dest = type == FontType::Monospace ? gli_conf_mono : gli_conf_prop;
+    dest = *files;
 
     // Bitmap font size comes from the XLFD, not monosize or propsize.
     if (type == FontType::Monospace) {

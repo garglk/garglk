@@ -1126,12 +1126,10 @@ a5_scan_release (const uint8_t *buf, uint32_t len)
 }
 
 a5_adventure_t *
-a5model_load (const char *path)
+a5model_load_buffer (uint8_t *file_buf, uint32_t file_len)
 {
-  FILE *fp;
-  long size;
-  uint8_t *file_buf, *payload;
-  uint32_t file_len, payload_len, header, region_len, xml_len;
+  uint8_t *payload;
+  uint32_t payload_len, header, region_len, xml_len;
   uint8_t *xml;
   char *ifid;
   char *release;
@@ -1139,26 +1137,11 @@ a5model_load (const char *path)
   a5_xml_doc_t *doc;
   a5_adventure_t *adv;
 
-  fp = fopen (path, "rb");
-  if (fp == NULL)
-    return NULL;
-  fseek (fp, 0, SEEK_END);
-  size = ftell (fp);
-  fseek (fp, 0, SEEK_SET);
-  if (size <= 0)
-    {
-      fclose (fp);
-      return NULL;
-    }
-  file_buf = (uint8_t *) malloc ((size_t) size);
-  if (file_buf == NULL || fread (file_buf, 1, (size_t) size, fp) != (size_t) size)
+  if (file_buf == NULL || file_len == 0)
     {
       free (file_buf);
-      fclose (fp);
       return NULL;
     }
-  fclose (fp);
-  file_len = (uint32_t) size;
 
   int from_blorb;
   if (a5blorb_find_exec (file_buf, file_len, &chunk))
@@ -1311,6 +1294,35 @@ a5model_load (const char *path)
       adv->map_pane_open = map_pane_open;
     }
   return adv;
+}
+
+a5_adventure_t *
+a5model_load (const char *path)
+{
+  FILE *fp;
+  long size;
+  uint8_t *file_buf;
+
+  fp = fopen (path, "rb");
+  if (fp == NULL)
+    return NULL;
+  fseek (fp, 0, SEEK_END);
+  size = ftell (fp);
+  fseek (fp, 0, SEEK_SET);
+  if (size <= 0)
+    {
+      fclose (fp);
+      return NULL;
+    }
+  file_buf = (uint8_t *) malloc ((size_t) size);
+  if (file_buf == NULL || fread (file_buf, 1, (size_t) size, fp) != (size_t) size)
+    {
+      free (file_buf);
+      fclose (fp);
+      return NULL;
+    }
+  fclose (fp);
+  return a5model_load_buffer (file_buf, (uint32_t) size);
 }
 
 /* ---------------------------------------- "Adventure Upgrade" (FileIO.vb) */

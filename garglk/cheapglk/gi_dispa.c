@@ -67,6 +67,9 @@ static gidispatch_intconst_t intconstant_table[] = {
     { "gestalt_DateTime", (20) },
     { "gestalt_DrawImage", (7) },
     { "gestalt_DrawImageScale", (24) },
+#ifdef GLK_MODULE_CSS_BASIC
+    { "gestalt_CSSBasic", (0x1110) },
+#endif
 #ifdef GARGLK
     { "gestalt_GarglkText", (0x1100) },
 #endif
@@ -343,6 +346,21 @@ static gidispatch_function_t function_table[] = {
     { 0x1102, garglk_set_reversevideo, "garglk_set_reversevideo" },
     { 0x1103, garglk_set_reversevideo_stream, "garglk_set_reversevideo_stream" },
 #endif /* GLK_MODULE_GARGLKTEXT */
+#ifdef GLK_MODULE_CSS_BASIC
+    { 0x1110, glk_css_hint_set, "css_hint_set" },
+    { 0x1111, glk_css_hint_set_num, "css_hint_set_num" },
+    { 0x1112, glk_css_hint_clear, "css_hint_clear" },
+    { 0x1113, glk_css_hint_selector_set, "css_hint_selector_set" },
+    { 0x1114, glk_css_hint_selector_set_num, "css_hint_selector_set_num" },
+    { 0x1115, glk_css_hint_selector_clear, "css_hint_selector_clear" },
+    { 0x1116, glk_css_inline_set, "css_inline_set" },
+    { 0x1117, glk_css_inline_set_num, "css_inline_set_num" },
+    { 0x1118, glk_css_inline_clear, "css_inline_clear" },
+    { 0x1119, glk_css_hint_clear_all_by_style, "css_hint_clear_all_by_style" },
+    { 0x111A, glk_css_hint_clear_all_by_selector, "css_hint_clear_all_by_selector" },
+    { 0x111B, glk_css_hint_clear_all_by_window, "css_hint_clear_all_by_window" },
+    { 0x111C, glk_css_hint_clear_all_inline, "css_hint_clear_all_inline" },
+#endif /* GLK_MODULE_CSS_BASIC */
 };
 
 glui32 gidispatch_count_classes()
@@ -706,6 +724,35 @@ char *gidispatch_prototype(glui32 funcnum)
         case 0x1103: /* garglk_set_reversevideo_stream */
             return "2QbIu:";
 #endif /* GLK_MODULE_GARGLKTEXT */
+
+#ifdef GLK_MODULE_CSS_BASIC
+        case 0x1110: /* css_hint_set */
+            return "5IuIuIu>+#Cn>+#Cn:";
+        case 0x1111: /* css_hint_set_num */
+            return "5IuIuIu>+#CnIs:";
+        case 0x1112: /* css_hint_clear */
+            return "4IuIuIu>+#Cn:";
+        case 0x1113: /* css_hint_selector_set — sel may be null/empty (window) */
+            return "4Iu>#Cn>+#Cn>+#Cn:";
+        case 0x1114: /* css_hint_selector_set_num */
+            return "4Iu>#Cn>+#CnIs:";
+        case 0x1115: /* css_hint_selector_clear */
+            return "3Iu>#Cn>+#Cn:";
+        case 0x1116: /* css_inline_set */
+            return "3Iu>+#Cn>+#Cn:";
+        case 0x1117: /* css_inline_set_num */
+            return "3Iu>+#CnIs:";
+        case 0x1118: /* css_inline_clear */
+            return "2Iu>+#Cn:";
+        case 0x1119: /* css_hint_clear_all_by_style */
+            return "2IuIu:";
+        case 0x111A: /* css_hint_clear_all_by_selector — sel may be null/empty */
+            return "2Iu>#Cn:";
+        case 0x111B: /* css_hint_clear_all_by_window */
+            return "1Iu:";
+        case 0x111C: /* css_hint_clear_all_inline */
+            return "0:";
+#endif /* GLK_MODULE_CSS_BASIC */
 
         default:
             return NULL;
@@ -1563,6 +1610,136 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
             garglk_set_reversevideo_stream( arglist[0].opaqueref, arglist[1].uint );
             break;
 #endif /* GLK_MODULE_GARGLKTEXT */
+
+#ifdef GLK_MODULE_CSS_BASIC
+        case 0x1110: /* css_hint_set */
+            if (arglist[3].ptrflag && arglist[6].ptrflag)
+                glk_css_hint_set(arglist[0].uint, arglist[1].uint, arglist[2].uint,
+                    arglist[4].array, arglist[5].uint,
+                    arglist[7].array, arglist[8].uint);
+            else if (arglist[3].ptrflag)
+                glk_css_hint_set(arglist[0].uint, arglist[1].uint, arglist[2].uint,
+                    arglist[4].array, arglist[5].uint, NULL, 0);
+            else
+                glk_css_hint_set(arglist[0].uint, arglist[1].uint, arglist[2].uint,
+                    NULL, 0, NULL, 0);
+            break;
+        case 0x1111: /* css_hint_set_num */
+            if (arglist[3].ptrflag)
+                glk_css_hint_set_num(arglist[0].uint, arglist[1].uint, arglist[2].uint,
+                    arglist[4].array, arglist[5].uint, arglist[6].sint);
+            else
+                glk_css_hint_set_num(arglist[0].uint, arglist[1].uint, arglist[2].uint,
+                    NULL, 0, arglist[4].sint);
+            break;
+        case 0x1112: /* css_hint_clear */
+            if (arglist[3].ptrflag)
+                glk_css_hint_clear(arglist[0].uint, arglist[1].uint, arglist[2].uint,
+                    arglist[4].array, arglist[5].uint);
+            else
+                glk_css_hint_clear(arglist[0].uint, arglist[1].uint, arglist[2].uint,
+                    NULL, 0);
+            break;
+        case 0x1113: /* css_hint_selector_set */
+            if (arglist[1].ptrflag) {
+                if (arglist[4].ptrflag && arglist[7].ptrflag)
+                    glk_css_hint_selector_set(arglist[0].uint,
+                        arglist[2].array, arglist[3].uint,
+                        arglist[5].array, arglist[6].uint,
+                        arglist[8].array, arglist[9].uint);
+                else if (arglist[4].ptrflag)
+                    glk_css_hint_selector_set(arglist[0].uint,
+                        arglist[2].array, arglist[3].uint,
+                        arglist[5].array, arglist[6].uint, NULL, 0);
+                else
+                    glk_css_hint_selector_set(arglist[0].uint,
+                        arglist[2].array, arglist[3].uint, NULL, 0, NULL, 0);
+            } else if (arglist[2].ptrflag && arglist[5].ptrflag) {
+                glk_css_hint_selector_set(arglist[0].uint, NULL, 0,
+                    arglist[3].array, arglist[4].uint,
+                    arglist[6].array, arglist[7].uint);
+            } else if (arglist[2].ptrflag) {
+                glk_css_hint_selector_set(arglist[0].uint, NULL, 0,
+                    arglist[3].array, arglist[4].uint, NULL, 0);
+            } else {
+                glk_css_hint_selector_set(arglist[0].uint, NULL, 0, NULL, 0, NULL, 0);
+            }
+            break;
+        case 0x1114: /* css_hint_selector_set_num */
+            if (arglist[1].ptrflag) {
+                if (arglist[4].ptrflag)
+                    glk_css_hint_selector_set_num(arglist[0].uint,
+                        arglist[2].array, arglist[3].uint,
+                        arglist[5].array, arglist[6].uint, arglist[7].sint);
+                else
+                    glk_css_hint_selector_set_num(arglist[0].uint,
+                        arglist[2].array, arglist[3].uint, NULL, 0, arglist[5].sint);
+            } else if (arglist[2].ptrflag) {
+                glk_css_hint_selector_set_num(arglist[0].uint, NULL, 0,
+                    arglist[3].array, arglist[4].uint, arglist[5].sint);
+            } else {
+                glk_css_hint_selector_set_num(arglist[0].uint, NULL, 0, NULL, 0,
+                    arglist[3].sint);
+            }
+            break;
+        case 0x1115: /* css_hint_selector_clear */
+            if (arglist[1].ptrflag) {
+                if (arglist[4].ptrflag)
+                    glk_css_hint_selector_clear(arglist[0].uint,
+                        arglist[2].array, arglist[3].uint,
+                        arglist[5].array, arglist[6].uint);
+                else
+                    glk_css_hint_selector_clear(arglist[0].uint,
+                        arglist[2].array, arglist[3].uint, NULL, 0);
+            } else if (arglist[2].ptrflag) {
+                glk_css_hint_selector_clear(arglist[0].uint, NULL, 0,
+                    arglist[3].array, arglist[4].uint);
+            } else {
+                glk_css_hint_selector_clear(arglist[0].uint, NULL, 0, NULL, 0);
+            }
+            break;
+        case 0x1116: /* css_inline_set */
+            if (arglist[1].ptrflag && arglist[4].ptrflag)
+                glk_css_inline_set(arglist[0].uint,
+                    arglist[2].array, arglist[3].uint,
+                    arglist[5].array, arglist[6].uint);
+            else if (arglist[1].ptrflag)
+                glk_css_inline_set(arglist[0].uint,
+                    arglist[2].array, arglist[3].uint, NULL, 0);
+            else
+                glk_css_inline_set(arglist[0].uint, NULL, 0, NULL, 0);
+            break;
+        case 0x1117: /* css_inline_set_num */
+            if (arglist[1].ptrflag)
+                glk_css_inline_set_num(arglist[0].uint,
+                    arglist[2].array, arglist[3].uint, arglist[4].sint);
+            else
+                glk_css_inline_set_num(arglist[0].uint, NULL, 0, arglist[2].sint);
+            break;
+        case 0x1118: /* css_inline_clear */
+            if (arglist[1].ptrflag)
+                glk_css_inline_clear(arglist[0].uint,
+                    arglist[2].array, arglist[3].uint);
+            else
+                glk_css_inline_clear(arglist[0].uint, NULL, 0);
+            break;
+        case 0x1119: /* css_hint_clear_all_by_style */
+            glk_css_hint_clear_all_by_style(arglist[0].uint, arglist[1].uint);
+            break;
+        case 0x111A: /* css_hint_clear_all_by_selector */
+            if (arglist[1].ptrflag)
+                glk_css_hint_clear_all_by_selector(arglist[0].uint,
+                    arglist[2].array, arglist[3].uint);
+            else
+                glk_css_hint_clear_all_by_selector(arglist[0].uint, NULL, 0);
+            break;
+        case 0x111B: /* css_hint_clear_all_by_window */
+            glk_css_hint_clear_all_by_window(arglist[0].uint);
+            break;
+        case 0x111C: /* css_hint_clear_all_inline */
+            glk_css_hint_clear_all_inline();
+            break;
+#endif /* GLK_MODULE_CSS_BASIC */
 
         default:
             /* do nothing */

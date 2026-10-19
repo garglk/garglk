@@ -86,7 +86,7 @@ static const scr_char *const SER_BATTLE_MARKER_V1 = "ScarierBattleState/1";
  * unreadable.  We now emit the header so the Runner will accept our saves, and
  * on read we treat the leading 0xAC byte as an unambiguous discriminator: a
  * line beginning with it is a Runner/new-format save whose version line we skip;
- * any other first line is a legacy SCARIER save whose first line is the GameName.
+ * any other first line is a legacy SCARE save whose first line is the GameName.
  */
 static const scr_byte SER_VERSION_LEAD = 0xAC;
 static const scr_char *const SER_VERSION_HEADER = "\xAC" "400052";
@@ -146,6 +146,26 @@ ser_set_fast_compression (scr_bool fast)
   ser_compression = fast ? Z_BEST_SPEED : Z_DEFAULT_COMPRESSION;
 }
 
+/*
+ * Raw (uncompressed) mode for the next serialization run.  The undo ring's
+ * in-memory memos are a self-contained round trip that never touches disk and
+ * never interoperates with a Runner, so they can skip zlib entirely: profiling
+ * put the per-turn deflate at ~20-48% of the interpreter, and it buys nothing
+ * for a buffer we rewrite every 16 turns and read back ourselves.  memo_save_-
+ * game()/memo_load_game() set this around their ser_save_game()/ser_load_game()
+ * calls; the save side (ser_flush) then passes bytes straight through, and the
+ * load side (ser_load_game) reads them back via taf_create_tas_raw().  File
+ * saves never set it, so their zlib format -- and the save-file sniffer -- are
+ * untouched.  Both entry points self-clear it, like ser_pre_v4.
+ */
+static scr_bool ser_raw_memo = FALSE;
+
+void
+ser_set_raw_memo (scr_bool raw)
+{
+  ser_raw_memo = raw;
+}
+
 /* Output buffer. */
 static scr_byte *ser_buffer = NULL;
 static scr_int ser_buffer_length = 0;
@@ -170,6 +190,27 @@ ser_flush (scr_bool is_final)
   static z_stream stream;
 
   scr_int status;
+
+  /*
+   * A raw memo is passed straight through, uncompressed and unobfuscated --
+   * taf_create_tas_raw() reads it back verbatim.  Like the pre-4.0 branch it
+   * never touches the deflate state, so the 4.0 path below is unaffected.
+   */
+  if (ser_raw_memo)
+    {
+      if (ser_buffer_length > 0)
+        {
+          ser_callback (ser_opaque, ser_buffer, ser_buffer_length);
+          ser_buffer_length = 0;
+        }
+
+      if (is_final)
+        {
+          scr_free (ser_buffer);
+          ser_buffer = NULL;
+        }
+      return;
+    }
 
   /*
    * A pre-4.0 save is not compressed at all: the plain text goes out xor'd
@@ -740,10 +781,7 @@ ser_variable_at (scr_prop_setref_t bundle, scr_int index_,
 static scr_bool
 ser_game_is_pre_v4 (scr_prop_setref_t bundle)
 {
-  scr_vartype_t vt_key[1];
-
-  vt_key[0].string = "Version";
-  return prop_get_integer (bundle, "I<-s", vt_key) < TAF_VERSION_400;
+  return prop_get_taf_version (bundle) < TAF_VERSION_400;
 }
 
 
@@ -917,7 +955,15 @@ ser_save_game_internal (scr_gameref_t game, scr_write_callbackref_t callback,
     {
       scr_int walk;
 
-      ser_buffer_int (gs_npc_location (game, index_));
+      /*
+       * A dead NPC goes out as NPC_DEAD_LOCATION, the Runner's corpse
+       * marker: its own save loop prints the room field raw (run400
+       * Form1.frm @476F72, right before the seen byte at @476FA3), and
+       * battle death is the only thing that ever puts the marker there.
+       * See the `dead` flag in scgamest.h.
+       */
+      ser_buffer_int (gs_npc_dead (game, index_)
+                      ? NPC_DEAD_LOCATION : gs_npc_location (game, index_));
       ser_buffer_boolean (gs_npc_seen (game, index_));
 
       /* The NPC's interleaved battle block sits after "seen", before walks. */
@@ -993,6 +1039,7 @@ ser_save_game_internal (scr_gameref_t game, scr_write_callbackref_t callback,
   ser_callback = NULL;
   ser_opaque = NULL;
   ser_pre_v4 = FALSE;
+  ser_raw_memo = FALSE;
 }
 
 void
@@ -1225,7 +1272,7 @@ ser_object_parent_valid (scr_gameref_t game, scr_int position, scr_int parent)
  * Read an object's location.  In 4.0 Runner format a static object is a room
  * list (count then that many room indices), whose values we discard -- a static
  * object's location is taken from its bundle "Where" list, and relocated-static
- * state is not separately persisted (as in legacy SCARIER saves).  A pre-4.0
+ * state is not separately persisted (as in legacy SCARE saves).  A pre-4.0
  * save has no room list: a static is a bare position, discarded for the same
  * reason.  A dynamic object, or any object in a legacy save, is a single
  * position integer.
@@ -1312,16 +1359,23 @@ ser_load_game (scr_gameref_t game,
   const scr_char *gamename;
   scr_bool runner_format = FALSE;
 
-  /* Create a TAF (TAS) reference from callbacks, for reader functions. */
-  ser_tas = taf_create_tas (callback, opaque);
+  /* Create a TAF (TAS) reference from callbacks, for reader functions.  A raw
+   * memo (ser_set_raw_memo) skips the sniff/inflate and is read back verbatim;
+   * everything downstream is identical, since the byte stream is the same one
+   * a decompressed 4.0 save would present. */
+  ser_tas = ser_raw_memo ? taf_create_tas_raw (callback, opaque)
+                         : taf_create_tas (callback, opaque);
   if (!ser_tas)
-    return FALSE;
+    {
+      ser_raw_memo = FALSE;
+      return FALSE;
+    }
 
   /*
    * The container tells us the layout: only run390.exe -- and ser_save_game_-
    * to_file() for a pre-4.0 game -- writes a PRNG-obfuscated save, so an
    * obfuscated stream is a pre-4.0 Runner save.  Everything else is a zlib
-   * stream, either 4.0 Runner format or legacy SCARIER, told apart below by the
+   * stream, either 4.0 Runner format or legacy SCARE, told apart below by the
    * version line.  This keeps 4.0-format saves we wrote earlier for a 3.9 game
    * readable.
    */
@@ -1347,6 +1401,7 @@ ser_load_game (scr_gameref_t game,
       taf_destroy (ser_tas);
       ser_tas = NULL;
       ser_pre_v4 = FALSE;
+      ser_raw_memo = FALSE;
       return FALSE;
     }
 
@@ -1354,7 +1409,7 @@ ser_load_game (scr_gameref_t game,
    * Read the first line.  If it begins with the ADRIFT v4 version-line lead
    * byte (0xAC) it is a Runner/new-format save: skip the version line (we accept
    * any version a v4 Runner wrote rather than insist on our own digits) and take
-   * the GameName from the next line.  Otherwise the file is a legacy SCARIER save
+   * the GameName from the next line.  Otherwise the file is a legacy SCARE save
    * whose first line is already the GameName.  See SER_VERSION_HEADER.
    */
   gamename = ser_get_string ();
@@ -1401,7 +1456,7 @@ ser_load_game (scr_gameref_t game,
   /* Restore the score. */
   new_game->score = ser_get_int ();
 
-  /* Skip the player name (4.0 Runner format only; absent in legacy SCARIER
+  /* Skip the player name (4.0 Runner format only; absent in legacy SCARE
    * saves and in pre-4.0 Runner saves). */
   if (runner_format && !ser_pre_v4)
     (void) ser_get_string ();
@@ -1481,6 +1536,41 @@ ser_load_game (scr_gameref_t game,
        * OnlyWhenNotMoved stands, exactly as it does in the 3.9 Runner. */
       if (!ser_pre_v4)
         gs_set_object_unmoved (new_game, index_, ser_get_boolean ());
+
+      /*
+       * Reconstruct the Runner's container field ([2E]) -- see the
+       * runner_parent notes in scgamest.h.  No save format stores it, so
+       * this is a heuristic built on the detach model: an in/on placement
+       * points it at the restored parent; NPC possession clears it; an
+       * object that *started* in/on but is no longer there must have been
+       * detached at some point, so it is cleared too.  Everything else
+       * keeps the raw .taf Parent seed gs_create() gave it, which the
+       * Runner's ordinary take/drop/task moves never touch.  The one case
+       * this gets wrong is a raw-Parent object that was worn and then
+       * removed -- the save cannot tell us.
+       */
+      if (obj_is_static (new_game, index_))
+        gs_set_object_runner_parent (new_game, index_, -1);
+      else
+        {
+          const scr_int position = new_game->objects[index_].position;
+
+          if (position == OBJ_IN_OBJECT || position == OBJ_ON_OBJECT)
+            gs_set_object_runner_parent (new_game, index_,
+                                         new_game->objects[index_].parent);
+          else if (position == OBJ_HELD_NPC || position == OBJ_WORN_NPC)
+            gs_set_object_runner_parent (new_game, index_, -1);
+          else
+            {
+              scr_int initialposition;
+
+              vt_key[2].string = "InitialPosition";
+              initialposition = prop_get_integer (bundle, "I<-sis", vt_key);
+              if (initialposition == 2 || initialposition == 3)
+                gs_set_object_runner_parent (new_game, index_, -1);
+              /* Otherwise the seed from gs_create() stands. */
+            }
+        }
     }
 
   /* Restore tasks information. */
@@ -1523,8 +1613,18 @@ ser_load_game (scr_gameref_t game,
 
       {
         const scr_int location = ser_get_int ();
-        ser_reject_if (location < 0 || location > gs_room_count (new_game));
-        gs_set_npc_location (new_game, index_, location);
+
+        if (location == NPC_DEAD_LOCATION)
+          {
+            gs_set_npc_location (new_game, index_, 0);
+            gs_set_npc_dead (new_game, index_, TRUE);
+          }
+        else
+          {
+            ser_reject_if (location < 0
+                           || location > gs_room_count (new_game));
+            gs_set_npc_location (new_game, index_, location);
+          }
       }
       gs_set_npc_seen (new_game, index_, ser_get_boolean ());
 
@@ -1619,6 +1719,13 @@ ser_load_game (scr_gameref_t game,
   new_game->requested_graphic = game->requested_graphic;
 
   /*
+   * Reseed the carried-load totals from the restored inventory the way the
+   * run400 save loader does (base weights and sizes only; see
+   * gs_carried_recompute).  gs_copy() then carries them over verbatim.
+   */
+  gs_carried_recompute (new_game);
+
+  /*
    * If we got this far, we successfully restored the game from the file.
    * As our final act, copy the new game onto the old one.
    */
@@ -1634,6 +1741,7 @@ ser_load_game (scr_gameref_t game,
   taf_destroy (ser_tas);
   ser_tas = NULL;
   ser_pre_v4 = FALSE;
+  ser_raw_memo = FALSE;
   return TRUE;
 }
 

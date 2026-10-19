@@ -146,7 +146,7 @@ Tasks stored in the property bundle, indexed by integer. Each task has `V$Comman
 
 Restriction types: **6** integer types (0 = object location, 1 = object state, 2 = task completion, 3 = character location, 4 = variable comparison, 5 = action-existence check). Each uses up to three integer `Var` fields. Type 5 checks a sentinel value (0xEC) in restriction field `[1A]` and delegates to the action-type counter — confirmed in `run400.exe` Sub_20_3 at the type-5 dispatch branch.
 
-Action types: the executor (`Sub_20_11` in the original Runner, `sctasks.cpp` in Scarier) handles **8** types (0–7). The data model and action type-counter (`Sub_20_13`) recognise **10** types (0–9); types 8 and 9 are parsed and counted but the executor silently ignores them. Type 4 handles both score changes and end-game (confirmed by `"(Your score has increased by "` / `"(Your score has decreased by "` string literals in the type-4 block).
+Action types: the executor (`Sub_20_11` in the original Runner, `sctasks.cpp` in Scarier) handles **8** types (0–7). The data model and the action type-counter recognise **10** types (0–9); types 8 and 9 are parsed and counted but the executor silently ignores them. (The counter used to be cited here as `Sub_20_13`; that name resolves to `453278`, which is the Runner's "nth object of a class" helper — its ten *class* branches are what was read as ten action types — so the counter itself is unlocated. The 10-vs-8 split stands on the data model.) Type 4 handles both score changes and end-game (confirmed by `"(Your score has increased by "` / `"(Your score has decreased by "` string literals in the type-4 block).
 
 | Type | Meaning |
 |------|---------|

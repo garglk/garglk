@@ -22,11 +22,6 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <cstdio>
-#include <cmath>
-#include <map>
-#include <string>
-#include <vector>
 
 #include "a5map.h"
 #include "a5xml.h"
@@ -114,8 +109,7 @@ parse_anchors (map_link_t *link, const a5_xml_node_t *lk)
 static int
 is_compass_dir (int dir)
 {
-  return dir == DIR_N || dir == DIR_E || dir == DIR_S || dir == DIR_W
-      || dir == DIR_NE || dir == DIR_SE || dir == DIR_SW || dir == DIR_NW;
+  return dir >= 0 && dir < MAP_N_DIRS && !map_is_badge_dir (dir);
 }
 
 /* Compass exit on `loc` that shares destination and restriction style with a
@@ -176,8 +170,7 @@ parse_link (map_link_t *link, const a5_xml_node_t *lk,
     }
   /* Badge/compass coincidence from movements (Map Links alone miss Basement
      East, which is only a Movement while Kitchen owns the West Map Link). */
-  if ((d == DIR_UP || d == DIR_DOWN || d == DIR_IN || d == DIR_OUT)
-      && link->dest != NULL)
+  if (map_is_badge_dir (d) && link->dest != NULL)
     {
       link->compass_twin
         = find_compass_twin_same_dest (loc, link->dest, link->dotted);
@@ -213,14 +206,9 @@ parse_node (map_node_t *node, const a5_xml_node_t *nd,
   if (loc != NULL && loc->node != NULL)
     node->hidden = a5xml_bool (a5xml_child_text (loc->node, "Hide"));
   /* FileIO.vb:4071-4074 -- Movements, not Map Links, set bHas*. */
-  if (movement_dest (loc, "In", NULL) != NULL)
-    node->has_in = 1;
-  if (movement_dest (loc, "Out", NULL) != NULL)
-    node->has_out = 1;
-  if (movement_dest (loc, "Up", NULL) != NULL)
-    node->has_up = 1;
-  if (movement_dest (loc, "Down", NULL) != NULL)
-    node->has_down = 1;
+  for (il = DIR_UP; il <= DIR_OUT; il++)
+    if (movement_dest (loc, map_dirs[il], NULL) != NULL)
+      node->has_badge[MAP_BADGE (il)] = 1;
 
   n_links = a5xml_count (nd, "Link");
   if (n_links <= 0)

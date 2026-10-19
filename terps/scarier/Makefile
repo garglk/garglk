@@ -132,14 +132,15 @@ all:	scarier
 
 $(OBJECTS): $(HEADERS)
 
-scarier: $(OBJECTS) os_ansi.o
-	$(CXX) $(LDFLAGS) -o scarier $(OBJECTS) os_ansi.o $(LDLIBS)
+scarier: $(OBJECTS) $(MAPOBJECTS) os_ansi.o
+	$(CXX) $(LDFLAGS) -o scarier $(OBJECTS) $(MAPOBJECTS) os_ansi.o	\
+		$(LDLIBS)
 
 # Option to build the Scarier verifier.
 $(XOBJECTS): $(XHEADERS)
 
-sx: $(OBJECTS) $(XOBJECTS)
-	$(CXX) $(LDFLAGS) -o sx $(OBJECTS) $(XOBJECTS) $(LDLIBS)
+sx: $(OBJECTS) $(XOBJECTS) $(MAPOBJECTS)
+	$(CXX) $(LDFLAGS) -o sx $(OBJECTS) $(XOBJECTS) $(MAPOBJECTS) $(LDLIBS)
 
 # Option to build the Glk port of Scarier.
 glkscarier: $(OBJECTS) $(A5OBJECTS) $(MAPOBJECTS) $(RANDOBJ) os_glk.o

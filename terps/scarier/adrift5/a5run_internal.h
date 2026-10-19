@@ -517,6 +517,14 @@ void ev_time_tick_all (a5_run_t *run, sb_t *out);
 void drain_tasks_to_run (a5_run_t *run, sb_t *out);
 void a5run_flush_display_defers (a5_run_t *run, sb_t *out);
 void a5run_flush_display_defers_from (a5_run_t *run, sb_t *out, size_t from);
+/* Draw display_defers entry `idx` (its OneOf/Rand/URand consumes the RNG) and
+   return its display value (heap, never NULL).  `vals` caches values by
+   entry index within one Display pass: an entry prefixed `\005<orig>\005`
+   repeats entry <orig>'s `<#..#>` body inside the same block, so it draws
+   but DISPLAYS entry <orig>'s value (the runner's replace-all
+   ReplaceExpressions, see a5text.cpp replace_expressions). */
+char *a5run_draw_defer_entry (a5_run_t *run, size_t idx,
+                              std::unordered_map<size_t, std::string> &vals);
 void ev_on_task_completed (a5_run_t *run, const char *task_key, sb_t *out);
 void ev_on_task_uncompleted (a5_run_t *run, const char *task_key, sb_t *out);
 

@@ -40,8 +40,31 @@
 
 enum { FALSE = 0, TRUE = !FALSE };
 
-static scr_char line_buffer[79];
+/*
+ * The harness wraps at 78 columns, as a terminal would.  SCR_WRAP_WIDTH turns
+ * that off (or moves it): set it wide and every newline in the output is one
+ * the engine meant, which is what the Runner-transcript line-structure sweep
+ * needs -- see harness/sweep_wine_breaks.py.  The default is the historical
+ * 79, so every golden in the suite is unaffected.
+ */
+static scr_char line_buffer[65536];
 static scr_int line_length = 0;
+
+static scr_int
+wrap_width (void)
+{
+  static scr_int cached = 0;
+
+  if (cached == 0)
+    {
+      const scr_char *env = getenv ("SCR_WRAP_WIDTH");
+
+      cached = env ? atol (env) : 79;
+      if (cached < 2 || cached > (scr_int) sizeof (line_buffer))
+        cached = (scr_int) sizeof (line_buffer);
+    }
+  return cached;
+}
 
 static const scr_char *game_file;
 static scr_game game;
@@ -95,7 +118,7 @@ append_character (scr_char c)
   else
     {
       line_buffer[line_length++] = c;
-      if (line_length >= (scr_int) sizeof (line_buffer) - 1)
+      if (line_length >= wrap_width () - 1)
         {
           partial_flush ();
           putchar ('\n');
@@ -129,6 +152,22 @@ os_print_tag (scr_int tag, const scr_char *argument)
     case SCR_TAG_ENDRIGHT:
       if (line_length > 0)
         append_character ('\n');
+      break;
+
+    case SCR_TAG_WAIT:
+      /*
+       * A timed pause.  Nothing to wait for headless, but SCR_MARK_WAIT=1
+       * notes it on stderr in transcript order, the way SCR_MARK_WAITKEY
+       * does below: the real Runner drops every keystroke typed while one
+       * runs, so a Wine replay has to sleep through it (see
+       * test/adrift4/harness/make_wine_cmdfile.py).
+       */
+      if (getenv ("SCR_MARK_WAIT"))
+        {
+          full_flush ();
+          fflush (stdout);
+          fprintf (stderr, "[WAIT %s]\n", argument ? argument : "");
+        }
       break;
 
     case SCR_TAG_WAITKEY:
@@ -263,6 +302,9 @@ os_show_graphic (const scr_char *filepath, scr_int offset, scr_int length)
  * os_read_line()
  * os_read_line_debug()
  */
+/* Solution-file line counter for the SCR_TRACE_ADMIN derivation aid. */
+static long os_ansi_input_line = 0;
+
 scr_bool
 os_read_line (scr_char *buffer, scr_int length)
 {
@@ -302,6 +344,7 @@ os_read_line (scr_char *buffer, scr_int length)
   if (echo_input)
     putchar (' ');
   fflush (stdout);
+  os_ansi_input_line++;
   if (!fgets (buffer, length, stdin))
     {
       /* EOF (or error) on this read with no data; quit cleanly as above. */
@@ -328,12 +371,26 @@ os_read_line (scr_char *buffer, scr_int length)
    */
   while (buffer[strspn (buffer, " \t")] == '#')
     {
+      os_ansi_input_line++;
       if (!fgets (buffer, length, stdin))
         {
           scr_quit_game (game);
           exit (EXIT_SUCCESS);
         }
     }
+
+#ifdef SCARIER_DUMP_TOOLS
+  /*
+   * Derivation aid, paired with SCR_TRACE_ADMIN in run_main_loop(): name the
+   * line just read (1-based, comments counted) so an "ADMIN" trace line can
+   * be tied to the solution-file line that produced it.
+   */
+  {
+    static const bool trace_admin = getenv ("SCR_TRACE_ADMIN") != NULL;
+    if (trace_admin)
+      fprintf (stderr, "INPUT line=%ld %s", os_ansi_input_line, buffer);
+  }
+#endif
 
   /* The other half of the echo above: the command itself. */
   if (echo_input)
