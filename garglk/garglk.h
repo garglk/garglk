@@ -647,6 +647,14 @@ extern bool gli_conf_fluidsynth_chorus;
 
 extern bool gli_conf_fullscreen;
 
+// When true (default on Qt), show a File menu (Open / Recent / Settings).
+extern GARGLK_API bool gli_conf_menu_bar;
+
+// When true (default on Qt), Gargoyle runs interpreters as IPC subprocesses
+// and owns all game windows in one long-lived launcher process.
+extern GARGLK_API bool gli_conf_ipc;
+extern GARGLK_API std::string gli_conf_ipc_server;
+
 extern bool gli_wait_on_quit;
 
 extern bool gli_conf_speak;
@@ -1227,9 +1235,19 @@ void winrepaint(int x0, int y0, int x1, int y1);
 bool windark();
 void winexit();
 void winclipstore(const std::vector<glui32> &text);
+void winclipsend();
+void winclipreceive();
 
 void fontload();
 void fontunload();
+
+#ifdef __APPLE__
+void garglk_mac_set_dock_policy(bool hide);
+void garglk_mac_set_windows_menu(void *ns_menu);
+void garglk_mac_miniaturize_key_window();
+void garglk_mac_zoom_key_window();
+void garglk_mac_arrange_in_front();
+#endif
 
 bool giblorb_copy_resource(glui32 usage, glui32 resnum, glui32 &type, std::vector<unsigned char> &buf);
 

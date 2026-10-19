@@ -20,11 +20,10 @@
 // along with Gargoyle; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-#include <algorithm>
 #include <cstdlib>
 #include <iostream>
-#include <iterator>
 #include <string>
+#include <vector>
 
 #ifdef _WIN32
 #include <cstdio>
@@ -36,92 +35,25 @@
 #include <QCommandLineParser>
 #include <QDir>
 #include <QFile>
-#include <QFileDialog>
 #include <QFileInfo>
-#include <QList>
 #include <QMessageBox>
 #include <QProcess>
-#include <QPushButton>
+#include <QProcessEnvironment>
 #include <QStandardPaths>
 #include <QString>
 #include <QStringList>
-#include <QVector>
 
 #include "garglk.h"
 #include "garversion.h"
 #include "launcher.h"
+#include "menubarqt.h"
+#include "sessionqt.h"
 
 #include GARGLKINI_H
-
-static const char *AppName = "Gargoyle " GARGOYLE_VERSION;
-
-namespace {
-
-class Filter {
-public:
-    Filter(QString name, QStringList extensions) : m_name(std::move(name)), m_extensions(std::move(extensions)) {}
-
-    [[nodiscard]] QString format() const {
-        return QString("%1 Games (%2)")
-            .arg(m_name, format_extensions().join(" "));
-    }
-
-    [[nodiscard]] QStringList format_extensions() const {
-        QList<QString> mapped_extensions;
-        std::transform(m_extensions.begin(), m_extensions.end(),
-                std::back_inserter(mapped_extensions),
-                [](const QString &ext) { return QString("*.") + ext; });
-        return mapped_extensions;
-    }
-
-private:
-    QString m_name;
-    QStringList m_extensions;
-};
-
-}
 
 void garglk::winmsg(const std::string &msg)
 {
     QMessageBox::critical(nullptr, "Error", msg.c_str());
-}
-
-static QString winbrowsefile()
-{
-    const QVector<Filter> filters = {
-        Filter("Adrift", {"taf"}),
-        Filter("AdvSys", {"dat"}),
-        Filter("AGT", {"agx", "d$$"}),
-        Filter("Alan", {"acd", "a3c"}),
-        Filter("Glulx", {"ulx", "blb", "blorb", "glb", "gblorb"}),
-        Filter("Hugo", {"hex"}),
-        Filter("JACL", {"jacl", "j2"}),
-        Filter("Level 9", {"l9", "sna"}),
-        Filter("Magnetic Scrolls", {"mag"}),
-        Filter("TADS", {"gam", "t3"}),
-        Filter("Z-code", {"z1", "z2", "z3", "z4", "z5", "z6", "z7", "z8", "zlb", "zblorb"}),
-    };
-    QList<QString> mapped_filters;
-    std::transform(filters.begin(), filters.end(),
-            std::back_inserter(mapped_filters),
-            [](const Filter &filter) { return filter.format(); });
-
-    QStringList all_extensions;
-    for (const auto &filter : filters) {
-        all_extensions << filter.format_extensions();
-    }
-
-    QString filter_string = QString("All Games (%1);;All Files (*);;%2")
-        .arg(all_extensions.join(" "), mapped_filters.join(";;"));
-
-    // Hide filter details because the sheer number in "All Games" makes
-    // the dialog ridiculously wide (Qt probably should cut it off, but
-    // it doesn't, so try to compensate here).
-    QFileDialog::Options options(QFileDialog::HideNameFilterDetails);
-#ifdef GARGLK_CONFIG_NO_NATIVE_FILE_DIALOGS
-    options |= QFileDialog::DontUseNativeDialog;
-#endif
-    return QFileDialog::getOpenFileName(nullptr, AppName, "", filter_string, nullptr, options);
 }
 
 bool garglk::winterp(const std::string &exe, const std::vector<std::string> &flags, const std::string &game)
@@ -144,6 +76,18 @@ bool garglk::winterp(const std::string &exe, const std::vector<std::string> &fla
 #else
         interpreter_dir = QCoreApplication::applicationDirPath();
 #endif
+#ifdef Q_OS_MAC
+        // macOS app bundles install interpreters in Contents/PlugIns
+        // (gargoyle_osx.sh; matches launchmac.mm's builtInPlugInsPath).
+        // Prefer that when the requested interpreter exists there.
+        QDir plugins_dir(QCoreApplication::applicationDirPath());
+        if (plugins_dir.cd("../PlugIns")) {
+            QString plugin_exe = plugins_dir.absoluteFilePath(QString::fromStdString(exe));
+            if (QFileInfo::exists(plugin_exe)) {
+                interpreter_dir = plugins_dir.absolutePath();
+            }
+        }
+#endif
     }
 
     QString argv0 = QDir(interpreter_dir).absoluteFilePath(exe.c_str());
@@ -154,8 +98,42 @@ bool garglk::winterp(const std::string &exe, const std::vector<std::string> &fla
     }
     args.push_back(QString::fromStdString(game));
 
+    if (garglk::session_is_parent()) {
+        // IPC session: launch non-blocking; the parent owns windows.
+        QProcess proc;
+        proc.setProgram(argv0);
+        proc.setArguments(args);
+        auto env = QProcessEnvironment::systemEnvironment();
+        env.insert("GARGLK_LAUNCHER", QCoreApplication::applicationFilePath());
+        // Mark children so they can hide from the macOS Dock while still
+        // creating a QApplication for Qt event processing.
+        env.insert("GARGLK_IPC_CHILD", "1");
+#ifdef Q_OS_MAC
+        if (auto resources = qgetenv("GARGLK_RESOURCES"); !resources.isEmpty()) {
+            env.insert("GARGLK_RESOURCES", QString::fromUtf8(resources));
+        }
+#endif
+        proc.setProcessEnvironment(env);
+        if (!proc.startDetached()) {
+            garglk::winmsg("Could not start interpreter " + argv0.toStdString());
+            return false;
+        }
+        return true;
+    }
+
     QProcess proc;
     proc.setProcessChannelMode(QProcess::ForwardedChannels);
+
+    // So interpreters can re-launch Gargoyle (File → Open / Open Recent).
+    auto env = QProcessEnvironment::systemEnvironment();
+    env.insert("GARGLK_LAUNCHER", QCoreApplication::applicationFilePath());
+#ifdef Q_OS_MAC
+    if (auto resources = qgetenv("GARGLK_RESOURCES"); !resources.isEmpty()) {
+        env.insert("GARGLK_RESOURCES", QString::fromUtf8(resources));
+    }
+#endif
+    proc.setProcessEnvironment(env);
+
     proc.start(argv0, args);
 
     if (!proc.waitForStarted(5000)) {
@@ -313,6 +291,14 @@ int main(int argc, char **argv)
     QApplication::setApplicationName("gargoyle");
     QApplication::setApplicationVersion(GARGOYLE_VERSION);
 
+#ifdef Q_OS_MAC
+    // Match launchmac.mm: point interpreters/fontload at Contents/Resources.
+    QDir resources_dir(QCoreApplication::applicationDirPath());
+    if (resources_dir.cd("../Resources")) {
+        qputenv("GARGLK_RESOURCES", resources_dir.absolutePath().toUtf8());
+    }
+#endif
+
     garglk::theme::init();
 
     auto story = parse_args(app);
@@ -337,15 +323,52 @@ int main(int argc, char **argv)
     }
 #endif
 
+    // Read config early so ipc / ipc_server are available for handoff.
+    // If a story was passed on the CLI, per-game config applies too.
+    gli_read_config(argc, argv);
+
+    if (gli_conf_ipc) {
+        if (!story.isEmpty() && garglk::session_try_handoff(story)) {
+            return 0;
+        }
+
+        if (story.isEmpty()) {
+            story = garglk::browse_for_game();
+        }
+        if (story.isEmpty()) {
+            return 1;
+        }
+
+        // Re-read so per-game config from the chosen story applies.
+        // Build a synthetic argv with the story path.
+        std::string story_std = story.toStdString();
+        std::vector<char *> config_argv;
+        config_argv.push_back(argv[0]);
+        config_argv.push_back(story_std.data());
+        gli_read_config(static_cast<int>(config_argv.size()), config_argv.data());
+
+        if (!garglk::session_init_parent()) {
+            return 1;
+        }
+
+        garglk::session_set_launcher([](const std::string &game) {
+            return garglk::rungame(game);
+        });
+
+        if (!garglk::session_open_game(story)) {
+            return 1;
+        }
+
+        return garglk::session_exec();
+    }
+
     if (story.isEmpty()) {
-        story = winbrowsefile();
+        story = garglk::browse_for_game();
     }
 
     if (story.isEmpty()) {
         return 1;
     }
-
-    gli_read_config(argc, argv);
 
     // run story file
     return garglk::rungame(story.toStdString()) ? 0 : 1;
