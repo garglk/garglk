@@ -16,7 +16,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#else
 #include <strings.h>
+#endif
 
 #include "debugprint.h"
 #include "ciderpress.h"

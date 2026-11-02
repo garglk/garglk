@@ -12,7 +12,12 @@
 
 #include <stdlib.h>
 #include <string.h>
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#else
 #include <strings.h>
+#endif
 /* Makes z_stream.next_in a pointer to const */
 #define ZLIB_CONST
 #include <zlib.h>
