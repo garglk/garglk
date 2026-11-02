@@ -1,5 +1,24 @@
 /* vi: set ts=8:
  *
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * Written from a reading of the ADRIFT 5 Runner source as released in
+ * FrankenDrift, to reproduce its behaviour; no code from it is used.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
  * ADRIFT 5 support for Scarier -- de-obfuscation + zlib inflate.
  * See a5deobf.h.
  */
@@ -87,7 +106,7 @@ a5_deobfuscate (uint8_t *data, uint32_t offset, uint32_t length)
 {
   uint32_t i;
 
-  if (data == NULL)
+  if (data == nullptr)
     return;
   for (i = 0; i < length; i++)
     data[offset + i] ^= A5_KEY[i % 1024];
@@ -96,30 +115,31 @@ a5_deobfuscate (uint8_t *data, uint32_t offset, uint32_t length)
 uint8_t *
 a5_inflate (const uint8_t *data, uint32_t length, uint32_t *out_size)
 {
-  z_stream stream;
+  z_stream stream = {};
   uint8_t *out;
   size_t cap;
   int status;
 
-  /* The result is handed back through a uint32_t *out_size, so a decompressed
-     payload cannot usefully exceed 4 GB; cap growth here uses size_t and is
-     bounded so the doubling can never overflow to 0 and hand inflate a bogus
-     avail_out. */
-  const size_t A5_INFLATE_MAX = 0xFFFFFFFFu;
+  /* Cap the decompressed size.  The input is an untrusted game or save file,
+     and deflate reaches ~1000:1, so without a ceiling a small zip bomb could
+     drive the buffer to gigabytes.  Real game XML runs to megabytes, not
+     hundreds of them, so 256 MB never binds on a genuine file.  Growth uses
+     size_t and is bounded so the doubling can never overflow and hand
+     inflate a bogus avail_out. */
+  const size_t A5_INFLATE_MAX = (size_t) 256 * 1024 * 1024;
 
-  memset (&stream, 0, sizeof stream);
   if (inflateInit (&stream) != Z_OK)
-    return NULL;
+    return nullptr;
 
   /* Start with a generous guess and grow as needed (XML compresses well). */
   cap = (size_t) length * 8 + 1024;
   if (cap > A5_INFLATE_MAX)
     cap = A5_INFLATE_MAX;
   out = (uint8_t *) malloc (cap);
-  if (out == NULL)
+  if (out == nullptr)
     {
       inflateEnd (&stream);
-      return NULL;
+      return nullptr;
     }
 
   stream.next_in = (Bytef *) data;
@@ -140,15 +160,15 @@ a5_inflate (const uint8_t *data, uint32_t length, uint32_t *out_size)
                  wrapping the capacity and overflowing the buffer. */
               free (out);
               inflateEnd (&stream);
-              return NULL;
+              return nullptr;
             }
           cap = (cap > A5_INFLATE_MAX / 2) ? A5_INFLATE_MAX : cap * 2;
           grown = (uint8_t *) realloc (out, cap);
-          if (grown == NULL)
+          if (grown == nullptr)
             {
               free (out);
               inflateEnd (&stream);
-              return NULL;
+              return nullptr;
             }
           out = grown;
           stream.next_out = out + used;
@@ -162,18 +182,18 @@ a5_inflate (const uint8_t *data, uint32_t length, uint32_t *out_size)
     {
       free (out);
       inflateEnd (&stream);
-      return NULL;
+      return nullptr;
     }
 
   /* NUL-terminate (grow by one if the buffer is exactly full). */
   if (stream.avail_out == 0)
     {
       uint8_t *grown = (uint8_t *) realloc (out, cap + 1);
-      if (grown == NULL)
+      if (grown == nullptr)
         {
           free (out);
           inflateEnd (&stream);
-          return NULL;
+          return nullptr;
         }
       out = grown;
     }
@@ -187,23 +207,22 @@ a5_inflate (const uint8_t *data, uint32_t length, uint32_t *out_size)
 uint8_t *
 a5_deflate (const uint8_t *data, uint32_t length, uint32_t *out_size)
 {
-  z_stream stream;
+  z_stream stream = {};
   uint8_t *out;
   uint32_t cap;
   int status;
 
-  memset (&stream, 0, sizeof stream);
   /* Default windowBits (15) => a plain zlib stream (0x78 header), matching
      .NET's ZLibStream; CompressionLevel.Optimal maps to Z_BEST_COMPRESSION. */
   if (deflateInit (&stream, Z_BEST_COMPRESSION) != Z_OK)
-    return NULL;
+    return nullptr;
 
   cap = length + (length >> 8) + 64;   /* deflateBound-ish generous guess */
   out = (uint8_t *) malloc (cap);
-  if (out == NULL)
+  if (out == nullptr)
     {
       deflateEnd (&stream);
-      return NULL;
+      return nullptr;
     }
 
   stream.next_in = (Bytef *) data;
@@ -220,11 +239,11 @@ a5_deflate (const uint8_t *data, uint32_t length, uint32_t *out_size)
 
           cap *= 2;
           grown = (uint8_t *) realloc (out, cap);
-          if (grown == NULL)
+          if (grown == nullptr)
             {
               free (out);
               deflateEnd (&stream);
-              return NULL;
+              return nullptr;
             }
           out = grown;
           stream.next_out = out + used;
@@ -238,7 +257,7 @@ a5_deflate (const uint8_t *data, uint32_t length, uint32_t *out_size)
     {
       free (out);
       deflateEnd (&stream);
-      return NULL;
+      return nullptr;
     }
 
   *out_size = (uint32_t) stream.total_out;

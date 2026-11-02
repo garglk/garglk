@@ -1,0 +1,13 @@
+0.3:
+	Fix Blizzard Pass handling and some other formatting glitches.
+	GOBY becomes a second message block in later games.
+	Fix incorrect RAM save/load and oops codes.
+
+	Kayleth now appears to work from initial testing as should other
+	games with a second message bank.
+
+0.2
+	Fix various formatting glitches with older games. Rebel Planet is
+	now playable.
+0.1
+	Original release

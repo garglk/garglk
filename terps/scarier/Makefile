@@ -17,7 +17,7 @@
 # USA
 #
 
-VERSION = 1.4.0
+VERSION = 1.5.0
 
 #
 # Compiler and Glk library setup.  Configure this section to match the
@@ -35,7 +35,10 @@ CXX	= c++
 DEBUG	=
 CEXTRA	=
 CFLAGS	= -O2 -fPIC $(DEBUG) $(CEXTRA)
-CXXFLAGS = -O2 -fPIC -Wall -W $(DEBUG) $(CEXTRA)
+# -I. lets the command library in library/, the runner in runner/ and the
+# front ends find the engine headers as "core/scarier.h" and the shared
+# mapdraw.h / sessrec.h at the root.
+CXXFLAGS = -O2 -fPIC -Wall -W $(DEBUG) $(CEXTRA) -I.
 LDLIBS	= -lz
 LDEXTRA	=
 LDFLAGS	= $(DEBUG) $(LDEXTRA)
@@ -77,86 +80,78 @@ SHELL	= /bin/sh
 RM	= rm
 TEST	= test
 
+# -MMD writes a .d file beside each object naming the headers that source
+# really includes, so a header edit rebuilds only the objects that use it;
+# -MP keeps a deleted header from stopping the build.  The .d files are read
+# back in at the bottom of this file.
+DEPFLAGS = -MMD -MP
+
 # Build C-like C++ interpreter objects from .cpp sources.
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c -o $@ $<
 
-# ADRIFT 5 engine objects live in adrift5/; -I. lets them pick up the bundled
-# zlib headers unzipped into the Scarier root.
+# ADRIFT 5 engine objects live in adrift5/; -I. lets them include the engine
+# headers (core/scarier.h, core/scprotos.h) and the shared ones at the root.
 adrift5/%.o: adrift5/%.cpp
-	$(CXX) $(CXXFLAGS) -I. -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -I. -c -o $@ $<
 
-# Scarier objects and headers.
-OBJECTS	= sctafpar.o sctaffil.o scprops.o scvars.o scexpr.o scprintf.o	\
-	  scinterf.o scparser.o sclibrar.o scrunner.o scevents.o	\
-	  scnpcs.o scbattle.o scobjcts.o sctasks.o screstrs.o scgamest.o scserial.o\
-	  scresour.o scmemos.o scutils.o sclocale.o scdebug.o
-HEADERS	= scarier.h scprotos.h scgamest.h
+# Scarier objects: the ADRIFT 4 engine in core/ (every sc*.cpp)
+# plus the library/ and runner/ topic files.  tools/ is the
+# SCARIER_DUMP_TOOLS diagnostic instrumentation, compiled only by
+# Makefile.headless; core/scmap.cpp is linked through MAPOBJECTS below.  A
+# new .cpp in any of these three places is picked up without editing this
+# file (the Xcode project still needs its own entry).
+COREDIR	= core
+LIBDIR	= library
+RUNDIR	= runner
+OBJECTS	= $(filter-out $(COREDIR)/scmap.o,				\
+	    $(patsubst %.cpp,%.o,$(wildcard $(COREDIR)/sc*.cpp)))	\
+	  $(patsubst %.cpp,%.o,$(wildcard $(LIBDIR)/*.cpp) $(wildcard $(RUNDIR)/*.cpp))
 
-# The map pane: scmap.cpp builds the ADRIFT 4 map model, a5map.cpp the ADRIFT 5
-# one, and both draw into the engine-neutral rasteriser in mapdraw.cpp.  Only
-# the Glk port has somewhere to put a map, so these stay out of $(OBJECTS).
-MAPOBJECTS = mapdraw.o scmap.o
-MAPHEADERS = mapdraw.h scmap.h
+# The map pane: core/scmap.cpp builds the ADRIFT 4 map model, a5map.cpp the
+# ADRIFT 5 one, and both draw into the engine-neutral rasteriser in
+# mapdraw.cpp, which stays at the root with the other shared files.  Only the
+# Glk port has somewhere to show a map, but the engine calls
+# scmap_forget_game(), so every build links them.
+MAPOBJECTS = mapdraw.o $(COREDIR)/scmap.o
 
-# The shared, seedable cross-platform RNG (erkyrath xoshiro128**) the v5 engine
-# draws from, so seeded walkthroughs reproduce across platforms.  Plain C, and
-# it pulls glui32 in from glk.h, so it is built only for the Glk port.
+# The shared, seedable cross-platform RNG (erkyrath xoshiro128**): the v5
+# engine draws from it, so seeded walkthroughs reproduce across platforms, and
+# the v4 engine's Runner-compatible generator is the same one.  Plain C, with
+# no Glk dependency, so the ANSI build links it too.
 COMMON	= ../common_utils
 RANDOBJ	= a5_randomness.o
 
-# ADRIFT 5 engine objects and headers (driven by os_glk.cpp via gsc_a5_main
-# when the loaded file is an ADRIFT 5 game).
+# ADRIFT 5 engine objects (driven by glk/os_glk_a5.cpp via
+# gsc_a5_main when the loaded file is an ADRIFT 5 game).
 A5DIR	= adrift5
-A5OBJECTS = $(A5DIR)/a5blorb.o $(A5DIR)/a5deobf.o $(A5DIR)/a5xml.o	\
-	  $(A5DIR)/a5model.o $(A5DIR)/a5state.o $(A5DIR)/a5restr.o	\
-	  $(A5DIR)/a5expr.o $(A5DIR)/a5sexpr.o $(A5DIR)/a5text.o	\
-	  $(A5DIR)/a5parse.o $(A5DIR)/a5rand.o $(A5DIR)/a5sb.o		\
-	  $(A5DIR)/a5run_ref.o $(A5DIR)/a5run_events.o			\
-	  $(A5DIR)/a5run_conv.o $(A5DIR)/a5run_resp.o			\
-	  $(A5DIR)/a5run_sort.o						\
-	  $(A5DIR)/a5run_action.o $(A5DIR)/a5run.o $(A5DIR)/a5map.o
-A5HEADERS = $(A5DIR)/a5blorb.h $(A5DIR)/a5deobf.h $(A5DIR)/a5xml.h	\
-	  $(A5DIR)/a5model.h $(A5DIR)/a5state.h $(A5DIR)/a5restr.h	\
-	  $(A5DIR)/a5expr.h $(A5DIR)/a5sexpr.h $(A5DIR)/a5text.h	\
-	  $(A5DIR)/a5parse.h $(A5DIR)/a5rand.h $(A5DIR)/a5sb.h		\
-	  $(A5DIR)/a5run.h $(A5DIR)/a5run_internal.h $(A5DIR)/a5map.h
-
-# Scarier verifier objects and headers.
-XOBJECTS= sxmain.o sxutils.o sxglob.o sxtester.o sxscript.o sxfile.o	\
-	  sxstubs.o
-XHEADERS= sxprotos.h
+A5SRCDIRS = $(A5DIR) $(A5DIR)/text $(A5DIR)/run
+A5OBJECTS = $(patsubst %.cpp,%.o,$(wildcard $(addsuffix /*.cpp,$(A5SRCDIRS))))
 
 # Default make target is the basic ANSI interpreter.
 all:	scarier
 
-$(OBJECTS): $(HEADERS)
+scarier: $(OBJECTS) $(MAPOBJECTS) $(RANDOBJ) platform/os_ansi.o
+	$(CXX) $(LDFLAGS) -o scarier $(OBJECTS) $(MAPOBJECTS) $(RANDOBJ)	\
+		platform/os_ansi.o $(LDLIBS)
 
-scarier: $(OBJECTS) os_ansi.o
-	$(CXX) $(LDFLAGS) -o scarier $(OBJECTS) os_ansi.o $(LDLIBS)
+# Option to build the Glk port of Scarier.  The Glk front end lives in glk/:
+# os_glk.cpp (module state, startup, event loop) plus the parts split
+# out of it; os_glk_internal.h is what they share.
+OSGLKDIR = glk
+GLKOBJECTS = $(patsubst %.cpp,%.o,$(wildcard $(OSGLKDIR)/*.cpp))
 
-# Option to build the Scarier verifier.
-$(XOBJECTS): $(XHEADERS)
-
-sx: $(OBJECTS) $(XOBJECTS)
-	$(CXX) $(LDFLAGS) -o sx $(OBJECTS) $(XOBJECTS) $(LDLIBS)
-
-# Option to build the Glk port of Scarier.
-glkscarier: $(OBJECTS) $(A5OBJECTS) $(MAPOBJECTS) $(RANDOBJ) os_glk.o
+glkscarier: $(OBJECTS) $(A5OBJECTS) $(MAPOBJECTS) $(RANDOBJ) $(GLKOBJECTS)
 	@$(TEST) -n "$(GLKLIB)" \
 		|| ( echo "Could not include $(GLKPATH)/Make.$(GLK)"; exit 1 )
 	$(CXX) $(LDFLAGS) -o glkscarier $(OBJECTS) $(A5OBJECTS)		\
-		$(MAPOBJECTS) $(RANDOBJ) os_glk.o $(LDLIBS) $(GLKLIBS)
+		$(MAPOBJECTS) $(RANDOBJ) $(GLKOBJECTS) $(LDLIBS) $(GLKLIBS)
 
-$(A5OBJECTS): $(A5HEADERS)
+$(RANDOBJ): $(COMMON)/randomness.c
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o $@ $(COMMON)/randomness.c
 
-$(MAPOBJECTS): $(MAPHEADERS)
-
-$(RANDOBJ): $(COMMON)/randomness.c $(COMMON)/randomness.h
-	$(CC) $(CFLAGS) -I$(GLKPATH) -c -o $@ $(COMMON)/randomness.c
-
-os_glk.o: os_glk.cpp $(HEADERS) $(A5HEADERS) $(MAPHEADERS)
-	$(CXX) $(GLKARCH) $(CXXFLAGS) -Wno-write-strings			\
+$(GLKOBJECTS): %.o: %.cpp
+	$(CXX) $(GLKARCH) $(CXXFLAGS) $(DEPFLAGS) -Wno-write-strings	\
 		-I $(GLKDIR)/$(GLK) -c -o $@ $<
 
 # Option to build an IFP plugin version of Scarier.
@@ -171,14 +166,18 @@ scarier_plugin.o: scarier_plugin.c
 PLUGIN_LIBS = -lifppi
 PLUGIN_OBJS = scarier_plugin.o
 scarier-$(VERSION).so: $(OBJECTS) $(A5OBJECTS) $(MAPOBJECTS) $(RANDOBJ)	\
-		os_glk.o $(PLUGIN_OBJS)
+		$(GLKOBJECTS) $(PLUGIN_OBJS)
 	$(CXX) -shared -Wl,-u,ifpi_force_link -Wl,-Bsymbolic		\
 		-o $@ $(OBJECTS) $(A5OBJECTS) $(MAPOBJECTS) $(RANDOBJ)	\
-		os_glk.o $(PLUGIN_OBJS) $(PLUGIN_LIBS) -lc
+		$(GLKOBJECTS) $(PLUGIN_OBJS) $(PLUGIN_LIBS) -lc
 
-# Cleanup.
+# Cleanup.  ALLOBJECTS is every object any target above builds; each has a
+# .d file beside it.
+ALLOBJECTS = $(OBJECTS) $(A5OBJECTS) $(MAPOBJECTS) $(RANDOBJ) $(GLKOBJECTS) \
+	     platform/os_ansi.o $(PLUGIN_OBJS)
 clean:
-	$(RM) -f scarier sx glkscarier *.o adrift5/*.o core core.* *.gcov *.gcno *.gcda
+	$(RM) -f scarier glkscarier $(ALLOBJECTS) $(ALLOBJECTS:.o=.d)
+	$(RM) -f *.gcov *.gcno *.gcda
 	$(RM) -f scarier_plugin.c scarier-$(VERSION).so
 
 distclean: clean
@@ -189,3 +188,6 @@ maintainer-clean: clobber
 
 # Unimplemented targets.
 dist check:
+
+# Header dependencies, as the compiler recorded them on the last build.
+-include $(ALLOBJECTS:.o=.d)

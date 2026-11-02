@@ -1,5 +1,24 @@
 /* vi: set ts=8:
  *
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * Written from a reading of the ADRIFT 5 Runner source as released in
+ * FrankenDrift, to reproduce its behaviour; no code from it is used.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
  * ADRIFT 5 support for Scarier -- Blorb / IFF container reader.
  * See a5blorb.h.  Modelled on Bocfel's iff.cpp/blorb.cpp.
  */
@@ -16,45 +35,76 @@ a5_be32 (const uint8_t *p)
        | ((uint32_t) p[2] << 8) | (uint32_t) p[3];
 }
 
-int
-a5blorb_find (const uint8_t *buf, uint32_t length,
-              uint32_t usage, uint32_t number, a5_blorb_chunk_t *out)
+/* TRUE if the buffer opens as a Blorb: FORM ... IFRS. */
+static int
+a5_is_blorb (const uint8_t *buf, uint32_t length)
 {
-  uint32_t pos, ridx_off, ridx_size, nresources, entry, index_;
+  return buf != nullptr && length >= 12
+         && a5_be32 (buf) == a5_fourcc ('F', 'O', 'R', 'M')
+         && a5_be32 (buf + 8) == a5_fourcc ('I', 'F', 'R', 'S');
+}
 
-  if (buf == NULL || length < 12)
-    return 0;
+/* Walk the top-level chunks of a Blorb and hand each to accept(type, body,
+   size), stopping at the first it returns non-zero for.  The one place that
+   steps from chunk to chunk.  Returns what accept returned, or zero when no
+   chunk was accepted. */
+template <typename Accept>
+static int
+a5_each_chunk (const uint8_t *buf, uint32_t length, Accept accept)
+{
+  uint32_t pos = 12;
 
-  /* Outer wrapper must be FORM ... IFRS. */
-  if (a5_be32 (buf) != A5_FOURCC ('F', 'O', 'R', 'M')
-      || a5_be32 (buf + 8) != A5_FOURCC ('I', 'F', 'R', 'S'))
-    return 0;
-
-  /* Walk the top-level chunks looking for the resource index, RIdx. */
-  ridx_off = 0;
-  ridx_size = 0;
-  pos = 12;
   while (pos + 8 <= length)
     {
       uint32_t ctype = a5_be32 (buf + pos);
       uint32_t csize = a5_be32 (buf + pos + 4);
       uint32_t body = pos + 8;
 
-      if (ctype == A5_FOURCC ('R', 'I', 'd', 'x'))
-        {
-          ridx_off = body;
-          ridx_size = csize;
-          break;
-        }
-      /* Chunks are padded to an even length.  Guard the advance against a
-         garbled csize that would overflow uint32 and wrap pos backwards
-         (which would re-scan the same bytes forever). */
+      /* A chunk that claims more than the file holds is garbled, and ends
+         the walk. */
       if (csize > length - body)
         break;
+
+      if (accept (ctype, body, csize))
+        return 1;
+
+      /* Chunks are padded to an even length.  Guard the advance against a
+         csize that would overflow uint32 and wrap pos backwards (which would
+         re-scan the same bytes forever). */
       pos = body + csize + (csize & 1);
       if (pos < body)
         break;
     }
+
+  return 0;
+}
+
+/*
+ * Locate a resource by usage FourCC and number.  On success returns nonzero
+ * and fills *out with the chunk type and a pointer/size for its body.  The
+ * pointer aliases into buf, so it stays valid as long as buf does.
+ */
+static int
+a5blorb_find (const uint8_t *buf, uint32_t length,
+              uint32_t usage, uint32_t number, a5_blorb_chunk_t *out)
+{
+  uint32_t ridx_off, ridx_size, nresources, entry, index_;
+
+  if (!a5_is_blorb (buf, length))
+    return 0;
+
+  /* Walk the top-level chunks looking for the resource index, RIdx. */
+  ridx_off = 0;
+  ridx_size = 0;
+  a5_each_chunk (buf, length,
+                 [&] (uint32_t ctype, uint32_t body, uint32_t csize)
+                 {
+                   if (ctype != a5_fourcc ('R', 'I', 'd', 'x'))
+                     return 0;
+                   ridx_off = body;
+                   ridx_size = csize;
+                   return 1;
+                 });
 
   if (ridx_off == 0 || ridx_size < 4 || ridx_off + 4 > length)
     return 0;
@@ -108,83 +158,44 @@ a5blorb_find_exec (const uint8_t *buf, uint32_t length, a5_blorb_chunk_t *out)
 int
 a5blorb_find_metadata (const uint8_t *buf, uint32_t length, a5_blorb_chunk_t *out)
 {
-  uint32_t pos;
-
-  if (buf == NULL || length < 12)
+  if (!a5_is_blorb (buf, length))
     return 0;
 
-  if (a5_be32 (buf) != A5_FOURCC ('F', 'O', 'R', 'M')
-      || a5_be32 (buf + 8) != A5_FOURCC ('I', 'F', 'R', 'S'))
-    return 0;
-
-  pos = 12;
-  while (pos + 8 <= length)
-    {
-      uint32_t ctype = a5_be32 (buf + pos);
-      uint32_t csize = a5_be32 (buf + pos + 4);
-      uint32_t body = pos + 8;
-
-      if (csize > length - body)
-        break;
-
-      if (ctype == A5_FOURCC ('I', 'F', 'm', 'd'))
-        {
-          out->type = ctype;
-          out->data = buf + body;
-          out->size = csize;
-          return 1;
-        }
-
-      pos = body + csize + (csize & 1);
-      if (pos < body)
-        break;
-    }
-
-  return 0;
+  return a5_each_chunk (buf, length,
+                        [&] (uint32_t ctype, uint32_t body, uint32_t csize)
+                        {
+                          if (ctype != a5_fourcc ('I', 'F', 'm', 'd'))
+                            return 0;
+                          out->type = ctype;
+                          out->data = buf + body;
+                          out->size = csize;
+                          return 1;
+                        });
 }
 
 int
 a5blorb_find_layout (const uint8_t *buf, uint32_t length, a5_blorb_chunk_t *out)
 {
-  uint32_t pos;
-
-  if (buf == NULL || length < 12)
+  if (!a5_is_blorb (buf, length))
     return 0;
 
-  if (a5_be32 (buf) != A5_FOURCC ('F', 'O', 'R', 'M')
-      || a5_be32 (buf + 8) != A5_FOURCC ('I', 'F', 'R', 'S'))
-    return 0;
-
-  pos = 12;
-  while (pos + 8 <= length)
-    {
-      uint32_t ctype = a5_be32 (buf + pos);
-      uint32_t csize = a5_be32 (buf + pos + 4);
-      uint32_t body = pos + 8;
-
-      if (csize > length - body)
-        break;
-
-      /* The Generator writes the layout through a data chunk, which is 'TEXT'
-         unless something set it to 'BINA' (Blorb.vb, DataChunk.ID); either
-         way the payload names its own type in its first four bytes. */
-      if ((ctype == A5_FOURCC ('T', 'E', 'X', 'T')
-           || ctype == A5_FOURCC ('B', 'I', 'N', 'A'))
-          && csize > 4
-          && a5_be32 (buf + body) == A5_FOURCC ('R', 'L', 'A', 'Y'))
-        {
-          out->type = ctype;
-          out->data = buf + body + 4;
-          out->size = csize - 4;
-          return 1;
-        }
-
-      pos = body + csize + (csize & 1);
-      if (pos < body)
-        break;
-    }
-
-  return 0;
+  /* The Generator writes the layout through a data chunk, which is 'TEXT'
+     unless something set it to 'BINA' (Blorb.vb, DataChunk.ID); either way
+     the payload names its own type in its first four bytes. */
+  return a5_each_chunk (buf, length,
+                        [&] (uint32_t ctype, uint32_t body, uint32_t csize)
+                        {
+                          if ((ctype != a5_fourcc ('T', 'E', 'X', 'T')
+                               && ctype != a5_fourcc ('B', 'I', 'N', 'A'))
+                              || csize <= 4
+                              || a5_be32 (buf + body)
+                                 != a5_fourcc ('R', 'L', 'A', 'Y'))
+                            return 0;
+                          out->type = ctype;
+                          out->data = buf + body + 4;
+                          out->size = csize - 4;
+                          return 1;
+                        });
 }
 
 /* ------------------------------------------------ Runner layout (RLAY) XML */
@@ -204,13 +215,13 @@ a5_scan (const char *hay, size_t n, const char *needle)
   size_t i;
 
   if (nl == 0 || n < nl)
-    return NULL;
+    return nullptr;
   for (i = 0; i + nl <= n; i++)
     {
       if (hay[i] == needle[0] && memcmp (hay + i, needle, nl) == 0)
         return hay + i;
     }
-  return NULL;
+  return nullptr;
 }
 
 /*
@@ -225,10 +236,10 @@ a5_elem_text (const char *el, const char *end,
   const char *gt, *lt;
 
   gt = a5_scan (el, (size_t) (end - el), ">");
-  if (gt == NULL || gt == el || gt[-1] == '/')
+  if (gt == nullptr || gt == el || gt[-1] == '/')
     return 0;
   lt = a5_scan (gt + 1, (size_t) (end - gt - 1), "<");
-  if (lt == NULL)
+  if (lt == nullptr)
     return 0;
   *text = gt + 1;
   *text_len = (size_t) (lt - gt - 1);
@@ -250,22 +261,22 @@ a5_pane_caption (const char *span, const char *span_end,
   size_t reflen;
 
   el = a5_scan (span, (size_t) (span_end - span), "<Text");
-  if (el == NULL || span_end - el < 6
+  if (el == nullptr || span_end - el < 6
       || (el[5] != ' ' && el[5] != '>' && el[5] != '/'))
     return 0;
 
   gt = a5_scan (el, (size_t) (span_end - el), ">");
-  if (gt == NULL)
+  if (gt == nullptr)
     return 0;
 
   /* <Text href="#ref-24"/> -- the caption lives in the element with that id. */
   href = a5_scan (el, (size_t) (gt - el), "href=\"#");
-  if (href == NULL)
+  if (href == nullptr)
     return a5_elem_text (el, span_end, text, text_len);
 
   href += strlen ("href=\"#");
   quote = a5_scan (href, (size_t) (gt - href), "\"");
-  if (quote == NULL)
+  if (quote == nullptr)
     return 0;
   reflen = (size_t) (quote - href);
   if (reflen == 0 || reflen + strlen ("id=\"\"") >= sizeof idref)
@@ -276,7 +287,7 @@ a5_pane_caption (const char *span, const char *span_end,
   idref[5 + reflen] = '\0';
 
   target = a5_scan (doc, (size_t) (doc_end - doc), idref);
-  if (target == NULL)
+  if (target == nullptr)
     return 0;
   /* Back up to the '<' that opens the element carrying the id. */
   while (target > doc && *target != '<')
@@ -296,7 +307,7 @@ a5blorb_layout_pane_open (const uint8_t *xml, uint32_t length,
   const char *at;
   size_t pane_len;
 
-  if (xml == NULL || length == 0 || pane == NULL)
+  if (xml == nullptr || length == 0 || pane == nullptr)
     return -1;
   pane_len = strlen (pane);
 
@@ -308,7 +319,7 @@ a5blorb_layout_pane_open (const uint8_t *xml, uint32_t length,
       const char *lt;
 
       at = a5_scan (at, (size_t) (doc_end - at), PANE_TAG);
-      if (at == NULL)
+      if (at == nullptr)
         return -1;
       span = at;
       at += sizeof PANE_TAG - 1;
@@ -323,7 +334,7 @@ a5blorb_layout_pane_open (const uint8_t *xml, uint32_t length,
       /* Panes do not nest, so the element body runs to the next mention of the
          tag -- its own close tag, or the next pane if the file is truncated. */
       span_end = a5_scan (at, (size_t) (doc_end - at), PANE_TAG);
-      if (span_end == NULL)
+      if (span_end == nullptr)
         span_end = doc_end;
 
       if (!a5_pane_caption (span, span_end, doc, doc_end,
@@ -334,7 +345,7 @@ a5blorb_layout_pane_open (const uint8_t *xml, uint32_t length,
 
       /* Infragistics writes <Closed> only for a closed pane, but do not rely
          on the omission alone. */
-      if (a5_scan (span, (size_t) (span_end - span), "<Closed>true<") != NULL)
+      if (a5_scan (span, (size_t) (span_end - span), "<Closed>true<") != nullptr)
         return 0;
       return 1;
     }

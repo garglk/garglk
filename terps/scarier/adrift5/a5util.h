@@ -1,5 +1,24 @@
 /* vi: set ts=8:
  *
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * Written from a reading of the ADRIFT 5 Runner source as released in
+ * FrankenDrift, to reproduce its behaviour; no code from it is used.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
  * ADRIFT 5 support for Scarier -- tiny string helpers shared by every a5 file.
  *
  * These four were independently copy-pasted into most of the a5*.cpp files (five
@@ -23,7 +42,7 @@
 static inline int
 streq (const char *a, const char *b)
 {
-  return a != NULL && b != NULL && strcmp (a, b) == 0;
+  return a != nullptr && b != nullptr && strcmp (a, b) == 0;
 }
 
 /* LCase(): the Adrift 5 runner lowercases input, keys and match text alike. */

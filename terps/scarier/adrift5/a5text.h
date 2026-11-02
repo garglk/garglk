@@ -1,17 +1,34 @@
 /* vi: set ts=8:
  *
- * ADRIFT 5 support for Scarier -- text engine (Phase 2 MVP).
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * Written from a reading of the ADRIFT 5 Runner source as released in
+ * FrankenDrift, to reproduce its behaviour; no code from it is used.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
+ * ADRIFT 5 support for Scarier -- text engine.
  *
  * Turns the model's <Description> blocks into display text: it evaluates the
  * SingleDescription list (DisplayWhen + per-description restrictions), runs the
- * %function% / %variable% substitution and ALR ("Text Override") passes, applies
+ * %function% / %variable% substitution, OO property, <#expression#> and ALR
+ * ("Text Override") passes, resolves perspective and pronouns, applies
  * ADRIFT's sentence auto-capitalisation, and renders the resulting HTML-ish
- * markup (<br>, <c>, <b>, <i>, entities) down to plain text.
- *
- * Covers the variables, core functions and tags the static world needs; the
- * full perspective/pronoun/UDF engine is Phase 4.  Mirrors the Adrift 5 runner
- * SharedModule.Description.ToString, ReplaceALRs, ReplaceFunctions and the
- * GlkHtmlWin tag renderer.
+ * markup (<br>, <c>, <b>, <i>, entities) down to plain text.  Mirrors the
+ * Adrift 5 runner's Description.ToString, ReplaceALRs, ReplaceFunctions,
+ * ReplaceOO and the GlkHtmlWin tag renderer.
  *
  * Every returned char* is heap-allocated; the caller frees it.
  */
@@ -178,6 +195,30 @@
 #define A5_UNDERLINE_MARK '\035'
 #define A5_ENDUNDERLINE_MARK '\036'
 
+/* A zero-width presentation mark: a stripped-tag stand-in (A5_ALR_MARK) or
+   one of the single-byte interactive-mode marks.  None of these is visible
+   output.  (The bookkeeping marks -- A5_CLS_MARK, A5_PS_MARK, A5_COMMIT_MARK,
+   A5_DEL_MARK -- are not included; the callers that also want those say so.) */
+static inline int
+a5_is_pres_mark (int c)
+{
+  return c == A5_ALR_MARK || c == A5_WAITKEY_MARK
+      || c == A5_CENTER_MARK || c == A5_ENDCENTER_MARK
+      || c == A5_BOLD_MARK || c == A5_ENDBOLD_MARK
+      || c == A5_ITALIC_MARK || c == A5_ENDITALIC_MARK
+      || c == A5_UNDERLINE_MARK || c == A5_ENDUNDERLINE_MARK
+      || c == A5_RIGHT_MARK || c == A5_ENDRIGHT_MARK
+      || c == A5_ENDCOLOUR_MARK || c == A5_ENDWINDOW_MARK;
+}
+
+/* A mark that opens and closes a payload span, \xNN<payload>\xNN, which must
+   be skipped (or kept) as a unit. */
+static inline int
+a5_is_span_mark (int c)
+{
+  return c == A5_IMG_MARK || c == A5_WINDOW_MARK || c == A5_SOUND_MARK
+      || c == A5_WAIT_MARK || c == A5_COLOUR_MARK;
+}
 
 /* Interactive-presentation mode toggle (default off; see marks above). */
 extern void a5text_set_interactive (int on);

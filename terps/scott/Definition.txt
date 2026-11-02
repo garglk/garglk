@@ -1,0 +1,142 @@
+Game
+
+A game consists of a header of 14 values each apparently 16 bit
+
+0	Unknown
+1	Number of items
+2	Number of actions
+3	Number of Nouns and Verbs (one list is padded)
+4	Number of rooms
+5	Maximum a player can carry
+6	Starting Room
+7	Total Treasures (*)
+8	Word Length (only seen 3,4 or 5)
+9	Time light source lasts. This counts down every time item 9 is
+	in game. Brian Howarths games allow -1 for never run down. When
+	it runs out the light item (9) is dumped in room 0 and a look
+	done. Messages vary between interpreters and include things
+	like 'Your light is flickering and dying' as well as 
+	'Light runs out in %d turns'.
+10	Number of Messages
+11	Room you must put treasure in to score points. Not all games use
+	the treasure system for scoring
+12	Unknown
+
+All the number of something values are the last item to be read counting
+from 0. Thus 3 messages, means messages 0, 1, 2 and 3.
+
+(*) This can be calculated in game. What happens if the number is wrong
+I don't know. I've found no games that it occurs in.
+
+A game has 16 (maybe more) binary flags, and 8 (maybe more counters). A few
+later games seem to have 2 (maybe more) values to store location numbers in
+temporarily - eg Yoho spell in Claymorgue.
+
+Following the header is a list of game actions. Each is of the form
+
+150*verb+noun
+5 repeats of condition+20*value
+150*action1+action2
+150*action3+action4
+
+Conditions
+
+0	Parameter
+1	Item <arg> carried
+2	Item <arg> in room with player
+3	Item <arg> carried or in room with player
+4	In room <arg>
+5	Item <arg> not in room with player
+6	Item <arg> not carried
+7	Not in room <arg>
+8	BitFlag <arg> is set. 
+9	BitFlag <arg> is cleared
+10	Something carried	(arg unused)
+11	Nothing carried		(arg unused)
+12	Item <arg> not carried nor in room with player
+13	Item <arg> is in game		[not in room 0]
+14	Item <arg> is not in game	[in room 0]
+15	CurrentCounter <= <arg>
+16	CurrentCounter >= <arg>
+17	Object still in initial room
+18	Object not in initial room
+19	CurrentCounter = <arg>
+
+Actions
+
+0	Does nothing
+1-51	Print message 0-50. Some drivers add a space some add a newline.
+52	Get item <arg>. Checks if you can carry it first
+53	Drops item <arg>
+54	Moves to room <arg>
+55	Item <arg> is removed from the game (put in room 0)
+56	The darkness flag is set
+57	The darkness flag is cleared
+58	Bitflag <arg> is set
+59	The same as 55 (it seems - I'm cautious about this)
+60	BitFlag <arg> is cleared
+61	Death. Dark flag cleared, player moved to last room
+62	Item <arg> put in room <arg>
+63	Game over. 
+64	Describe room
+65	Score
+66	Inventory
+67	BitFlag 0 is set	
+68	BitFlag 0 is cleared
+69	Refill lamp (?)
+70	Screen is cleared. This varies by driver from no effect upwards
+71	Saves the game. Choices of filename etc depend on the driver alone.
+72	Swap item <arg1> and item <arg2> locations
+73	Continue with next line (the next line starts verb 0 noun 0)
+74	Take item <arg> - no check is done too see if it can be carried.
+75	Put item <arg1> with item <arg2> - Not certain seems to do this
+	from examination of Claymorgue
+76	Look (same as 64 ?? - check)
+77	Decrement current counter. Will not go below 0
+78	Print current counter value. Some drivers only cope with 0-99
+	apparently
+79	Set current counter value
+80	Swap location with current location-swap flag
+81	Select a counter. Current counter is swapped with backup counter
+	<arg>
+82	Add <arg> to current counter
+83	Subtract <arg> from current counter
+84	Echo noun player typed without CR
+85	Echo the noun the player typed
+86	CR
+87	Swap current location value with backup location-swap value <arg>
+88	Wait 2 seconds
+89      SAGA - draw picture <n> (actually <n+number of rooms>, as each
+	Look() draws picture <room number> automatically)
+	Older spectrum driver - crashes
+	Spectrum Seas of Blood - seems to start Fighting Fantasy combat mode
+90-101  Unused
+102+	Print message 51-99
+
+
+This is followed by the words with verbs and nouns interleaved. A word with
+a * at the beginning is a synonym for the word above.
+Verb 1 is GO, verb 10 is GET, verb 18 is DROP (always).
+Nouns 1-6 are directions.
+
+This is followed by the rooms. Each room is 6 exits (north south east west
+up down) followed by a text string.
+
+Then come the messages, stored as a list of strings.
+
+Next come the items in the format item text then location. Item text may
+end with /TEXT/. This text is not printed but means that an automatic
+get/drop will be done for 'GET/DROP TEXT' on this item. Item names beginning
+with '*' are treasures. The '*' is printed. If you put all treasures in the
+treasure room (in the header) and 'SCORE' the game finishes with a well done
+message. Item location -1 is the inventory (255 on C64 and Spectrum tape
+games) and 0 means not in play in every game I've looked at. The lamp (always
+object 9) behaviour supports this belief.
+
+A set of strings follow this. In order they match to each line of verb/noun
+actions, and are comments. The Spectrum and C64 tape system where the
+database is compiled into the program has no comments.
+
+Finally three values follow which are version, adventure number and an
+unknown magic number. 
+
