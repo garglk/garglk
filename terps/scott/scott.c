@@ -262,6 +262,11 @@ void UpdateSettings(void)
    timer ticks advance animations or vector drawing. */
 void Updates(event_t ev)
 {
+    /* A multi-game disk's menu runs before any game is loaded, so there is
+       nothing to redraw yet. */
+    if (Rooms == NULL)
+        return;
+
     if (ev.type == evtype_Arrange) {
         UpdateSettings();
 
