@@ -1,5 +1,24 @@
 /* vi: set ts=8:
  *
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * Written from a reading of the ADRIFT 5 Runner source as released in
+ * FrankenDrift, to reproduce its behaviour; no code from it is used.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
  * ADRIFT 5 support for Scarier -- runtime state (Phase 2).
  *
  * A small mutable layer over the immutable a5model: the bits of world state the
@@ -120,9 +139,11 @@ typedef struct a5_state_s {
 
   a5_prop_ov_t *ov;       /* property overrides set at runtime                 */
   int n_ov, cap_ov;
+  void *ov_index;         /* opaque (entity, prop) hash over ov (a5state.cpp) */
 
   a5_grpmem_t *gm;        /* live group membership (the runner arlMembers), ordered    */
   int n_gm, cap_gm;
+  unsigned long gm_stamp; /* changes whenever gm does; unique across states, 0 = never filled */
 
   int   game_over;        /* set by EndGame: 0 running, else 1                 */
   char *end_message;      /* EndGame enum "Win"/"Lose"/"Neutral" (owned), NULL */
@@ -510,6 +531,8 @@ extern int a5state_character_visible_at_location (const a5_state_t *st, int ci,
  */
 extern const char *a5state_entity_prop (const a5_state_t *st, const char *entkey,
                                         const char *propkey);
+/* Drop every runtime property override (a restore starts from none). */
+extern void a5state_clear_overrides (a5_state_t *st);
 extern void a5state_set_prop (a5_state_t *st, const char *entkey,
                               const char *propkey, const char *value);
 
@@ -571,7 +594,6 @@ extern const char *a5state_lookup_ref  (const a5_state_t *st, const char *name);
 
 /* Variable lookup by Name (text engine) or Key (restrictions). */
 extern int         a5state_var_num_by_name (const a5_state_t *st, const char *name, long *out);
-extern const char *a5state_var_text_by_name (const a5_state_t *st, const char *name);
 
 /* Numeric array-variable element access (idx is ADRIFT's 1-based index).
    Out-of-range reads return 0 and writes are dropped (clsVariable's ErrMsg

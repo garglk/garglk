@@ -1,5 +1,24 @@
 /* vi: set ts=8:
  *
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * Written from a reading of the ADRIFT 5 Runner source as released in
+ * FrankenDrift, to reproduce its behaviour; no code from it is used.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
  * ADRIFT 5 support for Scarier -- Blorb / IFF container reader.
  *
  * A small, self-contained reader for the Blorb (IFF "FORM"/"IFRS") wrapper that
@@ -17,19 +36,23 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* Build a big-endian FourCC constant, e.g. A5_FOURCC('A','D','R','I'). */
-#define A5_FOURCC(a, b, c, d) \
-  (((uint32_t) (unsigned char) (a) << 24) | ((uint32_t) (unsigned char) (b) << 16) \
-   | ((uint32_t) (unsigned char) (c) << 8) | (uint32_t) (unsigned char) (d))
+/* Build a big-endian FourCC constant, e.g. a5_fourcc ('A', 'D', 'R', 'I'). */
+static constexpr uint32_t
+a5_fourcc (char a, char b, char c, char d)
+{
+  return ((uint32_t) (unsigned char) a << 24)
+         | ((uint32_t) (unsigned char) b << 16)
+         | ((uint32_t) (unsigned char) c << 8) | (uint32_t) (unsigned char) d;
+}
 
 /* Standard Blorb resource usages. */
-#define A5_USAGE_EXEC A5_FOURCC('E', 'x', 'e', 'c')
-#define A5_USAGE_PICT A5_FOURCC('P', 'i', 'c', 't')
-#define A5_USAGE_SND  A5_FOURCC('S', 'n', 'd', ' ')
-#define A5_USAGE_DATA A5_FOURCC('D', 'a', 't', 'a')
+#define A5_USAGE_EXEC a5_fourcc ('E', 'x', 'e', 'c')
+#define A5_USAGE_PICT a5_fourcc ('P', 'i', 'c', 't')
+#define A5_USAGE_SND  a5_fourcc ('S', 'n', 'd', ' ')
+#define A5_USAGE_DATA a5_fourcc ('D', 'a', 't', 'a')
 
 /* ADRIFT executable chunk type, found at usage 'Exec', number 0. */
-#define A5_CHUNK_ADRI A5_FOURCC('A', 'D', 'R', 'I')
+#define A5_CHUNK_ADRI a5_fourcc ('A', 'D', 'R', 'I')
 
 typedef struct a5_blorb_chunk_s {
   uint32_t type;             /* chunk FourCC, e.g. A5_CHUNK_ADRI            */
@@ -38,15 +61,11 @@ typedef struct a5_blorb_chunk_s {
 } a5_blorb_chunk_t;
 
 /*
- * Locate a resource by usage FourCC and number.  On success returns nonzero
- * and fills *out with the chunk type and a pointer/size for its body.  The
- * pointer aliases into buf, so it stays valid as long as buf does.
+ * Locate the ADRIFT Exec resource (usage 'Exec', number 0).  On success
+ * returns nonzero and fills *out with the chunk type and a pointer/size for
+ * its body.  The pointer aliases into buf, so it stays valid as long as buf
+ * does.
  */
-extern int a5blorb_find (const uint8_t *buf, uint32_t length,
-                         uint32_t usage, uint32_t number,
-                         a5_blorb_chunk_t *out);
-
-/* Convenience wrapper for the ADRIFT Exec resource (usage 'Exec', number 0). */
 extern int a5blorb_find_exec (const uint8_t *buf, uint32_t length,
                               a5_blorb_chunk_t *out);
 

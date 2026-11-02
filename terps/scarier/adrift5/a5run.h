@@ -1,5 +1,24 @@
 /* vi: set ts=8:
  *
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * Written from a reading of the ADRIFT 5 Runner source as released in
+ * FrankenDrift, to reproduce its behaviour; no code from it is used.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
  * ADRIFT 5 support for Scarier -- turn loop (Phase 3).
  *
  * Drives the player turn: lower-cases the input, walks the General tasks in
@@ -65,7 +84,8 @@ extern int   a5run_turns         (a5_run_t *run);
 /* Embedded-media events produced by the most recent a5run_intro / a5run_input,
    in display order, for the host to show images / play sounds.  `kind` is one of
    the A5_MEDIA_* values (a5text.h); `number` is the Blorb resource number (from
-   <FileMappings>), or -1 when unresolved / for sound-stop.  The list is rebuilt
+   <FileMappings>, or the host's media resolver), or -1 when unresolved / for
+   sound-stop.  The list is rebuilt
    each turn; pointers from a5run_media_get are valid until the next turn. */
 typedef struct {
   int kind;          /* A5_MEDIA_IMAGE / A5_MEDIA_SOUND / _SOUND_STOP / _PAUSE   */
@@ -75,8 +95,23 @@ typedef struct {
   int shown;         /* host bookkeeping: presented at its positional mark      */
 } a5_media_event_t;
 
+/* Optional host hook for media the Blorb may not hold.  When set, every
+   <img>/<audio> src goes through it along with the <FileMappings> number
+   (-1 if none), and whatever it returns becomes the event's number: a host
+   that finds the file on disk -- a raw .taf whose media sit beside it, or a
+   Blorb that names a file it never bundled -- loads it under a resource
+   number of its own and returns that; otherwise it returns `mapped`.  Unset
+   (the default, and the headless harnesses) the mapping is used as is. */
+typedef int (*a5run_media_resolver_t) (void *ctx, const char *src,
+                                       int is_image, int mapped);
+extern void a5run_set_media_resolver (a5run_media_resolver_t resolver,
+                                      void *ctx);
+
 extern int                     a5run_media_count (a5_run_t *run);
 extern const a5_media_event_t *a5run_media_get   (a5_run_t *run, int i);
+/* Event i's src exactly as the tag wrote it (usually the author's absolute
+   Windows path), "" for a sound-stop; valid until the next turn. */
+extern const char             *a5run_media_src   (a5_run_t *run, int i);
 /* Flag event i `shown`: the host presented it at its positional A5_SOUND_MARK
    in the turn text, so the after-the-turn media sweep must not replay it.
    Cleared with the rest of the event when the list is rebuilt next turn. */
@@ -131,12 +166,17 @@ extern void        a5run_undo_push_blob (a5_run_t *run,
 extern void a5run_get_turn_text (a5_run_t *run, const char **text, size_t *len);
 extern void a5run_set_turn_text (a5_run_t *run, const char *text, size_t len);
 
-/* Non-zero when the next input line is a cross-turn parser continuation rather
-   than a fresh command: a pending "Which X?" disambiguation or a remembered
-   bare verb ("Take what?").  That transient state is not part of the save
-   format, so an autosave taken at such a prompt would not restore coherently
-   -- the autosave layer skips those prompts and keeps the previous save. */
-extern int a5run_input_pending (a5_run_t *run);
+/* The next input line can be a cross-turn parser continuation rather than a
+   fresh command: a pending "Which X?" disambiguation or a remembered bare
+   verb ("Take what?").  That transient state is not part of the save
+   format (an in-game RESTORE drops it, as the Runner's does), so the
+   Spatterlight autosave carries it beside the save: a5run_pending_save
+   renders it as a byte string (empty when nothing is pending; caller frees)
+   and a5run_pending_restore puts it back after a5run_restore, returning 0
+   and leaving nothing pending when the record does not fit this game. */
+extern char *a5run_pending_save (a5_run_t *run, size_t *out_len);
+extern int   a5run_pending_restore (a5_run_t *run, const char *data,
+                                    size_t len);
 
 /* Trace task matching / action execution to stderr. */
 extern int a5run_trace;

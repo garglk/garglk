@@ -6,6 +6,7 @@
 //
 
 #include "ringbuffer.h"
+#include "memory_allocation.h"
 #include <assert.h>
 
 // The hidden definition of our circular buffer structure
@@ -17,13 +18,29 @@ struct circular_buf_t {
     bool full;
 };
 
+static size_t circular_buf_size(cbuf_handle_t me)
+{
+    if (me->full) return me->max;
+    if (me->head >= me->tail) return me->head - me->tail;
+    return me->max + me->head - me->tail;
+}
+
+static void circular_buf_reset(cbuf_handle_t me)
+{
+    assert(me);
+
+    me->head = 0;
+    me->tail = 0;
+    me->full = false;
+}
+
 // Return a pointer to a struct instance
 cbuf_handle_t circular_buf_init(uint8_t *buffer, size_t size)
 {
     assert(buffer && size);
+    assert(size % 2 == 0); // XY-pair semantics require even buffer size
 
-    cbuf_handle_t cbuf = malloc(sizeof(circular_buf_t));
-    assert(cbuf);
+    cbuf_handle_t cbuf = MemAlloc(sizeof(circular_buf_t));
 
     cbuf->buffer = buffer;
     cbuf->max = size;
@@ -34,26 +51,10 @@ cbuf_handle_t circular_buf_init(uint8_t *buffer, size_t size)
     return cbuf;
 }
 
-void circular_buf_reset(cbuf_handle_t me)
-{
-    assert(me);
-
-    me->head = 0;
-    me->tail = 0;
-    me->full = false;
-}
-
 void circular_buf_free(cbuf_handle_t me)
 {
     assert(me);
     free(me);
-}
-
-bool circular_buf_full(cbuf_handle_t me)
-{
-    assert(me);
-
-    return me->full;
 }
 
 bool circular_buf_empty(cbuf_handle_t me)
@@ -63,7 +64,7 @@ bool circular_buf_empty(cbuf_handle_t me)
     return (!me->full && (me->head == me->tail));
 }
 
-static void advance_pointer(cbuf_handle_t me)
+static void advance_head(cbuf_handle_t me)
 {
     assert(me);
 
@@ -79,7 +80,7 @@ static void advance_pointer(cbuf_handle_t me)
     me->full = (me->head == me->tail);
 }
 
-static void retreat_pointer(cbuf_handle_t me)
+static void advance_tail(cbuf_handle_t me)
 {
     assert(me);
 
@@ -91,36 +92,28 @@ static void retreat_pointer(cbuf_handle_t me)
 
 int circular_buf_putXY(cbuf_handle_t me, uint8_t x, uint8_t y)
 {
-    int r = -1;
-
     assert(me && me->buffer);
 
-    if (!circular_buf_full(me)) {
-        me->buffer[me->head] = x;
-        advance_pointer(me);
-        if (!circular_buf_full(me)) {
-            me->buffer[me->head] = y;
-            advance_pointer(me);
-            r = 0;
-        }
-    }
-    return r;
+    if (circular_buf_size(me) + 2 > me->max)
+        return -1;
+
+    me->buffer[me->head] = x;
+    advance_head(me);
+    me->buffer[me->head] = y;
+    advance_head(me);
+    return 0;
 }
 
 int circular_buf_getXY(cbuf_handle_t me, uint8_t *x, uint8_t *y)
 {
     assert(me && x && y && me->buffer);
 
-    int r = -1;
+    if (circular_buf_size(me) < 2)
+        return -1;
 
-    if (!circular_buf_empty(me)) {
-        *x = me->buffer[me->tail];
-        retreat_pointer(me);
-        if (!circular_buf_empty(me)) {
-            *y = me->buffer[me->tail];
-            retreat_pointer(me);
-            r = 0;
-        }
-    }
-    return r;
+    *x = me->buffer[me->tail];
+    advance_tail(me);
+    *y = me->buffer[me->tail];
+    advance_tail(me);
+    return 0;
 }

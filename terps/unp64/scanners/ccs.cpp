@@ -1,62 +1,29 @@
-/* This is a cut-down version of UNP64 with only the bare minimum
- * needed to decompress a number of Commodore 64 adventure games.
- * It is distributed under the zlib License by kind permission of
- * the original authors Magnus Lind and iAN CooG.
+/* Part of a cut-down version of UNP64, the generic Commodore 64 prg
+ * unpacker, with only what is needed to decompress a number of Commodore 64
+ * adventure games.
+ *
+ * (C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
+ * Copyright (c) 2002 - 2023 Magnus Lind
+ * C++ version based on code adapted to ScummVM by Avijeet Maurya
+ *
+ * Distributed under the zlib License by kind permission of the original
+ * authors Magnus Lind and iAN CooG. The notice is in the file LICENSE in
+ * the directory above (terps/unp64), which has to go wherever this file goes.
  */
 
-/*
-UNP64 - generic Commodore 64 prg unpacker
-(C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
-original source and idea: testrun.c, taken from exo20b7
-
-Follows original disclaimer
-*/
-
-/*
- * Copyright (c) 2002 - 2023 Magnus Lind.
- *
- *
- * This software is provided 'as-is', without any express or implied
- * warranty. In no event will the authors be held liable for any damages
- * arising from the use of this software.
- *
- * Permission is granted to anyone to use this software for any purpose,
- * including commercial applications, and to alter it and redistribute it
- * freely, subject to the following restrictions:
- *
- * 1. The origin of this software must not be misrepresented; you must not
- * claim that you wrote the original software. If you use this software
- * in a product, an acknowledgment in the product documentation would be
- * appreciated but is not required.
- * 2. Altered source versions must be plainly marked as such, and must not be
- * misrepresented as being the original software.
- * 3. This notice may not be removed or altered from any source distribution.
- *
- */
-
-/*
- C++ version based on code adapted to ScummVM by Avijeet Maurya
- */
-
-#include "exo_util.h"
-#include "types.h"
-#include "unp64.h"
+#include "scanners.h"
 
 namespace Unp64 {
 
 void scnCCS(UnpStr *unp) {
-	uint8_t *mem;
+	uint8_t *mem = unp->_mem;
 	int p;
-	if (unp->_idFlag)
-		return;
-	mem = unp->_mem;
 	if (unp->_depAdr == 0) {
 		if (u32eq(mem + 0x817, 0xB901E678) &&
 			u32eq(mem + 0x81b, 0xFD990831) &&
 			u32eq(mem + 0x8ff, 0xFEE60290) &&
 			u32eq(mem + 0x90f, 0x02903985)) {
-			if (unp->_info->_run == -1)
-				unp->_forced = 0x817;
+			forceEntryIfNoSys(unp, 0x817);
 			unp->_depAdr = 0x0ff;
 			unp->_fEndAf = 0x2d;
 			unp->_endAdC = 0xffff;
@@ -75,8 +42,7 @@ void scnCCS(UnpStr *unp) {
 			u32eq(mem + 0x812, 0x0099082F) &&
 			u32eq(mem + 0x846, 0x0DADF2D0) &&
 			u32eq(mem + 0x8c0, 0xF001124C)) {
-			if (unp->_info->_run == -1)
-				unp->_forced = 0x80b;
+			forceEntryIfNoSys(unp, 0x80b);
 			unp->_depAdr = 0x100;
 			unp->_endAdr = 0xae;
 			unp->_retAdr = READ_LE_UINT16(&mem[0x8f1]);
@@ -93,8 +59,7 @@ void scnCCS(UnpStr *unp) {
 			u32eq(mem + 0x818, 0xFD990829) &&
 			u32eq(mem + 0x8a1, 0xFDA6FDB1) &&
 			u32eq(mem + 0x8a5, 0xFEC602D0)) {
-			if (unp->_info->_run == -1)
-				unp->_forced = 0x814;
+			forceEntryIfNoSys(unp, 0x814);
 			unp->_depAdr = 0x0ff;
 			unp->_fEndBf = 0x39;
 			unp->_idFlag = 1;
@@ -106,8 +71,7 @@ void scnCCS(UnpStr *unp) {
 			u32eq(mem + 0x81c, 0x00FB9908) &&
 			u32eq(mem + 0x850, 0xFBB1C84A) &&
 			u32eq(mem + 0x854, 0xB1C81185)) {
-			if (unp->_info->_run == -1)
-				unp->_forced = 0x812;
+			forceEntryIfNoSys(unp, 0x812);
 			unp->_depAdr = 0x0ff;
 			unp->_endAdr = 0xae;
 			unp->_idFlag = 1;
@@ -119,8 +83,7 @@ void scnCCS(UnpStr *unp) {
 			u32eq(mem + 0x81c, 0x00FB9908) &&
 			u32eq(mem + 0x851, 0xFBB1C812) &&
 			u32eq(mem + 0x855, 0xB1C81185)) {
-			if (unp->_info->_run == -1)
-				unp->_forced = 0x812;
+			forceEntryIfNoSys(unp, 0x812);
 			unp->_depAdr = 0x0ff;
 			unp->_endAdr = 0xae;
 			unp->_idFlag = 1;
@@ -132,8 +95,7 @@ void scnCCS(UnpStr *unp) {
 			u32eq(mem + 0x831, 0xFD990842) &&
 			u32eq(mem + 0x83e, 0x00FF4CF1) &&
 			u32eq(mem + 0x8a5, 0x50C651C6)) {
-			if (unp->_info->_run == -1)
-				unp->_forced = 0x822;
+			forceEntryIfNoSys(unp, 0x822);
 			unp->_depAdr = 0x0ff;
 			unp->_fEndBf = 0x39;
 			unp->_retAdr = READ_LE_UINT16(&mem[0x8ea]);
@@ -147,8 +109,7 @@ void scnCCS(UnpStr *unp) {
 			 u32eq(mem + 0x824, 0xFB990837)) &&
 			u32eq(mem + 0x83b, 0xFD91FBB1) &&
 			u32eq(mem + 0x8bc, 0xEE00FC99)) {
-			if (unp->_info->_run == -1)
-				unp->_forced = 0x81a;
+			forceEntryIfNoSys(unp, 0x81a);
 			unp->_depAdr = 0x0ff;
 			unp->_fEndAf = 0x39;
 			unp->_endAdC = 0xffff;
@@ -163,8 +124,7 @@ void scnCCS(UnpStr *unp) {
 			u32eq(mem + 0x81a, 0xC800FD99) &&
 			u32eq(mem + 0x81e, 0xFF4CF7D0) &&
 			u32eq(mem + 0x885, 0xFDA6FDB1)) {
-			if (unp->_info->_run == -1)
-				unp->_forced = 0x812;
+			forceEntryIfNoSys(unp, 0x812);
 			unp->_depAdr = 0x0ff;
 			// $2d is unreliable, Executer uses line number at $0803/4,
 			// which is read at $0039/3a by basic, as end address,
@@ -184,8 +144,7 @@ void scnCCS(UnpStr *unp) {
 			u32eq(mem + 0x816, 0x084CB901) &&
 			u32eq(mem + 0x81a, 0xA900FB99) &&
 			u32eq(mem + 0x848, 0x00FF4CE2)) {
-			if (unp->_info->_run == -1)
-				unp->_forced = 0x812;
+			forceEntryIfNoSys(unp, 0x812);
 			unp->_depAdr = 0x0ff;
 			unp->_fEndAf = 0x2d;
 			unp->_endAdC = 0xffff;

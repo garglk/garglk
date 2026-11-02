@@ -1,118 +1,135 @@
-/* Code from Exomizer distributed under the zlib License
- * by kind permission of the original author
- * Magnus Lind.
+/* Code from Exomizer.
+ *
+ * Copyright (c) 2002 - 2023 Magnus Lind
+ * C++ version based on code adapted to ScummVM by Avijeet Maurya
+ *
+ * Distributed under the zlib License by kind permission of the original
+ * author Magnus Lind. The notice is in the file LICENSE in this directory
+ * (terps/unp64), which has to go wherever this file goes.
  */
 
-/*
- * Copyright (c) 2002 - 2023 Magnus Lind.
- *
- *
- * This software is provided 'as-is', without any express or implied
- * warranty. In no event will the authors be held liable for any damages
- * arising from the use of this software.
- *
- * Permission is granted to anyone to use this software for any purpose,
- * including commercial applications, and to alter it and redistribute it
- * freely, subject to the following restrictions:
- *
- * 1. The origin of this software must not be misrepresented; you must not
- * claim that you wrote the original software. If you use this software
- * in a product, an acknowledgment in the product documentation would be
- * appreciated but is not required.
- * 2. Altered source versions must be plainly marked as such, and must not be
- * misrepresented as being the original software.
- * 3. This notice may not be removed or altered from any source distribution.
- *
- */
-
-/*
- C++ version based on code adapted to ScummVM by Avijeet Maurya
- */
-
-#include <cstring>
+#include <algorithm>
+#include <cerrno>
+#include <climits>
 #include <cstdlib>
+#include <cstring>
 #include "exo_util.h"
 
 namespace Unp64 {
 
-int findSys(const uint8_t *buf, int target) {
-	int outstart = -1;
-	int state = 1;
-	int i = 0;
-	/* skip link and line number */
+/* BASIC token codes used by findSys. */
+static const uint8_t TOK_SYS   = 0x9E;
+static const uint8_t TOK_PLUS  = 0xAA;
+static const uint8_t TOK_MINUS = 0xAB;
+static const uint8_t TOK_MUL   = 0xAC;
+static const uint8_t TOK_DIV   = 0xAD;
+static const uint8_t TOK_POW   = 0xAE;
+/* PETSCII digit-character mask: ('0'..'9') & 0x30 == 0x30. */
+static const uint8_t ASCII_DIGIT_MASK = 0x30;
+/* Defensive cap on how far past the line start we scan. */
+static const int FIND_SYS_SCAN_LIMIT = 1000;
+
+/* Walk a tokenized BASIC line and extract the integer argument of a
+ * `SYS <addr>` statement.
+ *
+ * The buffer is expected to point at a BASIC line in C64 memory layout:
+ *   [next-line-link 2B] [line-number 2B] [tokens ...] [null terminator]
+ *
+ * Returns the parsed address, or -1 if no SYS line was found. The parser
+ * understands the BASIC arithmetic tokens that some packers concatenate
+ * to obfuscate the entry point ($AA + / $AB - / $AC * / $AD / / $AE ^),
+ * and also "E"-style scientific notation (`SYS 5E3` etc.).
+ *
+ * `bufsize` bounds the scan so a malformed PRG without a line terminator
+ * can't walk off the end of the buffer. */
+int findSys(const uint8_t *buf, size_t bufsize) {
+	if (buf == nullptr || bufsize < 4)
+		return -1;
+
+	/* Skip link and line number. */
 	buf += 4;
-	/* iAN: workaround for hidden sysline (1001 cruncher, CFB, etc)*/
-	if (buf[0] == 0) {
-		for (i = 5; i < 32; i++)
-			if (buf[i] == 0x9e && (((buf[i + 1] & 0x30) == 0x30) || ((buf[i + 2] & 0x30) == 0x30)))
+	bufsize -= 4;
+
+	int i = 0;
+
+	/* Workaround for hidden SYS line (1001 cruncher, CFB, etc.):
+	 * some crunchers stash the real SYS token a few bytes into a line
+	 * that starts with a NUL, so scan forward for the SYS token followed
+	 * by an ASCII-digit byte.
+	 *
+	 * The scan starts at 5 because that is where the text of the next
+	 * line would be: the NUL at 0 ends this line, 1-4 are the next one's
+	 * link and number. It gives up after 32 bytes, and the ordinary scan
+	 * below then carries on from there. */
+	if (bufsize > 0 && buf[0] == 0) {
+		for (i = 5; i < 32 && (size_t)(i + 2) < bufsize; i++) {
+			if (buf[i] == TOK_SYS &&
+				(((buf[i + 1] & ASCII_DIGIT_MASK) == ASCII_DIGIT_MASK) ||
+				 ((buf[i + 2] & ASCII_DIGIT_MASK) == ASCII_DIGIT_MASK))) {
 				break;
+			}
+		}
 	}
-	/* exit loop at line end */
-	while (i < 1000 && buf[i] != '\0') {
-		uint8_t *sysEnd;
-		int c = buf[i];
-		switch (state) {
-			/* look for and consume sys token */
-		case 1:
-			if ((target == -1 && (c == 0x9e)) || c == target) {
-				state = 2;
-			}
-			break;
-			/* skip spaces and left parenthesis, if any */
-		case 2:
-			if (strchr(" (", c) != nullptr)
-				break;
-			// fallthrough
-			/* convert string number to int */
-		case 3:
-			outstart = (int)strtol((const char *)(buf + i), (char **)&sysEnd, 10);
-			if ((buf + i) == sysEnd) {
-				/* we got nothing */
-				outstart = -1;
-			} else {
-				c = *sysEnd;
-				if ((c >= 0xaa) && (c <= 0xae)) {
-					i = (int)strtol((char *)(sysEnd + 1), (char **)&sysEnd, 10);
-					switch (c) {
-					case 0xaa:
-						outstart += i;
-						break;
-					case 0xab:
-						outstart -= i;
-						break;
-					case 0xac:
-						outstart *= i;
-						break;
-					case 0xad:
-						if (i > 0)
-							outstart /= i;
-						break;
-					case 0xae:
-						c = outstart;
-						while (--i)
-							outstart *= c;
-						break;
-					}
-				} else if (c == 'E') {
-					i = (int)strtol((char *)(sysEnd + 1), (char **)&sysEnd, 10);
-					i++;
-					while (--i)
-						outstart *= 10;
-				}
-			}
-			state = 4;
-			break;
-		case 4:
+
+	/* Scan for the SYS token. FIND_SYS_SCAN_LIMIT is tested here and once
+	 * more after the loop: here it ends a line that has no terminator, there
+	 * it tells that ending from having found the token. */
+	while (i < FIND_SYS_SCAN_LIMIT && (size_t)i < bufsize && buf[i] != '\0') {
+		if (buf[i] == TOK_SYS) {
+			++i;
 			break;
 		}
 		++i;
 	}
+	if (i >= FIND_SYS_SCAN_LIMIT || (size_t)i >= bufsize || buf[i] == '\0')
+		return -1;
 
-	return outstart;
+	/* Skip leading spaces and an optional opening parenthesis. */
+	while ((size_t)i < bufsize && buf[i] != '\0' && (buf[i] == ' ' || buf[i] == '(')) {
+		++i;
+	}
+	if ((size_t)i >= bufsize || buf[i] == '\0')
+		return -1;
+
+	/* Parse the address literal. */
+	char *parseEnd;
+	long outstart = strtol((const char *)(buf + i), &parseEnd, 10);
+	if (parseEnd == (const char *)(buf + i))
+		return -1; /* no digits */
+
+	/* If the next byte is a BASIC arithmetic token, consume its operand
+	 * and apply it: e.g. `SYS 2048+15`. */
+	uint8_t op = (uint8_t)*parseEnd;
+	if (op >= TOK_PLUS && op <= TOK_POW) {
+		long operand = strtol(parseEnd + 1, &parseEnd, 10);
+		switch (op) {
+		case TOK_PLUS:  outstart += operand; break;
+		case TOK_MINUS: outstart -= operand; break;
+		case TOK_MUL:   outstart *= operand; break;
+		case TOK_DIV:   if (operand > 0) outstart /= operand; break;
+		case TOK_POW: {
+			long base = outstart;
+			while (--operand > 0)
+				outstart *= base;
+			break;
+		}
+		}
+	} else if (op == 'E') {
+		/* Scientific notation: `5E3` → 5 * 10^3. */
+		long exp = strtol(parseEnd + 1, &parseEnd, 10);
+		while (exp-- > 0)
+			outstart *= 10;
+	}
+
+	return (int)outstart;
 }
 
-static void loadPrgData(uint8_t mem[65536], uint8_t *data, size_t dataLength, LoadInfo *info) {
-	int len = MIN(65536 - info->_start, static_cast<int>(dataLength));
+/* Copy a PRG payload (no header) into the emulated 64 KiB address
+ * space at `info->_start`, clamping to the bounds. Initialises
+ * `_end`, `_run`, and the BASIC-variable-start hint that BASIC sets
+ * after a LOAD when the program lands at TXTTAB. */
+static void loadPrgData(uint8_t *mem, const uint8_t *data, size_t dataLength, LoadInfo *info) {
+	int len = std::min(65536 - info->_start, static_cast<int>(dataLength));
 	memcpy(mem + info->_start, data, (size_t)len);
 
 	info->_end = info->_start + len;
@@ -123,93 +140,57 @@ static void loadPrgData(uint8_t mem[65536], uint8_t *data, size_t dataLength, Lo
 	}
 }
 
-void loadData(uint8_t *data, size_t dataLength, uint8_t mem[65536], LoadInfo *info) {
-	int load = data[0] + data[1] * 0x100;
+/* Load a full PRG file (including the two-byte little-endian load
+ * address header) into the emulated address space. Returns false, and
+ * leaves `mem` and `info` alone, if the file is too short to have one. */
+bool loadData(const uint8_t *data, size_t dataLength, uint8_t *mem, LoadInfo *info) {
+	if (data == nullptr || dataLength < 2)
+		return false; /* no room for the load address */
 
-	info->_start = load;
+	info->_start = READ_LE_UINT16(data);
 	loadPrgData(mem, data + 2, dataLength - 2, info);
+	return true;
 }
 
-int strToInt(const char *str, int *value) {
-	int status = 0;
-	do {
-		char *strEnd;
-		long lval;
+/* Parse a numeric string into *value. Decimal by default; either a `$`
+ * prefix or a `0x`/`0X` prefix selects base 16 (both forms can appear in
+ * the UNP64 switches — e.g. "-e0x2ec2", "-d$0820").
+ *
+ * Returns true on success. Fails on:
+ *   - NULL or empty input
+ *   - a lone prefix with no digits after it
+ *   - trailing garbage after the number
+ *   - overflow of `long` (ERANGE) or out-of-`int`-range result
+ *
+ * Base 10 is fixed (rather than strtol's base-0 auto-detect) for the
+ * no-prefix path so a leading zero like `-e040` parses as 40, not 32. */
+bool strToInt(const char *str, int *value) {
+	if (str == nullptr || *str == '\0')
+		return false;
 
-		/* base 0 is auto detect */
-		int base = 0;
+	int base = 10;
+	if (*str == '$') {
+		++str;
+		base = 16;
+	} else if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
+		str += 2;
+		base = 16;
+	}
+	if (*str == '\0')
+		return false; /* lone prefix — no digits */
 
-		if (*str == '\0') {
-			/* no string to parse */
-			status = 1;
-			break;
-		}
+	errno = 0;
+	char *strEnd;
+	long lval = strtol(str, &strEnd, base);
 
-		if (*str == '$') {
-			/* a $ prefix specifies base 16 */
-			++str;
-			base = 16;
-		}
+	if (strEnd == str || *strEnd != '\0')
+		return false; /* no digits parsed, or trailing garbage */
+	if (errno == ERANGE || lval > INT_MAX || lval < INT_MIN)
+		return false; /* value won't fit in int */
 
-		lval = strtol(str, &strEnd, base);
-
-		if (*strEnd != '\0') {
-			/* there is garbage in the string */
-			status = 1;
-			break;
-		}
-
-		if (value != nullptr) {
-			/* all is well, set the out parameter */
-			*value = static_cast<int>(lval);
-		}
-	} while (0);
-
-	return status;
-}
-
-bool u32eq(const unsigned char *addr, uint32_t val)
-{
-    return addr[3] == (val >> 24) &&
-    addr[2] == ((val >> 16) & 0xff) &&
-    addr[1] == ((val >>  8) & 0xff) &&
-    addr[0] == (val & 0xff);
-}
-
-bool u32eqmasked(const unsigned char *addr, uint32_t mask, uint32_t val)
-{
-    uint32_t val1 = addr[0] | (addr[1] << 8) | (addr[2] << 16) | (addr[3] << 24);
-    return (val1 & mask) == val;
-}
-
-bool u32eqxored(const unsigned char *addr, uint32_t xormask, uint32_t val)
-{
-    uint32_t val1 = addr[0] | (addr[1] << 8) | (addr[2] << 16) | (addr[3] << 24);
-    return (val1 ^ xormask) == val;
-}
-
-bool u16eqmasked(const unsigned char *addr, uint16_t mask, uint16_t val)
-{
-    uint16_t val1 = addr[0] | (addr[1] << 8);
-    return (val1 & mask) == val;
-}
-
-bool u16eq(const unsigned char *addr, uint16_t val)
-{
-    return addr[1] == (val >> 8) &&
-    addr[0] == (val & 0xff);
-}
-
-bool u16gteq(const unsigned char *addr, uint16_t val)
-{
-    uint16_t val2 = addr[0] | (addr[1] << 8);
-    return val2 >= val;
-}
-
-bool u16lteq(const unsigned char *addr, uint16_t val)
-{
-    uint16_t val2 = addr[0] | (addr[1] << 8);
-    return val2 <= val;
+	if (value != nullptr)
+		*value = static_cast<int>(lval);
+	return true;
 }
 
 } // End of namespace Unp64

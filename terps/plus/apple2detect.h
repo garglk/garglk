@@ -8,9 +8,12 @@
 #ifndef apple2detect_h
 #define apple2detect_h
 
-#include <stdio.h>
-
 int DetectApple2(uint8_t **sf, size_t *extent);
 void LookForApple2Images(void);
+
+/* The most special pictures a game can have */
+#define A2_SPECIAL_SLOTS 50
+
+void ReadApple2SpecialImages(const uint8_t *data, size_t offset, size_t size);
 
 #endif /* apple2detect_h */

@@ -1,11 +1,12 @@
 # Headless build + regression test for the Scarier ADRIFT engines.
 #
 # Builds small console harnesses that link the Scarier interpreter sources
-# against the bundled sx* os-layer stubs (no Glk, links the system zlib) and
+# against the headless/ os-layer stubs (no Glk, links the system zlib) and
 # runs them against synthetic / golden-backed games.
 #
 # Usage:
 #   make -f Makefile.headless test      # Scarier in isolation (default; no FrankenDrift)
+#   make -f Makefile.headless quick     # the same minus the two walkthrough corpora
 #   make -f Makefile.headless test-fd   # opt-in: diff a5 walkthroughs against FrankenDrift
 #   make -f Makefile.headless taf       # regenerate test/adrift4/harness/battle_test.taf
 #   make -f Makefile.headless clean
@@ -19,8 +20,9 @@ CC      ?= clang
 CXXFLAGS ?= -std=c++11 -O2 -w -I.
 LDLIBS  ?= -lz
 
-# Sanitizer flags for the `sanitize` target (TODO ground rule: "ASan/UBSan-clean
-# is mandatory").  -fno-sanitize-recover makes any UBSan finding abort with a
+# Sanitizer flags for the `sanitize` target.  Every change to the engine must
+# be ASan/UBSan-clean, and this target is how that is checked.
+# -fno-sanitize-recover makes any UBSan finding abort with a
 # non-zero status so the target actually fails rather than just printing.
 # LeakSanitizer is left off via detect_leaks=0: it is unavailable on
 # macOS/arm64, and throw-path leaks are expected (and documented) under P2/P3.
@@ -29,29 +31,69 @@ SAN_FLAGS := -fsanitize=address,undefined -fno-omit-frame-pointer \
 SAN_ENV   := ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1
 SAN_RAND_OBJ := test/adrift5/harness/a5_randomness_san.o
 
-# Shared, seedable cross-platform RNG (erkyrath_random), used by the v5 engine
-# so deterministic walkthroughs reproduce.  Compiled as C; it pulls in glk.h
-# (for glui32) from cheapglk but otherwise has no Glk dependency at seed 1234.
+# Shared, seedable cross-platform RNG (erkyrath_random): what the v5 engine
+# draws from, so deterministic walkthroughs reproduce, and what the v4
+# engine's Runner-compatible generator (SCR_RNG=xoshiro) is.  Plain C with no
+# Glk dependency; every binary that links either engine links it.
 COMMON  := ../common_utils
 
 # The ADRIFT 5 engine sources live in their own subdirectory.
 A5DIR   := adrift5
 A5_RAND_OBJ := test/adrift5/harness/a5_randomness.o
 
-# All interpreter sources, plus the os-layer stubs the battle harness needs.
-# mapdraw.cpp is the engine-neutral map model/rasteriser scmap.cpp draws into.
-SRC  := $(wildcard sc*.cpp) mapdraw.cpp
-STUBS   := sxstubs.cpp sxglob.cpp sxutils.cpp
+# All interpreter sources, plus the os-layer stubs the battle harness needs
+# (headless/, SCARE's test-suite stub layer; never part of a shipping build).
+# The ADRIFT 4 engine is core/; mapdraw.cpp is the engine-neutral map
+# model/rasteriser core/scmap.cpp draws into.  The command library and the
+# runner live in library/ and runner/; tools/ is the SCARIER_DUMP_TOOLS
+# instrumentation (scdump.cpp, scrun_census.cpp), which is all under that
+# guard and so compiles to empty objects in the plain and san sets -- only
+# the dump set below defines the macro.
+SRC  := $(wildcard core/sc*.cpp) $(wildcard library/*.cpp) $(wildcard runner/*.cpp) \
+        $(wildcard tools/*.cpp) mapdraw.cpp
+STUBS   := headless/sxstubs.cpp
 HARNESS := test/adrift4/harness/battle_test.cpp
+
+# Every harness below links the same engine, so the sources are compiled once
+# into objects under $(OBJDIR) and each binary links those, rather than every
+# harness recompiling the ~50 engine files itself.  -MMD writes a .d file next
+# to each object, so a header edit rebuilds exactly the objects that include it
+# (the old per-binary rules listed no engine headers at all).  Linking separate
+# objects is what one `clang++ a.cpp b.cpp ...` line does internally anyway, so
+# the binaries are the same.
+#
+# Three object sets: plain/ (CXXFLAGS), san/ (CXXFLAGS plus the sanitizer flags,
+# for the `sanitize` target), and dump/ for the v4 walkthrough `scare`
+# binary, compiled exactly as test/adrift4/harness/build.sh compiles it -- with
+# SCARIER_DUMP_TOOLS, which turns on tools/ and the guarded blocks in
+# scnpcs/screstrs/sctasks/os_ansi and the library and runner files, and
+# with build.sh's flags rather than CXXFLAGS.
+OBJDIR  := build/headless
+DUMP_CXXFLAGS := -O2 -w -I. -DSCARIER_DUMP_TOOLS
+objs     = $(patsubst %.cpp,$(OBJDIR)/plain/%.o,$(1))
+dumpobjs = $(patsubst %.cpp,$(OBJDIR)/dump/%.o,$(1))
+ENG_OBJ  := $(call objs,$(SRC)) $(A5_RAND_OBJ)
+STUB_OBJ := $(call objs,$(STUBS))
+
+$(OBJDIR)/plain/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
+
+$(OBJDIR)/dump/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(DUMP_CXXFLAGS) -MMD -MP -c $< -o $@
+
+# Core count, for building the suite's binaries and fanning out its stages.
+JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
 
 TAF     := test/adrift4/harness/battle_test.taf
 BIN     := test/adrift4/harness/battle_test_hl
 
 # The do-nothing half of that os-layer port, shared by every harness below: the
 # twelve hooks none of them care about, plus os_read_line_debug forwarding to
-# whichever os_read_line the harness itself defines.  Not sxstubs.cpp -- that
-# one supplies an os_read_line of its own, which is the hook each harness needs
-# to own.
+# whichever os_read_line the harness itself defines.  Not headless/sxstubs.cpp
+# -- that one supplies an os_read_line of its own, which is the hook each
+# harness needs to own.
 OS_STUBS := test/adrift4/harness/harness_os_stubs.cpp
 
 # The precedence and bad-parent harnesses bring their own os-layer port, so they
@@ -77,6 +119,12 @@ CORRUPT_BIN     := test/adrift4/harness/corrupt_test_hl
 QUIT_HARNESS := test/adrift4/harness/quit_test.cpp
 QUIT_BIN     := test/adrift4/harness/quit_test_hl
 
+# The expression/pattern harness feeds hostile expressions and task patterns
+# to scexpr.cpp and scparser.cpp; any game serves for the variables set, so it
+# borrows the precedence .taf.
+EXPR_HARNESS := test/adrift4/harness/expr_test.cpp
+EXPR_BIN     := test/adrift4/harness/expr_test_hl
+
 # ADRIFT 5 (Phases 0-1): container + de-obfuscation + zlib inflate -> XML, then
 # an in-situ XML DOM parser -> typed object model.  Self-contained at the
 # "container edge" -- links no interpreter sources.
@@ -84,16 +132,15 @@ A5_SRC  := $(A5DIR)/a5blorb.cpp $(A5DIR)/a5deobf.cpp
 A5_MODEL_SRC := $(A5DIR)/a5blorb.cpp $(A5DIR)/a5deobf.cpp $(A5DIR)/a5xml.cpp $(A5DIR)/a5model.cpp \
                 $(A5DIR)/a5parse.cpp
 A5_TEXT_SRC := $(A5DIR)/a5blorb.cpp $(A5DIR)/a5deobf.cpp $(A5DIR)/a5xml.cpp $(A5DIR)/a5model.cpp \
-               $(A5DIR)/a5state.cpp $(A5DIR)/a5restr.cpp $(A5DIR)/a5expr.cpp $(A5DIR)/a5sexpr.cpp $(A5DIR)/a5text.cpp $(A5DIR)/a5parse.cpp \
+               $(A5DIR)/a5state.cpp $(A5DIR)/a5restr.cpp $(A5DIR)/a5expr.cpp $(A5DIR)/a5sexpr.cpp $(A5DIR)/text/a5text.cpp $(A5DIR)/a5parse.cpp \
+               $(A5DIR)/text/a5text_func.cpp $(A5DIR)/text/a5text_name.cpp $(A5DIR)/text/a5text_render.cpp $(A5DIR)/text/a5text_view.cpp \
                $(A5DIR)/a5sb.cpp $(A5DIR)/a5rand.cpp
 A5_RUN_SRC := $(A5DIR)/a5blorb.cpp $(A5DIR)/a5deobf.cpp $(A5DIR)/a5xml.cpp $(A5DIR)/a5model.cpp \
-              $(A5DIR)/a5state.cpp $(A5DIR)/a5restr.cpp $(A5DIR)/a5expr.cpp $(A5DIR)/a5sexpr.cpp $(A5DIR)/a5text.cpp $(A5DIR)/a5parse.cpp \
-              $(A5DIR)/a5rand.cpp $(A5DIR)/a5sb.cpp $(A5DIR)/a5run_ref.cpp $(A5DIR)/a5run_events.cpp \
-              $(A5DIR)/a5run_action.cpp $(A5DIR)/a5run_sort.cpp $(A5DIR)/a5run_conv.cpp $(A5DIR)/a5run_resp.cpp $(A5DIR)/a5run.cpp
-A5_HDRS := $(A5DIR)/a5blorb.h $(A5DIR)/a5deobf.h $(A5DIR)/a5xml.h $(A5DIR)/a5model.h \
-           $(A5DIR)/a5util.h
-A5_TEXT_HDRS := $(A5_HDRS) $(A5DIR)/a5state.h $(A5DIR)/a5restr.h $(A5DIR)/a5expr.h $(A5DIR)/a5sexpr.h $(A5DIR)/a5text.h $(A5DIR)/a5parse.h
-A5_RUN_HDRS := $(A5_TEXT_HDRS) $(A5DIR)/a5parse.h $(A5DIR)/a5rand.h $(A5DIR)/a5sb.h $(A5DIR)/a5run.h $(A5DIR)/a5run_internal.h
+              $(A5DIR)/a5state.cpp $(A5DIR)/a5restr.cpp $(A5DIR)/a5expr.cpp $(A5DIR)/a5sexpr.cpp $(A5DIR)/text/a5text.cpp $(A5DIR)/a5parse.cpp \
+               $(A5DIR)/text/a5text_func.cpp $(A5DIR)/text/a5text_name.cpp $(A5DIR)/text/a5text_render.cpp $(A5DIR)/text/a5text_view.cpp \
+              $(A5DIR)/a5rand.cpp $(A5DIR)/a5sb.cpp $(A5DIR)/run/a5run_ref.cpp $(A5DIR)/run/a5run_events.cpp \
+              $(A5DIR)/run/a5run_action.cpp $(A5DIR)/run/a5run_act.cpp $(A5DIR)/run/a5run_sort.cpp $(A5DIR)/run/a5run_conv.cpp $(A5DIR)/run/a5run_resp.cpp $(A5DIR)/run/a5run_words.cpp $(A5DIR)/run/a5run_save.cpp $(A5DIR)/run/a5run.cpp
+A5_RUN_OBJ := $(call objs,$(A5_RUN_SRC))
 A5DUMP_HARNESS := test/adrift5/harness/a5dump.cpp
 A5DUMP_BIN     := test/adrift5/harness/a5dump
 A5MODEL_HARNESS := test/adrift5/harness/a5model_dump.cpp
@@ -118,8 +165,8 @@ A5SEXPR_HARNESS := test/adrift5/harness/a5sexpr_test.cpp
 A5SEXPR_BIN     := test/adrift5/harness/a5sexpr_test
 A5SAVE_HARNESS  := test/adrift5/harness/a5_save_test.cpp
 A5SAVE_BIN      := test/adrift5/harness/a5_save_test
-# Shared XML fragments + build helper for the four synthetic-adventure tests.
-A5FIX_HDR       := test/adrift5/harness/a5_test_fixtures.h
+A5DUP_HARNESS   := test/adrift5/harness/a5_exprdup_test.cpp
+A5DUP_BIN       := test/adrift5/harness/a5_exprdup_test
 
 # Container size/capacity regression.  Unlike the harnesses above this one wants
 # a whole interpreter session rather than an API poke, so it links the plain
@@ -128,8 +175,12 @@ A5FIX_HDR       := test/adrift5/harness/a5_test_fixtures.h
 # so it runs everywhere.  Both are v3.9, which needs no donor .taf for the
 # password trailer.  The goldens encode the Runner's answers: capacities are
 # volumes the contents spend, and both refusal strings are load-bearing (see
-# RUNNER_TESTS_TODO.md, 2026-08-03).
+# test/adrift4/notes/RUNNER_TESTS_TODO.md, 2026-08-03).
 CAP_BIN    := test/adrift4/harness/capacity_test_hl
+
+# The binaries the v4 walkthrough and projectile-combat scripts replay.
+SCARE_BIN  := test/adrift4/harness/scare
+SCPROJ_BIN := test/adrift4/harness/scproj_det
 CAP_TAF    := test/adrift4/harness/capacity_matrix.taf test/adrift4/harness/capacity_nest.taf
 
 # Pre-4.0 task-refusal regression ("You can't do that here!", "You have already
@@ -140,13 +191,20 @@ CAP_TAF    := test/adrift4/harness/capacity_matrix.taf test/adrift4/harness/capa
 # synthetic 3.9 games differing only in Perspective, since the refusals take
 # their leading word from it -- and since pre-4.0 has no third person, the
 # Perspective 2 build must read exactly like the Perspective 1 one, down to the
-# inventory line the script types.  See RUNNER_TESTS_TODO.md section 5.
+# inventory line the script types.  See test/adrift4/notes/RUNNER_TESTS_TODO.md section 5.
 WHERE_TAF  := test/adrift4/harness/where_refusal.taf \
               test/adrift4/harness/where_refusal_1p.taf \
               test/adrift4/harness/where_refusal_3p.taf
 WHERE_PROBES := where_refusal where_refusal_1p where_refusal_3p
 
-.PHONY: test test-fd sanitize taf clean capacitytest capacitybless wheretest wherebless scmap a5dump a5model a5text a5run a5map a5parsetest a5runtest a5walkthroughs a5walkthroughs-golden a5probetafs a5maptest a5distest a5walktest a5objtest a5savetest a5sexprtest v4walkthroughs scprojregress gamescheck gamesfetch vendorcheck
+# ADRIFT 4.0 embedded-sound probe: a WAV, an MP3 and a looping MIDI appended to
+# the TAF as the 4.0 Generator embeds them, plus a "##" stop.  Headless, sound
+# is silent, so the test runs with SCR_TRACE_SOUND=1 and the golden pins, with
+# the text, each sound request's offset, length and loop flag; play
+# sound_400.taf in Spatterlight to hear them.
+SOUND_TAF  := test/adrift4/harness/sound_400.taf
+
+.PHONY: test quick suitebins unittest test-fd sanitize taf clean capacitytest capacitybless wheretest wherebless soundtest soundbless scmap a5dump a5model a5text a5run a5map a5parsetest a5runtest a5walkthroughs a5walkthroughs-golden a5probetafs a5maptest a5distest a5walktest a5objtest a5savetest a5duptest a5sexprtest v4walkthroughs scprojregress gamescheck gamesfetch vendorcheck
 # ADRIFT 5 game files live in an untracked (gitignored) folder under test/ so the
 # harnesses can find them by a stable in-repo path; the games themselves are
 # copyrighted and not committed.  Override A5_GAMES_DIR / A5_BULLETS to relocate.
@@ -167,27 +225,49 @@ V4_GAMES_DIR ?= test/adrift4/games
 # Covers unit harnesses, capacity, gamescheck, a5runtest, v4 walkthroughs,
 # a5maptest, scprojregress, and golden-backed a5 walkthroughs (rows without an
 # *_expected.txt are SKIPPED -- those need `test-fd`).
-test: $(BIN) $(TAF) $(PREC_BIN) $(PREC_TAF) $(BADP_BIN) $(BADP_TAF) $(CORRUPT_BIN) $(QUIT_BIN) $(A5PARSE_BIN) $(A5SEXPR_BIN) $(A5DIS_BIN) $(A5WALK_BIN) $(A5OBJ_BIN) $(A5SAVE_BIN)
+#
+# Every binary is built first, $(JOBS) compiles at a time; then the stages,
+# which share nothing but read-only inputs, run side by side
+# (test/run_stages.sh), each stage's output printed whole and in the order
+# below as it finishes.  The run fails if any stage does.
+SUITE_STAGES := unittest vendorcheck capacitytest wheretest soundtest gamescheck a5runtest \
+                v4walkthroughs a5maptest scprojregress a5walkthroughs-golden
+
+UNIT_BINS := $(BIN) $(PREC_BIN) $(BADP_BIN) $(CORRUPT_BIN) $(QUIT_BIN) $(EXPR_BIN) $(A5PARSE_BIN) \
+             $(A5SEXPR_BIN) $(A5DIS_BIN) $(A5WALK_BIN) $(A5OBJ_BIN) $(A5SAVE_BIN) $(A5DUP_BIN)
+SUITE_BINS := $(UNIT_BINS) $(TAF) $(PREC_TAF) $(BADP_TAF) $(CAP_BIN) $(CAP_TAF) $(WHERE_TAF) $(SOUND_TAF) \
+              $(A5RUN_BIN) $(A5MAP_BIN) $(SCPROJ_BIN) \
+              $(if $(wildcard $(V4_GAMES_DIR)),$(SCARE_BIN))
+
+test:
+	@$(MAKE) -f Makefile.headless -j$(JOBS) suitebins
+	@sh test/run_stages.sh "$(MAKE) -f Makefile.headless" $(SUITE_STAGES)
+
+# The short loop: everything except the two walkthrough corpora (v4 and a5),
+# which are most of the suite's run time.  Not a substitute for `test` before
+# a commit -- the corpora are what catch Runner-parity regressions.
+QUICK_STAGES := $(filter-out v4walkthroughs a5walkthroughs-golden,$(SUITE_STAGES))
+quick:
+	@$(MAKE) -f Makefile.headless -j$(JOBS) $(filter-out $(SCARE_BIN),$(SUITE_BINS))
+	@sh test/run_stages.sh "$(MAKE) -f Makefile.headless" $(QUICK_STAGES)
+
+suitebins: $(SUITE_BINS)
+
+# The self-contained unit harnesses (no game data).
+unittest: $(UNIT_BINS) $(TAF) $(PREC_TAF) $(BADP_TAF)
 	./$(BIN) $(TAF)
 	./$(PREC_BIN) $(PREC_TAF)
 	./$(BADP_BIN) $(BADP_TAF)
 	./$(CORRUPT_BIN)
 	./$(QUIT_BIN) $(PREC_TAF)
+	./$(EXPR_BIN) $(PREC_TAF)
 	./$(A5PARSE_BIN)
 	./$(A5SEXPR_BIN)
 	./$(A5DIS_BIN)
 	./$(A5WALK_BIN)
 	./$(A5OBJ_BIN)
 	./$(A5SAVE_BIN)
-	@$(MAKE) -f Makefile.headless vendorcheck
-	@$(MAKE) -f Makefile.headless capacitytest
-	@$(MAKE) -f Makefile.headless wheretest
-	@$(MAKE) -f Makefile.headless gamescheck
-	@$(MAKE) -f Makefile.headless a5runtest
-	@$(MAKE) -f Makefile.headless v4walkthroughs
-	@$(MAKE) -f Makefile.headless a5maptest
-	@$(MAKE) -f Makefile.headless scprojregress
-	@$(MAKE) -f Makefile.headless a5walkthroughs-golden
+	./$(A5DUP_BIN)
 
 # Opt-in: ADRIFT 5 walkthrough corpus vs FrankenDrift (needs FD.Headless +
 # dotnet).  Alias of a5walkthroughs.
@@ -196,10 +276,12 @@ test-fd:
 
 # Gargoyle builds Scarier from a straight copy of this directory, so the shared
 # files it needs from outside it are vendored in common_utils/ (see the README
-# there).  Nothing in the Spatterlight tree compiles those copies, which is
-# exactly how they came to sit a bug-fix behind the originals once already, so
-# check them here rather than discover it in the next Gargoyle build.
-VENDORED := randomness.c randomness.h
+# there).  Nothing in the Spatterlight tree compiles the randomness copies,
+# which is exactly how they came to sit a bug-fix behind the originals once
+# already, so check them here rather than discover it in the next Gargoyle
+# build.  (rgbsurface.h is the other way round: Scarier includes its own copy
+# everywhere, so here it is the original in ../common_utils that could drift.)
+VENDORED := randomness.c randomness.h rgbsurface.h
 
 vendorcheck:
 	@for f in $(VENDORED); do \
@@ -240,6 +322,7 @@ gamesfetch:
 # this machine.
 v4walkthroughs:
 	@if [ -d "$(V4_GAMES_DIR)" ]; then \
+	  $(MAKE) -f Makefile.headless $(SCARE_BIN) >/dev/null && \
 	  sh test/adrift4/harness/run_v4_walkthroughs.sh; \
 	else \
 	  echo "v4walkthroughs: SKIP (no ADRIFT 4 game corpus: $(V4_GAMES_DIR))"; \
@@ -280,8 +363,8 @@ a5walkthroughs-golden: $(A5RUN_BIN)
 # Deterministic projectile-combat regression (ADRIFT 4 Battle System).  SKIPs
 # when the five battle-game .taf files are absent; no FrankenDrift.  Part of
 # default `test`.
-scprojregress:
-	@sh test/adrift4/harness/scproj_regress.sh
+scprojregress: $(SCPROJ_BIN)
+	@SCPROJ_BIN="$(abspath $(SCPROJ_BIN))" sh test/adrift4/harness/scproj_regress.sh
 
 # Synthetic ADRIFT 5 conformance probes (the Probe* rows of the walkthrough
 # suite), imported from the adrift-5-rs test suite.  The committed
@@ -290,12 +373,18 @@ scprojregress:
 # only needed after editing a source XML: the .taf output is byte-stable (the
 # IFID is derived from the probe's file name, not a fresh uuid4 per build), so a
 # no-change rebuild leaves the files -- and FrankenDrift's FD_CACHE entries for
-# them -- untouched.
+# them -- untouched.  A probe whose text has <img>/<audio> tags is also packaged
+# as a .blorb by tools/xml2blorb.py, bundling the media files in probes/ that
+# the tags name.
 a5probetafs:
 	@cd test/adrift5/probes && for x in src/*.xml; do \
 	    n=$$(basename "$$x" .xml); \
 	    python3 tools/xml2taf.py "$$x" -o "$$n.taf" || exit 1; \
 	    echo "built adrift5/probes/$$n.taf"; \
+	    if grep -qiE '&lt;(img|audio)[[:space:]]' "$$x"; then \
+	        python3 tools/xml2blorb.py "$$x" -o "$$n.blorb" || exit 1; \
+	        echo "built adrift5/probes/$$n.blorb"; \
+	    fi; \
 	done
 
 # ADRIFT 5 auto-map raster regression: renders six views of the map.xml
@@ -310,132 +399,177 @@ a5maptest: $(A5MAP_BIN)
 # unit portion of `test` runs (the a5runtest game-file replay is excluded: it
 # needs uncommittable game data -- run it under sanitizers by hand with
 #   make -f Makefile.headless a5runtest CXXFLAGS="$(CXXFLAGS) $(SAN_FLAGS)").
-# Each harness is rebuilt from source into a *_san binary (so there is no
-# timestamp/flag-staleness footgun) and run immediately; a sanitizer abort or a
+# Each harness is linked into a *_san binary and run; a sanitizer abort or a
 # non-zero exit stops the target.
-sanitize: $(TAF) $(PREC_TAF) $(BADP_TAF) $(SAN_RAND_OBJ)
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) $(STUBS) $(HARNESS) $(LDLIBS) -o $(BIN)_san
+#
+# Sanitizer builds of the same harnesses.  The engine is compiled once more,
+# into san/ (CXXFLAGS plus SAN_FLAGS, .d files like the other object sets), and
+# every _san binary links from that set, so the target compiles the ~70 engine
+# files once rather than once per harness; the binaries are the ones the old
+# per-harness compile lines produced.  a5parse_test needs no zlib but takes
+# $(LDLIBS) like the rest, which costs nothing.
+sanobjs  = $(patsubst %.cpp,$(OBJDIR)/san/%.o,$(1))
+SAN_LINK = $(CXX) $(CXXFLAGS) $(SAN_FLAGS) $^ $(LDLIBS) -o $@
+
+$(OBJDIR)/san/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) -MMD -MP -c $< -o $@
+
+$(BIN)_san: $(call sanobjs,$(SRC) $(STUBS) $(HARNESS)) $(SAN_RAND_OBJ)
+	$(SAN_LINK)
+$(PREC_BIN)_san: $(call sanobjs,$(SRC) $(OS_STUBS) $(PREC_HARNESS)) $(SAN_RAND_OBJ)
+	$(SAN_LINK)
+$(BADP_BIN)_san: $(call sanobjs,$(SRC) $(OS_STUBS) $(BADP_HARNESS)) $(SAN_RAND_OBJ)
+	$(SAN_LINK)
+$(CORRUPT_BIN)_san: $(call sanobjs,$(SRC) $(OS_STUBS) $(CORRUPT_HARNESS)) $(SAN_RAND_OBJ)
+	$(SAN_LINK)
+$(QUIT_BIN)_san: $(call sanobjs,$(SRC) $(OS_STUBS) $(QUIT_HARNESS)) $(SAN_RAND_OBJ)
+	$(SAN_LINK)
+$(EXPR_BIN)_san: $(call sanobjs,$(SRC) $(OS_STUBS) $(EXPR_HARNESS)) $(SAN_RAND_OBJ)
+	$(SAN_LINK)
+$(CAP_BIN)_san: $(call sanobjs,$(SRC) platform/os_ansi.cpp test/adrift4/harness/seed.cpp) $(SAN_RAND_OBJ)
+	$(SAN_LINK)
+$(A5PARSE_BIN)_san: $(call sanobjs,$(A5DIR)/a5parse.cpp $(A5PARSE_HARNESS))
+	$(SAN_LINK)
+$(A5SEXPR_BIN)_san: $(call sanobjs,$(A5DIR)/a5sexpr.cpp $(A5DIR)/a5rand.cpp $(A5SEXPR_HARNESS)) $(SAN_RAND_OBJ)
+	$(SAN_LINK)
+$(A5DIS_BIN)_san: $(call sanobjs,$(A5_RUN_SRC) $(A5DIS_HARNESS)) $(SAN_RAND_OBJ)
+	$(SAN_LINK)
+$(A5WALK_BIN)_san: $(call sanobjs,$(A5_RUN_SRC) $(A5WALK_HARNESS)) $(SAN_RAND_OBJ)
+	$(SAN_LINK)
+$(A5OBJ_BIN)_san: $(call sanobjs,$(A5_RUN_SRC) $(A5OBJ_HARNESS)) $(SAN_RAND_OBJ)
+	$(SAN_LINK)
+$(A5SAVE_BIN)_san: $(call sanobjs,$(A5_RUN_SRC) $(A5SAVE_HARNESS)) $(SAN_RAND_OBJ)
+	$(SAN_LINK)
+$(A5DUP_BIN)_san: $(call sanobjs,$(A5_RUN_SRC) $(A5DUP_HARNESS)) $(SAN_RAND_OBJ)
+	$(SAN_LINK)
+
+SAN_BINS := $(BIN)_san $(PREC_BIN)_san $(BADP_BIN)_san $(CORRUPT_BIN)_san $(QUIT_BIN)_san \
+            $(EXPR_BIN)_san $(CAP_BIN)_san $(A5PARSE_BIN)_san $(A5SEXPR_BIN)_san $(A5DIS_BIN)_san \
+            $(A5WALK_BIN)_san $(A5OBJ_BIN)_san $(A5SAVE_BIN)_san $(A5DUP_BIN)_san
+
+# Build every _san binary $(JOBS) compiles at a time, then run them in the
+# order the harnesses are listed above.  The lone `take a1 foo bar` is a parser
+# regression: "%object% %text%" matched against the referenced text used to
+# read that text after its own %text% capture had reallocated it.
+sanitize: $(TAF) $(PREC_TAF) $(BADP_TAF) $(CAP_TAF) $(WHERE_TAF)
+	@$(MAKE) -f Makefile.headless -j$(JOBS) $(SAN_BINS)
 	$(SAN_ENV) ./$(BIN)_san $(TAF)
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) $(OS_STUBS) $(PREC_HARNESS) $(LDLIBS) -o $(PREC_BIN)_san
 	$(SAN_ENV) ./$(PREC_BIN)_san $(PREC_TAF)
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) $(OS_STUBS) $(BADP_HARNESS) $(LDLIBS) -o $(BADP_BIN)_san
 	$(SAN_ENV) ./$(BADP_BIN)_san $(BADP_TAF)
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) $(OS_STUBS) $(CORRUPT_HARNESS) $(LDLIBS) -o $(CORRUPT_BIN)_san
 	$(SAN_ENV) ./$(CORRUPT_BIN)_san
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) $(OS_STUBS) $(QUIT_HARNESS) $(LDLIBS) -o $(QUIT_BIN)_san
 	$(SAN_ENV) ./$(QUIT_BIN)_san $(PREC_TAF)
-	$(MAKE) -f Makefile.headless $(CAP_TAF)
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(SRC) os_ansi.cpp \
-	    test/adrift4/harness/seed.cpp $(LDLIBS) -o $(CAP_BIN)_san
+	$(SAN_ENV) ./$(EXPR_BIN)_san $(PREC_TAF)
 	$(SAN_ENV) ./$(CAP_BIN)_san test/adrift4/harness/capacity_matrix.taf \
 	    < test/adrift4/harness/capacity_matrix_script.txt > /dev/null
 	$(SAN_ENV) ./$(CAP_BIN)_san test/adrift4/harness/capacity_nest.taf \
 	    < test/adrift4/harness/capacity_nest_script.txt > /dev/null
-	$(MAKE) -f Makefile.headless $(WHERE_TAF)
 	$(SAN_ENV) ./$(CAP_BIN)_san test/adrift4/harness/where_refusal.taf \
 	    < test/adrift4/harness/where_refusal_script.txt > /dev/null
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(A5DIR)/a5parse.cpp $(A5PARSE_HARNESS) -o $(A5PARSE_BIN)_san
+	printf 'take a1 foo bar\nquit\ny\n' \
+	    | $(SAN_ENV) ./$(CAP_BIN)_san test/adrift4/harness/capacity_matrix.taf > /dev/null
 	$(SAN_ENV) ./$(A5PARSE_BIN)_san
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(A5DIR)/a5sexpr.cpp $(A5DIR)/a5rand.cpp $(A5SEXPR_HARNESS) $(SAN_RAND_OBJ) $(LDLIBS) -o $(A5SEXPR_BIN)_san
 	$(SAN_ENV) ./$(A5SEXPR_BIN)_san
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(A5_RUN_SRC) $(A5DIS_HARNESS) $(SAN_RAND_OBJ) $(LDLIBS) -o $(A5DIS_BIN)_san
 	$(SAN_ENV) ./$(A5DIS_BIN)_san
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(A5_RUN_SRC) $(A5WALK_HARNESS) $(SAN_RAND_OBJ) $(LDLIBS) -o $(A5WALK_BIN)_san
 	$(SAN_ENV) ./$(A5WALK_BIN)_san
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(A5_RUN_SRC) $(A5OBJ_HARNESS) $(SAN_RAND_OBJ) $(LDLIBS) -o $(A5OBJ_BIN)_san
 	$(SAN_ENV) ./$(A5OBJ_BIN)_san
-	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) $(A5_RUN_SRC) $(A5SAVE_HARNESS) $(SAN_RAND_OBJ) $(LDLIBS) -o $(A5SAVE_BIN)_san
 	$(SAN_ENV) ./$(A5SAVE_BIN)_san
+	$(SAN_ENV) ./$(A5DUP_BIN)_san
 	@echo "sanitize: all self-contained harnesses ASan/UBSan-clean"
 
 # RNG object built with sanitizers, for the a5 run-pipeline sanitize builds.
 $(SAN_RAND_OBJ): $(COMMON)/randomness.c $(COMMON)/randomness.h
-	$(CC) -O2 -w -I../cheapglk $(SAN_FLAGS) -c -o $@ $(COMMON)/randomness.c
+	$(CC) -O2 -w $(SAN_FLAGS) -c -o $@ $(COMMON)/randomness.c
 
-$(BIN): $(SRC) $(STUBS) $(HARNESS)
-	$(CXX) $(CXXFLAGS) $(SRC) $(STUBS) $(HARNESS) $(LDLIBS) -o $@
+$(BIN): $(ENG_OBJ) $(STUB_OBJ) $(call objs,$(HARNESS))
+	$(CXX) $^ $(LDLIBS) -o $@
 
-$(PREC_BIN): $(SRC) $(OS_STUBS) $(PREC_HARNESS)
-	$(CXX) $(CXXFLAGS) $(SRC) $(OS_STUBS) $(PREC_HARNESS) $(LDLIBS) -o $@
+$(PREC_BIN): $(ENG_OBJ) $(call objs,$(OS_STUBS) $(PREC_HARNESS))
+	$(CXX) $^ $(LDLIBS) -o $@
 
-$(BADP_BIN): $(SRC) $(OS_STUBS) $(BADP_HARNESS)
-	$(CXX) $(CXXFLAGS) $(SRC) $(OS_STUBS) $(BADP_HARNESS) $(LDLIBS) -o $@
+$(BADP_BIN): $(ENG_OBJ) $(call objs,$(OS_STUBS) $(BADP_HARNESS))
+	$(CXX) $^ $(LDLIBS) -o $@
 
-$(CORRUPT_BIN): $(SRC) $(OS_STUBS) $(CORRUPT_HARNESS)
-	$(CXX) $(CXXFLAGS) $(SRC) $(OS_STUBS) $(CORRUPT_HARNESS) $(LDLIBS) -o $@
+$(CORRUPT_BIN): $(ENG_OBJ) $(call objs,$(OS_STUBS) $(CORRUPT_HARNESS))
+	$(CXX) $^ $(LDLIBS) -o $@
 
-$(QUIT_BIN): $(SRC) $(OS_STUBS) $(QUIT_HARNESS)
-	$(CXX) $(CXXFLAGS) $(SRC) $(OS_STUBS) $(QUIT_HARNESS) $(LDLIBS) -o $@
+$(QUIT_BIN): $(ENG_OBJ) $(call objs,$(OS_STUBS) $(QUIT_HARNESS))
+	$(CXX) $^ $(LDLIBS) -o $@
+
+$(EXPR_BIN): $(ENG_OBJ) $(call objs,$(OS_STUBS) $(EXPR_HARNESS))
+	$(CXX) $^ $(LDLIBS) -o $@
 
 # Build the ADRIFT 5 XML dumper.  Run it by hand on a game:
 #   make -f Makefile.headless a5dump
 #   ./test/adrift5/harness/a5dump path/to/game.blorb > game.xml
 a5dump: $(A5DUMP_BIN)
-$(A5DUMP_BIN): $(A5_SRC) $(A5DUMP_HARNESS) $(A5DIR)/a5blorb.h $(A5DIR)/a5deobf.h
-	$(CXX) $(CXXFLAGS) $(A5_SRC) $(A5DUMP_HARNESS) $(LDLIBS) -o $@
+$(A5DUMP_BIN): $(call objs,$(A5_SRC) $(A5DUMP_HARNESS))
+	$(CXX) $^ $(LDLIBS) -o $@
 
 # Build the ADRIFT 5 object-model dumper (Phase 1).  Run it by hand:
 #   make -f Makefile.headless a5model
 #   ./test/adrift5/harness/a5model_dump path/to/game.blorb
 a5model: $(A5MODEL_BIN)
-$(A5MODEL_BIN): $(A5_MODEL_SRC) $(A5MODEL_HARNESS) $(A5_HDRS)
-	$(CXX) $(CXXFLAGS) $(A5_MODEL_SRC) $(A5MODEL_HARNESS) $(LDLIBS) -o $@
+$(A5MODEL_BIN): $(call objs,$(A5_MODEL_SRC) $(A5MODEL_HARNESS))
+	$(CXX) $^ $(LDLIBS) -o $@
 
 # Build the ADRIFT 5 text-engine harness (Phase 2).  Run it by hand:
 #   make -f Makefile.headless a5text
 #   ./test/adrift5/harness/a5text_dump path/to/game.blorb [LocationKey]
 a5text: $(A5TEXT_BIN)
-$(A5TEXT_BIN): $(A5_TEXT_SRC) $(A5TEXT_HARNESS) $(A5_TEXT_HDRS) $(A5_RAND_OBJ)
-	$(CXX) $(CXXFLAGS) $(A5_TEXT_SRC) $(A5TEXT_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
+$(A5TEXT_BIN): $(call objs,$(A5_TEXT_SRC) $(A5TEXT_HARNESS)) $(A5_RAND_OBJ)
+	$(CXX) $^ $(LDLIBS) -o $@
 
 # Build the ADRIFT 5 turn-loop harness (Phase 3).  Run it by hand:
 #   make -f Makefile.headless a5run
 #   ./test/adrift5/harness/a5run_dump path/to/game.blorb [script.txt]
 a5run: $(A5RUN_BIN)
-$(A5RUN_BIN): $(A5_RUN_SRC) $(A5RUN_HARNESS) $(A5_RUN_HDRS) $(A5_RAND_OBJ)
-	$(CXX) $(CXXFLAGS) $(A5_RUN_SRC) $(A5RUN_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
+$(A5RUN_BIN): $(A5_RUN_OBJ) $(call objs,$(A5RUN_HARNESS)) $(A5_RAND_OBJ)
+	$(CXX) $^ $(LDLIBS) -o $@
 
-# The shared erkyrath RNG, compiled as C with cheapglk on the include path
-# (only for glui32 via glk.h).
+# The shared erkyrath RNG, compiled as C.
 $(A5_RAND_OBJ): $(COMMON)/randomness.c $(COMMON)/randomness.h
-	$(CC) -O2 -w -I../cheapglk -c -o $@ $(COMMON)/randomness.c
+	$(CC) -O2 -w -c -o $@ $(COMMON)/randomness.c
 
 # Render the ADRIFT 5 map headlessly to a PPM (no Glk).  Run it by hand:
 #   make -f Makefile.headless a5map
 #   ./test/adrift5/harness/a5map_dump path/to/game.blorb [script.txt] -o map.ppm [-all]
 a5map: $(A5MAP_BIN)
-$(A5MAP_BIN): $(A5_RUN_SRC) $(A5DIR)/a5map.cpp mapdraw.cpp $(A5MAP_HARNESS) $(A5_RUN_HDRS) \
-              $(A5DIR)/a5map.h mapdraw.h $(A5_RAND_OBJ)
-	$(CXX) $(CXXFLAGS) $(A5_RUN_SRC) $(A5DIR)/a5map.cpp mapdraw.cpp $(A5MAP_HARNESS) \
-	    $(A5_RAND_OBJ) $(LDLIBS) -o $@
+$(A5MAP_BIN): $(A5_RUN_OBJ) $(call objs,$(A5DIR)/a5map.cpp mapdraw.cpp $(A5MAP_HARNESS)) \
+              $(A5_RAND_OBJ)
+	$(CXX) $^ $(LDLIBS) -o $@
 
 # Render the ADRIFT 4 map headlessly to a PPM (no Glk).  Run it by hand:
 #   make -f Makefile.headless scmap
 #   ./test/adrift4/harness/scmap_dump path/to/game.taf [script.txt] -o map.ppm [-all] [-grid]
+# Linked with seed.cpp so that a script's visited set is the same on every
+# run: a game that branches on the RNG (adriftorama's golf) otherwise marks
+# a different set of rooms seen each time.
 scmap: $(SCMAP_BIN)
-$(SCMAP_BIN): $(SRC) $(OS_STUBS) $(SCMAP_HARNESS) scmap.h mapdraw.h
-	$(CXX) $(CXXFLAGS) $(SRC) $(OS_STUBS) $(SCMAP_HARNESS) $(LDLIBS) -o $@
+$(SCMAP_BIN): $(ENG_OBJ) \
+              $(call objs,$(OS_STUBS) $(SCMAP_HARNESS) test/adrift4/harness/seed.cpp)
+	$(CXX) $^ $(LDLIBS) -o $@
 
 # Self-contained matcher regression test (no game data); part of `test`.
 a5parsetest: $(A5PARSE_BIN)
 	./$(A5PARSE_BIN)
-$(A5PARSE_BIN): $(A5DIR)/a5parse.cpp $(A5DIR)/a5parse.h $(A5PARSE_HARNESS)
-	$(CXX) $(CXXFLAGS) $(A5DIR)/a5parse.cpp $(A5PARSE_HARNESS) -o $@
+$(A5PARSE_BIN): $(call objs,$(A5DIR)/a5parse.cpp $(A5PARSE_HARNESS))
+	$(CXX) $^ -o $@
 
 # Self-contained expression-evaluator regression (no game data); part of `test`.
 # Exercises a5sexpr (the sole variable/expression evaluator since a5arith was
 # folded in); links a5rand for its rand()/oneof() draws.
 a5sexprtest: $(A5SEXPR_BIN)
 	./$(A5SEXPR_BIN)
-$(A5SEXPR_BIN): $(A5DIR)/a5sexpr.cpp $(A5DIR)/a5sexpr.h $(A5DIR)/a5rand.cpp $(A5SEXPR_HARNESS) $(A5_RAND_OBJ)
-	$(CXX) $(CXXFLAGS) $(A5DIR)/a5sexpr.cpp $(A5DIR)/a5rand.cpp $(A5SEXPR_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
+$(A5SEXPR_BIN): $(call objs,$(A5DIR)/a5sexpr.cpp $(A5DIR)/a5rand.cpp $(A5SEXPR_HARNESS)) $(A5_RAND_OBJ)
+	$(CXX) $^ $(LDLIBS) -o $@
 
 # Self-contained disambiguation regression (synthetic in-memory v5 adventure,
 # no game data); part of `test`.  Links the full a5 run pipeline.
 a5distest: $(A5DIS_BIN)
 	./$(A5DIS_BIN)
-$(A5DIS_BIN): $(A5_RUN_SRC) $(A5DIS_HARNESS) $(A5_RUN_HDRS) $(A5FIX_HDR) $(A5_RAND_OBJ)
-	$(CXX) $(CXXFLAGS) $(A5_RUN_SRC) $(A5DIS_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
+$(A5DIS_BIN): $(A5_RUN_OBJ) $(call objs,$(A5DIS_HARNESS)) $(A5_RAND_OBJ)
+	$(CXX) $^ $(LDLIBS) -o $@
 
 # Self-contained walks + event sub-events regression (synthetic in-memory v5
 # adventures, no game data); part of `test`.  Exercises clsWalk (steps,
@@ -443,8 +577,8 @@ $(A5DIS_BIN): $(A5_RUN_SRC) $(A5DIS_HARNESS) $(A5_RUN_HDRS) $(A5FIX_HDR) $(A5_RA
 # (DisplayMessage gate + SetLook), which the shipped corpus does not cover.
 a5walktest: $(A5WALK_BIN)
 	./$(A5WALK_BIN)
-$(A5WALK_BIN): $(A5_RUN_SRC) $(A5WALK_HARNESS) $(A5_RUN_HDRS) $(A5FIX_HDR) $(A5_RAND_OBJ)
-	$(CXX) $(CXXFLAGS) $(A5_RUN_SRC) $(A5WALK_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
+$(A5WALK_BIN): $(A5_RUN_OBJ) $(call objs,$(A5WALK_HARNESS)) $(A5_RAND_OBJ)
+	$(CXX) $^ $(LDLIBS) -o $@
 
 # Self-contained multiple-object reference regression (synthetic in-memory v5
 # adventure, no game data); part of `test`.  Exercises the %objects% grammar
@@ -453,8 +587,8 @@ $(A5WALK_BIN): $(A5_RUN_SRC) $(A5WALK_HARNESS) $(A5_RUN_HDRS) $(A5FIX_HDR) $(A5_
 # shipped corpus covers under the deterministic seed.
 a5objtest: $(A5OBJ_BIN)
 	./$(A5OBJ_BIN)
-$(A5OBJ_BIN): $(A5_RUN_SRC) $(A5OBJ_HARNESS) $(A5_RUN_HDRS) $(A5FIX_HDR) $(A5_RAND_OBJ)
-	$(CXX) $(CXXFLAGS) $(A5_RUN_SRC) $(A5OBJ_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
+$(A5OBJ_BIN): $(A5_RUN_OBJ) $(call objs,$(A5OBJ_HARNESS)) $(A5_RAND_OBJ)
+	$(CXX) $^ $(LDLIBS) -o $@
 
 # Self-contained save/restore round-trip regression (synthetic in-memory v5
 # adventure, no game data); part of `test`.  Proves a5run_save / a5run_restore
@@ -462,8 +596,15 @@ $(A5OBJ_BIN): $(A5_RUN_SRC) $(A5OBJ_HARNESS) $(A5_RUN_HDRS) $(A5FIX_HDR) $(A5_RA
 # continuation after restore (Phase 5).
 a5savetest: $(A5SAVE_BIN)
 	./$(A5SAVE_BIN)
-$(A5SAVE_BIN): $(A5_RUN_SRC) $(A5SAVE_HARNESS) $(A5_RUN_HDRS) $(A5FIX_HDR) $(A5_RAND_OBJ)
-	$(CXX) $(CXXFLAGS) $(A5_RUN_SRC) $(A5SAVE_HARNESS) $(A5_RAND_OBJ) $(LDLIBS) -o $@
+$(A5SAVE_BIN): $(A5_RUN_OBJ) $(call objs,$(A5SAVE_HARNESS)) $(A5_RAND_OBJ)
+	$(CXX) $^ $(LDLIBS) -o $@
+
+# Identical `<#..#>` bodies in one block show one value (runner replace-all
+# ReplaceExpressions) while every occurrence still draws; part of `test`.
+a5duptest: $(A5DUP_BIN)
+	./$(A5DUP_BIN)
+$(A5DUP_BIN): $(A5_RUN_OBJ) $(call objs,$(A5DUP_HARNESS)) $(A5_RAND_OBJ)
+	$(CXX) $^ $(LDLIBS) -o $@
 
 # The TAFs are checked in; these targets only refresh them from the generators.
 # Container size/capacity goldens.  Regenerate with:
@@ -512,9 +653,39 @@ wherebless: $(CAP_BIN) $(WHERE_TAF)
 	  echo "blessed test/adrift4/harness/$${probe}_expected.txt"; \
 	done
 
-$(CAP_BIN): $(SRC) os_ansi.cpp test/adrift4/harness/seed.cpp
-	$(CXX) $(CXXFLAGS) $(SRC) os_ansi.cpp \
-	    test/adrift4/harness/seed.cpp $(LDLIBS) -o $@
+# Embedded-sound golden.  Regenerate with:
+#   make -f Makefile.headless soundbless
+soundtest: $(CAP_BIN) $(SOUND_TAF)
+	@SCR_TRACE_SOUND=1 ./$(CAP_BIN) $(SOUND_TAF) < test/adrift4/harness/sound_400_script.txt \
+	    2>/dev/null | tr -s '\n' > /tmp/sound_400.got; \
+	if diff -u test/adrift4/harness/sound_400_expected.txt /tmp/sound_400.got \
+	    > /tmp/sound_400.diff 2>&1; then \
+	  echo "sound sound_400: PASS"; \
+	else \
+	  echo "sound sound_400: FAIL"; cat /tmp/sound_400.diff; exit 1; \
+	fi
+
+soundbless: $(CAP_BIN) $(SOUND_TAF)
+	@SCR_TRACE_SOUND=1 ./$(CAP_BIN) $(SOUND_TAF) < test/adrift4/harness/sound_400_script.txt \
+	    2>/dev/null | tr -s '\n' > test/adrift4/harness/sound_400_expected.txt; \
+	echo "blessed test/adrift4/harness/sound_400_expected.txt"
+
+$(CAP_BIN): $(ENG_OBJ) $(call objs,platform/os_ansi.cpp test/adrift4/harness/seed.cpp)
+	$(CXX) $^ $(LDLIBS) -o $@
+
+# The two binaries the corpus scripts replay, built here so `test` compiles them
+# from the shared objects instead of the scripts compiling the whole engine
+# themselves.  Both scripts still build their own when run standalone:
+# run_v4_walkthroughs.sh rebuilds `scare` via build.sh only when it is missing
+# or older than a source, and scproj_regress.sh skips its compile when handed
+# SCPROJ_BIN.
+$(SCARE_BIN): $(call dumpobjs,$(SRC) platform/os_ansi.cpp test/adrift4/harness/seed.cpp) \
+              $(A5_RAND_OBJ)
+	$(CXX) $^ $(LDLIBS) -o $@
+
+$(SCPROJ_BIN): $(ENG_OBJ) $(STUB_OBJ) \
+               $(call objs,test/adrift4/harness/scproj_test.cpp test/adrift4/harness/seed.cpp)
+	$(CXX) $^ $(LDLIBS) -o $@
 
 test/adrift4/harness/capacity_matrix.taf: test/adrift4/harness/make_sizeprobe.py
 	python3 test/adrift4/harness/make_sizeprobe.py 390 $@ 994 994 cap2
@@ -526,6 +697,9 @@ test/adrift4/harness/where_refusal_1p.taf: test/adrift4/harness/make_39_wherepro
 	python3 test/adrift4/harness/make_39_whereprobe.py $@ 0 e
 test/adrift4/harness/where_refusal_3p.taf: test/adrift4/harness/make_39_whereprobe.py
 	python3 test/adrift4/harness/make_39_whereprobe.py $@ 2 e
+$(SOUND_TAF): test/adrift4/harness/make_400_soundprobe.py \
+              test/adrift5/probes/oof.wav test/adrift5/probes/oof.mp3
+	python3 test/adrift4/harness/make_400_soundprobe.py $@
 
 taf: $(TAF) $(PREC_TAF) $(BADP_TAF)
 $(TAF): test/adrift4/harness/make_battle_taf.py
@@ -536,5 +710,8 @@ $(BADP_TAF): test/adrift4/harness/make_badparent_taf.py
 	python3 test/adrift4/harness/make_badparent_taf.py $(BADP_TAF)
 
 clean:
-	rm -f $(BIN) $(PREC_BIN) $(BADP_BIN) $(CORRUPT_BIN) $(QUIT_BIN) $(A5DUMP_BIN) $(A5MODEL_BIN) $(A5TEXT_BIN) $(A5RUN_BIN) $(A5PARSE_BIN) $(A5SEXPR_BIN) $(A5DIS_BIN) $(A5WALK_BIN) $(A5OBJ_BIN) $(A5SAVE_BIN) $(A5_RAND_OBJ) $(CAP_BIN)
-	rm -f $(BIN)_san $(PREC_BIN)_san $(BADP_BIN)_san $(CORRUPT_BIN)_san $(QUIT_BIN)_san $(A5PARSE_BIN)_san $(A5SEXPR_BIN)_san $(A5DIS_BIN)_san $(A5WALK_BIN)_san $(A5OBJ_BIN)_san $(A5SAVE_BIN)_san $(CAP_BIN)_san $(SAN_RAND_OBJ)
+	rm -rf $(OBJDIR)
+	rm -f $(BIN) $(PREC_BIN) $(BADP_BIN) $(CORRUPT_BIN) $(QUIT_BIN) $(EXPR_BIN) $(A5DUMP_BIN) $(A5MODEL_BIN) $(A5TEXT_BIN) $(A5RUN_BIN) $(A5PARSE_BIN) $(A5SEXPR_BIN) $(A5DIS_BIN) $(A5WALK_BIN) $(A5OBJ_BIN) $(A5SAVE_BIN) $(A5DUP_BIN) $(A5MAP_BIN) $(SCMAP_BIN) $(A5_RAND_OBJ) $(CAP_BIN) $(SCARE_BIN) $(SCPROJ_BIN)
+	rm -f $(BIN)_san $(PREC_BIN)_san $(BADP_BIN)_san $(CORRUPT_BIN)_san $(QUIT_BIN)_san $(EXPR_BIN)_san $(A5PARSE_BIN)_san $(A5SEXPR_BIN)_san $(A5DIS_BIN)_san $(A5WALK_BIN)_san $(A5OBJ_BIN)_san $(A5SAVE_BIN)_san $(A5DUP_BIN)_san $(CAP_BIN)_san $(SAN_RAND_OBJ)
+
+-include $(shell find $(OBJDIR) -name '*.d' 2>/dev/null)

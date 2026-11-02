@@ -25,9 +25,6 @@ cbuf_handle_t circular_buf_init(uint8_t *buffer, size_t size);
 /// Does not free data buffer; owner is responsible for that
 void circular_buf_free(cbuf_handle_t me);
 
-/// Reset the circular buffer to empty, head == tail
-void circular_buf_reset(cbuf_handle_t me);
-
 /// Rejects new data if the buffer is full
 /// Returns 0 on success, -1 if buffer is full
 int circular_buf_putXY(cbuf_handle_t me, uint8_t x, uint8_t y);
@@ -38,8 +35,5 @@ int circular_buf_getXY(cbuf_handle_t me, uint8_t *x, uint8_t *y);
 
 /// Returns true if the buffer is empty
 bool circular_buf_empty(cbuf_handle_t me);
-
-/// Returns true if the buffer is full
-bool circular_buf_full(cbuf_handle_t me);
 
 #endif /* ringbuffer_h */

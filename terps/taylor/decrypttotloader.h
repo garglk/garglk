@@ -8,12 +8,14 @@
 //  Created by Petter Sjölund on 2022-04-18.
 //
 
-#ifndef decryptloader_h
-#define decryptloader_h
+#ifndef decrypttotloader_h
+#define decrypttotloader_h
 
 #include <stdint.h>
-#include <stdio.h>
 
-uint8_t *DecryptToTSideB(uint8_t *data, size_t *length);
+/* Decrypts the Temple of Terror Side B tape image at data into a new
+   ZX_MEMORY_SIZE memory image for the caller to free, and sets *length to
+   ZX_MEMORY_SIZE; NULL on failure. Never frees data. */
+uint8_t *DecryptToTSideB(const uint8_t *data, size_t *length);
 
-#endif /* decryptloader_h */
+#endif /* decrypttotloader_h */

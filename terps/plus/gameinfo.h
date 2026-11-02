@@ -10,7 +10,7 @@
 
 #include "definitions.h"
 
-extern struct GameInfo games[];
+extern const GameInfo games[];
 extern const char *sysdict[];
 extern const char *sysdict_i_am[];
 

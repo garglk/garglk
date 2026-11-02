@@ -12,40 +12,47 @@
 #include "extracommands.h"
 
 DictWord ExtraWords[] = {
-    { "IT", 1 },
-    { "HER", 1 },
-    { "HIM", 1 },
-    { "THEM", 1 },
-    { "AGAIN", 2 },
-    { "G", 2 },
-    { "REPEAT", 2 },
-    { "CONTINUE", 2 },
-    { "?", 4 },
-    { "UNDO", 5 },
-    { "BOM", 5 },
-    { "PON", 6 },
-    { "TRANSCRIPT", 6 },
-    { "SCRIPT", 6 },
-    { "POFF", 7 },
-    { "RESTART", 8 },
-    { "RAMSAVE", 9 },
-    { "RAMRESTORE", 10 },
-    { "RAMLOAD", 10 },
-    { "ON", 11 },
-    { "OFF", 12 },
-    { "COMMAND", 13 },
-    { "MOVE", 13 },
-    { "TURN", 13 },
-    { "LOAD", 14 },
-    { "RESTORE", 14 },
-    { "SAVE", 15 },
-    { "RAM", 16 },
-    { "GAME", 17 },
-    { "STORY", 17 },
-    { "SESSION", 17 },
+    { "IT", COM_IT },
+    { "HER", COM_IT },
+    { "HIM", COM_IT },
+    { "THEM", COM_IT },
+    { "AGAIN", COM_AGAIN },
+    { "G", COM_AGAIN },
+    { "REPEAT", COM_AGAIN },
+    { "CONTINUE", COM_AGAIN },
+    { "?", COM_WHERE },
+    { "UNDO", COM_UNDO },
+    { "BOM", COM_UNDO },
+    { "PON", COM_TRANSCRIPT },
+    { "TRANSCRIPT", COM_TRANSCRIPT },
+    { "SCRIPT", COM_TRANSCRIPT },
+    { "POFF", COM_TRANSCRIPT_OFF },
+    { "RESTART", COM_RESTART },
+    { "RAMSAVE", COM_RAMSAVE },
+    { "RAMRESTORE", COM_RAMRESTORE },
+    { "RAMLOAD", COM_RAMRESTORE },
+    { "ON", COM_ON },
+    { "OFF", COM_OFF },
+    { "COMMAND", COM_MAND },
+    { "MOVE", COM_MAND },
+    { "TURN", COM_MAND },
+    { "LOAD", COM_LOAD },
+    { "RESTORE", COM_LOAD },
+    { "SAVE", COM_SAVE },
+    { "RAM", COM_RAM },
+    { "GAME", COM_GAME },
+    { "STORY", COM_GAME },
+    { "SESSION", COM_GAME },
 
     { NULL, 0 }
 };
+
+/* The system messages are const, and Glk's string calls take a plain
+   char * that they do not write to */
+static void PutString(strid_t stream, const char *s)
+{
+    glk_put_string_stream(stream, (char *)s);
+}
 
 static void TranscriptOn(void)
 {
@@ -69,9 +76,8 @@ static void TranscriptOn(void)
         return;
     }
 
-    glk_put_string_stream(Transcript, (char *)sys[TRANSCRIPT_START]);
-    glk_put_string_stream(glk_window_get_stream(Bottom),
-        (char *)sys[TRANSCRIPT_ON]);
+    PutString(Transcript, sys[TRANSCRIPT_START]);
+    PutString(glk_window_get_stream(Bottom), sys[TRANSCRIPT_ON]);
 
     glk_window_set_echo_stream(Bottom, Transcript);
 
@@ -85,7 +91,7 @@ static void TranscriptOff(void)
         return;
     }
 
-    glk_put_string_stream(Transcript, (char *)sys[TRANSCRIPT_END]);
+    PutString(Transcript, sys[TRANSCRIPT_END]);
 
     glk_window_set_echo_stream(Bottom, NULL);
 
@@ -98,13 +104,18 @@ ExtraCommandResult PerformExtraCommand(int command, int nextcommand)
 {
     switch (command) {
     case COM_AGAIN:
-        CurrentVerb = LastVerb;
-        CurrentNoun = LastNoun;
-        CurrentPrep = LastPrep;
-        CurrentPartp = LastPartp;
-        CurrentNoun2 = LastNoun2;
-        CurrentAdverb = LastAdverb;
-        return RESULT_AGAIN;
+        if (LastVerb == 0) {
+            SystemMessage(NO_PREVIOUS_ACTION);
+            return RESULT_ONE_WORD;
+        } else {
+            CurrentVerb = LastVerb;
+            CurrentNoun = LastNoun;
+            CurrentPrep = LastPrep;
+            CurrentPartp = LastPartp;
+            CurrentNoun2 = LastNoun2;
+            CurrentAdverb = LastAdverb;
+            return RESULT_AGAIN;
+        }
     case COM_UNDO:
         RestoreUndo(1);
         if (nextcommand == COM_MAND)

@@ -5,57 +5,26 @@
 //  Created by Petter Sjölund on 2022-01-30.
 //
 
-#include <ctype.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "c64diskimage.h"
 #include "common.h"
+#include "definitions.h"
 #include "gameinfo.h"
 #include "graphics.h"
 
 #include "c64detect.h"
 
-#define MAX_LENGTH 300000
-#define MIN_LENGTH 24
-
-int issagaimg(const char *name)
-{
-    if (name == NULL)
-        return 0;
-    size_t len = strlen(name);
-    if (len < 4)
-        return 0;
-    char c = name[0];
-    if (c == 'R' || c == 'B' || c == 'S') {
-        for (int i = 1; i < 4; i++)
-            if (!isdigit(name[i]))
-                return 0;
-        return 1;
-    }
-    return 0;
-}
-
-static uint8_t *get_file_named(uint8_t *data, size_t length, size_t *newlength,
-    const char *name)
+static uint8_t *get_files_from_d64(uint8_t *data, size_t length, size_t *newlength)
 {
     uint8_t *file = NULL;
     *newlength = 0;
-    unsigned char rawname[100];
-    DiskImage *d64 = di_create_from_data(data, (int)length);
-    di_rawname_from_name(rawname, name);
+    DiskImage *d64 = di_create_from_data(data, length);
     if (d64) {
-        ImageFile *c64file = di_open(d64, rawname, 0xc2, "rb");
-        if (c64file) {
-            uint8_t buf[0xffff];
-            *newlength = di_read(c64file, buf, 0xffff);
-            file = MemAlloc(*newlength);
-            memcpy(file, buf, *newlength);
-            free(c64file);
-        }
+        file = di_read_file_named(d64, "DATA", newlength);
         int numfiles;
-        char **filenames = get_all_file_names(d64, &numfiles);
+        char **filenames = di_get_all_file_names(d64, &numfiles);
 
         if (filenames) {
             int imgindex = 0;
@@ -69,21 +38,20 @@ static uint8_t *get_file_named(uint8_t *data, size_t length, size_t *newlength,
             }
             free(filenames);
 
-            Images = MemAlloc((imgindex + 1) * sizeof(struct imgrec));
+            Images = NewImageList(imgindex);
+            /* A file of a damaged disk may be listed and still not be
+               readable. Leave it out: a picture without data cannot be drawn. */
+            int loaded = 0;
             for (int i = 0; i < imgindex; i++) {
-                Images[i].Filename = imagefiles[i];
-                di_rawname_from_name(rawname, imagefiles[i]);
-                c64file = di_open(d64, rawname, 0xc2, "rb");
-                if (c64file) {
-                    uint8_t buf[0xffff];
-                    Images[i].Size = di_read(c64file, buf, 0xffff);
-                    Images[i].Data = MemAlloc(Images[i].Size);
-                    memcpy(Images[i].Data, buf, Images[i].Size);
-                    free(c64file);
+                Images[loaded].Data = di_read_file_named(d64, imagefiles[i], &Images[loaded].Size);
+                if (Images[loaded].Data == NULL) {
+                    free(imagefiles[i]);
+                    continue;
                 }
+                Images[loaded++].Filename = imagefiles[i];
             }
-            Images[imgindex].Filename = NULL;
         }
+        di_free(d64);
     }
     return file;
 }
@@ -94,16 +62,31 @@ int DetectC64(uint8_t **sf, size_t *extent)
         return 0;
 
     size_t newlength;
-    uint8_t *datafile = get_file_named(*sf, *extent, &newlength, "DATA");
+    uint8_t *datafile = get_files_from_d64(*sf, *extent, &newlength);
 
-    if (datafile) {
-        free(*sf);
-        *sf = datafile;
-        *extent = newlength;
-        CurrentSys = SYS_C64;
-        ImageWidth = 280;
-        ImageHeight = 158;
-        return 1;
+    if (datafile == NULL)
+        return 0;
+
+    AdoptDataFile(sf, extent, datafile, newlength, SYS_C64);
+    return 1;
+}
+
+/* Two object pictures of the C64 Spider-Man have a byte in the header
+   (at SPIDERMAN_PATCH_OFFSET) that makes them draw in the wrong place. */
+#define SPIDERMAN_PATCH_OFFSET 8
+
+void PatchSpidermanImages(void)
+{
+    static const char *const patched[] = { "B053", "B056" };
+
+    for (int i = 0; Images[i].Filename != NULL; i++) {
+        for (size_t j = 0; j < sizeof patched / sizeof *patched; j++) {
+            if (strcmp(patched[j], Images[i].Filename) == 0
+                && Images[i].Size > SPIDERMAN_PATCH_OFFSET
+                && Images[i].Data[SPIDERMAN_PATCH_OFFSET] == 8) {
+                Images[i].Data[SPIDERMAN_PATCH_OFFSET] = 7;
+                debug_print("Patched image %s\n", Images[i].Filename);
+            }
+        }
     }
-    return 0;
 }

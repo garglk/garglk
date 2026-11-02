@@ -1,5 +1,24 @@
 /* vi: set ts=8:
  *
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * Written from a reading of the ADRIFT 5 Runner source as released in
+ * FrankenDrift, to reproduce its behaviour; no code from it is used.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
  * ADRIFT 5 support for Scarier -- minimal XML DOM parser.  See a5xml.h.
  */
 
@@ -83,9 +102,9 @@ a5_decode_entities (char *s, char *e)
         {
           long cp;
           if (p[2] == 'x' || p[2] == 'X')
-            cp = strtol (p + 3, NULL, 16);
+            cp = strtol (p + 3, nullptr, 16);
           else
-            cp = strtol (p + 2, NULL, 10);
+            cp = strtol (p + 2, nullptr, 10);
           /* An out-of-range or malformed reference (negative, overflowed, or
              above U+10FFFF) becomes U+FFFD rather than a stray byte. */
           if (cp <= 0 || cp > 0x10ffff)
@@ -130,7 +149,7 @@ static a5_xml_node_t *
 a5_node_new (void)
 {
   a5_xml_node_t *n = (a5_xml_node_t *) calloc (1, sizeof *n);
-  if (n != NULL)
+  if (n != nullptr)
     n->text = A5_EMPTY;
   return n;
 }
@@ -139,7 +158,7 @@ static void
 a5_node_free (a5_xml_node_t *n)
 {
   a5_xml_node_t *c = n->first_child;
-  while (c != NULL)
+  while (c != nullptr)
     {
       a5_xml_node_t *next = c->next;
       a5_node_free (c);
@@ -171,19 +190,30 @@ a5_skip_misc (char **pp, char *end)
   *pp = p;
 }
 
-/* Parse one element whose start tag '<' is at *pp.  Returns NULL on error. */
+/* Element nesting allowed before the parse is refused.  Each level costs a
+   stack frame here (and in a5_node_free and the DOM walkers downstream), and a
+   few KB of zlib can inflate to a million nested tags, so an unbounded depth
+   is a stack overflow on a hostile game or save file.  Real ADRIFT documents
+   nest only a dozen or so deep (Adventure > Task > Restrictions > Restriction
+   > ...), so this never binds on a genuine file. */
+enum { A5_XML_MAX_DEPTH = 256 };
+
+/* Parse one element whose start tag '<' is at *pp, `depth` levels below the
+   root.  Returns NULL on error. */
 static a5_xml_node_t *
-a5_parse_element (char **pp, char *end)
+a5_parse_element (char **pp, char *end, int depth)
 {
   char *p = *pp;
   a5_xml_node_t *node;
   char *name, *name_term;
   int self_close = 0;
-  char *text_start = NULL, *text_lt = NULL;
+  char *text_start = nullptr, *text_lt = nullptr;
 
+  if (depth > A5_XML_MAX_DEPTH)
+    return nullptr;
   node = a5_node_new ();
-  if (node == NULL)
-    return NULL;
+  if (node == nullptr)
+    return nullptr;
 
   p++;                          /* past '<' */
   name = p;
@@ -228,7 +258,7 @@ a5_parse_element (char **pp, char *end)
       char *cd = p;
       while (p < end && *p != '<')
         p++;
-      if (node->n_children == 0 && text_start == NULL)
+      if (node->n_children == 0 && text_start == nullptr)
         {
           text_start = cd;
           text_lt = p;
@@ -252,13 +282,13 @@ a5_parse_element (char **pp, char *end)
         }
       else
         {
-          a5_xml_node_t *child = a5_parse_element (&p, end);
-          if (child == NULL)
+          a5_xml_node_t *child = a5_parse_element (&p, end, depth + 1);
+          if (child == nullptr)
             {
               a5_node_free (node);
-              return NULL;
+              return nullptr;
             }
-          if (node->last_child == NULL)
+          if (node->last_child == nullptr)
             node->first_child = node->last_child = child;
           else
             {
@@ -269,7 +299,7 @@ a5_parse_element (char **pp, char *end)
         }
     }
 
-  if (node->n_children == 0 && text_start != NULL)
+  if (node->n_children == 0 && text_start != nullptr)
     {
       size_t len = a5_decode_entities (text_start, text_lt);
       text_start[len] = '\0';
@@ -288,8 +318,8 @@ a5xml_parse (char *buf, uint32_t len)
   char *end = buf + len;
   a5_xml_node_t *root;
 
-  if (buf == NULL || len == 0)
-    return NULL;
+  if (buf == nullptr || len == 0)
+    return nullptr;
 
   /* Skip a UTF-8 BOM. */
   if (len >= 3 && (unsigned char) p[0] == 0xef
@@ -308,17 +338,17 @@ a5xml_parse (char *buf, uint32_t len)
     }
 
   if (p >= end || *p != '<')
-    return NULL;
+    return nullptr;
 
-  root = a5_parse_element (&p, end);
-  if (root == NULL)
-    return NULL;
+  root = a5_parse_element (&p, end, 0);
+  if (root == nullptr)
+    return nullptr;
 
   doc = (a5_xml_doc_t *) calloc (1, sizeof *doc);
-  if (doc == NULL)
+  if (doc == nullptr)
     {
       a5_node_free (root);
-      return NULL;
+      return nullptr;
     }
   doc->buf = buf;
   doc->root = root;
@@ -328,9 +358,9 @@ a5xml_parse (char *buf, uint32_t len)
 void
 a5xml_free (a5_xml_doc_t *doc)
 {
-  if (doc == NULL)
+  if (doc == nullptr)
     return;
-  if (doc->root != NULL)
+  if (doc->root != nullptr)
     a5_node_free (doc->root);
   free (doc->buf);
   free (doc);
@@ -339,26 +369,26 @@ a5xml_free (a5_xml_doc_t *doc)
 a5_xml_node_t *
 a5xml_root (a5_xml_doc_t *doc)
 {
-  return doc != NULL ? doc->root : NULL;
+  return doc != nullptr ? doc->root : nullptr;
 }
 
 a5_xml_node_t *
 a5xml_child (const a5_xml_node_t *node, const char *name)
 {
   a5_xml_node_t *c;
-  if (node == NULL)
-    return NULL;
-  for (c = node->first_child; c != NULL; c = c->next)
+  if (node == nullptr)
+    return nullptr;
+  for (c = node->first_child; c != nullptr; c = c->next)
     if (strcmp (c->name, name) == 0)
       return c;
-  return NULL;
+  return nullptr;
 }
 
 const char *
 a5xml_child_text (const a5_xml_node_t *node, const char *name)
 {
   a5_xml_node_t *c = a5xml_child (node, name);
-  return c != NULL ? c->text : NULL;
+  return c != nullptr ? c->text : nullptr;
 }
 
 int
@@ -366,9 +396,9 @@ a5xml_count (const a5_xml_node_t *node, const char *name)
 {
   a5_xml_node_t *c;
   int n = 0;
-  if (node == NULL)
+  if (node == nullptr)
     return 0;
-  for (c = node->first_child; c != NULL; c = c->next)
+  for (c = node->first_child; c != nullptr; c = c->next)
     if (strcmp (c->name, name) == 0)
       n++;
   return n;

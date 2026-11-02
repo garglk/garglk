@@ -8,11 +8,16 @@
 #ifndef extracommands_h
 #define extracommands_h
 
-#include <stdio.h>
+#include "glk.h"
 
 int TryExtraCommand(void);
-int ParseExtraCommand(char *p);
+/* Whether word is one of the interpreter's own commands (SAVE, UNDO, ...) */
+int IsExtraCommand(const char *word);
 
-#define EXTRA_COMMAND 0xffff
+/* The transcript stream, NULL while none is on. */
+extern strid_t Transcript;
+/* Closes the transcript and exits. The shared common_utils.c Fatal() calls
+   this, so every interpreter provides it. */
+void CleanupAndExit(void);
 
 #endif /* extracommands_h */

@@ -8,31 +8,44 @@
 #ifndef common_h
 #define common_h
 
+#include "common_utils.h"
+#include "common_file_utils.h"
+#include "debugprint.h"
 #include "definitions.h"
+#include "memory_allocation.h"
+
 #include "glk.h"
 
-void *MemAlloc(size_t size);
-void Fatal(const char *x);
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+
 void Output(const char *string);
 void OpenGraphicsWindow(void);
 void CloseGraphicsWindow(void);
-void PrintDictWord(int idx, DictWord *dict);
 void Updates(event_t ev);
-void Display(winid_t w, const char *fmt, ...)
+/* Lets the compiler check the arguments of a printf-style function: the
+   format string is argument fmt, the variable arguments start at first. */
 #ifdef __GNUC__
-    __attribute__((__format__(__printf__, 2, 3)))
+#define PLUS_PRINTF(fmt, first) __attribute__((__format__(__printf__, fmt, first)))
+#else
+#define PLUS_PRINTF(fmt, first)
 #endif
-    ;
+
+/* A printf-style function that prints somewhere */
+typedef void (*PrintFunction)(const char *fmt, ...);
+
+void Display(winid_t w, const char *fmt, ...) PLUS_PRINTF(2, 3);
 
 void SetBit(int bit);
 void ResetBit(int bit);
 int IsSet(int bit);
+int IsDark(void);
 
-int CompareUpToHashSign(char *word1, char *word2);
+int CompareUpToHashSign(const char *word1, const char *word2);
 int GetDictWord(int group);
 int YesOrNo(void);
 void OpenTopWindow(void);
 void Look(int transcript);
+Room *PlayerRoom(void);
 void SystemMessage(SysMessageType message);
 void AnyKey(int timeout, int message);
 void SetTimer(glui32 milliseconds);
@@ -73,7 +86,7 @@ extern int lastwasnewline;
 extern int should_restart;
 
 extern SystemType CurrentSys;
-extern struct GameInfo *Game;
+extern const GameInfo *Game;
 
 extern ImgType LastImgType;
 extern int LastImgIndex;
@@ -85,7 +98,6 @@ extern int CurrentVerb, CurrentNoun, CurrentPrep, CurrentPartp, CurrentNoun2, Cu
 
 extern int showing_inventory;
 
-extern uint16_t header[];
 extern uint8_t *mem;
 extern size_t memlen;
 

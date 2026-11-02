@@ -20,11 +20,17 @@
 #ifndef scott_h
 #define scott_h
 
-#include <stdint.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <stdint.h>
+
+#include "glk.h"
 
 #include "debugprint.h"
-#include "scottdefines.h"
+#include "memory_allocation.h"
+#include "read_le16.h"
+#include "common_utils.h"
+#include "scott_defines.h"
 
 // clang-format off
 
@@ -36,9 +42,31 @@
 
 // clang-format on
 
-#define GLK_BUFFER_ROCK 1
-#define GLK_STATUS_ROCK 1010
-#define GLK_GRAPHICS_ROCK 1020
+/* Number of exit directions per room (N/S/E/W/U/D) */
+#define NUM_EXITS 6
+
+/* Number of counter/room-flag save slots */
+#define NUM_COUNTERS 16
+
+/* Room image sentinel: no image assigned */
+#define NO_IMAGE 255
+
+/* Mask to extract the image index from a room/item image byte */
+#define IMAGE_INDEX_MASK 127
+
+/* Brian Howarth vector graphics format identifier */
+#define HOWARTH_FORMAT 99
+
+/* Action table encoding: vocab = verb * VOCAB_MULTIPLIER + noun,
+   condition = param * CONDITION_MULTIPLIER + condition_code */
+#define VOCAB_MULTIPLIER 150
+#define CONDITION_MULTIPLIER 20
+#define NUM_CONDITIONS 5
+#define NUM_OPCODES 4
+
+/* Display/buffer sizes */
+#define DISPLAY_BUFFER_SIZE 2048
+#define ROOM_DESC_BUFFER_SIZE 1000
 
 typedef struct {
     short Unknown;
@@ -57,13 +85,13 @@ typedef struct {
 
 typedef struct {
     unsigned short Vocab;
-    unsigned short Condition[5];
-    unsigned short Subcommand[2];
+    unsigned short Condition[NUM_CONDITIONS];
+    unsigned short Opcode[2];
 } Action;
 
 typedef struct {
     char *Text;
-    short Exits[6];
+    uint8_t Exits[NUM_EXITS];
     uint8_t Image;
 } Room;
 
@@ -72,16 +100,10 @@ typedef struct {
     /* PORTABILITY WARNING: THESE TWO MUST BE 8 BIT VALUES. */
     uint8_t Location;
     uint8_t InitialLoc;
-    char *AutoGet;
+    const char *AutoGet;
     uint8_t Flag;
     uint8_t Image;
 } Item;
-
-typedef struct {
-    short Version;
-    short AdventureNumber;
-    short Unknown;
-} Tail;
 
 // clang-format off
 
@@ -106,66 +128,36 @@ typedef struct {
 
 /* Anything used by the other source files goes here */
 
-#include "glk.h"
-
 #define MyLoc (GameHeader.PlayerRoom)
 
 #define CurrentGame (Game->gameID)
 
 void Output(const char *a);
-void OutputNumber(int a);
 void Display(winid_t w, const char *fmt, ...)
 #ifdef __GNUC__
     __attribute__((__format__(__printf__, 2, 3)))
 #endif
     ;
-void HitEnter(void);
-void Look(void);
-void DrawRoomImage(void);
-void ListInventory(int upper);
-void Delay(float seconds);
-void DrawImage(int image);
-void OpenGraphicsWindow(void);
-size_t GetFileLength(FILE *in);
-void *MemAlloc(int size);
-GameIDType LoadDatabase(FILE *f, int loud);
-void CloseGraphicsWindow(void);
+void vDisplay(winid_t w, const char *fmt, va_list ap)
+#ifdef __GNUC__
+    __attribute__((__format__(__printf__, 2, 0)))
+#endif
+    ;
+void PutUnicodeString(strid_t stream, const char *string);
+GameIDType LoadDatabase(FILE *f);
 void Updates(event_t ev);
-int PerformExtraCommand(int extra_stop_time);
 const char *MapSynonym(int noun);
-void Fatal(const char *x);
-void DrawBlack(void);
-uint8_t *SeekToPos(uint8_t *buf, int offset);
-int CountCarried(void);
-int RandomPercent(int n);
-void DoneIt(void);
-void SaveGame(void);
-void PrintNoun(void);
-int PrintScore(void);
-void MoveItemAToLocOfItemB(int itemA, int itemB);
-void GoTo(int loc);
-void GoToStoredLoc(void);
-void SwapLocAndRoomflag(int index);
-void SwapItemLocations(int itemA, int itemB);
-void PutItemAInRoomB(int itemA, int roomB);
-void SwapCounters(int index);
-void PrintMessage(int index);
-void PlayerIsDead(void);
 void UpdateSettings(void);
-winid_t FindGlkWindowWithRock(glui32 rock);
-void OpenTopWindow(void);
-void SetDark(void);
-void SetLight(void);
-void SetBitFlag(int bit);
-void ClearBitFlag(int bit);
+void FreeDatabase(void);
 
-extern struct GameInfo *Game;
+extern GameInfo *Game;
 extern Header GameHeader;
 extern Room *Rooms;
 extern Item *Items;
 extern Action *Actions;
 extern const char **Verbs, **Nouns, **Messages;
-extern const char *title_screen;
+extern char *title_screen;
+extern uint8_t *ZXLoadingScreen;
 extern winid_t Bottom, Top, Graphics;
 extern const char *sys[];
 extern const char *system_messages[];
@@ -173,17 +165,26 @@ extern uint8_t *entire_file;
 extern size_t file_length;
 extern int file_baseline_offset;
 extern int split_screen;
-extern long BitFlags;
+extern uint64_t BitFlags;
 extern int LightRefill;
 extern int Counters[];
 extern int AnimationFlag;
 extern int SavedRoom;
 extern int AutoInventory;
-extern int WeAreBigEndian;
 extern int CurrentCounter;
 extern int RoomSaved[];
 extern int Options;
+/* The load trace of the -d option (DEBUGGING): what the database loaders
+   read, on stderr. */
+#define LoadTrace(...)                    \
+    do {                                  \
+        if (Options & DEBUGGING)          \
+            fprintf(stderr, __VA_ARGS__); \
+    } while (0)
 extern int StopTime;
+/* StopTime value that keeps the implicit actions from running on the next
+   turn (e.g. after SCORE or INVENTORY). */
+#define SKIP_IMPLICIT_TURNS 2
 extern int should_look_in_transcript;
 extern int ImageWidth;
 extern int ImageHeight;
@@ -191,7 +192,26 @@ extern const char *game_file;
 extern int showing_inventory;
 extern MachineType CurrentSys;
 extern int lastwasnewline;
+extern char *DirPath;
 extern int showing_closeup;
 extern int last_image_index;
+extern int gli_slowdraw;
+extern int should_draw_image;
+struct Command;
+extern struct Command *CurrentCommand;
+extern strid_t Transcript;
+extern glui32 TopWidth, TopHeight;
+extern int JustStarted;
+extern int should_restart;
+
+GLK_ATTRIBUTE_NORETURN void CleanupAndExit(void);
+int MatchUpItem(int noun, int loc);
+void ParseItemSlashAutoGet(int index);
+
+/* Is the item carried or in the current room? */
+static inline int IsPresent(int item)
+{
+    return Items[item].Location == CARRIED || Items[item].Location == MyLoc;
+}
 
 #endif /* scott_h */

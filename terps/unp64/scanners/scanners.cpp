@@ -1,41 +1,14 @@
-/* This is a cut-down version of UNP64 with only the bare minimum
- * needed to decompress a number of Commodore 64 adventure games.
- * It is distributed under the zlib License by kind permission of
- * the original authors Magnus Lind and iAN CooG.
- */
-
-/*
-UNP64 - generic Commodore 64 prg unpacker
-(C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
-original source and idea: testrun.c, taken from exo20b7
-
-Follows original disclaimer
-*/
-
-/*
- * Copyright (c) 2002 - 2023 Magnus Lind.
+/* Part of a cut-down version of UNP64, the generic Commodore 64 prg
+ * unpacker, with only what is needed to decompress a number of Commodore 64
+ * adventure games.
  *
+ * (C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
+ * Copyright (c) 2002 - 2023 Magnus Lind
+ * C++ version based on code adapted to ScummVM by Avijeet Maurya
  *
- * This software is provided 'as-is', without any express or implied
- * warranty. In no event will the authors be held liable for any damages
- * arising from the use of this software.
- *
- * Permission is granted to anyone to use this software for any purpose,
- * including commercial applications, and to alter it and redistribute it
- * freely, subject to the following restrictions:
- *
- * 1. The origin of this software must not be misrepresented; you must not
- * claim that you wrote the original software. If you use this software
- * in a product, an acknowledgment in the product documentation would be
- * appreciated but is not required.
- * 2. Altered source versions must be plainly marked as such, and must not be
- * misrepresented as being the original software.
- * 3. This notice may not be removed or altered from any source distribution.
- *
- */
-
-/*
- C++ version based on code adapted to ScummVM by Avijeet Maurya
+ * Distributed under the zlib License by kind permission of the original
+ * authors Magnus Lind and iAN CooG. The notice is in the file LICENSE in
+ * the directory above (terps/unp64), which has to go wherever this file goes.
  */
 
 #include "unp64.h"
@@ -44,6 +17,7 @@ namespace Unp64 {
 
 void scnAbuzeCrunch(UnpStr *unp);
 void scnActionPacker(UnpStr *unp);
+void scnAR(UnpStr *unp);
 void scnByteBoiler(UnpStr *unp);
 void scnCaution(UnpStr *unp);
 void scnCCS(UnpStr *unp);
@@ -64,11 +38,19 @@ void scnTCScrunch(UnpStr *unp);
 void scnTimeCruncher(UnpStr *unp);
 void scnXTC(UnpStr *unp);
 
-Scnptr g_scanFunc[] = {
+typedef void (*Scnptr)(UnpStr *);
+
+/* Tried in this order until one sets _idFlag. The order is that of the
+ * original UNP64, which lists them roughly by how often a packer is met;
+ * it matters where two packers share a stub (the TimeCruncher clones that
+ * the MasterCompressor and Mr. Cross scanners also know, for one), so do
+ * not sort it. */
+static const Scnptr kScanners[] = {
 	scnAbuzeCrunch,
 	scnByteBoiler,
 	scnECA,
 	scnExpert,
+	scnAR,
 	scnFinalSuperComp,
 	scnIntros,
 	scnCruel,
@@ -78,7 +60,7 @@ Scnptr g_scanFunc[] = {
 	scnMrZ,
 	scnTCScrunch,
 	scnTBCMultiComp,
-    scnTimeCruncher,
+	scnTimeCruncher,
 	scnXTC,
 	scnCCS,
 	scnMegabyte,
@@ -89,10 +71,8 @@ Scnptr g_scanFunc[] = {
 };
 
 void scanners(UnpStr *unp) {
-	int x, y;
-	y = sizeof(g_scanFunc) / sizeof(*g_scanFunc);
-	for (x = 0; x < y; x++) {
-		(g_scanFunc[x])(unp);
+	for (Scnptr scan : kScanners) {
+		scan(unp);
 		if (unp->_idFlag)
 			break;
 	}

@@ -9,7 +9,6 @@
 #define companionfile_h
 
 #include <stdint.h>
-#include <stdio.h>
-uint8_t *GetCompanionFile(size_t *size);
+uint8_t *GetCompanionFile(const char *gamefile, size_t *size);
 
 #endif /* companionfile_h */

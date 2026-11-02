@@ -1,5 +1,24 @@
 /* vi: set ts=8:
  *
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * Written from a reading of the ADRIFT 5 Runner source as released in
+ * FrankenDrift, to reproduce its behaviour; no code from it is used.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
  * ADRIFT 5 support for Scarier -- restriction evaluation.  See a5restr.h.
  */
 
@@ -7,7 +26,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 
 #include <map>
 #include <set>
@@ -19,7 +37,7 @@
 #include "a5text.h"
 #include "a5util.h"
 
-/* strndup() where the toolchain has none; empty everywhere else. */
+/* strcasecmp() and strndup() where the toolchain lacks them. */
 #include "../common_utils/sc_garglk.h"
 
 int a5restr_trace = 0;
@@ -31,7 +49,7 @@ safe_bool (const char *s)
 {
   char *end;
   double d;
-  if (s == NULL) return 0;
+  if (s == nullptr) return 0;
   while (*s == ' ') s++;
   if (strcasecmp (s, "true") == 0)  return 1;
   if (strcasecmp (s, "false") == 0) return 0;
@@ -103,17 +121,17 @@ restr_type_node (const a5_xml_node_t *restriction)
 {
   static const char *types[] = {
     "Object", "Location", "Character", "Variable", "Task",
-    "Item", "Property", "Direction", "Expression", NULL
+    "Item", "Property", "Direction", "Expression", nullptr
   };
   const a5_xml_node_t *c;
-  for (c = restriction->first_child; c != NULL; c = c->next)
+  for (c = restriction->first_child; c != nullptr; c = c->next)
     {
       int i;
-      for (i = 0; types[i] != NULL; i++)
+      for (i = 0; types[i] != nullptr; i++)
         if (strcmp (c->name, types[i]) == 0)
           return c;
     }
-  return NULL;
+  return nullptr;
 }
 
 /* ------------------------------------------------------------- value helpers */
@@ -134,11 +152,11 @@ resolve_key (a5_state_t *st, const char *k)
      for ReferencedCharacters (vb:4019).  Resolved at lookup (not bound at
      capture) so failed match attempts earlier in the turn can't leak a stale
      alias into a later task's restrictions. */
-  if (bound == NULL && streq (k, "ReferencedObjects"))
+  if (bound == nullptr && streq (k, "ReferencedObjects"))
     bound = a5state_lookup_ref (st, "ReferencedObject");
-  if (bound == NULL && streq (k, "ReferencedCharacters"))
+  if (bound == nullptr && streq (k, "ReferencedCharacters"))
     bound = a5state_lookup_ref (st, "ReferencedCharacter");
-  if (bound != NULL)
+  if (bound != nullptr)
     {
       /* A piped multi-object binding (ReferencedObjects = "k1|k2|...", set by
          resolve_plural so the text engine can render the whole set) resolves,
@@ -147,7 +165,7 @@ resolve_key (a5_state_t *st, const char *k)
          narrowing already happened in RefineMatchingPossibilitesUsingRestrictions;
          the final PassRestrictions only ever checks the first item. */
       const char *bar = strchr (bound, '|');
-      if (bar != NULL)
+      if (bar != nullptr)
         {
           char tmp[128];
           size_t n = (size_t) (bar - bound);
@@ -156,7 +174,7 @@ resolve_key (a5_state_t *st, const char *k)
               memcpy (tmp, bound, n);
               tmp[n] = '\0';
               const a5_object_t *o = a5model_object (st->adv, tmp);
-              if (o != NULL) return o->key;   /* stable model-key pointer */
+              if (o != nullptr) return o->key;   /* stable model-key pointer */
             }
         }
       return bound;
@@ -170,7 +188,7 @@ resolve_key (a5_state_t *st, const char *k)
 static int
 is_clean_int (const char *s)
 {
-  if (s == NULL || *s == '\0') return 0;
+  if (s == nullptr || *s == '\0') return 0;
   if (*s == '-' || *s == '+') s++;
   if (*s == '\0') return 0;
   for (; *s; s++)
@@ -194,25 +212,15 @@ num_value (a5_state_t *st, const char *k)
   int vi;
   const char *s = k;
   char unq[64];
-  if (s != NULL && s[0] == '\'')
+  if (s != nullptr && s[0] == '\'')
     {
       /* strip surrounding single quotes into a small scratch buffer */
       size_t len = strlen (s);
       if (len >= 2 && s[len - 1] == '\'' && len - 2 < sizeof unq)
         { memcpy (unq, s + 1, len - 2); unq[len - 2] = '\0'; s = unq; }
     }
-  if (s != NULL && strncmp (s, "RAND", 4) == 0)
-    {
-      long lo = 0, hi = 0;
-      char *end;
-      const char *p = s + 4;
-      while (*p && !(*p == '-' || (*p >= '0' && *p <= '9'))) p++;
-      lo = strtol (p, &end, 10);
-      p = end;
-      while (*p && !(*p == '-' || (*p >= '0' && *p <= '9'))) p++;
-      hi = (*p) ? strtol (p, NULL, 10) : lo;
-      return a5rand_between (lo, hi);
-    }
+  if (s != nullptr && strncmp (s, "RAND", 4) == 0)
+    return a5rand_between_args (s + 4);
   /* A bare numeric restriction value is an integer LITERAL, never a variable
      key: the runner's FileIO.LoadRestrictions stores `IntValue = CInt(sElements(3))`
      when `sElements.Length = 4 AndAlso IsNumeric(sElements(3))`, and only takes
@@ -222,7 +230,7 @@ num_value (a5_state_t *st, const char *k)
      made every `Encounter == <n>` where a variable happens to be keyed <n> pass
      spuriously.  Test for the integer form before the variable lookup. */
   if (is_clean_int (s))
-    return strtol (s, NULL, 10);
+    return strtol (s, nullptr, 10);
   vi = a5state_variable_index (st, s);
   if (vi >= 0)
     return st->var_num[vi];
@@ -236,14 +244,14 @@ num_value (a5_state_t *st, const char *k)
      value contains a %reference%, evaluate it through the same expression engine
      the action side uses (a5text_eval_expression) and read back the number.  The
      `%`-only trigger keeps every non-reference RHS byte-identical to before. */
-  if (s != NULL && strchr (s, '%') != NULL)
+  if (s != nullptr && strchr (s, '%') != nullptr)
     {
       char *ev = a5text_eval_expression (st, s);
-      long e = strtol (ev, NULL, 10);
+      long e = strtol (ev, nullptr, 10);
       free (ev);
       return e;
     }
-  return strtol (s != NULL ? s : "0", NULL, 10);
+  return strtol (s != nullptr ? s : "0", nullptr, 10);
 }
 
 /* clsCharacter.IsHoldingObject (clsCharacter.vb:895): an object counts as held
@@ -419,11 +427,11 @@ pass_object (a5_state_t *st, a5_restr_t *r)
         {
           const char *pk = st->adv->objects[oi].props[i].key;
           const a5_propdef_t *pd = a5model_propdef (st->adv, pk);
-          if (pd != NULL)
+          if (pd != nullptr)
             {
-              if (pd->type != NULL && !streq (pd->type, "StateList"))
+              if (pd->type != nullptr && !streq (pd->type, "StateList"))
                 continue;
-              if (pd->append_to != NULL && pd->append_to[0] != '\0')
+              if (pd->append_to != nullptr && pd->append_to[0] != '\0')
                 continue;
             }
           const char *val = a5state_entity_prop (st, k1, pk);
@@ -449,7 +457,7 @@ pass_object (a5_state_t *st, a5_restr_t *r)
       const char *typed;
       snprintf (alias, sizeof alias, "%s$text", r->key1);
       typed = a5state_lookup_ref (st, alias);
-      if (typed == NULL)
+      if (typed == nullptr)
         return 0;
       while (*typed && *k2 && tolower ((unsigned char) *typed) == tolower ((unsigned char) *k2))
         { typed++; k2++; }
@@ -467,18 +475,18 @@ pass_object (a5_state_t *st, a5_restr_t *r)
       const char *cloc = a5state_character_location_key (st, ci);
       if (streq (k1, ANYOBJECT) || streq (k1, NOOBJECT))
         return any_no_object (st, k1, [&] (int i)
-                 { return cloc != NULL
+                 { return cloc != nullptr
                           && a5state_object_visible_at_location (st, i, cloc, 0); });
-      return oi >= 0 && cloc != NULL
+      return oi >= 0 && cloc != nullptr
              && a5state_object_visible_at_location (st, oi, cloc, 0);
     }
   if (streq (r->op, "HaveBeenSeenByCharacter"))
     {
       /* Player-centric seen set (clsCharacter.HasSeenObject); a non-player
          observer falls back to "seen" so its tasks aren't over-suppressed. */
-      if (k2 != NULL && !streq (k2, a5state_player_key (st)))
+      if (k2 != nullptr && !streq (k2, a5state_player_key (st)))
         return 1;
-      return oi >= 0 && st->obj_seen != NULL && st->obj_seen[oi];
+      return oi >= 0 && st->obj_seen != nullptr && st->obj_seen[oi];
     }
   return 1;                   /* unknown operator: don't suppress text */
 }
@@ -506,13 +514,13 @@ pass_location (a5_state_t *st, a5_restr_t *r)
        computes and what the object BeInGroup handler already uses.  The old
        static-only scan here missed every runtime AddLocationToGroup, so e.g.
        `Location MustNot BeInGroup SearchedLo` never blocked a re-search. */
-    return loc != NULL && a5state_object_in_group (st, r->key2, loc);
+    return loc != nullptr && a5state_object_in_group (st, r->key2, loc);
   if (streq (r->op, "HaveProperty"))
     {
       /* Through the state accessor so SetProperty overrides AND group-inherited
          location properties (clsItem.htblInheritedProperties, e.g. The Salvage's
          "Planet Tiles" group carrying daz7LocationIs1) both count. */
-      if (loc == NULL || a5model_location (st->adv, loc) == NULL) return 0;
+      if (loc == nullptr || a5model_location (st->adv, loc) == nullptr) return 0;
       return a5state_entity_has_prop (st, loc, r->key2);
     }
   if (streq (r->op, "Exist"))
@@ -528,10 +536,10 @@ pass_location (a5_state_t *st, a5_restr_t *r)
          the player consults the seen set; any other character is unseen. */
       const char *ch = resolve_key (st, r->key2);
       int li;
-      if (ch != NULL && ch[0] != '\0' && !streq (ch, a5state_player_key (st)))
+      if (ch != nullptr && ch[0] != '\0' && !streq (ch, a5state_player_key (st)))
         return 0;
       li = a5state_location_index (st, loc);
-      return li >= 0 && st->loc_seen != NULL && st->loc_seen[li];
+      return li >= 0 && st->loc_seen != nullptr && st->loc_seen[li];
     }
   return 1;
 }
@@ -556,7 +564,7 @@ typedef std::map<std::string, a5_route_entry> a5_route_cache_t;
 static a5_route_cache_t *
 route_cache (a5_state_t *st)
 {
-  if (st->route_cache == NULL)
+  if (st->route_cache == nullptr)
     st->route_cache = new a5_route_cache_t;
   return (a5_route_cache_t *) st->route_cache;
 }
@@ -564,7 +572,7 @@ route_cache (a5_state_t *st)
 void
 a5restr_route_cache_clear (a5_state_t *st)
 {
-  if (st->route_cache != NULL)
+  if (st->route_cache != nullptr)
     ((a5_route_cache_t *) st->route_cache)->clear ();
 }
 
@@ -572,7 +580,7 @@ void
 a5restr_route_cache_free (a5_state_t *st)
 {
   delete (a5_route_cache_t *) st->route_cache;
-  st->route_cache = NULL;
+  st->route_cache = nullptr;
 }
 
 /* The session ledger behind clsDirection.bEverBeenBlocked: every failed route
@@ -592,7 +600,7 @@ blocked_ledger_key (const char *lockey, const char *dir)
 static void
 blocked_ledger_add (a5_state_t *st, const char *lockey, const char *dir)
 {
-  if (st->ever_blocked == NULL)
+  if (st->ever_blocked == nullptr)
     st->ever_blocked = new a5_blocked_ledger_t;
   ((a5_blocked_ledger_t *) st->ever_blocked)
     ->insert (blocked_ledger_key (lockey, dir));
@@ -601,7 +609,7 @@ blocked_ledger_add (a5_state_t *st, const char *lockey, const char *dir)
 int
 a5restr_ever_blocked (a5_state_t *st, const char *lockey, const char *dir)
 {
-  if (st->ever_blocked == NULL || lockey == NULL || dir == NULL)
+  if (st->ever_blocked == nullptr || lockey == nullptr || dir == nullptr)
     return 0;
   return ((a5_blocked_ledger_t *) st->ever_blocked)
     ->count (blocked_ledger_key (lockey, dir)) != 0;
@@ -611,7 +619,7 @@ void
 a5restr_ever_blocked_free (a5_state_t *st)
 {
   delete (a5_blocked_ledger_t *) st->ever_blocked;
-  st->ever_blocked = NULL;
+  st->ever_blocked = nullptr;
 }
 
 const char *
@@ -621,13 +629,13 @@ a5restr_exit_in_direction (a5_state_t *st, const char *charkey,
 {
   const a5_location_t *l;
   const a5_xml_node_t *c;
-  const a5_xml_node_t *bl = NULL;
-  const char *result = NULL;
-  a5_route_cache_t *rc = NULL;
+  const a5_xml_node_t *bl = nullptr;
+  const char *result = nullptr;
+  a5_route_cache_t *rc = nullptr;
   std::string ck;
-  if (lockey == NULL || dir == NULL)
-    return NULL;
-  if (charkey != NULL)
+  if (lockey == nullptr || dir == nullptr)
+    return nullptr;
+  if (charkey != nullptr)
     {
       rc = route_cache (st);
       ck.assign (charkey).append (1, '\001')
@@ -635,41 +643,41 @@ a5restr_exit_in_direction (a5_state_t *st, const char *charkey,
       a5_route_cache_t::const_iterator it = rc->find (ck);
       if (it != rc->end ())
         {
-          if (blocked_msg != NULL && it->second.blocked != NULL)
+          if (blocked_msg != nullptr && it->second.blocked != nullptr)
             *blocked_msg = it->second.blocked;
           return it->second.dest;
         }
     }
   l = a5model_location (st->adv, lockey);
-  if (l == NULL)
-    return NULL;
+  if (l == nullptr)
+    return nullptr;
   /* A location may carry more than one <Movement> for a direction; a route
      blocked by its own restrictions is skipped and the scan resumes at the
      next candidate, so this walks a5model_movement rather than taking its
      first hit. */
-  for (c = a5model_movement (l, NULL, dir); c != NULL;
+  for (c = a5model_movement (l, nullptr, dir); c != nullptr;
        c = a5model_movement (l, c, dir))
     {
       const char *dest;
       const a5_xml_node_t *mr;
       mr = a5xml_child (c, "Restrictions");
-      if (mr != NULL && !a5restr_pass (st, mr))
+      if (mr != nullptr && !a5restr_pass (st, mr))
         {                               /* route blocked by its restriction */
           /* Capture the blocking message unconditionally (the runner stores
              sErrorMessage in dictRouteErrors on every miss), so a same-turn
              re-check that DOES want it replays it without re-evaluating. */
           bl = a5restr_fail_message (st, mr);
-          if (blocked_msg != NULL)
+          if (blocked_msg != nullptr)
             *blocked_msg = bl;
           /* d.bEverBeenBlocked = True (clsCharacter.vb:686). */
           blocked_ledger_add (st, lockey, dir);
           continue;
         }
       dest = a5xml_child_text (c, "Destination");
-      result = (dest != NULL && dest[0] != '\0') ? dest : NULL;
+      result = (dest != nullptr && dest[0] != '\0') ? dest : nullptr;
       break;
     }
-  if (rc != NULL)
+  if (rc != nullptr)
     {
       a5_route_entry e;
       e.dest = result;
@@ -690,11 +698,11 @@ a5restr_exit_in_direction (a5_state_t *st, const char *charkey,
 static int
 chars_sharing_room (a5_state_t *st, int ci, const char **other)
 {
-  const char *cloc = (ci >= 0) ? a5state_character_location_key (st, ci) : NULL;
+  const char *cloc = (ci >= 0) ? a5state_character_location_key (st, ci) : nullptr;
   int count = 0, i;
-  if (other != NULL)
-    *other = NULL;
-  if (cloc == NULL)
+  if (other != nullptr)
+    *other = nullptr;
+  if (cloc == nullptr)
     return 0;
   for (i = 0; i < st->adv->n_characters && count <= 1; i++)
     {
@@ -702,10 +710,10 @@ chars_sharing_room (a5_state_t *st, int ci, const char **other)
       if (i == ci)
         continue;
       oloc = a5state_character_location_key (st, i);
-      if (oloc != NULL && streq (oloc, cloc))
+      if (oloc != nullptr && streq (oloc, cloc))
         {
           count++;
-          if (other != NULL)
+          if (other != nullptr)
             *other = st->adv->characters[i].key;
         }
     }
@@ -719,7 +727,7 @@ alone_with_char (a5_state_t *st, const char *charkey)
 {
   const char *other;
   int ci = a5state_character_index (st, charkey);
-  return (chars_sharing_room (st, ci, &other) == 1) ? other : NULL;
+  return (chars_sharing_room (st, ci, &other) == 1) ? other : nullptr;
 }
 
 /* Does character `charkey` hold (where==HELD_BY) or wear (WORN_BY) any object? */
@@ -747,7 +755,7 @@ char_holds_object (a5_state_t *st, const char *charkey, const char *objkey,
      cannot overflow the stack. */
   int guard = 0;
   const char *key = objkey;
-  while (key != NULL)
+  while (key != nullptr)
     {
       int oi = a5state_object_index (st, key);
       if (oi < 0 || guard++ > st->adv->n_objects)
@@ -755,7 +763,7 @@ char_holds_object (a5_state_t *st, const char *charkey, const char *objkey,
       a5_owhere_t w = st->obj[oi].where;
       const char *k = st->obj[oi].key;
       if (w == A5_OWHERE_HELD_BY)
-        return k != NULL && (streq (k, charkey)
+        return k != nullptr && (streq (k, charkey)
                              || (streq (k, "%Player%")
                                  && streq (charkey, a5state_player_key (st))));
       if (!directly && (w == A5_OWHERE_IN_OBJECT || w == A5_OWHERE_ON_OBJECT))
@@ -768,506 +776,635 @@ char_holds_object (a5_state_t *st, const char *charkey, const char *objkey,
   return 0;
 }
 
-static int
-pass_character (a5_state_t *st, a5_restr_t *r)
-{
-  const char *k1 = resolve_key (st, r->key1);
-  const char *k2 = resolve_key (st, r->key2);
-  int ci = a5state_character_index (st, k1);
-  const char *cloc = (ci >= 0) ? st->char_loc[ci] : NULL;
+/* One Character restriction under evaluation: the restriction, its two
+   resolved keys, and the subject character's index and recorded room
+   (ci < 0 and cloc NULL for ANYCHARACTER or an unknown key).  Each
+   operator is one member, found by name through char_restr_ops[]. */
+namespace {
 
-  if (streq (r->op, "BeAtLocation"))
+struct char_restr_t
+{
+  a5_state_t *st;
+  a5_restr_t *r;
+  const char *k1, *k2;
+  int ci;
+  const char *cloc;
+
+  int be_at_location () const;
+  int be_of_gender () const;
+  int be_holding_object () const;
+  int be_wearing_object () const;
+  int be_in_same_location_as_object () const;
+  int be_in_same_location_as_character () const;
+  int be_character () const;
+  int be_visible_to_character () const;
+  int be_within_location_group () const;
+  int have_property () const;
+  int exist () const;
+  int be_in_group () const;
+  int have_route_in_direction () const;
+  int be_in_position () const;
+  int be_on_or_in_object () const;
+  int be_in_conversation_with () const;
+  int have_seen_character () const;
+  int have_seen_object () const;
+  int have_seen_location () const;
+  int be_alone_with () const;
+  int be_alone () const;
+  int be_on_character () const;
+};
+
+int
+char_restr_t::be_at_location () const
+{
+  /* clsRestriction.CharacterEnum.BeAtLocation (clsUserSession.vb:4571):
+     ANYCHARACTER = true when ANY character's Location.LocationKey equals
+     k2 (DieFeuerfaust's look-through-flap segment is gated on
+     `AnyCharacter Must BeAtLocation ChieftainS` after the chieftain and
+     his wife are bulk-moved into the main chamber; this case previously
+     fell through to the ci<0 NULL compare and always failed).  Both
+     branches compare the runner's *resolved* LocationKey -- the root room through
+     an on/in-object carrier (clsCharacter.vb:1773) -- not the raw
+     char_loc, which is NULL for a character seated on furniture. */
+  if (streq (k1, ANYCHARACTER))
     {
-      /* clsRestriction.CharacterEnum.BeAtLocation (clsUserSession.vb:4571):
-         ANYCHARACTER = true when ANY character's Location.LocationKey equals
-         k2 (DieFeuerfaust's look-through-flap segment is gated on
-         `AnyCharacter Must BeAtLocation ChieftainS` after the chieftain and
-         his wife are bulk-moved into the main chamber; this case previously
-         fell through to the ci<0 NULL compare and always failed).  Both
-         branches compare the runner's *resolved* LocationKey -- the root room through
-         an on/in-object carrier (clsCharacter.vb:1773) -- not the raw
-         char_loc, which is NULL for a character seated on furniture. */
-      if (streq (k1, ANYCHARACTER))
+      for (int s = 0; s < st->adv->n_characters; s++)
+        if (streq (a5state_character_location_key (st, s), k2))
+          return 1;
+      return 0;
+    }
+  return streq (a5state_character_location_key (st, ci), k2);
+}
+
+int
+char_restr_t::be_of_gender () const
+{
+  /* clsCharacter.Gender / clsRestriction.CharacterEnum.BeOfGender: an
+     exact match against the Mandatory StateList "Gender" property
+     (Male/Female/Unknown).  k2 is the literal state name (resolve_key is
+     a no-op on it -- no leading '%' and no matching per-turn ref
+     binding).  Without this case the operator fell through to the
+     best-effort `return 1`, so a gender-gated branch (e.g. Pathway to
+     Destruction's
+     `Player Must BeOfGender Female` swapping in an alternate character
+     name/pronoun set) always fired even when the player's Gender is still
+     its unset "Unknown" default.  Pathway's Gender never gets set at all:
+     the generated GenTask1 that would ask via %PopUpChoice% is a System
+     task WITHOUT RunImmediately, and nothing ever dispatches one of those
+     (clsUserSession.vb:213 auto-runs only the RunImmediately ones), so the
+     Unknown default is what the runner plays with too. */
+  const char *g = a5state_entity_prop (st, k1, "Gender");
+  return g != nullptr && strcasecmp (g, k2) == 0;
+}
+
+int
+char_restr_t::be_holding_object () const
+{
+  /* ANYOBJECT -> holding at least one object (clsCharacter.IsHoldingObject:
+     "If sObKey = ANYOBJECT Then Return HeldObjects.Count > 0"). */
+  if (streq (k2, ANYOBJECT))
+    return char_holds_any (st, k1, A5_OWHERE_HELD_BY);
+  /* ANYCHARACTER subject: htblObjects(k2).IsHeldByAnyone
+     (clsUserSession.vb:4674) -- held directly, or nested in a
+     container/surface whose own chain ends held (clsObject.vb:737
+     recurses into the parent).  A worn or located object is not "held
+     by anyone". */
+  if (streq (k1, ANYCHARACTER))
+    {
+      int oi = a5state_object_index (st, k2), hops;
+      for (hops = 0; oi >= 0 && hops < st->adv->n_objects; hops++)
         {
-          for (int s = 0; s < st->adv->n_characters; s++)
-            if (streq (a5state_character_location_key (st, s), k2))
-              return 1;
-          return 0;
+          if (st->obj[oi].where == A5_OWHERE_HELD_BY)
+            return 1;
+          if (st->obj[oi].where != A5_OWHERE_IN_OBJECT
+              && st->obj[oi].where != A5_OWHERE_ON_OBJECT)
+            return 0;
+          oi = a5state_object_index (st, st->obj[oi].key);
         }
-      return streq (a5state_character_location_key (st, ci), k2);
+      return 0;
     }
-  if (streq (r->op, "BeOfGender"))
-    {
-      /* clsCharacter.Gender / clsRestriction.CharacterEnum.BeOfGender: an
-         exact match against the Mandatory StateList "Gender" property
-         (Male/Female/Unknown).  k2 is the literal state name (resolve_key is
-         a no-op on it -- no leading '%' and no matching per-turn ref
-         binding).  Without this case the operator fell through to the
-         best-effort `return 1`, so a gender-gated branch (e.g. Pathway to
-         Destruction's
-         `Player Must BeOfGender Female` swapping in an alternate character
-         name/pronoun set) always fired even when the player's Gender is still
-         its unset "Unknown" default.  Pathway's Gender never gets set at all:
-         the generated GenTask1 that would ask via %PopUpChoice% is a System
-         task WITHOUT RunImmediately, and nothing ever dispatches one of those
-         (clsUserSession.vb:213 auto-runs only the RunImmediately ones), so the
-         Unknown default is what the runner plays with too. */
-      const char *g = a5state_entity_prop (st, k1, "Gender");
-      return g != NULL && strcasecmp (g, k2) == 0;
-    }
-  if (streq (r->op, "BeHoldingObject"))
-    {
-      /* ANYOBJECT -> holding at least one object (clsCharacter.IsHoldingObject:
-         "If sObKey = ANYOBJECT Then Return HeldObjects.Count > 0"). */
-      if (streq (k2, ANYOBJECT))
-        return char_holds_any (st, k1, A5_OWHERE_HELD_BY);
-      /* ANYCHARACTER subject: htblObjects(k2).IsHeldByAnyone
-         (clsUserSession.vb:4674) -- held directly, or nested in a
-         container/surface whose own chain ends held (clsObject.vb:737
-         recurses into the parent).  A worn or located object is not "held
-         by anyone". */
-      if (streq (k1, ANYCHARACTER))
-        {
-          int oi = a5state_object_index (st, k2), hops;
-          for (hops = 0; oi >= 0 && hops < st->adv->n_objects; hops++)
-            {
-              if (st->obj[oi].where == A5_OWHERE_HELD_BY)
-                return 1;
-              if (st->obj[oi].where != A5_OWHERE_IN_OBJECT
-                  && st->obj[oi].where != A5_OWHERE_ON_OBJECT)
-                return 0;
-              oi = a5state_object_index (st, st->obj[oi].key);
-            }
-          return 0;
-        }
-      /* A specific object counts as held if it is directly held OR nested in a
-         container/supporter the character holds (clsCharacter.IsHoldingObject is
-         recursive) -- e.g. Anno's gunpowder poured into the held skull still
-         satisfies "Player Must BeHoldingObject Gunpowder1". */
-      return char_holds_object (st, k1, k2, 0);
-    }
-  if (streq (r->op, "BeWearingObject"))
-    {
-      if (streq (k2, ANYOBJECT))     /* WornObjects.Count > 0 */
-        return char_holds_any (st, k1, A5_OWHERE_WORN_BY);
-      int oi = a5state_object_index (st, k2);
-      /* ANYCHARACTER subject: htblObjects(k2).IsWornByAnyone
-         (clsUserSession.vb:4868) -- a direct WornBy check only, NOT
-         recursive (clsObject.vb:756). */
-      if (streq (k1, ANYCHARACTER))
-        return oi >= 0 && st->obj[oi].where == A5_OWHERE_WORN_BY;
-      return oi >= 0 && st->obj[oi].where == A5_OWHERE_WORN_BY
-             && streq (st->obj[oi].key, k1);
-    }
-  if (streq (r->op, "BeInSameLocationAsObject"))
-    {
-      int oi;
-      if (cloc == NULL)
+  /* A specific object counts as held if it is directly held OR nested in a
+     container/supporter the character holds (clsCharacter.IsHoldingObject is
+     recursive) -- e.g. Anno's gunpowder poured into the held skull still
+     satisfies "Player Must BeHoldingObject Gunpowder1". */
+  return char_holds_object (st, k1, k2, 0);
+}
+
+int
+char_restr_t::be_wearing_object () const
+{
+  if (streq (k2, ANYOBJECT))     /* WornObjects.Count > 0 */
+    return char_holds_any (st, k1, A5_OWHERE_WORN_BY);
+  int oi = a5state_object_index (st, k2);
+  /* ANYCHARACTER subject: htblObjects(k2).IsWornByAnyone
+     (clsUserSession.vb:4868) -- a direct WornBy check only, NOT
+     recursive (clsObject.vb:756). */
+  if (streq (k1, ANYCHARACTER))
+    return oi >= 0 && st->obj[oi].where == A5_OWHERE_WORN_BY;
+  return oi >= 0 && st->obj[oi].where == A5_OWHERE_WORN_BY
+         && streq (st->obj[oi].key, k1);
+}
+
+int
+char_restr_t::be_in_same_location_as_object () const
+{
+  int oi;
+  if (cloc == nullptr)
+    return 0;
+  /* k2 may be an object GROUP (e.g. LightSources): true if any member is in
+     scope, mirroring clsCharacter.CanSeeObject's group expansion (the
+     darkness override's "MustNot BeInSameLocationAsObject LightSources"
+     must see a held torch). */
+  for (int gi = 0; gi < st->adv->n_groups; gi++)
+    if (streq (st->adv->groups[gi].key, k2))
+      {
+        /* Effective membership = static <Member>s plus runtime adds minus
+           removes; scan every object so runtime-added members (e.g. a lit
+           flashlight in LightSources) count too. */
+        for (int mi = 0; mi < st->adv->n_objects; mi++)
+          if (a5state_object_in_group (st, k2, st->adv->objects[mi].key)
+              && a5state_object_visible_at_location (st, mi, cloc, 0))
+            return 1;
         return 0;
-      /* k2 may be an object GROUP (e.g. LightSources): true if any member is in
-         scope, mirroring clsCharacter.CanSeeObject's group expansion (the
-         darkness override's "MustNot BeInSameLocationAsObject LightSources"
-         must see a held torch). */
-      for (int gi = 0; gi < st->adv->n_groups; gi++)
-        if (streq (st->adv->groups[gi].key, k2))
-          {
-            /* Effective membership = static <Member>s plus runtime adds minus
-               removes; scan every object so runtime-added members (e.g. a lit
-               flashlight in LightSources) count too. */
-            for (int oi = 0; oi < st->adv->n_objects; oi++)
-              if (a5state_object_in_group (st, k2, st->adv->objects[oi].key)
-                  && a5state_object_visible_at_location (st, oi, cloc, 0))
-                return 1;
-            return 0;
-          }
-      oi = a5state_object_index (st, k2);
-      return oi >= 0 && a5state_object_visible_at_location (st, oi, cloc, 0);
-    }
-  if (streq (r->op, "BeInSameLocationAsCharacter"))
+      }
+  oi = a5state_object_index (st, k2);
+  return oi >= 0 && a5state_object_visible_at_location (st, oi, cloc, 0);
+}
+
+int
+char_restr_t::be_in_same_location_as_character () const
+{
+  /* clsUserSession.vb:4681-4698.  clsCharacter.Location.LocationKey resolves a
+     seated/carried character to its room, so the comparison must walk an
+     on/in-object character (e.g. Anne seated on Chair1) through its carrier
+     rather than read the raw char_loc (NULL for a non-"At Location"
+     character).  `same_room` does that resolution for either operand (prefer
+     the recorded room, else scan locations for the on/in-object case). */
+  auto same_room = [&] (int a, int b) -> int {
+    if (a < 0 || b < 0)
+      return 0;
+    const char *la = (st->char_loc != nullptr) ? st->char_loc[a] : nullptr;
+    if (la != nullptr)
+      return a5state_character_at_location (st, b, la);
+    for (int L = 0; L < st->adv->n_locations; L++)
+      { const char *lk = st->adv->locations[L].key;
+        if (a5state_character_at_location (st, a, lk)
+            && a5state_character_at_location (st, b, lk))
+          return 1; }
+    return 0;
+  };
+  int c2 = a5state_character_index (st, k2);
+  /* k1 = ANYCHARACTER: r = Not htblCharacters(k2).IsAlone -- some *other*
+     character shares k2's room (vb:4684). */
+  if (streq (k1, ANYCHARACTER))
     {
-      /* clsUserSession.vb:4681-4698.  clsCharacter.Location.LocationKey resolves a
-         seated/carried character to its room, so the comparison must walk an
-         on/in-object character (e.g. Anne seated on Chair1) through its carrier
-         rather than read the raw char_loc (NULL for a non-"At Location"
-         character).  `same_room` does that resolution for either operand (prefer
-         the recorded room, else scan locations for the on/in-object case). */
-      auto same_room = [&] (int a, int b) -> int {
-        if (a < 0 || b < 0)
-          return 0;
-        const char *la = (st->char_loc != NULL) ? st->char_loc[a] : NULL;
-        if (la != NULL)
-          return a5state_character_at_location (st, b, la);
-        for (int L = 0; L < st->adv->n_locations; L++)
-          { const char *lk = st->adv->locations[L].key;
-            if (a5state_character_at_location (st, a, lk)
-                && a5state_character_at_location (st, b, lk))
-              return 1; }
+      if (c2 < 0)
         return 0;
-      };
-      int c2 = a5state_character_index (st, k2);
-      /* k1 = ANYCHARACTER: r = Not htblCharacters(k2).IsAlone -- some *other*
-         character shares k2's room (vb:4684). */
-      if (streq (k1, ANYCHARACTER))
-        {
-          if (c2 < 0)
-            return 0;
-          for (int s = 0; s < st->adv->n_characters; s++)
-            if (s != c2 && same_room (s, c2))
-              return 1;
-          return 0;
-        }
-      /* k1 = specific, k2 = ANYCHARACTER: any *other* character co-located with
-         k1 (vb:4687-4694) -- e.g. Revenge's `Player Must
-         BeInSameLocationAsCharacter AnyCharacter` ("There's nobody here to show
-         anything to!"), true when the customs official is present. */
-      if (streq (k2, ANYCHARACTER))
-        {
-          if (ci < 0)
-            return 0;
-          for (int c = 0; c < st->adv->n_characters; c++)
-            if (c != ci && same_room (c, ci))
-              return 1;
-          return 0;
-        }
-      /* k1, k2 both specific: identical rooms (vb:4696). */
-      return same_room (ci, c2);
+      for (int s = 0; s < st->adv->n_characters; s++)
+        if (s != c2 && same_room (s, c2))
+          return 1;
+      return 0;
     }
-  if (streq (r->op, "BeCharacter"))
+  /* k1 = specific, k2 = ANYCHARACTER: any *other* character co-located with
+     k1 (vb:4687-4694) -- e.g. Revenge's `Player Must
+     BeInSameLocationAsCharacter AnyCharacter` ("There's nobody here to show
+     anything to!"), true when the customs official is present. */
+  if (streq (k2, ANYCHARACTER))
     {
-      /* clsRestriction.CharacterEnum.BeCharacter (clsUserSession.vb:4579): the
-         subject character k1 is a specific character (ANYCHARACTER = any) -- an
-         identity test on the resolved keys (mirrors the object `BeObject`).  Without
-         this case the operator fell through to the best-effort `return 1`, so e.g.
-         RunBronwynn's `ExamineCha1` ("Examine Me", `ReferencedCharacter Must
-         BeCharacter Player`) wrongly fired for any examined character (x horse ->
-         Fleetwind), showing its description where the runner's higher-priority
-         ExamineCharacter fails the HaveSeen check with "You see no such thing." */
-      if (streq (k1, ANYCHARACTER))
-        return 1;
-      return streq (k1, k2);
-    }
-  if (streq (r->op, "BeVisibleToCharacter"))
-    {
-      /* clsRestriction.CharacterEnum.BeVisibleToCharacter (clsUserSession.vb:4700):
-         true when the subject character k1 (ANYCHARACTER = any) can be seen by the
-         observer k2 -- clsCharacter.CanSeeCharacter -> IsVisibleTo: the two share a
-         BoundVisible location and the subject is not Hidden.  Reduce to "the subject
-         is at the observer's location" (a5state_character_at_location resolves an
-         on/in-object subject through its carrier and treats Hidden as not-present).
-         Without this case the operator fell through to the best-effort `return 1`,
-         so e.g. Grandpa's `vnl_JustTalk` ("talk" near Molly) wrongly fired when
-         Molly was elsewhere, swallowing the turn. */
-      const char *obs_loc;
-      if (streq (k2, ANYCHARACTER))
-        {
-          /* any observer: the subject (or any subject) co-located with any *other*
-             character. */
-          for (int s = 0; s < st->adv->n_characters; s++)
-            {
-              if (!streq (k1, ANYCHARACTER) && !streq (st->adv->characters[s].key, k1))
-                continue;
-              for (int o = 0; o < st->adv->n_characters; o++)
-                if (o != s && st->char_loc[o] != NULL
-                    && a5state_character_at_location (st, s, st->char_loc[o]))
-                  return 1;
-            }
-          return 0;
-        }
-      if (k2 == NULL || streq (k2, a5state_player_key (st)))
-        obs_loc = a5state_player_location (st);
-      else
-        /* effective location: an observer seated ON furniture (Grandpa on
-           his rocking chair) has char_loc NULL. */
-        obs_loc = a5state_character_location_key (st,
-                    a5state_character_index (st, k2));
-      if (obs_loc == NULL)
+      if (ci < 0)
         return 0;
-      if (streq (k1, ANYCHARACTER))
+      for (int c = 0; c < st->adv->n_characters; c++)
+        if (c != ci && same_room (c, ci))
+          return 1;
+      return 0;
+    }
+  /* k1, k2 both specific: identical rooms (vb:4696). */
+  return same_room (ci, c2);
+}
+
+int
+char_restr_t::be_character () const
+{
+  /* clsRestriction.CharacterEnum.BeCharacter (clsUserSession.vb:4579): the
+     subject character k1 is a specific character (ANYCHARACTER = any) -- an
+     identity test on the resolved keys (mirrors the object `BeObject`).  Without
+     this case the operator fell through to the best-effort `return 1`, so e.g.
+     RunBronwynn's `ExamineCha1` ("Examine Me", `ReferencedCharacter Must
+     BeCharacter Player`) wrongly fired for any examined character (x horse ->
+     Fleetwind), showing its description where the runner's higher-priority
+     ExamineCharacter fails the HaveSeen check with "You see no such thing." */
+  if (streq (k1, ANYCHARACTER))
+    return 1;
+  return streq (k1, k2);
+}
+
+int
+char_restr_t::be_visible_to_character () const
+{
+  /* clsRestriction.CharacterEnum.BeVisibleToCharacter (clsUserSession.vb:4700):
+     true when the subject character k1 (ANYCHARACTER = any) can be seen by the
+     observer k2 -- clsCharacter.CanSeeCharacter -> IsVisibleTo: the two share a
+     BoundVisible location and the subject is not Hidden.  Reduce to "the subject
+     is at the observer's location" (a5state_character_at_location resolves an
+     on/in-object subject through its carrier and treats Hidden as not-present).
+     Without this case the operator fell through to the best-effort `return 1`,
+     so e.g. Grandpa's `vnl_JustTalk` ("talk" near Molly) wrongly fired when
+     Molly was elsewhere, swallowing the turn. */
+  const char *obs_loc;
+  if (streq (k2, ANYCHARACTER))
+    {
+      /* any observer: the subject (or any subject) co-located with any *other*
+         character. */
+      for (int s = 0; s < st->adv->n_characters; s++)
         {
-          for (int s = 0; s < st->adv->n_characters; s++)
-            if (a5state_character_at_location (st, s, obs_loc))
+          if (!streq (k1, ANYCHARACTER) && !streq (st->adv->characters[s].key, k1))
+            continue;
+          for (int o = 0; o < st->adv->n_characters; o++)
+            if (o != s && st->char_loc[o] != nullptr
+                && a5state_character_at_location (st, s, st->char_loc[o]))
               return 1;
-          return 0;
         }
-      return a5state_character_at_location (st, ci, obs_loc);
+      return 0;
     }
-  if (streq (r->op, "BeWithinLocationGroup"))
+  if (k2 == nullptr || streq (k2, a5state_player_key (st)))
+    obs_loc = a5state_player_location (st);
+  else
+    /* effective location: an observer seated ON furniture (Grandpa on
+       his rocking chair) has char_loc NULL. */
+    obs_loc = a5state_character_location_key (st,
+                a5state_character_index (st, k2));
+  if (obs_loc == nullptr)
+    return 0;
+  if (streq (k1, ANYCHARACTER))
     {
-      /* Membership must consult the runtime override layer, not just the static
-         model members: SixSilverBullets' TimeTraps1 fires the bell then runs
-         `RemoveLocationFromGroup LocationOf %Player% FromGroup TimeTraps`, so a
-         once-tolled location leaves the group and must not re-toll.  Likewise
-         AddLocationToGroup (Jacaranda's dark-locations) must count. */
-      return cloc != NULL && a5state_object_in_group (st, k2, cloc);
+      for (int s = 0; s < st->adv->n_characters; s++)
+        if (a5state_character_at_location (st, s, obs_loc))
+          return 1;
+      return 0;
     }
-  if (streq (r->op, "HaveProperty"))
+  return a5state_character_at_location (st, ci, obs_loc);
+}
+
+int
+char_restr_t::be_within_location_group () const
+{
+  /* Membership must consult the runtime override layer, not just the static
+     model members: SixSilverBullets' TimeTraps1 fires the bell then runs
+     `RemoveLocationFromGroup LocationOf %Player% FromGroup TimeTraps`, so a
+     once-tolled location leaves the group and must not re-toll.  Likewise
+     AddLocationToGroup (Jacaranda's dark-locations) must count. */
+  return cloc != nullptr && a5state_object_in_group (st, k2, cloc);
+}
+
+int
+char_restr_t::have_property () const
+{
+  /* clsCharacter.HasProperty (clsItem.vb:386) consults the *merged*
+     property table, so a property added at runtime via SetProperty
+     (e.g. `SetProperty Susan Known <Selected>`, clsUserSession.vb:2042)
+     must count -- not just the static model props.  The runner's
+     SetPropertyValue(Boolean) removes a SelectionOnly property when set
+     to <Unselected>, so an override carrying that sentinel reads as
+     absent (mirroring the display-name "Selected" check at a5text.cpp). */
+  if (streq (k1, ANYCHARACTER))
     {
-      /* clsCharacter.HasProperty (clsItem.vb:386) consults the *merged*
-         property table, so a property added at runtime via SetProperty
-         (e.g. `SetProperty Susan Known <Selected>`, clsUserSession.vb:2042)
-         must count -- not just the static model props.  The runner's
-         SetPropertyValue(Boolean) removes a SelectionOnly property when set
-         to <Unselected>, so an override carrying that sentinel reads as
-         absent (mirroring the display-name "Selected" check at a5text.cpp). */
-      if (streq (k1, ANYCHARACTER))
+      for (int s = 0; s < st->adv->n_characters; s++)
+        if (a5state_entity_has_prop (st, st->adv->characters[s].key, k2))
+          return 1;
+      return 0;
+    }
+  return ci >= 0 && a5state_entity_has_prop (st, k1, k2);
+}
+
+int
+char_restr_t::exist () const
+{
+  /* clsUserSession.vb:4600: ANYCHARACTER -> any character defined at all. */
+  if (streq (k1, ANYCHARACTER))
+    return st->adv->n_characters > 0;
+  return ci >= 0;
+}
+
+int
+char_restr_t::be_in_group () const
+{
+  /* clsUserSession.vb:4779: ANYCHARACTER -> any character among the
+     group's LIVE members (runtime Add/RemoveCharacterToGroup counts);
+     else membership of k1 itself.  Previously unhandled, so the check
+     fell through to the pass-everything default and a MustNot BeInGroup
+     restriction could never fail. */
+  if (streq (k1, ANYCHARACTER))
+    {
+      for (int s = 0; s < st->adv->n_characters; s++)
+        if (a5state_object_in_group (st, k2, st->adv->characters[s].key))
+          return 1;
+      return 0;
+    }
+  return a5state_object_in_group (st, k2, k1);
+}
+
+int
+char_restr_t::have_route_in_direction () const
+{
+  const char *dir = a5parse_canonical_direction (k2);
+  const char *cl = streq (k1, a5state_player_key (st))
+                     ? a5state_player_location (st) : cloc;
+  const a5_xml_node_t *blocked = nullptr;
+  const char *exit;
+  if (dir == nullptr)
+    dir = k2;             /* already canonical (e.g. bound ReferencedDirection) */
+  /* sRouteError: clear, then capture the blocked exit's own message (if the
+     exit exists but is restriction-gated) so the deciding fail message
+     override below can prefer it over the generic "no route" text. */
+  st->route_error = nullptr;
+  if (streq (dir, ANYDIRECTION))
+    {
+      /* clsUserSession.vb:4608: AnyDirection loops every DirectionsEnum
+         value through HasRouteInDirection -- true when at least one
+         direction has an open route (enum order, matching the runner's
+         short-circuit). */
+      static const char *const kEnumDirs[12] = {
+        "North", "East", "South", "West", "Up", "Down",
+        "In", "Out", "NorthEast", "SouthEast", "SouthWest", "NorthWest" };
+      if (cl == nullptr)
+        return 0;
+      for (int d = 0; d < 12; d++)
         {
-          for (int s = 0; s < st->adv->n_characters; s++)
-            if (a5state_entity_has_prop (st, st->adv->characters[s].key, k2))
-              return 1;
-          return 0;
+          const a5_xml_node_t *b = nullptr;
+          if (a5restr_exit_in_direction (st, k1, cl, kEnumDirs[d], &b) != nullptr)
+            return 1;
+          if (b != nullptr)
+            blocked = b;    /* the runner keeps the LAST specific error */
         }
-      return ci >= 0 && a5state_entity_has_prop (st, k1, k2);
-    }
-  if (streq (r->op, "Exist"))
-    {
-      /* clsUserSession.vb:4600: ANYCHARACTER -> any character defined at all. */
-      if (streq (k1, ANYCHARACTER))
-        return st->adv->n_characters > 0;
-      return ci >= 0;
-    }
-  if (streq (r->op, "BeInGroup"))
-    {
-      /* clsUserSession.vb:4779: ANYCHARACTER -> any character among the
-         group's LIVE members (runtime Add/RemoveCharacterToGroup counts);
-         else membership of k1 itself.  Previously unhandled, so the check
-         fell through to the pass-everything default and a MustNot BeInGroup
-         restriction could never fail. */
-      if (streq (k1, ANYCHARACTER))
-        {
-          for (int s = 0; s < st->adv->n_characters; s++)
-            if (a5state_object_in_group (st, k2, st->adv->characters[s].key))
-              return 1;
-          return 0;
-        }
-      return a5state_object_in_group (st, k2, k1);
-    }
-  if (streq (r->op, "HaveRouteInDirection"))
-    {
-      const char *dir = a5parse_canonical_direction (k2);
-      const char *cl = streq (k1, a5state_player_key (st))
-                         ? a5state_player_location (st) : cloc;
-      const a5_xml_node_t *blocked = NULL;
-      const char *exit;
-      if (dir == NULL)
-        dir = k2;             /* already canonical (e.g. bound ReferencedDirection) */
-      /* sRouteError: clear, then capture the blocked exit's own message (if the
-         exit exists but is restriction-gated) so the deciding fail message
-         override below can prefer it over the generic "no route" text. */
-      st->route_error = NULL;
-      if (streq (dir, ANYDIRECTION))
-        {
-          /* clsUserSession.vb:4608: AnyDirection loops every DirectionsEnum
-             value through HasRouteInDirection -- true when at least one
-             direction has an open route (enum order, matching the runner's
-             short-circuit). */
-          static const char *const kEnumDirs[12] = {
-            "North", "East", "South", "West", "Up", "Down",
-            "In", "Out", "NorthEast", "SouthEast", "SouthWest", "NorthWest" };
-          if (cl == NULL)
-            return 0;
-          for (int d = 0; d < 12; d++)
-            {
-              const a5_xml_node_t *b = NULL;
-              if (a5restr_exit_in_direction (st, k1, cl, kEnumDirs[d], &b) != NULL)
-                return 1;
-              if (b != NULL)
-                blocked = b;    /* the runner keeps the LAST specific error */
-            }
-          if (blocked != NULL)
-            st->route_error = blocked;
-          return 0;
-        }
-      exit = (cl != NULL) ? a5restr_exit_in_direction (st, k1, cl, dir, &blocked)
-                          : NULL;
-      if (exit == NULL && blocked != NULL)
+      if (blocked != nullptr)
         st->route_error = blocked;
-      return exit != NULL;
+      return 0;
     }
-  if (streq (r->op, "BeInPosition"))
+  exit = (cl != nullptr) ? a5restr_exit_in_direction (st, k1, cl, dir, &blocked)
+                      : nullptr;
+  if (exit == nullptr && blocked != nullptr)
+    st->route_error = blocked;
+  return exit != nullptr;
+}
+
+int
+char_restr_t::be_in_position () const
+{
+  /* clsUserSession.vb:4902-4915 reads the raw CharacterPosition PROPERTY,
+     gated on HasProperty -- NOT the Position getter (which defaults to
+     Standing).  A character that never gained the property tests False
+     for every position: the library-injected default Player carries no
+     CharacterPosition <Property>, and the SetProperty action on an
+     absent character property is a no-op (vb:2056), so `stand` always
+     passes StandOnFloor's `MustNot BeInPosition Standing` for it.  Only
+     a character whose XML sets the property, or one moved via
+     ToStandingOn/ToSittingOn/ToLyingOn (the Position setter creates the
+     property, clsCharacter.vb:1853), ever tests True. */
+  if (streq (k1, ANYCHARACTER))
     {
-      /* clsUserSession.vb:4902-4915 reads the raw CharacterPosition PROPERTY,
-         gated on HasProperty -- NOT the Position getter (which defaults to
-         Standing).  A character that never gained the property tests False
-         for every position: the library-injected default Player carries no
-         CharacterPosition <Property>, and the SetProperty action on an
-         absent character property is a no-op (vb:2056), so `stand` always
-         passes StandOnFloor's `MustNot BeInPosition Standing` for it.  Only
-         a character whose XML sets the property, or one moved via
-         ToStandingOn/ToSittingOn/ToLyingOn (the Position setter creates the
-         property, clsCharacter.vb:1853), ever tests True. */
-      if (streq (k1, ANYCHARACTER))
+      for (int s = 0; s < st->adv->n_characters; s++)
         {
-          for (int s = 0; s < st->adv->n_characters; s++)
-            {
-              const char *pos = a5state_entity_prop
-                  (st, st->adv->characters[s].key, "CharacterPosition");
-              if (pos != NULL && streq (pos, k2))
-                return 1;
-            }
-          return 0;
+          const char *pos = a5state_entity_prop
+              (st, st->adv->characters[s].key, "CharacterPosition");
+          if (pos != nullptr && streq (pos, k2))
+            return 1;
         }
-      const char *pos = (ci >= 0)
-          ? a5state_entity_prop (st, k1, "CharacterPosition") : NULL;
-      return pos != NULL && streq (pos, k2);
+      return 0;
     }
-  /* On/in object, optionally constrained by stance.  Mirrors clsUserSession's
-     BeOnObject / BeInsideObject / Be{Standing,Sitting,Lying}OnObject cases:
-     ANYOBJECT -> just the ExistWhere; THEFLOOR / else -> object-key compare. */
-  if (streq (r->op, "BeOnObject") || streq (r->op, "BeInsideObject")
-      || streq (r->op, "BeStandingOnObject") || streq (r->op, "BeSittingOnObject")
-      || streq (r->op, "BeLyingOnObject"))
+  const char *pos = (ci >= 0)
+      ? a5state_entity_prop (st, k1, "CharacterPosition") : nullptr;
+  return pos != nullptr && streq (pos, k2);
+}
+
+/* On/in object, optionally constrained by stance.  Mirrors clsUserSession's
+   BeOnObject / BeInsideObject / Be{Standing,Sitting,Lying}OnObject cases:
+   ANYOBJECT -> just the ExistWhere; THEFLOOR / else -> object-key compare. */
+int
+char_restr_t::be_on_or_in_object () const
+{
+  const char *onobj = (ci >= 0 && st->char_onobj) ? st->char_onobj[ci] : nullptr;
+  int inside = (ci >= 0 && st->char_in) ? st->char_in[ci] : 0;
+  const char *want_pos =
+      streq (r->op, "BeStandingOnObject") ? "Standing"
+    : streq (r->op, "BeSittingOnObject")  ? "Sitting"
+    : streq (r->op, "BeLyingOnObject")    ? "Lying" : nullptr;
+  int want_in = streq (r->op, "BeInsideObject");
+  const char *pos = (ci >= 0 && st->char_position) ? st->char_position[ci] : nullptr;
+  /* Subject ANYCHARACTER: the runner's clsUserSession CharacterOnObject/InObject
+     AnyCharacter case counts the object's ChildrenCharacters (vb:4930/
+     4952) -- true when ANY character is on/in the (specific) object.  Head
+     Case's examine template gates %ListCharactersOnAndIn[%object%]% on
+     "AnyCharacter Must BeInsideObject ReferencedObject" (the Mysterious
+     Voice sitting inside the black van). */
+  if (streq (k1, ANYCHARACTER))
     {
-      const char *onobj = (ci >= 0 && st->char_onobj) ? st->char_onobj[ci] : NULL;
-      int inside = (ci >= 0 && st->char_in) ? st->char_in[ci] : 0;
-      const char *want_pos =
-          streq (r->op, "BeStandingOnObject") ? "Standing"
-        : streq (r->op, "BeSittingOnObject")  ? "Sitting"
-        : streq (r->op, "BeLyingOnObject")    ? "Lying" : NULL;
-      int want_in = streq (r->op, "BeInsideObject");
-      const char *pos = (ci >= 0 && st->char_position) ? st->char_position[ci] : NULL;
-      /* Subject ANYCHARACTER: the runner's clsUserSession CharacterOnObject/InObject
-         AnyCharacter case counts the object's ChildrenCharacters (vb:4930/
-         4952) -- true when ANY character is on/in the (specific) object.  Head
-         Case's examine template gates %ListCharactersOnAndIn[%object%]% on
-         "AnyCharacter Must BeInsideObject ReferencedObject" (the Mysterious
-         Voice sitting inside the black van). */
-      if (streq (k1, ANYCHARACTER))
+      if (streq (k2, ANYOBJECT))
+        return 0;                     /* not a shipped combination */
+      if (streq (k2, THEFLOOR))
         {
-          if (streq (k2, ANYOBJECT))
-            return 0;                     /* not a shipped combination */
-          if (streq (k2, THEFLOOR))
-            {
-              /* clsUserSession.vb:4834: TheFloor = the stance with ExistWhere
-                 AtLocation -- on the ground, not on/in any object. */
-              for (int i = 0; i < st->adv->n_characters; i++)
-                {
-                  if (want_in)
-                    continue;             /* can't be inside the floor */
-                  if (st->char_onobj != NULL && st->char_onobj[i] != NULL)
-                    continue;
-                  if (st->char_loc == NULL || st->char_loc[i] == NULL)
-                    continue;
-                  if (want_pos != NULL
-                      && !streq (st->char_position ? st->char_position[i] : NULL,
-                                 want_pos))
-                    continue;
-                  return 1;
-                }
-              return 0;
-            }
+          /* clsUserSession.vb:4834: TheFloor = the stance with ExistWhere
+             AtLocation -- on the ground, not on/in any object. */
           for (int i = 0; i < st->adv->n_characters; i++)
             {
-              if (st->char_onobj == NULL || st->char_onobj[i] == NULL
-                  || !streq (st->char_onobj[i], k2))
+              if (want_in)
+                continue;             /* can't be inside the floor */
+              if (st->char_onobj != nullptr && st->char_onobj[i] != nullptr)
                 continue;
-              int in_i = st->char_in != NULL && st->char_in[i];
-              if ((in_i ? 1 : 0) != want_in)
+              if (st->char_loc == nullptr || st->char_loc[i] == nullptr)
                 continue;
-              if (want_pos != NULL
-                  && !streq (st->char_position ? st->char_position[i] : NULL,
+              if (want_pos != nullptr
+                  && !streq (st->char_position ? st->char_position[i] : nullptr,
                              want_pos))
                 continue;
               return 1;
             }
           return 0;
         }
-      if (ci < 0) return 0;
-      if (want_pos != NULL && !streq (pos, want_pos))
-        return 0;
-      if (streq (k2, ANYOBJECT))
-        return onobj != NULL && (inside ? 1 : 0) == want_in;
-      if (streq (k2, THEFLOOR))
+      for (int i = 0; i < st->adv->n_characters; i++)
         {
-          /* clsUserSession.vb:4834: TheFloor = the stance with ExistWhere
-             AtLocation -- on the ground, not on/in any object (the position
-             itself was already checked above).  The player's room comes from
-             a5state_player_location; char_loc is the NPC store. */
-          const char *atloc = streq (k1, a5state_player_key (st))
-                                ? a5state_player_location (st) : cloc;
-          return !want_in && onobj == NULL && atloc != NULL;
+          if (st->char_onobj == nullptr || st->char_onobj[i] == nullptr
+              || !streq (st->char_onobj[i], k2))
+            continue;
+          int in_i = st->char_in != nullptr && st->char_in[i];
+          if ((in_i ? 1 : 0) != want_in)
+            continue;
+          if (want_pos != nullptr
+              && !streq (st->char_position ? st->char_position[i] : nullptr,
+                         want_pos))
+            continue;
+          return 1;
         }
-      /* Any concrete object key: must be on/in that key. */
-      return onobj != NULL && (inside ? 1 : 0) == want_in && streq (onobj, k2);
+      return 0;
     }
-  /* Conversation / acquaintance operators (clsUserSession character cases). */
-  if (streq (r->op, "BeInConversationWith"))
+  if (ci < 0) return 0;
+  if (want_pos != nullptr && !streq (pos, want_pos))
+    return 0;
+  if (streq (k2, ANYOBJECT))
+    return onobj != nullptr && (inside ? 1 : 0) == want_in;
+  if (streq (k2, THEFLOOR))
     {
-      if (streq (k2, ANYCHARACTER))
-        return st->conv_char != NULL && st->conv_char[0] != '\0';
-      return streq (st->conv_char, k2);
+      /* clsUserSession.vb:4834: TheFloor = the stance with ExistWhere
+         AtLocation -- on the ground, not on/in any object (the position
+         itself was already checked above).  The player's room comes from
+         a5state_player_location; char_loc is the NPC store. */
+      const char *atloc = streq (k1, a5state_player_key (st))
+                            ? a5state_player_location (st) : cloc;
+      return !want_in && onobj == nullptr && atloc != nullptr;
     }
-  if (streq (r->op, "HaveSeenCharacter"))
-    {
-      /* key1 is the observer (typically Player), key2 the target.  We track the
-         player's "seen" set; a non-player observer is treated as having seen
-         (best-effort, no shipped restriction needs the general case). */
-      int c2 = a5state_character_index (st, k2);
-      if (c2 < 0)
-        return 0;
-      if (!streq (k1, a5state_player_key (st)))
-        return 1;
-      return st->char_seen != NULL && st->char_seen[c2];
-    }
-  if (streq (r->op, "HaveSeenObject"))
-    {
-      /* key1 is the observer, key2 the target object.  The runner funnels this and the
-         object-subject HaveBeenSeenByCharacter to the same per-character
-         clsCharacter.HasSeenObject table (clsUserSession.vb:4677 / :4341), so
-         mirror the object-side handler exactly: the player consults the tracked
-         seen set; a non-player observer falls back to "seen" (best-effort).
-         Without this case the operator fell through to `return 1`, so Thy
-         Dunjohnman's gated exits (`%Player% Must HaveSeenObject Platform` /
-         Coins) were open from turn one (the runner keeps them shut). */
-      int o2 = a5state_object_index (st, k2);
-      if (o2 < 0)
-        return 0;
-      if (!streq (k1, a5state_player_key (st)))
-        return 1;
-      return st->obj_seen != NULL && st->obj_seen[o2];
-    }
-  if (streq (r->op, "HaveSeenLocation"))
-    {
-      /* key1 is the observer (typically Player), key2 the target location.
-         the runner sets clsCharacter.HasSeenLocation only for the Player
-         (clsUserSession.vb:222, on every player move), so a non-player observer
-         has never seen any location -- mirror the location-subject
-         HaveBeenSeenByCharacter handler.  Without this case the operator fell
-         through to the best-effort `return 1`, so RunBronwynn's Caught121
-         (`Player Must HaveSeenLocation BridgetSLi`) fired the moment the player
-         reached the cathedral-square street -- BEFORE ever entering Bridget's
-         house -- ending the game prematurely (the runner plays on). */
-      int li = a5state_location_index (st, k2);
-      if (li < 0)
-        return 0;
-      if (!streq (k1, a5state_player_key (st)))
-        return 0;
-      return st->loc_seen != NULL && st->loc_seen[li];
-    }
-  if (streq (r->op, "BeAloneWith"))
-    {
-      const char *aw = alone_with_char (st, k1);
-      if (streq (k2, ANYCHARACTER))
-        return aw != NULL;
-      return streq (aw, k2);
-    }
-  if (streq (r->op, "BeAlone"))
-    /* clsCharacter.IsAlone: resolved Location.LocationKey compare, so a
-       character on/in furniture still breaks solitude. */
-    return chars_sharing_room (st, ci, NULL) == 0;
-  if (streq (r->op, "BeOnCharacter"))
-    {
-      /* clsCharacterLocation.ExistsWhereEnum.OnCharacter: the character rides
-         *another character*.  The carrier lives in char_onchar (set by the
-         loader for an "On Character" start state and by the OntoCharacter
-         MoveCharacter action) -- char_onobj only ever names objects, so reading
-         it here always failed (Penrhyn's Arkell-on-Ralph follow message). */
-      const char *onk = (ci >= 0 && st->char_onchar) ? st->char_onchar[ci] : NULL;
-      if (onk == NULL || a5state_character_index (st, onk) < 0)
-        return 0;
-      if (streq (k2, ANYCHARACTER))
-        return 1;
-      return streq (onk, k2);
-    }
+  /* Any concrete object key: must be on/in that key. */
+  return onobj != nullptr && (inside ? 1 : 0) == want_in && streq (onobj, k2);
+}
+
+/* Conversation / acquaintance operators (clsUserSession character cases). */
+int
+char_restr_t::be_in_conversation_with () const
+{
+  if (streq (k2, ANYCHARACTER))
+    return st->conv_char != nullptr && st->conv_char[0] != '\0';
+  return streq (st->conv_char, k2);
+}
+
+int
+char_restr_t::have_seen_character () const
+{
+  /* key1 is the observer (typically Player), key2 the target.  We track the
+     player's "seen" set; a non-player observer is treated as having seen
+     (best-effort, no shipped restriction needs the general case). */
+  int c2 = a5state_character_index (st, k2);
+  if (c2 < 0)
+    return 0;
+  if (!streq (k1, a5state_player_key (st)))
+    return 1;
+  return st->char_seen != nullptr && st->char_seen[c2];
+}
+
+int
+char_restr_t::have_seen_object () const
+{
+  /* key1 is the observer, key2 the target object.  The runner funnels this and the
+     object-subject HaveBeenSeenByCharacter to the same per-character
+     clsCharacter.HasSeenObject table (clsUserSession.vb:4677 / :4341), so
+     mirror the object-side handler exactly: the player consults the tracked
+     seen set; a non-player observer falls back to "seen" (best-effort).
+     Without this case the operator fell through to `return 1`, so Thy
+     Dunjohnman's gated exits (`%Player% Must HaveSeenObject Platform` /
+     Coins) were open from turn one (the runner keeps them shut). */
+  int o2 = a5state_object_index (st, k2);
+  if (o2 < 0)
+    return 0;
+  if (!streq (k1, a5state_player_key (st)))
+    return 1;
+  return st->obj_seen != nullptr && st->obj_seen[o2];
+}
+
+int
+char_restr_t::have_seen_location () const
+{
+  /* key1 is the observer (typically Player), key2 the target location.
+     the runner sets clsCharacter.HasSeenLocation only for the Player
+     (clsUserSession.vb:222, on every player move), so a non-player observer
+     has never seen any location -- mirror the location-subject
+     HaveBeenSeenByCharacter handler.  Without this case the operator fell
+     through to the best-effort `return 1`, so RunBronwynn's Caught121
+     (`Player Must HaveSeenLocation BridgetSLi`) fired the moment the player
+     reached the cathedral-square street -- BEFORE ever entering Bridget's
+     house -- ending the game prematurely (the runner plays on). */
+  int li = a5state_location_index (st, k2);
+  if (li < 0)
+    return 0;
+  if (!streq (k1, a5state_player_key (st)))
+    return 0;
+  return st->loc_seen != nullptr && st->loc_seen[li];
+}
+
+int
+char_restr_t::be_alone_with () const
+{
+  const char *aw = alone_with_char (st, k1);
+  if (streq (k2, ANYCHARACTER))
+    return aw != nullptr;
+  return streq (aw, k2);
+}
+
+int
+char_restr_t::be_alone () const
+{
+  /* clsCharacter.IsAlone: resolved Location.LocationKey compare, so a
+     character on/in furniture still breaks solitude. */
+  return chars_sharing_room (st, ci, nullptr) == 0;
+}
+
+int
+char_restr_t::be_on_character () const
+{
+  /* clsCharacterLocation.ExistsWhereEnum.OnCharacter: the character rides
+     *another character*.  The carrier lives in char_onchar (set by the
+     loader for an "On Character" start state and by the OntoCharacter
+     MoveCharacter action) -- char_onobj only ever names objects, so reading
+     it here always failed (Penrhyn's Arkell-on-Ralph follow message). */
+  const char *onk = (ci >= 0 && st->char_onchar) ? st->char_onchar[ci] : nullptr;
+  if (onk == nullptr || a5state_character_index (st, onk) < 0)
+    return 0;
+  if (streq (k2, ANYCHARACTER))
+    return 1;
+  return streq (onk, k2);
+}
+
+} /* namespace */
+
+
+/* Operator name -> evaluator, in the order the if-chain tested them.  The
+   five on/in-object operators share one evaluator, which reads r->op for
+   the stance and the in/on half. */
+static const struct
+{
+  const char *op;
+  int (char_restr_t::*pass) () const;
+} char_restr_ops[] = {
+  { "BeAtLocation", &char_restr_t::be_at_location },
+  { "BeOfGender", &char_restr_t::be_of_gender },
+  { "BeHoldingObject", &char_restr_t::be_holding_object },
+  { "BeWearingObject", &char_restr_t::be_wearing_object },
+  { "BeInSameLocationAsObject",
+    &char_restr_t::be_in_same_location_as_object },
+  { "BeInSameLocationAsCharacter",
+    &char_restr_t::be_in_same_location_as_character },
+  { "BeCharacter", &char_restr_t::be_character },
+  { "BeVisibleToCharacter", &char_restr_t::be_visible_to_character },
+  { "BeWithinLocationGroup", &char_restr_t::be_within_location_group },
+  { "HaveProperty", &char_restr_t::have_property },
+  { "Exist", &char_restr_t::exist },
+  { "BeInGroup", &char_restr_t::be_in_group },
+  { "HaveRouteInDirection", &char_restr_t::have_route_in_direction },
+  { "BeInPosition", &char_restr_t::be_in_position },
+  { "BeOnObject", &char_restr_t::be_on_or_in_object },
+  { "BeInsideObject", &char_restr_t::be_on_or_in_object },
+  { "BeStandingOnObject", &char_restr_t::be_on_or_in_object },
+  { "BeSittingOnObject", &char_restr_t::be_on_or_in_object },
+  { "BeLyingOnObject", &char_restr_t::be_on_or_in_object },
+  { "BeInConversationWith", &char_restr_t::be_in_conversation_with },
+  { "HaveSeenCharacter", &char_restr_t::have_seen_character },
+  { "HaveSeenObject", &char_restr_t::have_seen_object },
+  { "HaveSeenLocation", &char_restr_t::have_seen_location },
+  { "BeAloneWith", &char_restr_t::be_alone_with },
+  { "BeAlone", &char_restr_t::be_alone },
+  { "BeOnCharacter", &char_restr_t::be_on_character },
+};
+
+static int
+pass_character (a5_state_t *st, a5_restr_t *r)
+{
+  char_restr_t c;
+  c.st = st;
+  c.r = r;
+  c.k1 = resolve_key (st, r->key1);
+  c.k2 = resolve_key (st, r->key2);
+  c.ci = a5state_character_index (st, c.k1);
+  c.cloc = (c.ci >= 0) ? st->char_loc[c.ci] : nullptr;
+
+  for (const auto &entry : char_restr_ops)
+    if (streq (r->op, entry.op))
+      return (c.*entry.pass) ();
   return 1;                   /* other character ops: best-effort pass */
 }
 
@@ -1281,7 +1418,7 @@ static char *
 restr_text_value (a5_state_t *st, const char *key2)
 {
   size_t n;
-  if (key2 == NULL)
+  if (key2 == nullptr)
     return strdup ("");
   n = strlen (key2);
   if (n >= 2 && ((key2[0] == '"' && key2[n - 1] == '"')
@@ -1294,7 +1431,7 @@ restr_text_value (a5_state_t *st, const char *key2)
     }
   {
     int vj = a5state_variable_index (st, key2);
-    if (vj >= 0 && st->var_text[vj] != NULL)
+    if (vj >= 0 && st->var_text[vj] != nullptr)
       return strdup (st->var_text[vj]);
   }
   return a5text_eval_expression (st, key2);
@@ -1309,7 +1446,7 @@ str_compare_op (const char *op, const char *cur, const char *rhs)
   if (streq (op, "BeGreaterThanOrEqualTo"))  return cmp >= 0;
   if (streq (op, "BeLessThan"))              return cmp < 0;
   if (streq (op, "BeLessThanOrEqualTo"))     return cmp <= 0;
-  if (streq (op, "BeContain"))               return strstr (cur, rhs) != NULL;
+  if (streq (op, "BeContain"))               return strstr (cur, rhs) != nullptr;
   return 1;
 }
 
@@ -1344,8 +1481,8 @@ pass_variable (a5_state_t *st, a5_restr_t *r)
       const char *cur = a5state_lookup_ref (st, r->key1);
       char *rhs;
       int res;
-      if (cur == NULL) cur = a5state_lookup_ref (st, "ReferencedText");
-      if (cur == NULL)
+      if (cur == nullptr) cur = a5state_lookup_ref (st, "ReferencedText");
+      if (cur == nullptr)
         {
           /* The runner reads the turn-global Adventure.sReferencedText slot
              (clsUserSession.vb:4474), filled by every command-matched
@@ -1371,10 +1508,10 @@ pass_variable (a5_state_t *st, a5_restr_t *r)
       const char *cur_s = a5state_lookup_ref (st, r->key1);
       char *rhs_s;
       long cur, rhs;
-      if (cur_s == NULL) cur_s = a5state_lookup_ref (st, "ReferencedNumber");
-      cur = cur_s ? strtol (cur_s, NULL, 10) : 0;
+      if (cur_s == nullptr) cur_s = a5state_lookup_ref (st, "ReferencedNumber");
+      cur = cur_s ? strtol (cur_s, nullptr, 10) : 0;
       rhs_s = restr_text_value (st, r->key2);
-      rhs = strtol (rhs_s, NULL, 10);
+      rhs = strtol (rhs_s, nullptr, 10);
       free (rhs_s);
       return num_compare_op (r->op, cur, rhs);
     }
@@ -1443,6 +1580,21 @@ is_variable_enum_op (const char *op)
  * (%Player%-relative weight/bulk sums) is not yet computed, so the restriction
  * passes (the lenient default, matching the previous always-pass stub).
  */
+/* Cut the next space-delimited token out of *pp in place, terminating it and
+   leaving *pp just past it; the token is empty at the end of the string. */
+static char *
+next_token (char **pp)
+{
+  char *p = *pp, *tok;
+
+  while (*p == ' ') p++;
+  tok = p;
+  while (*p && *p != ' ') p++;
+  if (*p) *p++ = '\0';
+  *pp = p;
+  return tok;
+}
+
 static int
 pass_property (a5_state_t *st, a5_restr_t *r)
 {
@@ -1452,17 +1604,13 @@ pass_property (a5_state_t *st, a5_restr_t *r)
   int must_not, rr;
   const char *itemkey, *pv;
 
-#define NEXT_TOK(dst)                                                          \
-  do { while (*p == ' ') p++; (dst) = p;                                       \
-       while (*p && *p != ' ') p++; if (*p) *p++ = '\0'; } while (0)
-  NEXT_TOK (propkey);
-  NEXT_TOK (item);
-  NEXT_TOK (musttok);
-  NEXT_TOK (op);
+  propkey = next_token (&p);
+  item = next_token (&p);
+  musttok = next_token (&p);
+  op = next_token (&p);
   opstart = op;
   while (*p == ' ') p++;
   value = p;
-#undef NEXT_TOK
 
   /* The comparison operator is optional: the runner tests element 3 against
      the VariableEnum names and, when it is none of them, defaults the operator
@@ -1487,38 +1635,38 @@ pass_property (a5_state_t *st, a5_restr_t *r)
   if (strcmp (op, "EqualTo") == 0)
     {
       const char *rhs = resolve_key (st, value);
-      char *rhs_sub = NULL;
+      char *rhs_sub = nullptr;
       /* resolve_key handles per-turn bindings (%object%) and entity keys but
          returns a bare %variable% unchanged.  A variable RHS -- AlienDiver's
          `CardId ReferencedObject EqualTo %RollForBlankCard%` (match the drawn
          blank card) -- must be substituted to its value or the compare never
          matches.  Only when resolve_key left it untouched AND it still holds a
          '%' (so an object binding is not re-rendered as a display name). */
-      if (rhs == value && strchr (value, '%') != NULL)
+      if (rhs == value && strchr (value, '%') != nullptr)
         { rhs_sub = restr_text_value (st, value); rhs = rhs_sub; }
       /* A Text-property value is compared as a STRING EXPRESSION, so an empty
          one is authored (and serialised) as the VB literal `""` -- Quest Giver
          gates its "You see nothing worthy of note about ..." fallback on
          `daz6LookAtDesc ReferencedCharacter Must EqualTo ""`.  Unquote a
          literal so it compares as the empty string it denotes. */
-      if (rhs != NULL && strlen (rhs) >= 2 && rhs[0] == '"'
+      if (rhs != nullptr && strlen (rhs) >= 2 && rhs[0] == '"'
           && rhs[strlen (rhs) - 1] == '"')
         { char *u = strndup (rhs + 1, strlen (rhs) - 2);
           free (rhs_sub); rhs_sub = u; rhs = rhs_sub; }
       pv = a5state_entity_prop (st, itemkey, propkey);
-      if (pv == NULL && strcmp (propkey, "StaticOrDynamic") == 0)
+      if (pv == nullptr && strcmp (propkey, "StaticOrDynamic") == 0)
         pv = "Static";          /* the StaticOrDynamic default for an object */
       /* The runner's test is bItemContainsProperty (clsItem.HasProperty), THEN
          a value compare: a property the item carries with no value at all -- an
          un-filled Text property -- reads as "", it does not make the item
          property-less.  Only an item genuinely lacking the property fails. */
-      if (pv == NULL && a5state_entity_has_prop (st, itemkey, propkey))
+      if (pv == nullptr && a5state_entity_has_prop (st, itemkey, propkey))
         pv = "";
-      rr = (pv != NULL) && streq (pv, rhs);
+      rr = (pv != nullptr) && streq (pv, rhs);
       free (rhs_sub);
     }
   else if (is_op_numeric_inequality (op)
-           && (is_clean_int (value) || strchr (value, '%') != NULL))
+           && (is_clean_int (value) || strchr (value, '%') != nullptr))
     {
       /* A numeric inequality against an integer or a %reference% expression.
          The ADRIFT library carry-capacity restrictions on Take/Put pass a
@@ -1533,14 +1681,14 @@ pass_property (a5_state_t *st, a5_restr_t *r)
          authored `OpenStatus Obj Must LessThan Open`) is not arithmetic, so it
          keeps the lenient pass in the final else. */
       long lv, rv;
-      char *rhs_ev = NULL;
+      char *rhs_ev = nullptr;
       pv = a5state_entity_prop (st, itemkey, propkey);
-      lv = pv ? strtol (pv, NULL, 10) : 0;
+      lv = pv ? strtol (pv, nullptr, 10) : 0;
       if (is_clean_int (value))
-        rv = strtol (value, NULL, 10);
+        rv = strtol (value, nullptr, 10);
       else
         { rhs_ev = a5text_eval_expression (st, value);
-          rv = rhs_ev ? strtol (rhs_ev, NULL, 10) : 0; }
+          rv = rhs_ev ? strtol (rhs_ev, nullptr, 10) : 0; }
       rr = num_compare_op (op, lv, rv);
       free (rhs_ev);
     }
@@ -1567,36 +1715,36 @@ pass_item (a5_state_t *st, a5_restr_t *r)
   const char *k1 = resolve_key (st, r->key1);
   const char *k2 = resolve_key (st, r->key2);
   const a5_object_t *ob = a5model_object (st->adv, k1);
-  const a5_character_t *ch = (ob == NULL) ? a5model_character (st->adv, k1) : NULL;
-  const a5_location_t *loc = (ob == NULL && ch == NULL)
-                               ? a5model_location (st->adv, k1) : NULL;
+  const a5_character_t *ch = (ob == nullptr) ? a5model_character (st->adv, k1) : nullptr;
+  const a5_location_t *loc = (ob == nullptr && ch == nullptr)
+                               ? a5model_location (st->adv, k1) : nullptr;
 
-  if (ob == NULL && ch == NULL && loc == NULL)
+  if (ob == nullptr && ch == nullptr && loc == nullptr)
     return 0;                   /* vb:4978: unresolved key -> False */
 
   if (streq (r->op, "BeType"))
     /* vb:5047: the resolved item's table decides its type. */
-    return (streq (k2, "Object") && ob != NULL)
-           || (streq (k2, "Character") && ch != NULL)
-           || (streq (k2, "Location") && loc != NULL);
+    return (streq (k2, "Object") && ob != nullptr)
+           || (streq (k2, "Character") && ch != nullptr)
+           || (streq (k2, "Location") && loc != nullptr);
   if (streq (r->op, "Exist"))
     return 1;                   /* vb:5049: found in some table above */
   if (streq (r->op, "HaveProperty"))
     return a5state_entity_has_prop (st, k1, k2);
   if (streq (r->op, "BeObject"))
-    return ob != NULL && streq (k1, k2);
+    return ob != nullptr && streq (k1, k2);
   if (streq (r->op, "BeCharacter"))
-    return ch != NULL && streq (k1, k2);
+    return ch != nullptr && streq (k1, k2);
   if (streq (r->op, "BeLocation"))
-    return loc != NULL && streq (k1, k2);
+    return loc != nullptr && streq (k1, k2);
   if (streq (r->op, "BeAtLocation"))
     {
       /* vb:4985: object -> IsVisibleAtLocation; character -> resolved
          Location.LocationKey; location -> key identity. */
-      if (ob != NULL)
+      if (ob != nullptr)
         return a5state_object_visible_at_location (st,
                  a5state_object_index (st, k1), k2, 0);
-      if (ch != NULL)
+      if (ch != nullptr)
         return streq (a5state_character_location_key (st,
                         a5state_character_index (st, k1)), k2);
       return streq (k1, k2);
@@ -1648,7 +1796,7 @@ pass_single (a5_state_t *st, a5_restr_t *r)
       mnot = (strcmp (tok0, "MustNot") == 0);
       want = (strncmp (tok1, "Be", 2) == 0) ? tok1 + 2 : tok1;
       cur = a5state_lookup_ref (st, "ReferencedDirection");
-      rr = (cur != NULL && strcmp (want, cur) == 0);
+      rr = (cur != nullptr && strcmp (want, cur) == 0);
       result = mnot ? !rr : rr;
       if (a5restr_trace)
         fprintf (stderr, "    [restr Direction: %s%s vs %s] -> %d\n",
@@ -1685,7 +1833,7 @@ normalise_block (const char *in)
 {
   char *s = strdup (in);
   char *hit;
-  while ((hit = strstr (s, "A#O")) != NULL)
+  while ((hit = strstr (s, "A#O")) != nullptr)
     {
       int i = (int) (hit - s);
       /* find last '(' before i, insert '(' after it (or at start) */
@@ -1753,7 +1901,7 @@ eval_block (a5_state_t *st, a5_restr_t *rs, const a5_xml_node_t **nodes, int n,
       first = eval_block (st, rs, nodes, n, sub, idx, last_fail);
       free (sub);
       op = norm[off];
-      rest = (op == '\0') ? NULL : norm + off + 1;
+      rest = (op == '\0') ? nullptr : norm + off + 1;
     }
   else if (norm[0] == '#')
     {
@@ -1790,7 +1938,7 @@ eval_block (a5_state_t *st, a5_restr_t *rs, const a5_xml_node_t **nodes, int n,
         if (my < n)
           *last_fail = first ? -1 : my; /* clear on pass, record on fail */
       }
-      rest = (op == '\0') ? NULL : norm + 2;
+      rest = (op == '\0') ? nullptr : norm + 2;
     }
   else
     {
@@ -1802,7 +1950,7 @@ eval_block (a5_state_t *st, a5_restr_t *rs, const a5_xml_node_t **nodes, int n,
       return 0;
     }
 
-  if (rest == NULL)
+  if (rest == nullptr)
     result = first;
   else if (op == 'A')
     {
@@ -1842,11 +1990,11 @@ eval_restrictions (a5_state_t *st, const a5_xml_node_t *restrictions,
   const a5_xml_node_t *c;
   const char *bracket;
   int n, i, idx = 0, result, last_fail = -2;   /* -2 = no restriction evaluated */
-  char *normbrackets = NULL;
+  char *normbrackets = nullptr;
 
-  if (fail_node_out != NULL)
-    *fail_node_out = NULL;
-  if (restrictions == NULL)
+  if (fail_node_out != nullptr)
+    *fail_node_out = nullptr;
+  if (restrictions == nullptr)
     return 1;
   n = a5xml_count (restrictions, "Restriction");
   if (n == 0)
@@ -1855,7 +2003,7 @@ eval_restrictions (a5_state_t *st, const a5_xml_node_t *restrictions,
   rs = (a5_restr_t *) calloc ((size_t) n, sizeof *rs);
   nodes = (const a5_xml_node_t **) calloc ((size_t) n, sizeof *nodes);
   i = 0;
-  for (c = restrictions->first_child; c != NULL; c = c->next)
+  for (c = restrictions->first_child; c != nullptr; c = c->next)
     if (strcmp (c->name, "Restriction") == 0)
       {
         const a5_xml_node_t *tn = restr_type_node (c);
@@ -1866,7 +2014,7 @@ eval_restrictions (a5_state_t *st, const a5_xml_node_t *restrictions,
       }
 
   bracket = a5xml_child_text (restrictions, "BracketSequence");
-  if (bracket == NULL || bracket[0] == '\0')
+  if (bracket == nullptr || bracket[0] == '\0')
     {
       /* default: AND all restrictions -> "#A#A#..." */
       int sz = n * 2;
@@ -1910,11 +2058,11 @@ eval_restrictions (a5_state_t *st, const a5_xml_node_t *restrictions,
      untouched, so the carried value from a previous command survives.  Persists
      across commands -- never reset per turn. */
   if (last_fail == -1)
-    st->restriction_text = NULL;                 /* deciding restriction passed */
+    st->restriction_text = nullptr;                 /* deciding restriction passed */
   else if (last_fail >= 0 && last_fail < n)
     st->restriction_text = a5xml_child (nodes[last_fail], "Message");
 
-  if (fail_node_out != NULL && !result && last_fail >= 0 && last_fail < n)
+  if (fail_node_out != nullptr && !result && last_fail >= 0 && last_fail < n)
     {
       *fail_node_out = nodes[last_fail];
       /* sRouteError override: keep st->route_error set only when the deciding
@@ -1922,10 +2070,10 @@ eval_restrictions (a5_state_t *st, const a5_xml_node_t *restrictions,
          restriction-blocked (PassSingleRestriction: "If sRouteError <>
          sRestrictionText AndAlso sRouteError <> ''").  The getter then prefers
          it over the restriction's generic "There is no route..." message. */
-      if (!(st->route_error != NULL
+      if (!(st->route_error != nullptr
             && streq (rs[last_fail].type, "Character")
             && streq (rs[last_fail].op, "HaveRouteInDirection")))
-        st->route_error = NULL;
+        st->route_error = nullptr;
     }
 
   free (normbrackets);
@@ -1939,18 +2087,18 @@ eval_restrictions (a5_state_t *st, const a5_xml_node_t *restrictions,
 const a5_xml_node_t *
 a5restr_fail_message (a5_state_t *st, const a5_xml_node_t *restrictions)
 {
-  const a5_xml_node_t *fail_node = NULL;
-  st->route_error = NULL;
+  const a5_xml_node_t *fail_node = nullptr;
+  st->route_error = nullptr;
   eval_restrictions (st, restrictions, &fail_node);
-  if (st->route_error != NULL)
+  if (st->route_error != nullptr)
     return st->route_error;             /* blocked-exit message wins */
-  return fail_node ? a5xml_child (fail_node, "Message") : NULL;
+  return fail_node ? a5xml_child (fail_node, "Message") : nullptr;
 }
 
 int
 a5restr_pass (a5_state_t *st, const a5_xml_node_t *restrictions)
 {
-  return eval_restrictions (st, restrictions, NULL);
+  return eval_restrictions (st, restrictions, nullptr);
 }
 
 /* The first <Restriction> child whose parsed spec satisfies `match`, or NULL.
@@ -1964,9 +2112,9 @@ restr_find (const a5_xml_node_t *restrictions, int limit, F match)
   const a5_xml_node_t *c;
   int i = 0;
 
-  if (restrictions == NULL)
-    return NULL;
-  for (c = restrictions->first_child; c != NULL; c = c->next)
+  if (restrictions == nullptr)
+    return nullptr;
+  for (c = restrictions->first_child; c != nullptr; c = c->next)
     {
       const a5_xml_node_t *tn;
       a5_restr_t r;
@@ -1976,7 +2124,7 @@ restr_find (const a5_xml_node_t *restrictions, int limit, F match)
       if (limit >= 0 && i++ >= limit)
         break;
       tn = restr_type_node (c);
-      if (tn == NULL)
+      if (tn == nullptr)
         continue;
       parse_spec (&r, tn->text);
       hit = match (tn, &r);
@@ -1984,7 +2132,7 @@ restr_find (const a5_xml_node_t *restrictions, int limit, F match)
       if (hit)
         return c;
     }
-  return NULL;
+  return nullptr;
 }
 
 /* Does a `<ref_alias> Must Exist` restriction (e.g. "ReferencedObject2") fall
@@ -2005,22 +2153,21 @@ a5restr_exist_evaluated (const a5_xml_node_t *restrictions, const char *ref_alia
   const char *bracket;
   int n = 0, M;
 
-  if (restrictions == NULL || ref_alias == NULL)
+  if (restrictions == nullptr || ref_alias == nullptr)
     return 0;
-  for (c = restrictions->first_child; c != NULL; c = c->next)
+  for (c = restrictions->first_child; c != nullptr; c = c->next)
     if (strcmp (c->name, "Restriction") == 0)
       n++;
   bracket = a5xml_child_text (restrictions, "BracketSequence");
   /* an absent bracket ANDs every restriction */
-  M = (bracket == NULL || bracket[0] == '\0') ? n : count_hashes (bracket);
+  M = (bracket == nullptr || bracket[0] == '\0') ? n : count_hashes (bracket);
 
   return restr_find (restrictions, M,          /* only the bracket prefix */
-                     [ref_alias] (const a5_xml_node_t *tn, const a5_restr_t *r)
+                     [ref_alias] (const a5_xml_node_t *, const a5_restr_t *r)
                      {
-                       (void) tn;
                        return strcmp (r->key1, ref_alias) == 0
                               && streq (r->op, "Exist");
-                     }) != NULL;
+                     }) != nullptr;
 }
 
 int
@@ -2034,7 +2181,7 @@ a5restr_has_exist (const a5_xml_node_t *restrictions, char type)
                      {
                        return strcmp (tn->name, want_type) == 0
                               && streq (r->op, "Exist");
-                     }) != NULL;
+                     }) != nullptr;
 }
 
 /* The <Message> node of the first Object restriction "<ReferencedObject...> Must
@@ -2053,8 +2200,8 @@ a5restr_exist_message (const a5_xml_node_t *restrictions)
                 {
                   return strcmp (tn->name, "Object") == 0
                          && streq (r->op, "Exist")
-                         && r->key1 != NULL
+                         && r->key1 != nullptr
                          && strncmp (r->key1, "ReferencedObject", 16) == 0;
                 });
-  return (c != NULL) ? a5xml_child (c, "Message") : NULL;
+  return (c != nullptr) ? a5xml_child (c, "Message") : nullptr;
 }

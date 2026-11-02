@@ -5,49 +5,35 @@
 //  Created by Petter Sjölund on 2022-01-30.
 //
 
-#include <ctype.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "common_file_utils.h"
+
+#include "saga.h"
 #include "scott.h"
-#include "scottdefines.h"
-#include "scottgameinfo.h"
+#include "scott_meta.h"
+#include "scott_game_info.h"
 
 #include "c64decrunch.h"
 #include "c64diskimage.h"
-#include "detectgame.h"
+#include "c64unpack.h"
+#include "detect_game.h"
+#include "game_specific.h"
 #include "sagadraw.h"
 #include "sagagraphics.h"
-
-#include "hulk.h"
+#include "c64a8scott.h"
+#include "c64_small.h"
 
 #include "unp64_interface.h"
 
-typedef enum {
-    UNKNOWN_FILE_TYPE,
-    TYPE_D64,
-    TYPE_T64,
-    TYPE_US
-} file_type;
-
-struct c64rec {
-    GameIDType id;
-    size_t length;
-    uint16_t chk;
-    file_type type;
-    int decompress_iterations;
-    const char *switches;
-    const char *appendfile;
-    int parameter;
-    size_t copysource;
-    size_t copydest;
-    size_t copysize;
-    size_t imgoffset;
-};
-
+/* Registry of known C64 game images, identified by file size + checksum.
+   Fields: game ID, file length, 16-bit checksum, container type (D64/T64/US),
+   unp64 decompression iterations, unp64 switches, appended filename on disk,
+   parameter (iteration for switches or special flag), copy source/dest/size
+   for relocating graphics data, and image data offset. */
 // clang-format off
-static const struct c64rec c64_registry[] = {
+static const c64rec c64_registry[] = {
     { BATON_C64,        0x2ab00, 0xc3fc, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // Mysterious Adventures C64 dsk 1
     { TIME_MACHINE_C64, 0x2ab00, 0xc3fc, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 },
     { ARROW1_C64,       0x2ab00, 0xc3fc, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 },
@@ -67,6 +53,10 @@ static const struct c64rec c64_registry[] = {
     { FEASIBILITY_C64,  0x2ab00, 0x9c18, TYPE_D64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, // Mysterious Adventures C64 dsk 2 alt
     { TIME_MACHINE_C64, 0x5032,  0x5635, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // The Time Machine C64
     { TIME_MACHINE_C64, 0x2ab00, 0xed21, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // The Time Machine D64
+    { TIME_MACHINE_C64, 0x2ab00, 0x6ed7, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // The Time Machine D64, Supersoft
+    { TIME_MACHINE_C64, 0x2ab00, 0x446e, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // The Time Machine D64, Cream Crackers
+    { TIME_MACHINE_C64, 0x2ab00, 0x4c9e, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // The Time Machine D64, Megabyte
+    { TIME_MACHINE_C64, 0x2ab00, 0x37c1, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // The Time Machine D64, BASIC loader and TIME2
     { ARROW1_C64,       0x5b46,  0x92db, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Arrow of Death part 1 C64
     { ARROW1_C64,       0x2ab00, 0xe71d, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // Arrow of Death part 1 C64 D64
     { ARROW1_C64,       0x2ab00, 0x7687, TYPE_D64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, // Arrow of Death part 1 C64 D64 alt
@@ -88,17 +78,29 @@ static const struct c64rec c64_registry[] = {
     { ADVENTURELAND_C64, 0x2adab, 0x751f, TYPE_D64, 0, NULL, NULL,    0,        0, 0, 0, 0 },      // Adventureland C64 (D64) alt
     { ADVENTURELAND_C64, 0x2adab, 0x64a4, TYPE_D64, 0, NULL, "SAG1PIC", -0xa53, 0, 0, 0, 0x65af }, // Adventureland C64 (D64) alt 2
     { ADVENTURELAND_C64, 0x2adab, 0x8847, TYPE_D64, 0, NULL, NULL,    0,        0, 0, 0, 0 }, // Adventureland C64 (D64) alt 3
+    { ADVENTURELAND_US, 0x2ab00, 0x78fa, TYPE_D64, 0, NULL, NULL,    0,        0, 0, 0, 0 }, // Scott Adams Adventure Pack (1983)(Adventure International)
 
-    { PIRATE_US, 0x2adab, 0x04c5, TYPE_US, 0, NULL, "PIRATE",    0, 0, 0, 0, 0x06d30  }, // Pirate Adventure S.A.G.A version
+    { PIRATE_US, 0x2adab, 0x04c5, TYPE_US, 0, NULL, "PIRATE", 0, 0, 0, 0, 0x6d30 }, // Pirate Adventure S.A.G.A version
+    { PIRATE_US, 0x2adab, 0xbea0, TYPE_US, 0, NULL, "PIRATE", 0, 0, 0, 0, 0x6d30 }, // Pirate Adventure S.A.G.A version (c64.com)
+    { PIRATE_US, 0x2ab00, 0xac87, TYPE_US, 1, NULL, "PIRATE ADVENTURE", 0, 0, 0, 0, 0x6d30 }, // Pirate Adventure S.A.G.A version
+    { PIRATE_US, 0x57c6, 0x82ab, TYPE_T64_US, 1, NULL, "PIRATE ADVENTURE", 0, 0, 0, 0, 0x6d30 }, // Pirate Adventure S.A.G.A version
 
     { SECRET_MISSION_C64, 0x88be, 0xa122, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Secret Mission  C64 (T64) Section8 Packer
     { SECRET_MISSION_C64, 0x2ab00, 0x04d6, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, -0x1bff }, // Secret Mission  C64 (D64)
+    { SECRET_MISSION_C64, 0x2ab00, 0x167b, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Secret Mission  C64 (D64) c64.com, Section8 packer
     { SECRET_MISSION_C64, 0x2adab, 0x3ca3, TYPE_D64, 0, NULL, "SAG3PIC", -0x83a, 0, 0, 0, 0x67c8 }, // Secret Mission  C64 (D64)
 
-    { VOODOO_CASTLE_US, 0x2adab, 0xcb2b, TYPE_US, 0, NULL, "SAGA1", 0, 0, 0, 0, 0x06c30  }, // Voodoo Castle S.A.G.A version
-    { VOODOO_CASTLE_US, 0x2ab00, 0x8969, TYPE_US, 1, NULL, "VOODOO CASTLE", 0, 0, 0, 0, 0x06c30  }, // Voodoo Castle S.A.G.A version, packed
-    { VOODOO_CASTLE_US, 0x2ab00, 0x2682, TYPE_US, 1, NULL, "VOODOO CASTLE", 0, 0, 0, 0, 0x06c30  }, // Voodoo Castle S.A.G.A version, packed 2
-    { VOODOO_CASTLE_US, 0x2ab00, 0xac79, TYPE_US, 0, NULL, "VOODOO CASTLE 2", 0, 0, 0, 0, 0x06c30  }, // Voodoo Castle S.A.G.A version "Cracked by Toko"
+    { VOODOO_CASTLE_US, 0x2adab, 0xcb2b, TYPE_US, 0, NULL, "SAGA1", 0, 0, 0, 0, 0x6c30 }, // Voodoo Castle S.A.G.A version
+    { VOODOO_CASTLE_US, 0x2ab00, 0x8969, TYPE_US, 1, NULL, "VOODOO CASTLE", 0, 0, 0, 0, 0x6c30 }, // Voodoo Castle S.A.G.A version, packed
+    { VOODOO_CASTLE_US, 0x2ab00, 0x2682, TYPE_US, 1, NULL, "VOODOO CASTLE", 0, 0, 0, 0, 0x6c30 }, // Voodoo Castle S.A.G.A version, packed 2
+    { VOODOO_CASTLE_US, 0x2ab00, 0xac79, TYPE_US, 0, NULL, "VOODOO CASTLE 2", 0, 0, 0, 0, 0x6c30 }, // Voodoo Castle S.A.G.A version "Cracked by Toko"
+
+    { VOODOO_CASTLE_US, 0x5f91, 0x04fc, TYPE_T64_US, 1, NULL, "VOODOO CASTLE    ", 0, 0, 0, 0, 0x6c30 },
+
+    { STRANGE_ODYSSEY_US, 0x2ab00, 0x12d2, TYPE_US, 1, NULL, "STRANGE ODYSSEY", 0, 0, 0, 0, 0 }, // Strange Odyssey S.A.G.A version (c64.com), PUCrunch; DB starts at offset 0
+
+    { COUNT_US, 0x2ab00, 0x2827, TYPE_US, 1, "-d0x7f50", "THE COUNT", 1, 0, 0, 0, 0x3800 }, // The Count S.A.G.A version (c64.com); IRQ packer, depack-done $7f50; DB preamble at $4000 (text only)
+    { VOODOO_CASTLE_US, 0x2ab00, 0x7822, TYPE_US, 1, "-e0x840 -d0x7f50", "VOODOO CASTLE", 1, 0, 0, 0, 0x3800 }, // Voodoo Castle S.A.G.A version (c64.com); REM-before-SYS, depack-done $7f50; DB preamble at $4000 (text only)
 
     { CLAYMORGUE_C64, 0x6ff7,  0xe4ed, TYPE_T64, 3, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (T64), MasterCompressor / Relax
                                                                                              // -> ECA Compacker -> MegaByte Cruncher v1.x Missing 17 pictures
@@ -116,9 +118,32 @@ static const struct c64rec c64_registry[] = {
     { CLAYMORGUE_US, 0x2ab00, 0xfbb6, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 },
     { CLAYMORGUE_US, 0x2ab00, 0x0b54, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 },
 
+    { CLAYMORGUE_C64, 0x2ab00, 0x2c7a, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), Dr. Bakterius & Mr. L, Section8 Packer
+    { CLAYMORGUE_C64, 0x2ab00, 0xc349, TYPE_D64, 2, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), All Stars, Time Cruncher v3.x -> MC-Cracken Compressor
+    { CLAYMORGUE_C64, 0x2ab00, 0x7ea6, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, -0x7fe }, // Sorcerer Of Claymorgue Castle C64 (D64), Trilogic Expert v2.7
+    { CLAYMORGUE_C64, 0x2ab00, 0x2e5d, TYPE_D64, 3, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), Cracked by ABC, MasterCompressor / Relax -> ECA Compacker -> MegaByte Cruncher v1.x, missing 17 pictures
+    { CLAYMORGUE_C64, 0x2ab00, 0x188f, TYPE_D64, 0, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), NICS, not packed, loads at $0801
+    { CLAYMORGUE_C64, 0x2ab00, 0x95c1, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), Doctor Mabuse, Section8 Packer
+    { CLAYMORGUE_C64, 0x2ab00, 0x5592, TYPE_D64, 0, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), Danish Crackers, not packed. 14 damaged bytes, see RepairDanishCrackersClaymorgue()
+    { CLAYMORGUE_C64, 0x2ab00, 0x10a5, TYPE_D64, 2, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), the Danish Crackers release behind a "773 - 695" menu, menu mover -> MegaByte Cruncher
+    { CLAYMORGUE_C64, 0x2ab00, 0xf8c2, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), Slam compilation with English Civil War: the Danish Crackers release in a file without a directory entry, Super Compressor
+    { CLAYMORGUE_C64, 0x2ab00, 0x6dbd, TYPE_D64, 0, NULL, "CC3", -2, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), The Phantoms / SCS, not packed, in two files loading at $1000 and $8000
+    { CLAYMORGUE_US, 0x2ab00, 0x0975, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, // Sorcerer Of Claymorgue Castle US (D64), Section 8
+    { CLAYMORGUE_US, 0x2ab00, 0x3bd6, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, // Sorcerer Of Claymorgue Castle US (D64), TIF. Picture R13006 is damaged
+    { CLAYMORGUE_US, 0x2ab00, 0x3f2b, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, // Sorcerer Of Claymorgue Castle US (D64), e=mc2, disk A
+    { CLAYMORGUE_US, 0x30300, 0x8ef3, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, // Sorcerer Of Claymorgue Castle US (D64, 40 tracks), OLICS
+    { CLAYMORGUE_US, 0x2ab00, 0x4224, TYPE_US, 1, NULL, "SAGA 13", 0, 0, 0, 0, 0 }, // Sorcerer Of Claymorgue Castle US (D64), Florasoft, Section8 Packer. Interpreter and database in one file
     { HULK_C64,      0x2ab00, 0xcdd8, TYPE_D64, 0, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64)
+    { HULK_C64,      0x2ab00, 0x3d57, TYPE_D64, 1, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 1
+    { HULK_C64,      0x2ab00, 0x910b, TYPE_D64, 1, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 2 (TCS-Crunch)
+    { HULK_C64,      0x2ab00, 0xaadc, TYPE_D64, 2, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 3 (two compression layers)
+    { HULK_C64,      0x2ab00, 0x01c9, TYPE_D64, 1, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 4 (Pock&CPU)
+    { HULK_C64,      0x2ab00, 0x0332, TYPE_D64, 1, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 5 (Killersoft)
     { HULK_C64,      0x8534,  0x623a, TYPE_T64, 2, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64)
     { HULK_US,       0x2ab00,  0x2918, TYPE_US, 0, NULL, "SHULK.DB", 0, 0, 0, 0, 0 },  // Questprobe 1 - The Hulk C64 US (D64)
+    { HULK_US,       0x2adab,  0x5eeb, TYPE_US, 0, NULL, "SHULK.DB", 0, 0, 0, 0, 0 },  // Questprobe 1 - The Hulk C64 US (D64) [cbm_1984]
+    { HULK_US,       0x2ab00,  0xdcfe, TYPE_US, 0, NULL, "SHULK.DB", 0, 0, 0, 0, 0 },  // Questprobe 1 - The Hulk C64 US (D64) [gvp_1986]
+    { HULK_US,       0x2ab00,  0x14e7, TYPE_US, 0, NULL, "SHULK.DB", 0, 0, 0, 0, 0 },  // Questprobe 1 - The Hulk C64 US (D64) [sharedata_1987]
     { SPIDERMAN_C64, 0x2ab00, 0xde56, TYPE_D64, 0, NULL, NULL, 0, 0x1801, 0xa801, 0x2000, 0 }, // Spiderman C64 (D64)
     { SPIDERMAN_C64, 0x2ab00, 0x2736, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // Spiderman C64 (D64) alt
     { SPIDERMAN_C64, 0x2ab00, 0x490a, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, -0x7ff }, // Spiderman C64 (D64) alt 2
@@ -129,6 +154,10 @@ static const struct c64rec c64_registry[] = {
     { SAVAGE_ISLAND2_C64, 0x2ab00, 0x8801, TYPE_D64, 1, "-f86 -d0x178b", "SAVAGEISLAND2+",   1, 0, 0, 0, 0 }, // Savage Island part 2 C64 (D64)
     { SAVAGE_ISLAND_C64,  0x2ab00, 0xc361, TYPE_D64, 1, "-f86 -d0x1793", "SAVAGE ISLAND P1", 1, 0, 0, 0, 0 }, // Savage Island part 1 C64 (D64) alt
     { SAVAGE_ISLAND2_C64, 0x2ab00, 0xc361, TYPE_D64, 1, NULL,            "SAVAGE ISLAND P2", 0, 0, 0, 0, 0 }, // Savage Island part 2  C64 (D64) alt
+    { SAVAGE_ISLAND_US,  0x2ab00, 0x1a2e, TYPE_US, 1, NULL, "SAVAGE ISLAND P1", 0, 0, 0, 0, 0 }, // Savage Island part 1 C64 (D64) US version
+    { SAVAGE_ISLAND_2_US,  0x2ab00, 0xeea6, TYPE_US, 1, NULL, "SAVAGE ISLAND P2", 0, 0, 0, 0, 0 }, // Savage Island part 2 C64 (D64) US version
+    { SAVAGE_ISLAND_US,  0x2812, 0xd13a, TYPE_T64_US, 1, NULL, "SAVAGE ISLAND P1", 0, 0, 0, 0, 0 }, // Savage Island part 1 C64 (T64) US version
+    { SAVAGE_ISLAND_2_US,  0x2825, 0xa5b1, TYPE_T64_US, 1, NULL, "SAVAGE ISLAND P2", 0, 0, 0, 0, 0 }, // Savage Island part 2 C64 (T64) US version
 
     { ROBIN_OF_SHERWOOD_C64, 0x2ab00, 0xcf9e, TYPE_D64, 1, NULL, NULL, 0, 0x1802, 0xbd27, 0x1f6c, 0 }, // Robin Of Sherwood D64 * unknown packer
     { ROBIN_OF_SHERWOOD_C64, 0x2ab00, 0xc0c7, TYPE_D64, 1, NULL, NULL, 0, 0xd7fb, 0xbd20, 0x1f6c, 0 }, // Robin Of Sherwood D64 * PUCrunch
@@ -151,7 +180,7 @@ static const struct c64rec c64_registry[] = {
     { GREMLINS_GERMAN_C64, 0x2ab00,   0x6729, TYPE_D64, 2, NULL,       NULL, 0, 0xdc02, 0xcac1, 0x1f00, 0 }, // German Gremlins C64 (D64) version * Exomizer
 
     { SUPERGRAN_C64, 0x726f, 0x0901, TYPE_T64, 1, NULL, NULL, 0, 0xd802, 0xc623, 0x1f00, 0 }, // Super Gran C64 (T64) PUCrunch Generic Hack
-    { SUPERGRAN_C64, 0x2ab00, 0x538c, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Super Gran C64 (D64) PUCrunch Generic Hack
+    { SUPERGRAN_C64, 0x2ab00, 0x538c, TYPE_D64, 1, NULL, NULL, 0, 0xd802, 0xc623, 0x1f00, 0 }, // Super Gran C64 (D64) PUCrunch Generic Hack
 
     { SEAS_OF_BLOOD_C64, 0xa209,  0xf115, TYPE_T64, 6, "-e0x1000", NULL, 3, 0xd802, 0xb07c, 0x1fff, 0 }, // Seas of Blood C64 (T64) MasterCompressor / Relax -> ECA
                                                                                                          // Compacker -> Unknown -> MasterCompressor / Relax -> ECA
@@ -164,114 +193,40 @@ static const struct c64rec c64_registry[] = {
 };
 // clang-format off
 
-uint16_t checksum(uint8_t *sf, uint32_t extent)
-{
-    uint16_t c = 0;
-    for (int i = 0; i < extent; i++)
-        c += sf[i];
-    return c;
-}
+static GameIDType ProcessC64(uint8_t **sf, size_t *extent, c64rec entry);
 
-static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec entry);
-
-size_t writeToFile(const char *name, uint8_t *data, size_t size)
-{
-    FILE *fptr = fopen(name, "w");
-
-    if (fptr == NULL) {
-        Fatal("File open error!");
-    }
-
-    size_t result = fwrite(data, 1, size, fptr);
-
-    fclose(fptr);
-    return result;
-}
-
-static uint8_t *get_largest_file(uint8_t *data, int length, int *newlength)
-{
-    uint8_t *file = NULL;
-    *newlength = 0;
-    DiskImage *d64 = di_create_from_data(data, length);
-    if (d64) {
-        RawDirEntry *largest = find_largest_file_entry(d64);
-        if (largest) {
-            ImageFile *c64file = di_open(d64, largest->rawname, largest->type, "rb");
-            if (c64file) {
-                uint8_t buf[0xffff];
-                *newlength = di_read(c64file, buf, 0xffff);
-                file = MemAlloc(*newlength);
-                memcpy(file, buf, *newlength);
-                free(c64file);
-            }
-        }
-    }
-    return file;
-}
-
-static uint8_t *get_file_named(uint8_t *data, int length, int *newlength,
-    const char *name)
-{
-    uint8_t *file = NULL;
-    *newlength = 0;
-    DiskImage *d64 = di_create_from_data(data, length);
-    unsigned char rawname[100];
-    di_rawname_from_name(rawname, name);
-    if (d64) {
-        ImageFile *c64file = di_open(d64, rawname, 0xc2, "rb");
-        if (c64file) {
-            uint8_t buf[0xffff];
-            *newlength = di_read(c64file, buf, 0xffff);
-            file = MemAlloc(*newlength);
-            memcpy(file, buf, *newlength);
-            free(c64file);
-        }
-    }
-    return file;
-}
-
+/* Savage Island stores picture data in separate files on the D64 image.
+   These buffers hold the extracted picture files so they can be appended
+   to the main game data after decompression. */
 uint8_t *save_island_appendix_1 = NULL;
-int save_island_appendix_1_length = 0;
+size_t save_island_appendix_1_length = 0;
 uint8_t *save_island_appendix_2 = NULL;
-int save_island_appendix_2_length = 0;
+size_t save_island_appendix_2_length = 0;
 
+/* Prompt the user to choose between Savage Island part 1 and part 2,
+   which share a single D64 disk image. Extracts the selected game file
+   and its associated picture files, then decompresses. */
 static GameIDType savage_island_menu(uint8_t **sf, size_t *extent, int recindex)
 {
-    Output("This disk image contains two games. Select one.\n\n1. Savage Island "
-           "part I\n2. Savage Island part II");
-
-    glk_request_char_event(Bottom);
-
-    event_t ev;
-    int result = 0;
-    do {
-        glk_select(&ev);
-        if (ev.type == evtype_CharInput) {
-            if (ev.val1 == '1' || ev.val1 == '2') {
-                result = ev.val1 - '0';
-            } else {
-                glk_request_char_event(Bottom);
-            }
-        }
-    } while (result == 0);
-
-    glk_window_clear(Bottom);
+    static const char *titles[] = { "Savage Island part I", "Savage Island part II" };
+    int result = SelectGameFromMenu(
+        "This disk image contains two games. Select one.", titles, 2) + 1;
 
     recindex += result - 1;
 
-    struct c64rec rec = c64_registry[recindex];
-    int length;
-    uint8_t *file = get_file_named(*sf, *extent, &length, rec.appendfile);
+    c64rec rec = c64_registry[recindex];
+    size_t length;
+    uint8_t *file = di_get_file_named(*sf, *extent, &length, rec.appendfile);
 
     if (file != NULL) {
         if (rec.chk == 0xc361) {
             if (rec.switches != NULL) {
-                save_island_appendix_1 = get_file_named(
+                save_island_appendix_1 = di_get_file_named(
                                                         *sf, *extent, &save_island_appendix_1_length, "SI1PC1");
-                save_island_appendix_2 = get_file_named(
+                save_island_appendix_2 = di_get_file_named(
                                                         *sf, *extent, &save_island_appendix_2_length, "SI1PC2");
             } else {
-                save_island_appendix_1 = get_file_named(
+                save_island_appendix_1 = di_get_file_named(
                                                         *sf, *extent, &save_island_appendix_1_length, "SI2PIC");
             }
         }
@@ -282,13 +237,15 @@ static GameIDType savage_island_menu(uint8_t **sf, size_t *extent, int recindex)
             save_island_appendix_1_length -= 2;
         if (save_island_appendix_2_length > 2)
             save_island_appendix_2_length -= 2;
-        return DecrunchC64(sf, extent, rec);
+        return ProcessC64(sf, extent, rec);
     } else {
         fprintf(stderr, "SCOTT: DetectC64() Failed loading file %s\n", rec.appendfile);
         return UNKNOWN_GAME;
     }
 }
 
+/* Append the Savage Island picture file(s) to the decompressed game data
+   at a fixed offset (0x6202). Frees the appendix buffers after copying. */
 static void appendSIfiles(uint8_t **sf, size_t *extent)
 {
     uint8_t megabuf[0xffff];
@@ -307,134 +264,102 @@ static void appendSIfiles(uint8_t **sf, size_t *extent)
         free(save_island_appendix_2);
     }
     *extent = offset + save_island_appendix_1_length + save_island_appendix_2_length;
-    *sf = malloc(*extent);
+    *sf = MemAlloc(*extent);
     memcpy(*sf, megabuf, *extent);
 }
 
-static GameIDType mysterious_menu(uint8_t **sf, size_t *extent, int recindex)
+/* Ask which of the games on a compilation disk to play, extract that
+   game's file from the D64 image and process it. titles[] and filenames[]
+   run in parallel, and the games' records follow each other in
+   c64_registry, starting at first_rec. */
+static GameIDType RunDiskMenu(uint8_t **sf, size_t *extent, const char *intro,
+    const char **titles, const char **filenames, int count, int first_rec)
 {
-    recindex = 0;
+    int choice = SelectGameFromMenu(intro, titles, count);
+    const char *filename = filenames[choice];
 
-    Output("This disk image contains six games. Select one.\n\n1. The Golden Baton\n2. The Time Machine\n3. Arrow of Death part 1\n4. Arrow of Death part 2\n5. Escape from Pulsar 7\n6. Circus");
+    size_t length;
+    uint8_t *file = di_get_file_named(*sf, *extent, &length, filename);
 
-    glk_request_char_event(Bottom);
-
-    event_t ev;
-    int result = 0;
-    do {
-        glk_select(&ev);
-        if (ev.type == evtype_CharInput) {
-            if (ev.val1 >= '1' && ev.val1 <= '6') {
-                result = ev.val1 - '0';
-            } else {
-                glk_request_char_event(Bottom);
-            }
-        }
-    } while (result == 0);
-
-    glk_window_clear(Bottom);
-
-    const char *filename = NULL;
-    switch (result) {
-        case 1:
-            filename = "BATON";
-            break;
-        case 2:
-            filename = "TIME MACHINE";
-            break;
-        case 3:
-            filename = "ARROW I";
-            break;
-        case 4:
-            filename = "ARROW II";
-            break;
-        case 5:
-            filename = "PULSAR 7";
-            break;
-        case 6:
-            filename = "CIRCUS";
-            break;
-        default:
-            fprintf(stderr, "SCOTT: DetectC64() Error!\n");
-            break;
-    }
-
-    int length;
-    uint8_t *file = get_file_named(*sf, *extent, &length, filename);
-
-    if (file != NULL) {
-        free(*sf);
-        *sf = file;
-        *extent = length;
-        struct c64rec rec = c64_registry[recindex - 1 + result];
-        return DecrunchC64(sf, extent, rec);
-    } else {
+    if (file == NULL) {
         fprintf(stderr, "SCOTT: DetectC64() Failed loading file %s\n", filename);
         return UNKNOWN_GAME;
     }
+
+    free(*sf);
+    *sf = file;
+    *extent = length;
+    return ProcessC64(sf, extent, c64_registry[first_rec + choice]);
 }
 
-static GameIDType mysterious_menu2(uint8_t **sf, size_t *extent, int recindex)
+/* Prompt the user to choose from the six Mysterious Adventures games on
+   C64 compilation disk 1. Their records are the first six of c64_registry. */
+static GameIDType mysterious_menu(uint8_t **sf, size_t *extent)
 {
-    recindex = 6;
+    static const char *titles[] = { "The Golden Baton", "The Time Machine",
+        "Arrow of Death part 1", "Arrow of Death part 2",
+        "Escape from Pulsar 7", "Circus" };
+    static const char *filenames[] = { "BATON", "TIME MACHINE", "ARROW I",
+        "ARROW II", "PULSAR 7", "CIRCUS" };
 
-    Output("This disk image contains five games. Select one.\n\n1. Feasibility Experiment\n2. The Wizard of Akyrz\n3. Perseus and Andromeda\n4. Ten Little Indians\n5. Waxworks");
+    return RunDiskMenu(sf, extent,
+        "This disk image contains six games. Select one.", titles, filenames,
+        6, 0);
+}
 
-    glk_request_char_event(Bottom);
+/* Prompt the user to choose from the five Mysterious Adventures games on
+   C64 compilation disk 2. Their records follow those of disk 1. */
+static GameIDType mysterious_menu2(uint8_t **sf, size_t *extent)
+{
+    static const char *titles[] = { "Feasibility Experiment", "The Wizard of Akyrz",
+        "Perseus and Andromeda", "Ten Little Indians", "Waxworks" };
+    static const char *filenames[] = { "EXPERIMENT", "WIZARD OF AKYRZ",
+        "PERSEUS", "INDIANS", "WAXWORKS" };
 
-    event_t ev;
-    int result = 0;
-    do {
-        glk_select(&ev);
-        if (ev.type == evtype_CharInput) {
-            if (ev.val1 >= '1' && ev.val1 <= '5') {
-                result = ev.val1 - '0';
-            } else {
-                glk_request_char_event(Bottom);
-            }
-        }
-    } while (result == 0);
+    return RunDiskMenu(sf, extent,
+        "This disk image contains five games. Select one.", titles, filenames,
+        5, 6);
+}
 
-    glk_window_clear(Bottom);
+/* Prompt the user to choose from the 12 Scott Adams games on the
+   "Adventure Pack" D64 compilation disk. Each game is stored as a
+   separate ADVn.OBJ file on the disk image. */
+static GameIDType adventure_pack_menu(uint8_t **sf, size_t *extent)
+{
+    static const char *titles[] = { "Adventureland", "Pirate Adventure",
+        "Mission Impossible", "Voodoo Castle", "The Count", "Strange Odyssey",
+        "Fun House", "Pyramid of Doom", "Ghost Town", "Savage Island",
+        "Savage Island Part 2", "The Golden Voyage" };
+    int choice = SelectGameFromMenu(
+        "This disk image contains 12 games. Select one.", titles, 12) + 1;
 
-    const char *filename = NULL;
-    switch (result) {
-        case 1:
-            filename = "EXPERIMENT";
-            break;
-        case 2:
-            filename = "WIZARD OF AKYRZ";
-            break;
-        case 3:
-            filename = "PERSEUS";
-            break;
-        case 4:
-            filename = "INDIANS";
-            break;
-        case 5:
-            filename = "WAXWORKS";
-            break;
-        default:
-            fprintf(stderr, "Error!\n");
-            break;
-    }
+    char filename[100];
+    snprintf(filename, 100, "ADV%d.OBJ", choice);
 
-    int length;
-    uint8_t *file = get_file_named(*sf, *extent, &length, filename);
+    size_t length;
+    uint8_t *file = di_get_file_named(*sf, *extent, &length, filename);
 
     if (file != NULL) {
-        free(*sf);
-        *sf = file;
-        *extent = length;
-        struct c64rec rec = c64_registry[recindex - 1 + result];
-        return DecrunchC64(sf, extent, rec);
-    } else {
-        fprintf(stderr, "Failed loading file %s\n", filename);
-        return UNKNOWN_GAME;
+        GameIDType result = LoadBinaryDatabase(file, length, *Game, 0);
+        if (result) {
+            CurrentSys = SYS_C64;
+            free(*sf);
+            *sf = MemAlloc(length);
+            memcpy(*sf, file, length);
+            free(file);
+            *extent = length;
+            return CurrentGame;
+        }
+        free(file);
     }
+    fprintf(stderr, "SCOTT: DetectC64() Failed loading file %s\n", filename);
+    return UNKNOWN_GAME;
 }
 
-
+/* Relocate a block of bytes within a buffer, growing it if necessary.
+   Allocates a new buffer of at least max(dest + bytestomove, datasize),
+   copies the original data, then overwrites at dest with bytes from source.
+   Used to rearrange graphics data after decompression. */
 static size_t CopyData(size_t dest, size_t source, uint8_t **data, size_t datasize,
     size_t bytestomove)
 {
@@ -442,7 +367,11 @@ static size_t CopyData(size_t dest, size_t source, uint8_t **data, size_t datasi
         return 0;
 
     size_t newsize = MAX(dest + bytestomove, datasize);
-    uint8_t *megabuf = MemAlloc(newsize);
+    /* Zero-filled, as dest may lie beyond the end of the original data,
+       and the gap in between must not be left as random heap contents.
+       (SagaGraphicsSetup() looks for zeroed image headers there in order to
+       detect the Claymorgue release with missing pictures.) */
+    uint8_t *megabuf = MemCalloc(newsize);
     memcpy(megabuf, *data, datasize);
     memcpy(megabuf + dest, *data + source, bytestomove);
     free(*data);
@@ -450,49 +379,41 @@ static size_t CopyData(size_t dest, size_t source, uint8_t **data, size_t datasi
     return newsize;
 }
 
-void PrintFirstTenBytes(uint8_t *ptr, size_t offset) {
-    fprintf(stderr, "First 10 bytes at 0x%04zx: ", offset);
-    for (int i = 0; i < 10; i++)
-        fprintf(stderr, "\\x%02x", ptr[offset + i]);
-    fprintf(stderr, "\n");
-}
-
-void LoadC64USImages(uint8_t *data, size_t length) {
+/* Scan a D64 disk image for S.A.G.A.-format picture files and load them
+   into the USImages linked list. Picture filenames encode the image index
+   and usage type (room, room+object, inventory object) in fixed positions. */
+static void LoadC64USImages(uint8_t *data, size_t length)
+{
     int numfiles;
 
     DiskImage *d64 = di_create_from_data(data, length);
     if (d64) {
-        char **filenames = get_all_file_names(d64, &numfiles);
-        unsigned char rawname[1024];
+        char **filenames = di_get_all_file_names(d64, &numfiles);
         if (filenames) {
+            /* Keep the names of the pictures, at the front of the array */
             int imgindex = 0;
-            if (numfiles > 1024)
-                numfiles = 1024;
-            char *imagefiles[1024];
+            char **imagefiles = filenames;
             for (int i = 0; i < numfiles; i++) {
-                if (issagaimg(filenames[i])) {
+                if (IsSagaImage(filenames[i])) {
                     imagefiles[imgindex++] = filenames[i];
                 } else {
                     free(filenames[i]);
                 }
             }
-            free(filenames);
 
             if (imgindex) {
-                USImages = new_image();
-                struct USImage *image = USImages;
+                USImages = NewImage();
+                USImage *image = USImages;
                 for (int i = 0; i < imgindex; i++) {
                     const char *shortname = imagefiles[i];
-                    di_rawname_from_name(rawname, shortname);
-                    ImageFile *c64file = di_open(d64, rawname, 0xc2, "rb");
-                    if (c64file) {
-                        uint8_t buf[0xffff];
-                        image->datasize = di_read(c64file, buf, 0xffff);
-                        image->imagedata = MemAlloc(image->datasize);
-                        memcpy(image->imagedata, buf, image->datasize);
-                        free(c64file);
+                    /* The index and usage are read from positions 3 to 6 */
+                    if (strlen(shortname) >= 6)
+                        image->imagedata = di_read_file_named(d64, shortname, &image->datasize);
+                    if (image->imagedata) {
                         image->systype = SYS_C64;
+                        /* Parse 3-digit image index from filename positions 3–5 */
                         image->index = shortname[5] - '0' + (shortname[4] - '0') * 10 + (shortname[3] - '0') * 100;
+                        /* Filename convention: 'R' prefix = room, char 6 'R' = room+object, 'I' = inventory */
                         if (shortname[0] == 'R') {
                             image->usage = IMG_ROOM;
                         } else if (shortname[6] == 'R') {
@@ -501,8 +422,7 @@ void LoadC64USImages(uint8_t *data, size_t length) {
                             image->usage = IMG_INV_OBJ;
                         }
 
-                        image->next = new_image();
-                        image = image->next;
+                        image = AppendImage(image);
                     }
                     free(imagefiles[i]);
                 }
@@ -512,80 +432,258 @@ void LoadC64USImages(uint8_t *data, size_t length) {
                     USImages = NULL;
                 }
             }
+            free(filenames);
+        }
+        di_free(d64);
+    }
+}
+
+/* The interpreter of the US Hulk is not a file of the disk but a chain of
+   sectors that are stored back to front and exclusive-ored with $55. This
+   reads the 254 bytes of the one at offset and gives the offset of the one
+   that follows it, or 0 if there is none. */
+static size_t ReadHiddenSector(const uint8_t *disk, size_t length, size_t offset, uint8_t *out)
+{
+    static const uint8_t sectors[] = { 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
+        19, 19, 19, 19, 19, 19, 19, 18, 18, 18, 18, 18, 18, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17 };
+    const uint8_t *sector = disk + offset;
+
+    for (int i = 0; i < 254; i++)
+        out[i] = sector[253 - i] ^ 0x55;
+
+    int track = sector[255] ^ 0x55, next = sector[254] ^ 0x55;
+    if (track < 1 || track > (int)sizeof sectors || next >= sectors[track - 1])
+        return 0;
+    size_t result = 0;
+    for (int i = 1; i < track; i++)
+        result += sectors[i - 1];
+    result = (result + next) * 256;
+    return (result + 256 <= length) ? result : 0;
+}
+
+/* That interpreter has the same table of close-ups as the Apple II one (see
+   SetA2Closeups() in apple2detect.c), just before its "<HIT RETURN>" prompt
+   in inverse video. Its picture slots are the numbers of the room picture
+   files. The pictures must have been read. */
+static void SetC64USCloseups(const uint8_t *disk, size_t length)
+{
+    static const uint8_t prompt[] = { 0x0d, 0xbc, 0xc8, 0xc9, 0xd4, 0xa0, 0xd2, 0xc5, 0xd4, 0xd5, 0xd2, 0xce, 0xbe, 0x0d };
+    enum { ENTRIES = 16, TABLE = 1 + 3 * ENTRIES, DATA = 254 };
+    uint8_t buf[2 * DATA];
+
+    for (size_t offset = 0; offset + 256 <= length; offset += 256) {
+        size_t size = DATA;
+        size_t next = ReadHiddenSector(disk, length, offset, buf);
+        if (next != 0) {
+            ReadHiddenSector(disk, length, next, buf + DATA);
+            size += DATA;
+        }
+        /* A prompt that starts in the second sector is found again when
+           that one comes first, unless the table is split between them. */
+        for (size_t i = TABLE; i + sizeof prompt <= size && i < DATA + TABLE; i++) {
+            if (memcmp(buf + i, prompt, sizeof prompt) != 0)
+                continue;
+            const uint8_t *table = buf + i - TABLE;
+            const uint8_t *items = table + 1, *slots = items + ENTRIES, *nouns = slots + ENTRIES;
+            SetCloseupVerb(table[0], 1);
+            for (int j = 0; j < ENTRIES; j++) {
+                if (nouns[j] == 0)
+                    continue;
+                for (USImage *image = USImages; image != NULL; image = image->next) {
+                    if (image->usage == IMG_ROOM && image->index == slots[j]) {
+                        AddCloseup(items[j], nouns[j], slots[j]);
+                        break;
+                    }
+                }
+            }
+            AddExtraCloseups(CurrentGame);
+            return;
         }
     }
 }
 
-GameIDType DetectC64(uint8_t **sf, size_t *extent)
+/* Sorcerer of Claymorgue Castle US ships as a two-disk set (side A + B).
+   If we loaded side A, look for side B by replacing "s1" with "s2" in the
+   filename and re-running C64 detection on the companion disk. */
+static GameIDType LookForSoCCompanion(const char *filename, uint8_t **sf, size_t *extent)
+{
+    if (filename == NULL)
+        return UNKNOWN_GAME;
+    size_t namelen = strlen(filename);
+    uint8_t *newdata = NULL;
+    size_t newlen = 0;
+    for (int i = namelen - 2; i >= 0; i--) {
+        if (filename[i] == 's' && filename[i+1] == '1') {
+            char *newfile = MemAlloc(namelen + 1);
+            memcpy(newfile, filename, namelen + 1);
+            newfile[i+1] = '2';
+            newdata = ReadFileIfExists(newfile, &newlen);
+            free(newfile);
+            if (newdata != NULL) {
+                free(*sf);
+                *sf = newdata;
+                *extent = newlen;
+                return DetectC64(sf, extent, NULL);
+            } else {
+                break;
+            }
+        }
+    }
+    return UNKNOWN_GAME;
+}
+
+#ifdef SCOTT_HEADLESS
+/* Debug helper: write raw data to a file. */
+static size_t writeToFile(const char *name, uint8_t *data, size_t size)
+{
+    FILE *fptr = fopen(name, "wb");
+
+    if (fptr == NULL) {
+        Fatal("File open error!");
+        return 0;
+    }
+
+    size_t result = fwrite(data, 1, size, fptr);
+
+    fclose(fptr);
+    return result;
+}
+#endif
+
+/* D64 disk image: extract the largest file (the game program),
+   optionally append a companion file (e.g. picture data).
+   Returns 0 on failure. */
+static int ExtractD64Game(uint8_t **sf, size_t *extent, const c64rec *rec)
+{
+    size_t newlength;
+    uint8_t *largest_file;
+    /* The Slam compilation lists a copy of Claymorgue that ends 2.8 KB
+       short, C1/SLAM. A complete, packed one is still on the disk, at
+       track 22, sector 4, with no directory entry. */
+    if (rec->chk == 0xf8c2)
+        largest_file = di_get_file_at_ts(*sf, *extent, &newlength, 22, 4);
+    else
+        largest_file = di_get_largest_file(*sf, *extent, &newlength);
+    uint8_t *appendix = NULL;
+    size_t appendixlen = 0;
+
+    if (largest_file == NULL)
+        return 0;
+
+    if (rec->appendfile != NULL) {
+        appendix = di_get_file_named(*sf, *extent, &appendixlen,
+            rec->appendfile);
+        /* The companion file begins with a two-byte load address,
+           which is skipped. If the file is missing or too short,
+           carry on with the main file alone. */
+        if (appendix == NULL || appendixlen < 2) {
+            fprintf(stderr, "SCOTT: DetectC64() Appending file failed!\n");
+            free(appendix);
+            appendix = NULL;
+            appendixlen = 0;
+        } else {
+            appendixlen -= 2;
+        }
+    }
+
+    /* The companion file is placed relative to the end of the main
+       file. A negative parameter means that the two overlap. */
+    long appendpos = (long)newlength + rec->parameter;
+    size_t buflen = newlength + appendixlen;
+    if (appendix != NULL && appendpos > (long)newlength)
+        buflen = appendpos + appendixlen;
+    if (buflen == 0 || buflen > MAX_LENGTH || (appendix != NULL && appendpos < 0)) {
+        free(largest_file);
+        free(appendix);
+        return 0;
+    }
+
+    /* Zero-filled, as the overlap leaves the end of the buffer unwritten */
+    uint8_t *megabuf = MemCalloc(buflen);
+    memcpy(megabuf, largest_file, newlength);
+    if (appendix != NULL)
+        memcpy(megabuf + appendpos, appendix + 2, appendixlen);
+    free(largest_file);
+    free(appendix);
+
+    free(*sf);
+    *sf = megabuf;
+    *extent = buflen;
+    return 1;
+}
+
+/* T64 tape image: parse the directory header to find and extract
+   the first file record (2-byte load address + program data) */
+static void ExtractT64File(uint8_t **sf, size_t *extent)
+{
+    uint8_t *file_records = *sf + 64;
+    int number_of_records = READ_LE_UINT16(*sf + 36);
+    int offset = READ_LE_UINT16(file_records + 8);
+    int start_addr = READ_LE_UINT16(file_records + 2);
+    int end_addr = READ_LE_UINT16(file_records + 4);
+    int size;
+    if (number_of_records == 1)
+        size = *extent - offset;
+    else
+        size = end_addr - start_addr;
+    uint8_t *first_file = MemAlloc(size + 2);
+    memcpy(first_file + 2, *sf + offset, size);
+    memcpy(first_file, file_records + 2, 2);
+    free(*sf);
+    *sf = first_file;
+    *extent = size + 2;
+}
+
+/* Identify and load a C64 game from raw file data.
+
+   Matches the file against the c64_registry by size + checksum. For multi-game
+   compilation disks, presents a selection menu. Depending on the container
+   type (D64, T64, or US/S.A.G.A.), extracts the game file, optionally appends
+   companion data, decompresses via unp64, and loads the game database. Replaces
+   *sf and *extent with the final game data on success. */
+GameIDType DetectC64(uint8_t **sf, size_t *extent, const char *filename)
 {
     if (*extent > MAX_LENGTH || *extent < MIN_LENGTH)
         return UNKNOWN_GAME;
 
-    uint16_t chksum = checksum(*sf, *extent);
+    uint16_t chksum = C64Checksum(*sf, *extent);
 
     for (int i = 0; c64_registry[i].length != 0; i++) {
         if (*extent == c64_registry[i].length && chksum == c64_registry[i].chk) {
+            /* Multi-game disks need user selection before extraction */
             if (c64_registry[i].id == SAVAGE_ISLAND_C64) {
                 return savage_island_menu(sf, extent, i);
             } else if (c64_registry[i].id == BATON_C64 && (chksum == 0xc3fc || chksum == 0xbfbf)) {
-                return mysterious_menu(sf, extent, i);
+                return mysterious_menu(sf, extent);
             } else if (c64_registry[i].id == FEASIBILITY_C64 && (chksum == 0x9eaa || chksum == 0x9c18)) {
-                return mysterious_menu2(sf, extent, i);
+                return mysterious_menu2(sf, extent);
+            } else if (c64_registry[i].id == ADVENTURELAND_US && chksum == 0x78fa) {
+                return adventure_pack_menu(sf, extent);
+            } else if (c64_registry[i].id == CLAYMORGUE_US && chksum == 0xa957) {
+                return LookForSoCCompanion(filename, sf, extent);
             }
             if (c64_registry[i].type == TYPE_D64) {
-                int newlength;
-                uint8_t *largest_file = get_largest_file(*sf, *extent, &newlength);
-                uint8_t *appendix = NULL;
-                int appendixlen = 0;
-
-                if (c64_registry[i].appendfile != NULL) {
-                    appendix = get_file_named(*sf, *extent, &appendixlen,
-                        c64_registry[i].appendfile);
-                    if (appendix == NULL)
-                        fprintf(stderr, "SCOTT: DetectC64() Appending file failed!\n");
-                    appendixlen -= 2;
-                }
-
-                size_t buflen = newlength + appendixlen;
-                if (buflen <= 0 || buflen > MAX_LENGTH)
+                if (!ExtractD64Game(sf, extent, &c64_registry[i]))
                     return UNKNOWN_GAME;
+            } else if (c64_registry[i].type == TYPE_T64 || c64_registry[i].type == TYPE_T64_US) {
+                ExtractT64File(sf, extent);
 
-                uint8_t *megabuf = MemAlloc(buflen);
-                memcpy(megabuf, largest_file, newlength);
-                if (appendix != NULL) {
-                    memcpy(megabuf + newlength + c64_registry[i].parameter, appendix + 2,
-                        appendixlen);
-                    newlength = buflen;
+                if (c64_registry[i].type == TYPE_T64_US) {
+                    ProcessC64(sf, extent, c64_registry[i]);
+                    if (c64_registry[i].id == VOODOO_CASTLE_US || c64_registry[i].id == PIRATE_US) {
+                        return handle_all_in_one(sf, extent, c64_registry[i]);
+                    }
+                    GameIDType result = LoadBinaryDatabase(*sf, *extent, *Game, 0);
+                    if (result) {
+                        CurrentSys = SYS_C64;
+                        return CurrentGame;
+                    }
                 }
-
-                if (largest_file) {
-                    free(*sf);
-                    *sf = MemAlloc(newlength);
-                    memcpy(*sf, megabuf, newlength);
-                    *extent = newlength;
-                }
-                free(megabuf);
-
-            } else if (c64_registry[i].type == TYPE_T64) {
-                uint8_t *file_records = *sf + 64;
-                int number_of_records = (*sf)[36] + (*sf)[37] * 0x100;
-                int offset = file_records[8] + file_records[9] * 0x100;
-                int start_addr = file_records[2] + file_records[3] * 0x100;
-                int end_addr = file_records[4] + file_records[5] * 0x100;
-                int size;
-                if (number_of_records == 1)
-                    size = *extent - offset;
-                else
-                    size = end_addr - start_addr;
-                uint8_t *first_file = MemAlloc(size + 2);
-                memcpy(first_file + 2, *sf + offset, size);
-                memcpy(first_file, file_records + 2, 2);
-                free(*sf);
-                *sf = first_file;
-                *extent = size + 2;
+            /* US S.A.G.A. format on D64: extract the named database file,
+               optionally decompress, and load the binary game database */
             } else if (c64_registry[i].type == TYPE_US) {
-                int newlength;
-                uint8_t *database_file = get_file_named(*sf, *extent, &newlength, c64_registry[i].appendfile);
+                size_t newlength;
+                uint8_t *database_file = di_get_file_named(*sf, *extent, &newlength, c64_registry[i].appendfile);
                 if (database_file == NULL) {
                     fprintf(stderr, "SCOTT: DetectC64() Could not find database in D64\n");
                     return UNKNOWN_GAME;
@@ -593,27 +691,33 @@ GameIDType DetectC64(uint8_t **sf, size_t *extent)
 
                 if (c64_registry[i].decompress_iterations) {
                     size_t len = (size_t)newlength;
-                    DecrunchC64(&database_file, &len, c64_registry[i]);
+                    ProcessC64(&database_file, &len, c64_registry[i]);
                     newlength = len;
                 }
 
                 /* There are at least two C64 S.A.G.A. games (Pirate Adventure and Voodoo Castle)
-                   which do not have a separate database file, but have interpreter, image data
-                   and database all in a single file. We cut off everything before the database here.
+                   which do not have a separate database file, but have their interpreter, image data
+                   and database all in a single file. We pass them off to a separate function, handle_all_in_one() in c64_small.c.
                  */
-                int cutoff = c64_registry[i].imgoffset;
-                if (cutoff && cutoff < newlength) {
-                    newlength -= cutoff;
-                    uint8_t *shorter = MemAlloc(newlength);
-                    memcpy(shorter, database_file + cutoff, newlength);
-                    free(database_file);
-                    database_file = shorter;
+                if (c64_registry[i].imgoffset && c64_registry[i].imgoffset < newlength) {
+                    return handle_all_in_one(&database_file, &newlength, c64_registry[i]);
                 }
 
-                int result = LoadBinaryDatabase(database_file, newlength, *Game, 0);
+                GameIDType result = LoadBinaryDatabase(database_file, newlength, *Game, 0);
+                /* An unpacked program may hold the interpreter in front
+                   of the database, which SAGA.DB loads to $8030. */
+                if (!result && c64_registry[i].decompress_iterations && newlength > 2) {
+                    long dbstart = 0x8030 - READ_LE_UINT16(database_file);
+                    if (dbstart > 0 && (size_t)dbstart < newlength) {
+                        newlength -= dbstart;
+                        memmove(database_file, database_file + dbstart, newlength);
+                        result = LoadBinaryDatabase(database_file, newlength, *Game, 0);
+                    }
+                }
                 if (result) {
                     CurrentSys = SYS_C64;
                     LoadC64USImages(*sf, *extent);
+                    SetC64USCloseups(*sf, *extent);
                     free(*sf);
                     *sf = MemAlloc(newlength);
                     memcpy(*sf, database_file, newlength);
@@ -621,54 +725,77 @@ GameIDType DetectC64(uint8_t **sf, size_t *extent)
                     return CurrentGame;
                 }
             }
-            return DecrunchC64(sf, extent, c64_registry[i]);
+            return ProcessC64(sf, extent, c64_registry[i]);
         }
     }
     return UNKNOWN_GAME;
 }
 
-static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record)
+/* Decompress a C64 game file, load its database, and set up graphics.
+
+   Many C64 adventure releases were packed with one or more layers of
+   compression (CruelCrunch, PUCrunch, Exomizer, etc.). This function
+   runs the unp64 decompressor for the number of iterations specified
+   in the registry entry (passing switches on a specific iteration if
+   needed), then identifies the game dictionary, loads the database via
+   TryLoading, appends any Savage Island picture data, relocates
+   graphics blocks via CopyData, and initializes the drawing system. */
+
+/* The Danish Crackers release of Claymorgue has fourteen damaged bytes
+   that every other release has intact: three in the system messages, three
+   in the interpreter, two in the tiles and six in the pictures, three of
+   those in the pool of dirty water. Put back what the other releases have.
+   The offsets are those of the unpacked program, which loads at $0801. */
+static void RepairDanishCrackersClaymorgue(uint8_t *data, size_t length)
+{
+    static const struct {
+        uint16_t offset;
+        uint8_t damaged;
+        uint8_t intact;
+    } repairs[] = {
+        { 0x0871, 0x07, 0x74 }, { 0x0876, 0x01, 0x77 }, { 0x0966, 0x01, 0x6f },
+        { 0x15e7, 0x7a, 0x3d }, { 0x1655, 0x52, 0xa9 }, { 0x18a6, 0x95, 0x92 },
+        { 0x29c1, 0x08, 0x01 }, { 0x29d3, 0x06, 0x01 },
+        { 0x69c1, 0x11, 0x10 }, { 0x69d3, 0x06, 0x20 },
+        { 0x75b1, 0x55, 0x80 },
+        { 0xa93f, 0x35, 0x06 }, { 0xa940, 0xe6, 0x90 }, { 0xa941, 0x33, 0x03 },
+    };
+
+    for (size_t i = 0; i < sizeof repairs / sizeof repairs[0]; i++) {
+        if (repairs[i].offset < length && data[repairs[i].offset] == repairs[i].damaged)
+            data[repairs[i].offset] = repairs[i].intact;
+    }
+}
+
+static GameIDType ProcessC64(uint8_t **sf, size_t *extent, c64rec record)
 {
     size_t length = *extent;
-    size_t decompressed_length = *extent;
 
-    uint8_t *uncompressed = MemAlloc(0x10000);
+    C64DecompressIterations(sf, &length, record.decompress_iterations,
+        record.switches, record.parameter);
 
-    int result = 0;
+    if (record.id == CLAYMORGUE_C64
+        && (record.chk == 0x5592 || record.chk == 0x10a5 || record.chk == 0xf8c2))
+        RepairDanishCrackersClaymorgue(*sf, length);
 
-    for (int i = 1; i <= record.decompress_iterations; i++) {
-        /* We only send switches on the iteration specified by parameter */
-        if (i == record.parameter && record.switches != NULL) {
-            result = unp64(*sf, length, uncompressed,
-                &decompressed_length, record.switches);
-        } else
-            result = unp64(*sf, length, uncompressed,
-                &decompressed_length, NULL);
-        if (result) {
-            if (*sf != NULL)
-                free(*sf);
-            *sf = MemAlloc(decompressed_length);
-            memcpy(*sf, uncompressed, decompressed_length);
-            length = decompressed_length;
-        } else {
-            free(uncompressed);
-            uncompressed = NULL;
-            break;
-        }
-    }
+#ifdef SCOTT_HEADLESS
+    /* Debug: dump the decompressed image for offline analysis */
+    const char *dumppath = getenv("C64_DUMP_US_IMAGE");
+    if (dumppath != NULL)
+        writeToFile(dumppath, *sf, length);
+#endif
 
-    if (uncompressed != NULL)
-        free(uncompressed);
+    *extent = length;
 
-    if (record.type == TYPE_US) {
-        *extent = length;
+    /* US-format games are loaded by the caller, not here */
+    if (record.type == TYPE_US || record.type == TYPE_T64_US) {
         return record.id;
     }
 
+    /* Look up the full GameInfo entry in the master games[] table */
     for (int i = 0; games[i].Title != NULL; i++) {
         if (games[i].gameID == record.id) {
-            free(Game);
-            Game = &games[i];
+            *Game = games[i];
             break;
         }
     }
@@ -677,27 +804,17 @@ static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record
         Fatal("Game not found!");
     }
 
-    /* The GetId(&offset) function looks for a pattern in the data pointed to by the global pointer
-       entire_file, so we have to set entire_file to the local data pointer *sf here. This means that if
-       entire_file was previously pointing to the entire disk image (which is likely), that disk image
-       data will now be lost and replaced with the decompressed file data. So we can't access other files
-       on the disk image or check if the game is in fact not a C64 game after this point.
-     */
-
-    if (entire_file != *sf && entire_file != NULL) {
-        free(entire_file);
-        entire_file = *sf;
-    }
-    file_length = length;
-
     size_t offset;
 
-    DictionaryType dictype = GetId(&offset);
+    DictionaryType dictype = GetId(*sf, length, &offset);
     if (dictype != Game->dictionary) {
         Fatal("Wrong game?");
     }
 
-    if (TryLoading(*Game, offset, 0) == UNKNOWN_GAME) {
+    /* TryLoading adopts the buffer into entire_file/file_length internally;
+       if entire_file was pointing at the source disk image, it is freed
+       as part of that adoption. */
+    if (TryLoading(*sf, length, Game, offset) == UNKNOWN_GAME) {
         Fatal("Game could not be read!");
     }
 
@@ -705,29 +822,39 @@ static GameIDType DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record
         appendSIfiles(sf, extent);
     }
 
+    /* The copy offsets of the Claymorgue records are those of a program
+       loaded at $0800. Some releases load it elsewhere. */
+    int shift = (CurrentGame == CLAYMORGUE_C64) ? file_baseline_offset : 0;
+
+    /* Relocate graphics data to the addresses the drawing engine expects.
+       Gremlins preserves a $1000-byte block that would otherwise be lost
+       across the CopyData reallocation, and rewrites it at a shifted offset. */
     if (CurrentGame == GREMLINS_C64 && record.copysource == 0xc801) {
         uint8_t overlap[0x1000];
         memcpy(overlap, *sf + 0xd801, 0x1000);
-        result = CopyData(record.copydest, record.copysource, sf, *extent, record.copysize);
-        *extent = result;
+        size_t newSize = CopyData(record.copydest, record.copysource, sf, *extent, record.copysize);
+        *extent = newSize;
         memcpy(*sf + 0xc774, overlap, 0x1000);
     } else if (record.copysource != 0) {
-        result = CopyData(record.copydest, record.copysource, sf, *extent,
-            record.copysize);
-        if (result) {
-            *extent = result;
+        size_t newSize = CopyData(record.copydest + shift, record.copysource + shift,
+            sf, *extent, record.copysize);
+        if (newSize) {
+            *extent = newSize;
         }
     }
 
+    /* Claymorgue has extra image data that needs copying to a high offset */
     if (CurrentGame == CLAYMORGUE_C64 && record.copysource == 0x855) {
-        result = CopyData(0x1531a, 0x2002, sf, *extent, 0x2000);
-        if (result) {
-            *extent = result;
+        size_t newSize = CopyData(0x1531a + shift, 0x2002 + shift, sf, *extent, 0x2000);
+        if (newSize) {
+            *extent = newSize;
         }
     }
 
+    /* If the game uses tile-based graphics (unlike the Mysterious Adventures)
+       we need to initialize them here. */
     if (!(Game->subtype & MYSTERIOUS))
-        SagaSetup(record.imgoffset);
+        SagaGraphicsSetup(record.imgoffset);
 
     return CurrentGame;
 }

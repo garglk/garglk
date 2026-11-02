@@ -9,434 +9,381 @@
 
 #include "taylor.h"
 
-// clang-format off
-struct GameInfo games[NUMGAMES] = {
+/* Table offsets are addresses in the memory of the original machine, as
+   the game has them; FileBaselineOffset turns them into file offsets.
+   A field that is left out is zero: the game has no such table. */
+GameInfo games[NUMGAMES] = {
     {
-        "Questprobe 3",
-        QUESTPROBE3,
-        QUESTPROBE3_TYPE, // type
-        QUESTPROBE3,
+        .Title = "Questprobe 3",
+        .gameID = QUESTPROBE3,
+        .type = QUESTPROBE3_TYPE,
+        .base_game = QUESTPROBE3,
 
-        0x45F6, // dictionary
-        0x4c8c, // tokens
-        0x28a5, // start_of_room_descriptions
-        0x2c7a, // start_of_item_descriptions
-        0x3e10, // automatics
-        0x3045, // actions
-        0x50d4, // start_of_room_connections
-        0x67ba, // start_of_flags
-        0x50a3, // start_of_item_locations
-        0x2000, // start_of_messages
-        0,      // second message bank
+        .start_of_dictionary = 0x45f6,
+        .start_of_tokens = 0x4c8c,
+        .start_of_room_descriptions = 0x28a5,
+        .start_of_item_descriptions = 0x2c7a,
+        .start_of_status_table = 0x3e10,
+        .start_of_event_table = 0x3045,
+        .start_of_room_connections = 0x50d4,
+        .start_of_flags = 0x67ba,
+        .start_of_item_locations = 0x50a3,
+        .start_of_messages = 0x2000,
 
-        0x6100, // start_of_characters
-        0x6916, // start_of_image_data
-        0x381c, // image patterns lookup table
-        0x001c, // number of patterns
-        0x009f, // patterns end marker
-        0x878b, // start of room image instructions
-        57,     // number_of_image blocks
-        ZXOPT   // palette
+        .start_of_tiles = 0x6100,
+        .start_of_image_blocks = 0x6916,
+        .number_of_pictures = 57,
+        .palette = ZXOPT,
     },
 
     {
-        "Questprobe 3 C64",
-        QUESTPROBE3_64,
-        QUESTPROBE3_TYPE, // type
-        QUESTPROBE3,
+        .Title = "Questprobe 3 C64",
+        .gameID = QUESTPROBE3_64,
+        .type = QUESTPROBE3_TYPE,
+        .base_game = QUESTPROBE3,
 
-        0x1187, // dictionary
-        0x0003, // tokens
-        0x09e7, // start_of_room_descriptions
-        0x0dbc, // start_of_item_descriptions
-        0x2641, // automatics
-        0x1876, // actions
-        0x1812, // start_of_room_connections
-        0xc1bc, // start_of_flags
-        0x2dfd, // start_of_item_locations
-        0x0142, // start_of_messages
-        0,      // second message bank
+        .start_of_dictionary = 0x1187,
+        .start_of_tokens = 0x0003,
+        .token_signature = "\x61\xa0\x64\xa0\x65\xa0\x67\xa0\x69\xa0",
+        .start_of_room_descriptions = 0x09e7,
+        .start_of_item_descriptions = 0x0dbc,
+        .start_of_status_table = 0x2641,
+        .start_of_event_table = 0x1876,
+        .start_of_room_connections = 0x1812,
+        .start_of_flags = 0xc1bc,
+        .start_of_item_locations = 0x2dfd,
+        .start_of_messages = 0x0142,
 
-        0xbb02, // start_of_characters
-        0x6058, // start_of_image_data
-        0x381c, // image patterns lookup table
-        0x001c, // number of patterns
-        0x009f, // patterns end marker
-        0x878b, // start of room image instructions
-        57,     // number_of_image blocks
-        C64A    // palette
+        .start_of_tiles = 0xbb02,
+        .start_of_image_blocks = 0x6058,
+        .number_of_pictures = 57,
+        .palette = C64QP3,
     },
 
     {
-        "Rebel Planet",
-        REBEL_PLANET,
-        REBEL_PLANET_TYPE, // type
-        REBEL_PLANET,
+        .Title = "Rebel Planet",
+        .gameID = REBEL_PLANET,
+        .type = REBEL_PLANET_TYPE,
+        .base_game = REBEL_PLANET,
 
-        0x3559, // dictionary
-        0x7bda, // tokens
-        0x5615, // start_of_room_descriptions
-        0x7321, // start_of_item_descriptions
-        0x3c9d, // automatics
-        0x43e0, // actions
-        0x33a3, // start_of_room_connections
-        0x1ff8, // start_of_flags
-        0x331e, // start_of_item_locations
-        0x5e05, // start_of_messages
-        0x6f19, // second message bank
+        .start_of_dictionary = 0x3559,
+        .start_of_tokens = 0x7bda,
+        .start_of_room_descriptions = 0x5615,
+        .start_of_item_descriptions = 0x7321,
+        .start_of_status_table = 0x3c9d,
+        .start_of_event_table = 0x43e0,
+        .start_of_room_connections = 0x33a3,
+        .start_of_flags = 0x1ff8,
+        .start_of_item_locations = 0x331e,
+        .start_of_messages = 0x5e05,
+        .start_of_messages_2 = 0x6f19,
 
-        0x810e, // start_of_characters
-        0x9139, // start_of_image_data
-        0,      // image patterns lookup table
-        0,      // number of patterns
-        0,      // patterns end marker
-        0x87a6, // start of room image instructions
-        167,    // number_of_image blocks
-        ZXOPT   // palette
+        .start_of_tiles = 0x810e,
+        .start_of_image_blocks = 0x9139,
+        .start_of_image_instructions = 0x87a6,
+        .number_of_pictures = 167,
+        .palette = ZXOPT,
     },
 
     {
-        "Rebel Planet C64",
-        REBEL_PLANET_64,
-        REBEL_PLANET_TYPE, // type
-        REBEL_PLANET,
+        .Title = "Rebel Planet C64",
+        .gameID = REBEL_PLANET_64,
+        .type = REBEL_PLANET_TYPE,
+        .base_game = REBEL_PLANET,
 
-        0x5e3d, // dictionary
-        0x40c7, // tokens
-        0x1b02, // start_of_room_descriptions
-        0x380e, // start_of_item_descriptions
-        0x6581, // automatics
-        0x6cc4, // actions
-        0x5c87, // start_of_room_connections
-        0x198a, // start_of_flags
-        0x5c02, // start_of_item_locations
-        0x22f2, // start_of_messages
-        0x3406, // second message bank
+        .start_of_dictionary = 0x5e3d,
+        .start_of_tokens = 0x40c7,
+        .token_signature = "\xa7.\xfe \xfe,\xfe!\xfe?",
+        .start_of_room_descriptions = 0x1b02,
+        .start_of_item_descriptions = 0x380e,
+        .start_of_status_table = 0x6581,
+        .start_of_event_table = 0x6cc4,
+        .start_of_room_connections = 0x5c87,
+        .start_of_flags = 0x198a,
+        .start_of_item_locations = 0x5c02,
+        .start_of_messages = 0x22f2,
+        .start_of_messages_2 = 0x3406,
 
-        0xb78c, // start_of_characters
-        0x7f02, // start_of_image_data
-        0,      // image patterns lookup table
-        0,      // number of patterns
-        0,      // patterns end marker
-        0xadea, // start of room image instructions
-        167,    // number_of_image blocks
-        C64B    // palette
+        .start_of_tiles = 0xb78c,
+        .start_of_image_blocks = 0x7f02,
+        .start_of_image_instructions = 0xadea,
+        .number_of_pictures = 167,
+        .palette = C64TAYLOR,
     },
 
     {
-        "Blizzard Pass",
-        BLIZZARD_PASS,
-        BLIZZARD_PASS_TYPE, // type
-        BLIZZARD_PASS,
+        .Title = "Blizzard Pass",
+        .gameID = BLIZZARD_PASS,
+        .type = BLIZZARD_PASS_TYPE,
+        .base_game = BLIZZARD_PASS,
 
-        0x6720, // dictionary
-        0x71bc, // tokens
-        0x35ce, // start_of_room_descriptions
-        0x4ce6, // start_of_item_descriptions
-        0x56d9, // automatics
-        0x5a54, // actions
-        0x6b67, // start_of_room_connections
-        0x2051, // start_of_flags
-        0x76a8, // start_of_item_locations
-        0x3e26, // start_of_messages
-        0,      // second message bank
+        .start_of_dictionary = 0x6720,
+        .start_of_tokens = 0x71bc,
+        .start_of_room_descriptions = 0x35ce,
+        .start_of_item_descriptions = 0x4ce6,
+        .start_of_status_table = 0x56d9,
+        .start_of_event_table = 0x5a54,
+        .start_of_room_connections = 0x6b67,
+        .start_of_flags = 0x2051,
+        .start_of_item_locations = 0x76a8,
+        .start_of_messages = 0x3e26,
 
-        0x8350, // start_of_characters
-        0x8708, // start_of_image_data
-        0,      // image patterns lookup table
-        0,      // number of patterns
-        0,      // patterns end marker
-        0x7798, // start of room image instructions
-        114,    // number_of_image blocks
-        ZXOPT   // palette
+        .start_of_tiles = 0x8350,
+        .start_of_image_blocks = 0x8708,
+        .start_of_image_instructions = 0x7798,
+        .number_of_pictures = 114,
+        .palette = ZXOPT,
     },
 
     {
-        "Heman",
-        HEMAN,
-        HEMAN_TYPE, // type
-        HEMAN,
+        .Title = "Heman",
+        .gameID = HEMAN,
+        .type = HEMAN_TYPE,
+        .base_game = HEMAN,
 
-        0x483A, // dictionary
-        0x4ce0, // tokens
-        0x5b36, // start_of_room_descriptions
-        0x56a2, // start_of_item_descriptions
-        0x45bf, // automatics
-        0x37d8, // actions
-        0x442f, // start_of_room_connections
-        0x1e45, // start_of_flags
-        0x43cb, // start_of_item_locations
-        0x6665, // start_of_messages
-        0x4fee, // second message bank
+        .start_of_dictionary = 0x483a,
+        .start_of_tokens = 0x4ce0,
+        .start_of_room_descriptions = 0x5b36,
+        .start_of_item_descriptions = 0x56a2,
+        .start_of_status_table = 0x45bf,
+        .start_of_event_table = 0x37d8,
+        .start_of_room_connections = 0x442f,
+        .start_of_flags = 0x1e45,
+        .start_of_item_locations = 0x43cb,
+        .start_of_messages = 0x6665,
+        .start_of_messages_2 = 0x4fee,
 
-        0x8603, // start_of_characters
-        0x8d13, // start_of_image_data
-        0x3703, // image patterns lookup table
-        0x001c, // number of patterns
-        0x009f, // patterns end marker
-        0x7adf, // start of room image instructions
-        139,    // number_of_image blocks
-        ZXOPT   // palette
+        .start_of_tiles = 0x8603,
+        .start_of_image_blocks = 0x8d13,
+        .image_patterns_lookup = 0x3703,
+        .number_of_patterns = 0x001c,
+        .pattern_end_marker = 0x009f,
+        .start_of_image_instructions = 0x7adf,
+        .number_of_pictures = 139,
+        .palette = ZXOPT,
     },
 
     {
-        "Heman C64",
-        HEMAN_64,
-        HEMAN_TYPE, // type
-        HEMAN,
+        .Title = "Heman C64",
+        .gameID = HEMAN_64,
+        .type = HEMAN_TYPE,
+        .base_game = HEMAN,
 
-        0x116f, // dictionary
-        0x1615, // tokens
-        0x5c08, // start_of_room_descriptions
-        0x798d, // start_of_item_descriptions
-        0x0ef4, // automatics
-        0x010d, // actions
-        0x0d64, // start_of_room_connections
-        0x2bbf, // start_of_flags
-        0x0d00, // start_of_item_locations
-        0x6737, // start_of_messages
-        0x1923, // second message bank
+        .start_of_dictionary = 0x116f,
+        .start_of_tokens = 0x1615,
+        .token_signature = "\x80You are i",
+        .start_of_room_descriptions = 0x5c08,
+        .start_of_item_descriptions = 0x798d,
+        .start_of_status_table = 0x0ef4,
+        .start_of_event_table = 0x010d,
+        .start_of_room_connections = 0x0d64,
+        .start_of_flags = 0x2bbf,
+        .start_of_item_locations = 0x0d00,
+        .start_of_messages = 0x6737,
+        .start_of_messages_2 = 0x1923,
 
-        0x8008, // start_of_characters
-        0x8718, // start_of_image_data
-        0,      // image patterns lookup table
-        0,      // number of patterns
-        0,      // patterns end marker
-        0x4808, // start of room image instructions
-        139,    // number_of_image blocks
-        C64B    // palette
+        .start_of_tiles = 0x8008,
+        .start_of_image_blocks = 0x8718,
+        .start_of_image_instructions = 0x4808,
+        .number_of_pictures = 139,
+        .palette = C64TAYLOR,
+    },
+
+    /* Temple of Terror came as two games on each machine, one with
+       pictures and one with longer text. The "combined" rows are the two
+       loaded together (LookForSecondTOTGame, c64decrunch.c): the text-only
+       game's tables with the graphical game's pictures, which on the
+       Spectrum are where the graphical game has them and on the C64 are
+       copied to a place of their own. */
+#define TOT_TEXT_ONLY_TABLES                   \
+    .start_of_dictionary = 0x4ba2,             \
+    .start_of_tokens = 0x50d9,                 \
+    .start_of_room_descriptions = 0x7a2a,      \
+    .start_of_item_descriptions = 0x5419,      \
+    .start_of_status_table = 0x4809,           \
+    .start_of_event_table = 0x38a9,            \
+    .start_of_room_connections = 0x4661,       \
+    .start_of_flags = 0x21bf,                  \
+    .start_of_item_locations = 0x4599,         \
+    .start_of_messages = 0x5fd9,               \
+    .start_of_messages_2 = 0x73b7
+
+#define TOT_PICTURES                           \
+    .start_of_tiles = 0x83cb,                  \
+    .start_of_image_blocks = 0x8a33,           \
+    .image_patterns_lookup = 0x3837,           \
+    .number_of_patterns = 0x0012,              \
+    .pattern_end_marker = 0x00aa,              \
+    .start_of_image_instructions = 0x7b75,     \
+    .number_of_pictures = 143,                 \
+    .palette = ZXOPT
+
+#define TOT_TEXT_ONLY_TABLES_64                \
+    .start_of_dictionary = 0x5001,             \
+    .start_of_tokens = 0x5538,                 \
+    .token_signature = "\x80You are i",        \
+    .start_of_room_descriptions = 0x7e89,      \
+    .start_of_item_descriptions = 0x5878,      \
+    .start_of_status_table = 0x4c68,           \
+    .start_of_event_table = 0x3d08,            \
+    .start_of_room_connections = 0x4ac0,       \
+    .start_of_flags = 0x0b95,                  \
+    .start_of_item_locations = 0x49f8,         \
+    .start_of_messages = 0x6438,               \
+    .start_of_messages_2 = 0x7816
+
+    {
+        .Title = "Temple of Terror",
+        .gameID = TEMPLE_OF_TERROR,
+        .type = HEMAN_TYPE,
+        .base_game = TEMPLE_OF_TERROR,
+
+        .start_of_dictionary = 0x4b9d,
+        .start_of_tokens = 0x50d4,
+        .start_of_room_descriptions = 0x53b3,
+        .start_of_item_descriptions = 0x5c4f,
+        .start_of_status_table = 0x4804,
+        .start_of_event_table = 0x38a4,
+        .start_of_room_connections = 0x465c,
+        .start_of_flags = 0x1e45,
+        .start_of_item_locations = 0x4594,
+        .start_of_messages = 0x667d,
+        .start_of_messages_2 = 0x75d0,
+
+        TOT_PICTURES,
     },
 
     {
-        "Temple of Terror",
-        TEMPLE_OF_TERROR,
-        HEMAN_TYPE, // type
-        TEMPLE_OF_TERROR,
+        .Title = "Temple of Terror text only version",
+        .gameID = TOT_TEXT_ONLY,
+        .type = HEMAN_TYPE,
+        .base_game = TEMPLE_OF_TERROR,
 
-        0x4b9d, // dictionary
-        0x50d4, // tokens
-        0x53b3, // start_of_room_descriptions
-        0x5c4f, // start_of_item_descriptions
-        0x4804, // automatics
-        0x38a4, // actions
-        0x465c, // start_of_room_connections
-        0x1e45, // start_of_flags
-        0x4594, // start_of_item_locations
-        0x667d, // start_of_messages
-        0x75d0, // second message bank
-
-        0x83cb, // start_of_characters
-        0x8a33, // start_of_image_blocks
-        0x3837, // image patterns lookup table
-        0x0012, // number of patterns
-        0x00aa, // patterns end marker
-        0x7b75, // start of room image instructions
-        143,    // number_of_image blocks
-        ZXOPT   // palette
+        TOT_TEXT_ONLY_TABLES,
     },
 
     {
-        "Temple of Terror text only version",
-        TOT_TEXT_ONLY,
-        HEMAN_TYPE, // type
-        TEMPLE_OF_TERROR,
+        .Title = "Temple of Terror combined version",
+        .gameID = TOT_HYBRID,
+        .type = HEMAN_TYPE,
+        .base_game = TEMPLE_OF_TERROR,
 
-        0x4ba2, // dictionary
-        0x50d9, // tokens
-        0x7a2a, // start_of_room_descriptions
-        0x5419, // start_of_item_descriptions
-        0x4809, // automatics
-        0x38a9, // actions
-        0x4661, // start_of_room_connections
-        0x21bf, // start_of_flags
-        0x4599, // start_of_item_locations
-        0x5fd9, // start_of_messages
-        0x73b7, // second message bank
+        TOT_TEXT_ONLY_TABLES,
 
-        0,      // start_of_characters
-        0,      // start_of_image_blocks
-        0,      // image patterns lookup table
-        0,      // number of patterns
-        0,      // patterns end marker
-        0,      // start of room image instructions
-        0,      // number_of_image blocks
-        0       // palette
+        TOT_PICTURES,
     },
 
     {
-        "Temple of Terror combined version",
-        TOT_HYBRID,
-        HEMAN_TYPE, // type
-        TEMPLE_OF_TERROR,
+        .Title = "Temple of Terror C64",
+        .gameID = TEMPLE_OF_TERROR_64,
+        .type = HEMAN_TYPE,
+        .base_game = TEMPLE_OF_TERROR,
 
-        0x4ba2, // dictionary
-        0x50d9, // tokens
-        0x7a2a, // start_of_room_descriptions
-        0x5419, // start_of_item_descriptions
-        0x4809, // automatics
-        0x38a9, // actions
-        0x4661, // start_of_room_connections
-        0x21bf, // start_of_flags
-        0x4599, // start_of_item_locations
-        0x5fd9, // start_of_messages
-        0x73b7, // second message bank
+        .start_of_dictionary = 0x5b08,
+        .start_of_tokens = 0x603f,
+        .token_signature = "\x80 There is",
+        .start_of_room_descriptions = 0x631e,
+        .start_of_item_descriptions = 0x1301,
+        .start_of_status_table = 0x0f68,
+        .start_of_event_table = 0x0008,
+        .start_of_room_connections = 0x0dc0,
+        .start_of_flags = 0x2aa6,
+        .start_of_item_locations = 0x0cf8,
+        .start_of_messages = 0x6bba,
+        .start_of_messages_2 = 0x7b0d,
 
-        0x83cb, // start_of_characters
-        0x8a33, // start_of_image_blocks
-        0x3837, // image patterns lookup table
-        0x0012, // number of patterns
-        0x00aa, // patterns end marker
-        0x7b75, // start of room image instructions
-        143,    // number_of_image blocks
-        ZXOPT   // palette
+        .start_of_tiles = 0x8048,
+        .start_of_image_blocks = 0x86b0,
+        .start_of_image_instructions = 0x4708,
+        .number_of_pictures = 143,
+        .palette = C64TAYLOR,
     },
 
     {
-        "Temple of Terror C64",
-        TEMPLE_OF_TERROR_64,
-        HEMAN_TYPE, // type
-        TEMPLE_OF_TERROR,
+        .Title = "Temple of Terror C64 text only version",
+        .gameID = TOT_TEXT_ONLY_64,
+        .type = HEMAN_TYPE,
+        .base_game = TEMPLE_OF_TERROR,
 
-        0x5b08, // dictionary
-        0x603f, // tokens
-        0x631e, // start_of_room_descriptions
-        0x1301, // start_of_item_descriptions
-        0x0f68, // automatics
-        0x0008, // actions
-        0x0dc0, // start_of_room_connections
-        0x2aa6, // start_of_flags
-        0x0cf8, // start_of_item_locations
-        0x6bba, // start_of_messages
-        0x7b0d, // second message bank
+        TOT_TEXT_ONLY_TABLES_64,
 
-        0x8048, // start_of_characters
-        0x86b0, // start_of_image_blocks
-        0,      // image patterns lookup table
-        0,      // number of patterns
-        0,      // patterns end marker
-        0x4708, // start of room image instructions
-        143,    // number_of_image blocks
-        C64B    // palette
+        .palette = C64TAYLOR,
     },
 
     {
-        "Temple of Terror C64 text only version",
-        TOT_TEXT_ONLY_64,
-        HEMAN_TYPE, // type
-        TEMPLE_OF_TERROR,
+        .Title = "Temple of Terror C64 combined version",
+        .gameID = TOT_HYBRID_64,
+        .type = HEMAN_TYPE,
+        .base_game = TEMPLE_OF_TERROR,
 
-        0x5001, // dictionary
-        0x5538, // tokens
-        0x7e89, // start_of_room_descriptions
-        0x5878, // start_of_item_descriptions
-        0x4c68, // automatics
-        0x3d08, // actions
-        0x4ac0, // start_of_room_connections
-        0x0b95, // start_of_flags
-        0x49f8, // start_of_item_locations
-        0x6438, // start_of_messages
-        0x7816, // second message bank
+        TOT_TEXT_ONLY_TABLES_64,
 
-        0,      // start_of_characters
-        0,      // start_of_image_blocks
-        0,      // image patterns lookup table
-        0,      // number of patterns
-        0,      // patterns end marker
-        0,      // start of room image instructions
-        0,      // number_of_image blocks
-        C64B    // palette
+        /* Where c64decrunch.c splices them: HYBRID_IMAGES_TO, HYBRID_TILES_TO */
+        .start_of_tiles = 0x8888,
+        .start_of_image_blocks = 0x8ef0,
+        .start_of_image_instructions = 0x16ea,
+        .number_of_pictures = 143,
+        .palette = C64TAYLOR,
     },
 
     {
-        "Temple of Terror C64 combined version",
-        TOT_HYBRID_64,
-        HEMAN_TYPE, // type
-        TEMPLE_OF_TERROR,
+        .Title = "Kayleth",
+        .gameID = KAYLETH,
+        .type = HEMAN_TYPE,
+        .base_game = KAYLETH,
 
-        0x5001, // dictionary
-        0x5538, // tokens
-        0x7e89, // start_of_room_descriptions
-        0x5878, // start_of_item_descriptions
-        0x4c68, // automatics
-        0x3d08, // actions
-        0x4ac0, // start_of_room_connections
-        0x0b95, // start_of_flags
-        0x49f8, // start_of_item_locations
-        0x6438, // start_of_messages
-        0x7816, // second message bank
+        .start_of_dictionary = 0x5323,
+        .start_of_tokens = 0x7fee,
+        .start_of_room_descriptions = 0x6eb3,
+        .start_of_item_descriptions = 0x7870,
+        .start_of_status_table = 0x4f4d,
+        .start_of_event_table = 0x3a48,
+        .start_of_room_connections = 0x4de0,
+        .start_of_flags = 0x20f3,
+        .start_of_item_locations = 0x4d5f,
+        .start_of_messages = 0x5a99,
+        .start_of_messages_2 = 0x769d,
 
-        0x8888, // start_of_characters
-        0x8ef0, // start_of_image_blocks
-        0,      // image patterns lookup table
-        0,      // number of patterns
-        0,      // patterns end marker
-        0x16ea, // start of room image instructions
-        143,    // number_of_image blocks
-        C64B    // palette
+        .start_of_tiles = 0x95f0,
+        .start_of_image_blocks = 0x9ce0,
+        .image_patterns_lookup = 0x38b6,
+        .number_of_patterns = 0x001f,
+        .pattern_end_marker = 0x008e,
+        .start_of_image_instructions = 0x8279,
+        .number_of_pictures = 210,
+        .palette = ZXOPT,
     },
 
     {
-        "Kayleth",
-        KAYLETH,
-        HEMAN_TYPE, // type
-        KAYLETH,
+        .Title = "Kayleth C64",
+        .gameID = KAYLETH_64,
+        .type = HEMAN_TYPE,
+        .base_game = KAYLETH,
 
-        0x5323, // dictionary
-        0x7fee, // tokens
-        0x6eb3, // start_of_room_descriptions
-        0x7870, // start_of_item_descriptions
-        0x4f4d, // automatics
-        0x3a48, // actions
-        0x4de0, // start_of_room_connections
-        0x20f3, // start_of_flags
-        0x4d5f, // start_of_item_locations
-        0x5a99, // start_of_messages
-        0x769d, // second message bank
+        .start_of_dictionary = 0x175f,
+        .start_of_tokens = 0xbace,
+        .token_signature = "\x80You are i",
+        .start_of_room_descriptions = 0xa993,
+        .start_of_item_descriptions = 0xb350,
+        .start_of_status_table = 0x1389,
+        .start_of_event_table = 0x8074,
+        .start_of_room_connections = 0x940c,
+        .start_of_flags = 0x2a81,
+        .start_of_item_locations = 0x938b,
+        .start_of_messages = 0x9579,
+        .start_of_messages_2 = 0xb17d,
 
-        0x95f0, // start_of_characters
-        0x9ce0, // start_of_image_blocks
-        0x38B6, // image patterns lookup table
-        0x001f, // number of patterns
-        0x008e, // patterns end marker
-        0x8279, // start of room image instructions
-        210,    // number_of_image blocks
-        ZXOPT   // palette
+        .start_of_tiles = 0xc028,
+        .start_of_image_blocks = 0x5b28,
+        .start_of_image_instructions = 0x0012,
+        .number_of_pictures = 210,
+        .palette = C64TAYLOR,
     },
 
     {
-        "Kayleth C64",
-        KAYLETH_64,
-        HEMAN_TYPE, // type
-        KAYLETH,
-
-        0x175f, // dictionary
-        0xbace, // tokens
-        0xa993, // start_of_room_descriptions
-        0xb350, // start_of_item_descriptions
-        0x1389, // automatics
-        0x8074, // actions
-        0x940c, // start_of_room_connections
-        0x2a81, // start_of_flags
-        0x938b, // start_of_item_locations
-        0x9579, // start_of_messages
-        0xb17d, // second message bank
-
-        0xc028, // start_of_characters
-        0x5b28, // start_of_image_blocks
-        0,      // image patterns lookup table
-        0,      // number of patterns
-        0,      // patterns end marker
-        0x0012, // start of room image instructions
-        210,    // number_of_image blocks
-        C64B    // palette
-    },
-// clang-format on
-
-    { "Unknown game",
-        UNKNOWN_GAME,
-        NO_TYPE,
-        UNKNOWN_GAME,
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0 }
+        .Title = "Unknown game",
+        .gameID = UNKNOWN_GAME,
+        .type = NO_TYPE,
+        .base_game = UNKNOWN_GAME,
+    }
 };

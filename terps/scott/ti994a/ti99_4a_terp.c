@@ -1,472 +1,439 @@
-#include <string.h>
+/* ti99_4a_terp.c — bytecode interpreter for TI-99/4A Scott Adams games.
+ *
+ * TI-99/4A adventures use a different bytecode encoding than the
+ * standard Scott Adams format.  Opcodes 183–201 are condition checks
+ * (each takes one parameter byte: an item, room, flag, or counter
+ * index).  Opcodes 212–254 are commands (actions).  Opcode 255 marks
+ * success (end of block).  Opcodes 0–182 print the corresponding
+ * message.
+ *
+ * The "try" mechanism (opcode 218) implements if/else branching:
+ * it pushes a fallback offset onto a stack; if any subsequent
+ * condition fails, execution resumes at that offset instead of
+ * aborting the entire action.
+ *
+ * See https://andwj.gitlab.io/ti99_specs for details.
+ */
+
 
 #include "glk.h"
 #include "scott.h"
+#include "scott_meta.h"
+#include "scott_actions.h"
+#include "scott_display.h"
 
 #include "load_ti99_4a.h"
 #include "ti99_4a_terp.h"
 
-static ActionResultType PerformTI99Line(const uint8_t *action_line)
+/* Maps the TI-99/4A condition opcodes (TI99CND_CARRIED to
+   TI99CND_MOVED, in order) to the equivalent COND_XXX codes, so that
+   both interpreters share ConditionHolds(). */
+static const int ti99_conditions[] = {
+    COND_CARRIED,
+    COND_IN_ROOM,
+    COND_PRESENT,
+    COND_NOT_IN_ROOM,
+    COND_NOT_CARRIED,
+    COND_NOT_PRESENT,
+    COND_IN_PLAY,
+    COND_NOT_IN_PLAY,
+    COND_AT_LOC,
+    COND_NOT_AT_LOC,
+    COND_FLAG_SET,
+    COND_FLAG_CLEAR,
+    COND_CARRYING_ANY,
+    COND_CARRYING_NONE,
+    COND_COUNTER_LE,
+    COND_COUNTER_GT,
+    COND_COUNTER_EQ,
+    COND_NOT_MOVED,
+    COND_MOVED,
+};
+
+/* Bytecode bytes 1-182 are "print message N" (modulo the range split
+   handled by EXTENDED_MSG_*); 183+ are conditions or commands. */
+#define MAX_MESSAGE_OPCODE  182
+
+/* Maximum nesting depth for TRY blocks before we give up. */
+#define MAX_TRY_DEPTH        32
+
+static int NextByte(const uint8_t **ip)
+{
+    return *(*ip)++;
+}
+
+/* The opcodes that only change the game state or print something: all
+   but the conditions and the ones that end the line or open a try block,
+   which PerformTI99Line() handles itself. *ip is the next bytecode byte,
+   and is moved past the parameters the opcode takes. */
+static void ExecuteTI99Opcode(int opcode, const uint8_t **ip)
+{
+    int second_param;
+
+    switch (opcode) {
+    case TI99OP_CLEAR_SCREEN:
+        /* No known TI-99/4A game actually uses this opcode. */
+        glk_window_clear(Bottom);
+        break;
+
+    case TI99OP_DRAW:
+        /* Does nothing in the Adventure cartridge, and takes no
+           parameter there: its entry in the opcode table jumps
+           straight back to the fetch loop.  No known TI-99/4A game
+           uses it. */
+        break;
+
+    case TI99OP_AUTO_INV_ON:
+        AutoInventory = 1;
+        break;
+
+    case TI99OP_AUTO_INV_OFF:
+        AutoInventory = 0;
+        break;
+
+    case TI99OP_SUCCESS_OFF:
+        /* Unimplemented. Not to be confused with TI99OP_SUCCESS or
+           ACT_SUCCESS. Indicates that the game ended unsuccessfully
+           (e.g. because the player died).
+           The GAME_OVER opcode on the original TI99/4A interpreter
+           will change the color of the screen to indicate whether the
+           game was successful or not. These two TI99OP_SUCCESS_XXX
+           opcodes are often found just before a game_over to indicate
+           either success or failure (i.e. which color to use). This is
+           not implemented here. */
+        /* FALLTHROUGH */
+    case TI99OP_SUCCESS_ON:
+        /* Unimplemented. Not to be confused with TI99OP_SUCCESS or
+           ACT_SUCCESS. Indicates that the game ended successfully,
+           i.e. the player has won. See above for more details. */
+        break;
+
+    case TI99OP_DROP_ITEM:
+        ACT_DEBUG("item %d (\"%s\") is now in location.\n", **ip,
+            Items[**ip].Text);
+        SetItemLocation(NextByte(ip), MyLoc);
+        should_look_in_transcript = 1;
+        break;
+
+    case TI99OP_GOTO_ROOM:
+        GoTo(NextByte(ip));
+        break;
+
+    case TI99OP_DESTROY_ITEM:
+        ACT_DEBUG("Item %d (%s) is removed from the game (put in room 0).\n",
+            **ip, Items[**ip].Text);
+        SetItemLocation(NextByte(ip), 0);
+        break;
+
+    case TI99OP_SET_DARK:
+        SetDark();
+        break;
+
+    case TI99OP_SET_LIGHT:
+        SetLight();
+        break;
+
+    case TI99OP_SET_FLAG:
+        SetBitFlag(NextByte(ip));
+        break;
+
+    case TI99OP_CLEAR_FLAG:
+        ClearBitFlag(NextByte(ip));
+        break;
+
+    case TI99OP_SET_FLAG_0:
+        SetBitFlag(0);
+        break;
+
+    case TI99OP_CLEAR_FLAG_0:
+        ClearBitFlag(0);
+        break;
+
+    case TI99OP_DIE:
+        /* The DIE opcode in the TI99/4A interpreter changes the
+           screen color to red. This is not implemented.
+           Dying does not end the game: the player is moved to the
+           last room (limbo) with the light on, and the action
+           carries on.  Games that want to stop follow this with
+           TI99OP_GAME_OVER; the others let the player try to get
+           out of limbo. */
+        PlayerIsDead();
+        break;
+
+    case TI99OP_MOVE_ITEM:
+        second_param = NextByte(ip);
+        PutItemAInRoomB(NextByte(ip), second_param);
+        break;
+
+    case TI99OP_LIST_INVENTORY:
+        ListInventory(0);
+        StopTime = SKIP_IMPLICIT_TURNS;
+        break;
+
+    case TI99OP_REFILL_LIGHT:
+        RefillLight();
+        break;
+
+    case TI99OP_SAVE:
+        SaveGame();
+        StopTime = SKIP_IMPLICIT_TURNS;
+        break;
+
+    case TI99OP_SWAP_ITEMS:
+        second_param = NextByte(ip);
+        SwapItemLocations(second_param, NextByte(ip));
+        break;
+
+    case TI99OP_FORCE_CARRY:
+        ACT_DEBUG("Player now carries item %d (%s).\n", **ip,
+            Items[**ip].Text);
+        SetItemLocation(NextByte(ip), CARRIED);
+        should_look_in_transcript = 1;
+        break;
+
+    case TI99OP_MOVE_TO_LOC_OF:
+        second_param = NextByte(ip);
+        MoveItemAToLocOfItemB(second_param, NextByte(ip));
+        break;
+
+    case TI99OP_CLEAR:
+        /* Not to be confused with TI99OP_CLEAR_SCREEN. Unimplemented,
+           probably should do nothing.
+           We call opcode 239 TI99OP_CLEAR here, since its usage in
+           adv01.fiad (Adventureland), adv02.fiad (Pirate Adventure),
+           and adv05.fiad (The Count) correspond exactly to the original
+           versions of those games. But the converse is not true: the
+           original versions use clear in additional places which do
+           not correspond to anything in the TI99/4A versions.
+           The ScottCom and Bunyon interpreters both consider this a
+           no-operation. */
+        break;
+
+    case TI99OP_LOOK:
+        /* FALLTHROUGH */
+
+    case TI99OP_LOOK_2:
+        /* The LOOK_2 opcode (241) only appears once in all the Scott
+           Adams games, in adv08.fiad (Pyramid of Doom). It occurs in
+           exactly the same place as a look2 opcode in the original
+           version of the game. It is probably equivalent to the look
+           opcode above. */
+        Look();
+        should_look_in_transcript = 1;
+        break;
+
+    case TI99OP_INC_COUNTER:
+        CurrentCounter++;
+        break;
+
+    case TI99OP_DEC_COUNTER:
+        /* The Adventure cartridge keeps the counter as a signed
+           16-bit number and lets it go below zero, here and in
+           TI99OP_SUB_COUNTER, unlike the other releases, which
+           stop at -1. */
+        CurrentCounter--;
+        break;
+
+    case TI99OP_PRINT_COUNTER:
+        PrintCounter();
+        break;
+
+    case TI99OP_SET_COUNTER:
+        ACT_DEBUG("CurrentCounter is set to %d.\n", **ip);
+        CurrentCounter = NextByte(ip);
+        break;
+
+    case TI99OP_ADD_COUNTER:
+        ACT_DEBUG("%d is added to currentCounter. Result: %d\n", **ip,
+            CurrentCounter + **ip);
+        CurrentCounter += NextByte(ip);
+        break;
+
+    case TI99OP_SUB_COUNTER:
+        CurrentCounter -= NextByte(ip);
+        break;
+
+    case TI99OP_GOTO_STORED:
+        GoToStoredLoc();
+        break;
+
+    case TI99OP_SWAP_ROOM:
+        SwapLocAndRoomflag(NextByte(ip));
+        break;
+
+    case TI99OP_SWAP_COUNTER:
+        SwapCounters(NextByte(ip));
+        break;
+
+    case TI99OP_PRINT_NOUN:
+        PrintNoun();
+        break;
+
+    case TI99OP_PRINTLN_NOUN:
+        PrintNoun();
+        Output("\n");
+        break;
+
+    case TI99OP_NEWLINE:
+        Output("\n");
+        break;
+
+    case TI99OP_DELAY:
+        Delay(1);
+        break;
+
+    default:
+        if (opcode <= MAX_MESSAGE_OPCODE && opcode <= GameHeader.NumMessages + 1) {
+            PrintMessage(opcode);
+        } else {
+            debug_print("Unknown action %d [Param begins %d %d]\n", opcode, (*ip)[0], (*ip)[1]);
+        }
+        break;
+    }
+}
+
+/* Execute a single action line (a sequence of condition checks
+   followed by commands).  Returns ACT_SUCCESS if the line ran to
+   completion (opcode 255), ACT_FAILURE if a condition failed with
+   no remaining try-block fallback, or ACT_GAMEOVER on death/quit.
+
+   action_end is the end of the entire action buffer (implicit or
+   explicit), NOT the end of this particular block.  The block length
+   byte only governs chain traversal; try-block fallback offsets
+   (opcode 218) can legitimately point past the nominal block
+   boundary, so the interpreter must be free to read across blocks
+   within the buffer. */
+static ActionResultType PerformTI99Line(const uint8_t *action_line,
+    const uint8_t *action_end)
 {
     if (action_line == NULL)
         return ACT_FAILURE;
 
-    const uint8_t *ptr = action_line;
-    int run_code = 0;
-    int index = 0;
+    const uint8_t *ip = action_line;
+    int done = 0;
+    int fallback_offset = 0;
     ActionResultType result = ACT_FAILURE;
-    int opcode, param;
+    int opcode, cond_param;
 
-    int try_index;
-    int try[32];
+    /* try-block fallback stack: each "try" opcode pushes an offset
+       to resume at if the subsequent conditions fail. */
+    int try_depth;
+    int try_stack[MAX_TRY_DEPTH];
 
-    try_index = 0;
+    try_depth = 0;
 
-    while (run_code == 0) {
-        opcode = *(ptr++);
+    while (done == 0) {
+        /* Running off the end of a try block ends that block: drop
+           its fallback so a later failing condition cannot jump back
+           to it.  Nested blocks end no later than their parents, so
+           the innermost one is always on top. */
+        while (try_depth > 0 && ip - action_line >= try_stack[try_depth - 1])
+            try_depth--;
+
+        if (ip >= action_end)
+            return ACT_FAILURE;
+        opcode = *(ip++);
 
         switch (opcode) {
-        case 183: /* is p in inventory? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Does the player carry %s?\n", Items[*ptr].Text);
-#endif
-            if (Items[*(ptr++)].Location != CARRIED) {
-                run_code = 1;
+        case TI99CND_CARRIED:
+        case TI99CND_IN_ROOM:
+        case TI99CND_PRESENT:
+        case TI99CND_NOT_IN_ROOM:
+        case TI99CND_NOT_CARRIED:
+        case TI99CND_NOT_PRESENT:
+        case TI99CND_IN_PLAY:
+        case TI99CND_NOT_IN_PLAY:
+        case TI99CND_AT_LOC:
+        case TI99CND_NOT_AT_LOC:
+        case TI99CND_FLAG_SET:
+        case TI99CND_FLAG_CLEAR:
+        case TI99CND_CARRYING_ANY:
+        case TI99CND_CARRYING_NONE:
+        case TI99CND_COUNTER_LE:
+        case TI99CND_COUNTER_GT:
+        case TI99CND_COUNTER_EQ:
+        case TI99CND_NOT_MOVED:
+        case TI99CND_MOVED:
+            /* The carrying any/none tests have no parameter byte. */
+            if (opcode == TI99CND_CARRYING_ANY || opcode == TI99CND_CARRYING_NONE)
+                cond_param = 0;
+            else
+                cond_param = *(ip++);
+            if (!ConditionHolds(ti99_conditions[opcode - TI99CND_CARRIED], cond_param)) {
+                done = 1;
                 result = ACT_FAILURE;
             }
             break;
 
-        case 184: /* is p in room? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Is %s in location?\n", Items[*ptr].Text);
-#endif
-            if (Items[*(ptr++)].Location != MyLoc) {
-                run_code = 1;
-                result = ACT_FAILURE;
+        case TI99OP_TRY:
+            if (try_depth >= MAX_TRY_DEPTH) {
+                Fatal("ERROR Hit upper limit on try method.");
             }
-
+            try_stack[try_depth++] = ip - action_line + *ip;
+            ip++;
             break;
 
-        case 185: /* is p available? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Is %s held or in location?\n", Items[*ptr].Text);
-#endif
-            if (Items[*ptr].Location != CARRIED && Items[*ptr].Location != MyLoc) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            ptr++;
-            break;
-
-        case 186: /* is p here? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Is %s NOT in location?\n", Items[*ptr].Text);
-#endif
-            if (Items[*(ptr++)].Location == MyLoc) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            break;
-
-        case 187: /* is p NOT in inventory? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Does the player NOT carry %s?\n", Items[*ptr].Text);
-#endif
-            if (Items[*(ptr++)].Location == CARRIED) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            break;
-
-        case 188: /* is p NOT available? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Is %s neither carried nor in room?\n", Items[*ptr].Text);
-#endif
-
-            if (Items[*ptr].Location == CARRIED || Items[*ptr].Location == MyLoc) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            ptr++;
-            break;
-
-        case 189: /* is p in play? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Is %s (%d) in play?\n", Items[*ptr].Text, dv);
-#endif
-            if (Items[*(ptr++)].Location == 0) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            break;
-
-        case 190: /* Is object p NOT in play? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Is %s NOT in play?\n", Items[*ptr].Text);
-#endif
-            if (Items[*(ptr++)].Location != 0) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            break;
-
-        case 191: /* Is player is in room p? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Is location %s?\n", Rooms[*ptr].Text);
-#endif
-            if (MyLoc != *(ptr++)) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            break;
-
-        case 192: /* Is player NOT in room p? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Is location NOT %s?\n", Rooms[*ptr].Text);
-#endif
-            if (MyLoc == *(ptr++)) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            break;
-
-        case 193: /* Is bitflag p clear? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Is bitflag %d set?\n", *ptr);
-#endif
-            if ((BitFlags & (1 << *(ptr++))) == 0) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            break;
-
-        case 194: /* Is bitflag p set? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Is bitflag %d NOT set?\n", *ptr);
-#endif
-            if (BitFlags & (1 << *(ptr++))) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            break;
-
-        case 195: /* Does the player carry anything? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Does the player carry anything?\n");
-#endif
-            if (CountCarried() == 0) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            break;
-
-        case 196: /* Does the player carry nothing? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Does the player carry nothing?\n");
-#endif
-            if (CountCarried()) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            break;
-
-        case 197: /* Is CurrentCounter <= p? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Is CurrentCounter <= %d?\n", *ptr);
-#endif
-            if (CurrentCounter > *(ptr++)) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            break;
-
-        case 198: /* Is CurrentCounter > p? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Is CurrentCounter > %d?\n", *ptr);
-#endif
-            if (CurrentCounter <= *(ptr++)) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            break;
-
-        case 199: /* Is CurrentCounter == p? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Is current counter == %d?\n", *ptr);
-#endif
-            if (CurrentCounter != *(ptr++)) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            break;
-
-        case 200: /* Is item p still in initial room? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Is %s still in initial room?\n", Items[*ptr].Text);
-#endif
-            if (Items[*ptr].Location != Items[*ptr].InitialLoc) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            ptr++;
-            break;
-
-        case 201: /* Has item p been moved? */
-#ifdef DEBUG_ACTIONS
-            debug_print("Has %s been moved?\n", Items[*ptr].Text);
-#endif
-            if (Items[*ptr].Location == Items[*ptr].InitialLoc) {
-                run_code = 1;
-                result = ACT_FAILURE;
-            }
-            ptr++;
-            break;
-
-        case 212: /* clear screen */
-            glk_window_clear(Bottom);
-            break;
-
-        case 214: /* inv */
-            AutoInventory = 1;
-            break;
-
-        case 215: /* !inv */
-            AutoInventory = 0;
-            break;
-
-        case 216:
-        case 217:
-            break;
-
-        case 218:
-            if (try_index >= 32) {
-                Fatal("ERROR Hit upper limit on try method.\n");
-            }
-            try[try_index++] = ptr - action_line + *ptr;
-            ptr++;
-            break;
-
-        case 219: /* get item */
+        case TI99OP_GET_ITEM:
             if (CountCarried() >= GameHeader.MaxCarry) {
+                /* A full inventory behaves like TI99OP_SUCCESS: the
+                   whole action ends here, try blocks included. */
                 Output(sys[YOURE_CARRYING_TOO_MUCH]);
-                run_code = 1;
-                result = ACT_FAILURE;
+                done = 1;
+                result = ACT_SUCCESS;
+                try_depth = 0;
                 break;
             } else {
-                Items[*ptr].Location = CARRIED;
+                SetItemLocation(*ip, CARRIED);
             }
-            ptr++;
+            ip++;
             break;
 
-        case 220: /* drop item */
-#ifdef DEBUG_ACTIONS
-            debug_print("item %d (\"%s\") is now in location.\n", *ptr,
-                Items[*ptr].Text);
-#endif
-            Items[*(ptr++)].Location = MyLoc;
-            should_look_in_transcript = 1;
-            break;
-
-        case 221: /* go to room */
-            GoTo(*(ptr++));
-            break;
-
-        case 222: /* move item p to room 0 */
-#ifdef DEBUG_ACTIONS
-            debug_print(
-                "Item %d (%s) is removed from the game (put in room 0).\n",
-                *ptr, Items[*ptr].Text);
-#endif
-            Items[*(ptr++)].Location = 0;
-            break;
-
-        case 223: /* darkness */
-            SetDark();
-            break;
-
-        case 224: /* light */
-            SetLight();
-            break;
-
-        case 225: /* set flag p */
-            SetBitFlag(*(ptr++));
-            break;
-
-        case 226: /* clear flag p */
-            ClearBitFlag(*(ptr++));
-            break;
-        case 227: /* set flag 0 */
-            SetBitFlag(0);
-            break;
-
-        case 228: /* clear flag 0 */
-            ClearBitFlag(0);
-            break;
-
-        case 229: /* die */
-#ifdef DEBUG_ACTIONS
-            debug_print("Player is dead\n");
-#endif
-            PlayerIsDead();
-            DoneIt();
-            result = ACT_GAMEOVER;
-            break;
-
-        case 230: /* move item p2 to room p */
-            param = *(ptr++);
-            PutItemAInRoomB(*(ptr++), param);
-            break;
-
-        case 231: /* quit */
-            DoneIt();
+        case TI99OP_GAME_OVER:
+            /* In the original interpreter, the GAME_OVER opcode
+               changes the screen color to indicate success or failure
+               of the whole game: see the TI99OP_SUCCESS_OFF and
+               TI99OP_SUCCESS_ON opcodes above. This is not
+               implemented. */
+            GameOver();
             return ACT_GAMEOVER;
 
-        case 232: /* print score */
+        case TI99OP_PRINT_SCORE:
             if (PrintScore() == 1)
                 return ACT_GAMEOVER;
-            StopTime = 2;
+            StopTime = SKIP_IMPLICIT_TURNS;
             break;
 
-        case 233: /* list contents of inventory */
-            ListInventory(0);
-            StopTime = 2;
-            break;
-
-        case 234: /* refill lightsource */
-            GameHeader.LightTime = LightRefill;
-            Items[LIGHT_SOURCE].Location = CARRIED;
-            ClearBitFlag(LIGHTOUTBIT);
-            break;
-
-        case 235: /* save */
-            SaveGame();
-            StopTime = 2;
-            break;
-
-        case 236: /* swap items p and p2 around */
-            param = *(ptr++);
-            SwapItemLocations(param, *(ptr++));
-            break;
-
-        case 237: /* move item p to the inventory */
-#ifdef DEBUG_ACTIONS
-            fprintf(stderr,
-                "Player now carries item %d (%s).\n",
-                *ptr, Items[*ptr].Text);
-#endif
-            Items[*(ptr++)].Location = CARRIED;
-            break;
-
-        case 238: /* make item p same room as item p2 */
-            param = *(ptr++);
-            MoveItemAToLocOfItemB(param, *(ptr++));
-            break;
-
-        case 239: /* nop */
-            break;
-
-        case 240: /* look at room */
-            Look();
-            should_look_in_transcript = 1;
-            break;
-
-        case 241: /* unknown */
-            break;
-
-        case 242: /* add 1 to current counter */
-            CurrentCounter++;
-            break;
-
-        case 243: /* sub 1 from current counter */
-            if (CurrentCounter >= 1)
-                CurrentCounter--;
-            break;
-
-        case 244: /* print current counter */
-            OutputNumber(CurrentCounter);
-            Output(" ");
-            break;
-
-        case 245: /* set current counter to p */
-#ifdef DEBUG_ACTIONS
-            debug_print("CurrentCounter is set to %d.\n", dv);
-#endif
-            CurrentCounter = *(ptr++);
-            break;
-
-        case 246: /*  add to current counter */
-#ifdef DEBUG_ACTIONS
-            fprintf(stderr,
-                "%d is added to currentCounter. Result: %d\n",
-                *ptr, CurrentCounter + *ptr);
-#endif
-            CurrentCounter += *(ptr++);
-            break;
-
-        case 247: /* sub from current counter */
-            CurrentCounter -= *(ptr++);
-            if (CurrentCounter < -1)
-                CurrentCounter = -1;
-            break;
-
-        case 248: /* go to stored location */
-            GoToStoredLoc();
-            break;
-
-        case 249: /* swap room and counter */
-            SwapLocAndRoomflag(*(ptr++));
-            break;
-
-        case 250: /* swap current counter */
-            SwapCounters(*(ptr++));
-            break;
-
-        case 251: /* print noun */
-            PrintNoun();
-            break;
-
-        case 252: /* print noun + newline */
-            PrintNoun();
-            Output("\n");
-            break;
-
-        case 253: /* print newline */
-            Output("\n");
-            break;
-
-        case 254: /* delay */
-            Delay(1);
-            break;
-
-        case 255: /* end of code block. */
-            result = 0;
-            run_code = 1;
-            try_index = 0; /* drop out of all try blocks! */
+        case TI99OP_SUCCESS:
+            /* Stops executing the current action, and produces a
+               SUCCESS result. This can be used inside a try block:
+               the block (and any parent blocks) are immediately
+               terminated, similar to a return statement. Outside of a
+               try block it also marks the physical end (within the
+               file) of the action: the next action will begin
+               directly after the 0xFF byte. */
+            result = ACT_SUCCESS;
+            done = 1;
+            try_depth = 0;
             break;
 
         default:
-            if (opcode <= 182 && opcode <= GameHeader.NumMessages + 1) {
-                PrintMessage(opcode);
-            } else {
-                debug_print("Unknown action %d [Param begins %d %d]\n", opcode, action_line[ptr - action_line], action_line[ptr - action_line + 1]);
-                break;
-            }
+            ExecuteTI99Opcode(opcode, &ip);
             break;
         }
 
-        /* we are on the 0xff opcode, or have fallen through */
-        if (run_code == 1 && try_index > 0) {
-            if (opcode == 0xff) {
-                run_code = 1;
+        /* A condition failed (done == 1) but there is a try-block
+           fallback on the stack: pop it and resume execution at the
+           alternate code path.  On TI99OP_SUCCESS the line completed,
+           so don't retry. */
+        if (done == 1 && try_depth > 0) {
+            if (opcode == TI99OP_SUCCESS) {
+                done = 1;
             } else {
-                /* dropped out of TRY block */
-                /* or at end of TRY block */
-                index = try[try_index - 1];
-
-                try_index -= 1;
-                try[try_index] = 0;
-                run_code = 0;
-                ptr = action_line + index;
+                fallback_offset = try_stack[try_depth - 1];
+                try_depth -= 1;
+                try_stack[try_depth] = 0;
+                done = 0;
+                ip = action_line + fallback_offset;
             }
         }
     }
@@ -474,76 +441,74 @@ static ActionResultType PerformTI99Line(const uint8_t *action_line)
     return result;
 }
 
+/* Run all implicit (auto-run) actions once per turn.  Each action
+   block is: byte 0 = probability (1–100), byte 1 = block length,
+   bytes 2.. = bytecode.  A zero length marks the last block, which
+   is still a real action; a zero probability terminates the list. */
 void RunImplicitTI99Actions(void)
 {
-    int probability;
-    uint8_t *ptr;
-    int loop_flag;
+    uint8_t *block = ti99_implicit_actions;
 
-    ptr = ti99_implicit_actions;
-    loop_flag = 0;
+    if (block == NULL)
+        return;
 
-    /* bail if no auto acts in the game. */
-    if (*ptr == 0x0)
-        loop_flag = 1;
+    while (block + 1 < ti99_implicit_actions + ti99_implicit_extent) {
+        if (block[0] == 0)
+            break;
 
-    while (loop_flag == 0) {
-        /*
-         p + 0 = chance of happening
-         p + 1 = size of code chunk
-         p + 2 = start of code
-         */
+        /* Pass the end of the entire implicit buffer, not the end
+           of this block — try-block fallbacks may cross block
+           boundaries. */
+        if (RandomPercent(block[0]))
+            PerformTI99Line(block + 2,
+                ti99_implicit_actions + ti99_implicit_extent);
 
-        probability = ptr[0];
-
-        if (RandomPercent(probability))
-            PerformTI99Line(ptr + 2);
-
-        if (ptr[1] == 0 || ptr - ti99_implicit_actions >= ti99_implicit_extent)
-            loop_flag = 1;
-
-        /* skip code chunk */
-        ptr += 1 + ptr[1];
+        if (block[1] == 0)
+            break;
+        block += 1 + block[1];
     }
 }
 
-/* parses verb noun actions */
+/* Try to execute an explicit (player-triggered) action for the given
+   verb/noun pair.  Walks the chain of action blocks for verb_num:
+   each block starts with a noun byte (0 = any noun), then a length
+   byte, then bytecode.  Returns ER_SUCCESS on the first block that
+   runs to completion, ER_RAN_ALL_LINES if at least one block matched
+   but none succeeded, or ER_RAN_ALL_LINES_NO_MATCH if the verb has
+   no blocks matching this noun. */
 ExplicitResultType RunExplicitTI99Actions(int verb_num, int noun_num)
 {
-    uint8_t *p;
-    ExplicitResultType flag = ER_NO_RESULT;
-    int match = 0;
-    ActionResultType runcode;
+    uint8_t *block = VerbActionOffsets[verb_num];
+    ExplicitResultType status = ER_NO_RESULT;
+    int noun_matched = 0;
 
-    p = VerbActionOffsets[verb_num];
+    while (status == ER_NO_RESULT) {
+        if (block != NULL && (block[0] == noun_num || block[0] == 0)) {
+            noun_matched = 1;
+            /* Pass the end of the entire explicit buffer — see
+               PerformTI99Line's comment on why per-block bounds
+               are too restrictive. */
+            ActionResultType action_result = PerformTI99Line(block + 2,
+                ti99_explicit_actions + ti99_explicit_extent);
 
-    /* process all code blocks for this verb
-     until success or end. */
-
-    while (flag == ER_NO_RESULT) {
-        /* we match VERB NOUN or VERB ANY */
-        if (p != NULL && (p[0] == noun_num || p[0] == 0)) {
-            match = 1;
-            runcode = PerformTI99Line(p + 2);
-
-            if (runcode == ACT_SUCCESS) {
+            if (action_result == ACT_SUCCESS) {
                 return ER_SUCCESS;
-            } else { /* failure */
-                if (p[1] == 0)
-                    flag = ER_RAN_ALL_LINES;
+            } else {
+                if (block[1] == 0)
+                    status = ER_RAN_ALL_LINES;
                 else
-                    p += 1 + p[1];
+                    block += 1 + block[1];
             }
         } else {
-            if (p == NULL || p[1] == 0)
-                flag = ER_RAN_ALL_LINES_NO_MATCH;
+            if (block == NULL || block[1] == 0)
+                status = ER_RAN_ALL_LINES_NO_MATCH;
             else
-                p += 1 + p[1];
+                block += 1 + block[1];
         }
     }
 
-    if (match)
-        flag = ER_RAN_ALL_LINES;
+    if (noun_matched)
+        status = ER_RAN_ALL_LINES;
 
-    return flag;
+    return status;
 }

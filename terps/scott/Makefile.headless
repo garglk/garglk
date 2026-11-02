@@ -1,0 +1,176 @@
+# Headless build of the ScottFree interpreter, for automated/regression testing.
+#
+# Instead of linking against Spatterlight's glkimp (which speaks a binary
+# protocol to the Cocoa front-end and aborts with "protocol error" when run
+# from a plain shell), this links the interpreter against the vendored copy of
+# Andrew Plotkin's CheapGlk -- a stdio Glk library. The result, `scott_hl`,
+# reads commands from stdin and writes the transcript to stdout.
+#
+# Graphics degrade gracefully: CheapGlk refuses the wintype_Graphics window, so
+# Graphics stays NULL and the drawing code becomes a no-op. Text, parser and
+# action-table behaviour are unaffected, which is what the regression tests
+# exercise.
+#
+# Usage:
+#   make -f Makefile.headless
+#   printf 'north\nquit\n' | ./scott_hl "/path/to/Seas of Blood.z80"
+
+CHEAPGLK_DIR := ../cheapglk
+COMMON_DIR   := ../common_utils
+SAGADRAW_DIR := ../common_sagadraw
+AIUKGFX_DIR  := ../aiukgraphics
+Z80_DIR      := ../decompressz80
+READWOZ_DIR  := ../readwoz
+C64DISK_DIR  := ../c64diskimage
+UNP64_DIR    := ../unp64
+TAYLOR_DIR   := ../taylor
+ZXSCREEN_DIR := ../common_zxscreen
+OBJDIR       := headless_obj
+
+# make predefines CC and CXX, so "?=" would never take effect.
+ifeq ($(origin CC),default)
+CC := clang
+endif
+ifeq ($(origin CXX),default)
+CXX := clang++
+endif
+
+# -I$(CHEAPGLK_DIR) comes first so glk.h / glkstart.h resolve to CheapGlk's
+# headers rather than glkimp's.
+COMMON_INC := -I. -Itest -Iai_uk -Isaga -Iti994a -I$(CHEAPGLK_DIR) -I$(COMMON_DIR) \
+              -I$(SAGADRAW_DIR) -I$(AIUKGFX_DIR) -I$(Z80_DIR) -I$(READWOZ_DIR) \
+              -I$(C64DISK_DIR) -I$(UNP64_DIR) -I$(TAYLOR_DIR) -I$(ZXSCREEN_DIR)
+DEPFLAGS   := -MMD -MP
+CFLAGS     := -O0 -g -Wall \
+              $(COMMON_INC) $(DEPFLAGS) -DSPATTERLIGHT -DSCOTT_HEADLESS \
+              -DAUTOWIN
+# AUTOWIN: Seas of Blood's battles are won without a roll of the dice. The dice
+# are thrown by timer and key events, which CheapGlk does not have, and the
+# command scripts for the game (test/scripts) were written with it.
+
+SRCS := $(wildcard *.c) $(wildcard ai_uk/*.c) $(wildcard saga/*.c) \
+        $(wildcard ti994a/*.c) \
+        $(wildcard $(COMMON_DIR)/*.c) $(wildcard $(SAGADRAW_DIR)/*.c) \
+        $(AIUKGFX_DIR)/irmak.c $(AIUKGFX_DIR)/aiukpalette.c \
+        $(AIUKGFX_DIR)/taylordraw.c $(wildcard $(Z80_DIR)/*.c) \
+        $(READWOZ_DIR)/woz2nib.c $(READWOZ_DIR)/ciderpress.c \
+        $(C64DISK_DIR)/c64diskimage.c $(ZXSCREEN_DIR)/zx_title.c \
+        test/headless_stubs.c test/old_random.c
+
+OBJS := $(patsubst %.c,$(OBJDIR)/%.o,$(notdir $(SRCS)))
+VPATH := .:ai_uk:saga:ti994a:test:$(COMMON_DIR):$(SAGADRAW_DIR):$(AIUKGFX_DIR):$(Z80_DIR):$(READWOZ_DIR):$(C64DISK_DIR):$(ZXSCREEN_DIR)
+
+CXX_SRCS := $(wildcard $(UNP64_DIR)/*.cpp) $(wildcard $(UNP64_DIR)/scanners/*.cpp)
+CXX_OBJS := $(patsubst %.cpp,$(OBJDIR)/%.o,$(notdir $(CXX_SRCS)))
+CXXFLAGS := -O0 -g -w $(COMMON_INC) $(DEPFLAGS)
+
+CHEAPGLK_LIB := $(CHEAPGLK_DIR)/libcheapglk.a
+
+scott_hl: $(OBJS) $(CXX_OBJS) $(CHEAPGLK_LIB)
+	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(CXX_OBJS) $(CHEAPGLK_LIB) -lz
+
+$(OBJDIR)/%.o: $(UNP64_DIR)/%.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+$(OBJDIR)/%.o: $(UNP64_DIR)/scanners/%.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(CHEAPGLK_LIB):
+	$(MAKE) -C $(CHEAPGLK_DIR)
+
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
+
+$(OBJDIR)/%.o: %.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# test/old_random.c stands in front of the random generator, to be able to
+# hand out the numbers some command scripts were written with.
+$(OBJDIR)/randomness.o: $(COMMON_DIR)/randomness.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -Derkyrath_random=xo_erkyrath_random \
+	    -Dset_erkyrath_random=xo_set_erkyrath_random -c $< -o $@
+
+# Focused reproducer for the death-room bug (compressed-room off-by-one): it
+# needs its own glk_main, so scott.c is compiled a second time with the real one
+# renamed out of the way. Takes a game file, jumps the player into the death
+# room and calls Look(); see test/death_test.c for the ASan invocation.
+$(OBJDIR)/scott_deathmain.o: scott.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -Dglk_main=scott_real_glk_main -c $< -o $@
+
+# A tool with its own glk_main: $(call TOOL,binary,object with the main)
+TOOL_OBJS := $(filter-out $(OBJDIR)/scott.o,$(OBJS)) $(OBJDIR)/scott_deathmain.o
+define TOOL
+$(1): $$(TOOL_OBJS) $$(OBJDIR)/$(2).o $$(CXX_OBJS) $$(CHEAPGLK_LIB)
+	$$(CXX) $$(LDFLAGS) -o $$@ $$(TOOL_OBJS) $$(OBJDIR)/$(2).o $$(CXX_OBJS) $$(CHEAPGLK_LIB) -lz
+endef
+
+$(eval $(call TOOL,scott_death_test,death_test))
+
+# Regression tests. test/headless_stubs.c forces the engine's determinism mode,
+# so the RNG-driven events (Adventureland's chiggers and bees) replay the same
+# way every run and a transcript can be diffed against a golden file. CheapGlk
+# prints "Glk library error: window_move_cursor" whenever the engine addresses
+# the status window, which is expected here (CheapGlk has no text grid) and is
+# filtered out rather than baked into the goldens.
+UITESTS := ../../UITests/Supporting Files
+NOISE   := grep -v 'Glk library error'
+
+check: scott_hl
+	@echo "--- test/regression.dat: TAKE ALL chain, last-dictionary-word noun, Mr./Dr. tokenizer"
+	@printf 'take all\ninv\ncall dr.\ndr. medal\n' | ./scott_hl test/regression.dat 2>/dev/null \
+	    | $(NOISE) > $(OBJDIR)/regression.out
+	@diff -u test/regression_expected.txt $(OBJDIR)/regression.out && echo "    ok"
+	@for s in all chain it words; do \
+	    echo "--- test/parser/$$s.txt: see test/README.md"; \
+	    SCOTT_SCRIPT_KEYS=1 ./scott_hl test/parser/parser.dat < test/parser/$$s.txt 2>/dev/null \
+	        | $(NOISE) > $(OBJDIR)/parser-$$s.out; \
+	    diff -u test/parser/expected/$$s.txt $(OBJDIR)/parser-$$s.out && echo "    ok" || exit 1; \
+	done
+	@echo "--- adv01.dat: full Adventureland walkthrough (157 commands, wins 13/13)"
+	@./scott_hl "$(UITESTS)/Games/adv01.dat" < "$(UITESTS)/Command scripts/ScottFree command script.txt" \
+	    2>/dev/null | $(NOISE) > $(OBJDIR)/adv01.out
+	@diff -u test/adv01_expected.txt $(OBJDIR)/adv01.out && echo "    ok"
+	@echo "PASS"
+
+clean:
+	rm -rf $(OBJDIR) scott_hl scott_death_test scott_all_audit scott_format_probe \
+	    scott_cond_audit
+
+.PHONY: clean check
+
+-include $(OBJS:.o=.d) $(CXX_OBJS:.o=.d) $(wildcard $(OBJDIR)/*.d)
+
+# Audit tool (not part of `check`): reports actions that can relocate an
+# ALL-eligible item while a TAKE ALL / DROP ALL chain is running -- i.e. whether
+# a given game can reach the chain's skip path at all.
+$(eval $(call TOOL,scott_all_audit,all_audit))
+
+# Audit tool (not part of `check`): reports conditions and opcode parameters
+# that name an item, room or bit flag the game does not have.
+$(eval $(call TOOL,scott_cond_audit,cond_audit))
+
+# Loader fingerprint tool for the disk and tape image format tests
+# (test/formats/README.md): DetectGame() on one file, then a CRC of every table
+# and picture blob it loaded. Own glk_main, like the two tools above.
+$(eval $(call TOOL,scott_format_probe,format_probe))
+
+# Disk and tape image loader tests. Rows whose image is not in
+# test/formats/games/ are skipped, so this passes on a bare checkout.
+.PHONY: formatcheck companioncheck scriptcheck savecheck
+formatcheck: scott_format_probe
+	@python3 test/formats/run_format_tests.py
+
+# The two-disk sets of the same images, with one disk missing and under other
+# file names: does each disk find the other? Skips like formatcheck.
+companioncheck: scott_format_probe
+	@python3 test/formats/run_companion_tests.py
+
+# Command script replays on the same images: transcript hashes of whole
+# playthroughs. Skips, like formatcheck, the rows whose image is missing.
+scriptcheck: scott_hl
+	@python3 test/scripts/run_script_tests.py
+
+# SAVE GAME and RESTORE GAME to a file on test/regression.dat: round trips,
+# old file layouts and damaged files (test/save/run_save_tests.py). Needs no
+# game images.
+savecheck: scott_hl
+	@python3 test/save/run_save_tests.py

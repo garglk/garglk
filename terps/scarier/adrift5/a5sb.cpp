@@ -1,5 +1,24 @@
 /* vi: set ts=8:
  *
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * Written from a reading of the ADRIFT 5 Runner source as released in
+ * FrankenDrift, to reproduce its behaviour; no code from it is used.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
  * ADRIFT 5 support for Scarier -- growable output buffer.  See a5sb.h.
  */
 
@@ -10,7 +29,29 @@
 #include "a5text.h"   /* A5_CLS_MARK, A5_DEL_MARK */
 
 void
-sb_init (sb_t *b) { b->p = NULL; b->len = b->cap = 0; }
+sb_init (sb_t *b) { b->p = nullptr; b->len = b->cap = 0; }
+
+/* Make room for `need` bytes in all (text plus terminator), doubling the
+   capacity from 128.  The one place the buffer grows.  When realloc fails the
+   old block, its text and its capacity are kept, and 0 is returned so the
+   caller leaves the buffer as it was rather than writing through NULL. */
+static int
+sb_grow (sb_t *b, size_t need)
+{
+  size_t cap;
+  char *grown;
+
+  if (need <= b->cap)
+    return 1;
+  cap = b->cap ? b->cap : 128;
+  while (cap < need) cap *= 2;
+  grown = (char *) realloc (b->p, cap);
+  if (grown == nullptr)
+    return 0;
+  b->p = grown;
+  b->cap = cap;
+  return 1;
+}
 
 /* Grow the backing store to at least `cap` bytes up front (a size hint from
    the caller -- e.g. the previous turn's snapshot length), sparing the
@@ -20,26 +61,18 @@ sb_reserve (sb_t *b, size_t cap)
 {
   if (cap <= b->cap)
     return;
-  b->p = (char *) realloc (b->p, cap);
-  b->cap = cap;
-  if (b->p != NULL)
+  if (sb_grow (b, cap))
     b->p[b->len] = '\0';
 }
 
-/* Append the n-byte span [s, s+n) verbatim.  The one place the buffer grows;
-   sb_puts/sb_putc are length-computing wrappers around it. */
+/* Append the n-byte span [s, s+n) verbatim; sb_puts/sb_putc are
+   length-computing wrappers around it. */
 void
 sb_putn (sb_t *b, const char *s, size_t n)
 {
-  if (s == NULL) return;
-  if (b->len + n + 1 > b->cap)
-    {
-      size_t cap = b->cap ? b->cap : 128;
-      while (cap < b->len + n + 1) cap *= 2;
-      b->p = (char *) realloc (b->p, cap);
-      b->cap = cap;
-    }
-  if (b->p == NULL) return;
+  if (s == nullptr) return;
+  if (!sb_grow (b, b->len + n + 1))
+    return;
   memcpy (b->p + b->len, s, n);
   b->len += n;
   b->p[b->len] = '\0';
@@ -48,7 +81,7 @@ sb_putn (sb_t *b, const char *s, size_t n)
 void
 sb_puts (sb_t *b, const char *s)
 {
-  if (s != NULL) sb_putn (b, s, strlen (s));
+  if (s != nullptr) sb_putn (b, s, strlen (s));
 }
 
 void
@@ -63,23 +96,9 @@ sb_finish (sb_t *b) { return b->p ? b->p : strdup (""); }
 static int
 a5_is_single_pres_mark (unsigned char c)
 {
-  return c == A5_ALR_MARK || c == A5_WAITKEY_MARK
-      || c == A5_CENTER_MARK || c == A5_ENDCENTER_MARK
-      || c == A5_BOLD_MARK || c == A5_ENDBOLD_MARK
-      || c == A5_ITALIC_MARK || c == A5_ENDITALIC_MARK
-      || c == A5_UNDERLINE_MARK || c == A5_ENDUNDERLINE_MARK
-      || c == A5_RIGHT_MARK || c == A5_ENDRIGHT_MARK
-      || c == A5_ENDCOLOUR_MARK || c == A5_ENDWINDOW_MARK
+  return a5_is_pres_mark (c)
       || c == A5_CLS_MARK || c == A5_PS_MARK || c == A5_COMMIT_MARK
       || c == A5_DEL_MARK;
-}
-
-/* True when c opens/closes a payload span: \xNN…\xNN. */
-static int
-a5_is_spanning_pres_mark (unsigned char c)
-{
-  return c == A5_IMG_MARK || c == A5_WINDOW_MARK || c == A5_SOUND_MARK
-      || c == A5_WAIT_MARK || c == A5_COLOUR_MARK;
 }
 
 size_t
@@ -87,7 +106,7 @@ sb_del_glyph (sb_t *b, size_t from)
 {
   size_t i = from;
 
-  if (b->p == NULL || from > b->len)
+  if (b->p == nullptr || from > b->len)
     return 0;
 
   while (i > 0)
@@ -99,7 +118,7 @@ sb_del_glyph (sb_t *b, size_t from)
           i--;
           continue;
         }
-      if (a5_is_spanning_pres_mark (c))
+      if (a5_is_span_mark (c))
         {
           /* Skip the whole \xNN<payload>\xNN span; do not delete it. */
           size_t end = i - 1;
@@ -145,7 +164,7 @@ sb_resolve_del (sb_t *b)
 {
   size_t k = 0;
 
-  if (b->p == NULL)
+  if (b->p == nullptr)
     return;
   while (k < b->len)
     {
@@ -168,7 +187,7 @@ void
 sb_resolve_cls (sb_t *b, size_t floor)
 {
   size_t last = (size_t) -1, i;
-  if (b->p == NULL || floor > b->len) return;
+  if (b->p == nullptr || floor > b->len) return;
   /* Interactive hosts present the pre-<cls> text themselves and clear their
      window at the mark, so the wipe must not happen here (see a5text.h).
      But the commit boundary still closes every open span: the Runner renders
@@ -239,20 +258,11 @@ sb_resolve_cls (sb_t *b, size_t floor)
 void
 sb_splice (sb_t *b, size_t off, size_t oldn, const char *s)
 {
-  size_t n = s != NULL ? strlen (s) : 0;
-  if (b->p == NULL || off > b->len || off + oldn > b->len)
+  size_t n = s != nullptr ? strlen (s) : 0;
+  if (b->p == nullptr || off > b->len || off + oldn > b->len)
     return;
-  if (n > oldn)
-    {
-      size_t grow = n - oldn;
-      if (b->len + grow + 1 > b->cap)
-        {
-          size_t cap = b->cap ? b->cap : 128;
-          while (cap < b->len + grow + 1) cap *= 2;
-          b->p = (char *) realloc (b->p, cap);
-          b->cap = cap;
-        }
-    }
+  if (n > oldn && !sb_grow (b, b->len + (n - oldn) + 1))
+    return;
   memmove (b->p + off + n, b->p + off + oldn, b->len - (off + oldn) + 1);
   if (n > 0)
     memcpy (b->p + off, s, n);
