@@ -22,11 +22,6 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <cstdio>
-#include <cmath>
-#include <map>
-#include <string>
-#include <vector>
 
 #include "a5map.h"
 #include "a5xml.h"
@@ -36,7 +31,7 @@ static int
 dir_index (const char *s)
 {
   int i;
-  if (s == NULL)
+  if (s == nullptr)
     return -1;
   for (i = 0; i < MAP_N_DIRS; i++)
     if (strcmp (s, map_dirs[i]) == 0)
@@ -56,17 +51,17 @@ movement_dest (const a5_location_t *loc, const char *dir, int *dotted)
 {
   const a5_xml_node_t *m, *r;
   const char *dest;
-  if (dotted != NULL)
+  if (dotted != nullptr)
     *dotted = 0;
-  m = a5model_movement (loc, NULL, dir);
-  if (m == NULL)
-    return NULL;
+  m = a5model_movement (loc, nullptr, dir);
+  if (m == nullptr)
+    return nullptr;
   dest = a5xml_child_text (m, "Destination");
-  if (dest == NULL || dest[0] == '\0')
-    return NULL;
+  if (dest == nullptr || dest[0] == '\0')
+    return nullptr;
   /* A restricted movement is drawn dotted (Map.vb:1441, DottedLink). */
   r = a5xml_child (m, "Restrictions");
-  if (dotted != NULL && r != NULL && r->n_children > 0)
+  if (dotted != nullptr && r != nullptr && r->n_children > 0)
     *dotted = 1;
   return dest;
 }
@@ -75,7 +70,7 @@ static int
 node_int (const a5_xml_node_t *n, const char *name, int dflt)
 {
   const char *s = a5xml_child_text (n, name);
-  if (s == NULL || s[0] == '\0')
+  if (s == nullptr || s[0] == '\0')
     return dflt;
   return atoi (s);
 }
@@ -92,11 +87,11 @@ parse_anchors (map_link_t *link, const a5_xml_node_t *lk)
   if (n_mids <= 0)
     return;
   link->mids = (map_pt_t *) calloc ((size_t) n_mids, sizeof (map_pt_t));
-  if (link->mids == NULL)
+  if (link->mids == nullptr)
     return;
 
   im = 0;
-  for (an = lk->first_child; an != NULL; an = an->next)
+  for (an = lk->first_child; an != nullptr; an = an->next)
     {
       if (strcmp (an->name, "Anchor") != 0)
         continue;
@@ -104,7 +99,6 @@ parse_anchors (map_link_t *link, const a5_xml_node_t *lk)
         break;
       link->mids[im].x = node_int (an, "X", 0);
       link->mids[im].y = node_int (an, "Y", 0);
-      link->mids[im].z = node_int (an, "Z", 0);
       im++;
     }
   link->n_mids = im;
@@ -114,8 +108,7 @@ parse_anchors (map_link_t *link, const a5_xml_node_t *lk)
 static int
 is_compass_dir (int dir)
 {
-  return dir == DIR_N || dir == DIR_E || dir == DIR_S || dir == DIR_W
-      || dir == DIR_NE || dir == DIR_SE || dir == DIR_SW || dir == DIR_NW;
+  return dir >= 0 && dir < MAP_N_DIRS && !map_is_badge_dir (dir);
 }
 
 /* Compass exit on `loc` that shares destination and restriction style with a
@@ -128,14 +121,14 @@ find_compass_twin_same_dest (const a5_location_t *loc, const char *dest,
   int d, cdotted;
   const char *md;
 
-  if (loc == NULL || dest == NULL)
+  if (loc == nullptr || dest == nullptr)
     return -1;
   for (d = 0; d < MAP_N_DIRS; d++)
     {
       if (!is_compass_dir (d))
         continue;
       md = movement_dest (loc, map_dirs[d], &cdotted);
-      if (md != NULL && strcmp (md, dest) == 0 && cdotted == dotted)
+      if (md != nullptr && strcmp (md, dest) == 0 && cdotted == dotted)
         return d;
     }
   return -1;
@@ -166,18 +159,17 @@ parse_link (map_link_t *link, const a5_xml_node_t *lk,
      Grandpa Ranch's Tunnel has Up to Basement but no <Link>, while Basement
      has the Down <Link> with DestinationAnchor Up. */
   link->duplex = 0;
-  if (link->dest != NULL && link->dst_anchor >= 0 && loc != NULL
-      && loc->key != NULL)
+  if (link->dest != nullptr && link->dst_anchor >= 0 && loc != nullptr
+      && loc->key != nullptr)
     {
       dest_loc = a5model_location (adv, link->dest);
-      back = movement_dest (dest_loc, map_dirs[link->dst_anchor], NULL);
-      if (back != NULL && strcmp (back, loc->key) == 0)
+      back = movement_dest (dest_loc, map_dirs[link->dst_anchor], nullptr);
+      if (back != nullptr && strcmp (back, loc->key) == 0)
         link->duplex = 1;
     }
   /* Badge/compass coincidence from movements (Map Links alone miss Basement
      East, which is only a Movement while Kitchen owns the West Map Link). */
-  if ((d == DIR_UP || d == DIR_DOWN || d == DIR_IN || d == DIR_OUT)
-      && link->dest != NULL)
+  if (map_is_badge_dir (d) && link->dest != nullptr)
     {
       link->compass_twin
         = find_compass_twin_same_dest (loc, link->dest, link->dotted);
@@ -210,27 +202,22 @@ parse_node (map_node_t *node, const a5_xml_node_t *nd,
   node->page = page_key;
 
   loc = a5model_location (adv, node->key);
-  if (loc != NULL && loc->node != NULL)
+  if (loc != nullptr && loc->node != nullptr)
     node->hidden = a5xml_bool (a5xml_child_text (loc->node, "Hide"));
   /* FileIO.vb:4071-4074 -- Movements, not Map Links, set bHas*. */
-  if (movement_dest (loc, "In", NULL) != NULL)
-    node->has_in = 1;
-  if (movement_dest (loc, "Out", NULL) != NULL)
-    node->has_out = 1;
-  if (movement_dest (loc, "Up", NULL) != NULL)
-    node->has_up = 1;
-  if (movement_dest (loc, "Down", NULL) != NULL)
-    node->has_down = 1;
+  for (il = DIR_UP; il <= DIR_OUT; il++)
+    if (movement_dest (loc, map_dirs[il], nullptr) != nullptr)
+      node->has_badge[map_badge (il)] = 1;
 
   n_links = a5xml_count (nd, "Link");
   if (n_links <= 0)
     return;
   node->links = (map_link_t *) calloc ((size_t) n_links, sizeof (map_link_t));
-  if (node->links == NULL)
+  if (node->links == nullptr)
     return;
 
   il = 0;
-  for (lk = nd->first_child; lk != NULL; lk = lk->next)
+  for (lk = nd->first_child; lk != nullptr; lk = lk->next)
     {
       if (strcmp (lk->name, "Link") != 0)
         continue;
@@ -252,14 +239,13 @@ parse_page (map_page_t *page, const a5_xml_node_t *pg,
   int in;
 
   page->key = node_int (pg, "Key", dflt_key);
-  page->label = a5xml_child_text (pg, "Label");
   page->n_nodes = a5xml_count (pg, "Node");
   if (page->n_nodes > 0)
     page->nodes = (map_node_t *) calloc ((size_t) page->n_nodes,
                                            sizeof (map_node_t));
 
   in = 0;
-  for (nd = pg->first_child; nd != NULL && page->nodes != NULL; nd = nd->next)
+  for (nd = pg->first_child; nd != nullptr && page->nodes != nullptr; nd = nd->next)
     {
       if (strcmp (nd->name, "Node") != 0)
         continue;
@@ -280,32 +266,32 @@ a5map_load (const a5_adventure_t *adv)
   int total_nodes = 0;
   int ip;
 
-  if (adv == NULL || adv->root == NULL)
-    return NULL;
+  if (adv == nullptr || adv->root == nullptr)
+    return nullptr;
   map = a5xml_child (adv->root, "Map");
-  if (map == NULL)
-    return NULL;
+  if (map == nullptr)
+    return nullptr;
 
   m = (map_t *) calloc (1, sizeof (map_t));
-  if (m == NULL)
-    return NULL;
+  if (m == nullptr)
+    return nullptr;
 
   m->n_pages = a5xml_count (map, "Page");
   if (m->n_pages <= 0)
     {
       free (m);
-      return NULL;
+      return nullptr;
     }
   m->pages = (map_page_t *) calloc ((size_t) m->n_pages,
                                       sizeof (map_page_t));
-  if (m->pages == NULL)
+  if (m->pages == nullptr)
     {
       free (m);
-      return NULL;
+      return nullptr;
     }
 
   ip = 0;
-  for (pg = map->first_child; pg != NULL; pg = pg->next)
+  for (pg = map->first_child; pg != nullptr; pg = pg->next)
     {
       if (strcmp (pg->name, "Page") != 0)
         continue;
@@ -319,7 +305,7 @@ a5map_load (const a5_adventure_t *adv)
   if (total_nodes == 0)
     {
       map_free (m);
-      return NULL;
+      return nullptr;
     }
   return m;
 }
@@ -355,7 +341,7 @@ a5map_command_taken (const a5_adventure_t *adv)
 {
   int t, c;
 
-  if (adv == NULL)
+  if (adv == nullptr)
     return 0;
   for (t = 0; t < adv->n_tasks; t++)
     {
@@ -363,10 +349,10 @@ a5map_command_taken (const a5_adventure_t *adv)
       for (c = 0; c < task->n_commands; c++)
         {
           const char *s = task->commands[c];
-          while (s != NULL && *s != '\0')
+          while (s != nullptr && *s != '\0')
             {
               const char *end = strchr (s, '/');
-              size_t len = (end != NULL) ? (size_t) (end - s) : strlen (s);
+              size_t len = (end != nullptr) ? (size_t) (end - s) : strlen (s);
               size_t b = 0;
 
               while (b < len && (s[b] == ' ' || s[b] == '\t'))
@@ -375,7 +361,7 @@ a5map_command_taken (const a5_adventure_t *adv)
                 len--;
               if (equals_ci (s + b, len - b, "map"))
                 return 1;
-              if (end == NULL)
+              if (end == nullptr)
                 break;
               s = end + 1;
             }

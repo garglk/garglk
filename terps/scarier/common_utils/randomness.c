@@ -12,7 +12,11 @@
  http://eblong.com/zarf/glulx/index.html
  */
 
-#include "glk.h"
+/* time() and NULL for the clock-seeded paths below; glk.h, once included
+ here for glui32, is where some platforms got them from. */
+#include <stddef.h>
+#include <stdint.h>
+#include <time.h>
 
 /* This file contains definitions for platform-dependent code. Since
  Glk takes care of I/O, this is a short list -- memory allocation
@@ -40,9 +44,9 @@
  xoshiro128** RNG as before, but seeded from the system clock.
  */
 
-static glui32 xo_random(void);
-static void xo_seed_random(glui32 seed);
-static void xo_seed_random_4(glui32 seed0, glui32 seed1, glui32 seed2, glui32 seed3);
+static uint32_t xo_random(void);
+static void xo_seed_random(uint32_t seed);
+static void xo_seed_random_4(uint32_t seed0, uint32_t seed1, uint32_t seed2, uint32_t seed3);
 
 #ifndef TRUE
 #define TRUE 1
@@ -77,8 +81,8 @@ static void xo_seed_random_4(glui32 seed0, glui32 seed1, glui32 seed2, glui32 se
 
 static void rand_set_seed(void)
 {
-    glui32 seeds[4];
-    int res = getrandom(seeds, 4*sizeof(glui32), 0);
+    uint32_t seeds[4];
+    int res = getrandom(seeds, 4*sizeof(uint32_t), 0);
     if (res < 0) {
         /* Error; fall back to the clock. */
         xo_seed_random(time(NULL));
@@ -116,6 +120,7 @@ static void rand_set_seed(void)
 #ifdef _MSC_VER /* For Visual C++, get rand_s() */
 #define _CRT_RAND_S
 #endif
+#include <stdlib.h>
 
 #ifdef _MSC_VER /* Visual C++ */
 
@@ -126,9 +131,9 @@ static void msc_srandom()
 
 /* Use the Visual C++ function rand_s() as the native RNG.
  This calls the OS function RtlGetRandom(). */
-static glui32 msc_random()
+static uint32_t msc_random()
 {
-    glui32 value;
+    uint32_t value;
     rand_s(&value);
     return value;
 }
@@ -161,7 +166,7 @@ static int rand_use_native = TRUE;
 
 /* Set the random-number seed, and also select which RNG to use.
  */
-void set_erkyrath_random(glui32 seed)
+void set_erkyrath_random(uint32_t seed)
 {
     if (seed == 0) {
         rand_use_native = TRUE;
@@ -174,7 +179,7 @@ void set_erkyrath_random(glui32 seed)
 }
 
 /* Return a random number in the range 0 to 2^32-1. */
-glui32 erkyrath_random(void)
+uint32_t erkyrath_random(void)
 {
     if (rand_use_native) {
         return RAND_GET();
@@ -193,14 +198,14 @@ static uint32_t xo_table[4] = { 0, 0, 0, 0 };
 
 /* The get_detstate() and set_detstate() routines save and restore the
  entire RNG state. These are used only by autorestore. */
-void erkyrath_random_get_detstate(int *usenative, glui32 **arr, int *count)
+void erkyrath_random_get_detstate(int *usenative, uint32_t **arr, int *count)
 {
     *usenative = rand_use_native;
     *arr = xo_table;
     *count = 4;
 }
 
-void erkyrath_random_set_detstate(int usenative, glui32 *arr, int count)
+void erkyrath_random_set_detstate(int usenative, uint32_t *arr, int count)
 {
     rand_use_native = usenative;
     if (count == 4) {
@@ -208,7 +213,7 @@ void erkyrath_random_set_detstate(int usenative, glui32 *arr, int count)
     }
 }
 
-static void xo_seed_random_4(glui32 seed0, glui32 seed1, glui32 seed2, glui32 seed3)
+static void xo_seed_random_4(uint32_t seed0, uint32_t seed1, uint32_t seed2, uint32_t seed3)
 {
     /* Set up the 128-bit state from four integers. Use this if you can get
      four high-quality random values. */
@@ -218,7 +223,7 @@ static void xo_seed_random_4(glui32 seed0, glui32 seed1, glui32 seed2, glui32 se
     xo_table[3] = seed3;
 }
 
-static void xo_seed_random(glui32 seed)
+static void xo_seed_random(uint32_t seed)
 {
     int ix;
     /* Set up the 128-bit state from a single 32-bit integer. We rely
@@ -226,7 +231,7 @@ static void xo_seed_random(glui32 seed)
      just need to get a bunch of bits into xo_table. */
     for (ix=0; ix<4; ix++) {
         seed += 0x9E3779B9;
-        glui32 s = seed;
+        uint32_t s = seed;
         s ^= s >> 15;
         s *= 0x85EBCA6B;
         s ^= s >> 13;
@@ -236,7 +241,7 @@ static void xo_seed_random(glui32 seed)
     }
 }
 
-static glui32 xo_random(void)
+static uint32_t xo_random(void)
 {
     /* I've inlined the utility function:
      rotl(x, k) => (x << k) | (x >> (32 - k))

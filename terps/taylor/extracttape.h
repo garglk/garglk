@@ -9,13 +9,14 @@
 #define extracttape_h
 
 #include <stdint.h>
-#include <stdio.h>
 
-uint8_t *GetTZXBlock(int blockno, uint8_t *srcbuf, size_t *length);
-uint8_t *DeAlkatraz(uint8_t *raw_data, uint8_t *target, size_t offset, uint16_t IX, uint16_t DE, uint8_t *loacon, uint8_t add1, uint8_t add2, int selfmodify);
-void DeshuffleAlkatraz(uint8_t *mem, uint8_t repeats, uint16_t IX, uint16_t store);
-void ldir(uint8_t *mem, uint16_t DE, uint16_t HL, uint16_t BC);
-void lddr(uint8_t *mem, uint16_t DE, uint16_t HL, uint16_t BC);
+/* GetTZXBlock and the Alkatraz primitives (ZXLdir/ZXLddr/DeAlkatraz/
+   DeshuffleAlkatraz) come from the shared decompressz80 library. So does
+   ZX_RAM_BASE (0x4000), where the RAM of the ZX Spectrum begins and where
+   Taylor's games load. It is used to translate between Z80 addresses
+   stored in game data and offsets into our loaded FileImage. */
+#include "decompressz80.h"
+
 uint8_t *ProcessFile(uint8_t *image, size_t *length);
 
 #endif /* extracttape_h */

@@ -5,16 +5,79 @@
 //  Created by Petter Sjölund on 2022-01-10.
 //
 
+#include "game_specific.h"
 #include "gremlins.h"
 
 #include "parser.h"
 #include "sagadraw.h"
 #include "scott.h"
+#include "scott_meta.h"
+#include "scott_display.h"
 
 #define GREMLINS_ANIMATION_RATE 670
 
+/* Rooms and items of the English, German and Spanish releases */
+enum {
+    ROOM_BEDROOM = 1,
+    ROOM_KITCHEN = 3,
+    ROOM_ON_A_ROAD = 6,
+    ROOM_POOL = 10,
+    ROOM_BEHIND_BAR = 16,
+    ROOM_BAR = 17, /* Dotty's Tavern */
+    ROOM_SQUARE = 19,
+    ROOM_STAIRS = 34, /* Top of the department store */
+};
+
+enum {
+    ITEM_WATER = 15, /* In the pool */
+    ITEM_DART_GREMLIN = 50,
+    ITEM_LADDER = 53,
+    ITEM_GREMLIN_GANG = 82,
+    ITEM_EMPTY_POOL = 98,
+    ITEM_DAZED_STRIPE = 99,
+};
+
+/* The original only redraws a picture when something in the room changes, so
+   a blender that is switched off keeps the frame it happened to stop on until
+   then. We redraw on every turn, and have to put that frame back. */
+static int blender_frame = 0; /* The blender frame on screen, 0 if none */
+static int kitchen_contents = -1; /* What was in the kitchen when it stopped */
+
+static int KitchenContents(void)
+{
+    unsigned hash = 0;
+    for (int ct = 0; ct <= GameHeader.NumItems; ct++)
+        if (Items[ct].Location == ROOM_KITCHEN)
+            hash = hash * 31 + ct + 1;
+    return hash & 0x7fffffff;
+}
+
+/* Called after the room and its items have been drawn */
+void GremlinsKeepBlenderFrame(void)
+{
+    if (MyLoc != ROOM_KITCHEN) {
+        blender_frame = 0;
+        return;
+    }
+    if (Counters[2] == 2) { /* Blender is on */
+        kitchen_contents = -1;
+        return;
+    }
+    if (blender_frame == 0)
+        return;
+    int contents = KitchenContents();
+    if (kitchen_contents == -1)
+        kitchen_contents = contents;
+    if (contents == kitchen_contents)
+        DrawImage(blender_frame);
+    else
+        blender_frame = 0;
+}
+
 void UpdateGremlinsAnimations(void)
 {
+    if (MyLoc != ROOM_KITCHEN)
+        blender_frame = 0;
     if (Rooms[MyLoc].Image == 255) {
         glk_request_timer_events(0);
         return;
@@ -27,8 +90,8 @@ void UpdateGremlinsAnimations(void)
 
     int timer_delay = GREMLINS_ANIMATION_RATE;
     switch (MyLoc) {
-    case 1: /* Bedroom */
-        if (Items[50].Location == 1) /* Gremlin throwing darts */
+    case ROOM_BEDROOM:
+        if (Items[ITEM_DART_GREMLIN].Location == ROOM_BEDROOM)
         {
             if (AnimationFlag) {
                 DrawImage(60); /* Gremlin throwing dart frame 1 */
@@ -37,8 +100,8 @@ void UpdateGremlinsAnimations(void)
             }
         }
         break;
-    case 17: /* Dotty's Tavern */
-        if (Items[82].Location == 17) /* Gang of GREMLINS */
+    case ROOM_BAR:
+        if (Items[ITEM_GREMLIN_GANG].Location == ROOM_BAR)
         {
             if (AnimationFlag) {
                 DrawImage(49); /* Gremlin hanging from curtains frame 1 */
@@ -51,8 +114,8 @@ void UpdateGremlinsAnimations(void)
             }
         }
         break;
-    case 16: /* Behind a Bar */
-        if (Items[82].Location == 16) /* Gang of GREMLINS */
+    case ROOM_BEHIND_BAR:
+        if (Items[ITEM_GREMLIN_GANG].Location == ROOM_BEHIND_BAR)
         {
             if (AnimationFlag) {
                 DrawImage(57); /* Flasher gremlin frame 1 */
@@ -77,8 +140,8 @@ void UpdateGremlinsAnimations(void)
             }
         }
         break;
-    case 19: /* Square */
-        if (Items[82].Location == 19) /* Gang of GREMLINS */
+    case ROOM_SQUARE:
+        if (Items[ITEM_GREMLIN_GANG].Location == ROOM_SQUARE)
         {
             if (AnimationFlag) {
                 DrawImage(55); /* Silhouette of Gremlins frame 1 */
@@ -87,8 +150,8 @@ void UpdateGremlinsAnimations(void)
             }
         }
         break;
-    case 6: /* on a road */
-        if (Items[82].Location == 6) /* Gang of GREMLINS */
+    case ROOM_ON_A_ROAD:
+        if (Items[ITEM_GREMLIN_GANG].Location == ROOM_ON_A_ROAD)
         {
             if (AnimationFlag) {
                 if ((Game->subtype & (LOCALIZED | C64)) == LOCALIZED) {
@@ -101,14 +164,15 @@ void UpdateGremlinsAnimations(void)
             }
         }
         break;
-    case 3: /* Kitchen */
+    case ROOM_KITCHEN:
         if (Counters[2] == 2) /* Blender is on */
         {
             if (AnimationFlag) {
-                DrawImage(56); /* Blended Gremlin */
+                blender_frame = 56; /* Blended Gremlin */
             } else {
-                DrawImage(12); /* Blended Gremlin flipped */
+                blender_frame = 12; /* Blended Gremlin flipped */
             }
+            DrawImage(blender_frame);
         }
         break;
     default:
@@ -122,7 +186,7 @@ void UpdateGremlinsAnimations(void)
 void GremlinsLook(void)
 {
     if (Rooms[MyLoc].Image != 255) {
-        if (MyLoc == 17 && Items[82].Location == 17)
+        if (MyLoc == ROOM_BAR && Items[ITEM_GREMLIN_GANG].Location == ROOM_BAR)
             DrawImage(45); /* Bar full of Gremlins */
         else
             DrawImage(Rooms[MyLoc].Image);
@@ -130,10 +194,10 @@ void GremlinsLook(void)
         UpdateGremlinsAnimations();
     }
     /* Ladder image at the top of the department store */
-    if (MyLoc == 34 && Items[53].Location == MyLoc) {
+    if (MyLoc == ROOM_STAIRS && Items[ITEM_LADDER].Location == MyLoc) {
         DrawImage(42);
-    } else if (MyLoc == 10 && Items[15].Location == 0) {
-        if (Items[99].Location == MyLoc && CurrentGame == GREMLINS_GERMAN_C64)
+    } else if (MyLoc == ROOM_POOL && Items[ITEM_WATER].Location == 0) {
+        if (Items[ITEM_DAZED_STRIPE].Location == MyLoc && CurrentGame == GREMLINS_GERMAN_C64)
             DrawImage(90); /* Dazed Stripe */
         DrawImage(82); /* Empty pool with puddle */
         /* Draw puddle on top of Stripe */
@@ -141,7 +205,7 @@ void GremlinsLook(void)
     }
 }
 
-void FillInGermanSystemMessages(void)
+static void FillInGermanSystemMessages(void)
 {
     sys[I_DONT_KNOW_HOW_TO] = "Ich weiss nicht, wie man etwas \"";
     sys[SOMETHING] = "\" macht. ";
@@ -153,7 +217,7 @@ void FillInGermanSystemMessages(void)
     sys[I_DONT_UNDERSTAND] = "Ich verstehe nicht. ";
     sys[ARE_YOU_SURE] = "Sind Sie sicher? ";
     sys[NOTHING_HERE_TO_TAKE] = "Hier gibt es nichts zu nehmen. ";
-    sys[YOU_HAVE_NOTHING] = "Ich traege nichts. ";
+    sys[YOU_HAVE_NOTHING] = "Ich trage nichts. ";
     sys[MOVE_UNDONE] = "Verschieben rueckgaengig gemacht. ";
     sys[CANT_UNDO_ON_FIRST_TURN] = "Sie koennen die erste Runde nicht rueckgaengig machen. ";
     sys[NO_UNDO_STATES] = "Keine rueckgaengig-Zustaende mehr gespeichert. ";
@@ -162,35 +226,32 @@ void FillInGermanSystemMessages(void)
     sys[TRANSCRIPT_ON] = "Das Transkript ist jetzt eingeschaltet. ";
     sys[TRANSCRIPT_OFF] = "Das Transkript ist jetzt deaktiviert. ";
     sys[NO_TRANSCRIPT] = "Es wird kein Transkript ausgefuehrt. ";
-    sys[TRANSCRIPT_ALREADY] = "Eine Transkript laeuft bereits. ";
+    sys[TRANSCRIPT_ALREADY] = "Ein Transkript laeuft bereits. ";
     sys[FAILED_TRANSCRIPT] = "Transkriptdatei konnte nicht erstellt werden. ";
-    sys[TRANSCRIPT_START] = "Beginn einer Transkript.\n\n";
-    sys[TRANSCRIPT_END] = "\n\nEnde eniner Transkript.\n";
+    sys[TRANSCRIPT_START] = "Beginn eines Transkripts.\n\n";
+    sys[TRANSCRIPT_END] = "\n\nEnde eines Transkripts.\n";
     sys[BAD_DATA] = "SCHLECHTE DATEN! Ungueltige Speicherdatei.\n";
     sys[STATE_SAVED] = "Zustand speichern.\n";
     sys[NO_SAVED_STATE] = "Es ist kein gespeicherter Zustand vorhanden.\n";
     sys[STATE_RESTORED] = "Zustand wiederhergestellt.\n";
 
     sys[YOU_ARE] = "Ich bin ";
+    /* The tape has "Ausgaenge:", without the space that the disk has */
+    sys[EXITS] = "Ausgaenge: ";
+
+    /* The empty pool was left in Spanish, "Piscina vacia" */
+    Items[ITEM_EMPTY_POOL].Text = "Leeres Schwimmbad";
     sys[WHAT] = sys[HUH];
 
-    for (int i = 0; i < NUMBER_OF_DIRECTIONS; i++)
-        Directions[i] = GermanDirections[i];
-    for (int i = 0; i < NUMBER_OF_SKIPPABLE_WORDS; i++)
-        SkipList[i] = GermanSkipList[i];
-    for (int i = 0; i < NUMBER_OF_DELIMITERS; i++)
-        DelimiterList[i] = GermanDelimiterList[i];
-    for (int i = 0; i < NUMBER_OF_EXTRA_COMMANDS; i++)
-        ExtraCommands[i] = GermanExtraCommands[i];
-    for (int i = 0; i < NUMBER_OF_EXTRA_NOUNS; i++)
-        ExtraNouns[i] = GermanExtraNouns[i];
+    SetParserWordLists(GermanDirections, GermanSkipList, GermanDelimiterList,
+        GermanExtraCommands, GermanExtraNouns);
 }
 
 void LoadExtraGermanGremlinsC64Data(void)
 {
-    Verbs[0] = "AUTO\0";
-    Nouns[0] = "ANY\0";
-    Nouns[28] = "*Y.M.C\0";
+    Verbs[0] = "AUTO";
+    Nouns[0] = "ANY";
+    Nouns[28] = "*Y.M.C";
 
     // These are broken in some versions
     Actions[0].Condition[0] = 1005;
@@ -229,28 +290,26 @@ void LoadExtraGermanGremlinsC64Data(void)
         NOTHING
     };
 
-    for (int i = 0; i < 28; i++) {
-        sys[messagekey[i]] = system_messages[i];
-    }
+    MAP_SYS_MESSAGES(messagekey, 0);
 
     sys[HIT_ENTER] = system_messages[30];
 
     FillInGermanSystemMessages();
 
-    Items[99].Image = 255;
+    Items[ITEM_DAZED_STRIPE].Image = 255;
 }
 
 void LoadExtraGermanGremlinsData(void)
 {
-    Verbs[0] = "AUTO\0";
-    Nouns[0] = "ANY\0";
-    Nouns[28] = "*Y.M.C\0";
+    Verbs[0] = "AUTO";
+    Nouns[0] = "ANY";
+    Nouns[28] = "*Y.M.C";
 
-    Messages[90] = "Ehe ich etwas anderes mache, much aich erst alles andere fallenlassen. ";
+    Messages[90] = "Ehe ich etwas anderes mache, muss ich erst alles andere fallenlassen. ";
     FillInGermanSystemMessages();
 }
 
-void LoadCommonSpanishGremlinsData(void)
+static void LoadCommonSpanishGremlinsData(void)
 {
     sys[WHAT] = sys[HUH];
     sys[YES] = "s}";
@@ -280,26 +339,28 @@ void LoadCommonSpanishGremlinsData(void)
     sys[NO_SAVED_STATE] = "No existe ning\x85n estado guardado.\n";
     sys[STATE_RESTORED] = "Estado restaurado.\n";
 
-    for (int i = 0; i < NUMBER_OF_DIRECTIONS; i++)
-        Directions[i] = SpanishDirections[i];
-    for (int i = 0; i < NUMBER_OF_EXTRA_NOUNS; i++)
-        ExtraNouns[i] = SpanishExtraNouns[i];
-    for (int i = 0; i < NUMBER_OF_EXTRA_COMMANDS; i++)
-        ExtraCommands[i] = SpanishExtraCommands[i];
+    SetParserWordLists(SpanishDirections, NULL, NULL,
+        SpanishExtraCommands, SpanishExtraNouns);
+}
+
+/* The ZX Spectrum system message layout of Gremlins, also used by the
+   Spectrum Supergran and Savage Island. The Spanish Gremlins has two
+   messages fewer before "I'm in a", so the rest are shifted by shift
+   (0 there, 2 elsewhere). */
+void MapGremlinsSysMessages(int shift)
+{
+    MapSysRange(DROPPED, OK, 2);
+    MapSysRange(I_DONT_UNDERSTAND, THATS_BEYOND_MY_POWER, 6);
+    MapSysRange(YOU_ARE, HIT_ENTER, 15 + shift);
+    sys[PLAY_AGAIN] = system_messages[5];
+    sys[YOURE_CARRYING_TOO_MUCH] = system_messages[22 + shift];
+    sys[IM_DEAD] = system_messages[23 + shift];
+    sys[YOU_CANT_GO_THAT_WAY] = system_messages[14];
 }
 
 void LoadExtraSpanishGremlinsData(void)
 {
-    for (int i = YOU_ARE; i <= HIT_ENTER; i++)
-        sys[i] = system_messages[15 - YOU_ARE + i];
-    for (int i = I_DONT_UNDERSTAND; i <= THATS_BEYOND_MY_POWER; i++)
-        sys[i] = system_messages[6 - I_DONT_UNDERSTAND + i];
-    for (int i = DROPPED; i <= OK; i++)
-        sys[i] = system_messages[2 - DROPPED + i];
-    sys[PLAY_AGAIN] = system_messages[5];
-    sys[YOURE_CARRYING_TOO_MUCH] = system_messages[22];
-    sys[IM_DEAD] = system_messages[23];
-    sys[YOU_CANT_GO_THAT_WAY] = system_messages[14];
+    MapGremlinsSysMessages(0);
 
     LoadCommonSpanishGremlinsData();
 }
@@ -332,11 +393,14 @@ void LoadExtraSpanishGremlinsC64Data(void)
         BAD_DATA,
     };
 
-    for (int i = 0; i < 23; i++) {
-        sys[messagekey[i]] = system_messages[6 + i];
-    }
+    MAP_SYS_MESSAGES(messagekey, 6);
     sys[YOU_CANT_GO_THAT_WAY] = system_messages[9] + 6;
     sys[HIT_ENTER] = system_messages[30];
+    /* The disk has "Estoy en", without the space that the tape has */
+    sys[YOU_ARE] = "Estoy en ";
+    /* The header has the action count of the English disk. What follows
+       action 236 here is the dictionary. */
+    GameHeader.NumActions = 236;
     LoadCommonSpanishGremlinsData();
 }
 

@@ -1,57 +1,25 @@
-/* This is a cut-down version of UNP64 with only the bare minimum
- * needed to decompress a number of Commodore 64 adventure games.
- * It is distributed under the zlib License by kind permission of
- * the original authors Magnus Lind and iAN CooG.
- */
-
-/*
-UNP64 - generic Commodore 64 prg unpacker
-(C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
-original source and idea: testrun.c, taken from exo20b7
-
-Follows original disclaimer
-*/
-
-/*
- * Copyright (c) 2002 - 2023 Magnus Lind.
+/* Part of a cut-down version of UNP64, the generic Commodore 64 prg
+ * unpacker, with only what is needed to decompress a number of Commodore 64
+ * adventure games.
  *
+ * (C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
+ * Copyright (c) 2002 - 2023 Magnus Lind
+ * C++ version based on code adapted to ScummVM by Avijeet Maurya
  *
- * This software is provided 'as-is', without any express or implied
- * warranty. In no event will the authors be held liable for any damages
- * arising from the use of this software.
- *
- * Permission is granted to anyone to use this software for any purpose,
- * including commercial applications, and to alter it and redistribute it
- * freely, subject to the following restrictions:
- *
- * 1. The origin of this software must not be misrepresented; you must not
- * claim that you wrote the original software. If you use this software
- * in a product, an acknowledgment in the product documentation would be
- * appreciated but is not required.
- * 2. Altered source versions must be plainly marked as such, and must not be
- * misrepresented as being the original software.
- * 3. This notice may not be removed or altered from any source distribution.
- *
- */
-
-/*
- C++ version based on code adapted to ScummVM by Avijeet Maurya
+ * Distributed under the zlib License by kind permission of the original
+ * authors Magnus Lind and iAN CooG. The notice is in the file LICENSE in
+ * the directory above (terps/unp64), which has to go wherever this file goes.
  */
 
 #include <cstring>
 
-#include "exo_util.h"
-#include "types.h"
-#include "unp64.h"
+#include "scanners.h"
 
 namespace Unp64 {
 
 void scnIntros(UnpStr *unp) {
-	unsigned char *mem;
+	uint8_t *mem = unp->_mem;
 	int q = 0, p;
-	if (unp->_idFlag)
-		return;
-	mem = unp->_mem;
 	/* HIV virus */
 	if (unp->_depAdr == 0) {
 		if (u32eq(mem + 0x80b, 0x10DD002C) &&
@@ -60,9 +28,7 @@ void scnIntros(UnpStr *unp) {
 			u32eq(mem + 0x9bc, 0xF004B120)) {
 			unp->_forced = 0x859;
 			unp->_depAdr = 0x100;
-			unp->_retAdr = 0xa7ae;
-			unp->_strMem = 0x801;
-			unp->_endAdr = 0x2d;
+			setBasicReturn(unp, false);
 			unp->_idFlag = 1;
 			return;
 		}
@@ -75,10 +41,7 @@ void scnIntros(UnpStr *unp) {
 			u32eq(mem + 0xef5, 0x02CD4C20)) {
 			unp->_forced = 0x831;
 			unp->_depAdr = 0x2ab;
-			unp->_retAdr = 0xa7ae;
-			unp->_rtAFrc = 1;
-			unp->_strMem = 0x801;
-			unp->_endAdr = 0x2d;
+			setBasicReturn(unp, true);
 			unp->_idFlag = 1;
 			return;
 		}
@@ -91,7 +54,7 @@ void scnIntros(UnpStr *unp) {
 			u32eq(mem + 0xac4, 0x04B14C0D)) {
 			unp->_forced = 0x810;
 			unp->_depAdr = 0x340;
-			unp->_retAdr = 0xa7ae;
+			unp->_retAdr = kBasicRun;
 			unp->_rtAFrc = 1;
 			unp->_strMem = 0x801;
 			unp->_endAdr = unp->_info->_end - 0x2fa;
@@ -107,10 +70,7 @@ void scnIntros(UnpStr *unp) {
 			u32eq(mem + 0x8AF, 0x6CE3974C)) {
 			unp->_forced = 0x812;
 			unp->_depAdr = 0x2b3;
-			unp->_retAdr = 0xa7ae;
-			unp->_rtAFrc = 1;
-			unp->_strMem = 0x801;
-			unp->_endAdr = 0x2d;
+			setBasicReturn(unp, true);
 			unp->_idFlag = 1;
 			return;
 		}
@@ -123,10 +83,7 @@ void scnIntros(UnpStr *unp) {
 			u32eq(mem + 0x9F6, 0x04EE4C00)) {
 			unp->_forced = 0x80b;
 			unp->_depAdr = 0x100;
-			unp->_retAdr = 0xa7ae;
-			unp->_rtAFrc = 1;
-			unp->_strMem = 0x801;
-			unp->_endAdr = 0x2d;
+			setBasicReturn(unp, true);
 			unp->_idFlag = 1;
 			return;
 		}
@@ -174,7 +131,7 @@ void scnIntros(UnpStr *unp) {
 			p = mem[0x8ee];
 			unp->_retAdr = (mem[0xe44] ^ p) | (mem[0xe45] ^ p) << 8;
 			unp->_strMem = 0x0801;
-			unp->_endAdr = mem[0x8f8] | mem[0x8fc] << 8;
+			unp->_endAdr = readSplit(mem, 0x8f8, 0x8fc);
 			mem[0xa2d] = 0x4c; /* indirect jmp $0110 using basic rom */
 			mem[0xa2e] = 0x10;
 			mem[0xa2f] = 0x01;
@@ -203,7 +160,7 @@ void scnIntros(UnpStr *unp) {
 		if (unp->_depAdr) {
 			unp->_forced = p;
 			unp->_retAdr = READ_LE_UINT16(&mem[p + q + 0x28a]);
-			unp->_endAdr = mem[p + q + 0x19e] | mem[p + q + 0x1a4] << 8;
+			unp->_endAdr = readSplit(mem, p + q + 0x19e, p + q + 0x1a4);
 			unp->_strMem = 0x801;
 			unp->_idFlag = 1;
 			return;
@@ -217,7 +174,7 @@ void scnIntros(UnpStr *unp) {
 			unp->_depAdr = 0x100;
 			unp->_forced = 0x81f;
 			unp->_retAdr = READ_LE_UINT16(&mem[0xac3]);
-			unp->_endAdr = mem[0x9cd] | mem[0x9d3] << 8;
+			unp->_endAdr = readSplit(mem, 0x9cd, 0x9d3);
 			unp->_strMem = 0x801;
 			unp->_idFlag = 1;
 			return;
@@ -231,7 +188,7 @@ void scnIntros(UnpStr *unp) {
 			unp->_depAdr = 0x100;
 			unp->_forced = 0x821;
 			unp->_retAdr = READ_LE_UINT16(&mem[0xa99]);
-			unp->_endAdr = mem[0x9bc] | mem[0x9c2] << 8;
+			unp->_endAdr = readSplit(mem, 0x9bc, 0x9c2);
 			unp->_strMem = 0x801;
 			unp->_idFlag = 1;
 			return;
@@ -277,8 +234,8 @@ void scnIntros(UnpStr *unp) {
 			mem[2] = mem[0x3fff];
 			if (u32eq(mem + 0x2B4F, 0xE803409D)) {
 				unp->_depAdr = 0x340;
-				unp->_strMem = mem[0x2b65] | mem[0x2b69] << 8;
-				unp->_endAdr = unp->_info->_end - (mem[0x2b5d] | mem[0x2b61] << 8) + unp->_strMem;
+				unp->_strMem = readSplit(mem, 0x2b65, 0x2b69);
+				unp->_endAdr = unp->_info->_end - (readSplit(mem, 0x2b5d, 0x2b61)) + unp->_strMem;
 				p = 0x2b7f;
 				if (u32eq(mem + p - 1, 0x4CA65920)) {
 					mem[p - 1] = 0x2c;
@@ -341,7 +298,7 @@ void scnIntros(UnpStr *unp) {
 		}
 
 		if (unp->_depAdr) {
-			unp->_endAdr = mem[p + 0x22] | mem[p + 0x24] << 8;
+			unp->_endAdr = readSplit(mem, p + 0x22, p + 0x24);
 			unp->_strMem = 0x801;
 			for (q = p + 0x29; q < p + 0x39; q++) {
 				if ((mem[q] == 0xa9) || (mem[q] == 0xa2) || (mem[q] == 0xa0) ||
@@ -392,7 +349,7 @@ void scnIntros(UnpStr *unp) {
 			u32eq(mem + 0xd5b, 0xA90DFD4C)) {
 			unp->_forced = 0xd3b;
 			unp->_depAdr = 0x33c;
-			unp->_endAdr = mem[0xb5c] | mem[0xb62] << 8;
+			unp->_endAdr = readSplit(mem, 0xb5c, 0xb62);
 			unp->_strMem = 0x801;
 			unp->_retAdr = READ_LE_UINT16(&mem[0xb6b]);
 			unp->_idFlag = 1;
@@ -409,7 +366,7 @@ void scnIntros(UnpStr *unp) {
 			/* first moves $0839-(eof) to $1000 */
 			p = mem[0x837];
 			if ((p == 0x3e) || (p == 0x48)) {
-				unp->_endAdr = mem[0x80f] | mem[0x811] << 8;
+				unp->_endAdr = readSplit(mem, 0x80f, 0x811);
 				memmove(mem + 0x1000, mem + 0x839, (size_t)(unp->_endAdr - 0x1000));
 				if (p == 0x3e) {
 					unp->_strMem = READ_LE_UINT16(&mem[0x113c]);
@@ -431,7 +388,7 @@ void scnIntros(UnpStr *unp) {
 			u32eq(mem + 0x830, 0x8570A9F9) &&
 			u32eq(mem + 0x860, 0xB100A0B5) &&
 			u32eq(mem + 0x864, 0xE60285B2)) {
-			unp->_endAdr = mem[0x854] | mem[0x852] << 8;
+			unp->_endAdr = readSplit(mem, 0x854, 0x852);
 			//unp->_endAdC=1;
 			unp->_depAdr = 0x851;
 			unp->_retAdr = READ_LE_UINT16(&mem[0x88a]);
@@ -439,6 +396,32 @@ void scnIntros(UnpStr *unp) {
 			unp->_forced = 0x820;
 			unp->_idFlag = 1;
 			return;
+		}
+	}
+	/* The "773 - 695" menu, a Hungarian advertisement for the Formel 64 and
+	 * Fastload cartridges. F7 starts the program: the menu moves a routine
+	 * to $033c, which moves the program down to $0801, adding $26 to every
+	 * byte, and jumps to the address it found at $080f. Nothing but that
+	 * key gets there, so the routine is put in place here. */
+	if (unp->_depAdr == 0) {
+		if (u32eq(mem + 0x9fc, 0x83B900A0) &&
+			u32eq(mem + 0xa01, 0xC8033C99) &&
+			u32eq(mem + 0xa07, 0x3C4CF5D0)) {
+			p = READ_LE_UINT16(&mem[0x9ff]);
+			if (u32eq(mem + p + 0x23, 0x69183DB1) &&
+				u32eq(mem + p + 0x28, 0xD0C83991) &&
+				u32eq(mem + p + 0x3e, 0x6CD0158D)) {
+				q = readSplit(mem, p + 0x09, p + 0x0d);
+				unp->_strMem = readSplit(mem, p + 0x01, p + 0x05);
+				unp->_endAdr = unp->_info->_end - q + unp->_strMem;
+				unp->_retAdr = READ_LE_UINT16(&mem[0x80f]);
+				unp->_rtAFrc = 1;
+				memmove(mem + 0x33c, mem + p, mem[0xa06]);
+				unp->_forced = 0x33c;
+				unp->_depAdr = 0x33c;
+				unp->_idFlag = 1;
+				return;
+			}
 		}
 	}
 }

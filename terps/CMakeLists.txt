@@ -73,6 +73,21 @@ if(WITH_SCOTT OR WITH_TAYLOR)
     add_subdirectory(unp64)
 endif()
 
+# Spatterlight keeps code shared between interpreters in libraries of its own.
+# Some of these use Glk, so can't be separate targets like c64diskimage and
+# unp64 without knowing about the Glk library; just build what's needed directly
+# into each interpreter.
+set(COMMON_UTILS_SRCS common_utils/common_file_utils.c common_utils/common_utils.c
+    common_utils/companion_search.c common_utils/layouttext.c
+    common_utils/memory_allocation.c common_utils/randomness.c)
+set(READWOZ_SRCS readwoz/ciderpress.c readwoz/woz2nib.c)
+set(SAGADRAW_SRCS common_sagadraw/apple2draw.c common_sagadraw/c64a8draw.c
+    common_sagadraw/gm_artifact.c common_sagadraw/pcdraw.c)
+set(AIUKGRAPHICS_SRCS aiukgraphics/aiukpalette.c aiukgraphics/irmak.c aiukgraphics/taylordraw.c)
+set(DECOMPRESSZ80_SRCS decompressz80/alkatraz.c decompressz80/tapetzx.c
+    decompressz80/z80snap.c decompressz80/zxscreen.c)
+set(ZXSCREEN_SRCS common_zxscreen/zx_title.c)
+
 if(CMAKE_VERSION VERSION_LESS "3.20")
     include(TestBigEndian)
     test_big_endian(GARGLK_BIG_ENDIAN)
@@ -346,15 +361,17 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Plus 1.0 for Scott Adams Graphic Adventures Plus games
+# Plus (from Spatterlight 1.5.5) for Scott Adams Graphic Adventures Plus games
 #
 if(WITH_PLUS)
-    set(PLUS_INCLUDE_DIRS plus)
+    set(PLUS_INCLUDE_DIRS plus common_utils common_sagadraw readwoz)
     terp(plus
-        SRCS plus/plusmain.c plus/animations.c plus/apple2detect.c plus/apple2draw.c
-        plus/atari8c64draw.c plus/atari8detect.c plus/c64detect.c plus/extracommands.c
-        plus/companionfile.c plus/gameinfo.c plus/graphics.c plus/layouttext.c plus/loaddatabase.c
-        plus/parseinput.c plus/pcdraw.c plus/restorestate.c plus/stdetect.c plus/stdraw.c
+        SRCS plus/plusmain.c plus/animations.c plus/apple2detect.c plus/atari8detect.c
+        plus/c64detect.c plus/companionfile.c plus/dumpactions.c plus/extracommands.c
+        plus/gameinfo.c plus/graphics.c plus/loaddatabase.c plus/opcodes.c
+        plus/parseinput.c plus/restorestate.c plus/sagadraw_glue.c plus/stdetect.c
+        plus/stdraw.c
+        ${COMMON_UTILS_SRCS} ${READWOZ_SRCS} ${SAGADRAW_SRCS}
         INCLUDE_DIRS ${PLUS_INCLUDE_DIRS}
         LIBS c64diskimage
         GPL2)
@@ -384,7 +401,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# SCARIER (from Spatterlight 1.5.4) for Adrift 4 and 5 games
+# SCARIER (from Spatterlight 1.5.5) for Adrift 4 and 5 games
 #
 if(WITH_SCARIER)
     find_package(ZLIB REQUIRED)
@@ -419,26 +436,59 @@ int main()
 
     terp(scarier
         SRCS scarier/adrift5/a5blorb.cpp scarier/adrift5/a5deobf.cpp
-        scarier/adrift5/a5expr.cpp scarier/adrift5/a5map.cpp
-        scarier/adrift5/a5model.cpp scarier/adrift5/a5parse.cpp
-        scarier/adrift5/a5rand.cpp scarier/adrift5/a5restr.cpp
-        scarier/adrift5/a5run.cpp scarier/adrift5/a5run_action.cpp
-        scarier/adrift5/a5run_conv.cpp scarier/adrift5/a5run_events.cpp
-        scarier/adrift5/a5run_ref.cpp scarier/adrift5/a5run_resp.cpp
-        scarier/adrift5/a5run_sort.cpp scarier/adrift5/a5sb.cpp
-        scarier/adrift5/a5sexpr.cpp scarier/adrift5/a5state.cpp
-        scarier/adrift5/a5text.cpp scarier/adrift5/a5xml.cpp
-        scarier/mapdraw.cpp scarier/os_glk.cpp
-        scarier/scbattle.cpp scarier/scdebug.cpp scarier/scevents.cpp
-        scarier/scexpr.cpp scarier/scgamest.cpp scarier/scinterf.cpp
-        scarier/sclibrar.cpp scarier/sclocale.cpp scarier/scmap.cpp
-        scarier/scmemos.cpp scarier/scnpcs.cpp scarier/scobjcts.cpp
-        scarier/scparser.cpp scarier/scprintf.cpp scarier/scprops.cpp
-        scarier/scresour.cpp scarier/screstrs.cpp scarier/scrunner.cpp
-        scarier/scserial.cpp scarier/sctaffil.cpp scarier/sctafpar.cpp
-        scarier/sctasks.cpp scarier/scutils.cpp scarier/scvars.cpp
-        scarier/common_utils/randomness.c scarier/common_utils/sc_garglk.c
-        INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS}
+        scarier/adrift5/a5expr.cpp scarier/adrift5/a5map.cpp scarier/adrift5/a5model.cpp
+        scarier/adrift5/a5parse.cpp scarier/adrift5/a5rand.cpp
+        scarier/adrift5/a5restr.cpp scarier/adrift5/a5sb.cpp scarier/adrift5/a5sexpr.cpp
+        scarier/adrift5/a5state.cpp scarier/adrift5/a5xml.cpp
+        scarier/adrift5/run/a5run.cpp scarier/adrift5/run/a5run_act.cpp
+        scarier/adrift5/run/a5run_action.cpp scarier/adrift5/run/a5run_conv.cpp
+        scarier/adrift5/run/a5run_events.cpp scarier/adrift5/run/a5run_ref.cpp
+        scarier/adrift5/run/a5run_resp.cpp scarier/adrift5/run/a5run_save.cpp
+        scarier/adrift5/run/a5run_sort.cpp scarier/adrift5/run/a5run_words.cpp
+        scarier/adrift5/text/a5text.cpp scarier/adrift5/text/a5text_func.cpp
+        scarier/adrift5/text/a5text_name.cpp scarier/adrift5/text/a5text_render.cpp
+        scarier/adrift5/text/a5text_view.cpp scarier/common_utils/randomness.c
+        scarier/common_utils/sc_garglk.c scarier/core/scbattle.cpp
+        scarier/core/scdebug.cpp scarier/core/scevents.cpp scarier/core/scexpr.cpp
+        scarier/core/scgamest.cpp scarier/core/scinterf.cpp scarier/core/sclocale.cpp
+        scarier/core/scmap.cpp scarier/core/scmemos.cpp scarier/core/scnpcs.cpp
+        scarier/core/scobjcts.cpp scarier/core/scparser.cpp
+        scarier/core/scparser_entity.cpp scarier/core/scparser_match.cpp
+        scarier/core/scparser_pattern.cpp scarier/core/scparser_pronoun.cpp
+        scarier/core/scprintf.cpp scarier/core/scprintf_alr.cpp
+        scarier/core/scprintf_buffer.cpp scarier/core/scprintf_input.cpp
+        scarier/core/scprintf_output.cpp scarier/core/scprops.cpp
+        scarier/core/scresour.cpp scarier/core/screstrs.cpp scarier/core/scserial.cpp
+        scarier/core/sctaffil.cpp scarier/core/sctafpar.cpp
+        scarier/core/sctafpar_fixups.cpp scarier/core/sctafpar_patches.cpp
+        scarier/core/sctasks.cpp scarier/core/sctasks_action.cpp
+        scarier/core/sctasks_endgame.cpp scarier/core/sctasks_move.cpp
+        scarier/core/sctasks_run.cpp scarier/core/scutils.cpp scarier/core/scvars.cpp
+        scarier/glk/os_glk.cpp scarier/glk/os_glk_a5.cpp
+        scarier/glk/os_glk_a5_display.cpp scarier/glk/os_glk_autosave.cpp
+        scarier/glk/os_glk_commands.cpp scarier/glk/os_glk_input.cpp
+        scarier/glk/os_glk_locale.cpp scarier/glk/os_glk_map.cpp
+        scarier/glk/os_glk_output.cpp scarier/glk/os_glk_platform.cpp
+        scarier/glk/os_glk_resources.cpp scarier/glk/os_glk_status.cpp
+        scarier/glk/os_glk_symbols.cpp scarier/library/sclibrar_battle.cpp
+        scarier/library/sclibrar_disambig.cpp scarier/library/sclibrar_disambig_400.cpp
+        scarier/library/sclibrar_disambig_scan.cpp scarier/library/sclibrar_dispatch.cpp
+        scarier/library/sclibrar_drop.cpp scarier/library/sclibrar_examine.cpp
+        scarier/library/sclibrar_go.cpp scarier/library/sclibrar_meta.cpp
+        scarier/library/sclibrar_misc.cpp scarier/library/sclibrar_open.cpp
+        scarier/library/sclibrar_print.cpp scarier/library/sclibrar_put.cpp
+        scarier/library/sclibrar_put_multiple.cpp scarier/library/sclibrar_read.cpp
+        scarier/library/sclibrar_refuse.cpp scarier/library/sclibrar_room.cpp
+        scarier/library/sclibrar_sitstand.cpp scarier/library/sclibrar_take.cpp
+        scarier/library/sclibrar_take_multiple.cpp scarier/library/sclibrar_takefrom.cpp
+        scarier/library/sclibrar_talk.cpp scarier/library/sclibrar_topic.cpp
+        scarier/library/sclibrar_verbobj.cpp scarier/library/sclibrar_verbs.cpp
+        scarier/mapdraw.cpp scarier/runner/scrun_dispatch.cpp
+        scarier/runner/scrun_input.cpp scarier/runner/scrun_match.cpp
+        scarier/runner/scrun_match_refusal.cpp scarier/runner/scrun_match_run.cpp
+        scarier/runner/scrun_respell.cpp scarier/runner/scrun_split.cpp
+        scarier/runner/scrun_tables.cpp scarier/runner/scrunner.cpp
+        INCLUDE_DIRS scarier ${ZLIB_INCLUDE_DIRS}
         LIBS ${ZLIB_LIBRARIES}
         CXXSTD 17)
 
@@ -449,24 +499,32 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# ScottFree 1.14 for Scott Adams games
+# ScottFree (from Spatterlight 1.5.5) for Scott Adams games
 #
 
 if(WITH_SCOTT)
-    set(SCOTT_INCLUDE_DIRS scott scott/saga scott/ai_uk scott/ti994a)
+    find_package(ZLIB REQUIRED)
+    set(SCOTT_INCLUDE_DIRS scott scott/saga scott/ai_uk scott/ti994a common_utils common_sagadraw
+        common_zxscreen aiukgraphics decompressz80 readwoz ${ZLIB_INCLUDE_DIRS})
     terp(scott
-        SRCS scott/scott.c scott/bsd.c scott/ai_uk/c64decrunch.c scott/ai_uk/debug.c
-        scott/ai_uk/decompresstext.c scott/ai_uk/line_drawing.c
-        scott/ai_uk/game_specific.c scott/ai_uk/hulk.c scott/ai_uk/gremlins.c
-        scott/ai_uk/decompressz80.c scott/detectgame.c scott/scottgameinfo.c scott/layouttext.c
-        scott/ti994a/load_ti99_4a.c scott/parser.c scott/restorestate.c
-        scott/ai_uk/ringbuffer.c scott/ai_uk/robinofsherwood.c scott/ai_uk/sagadraw.c
-        scott/saga/apple2detect.c scott/saga/apple2draw.c scott/saga/atari8c64draw.c
-        scott/saga/atari8detect.c scott/saga/ciderpress.c scott/saga/pcdraw.c scott/saga/saga.c
-        scott/saga/sagagraphics.c scott/saga/woz2nib.c scott/titleimage.c
-        scott/ai_uk/seasofblood.c scott/ti994a/ti99_4a_terp.c
+        SRCS scott/scott.c scott/bsd.c scott/detect_game.c scott/parser.c
+        scott/restore_state.c scott/scott_actions.c scott/scott_display.c
+        scott/scott_game_info.c scott/scott_meta.c scott/title_image.c
+        scott/ai_uk/c64decrunch.c scott/ai_uk/decompress_text.c
+        scott/ai_uk/game_specific.c scott/ai_uk/gremlins.c scott/ai_uk/hulk.c
+        scott/ai_uk/line_drawing.c scott/ai_uk/ringbuffer.c
+        scott/ai_uk/robin_of_sherwood.c scott/ai_uk/sagadraw.c
+        scott/ai_uk/seas_of_blood.c scott/saga/apple2_vector_draw.c
+        scott/saga/apple2detect.c scott/saga/atari8detect.c
+        scott/saga/atari_8bit_vector_draw.c scott/saga/c64_small.c
+        scott/saga/c64a8scott.c scott/saga/saga.c scott/saga/sagagraphics.c
+        scott/saga/vector_common.c scott/ti994a/load_ti99_4a.c
+        scott/ti994a/rtpi_graphics.c scott/ti994a/ti99_4a_terp.c
+        scott/ti994a/ti99_disk.c scott/ti994a/unzip_in_mem.c common_sagadraw/gm_vector.c
+        ${COMMON_UTILS_SRCS} ${AIUKGRAPHICS_SRCS} ${DECOMPRESSZ80_SRCS} ${READWOZ_SRCS}
+        ${SAGADRAW_SRCS} ${ZXSCREEN_SRCS}
         INCLUDE_DIRS ${SCOTT_INCLUDE_DIRS}
-        LIBS c64diskimage unp64)
+        LIBS c64diskimage unp64 ${ZLIB_LIBRARIES})
 endif()
 
 # ------------------------------------------------------------------------------
@@ -551,16 +609,18 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# TaylorMade 0.4 for later Adventure Soft UK games
+# TaylorMade (from Spatterlight 1.5.5) for later Adventure Soft UK games
 #
 
 if(WITH_TAYLOR)
-    set(TAYLOR_INCLUDE_DIRS taylor)
+    set(TAYLOR_INCLUDE_DIRS taylor common_utils common_zxscreen aiukgraphics decompressz80)
     terp(taylor
-        SRCS taylor/animations.c taylor/c64decrunch.c taylor/decompressz80.c
-        taylor/decrypttotloader.c taylor/extracommands.c taylor/extracttape.c taylor/gameinfo.c
-        taylor/layouttext.c taylor/loadtotpicture.c taylor/parseinput.c taylor/player.c
-        taylor/restorestate.c taylor/sagadraw.c taylor/ui.c taylor/utility.c
+        SRCS taylor/actions.c taylor/alkatraz_screen.c taylor/animations.c
+        taylor/c64decrunch.c taylor/decrypttotloader.c taylor/extracommands.c
+        taylor/extracttape.c taylor/gameinfo.c taylor/gameload.c taylor/graphics.c
+        taylor/loading_screen.c taylor/parseinput.c taylor/player.c
+        taylor/restorestate.c taylor/textoutput.c taylor/ui.c
+        ${COMMON_UTILS_SRCS} ${AIUKGRAPHICS_SRCS} ${DECOMPRESSZ80_SRCS} ${ZXSCREEN_SRCS}
         INCLUDE_DIRS ${TAYLOR_INCLUDE_DIRS}
         LIBS c64diskimage unp64
         GPL2)

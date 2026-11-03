@@ -8,8 +8,6 @@
 #ifndef c64decrunch_h
 #define c64decrunch_h
 
-#include <stdio.h>
-
 #include "taylor.h"
 
 GameIDType DetectC64(uint8_t **sf, size_t *extent);

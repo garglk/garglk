@@ -5,9 +5,17 @@
 //  Created by Petter Sjölund on 2022-09-07.
 //
 
+#include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 
+#include "apple2draw.h"
+#include "sagadraw_host.h"
+#include "apple2_vector_draw.h"
+#include "atari_8bit_vector_draw.h"
+#include "vector_common.h"
+#include "common_file_utils.h"
+#include "rtpi_graphics.h"
 #include "glk.h"
 #include "scott.h"
 
@@ -15,22 +23,42 @@
 
 int pixel_size;
 int x_offset = 0;
+/* The y_offset global is only used by the title image.
+ We always position the in-game graphics
+ relative to the graphics window top.
+ Images have an internal "y origin" value
+ that determines their vertical position. */
 int y_offset = 0;
-int right_margin;
+/* The first picture column to draw */
 int left_margin = 0;
 
-PALETTE pal;
+USImage *USImages = NULL;
 
-struct USImage *USImages = NULL;
-
-int has_graphics(void)
+int HasGraphics(void)
 {
     return (USImages != NULL);
 }
 
-USImage *new_image(void)
+void DrawImageOrVector(void) {
+    if (!Graphics)
+        return;
+    if (USImages && (USImages->systype == SYS_APPLE2_LINES || USImages->systype == SYS_ATARI8_LINES)) {
+        // DrawSomeVectorPixels() picks the Apple II or Atari 8-bit
+        // renderer from CurrentSys, which matches the image system type
+        if (gli_slowdraw)
+            glk_request_timer_events(TimerDelay());
+        else
+            DrawSomeVectorPixels(1);
+    } else if (CurrentSys == SYS_APPLE2 && USImages) {
+        DrawApple2ImageFromVideoMem();
+    } else if (CurrentGame == RETURN_TO_PIRATES_ISLE) {
+        DrawRTPIFromMem();
+    }
+}
+
+USImage *NewImage(void)
 {
-    struct USImage *new = MemAlloc(sizeof(USImage));
+    USImage *new = MemAlloc(sizeof(USImage));
     new->index = -1;
     new->datasize = 0;
     new->imagedata = NULL;
@@ -43,47 +71,140 @@ USImage *new_image(void)
     return new;
 }
 
-void SetColor(int32_t index, const RGB *color)
+void SetColor(int32_t index, glui32 color)
 {
-    pal[index][0] = (*color)[0];
-    pal[index][1] = (*color)[1];
-    pal[index][2] = (*color)[2];
+    pal[index] = color;
 }
 
-void SetRGB(int32_t index, int red, int green, int blue)
-{
-    red = red * 35.7;
-    green = green * 35.7;
-    blue = blue * 35.7;
+/* A bitmap picture is decoded a pixel at a time in runs of one colour:
+   left to right along the rows on MS-DOS, down 8-pixel columns on the
+   Commodore 64 and Atari. Each fill_rect is a round trip to the window
+   server, so between StartPixelRuns() and FlushPixelRuns() the pixels are
+   collected here: those of one colour that follow each other on a row into
+   a run, and runs that lie exactly under each other into a block, which is
+   sent as a single rectangle. */
+typedef struct {
+    glui32 color;
+    glsi32 x, y;
+    glui32 width, height; /* width 0: empty */
+} PixelRect;
 
-    pal[index][0] = red;
-    pal[index][1] = green;
-    pal[index][2] = blue;
+static PixelRect pending_run;   /* The row being collected */
+static PixelRect pending_block; /* The finished runs before it */
+
+static int collecting_runs = 0;
+
+static void SendPendingBlock(void)
+{
+    if (pending_block.width == 0)
+        return;
+    if (Graphics)
+        glk_window_fill_rect(Graphics, pending_block.color, pending_block.x,
+            pending_block.y, pending_block.width, pending_block.height);
+    pending_block.width = 0;
+}
+
+/* The run is finished: add it to the block if it continues it downwards,
+   otherwise the block is finished too and the run starts a new one. */
+static void CloseRun(void)
+{
+    if (pending_run.width == 0)
+        return;
+    if (pending_block.width != 0 && pending_run.color == pending_block.color
+        && pending_run.x == pending_block.x && pending_run.width == pending_block.width
+        && pending_run.y == pending_block.y + (glsi32)pending_block.height) {
+        pending_block.height += pending_run.height;
+    } else {
+        SendPendingBlock();
+        pending_block = pending_run;
+    }
+    pending_run.width = 0;
+}
+
+static void FillRun(glui32 color, glsi32 x, glsi32 y, glui32 width, glui32 height)
+{
+    if (width == 0 || height == 0)
+        return;
+
+    glsi32 right = x + (glsi32)width;
+    glsi32 pending_right = pending_run.x + (glsi32)pending_run.width;
+
+    /* A rectangle of the same colour on the same row that touches or
+       overlaps the collected run covers the same pixels when joined to
+       it. Anything else is drawn after the run, keeping the order. */
+    if (pending_run.width != 0 && color == pending_run.color
+        && y == pending_run.y && height == pending_run.height
+        && x <= pending_right && right >= pending_run.x) {
+        if (x < pending_run.x)
+            pending_run.x = x;
+        if (right > pending_right)
+            pending_right = right;
+        pending_run.width = (glui32)(pending_right - pending_run.x);
+        return;
+    }
+
+    CloseRun();
+    pending_run.color = color;
+    pending_run.x = x;
+    pending_run.y = y;
+    pending_run.width = width;
+    pending_run.height = height;
+}
+
+/* Start collecting the pixels of a picture into runs. Only for a picture
+   that is drawn in one go: nothing else may draw to the graphics window,
+   and no event may be waited for, before FlushPixelRuns(). */
+void StartPixelRuns(void)
+{
+    collecting_runs = 1;
+}
+
+/* Send what is left of the picture and go back to drawing every pixel
+   as it comes. */
+void FlushPixelRuns(void)
+{
+    CloseRun();
+    SendPendingBlock();
+    collecting_runs = 0;
+}
+
+void PutPixelWithWidth(glsi32 xpos, glsi32 ypos, int32_t color, int pixel_width)
+{
+    if (!Graphics || xpos < 0 || xpos < left_margin) {
+        return;
+    }
+
+    glsi32 x = xpos * pixel_size + x_offset;
+    glsi32 y = ypos * pixel_size + y_offset;
+
+    if (collecting_runs)
+        FillRun(pal[color], x, y, pixel_size * pixel_width, pixel_size);
+    else
+        glk_window_fill_rect(Graphics, pal[color], x, y, pixel_size * pixel_width, pixel_size);
 }
 
 void PutPixel(glsi32 xpos, glsi32 ypos, int32_t color)
 {
-    if (xpos < 0 || xpos > right_margin || xpos < left_margin) {
-        return;
-    }
-    glui32 glk_color = ((pal[color][0] << 16)) | ((pal[color][1] << 8)) | (pal[color][2]);
-
-    glk_window_fill_rect(Graphics, glk_color, xpos * pixel_size + x_offset,
-        ypos * pixel_size + y_offset, pixel_size, pixel_size);
+    PutPixelWithWidth(xpos, ypos, color, 1);
 }
 
 void PutDoublePixel(glsi32 xpos, glsi32 ypos, int32_t color)
 {
-    if (xpos < 0 || xpos > right_margin || xpos < left_margin) {
-        return;
-    }
-    glui32 glk_color = ((pal[color][0] << 16)) | ((pal[color][1] << 8)) | (pal[color][2]);
-
-    glk_window_fill_rect(Graphics, glk_color, xpos * pixel_size + x_offset,
-        ypos * pixel_size + y_offset, pixel_size * 2, pixel_size);
+    PutPixelWithWidth(xpos, ypos, color, 2);
 }
 
-int issagaimg(const char *name)
+void RectFill(int32_t x, int32_t y, int32_t width, int32_t height,
+              int32_t color)
+{
+    if (!Graphics)
+        return;
+
+    glk_window_fill_rect(Graphics, pal[color], x * pixel_size + x_offset,
+                         y * pixel_size + y_offset, width * pixel_size,
+                         height * pixel_size);
+}
+
+int IsSagaImage(const char *name)
 {
     if (name == NULL)
         return 0;
@@ -98,4 +219,21 @@ int issagaimg(const char *name)
         return 1;
     }
     return 0;
+}
+
+uint8_t *FindImageFile(const char *shortname, size_t *datasize)
+{
+    *datasize = 0;
+    uint8_t *data = NULL;
+    size_t pathlen = strlen(DirPath) + strlen(shortname) + 5;
+    char *filename = MemAlloc(pathlen);
+    int n = snprintf(filename, pathlen, "%s%s.PAK", DirPath, shortname);
+    if (n > 0) {
+        data = ReadFileIfExists(filename, datasize);
+        if (data == NULL) {
+            fprintf(stderr, "Could not find or read image file %s\n", filename);
+        }
+    }
+    free(filename);
+    return data;
 }

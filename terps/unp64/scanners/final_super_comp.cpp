@@ -1,66 +1,50 @@
-/* This is a cut-down version of UNP64 with only the bare minimum
- * needed to decompress a number of Commodore 64 adventure games.
- * It is distributed under the zlib License by kind permission of
- * the original authors Magnus Lind and iAN CooG.
+/* Part of a cut-down version of UNP64, the generic Commodore 64 prg
+ * unpacker, with only what is needed to decompress a number of Commodore 64
+ * adventure games.
+ *
+ * (C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
+ * Copyright (c) 2002 - 2023 Magnus Lind
+ * C++ version based on code adapted to ScummVM by Avijeet Maurya
+ *
+ * Distributed under the zlib License by kind permission of the original
+ * authors Magnus Lind and iAN CooG. The notice is in the file LICENSE in
+ * the directory above (terps/unp64), which has to go wherever this file goes.
  */
 
-/*
-UNP64 - generic Commodore 64 prg unpacker
-(C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
-original source and idea: testrun.c, taken from exo20b7
-
-Follows original disclaimer
-*/
-
-/*
- * Copyright (c) 2002 - 2023 Magnus Lind.
- *
- *
- * This software is provided 'as-is', without any express or implied
- * warranty. In no event will the authors be held liable for any damages
- * arising from the use of this software.
- *
- * Permission is granted to anyone to use this software for any purpose,
- * including commercial applications, and to alter it and redistribute it
- * freely, subject to the following restrictions:
- *
- * 1. The origin of this software must not be misrepresented; you must not
- * claim that you wrote the original software. If you use this software
- * in a product, an acknowledgment in the product documentation would be
- * appreciated but is not required.
- * 2. Altered source versions must be plainly marked as such, and must not be
- * misrepresented as being the original software.
- * 3. This notice may not be removed or altered from any source distribution.
- *
- */
-
-/*
- C++ version based on code adapted to ScummVM by Avijeet Maurya
- */
-
-#include "exo_util.h"
-#include "types.h"
-#include "unp64.h"
+#include "scanners.h"
 
 namespace Unp64 {
 
-/* FinalSuperCompressor/flexible */
+/* FinalSuperCompressor/flexible
+ *
+ * The "hacked" variant comes in three layers, and the blocks for it work
+ * together across three passes of the driver:
+ *
+ *  1. The first layer is found by its stub at $080d. The scanner writes a
+ *     trampoline at $02a7 (STA $01 : JMP <where the stub would have gone>),
+ *     makes the output start there, and sets _recurs to RECUMAX - 2: two
+ *     more passes, each over the output of the one before.
+ *  2. The second pass loads a program that starts at $02a7, which is all
+ *     that the "2nd layer" block has to go by, apart from the trampoline
+ *     and the depacker that it points to. It writes the next trampoline at
+ *     $02ac and makes the output start there.
+ *  3. The "3rd layer" block does the same for a program that starts at
+ *     $02ac.
+ *
+ * Any other program that happens to load to $02a7 with those five bytes in
+ * front gets as far as the signature test on the depacker, no further. */
 void scnFinalSuperComp(UnpStr *unp) {
-	unsigned char *mem;
+	uint8_t *mem = unp->_mem;
 	int q, p;
-	if (unp->_idFlag)
-		return;
-	mem = unp->_mem;
 	if (unp->_depAdr == 0) {
-        if (((*(unsigned int *)(mem + 0x810) & 0xff00ff00) == 0x9A00A200) &&
+		if (u32eqmasked(mem + 0x810, 0xff00ff00, 0x9A00A200) &&
 			u32eq(mem + 0x832, 0x0DF008C9) &&
 			u32eq(mem + 0x836, 0xB1083DCE) &&
 			u32eq(mem + 0x8af, 0x4C00FFBD) &&
 			(mem[0x88e] == 0x4c || mem[0x889] == 0x4c)) {
 			mem[0x812] = 0xff; /* fixed, can't be otherwise */
 			unp->_depAdr = READ_LE_UINT16(&mem[0x856]);
-			if (unp->_info->_run == -1)
-				unp->_forced = 0x811;
+			forceEntryIfNoSys(unp, 0x811);
 			for (p = 0x889; p < 0x88f; p++) {
 				if (mem[p] == 0x4c) {
 					unp->_retAdr = READ_LE_UINT16(&mem[p + 1]);
@@ -68,7 +52,7 @@ void scnFinalSuperComp(UnpStr *unp) {
 				}
 			}
 			unp->_strMem = READ_LE_UINT16(&mem[0x872]);
-			unp->_endAdr = mem[0x84e] | mem[0x852] << 8;
+			unp->_endAdr = readSplit(mem, 0x84e, 0x852);
 			unp->_endAdr++;
 			unp->_idFlag = 1;
 			return;
@@ -110,12 +94,12 @@ void scnFinalSuperComp(UnpStr *unp) {
 	}
 	/* SC/Equal chars */
 	if (unp->_depAdr == 0) {
-        if (((*(unsigned int *)(mem + 0x810) & 0xf0ffffff) == 0xA0A93878) &&
+		if (u32eqmasked(mem + 0x810, 0xf0ffffff, 0xA0A93878) &&
 			(u32eq(mem + 0x814, 0xFC852DE5) ||
 			 u32eq(mem + 0x814, 0xFC85aeE5)) &&
 			(u32eq(mem + 0x818, 0xafE508A9) ||
 			 u32eq(mem + 0x818, 0x2EE508A9)) &&
-            ((*(unsigned int *)(mem + 0x844) & 0x00ffffff) == 0x00004C9A)) {
+			u32eqmasked(mem + 0x844, 0x00ffffff, 0x00004C9A)) {
 			unp->_depAdr = READ_LE_UINT16(&mem[0x846]);
 			unp->_forced = 0x810;
 			unp->_retAdr = READ_LE_UINT16(&mem[0x872]);
@@ -128,15 +112,14 @@ void scnFinalSuperComp(UnpStr *unp) {
 	}
 	/* FinalSuperCompressor/flexible hacked? */
 	if (unp->_depAdr == 0) {
-        if (u32eqmasked(mem + 0x80d, 0xff00ffff, 0x9A00A278) &&
+		if (u32eqmasked(mem + 0x80d, 0xff00ffff, 0x9A00A278) &&
 			u32eq(mem + 0x814, 0x9D0847BD) &&
 			u32eq(mem + 0x818, 0x21BD0334) &&
 			u32eq(mem + 0x81c, 0x040E9D09) &&
 			mem[0x878] == 0x4c) {
 			mem[0x80f] = 0xff; /* fixed, can't be otherwise */
 			unp->_depAdr = 0x334;
-			if (unp->_info->_run == -1)
-				unp->_forced = 0x80d;
+			forceEntryIfNoSys(unp, 0x80d);
 			unp->_retAdr = READ_LE_UINT16(&mem[0x879]);
 			/* patch */
 			mem[0x2a7] = 0x85;
@@ -159,8 +142,8 @@ void scnFinalSuperComp(UnpStr *unp) {
 				mem[0x2a8] == 0x01 &&
 				mem[0x2a9] == 0x4c) {
 				p = READ_LE_UINT16(&mem[0x2aa]);
-				if ((*(unsigned int *)(mem + p) == (((unsigned int)((mem[0x2aa] + 0x15) & 0xff) << 24) | 0x00B99EA0U)) &&
-                    u32eq(mem + p + 0x96, 0x033B4CFE)) {
+				if (u32eq(mem + p, ((((READ_LE_UINT32(&mem[0x2aa]) + 0x15) & 0xff) << 24) | 0x00B99EA0U)) &&
+					u32eq(mem + p + 0x96, 0x033B4CFE)) {
 					unp->_forced = 0x2a7;
 					unp->_depAdr = 0x334;
 					unp->_retAdr = READ_LE_UINT16(&mem[p + 0x2c]);
@@ -207,8 +190,7 @@ void scnFinalSuperComp(UnpStr *unp) {
 			mem[0x87e] == 0x4c) {
 			mem[0x80f] = 0xff; /* fixed, can't be otherwise */
 			unp->_depAdr = 0x334;
-			if (unp->_info->_run == -1)
-				unp->_forced = 0x80d;
+			forceEntryIfNoSys(unp, 0x80d);
 			unp->_retAdr = 0x7f8;
 			unp->_strMem = unp->_retAdr;
 			unp->_fEndAf = 0x34e;
@@ -238,7 +220,7 @@ void scnFinalSuperComp(UnpStr *unp) {
 			}
 			unp->_retAdr = READ_LE_UINT16(&mem[0x88f]);
 			unp->_strMem = READ_LE_UINT16(&mem[0x872]);
-			unp->_endAdr = mem[0x84e] | mem[0x852] << 8;
+			unp->_endAdr = readSplit(mem, 0x84e, 0x852);
 			unp->_endAdr++;
 			unp->_idFlag = 1;
 			return;
@@ -252,7 +234,7 @@ void scnFinalSuperComp(UnpStr *unp) {
 			u32eq(mem + 0x865, 0xEE03486C)) {
 			unp->_depAdr = 0x335;
 			unp->_forced = 0x810;
-			unp->_retAdr = mem[0x82f] | mem[0x80e] << 8;
+			unp->_retAdr = readSplit(mem, 0x82f, 0x80e);
 			unp->_retAdr++;
 			mem[0xb9] = 0x60;
 			mem[0x865] = 0x4c;

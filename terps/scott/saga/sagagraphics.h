@@ -1,19 +1,17 @@
 //
-//  graphics.h
+//  sagagraphics.h
 //  part of ScottFree, an interpreter for adventures in Scott Adams format
 //
 //  Created by Petter Sjölund on 2022-09-07.
 //
 
-#ifndef graphics_h
-#define graphics_h
-
-#include <stdio.h>
+#ifndef sagagraphics_h
+#define sagagraphics_h
 
 #include "glk.h"
-#include "scottdefines.h"
+#include "scott_defines.h"
 
-typedef struct USImage {
+struct USImage {
     USImageType usage;
     int index;
     MachineType systype;
@@ -21,13 +19,16 @@ typedef struct USImage {
     uint8_t *imagedata;
     int cropleft;
     int cropright;
+    char *filename;
     struct USImage *previous;
     struct USImage *next;
-} USImage;
+};
 
-extern struct USImage *USImages;
+typedef struct USImage USImage;
 
-typedef struct CropList {
+extern USImage *USImages;
+
+typedef struct {
     GameIDType game;
     USImageType usage;
     int index;
@@ -35,22 +36,43 @@ typedef struct CropList {
     int cropright;
 } CropList;
 
-typedef uint8_t RGB[3];
-typedef RGB PALETTE[16];
+typedef struct {
+    USImageType usage;
+    int index;
+    size_t offset;
+} imglist;
 
 extern int pixel_size;
 extern int x_offset, y_offset;
-extern int right_margin, left_margin;
-extern PALETTE pal;
+extern int left_margin;
+extern glui32 pal[16];
 
-void SetColor(int32_t index, const RGB *color);
-void SetRGB(int32_t index, int red, int green, int blue);
+void SetColor(int32_t index, glui32 color);
 
 void PutPixel(glsi32 x, glsi32 y, int32_t color);
-void PutDoublePixel(glsi32 xpos, glsi32 ypos, int32_t color);
+void PutDoublePixel(glsi32 x, glsi32 y, int32_t color);
+void PutPixelWithWidth(glsi32 xpos, glsi32 ypos, int32_t color, int pixel_width);
+/* Bracket a bitmap picture that is drawn in one go, so that its pixels
+   reach the window as runs rather than one at a time. */
+void StartPixelRuns(void);
+void FlushPixelRuns(void);
+void RectFill(int32_t x, int32_t y, int32_t width, int32_t height,
+              int32_t color);
+uint8_t *FindImageFile(const char *shortname, size_t *datasize);
 
-USImage *new_image(void);
-int issagaimg(const char *name);
-int has_graphics(void);
+USImage *NewImage(void);
 
-#endif /* graphics_h */
+/* Append a new, empty image to the list after tail and return it. */
+static inline USImage *AppendImage(USImage *tail)
+{
+    USImage *image = NewImage();
+    image->previous = tail;
+    tail->next = image;
+    return image;
+}
+
+int IsSagaImage(const char *name);
+int HasGraphics(void);
+void DrawImageOrVector(void);
+
+#endif /* sagagraphics_h */

@@ -1,57 +1,25 @@
-/* This is a cut-down version of UNP64 with only the bare minimum
- * needed to decompress a number of Commodore 64 adventure games.
- * It is distributed under the zlib License by kind permission of
- * the original authors Magnus Lind and iAN CooG.
- */
-
-/*
-UNP64 - generic Commodore 64 prg unpacker
-(C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
-original source and idea: testrun.c, taken from exo20b7
-
-Follows original disclaimer
-*/
-
-/*
- * Copyright (c) 2002 - 2023 Magnus Lind.
+/* Part of a cut-down version of UNP64, the generic Commodore 64 prg
+ * unpacker, with only what is needed to decompress a number of Commodore 64
+ * adventure games.
  *
+ * (C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
+ * Copyright (c) 2002 - 2023 Magnus Lind
+ * C++ version based on code adapted to ScummVM by Avijeet Maurya
  *
- * This software is provided 'as-is', without any express or implied
- * warranty. In no event will the authors be held liable for any damages
- * arising from the use of this software.
- *
- * Permission is granted to anyone to use this software for any purpose,
- * including commercial applications, and to alter it and redistribute it
- * freely, subject to the following restrictions:
- *
- * 1. The origin of this software must not be misrepresented; you must not
- * claim that you wrote the original software. If you use this software
- * in a product, an acknowledgment in the product documentation would be
- * appreciated but is not required.
- * 2. Altered source versions must be plainly marked as such, and must not be
- * misrepresented as being the original software.
- * 3. This notice may not be removed or altered from any source distribution.
- *
- */
-
-/*
- C++ version based on code adapted to ScummVM by Avijeet Maurya
+ * Distributed under the zlib License by kind permission of the original
+ * authors Magnus Lind and iAN CooG. The notice is in the file LICENSE in
+ * the directory above (terps/unp64), which has to go wherever this file goes.
  */
 
 #include <cstring>
 
-#include "exo_util.h"
-#include "types.h"
-#include "unp64.h"
+#include "scanners.h"
 
 namespace Unp64 {
 
 void scnExpert(UnpStr *unp) {
-	uint8_t *mem;
+	uint8_t *mem = unp->_mem;
 	int q, p;
-	if (unp->_idFlag)
-		return;
-	mem = unp->_mem;
 	if (unp->_depAdr == 0) {
 		for (q = 0x81b; q < 0x81d; q++) {
 			if (u32eq(mem + q + 0x00, 0x852FA978) &&
@@ -112,7 +80,7 @@ void scnExpert(UnpStr *unp) {
 			for (p = 0x900; p < 0xfff0; p++) {
 				if (u32eq(mem + p, 0xA2F3D0CA) &&
 					mem[p + 0x05] == 0x4c) {
-					q = READ_LE_UINT16(&mem[p + 0x06]); // mem[p + 0x06] | mem[p + 0x07] << 8;
+					q = READ_LE_UINT16(&mem[p + 0x06]);
 					if (q != 0x100) {
 						unp->_depAdr = q;
 						break;
@@ -135,7 +103,7 @@ void scnExpert(UnpStr *unp) {
 			p = mem[0x919];
 			q = p << 24 | p << 16 | p << 8 | p;
 			for (p = 0x900; p < 0xfff0; p++) {
-				if (((*(unsigned int *)(mem + p) ^ (unsigned int)q) == 0xA2F3D0CA) &&
+				if ((u32eqxored(mem + p, q, 0xA2F3D0CA)) &&
 					((mem[p + 0x05] ^ (q & 0xff)) == 0x4c)) {
 					q = (mem[p + 0x06] ^ (q & 0xff)) | (mem[p + 0x07] ^ (q & 0xff)) << 8;
 					if (q != 0x100) {
@@ -158,7 +126,7 @@ void scnExpert(UnpStr *unp) {
 			p = mem[0x923];
 			q = p << 24 | p << 16 | p << 8 | p;
 			for (p = 0x900; p < 0xfff0; p++) {
-				if (((*(unsigned int *)(mem + p) ^ (unsigned int)q) == 0xA2F3D0CA) &&
+				if (u32eqxored(mem + p, q, 0xA2F3D0CA) &&
 					((mem[p + 0x05] ^ (q & 0xff)) == 0x4c)) {
 					q = (mem[p + 0x06] ^ (q & 0xff)) | (mem[p + 0x07] ^ (q & 0xff)) << 8;
 					if (q != 0x100) {
@@ -180,7 +148,7 @@ void scnExpert(UnpStr *unp) {
 			for (p = 0x900; p < 0xfff0; p++) {
 				if (u32eq(mem + p, 0xA2F3D0CA) &&
 					mem[p + 0x05] == 0x4c) {
-					q = READ_LE_UINT16(&mem[p + 0x06]); // mem[p + 0x06] | mem[p + 0x07] << 8;
+					q = READ_LE_UINT16(&mem[p + 0x06]);
 					if (q != 0x100) {
 						unp->_depAdr = q;
 						break;

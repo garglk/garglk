@@ -1,5 +1,24 @@
 /* vi: set ts=8:
  *
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * Written from a reading of the ADRIFT 5 Runner source as released in
+ * FrankenDrift, to reproduce its behaviour; no code from it is used.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
  * ADRIFT 5 support for Scarier -- the property-expression engine.  See a5expr.h.
  *
  * A port of the Adrift 5 runner Global.ReplaceOOProperty (Global.vb:655-1620): a key (or
@@ -33,7 +52,7 @@ contains (const std::string &hay, const char *needle)
 
 /* Wired by the run harness to read the live event timers (NULL otherwise). */
 int (*a5expr_event_prop_hook) (const char *event_key, const char *prop,
-                               long *out) = NULL;
+                               long *out) = nullptr;
 
 /* ----------------------------------------------------- item-set navigation */
 
@@ -63,7 +82,7 @@ static std::string
 dir_display (const std::string &canon)
 {
   const char *nm = a5parse_direction_name (canon.c_str ());
-  return lower (nm != NULL ? std::string (nm) : canon);
+  return lower (nm != nullptr ? std::string (nm) : canon);
 }
 
 /* Join a direction list the way clsLocation.List does: ", " between, " and "
@@ -92,10 +111,10 @@ static std::vector<std::string>
 char_exit_dirs (a5_state_t *st, const char *charkey, const char *lockey)
 {
   std::vector<std::string> dirs;
-  if (lockey != NULL)
+  if (lockey != nullptr)
     for (int i = 0; i < 12; i++)
-      if (a5restr_exit_in_direction (st, charkey, lockey, kEnumDirs[i], NULL)
-          != NULL)
+      if (a5restr_exit_in_direction (st, charkey, lockey, kEnumDirs[i], nullptr)
+          != nullptr)
         dirs.push_back (kEnumDirs[i]);
   return dirs;
 }
@@ -110,7 +129,7 @@ a5expr_list_exits (a5_state_t *st, const char *charkey, const char *lockey,
                    long *count)
 {
   std::vector<std::string> dirs = char_exit_dirs (st, charkey, lockey);
-  if (count != NULL)
+  if (count != nullptr)
     *count = (long) dirs.size ();
   return strdup (render_dirs (dirs, "").c_str ());
 }
@@ -159,8 +178,8 @@ chars_children (a5_state_t *st, const char *objkey, int mode)
   std::vector<std::string> v;
   for (int i = 0; i < st->adv->n_characters; i++)
     {
-      const char *on = st->char_onobj ? st->char_onobj[i] : NULL;
-      if (on == NULL || !streq (on, objkey))
+      const char *on = st->char_onobj ? st->char_onobj[i] : nullptr;
+      if (on == nullptr || !streq (on, objkey))
         continue;
       int inside = st->char_in ? st->char_in[i] : 0;
       int hit = (mode != A5_CH_ON && inside)
@@ -271,7 +290,7 @@ chars_in_location (a5_state_t *st, const char *lockey)
   for (int i = 0; i < st->adv->n_characters; i++)
     {
       const char *lk = a5state_character_location_key (st, i);
-      if (lk != NULL && streq (lk, lockey))
+      if (lk != nullptr && streq (lk, lockey))
         v.push_back (st->adv->characters[i].key);
     }
   return v;
@@ -296,7 +315,7 @@ parent_key (a5_state_t *st, const char *key)
           || w == A5_OWHERE_LOCATION || w == A5_OWHERE_LOCGROUP)
         return st->obj[oi].key;
     }
-  return NULL;
+  return nullptr;
 }
 
 /* The location key(s) an object is in (its location roots). */
@@ -314,7 +333,7 @@ location_roots (a5_state_t *st, const char *objkey)
 static char
 item_kind (a5_state_t *st, const char *key)
 {
-  if (key == NULL) return 0;
+  if (key == nullptr) return 0;
   if (a5model_object (st->adv, key))    return 'o';
   if (a5model_character (st->adv, key)) return 'c';
   if (a5model_location (st->adv, key))  return 'l';
@@ -333,7 +352,7 @@ static std::string
 item_name (a5_state_t *st, const std::string &key, a5_article_t art)
 {
   const a5_object_t *o = a5model_object (st->adv, key.c_str ());
-  if (o != NULL)
+  if (o != nullptr)
     {
       char *n = a5text_object_name (st, o, art);
       std::string r = n ? n : "";
@@ -341,7 +360,7 @@ item_name (a5_state_t *st, const std::string &key, a5_article_t art)
       return r;
     }
   const a5_character_t *c = a5model_character (st->adv, key.c_str ());
-  if (c != NULL)
+  if (c != nullptr)
     {
       char *n = a5text_character_subjective (st, c);
       std::string r = n ? n : key;
@@ -349,7 +368,7 @@ item_name (a5_state_t *st, const std::string &key, a5_article_t art)
       return r;
     }
   const a5_location_t *l = a5model_location (st->adv, key.c_str ());
-  if (l != NULL)
+  if (l != nullptr)
     {
       char *n = a5text_location_short_plain (st, key.c_str ());
       std::string r = n ? n : "";
@@ -388,7 +407,7 @@ render_list (a5_state_t *st, const std::vector<std::string> &keys,
         }
       /* characters default to indefinite unless the args force definite */
       a5_article_t ia = art;
-      if (a5model_character (st->adv, keys[i].c_str ()) != NULL)
+      if (a5model_character (st->adv, keys[i].c_str ()) != nullptr)
         {
           ia = A5_ART_INDEFINITE;
           if (contains (a, "definite") && !contains (a, "indefinite"))
@@ -455,7 +474,7 @@ item_description (a5_state_t *st, const std::string &key)
      capitalise across a stripped "<>" join that the runner leaves alone (Starship
      Quest's DeadNative lowercase "native's ..." append). */
   const a5_object_t *o = a5model_object (st->adv, key.c_str ());
-  if (o != NULL)
+  if (o != nullptr)
     { char *d = a5text_describe_marked (st, a5xml_child (o->node, "Description"));
       std::string r = d ? d : ""; free (d);
       /* clsObject.Description getter (clsObject.vb:448): an object whose
@@ -470,7 +489,7 @@ item_description (a5_state_t *st, const std::string &key)
           free (dn); }
       return r; }
   const a5_character_t *c = a5model_character (st->adv, key.c_str ());
-  if (c != NULL)
+  if (c != nullptr)
     { /* v5 rewrites char-scoped bare functions to the keyed form at load
          (FileIO.vb:1897: SearchAndReplace "%CharacterName%" ->
          "%CharacterName[Key]%" over each character's texts), so a bare
@@ -484,7 +503,7 @@ item_description (a5_state_t *st, const std::string &key)
       st->ctx_char = prev_ctx;
       std::string r = d ? d : ""; free (d); return r; }
   const a5_location_t *l = a5model_location (st->adv, key.c_str ());
-  if (l != NULL)
+  if (l != nullptr)
     { char *d = a5text_view_location (st); std::string r = d ? d : ""; free (d);
       return r.empty () ? "There is nothing of interest here." : r; }
   return "";
@@ -557,7 +576,7 @@ selection_only_prop (const a5_state_t *st, const std::string &key,
                      const std::string &fn, std::string *out)
 {
   const a5_propdef_t *pd = a5model_propdef (st->adv, fn.c_str ());
-  if (pd == NULL || !streq (pd->type, "SelectionOnly"))
+  if (pd == nullptr || !streq (pd->type, "SelectionOnly"))
     return 0;
   *out = a5state_entity_has_prop (st, key.c_str (), fn.c_str ()) ? "1" : "0";
   return 1;
@@ -582,7 +601,7 @@ item_prop_terminal (a5_state_t *st, const std::string &key, const std::string &f
   if (selection_only_prop (st, key, fn, &sel))
     return sel;
   const char *v = a5state_entity_prop (st, key.c_str (), fn.c_str ());
-  if (v != NULL)
+  if (v != nullptr)
     {
       /* if the value is itself an entity key and there's a remainder, walk it */
       if (!rem.empty () && item_kind (st, v) != 0)
@@ -590,14 +609,352 @@ item_prop_terminal (a5_state_t *st, const std::string &key, const std::string &f
       return v;
     }
   const a5_prop_t *pr = a5_prop_find (props, n_props, fn.c_str ());
-  if (pr != NULL && pr->value_node != NULL)
+  if (pr != nullptr && pr->value_node != nullptr)
     { char *d = a5text_eval_description (st, pr->value_node);
       std::string r = d ? d : ""; free (d); return r; }
-  if (pr != NULL)
+  if (pr != nullptr)
     return "";
   if (!rem.empty ()) { *ok = 0; return ""; }
   return "0";
 }
+
+/* One navigation step, for oo_prop(): the context it applies to, the step
+   split into its name, arguments and the rest of the chain, and one member
+   per kind of context.  `key` is the item of the three single-item kinds. */
+namespace {
+
+struct oo_step_t
+{
+  a5_state_t *st;
+  const Ctx &ctx;
+  std::string fn, args, rem, key;
+  int depth;
+  int *ok;
+
+  std::string dirs ();
+  std::string event ();
+  std::string list ();
+  std::string object ();
+  std::string character ();
+  std::string location ();
+};
+
+/* ---- direction list (a .Exits result) ---- */
+std::string
+oo_step_t::dirs ()
+{
+  if (fn.empty ())
+    return join_keys (ctx.dirs);
+  if (fn == "Count")
+    return std::to_string (ctx.dirs.size ());
+  if (fn == "List" || fn == "Name")
+    return render_dirs (ctx.dirs, args);
+  return "";
+}
+
+/* ---- event item (Global.ReplaceOOProperty evt branch) ---- */
+std::string
+oo_step_t::event ()
+{
+  if (fn.empty ())
+    return ctx.keys.empty () ? "" : ctx.keys[0];
+  if ((fn == "Position" || fn == "Length") && !ctx.keys.empty ())
+    {
+      long v = 0;
+      if (a5expr_event_prop_hook
+          && a5expr_event_prop_hook (ctx.keys[0].c_str (), fn.c_str (), &v))
+        return std::to_string (v);
+      *ok = 0;        /* no host hook (a5text_dump): unresolved */
+      return "";
+    }
+  return "";
+}
+
+/* ---- list path (also single items routed through here when convenient) ---- */
+std::string
+oo_step_t::list ()
+{
+  if (fn.empty ())
+    return join_keys (ctx.keys);
+  if (fn == "Count")
+    return std::to_string (ctx.keys.size ());
+  if (fn == "Sum")
+    {
+      long sum = 0;
+      for (auto &k : ctx.keys)
+        { const char *v = a5state_entity_prop (st, k.c_str (), ctx.prop_key.c_str ());
+          if (v) sum += strtol (v, nullptr, 10); }
+      return std::to_string (sum);
+    }
+  if (fn == "Description")
+    { std::string r; for (auto &k : ctx.keys)
+        { if (!r.empty ()) r += "  "; r += item_description (st, k); } return r; }
+  if (fn == "List" || fn == "Name")
+    return render_list (st, ctx.keys, args);
+  if (fn == "Parent")
+    {
+      Ctx nc; nc.is_list = 1;
+      for (auto &k : ctx.keys)
+        { const char *pk = parent_key (st, k.c_str ());
+          if (pk) { int dup = 0; for (auto &e : nc.keys) if (e == pk) dup = 1;
+                    if (!dup) nc.keys.push_back (pk); } }
+      if (!rem.empty ()) return oo_prop (st, nc, rem, depth + 1, ok);
+      return "";
+    }
+  if (fn == "Children" || fn == "Contents")
+    {
+      Ctx nc; nc.is_list = 1;
+      for (auto &k : ctx.keys)
+        for (auto &c : oo_children_set (st, k.c_str (), fn, args))
+          nc.keys.push_back (c);
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  if (fn == "Objects")
+    {
+      Ctx nc; nc.is_list = 1;
+      for (auto &k : ctx.keys)
+        if (a5model_location (st->adv, k.c_str ()))
+          for (auto &o : objs_in_location (st, k.c_str ()))
+            nc.keys.push_back (o);
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  if (fn == "Characters")
+    {
+      Ctx nc; nc.is_list = 1;
+      for (auto &k : ctx.keys)
+        if (a5model_location (st->adv, k.c_str ()))
+          for (auto &c : chars_in_location (st, k.c_str ()))
+            nc.keys.push_back (c);
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  /* else: a property key -> filter / aggregate.  Carry it for .Sum. */
+  /* A SelectionOnly (valueless marker) property applied to a list is a
+     FILTER, not a value: the runner's ReplaceOOProperty (Global.vb:931-1082) keeps
+     the members that carry the marker and yields those member KEYS (a
+     reference / sub-collection), because a SelectionOnly prop has no value
+     to render.  So `%Player%.Location.Objects.ObjectIsAT` -> the cube's
+     key (AlienDiver binds this to set the cube's target number / craft /
+     extract), and `...ObjectIsAT.Count` counts only the cubes.  Any other
+     property type (Integer/ValueList/StateList/Text/entity-key) keeps the
+     long-standing carry-for-.Sum / terminal-first-value behaviour. */
+  const a5_propdef_t *pd = a5model_propdef (st->adv, fn.c_str ());
+  if (pd != nullptr && streq (pd->type, "SelectionOnly"))
+    {
+      /* An argument inverts the filter: `.Isscore(False)` (or `(0)`)
+         keeps the members that do NOT carry the marker (ReplaceOOProperty:
+         a has-property member is dropped on "false"/"0", Global.vb:971,
+         and a lacks-property member kept, vb:1040).  Symphonica 64's
+         inventory line is `%Player%.Held(False).Isscore(False).List(..)`
+         -- the non-score items. */
+      std::string a = lower (args);
+      int want = !(a == "false" || a == "0");
+      Ctx nc; nc.is_list = 1;
+      for (auto &k : ctx.keys)
+        if (!!a5state_entity_has_prop (st, k.c_str (), fn.c_str ()) == want)
+          nc.keys.push_back (k);
+      if (!rem.empty ())
+        return oo_prop (st, nc, rem, depth + 1, ok);
+      return join_keys (nc.keys);
+    }
+  Ctx nc; nc.is_list = 1; nc.keys = ctx.keys; nc.prop_key = fn;
+  if (!rem.empty ())
+    return oo_prop (st, nc, rem, depth + 1, ok);
+  /* terminal property on a list: emit the first item's value */
+  for (auto &k : ctx.keys)
+    { const char *v = a5state_entity_prop (st, k.c_str (), fn.c_str ());
+      if (v) return v; }
+  return "";
+}
+
+/* ---- single item: object, character, location ---- */
+std::string
+oo_step_t::object ()
+{
+  const a5_object_t *o = a5model_object (st->adv, key.c_str ());
+  if (fn == "Adjective" || fn == "Prefix") return o->prefix ? o->prefix : "";
+  if (fn == "Article")                     return o->article ? o->article : "";
+  if (fn == "Count")                       return "1";
+  if (fn == "Noun")                        return o->n_names > 0 ? o->names[0] : "";
+  if (fn.empty ())                         return key;
+  if (fn == "Description")                 return item_description (st, key);
+  if (fn == "Name" || fn == "List")
+    {
+      a5_article_t art = A5_ART_DEFINITE;
+      if (contains (lower (args), "indefinite")) art = A5_ART_INDEFINITE;
+      else if (contains (lower (args), "none"))  art = A5_ART_NONE;
+      return item_name (st, key, art);
+    }
+  if (fn == "Parent")
+    {
+      const char *pk = parent_key (st, key.c_str ());
+      Ctx nc; if (pk) nc.keys.push_back (pk);
+      if (pk == nullptr) { return ""; }
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  if (fn == "Location")
+    {
+      /* The runner's object .Location resolves to a SINGLE clsLocation when the
+         object has one root (ReplaceOOProperty collapses a 1-item list),
+         which matters for terminal rich-Text properties: the single-item
+         branch renders their <Value><Description> node (The Salvage's
+         `%Player%.daz7Ship1.Location.daz7StationNam` station name) where
+         the list branch has no value_node fallback. */
+      Ctx nc; nc.keys = location_roots (st, key.c_str ());
+      if (nc.keys.size () != 1) nc.is_list = 1;
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  if (fn == "Children" || fn == "Contents")
+    {
+      Ctx nc; nc.is_list = 1;
+      nc.keys = oo_children_set (st, key.c_str (), fn, args);
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  /* a property key on the object */
+  return item_prop_terminal (st, key, fn, rem, o->props, o->n_props,
+                             depth, ok);
+}
+
+std::string
+oo_step_t::character ()
+{
+  const a5_character_t *c = a5model_character (st->adv, key.c_str ());
+  if (fn == "Count")        return "1";
+  if (fn.empty ())          return key;
+  if (fn == "Description")  return item_description (st, key);
+  if (fn == "Name")
+    { char *n = a5text_character_oo_name (st, c, args.c_str ());
+      std::string r = n ? n : key; free (n); return r; }
+  if (fn == "ProperName")
+    { /* clsCharacter.ProperName (Global.vb:1334): the CharacterProperName
+         override (typed-in player name) else the model Name, "" ->
+         "Anonymous". */
+      const char *pn = a5state_entity_prop (st, key.c_str (),
+                                            "CharacterProperName");
+      if (pn == nullptr || pn[0] == '\0')
+        pn = (c != nullptr && c->name != nullptr && c->name[0] != '\0')
+               ? c->name : "Anonymous";
+      return pn; }
+  if (fn == "Descriptor")   return c->n_descriptors > 0 ? c->descriptors[0] : "";
+  if (fn == "Exits")
+    {
+      int ci = a5state_character_index (st, key.c_str ());
+      const char *cl = (ci >= 0) ? st->char_loc[ci] : nullptr;
+      Ctx nc; nc.is_dirs = 1;
+      nc.dirs = char_exit_dirs (st, key.c_str (), cl);
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  if (fn == "Held" || fn == "Worn")
+    {
+      /* clsCharacter.Held/Worn(Optional bIncludeSubObjects=True): the
+         default recurses into the held/worn containers; (False) is the
+         direct list only.  The inventory contents segment keys off
+         Held.Count > Held(False).Count to detect sub-objects. */
+      std::string a = lower (args);
+      int include_sub = !(a == "false" || a == "0");
+      Ctx nc; nc.is_list = 1;
+      nc.keys = objs_carried_by (st, key.c_str (),
+                                 fn == "Held" ? A5_OWHERE_HELD_BY
+                                              : A5_OWHERE_WORN_BY);
+      if (include_sub)
+        add_descendants (st, nc.keys);
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  if (fn == "WornAndHeld")
+    {
+      /* clsCharacter WornAndHeld OO step (Global.vb:1350): worn objects
+         followed by held objects, as one list. */
+      Ctx nc; nc.is_list = 1;
+      nc.keys = objs_carried_by (st, key.c_str (), A5_OWHERE_WORN_BY);
+      for (auto &h : objs_carried_by (st, key.c_str (), A5_OWHERE_HELD_BY))
+        nc.keys.push_back (h);
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  if (fn == "Location")
+    {
+      int ci = a5state_character_index (st, key.c_str ());
+      Ctx nc; if (ci >= 0 && st->char_loc[ci]) nc.keys.push_back (st->char_loc[ci]);
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  if (fn == "Parent")
+    {
+      /* clsCharacter.Parent == Location.Key (clsCharacter.vb:189): the object
+         the character is on/in (char_onobj) when seated/contained, else the
+         location.  parent_key only handles objects, so resolve the character
+         case here -- e.g. Grandpa's `(getting off %Player%.Parent.Name first)`
+         needs the chair the Player stands on. */
+      int ci = a5state_character_index (st, key.c_str ());
+      const char *pk = (ci >= 0)
+        ? (st->char_onobj[ci] ? st->char_onobj[ci] : st->char_loc[ci])
+        : nullptr;
+      if (pk == nullptr) return "";
+      Ctx nc; nc.keys.push_back (pk);
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  return item_prop_terminal (st, key, fn, rem, c->props, c->n_props,
+                             depth, ok);
+}
+
+std::string
+oo_step_t::location ()
+{
+  const a5_location_t *l = a5model_location (st->adv, key.c_str ());
+  if (fn.empty ())          return key;
+  if (fn == "Name" || fn == "List")
+    { char *n = a5text_location_short_plain (st, key.c_str ());
+      std::string r = n ? n : ""; free (n); return r; }
+  if (fn == "Description")  return item_description (st, key);
+  if (fn == "Exits")
+    {
+      Ctx nc; nc.is_dirs = 1;
+      for (int i = 0; i < 12; i++)
+        if (a5model_exit_dest (st->adv, key.c_str (), kEnumDirs[i]) != nullptr)
+          nc.dirs.push_back (kEnumDirs[i]);
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  if (fn == "Objects")
+    {
+      Ctx nc; nc.is_list = 1; nc.keys = objs_in_location (st, key.c_str ());
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  if (fn == "Characters")
+    {
+      Ctx nc; nc.is_list = 1; nc.keys = chars_in_location (st, key.c_str ());
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  if (fn == "LocationTo")
+    {
+      /* Global.ReplaceOOProperty "LocationTo" (Global.vb:1475): the raw
+         destination key(s) of the location's exit(s) in the given
+         direction(s) -- arlDirections lookup, NO exit-restriction check.
+         The Salvage's ship-walk message ends
+         `%Player%.Location.LocationTo(%direction%).Name`. */
+      Ctx nc;
+      std::vector<std::string> dests;
+      std::string dl = lower (args), cur;
+      for (size_t i = 0; i <= dl.size (); i++)
+        {
+          if (i < dl.size () && dl[i] != '|') { cur += dl[i]; continue; }
+          for (int d = 0; d < 12; d++)
+            if (cur == lower (kEnumDirs[d]))
+              {
+                const char *dest = a5model_exit_dest (st->adv, key.c_str (),
+                                                     kEnumDirs[d]);
+                if (dest != nullptr)
+                  dests.push_back (dest);
+                break;
+              }
+          cur.clear ();
+        }
+      nc.keys = dests;
+      if (dests.size () != 1)
+        nc.is_list = 1;
+      return oo_prop (st, nc, rem, depth + 1, ok);
+    }
+  return item_prop_terminal (st, key, fn, rem, l->props, l->n_props,
+                             depth, ok);
+}
+
+} /* namespace */
 
 /*
  * Evaluate the navigation step `sProperty` against `ctx`.  *ok stays 1 unless the
@@ -606,323 +963,24 @@ item_prop_terminal (a5_state_t *st, const std::string &key, const std::string &f
 static std::string
 oo_prop (a5_state_t *st, Ctx ctx, const std::string &sProperty, int depth, int *ok)
 {
-  std::string fn, args, rem;
   if (depth > 24) { *ok = 0; return ""; }
-  split_property (sProperty, fn, args, rem);
+  oo_step_t s = { st, ctx, {}, {}, {}, {}, depth, ok };
+  split_property (sProperty, s.fn, s.args, s.rem);
 
-  /* ---- direction list (a .Exits result) ---- */
   if (ctx.is_dirs)
-    {
-      if (fn.empty ())
-        return join_keys (ctx.dirs);
-      if (fn == "Count")
-        return std::to_string (ctx.dirs.size ());
-      if (fn == "List" || fn == "Name")
-        return render_dirs (ctx.dirs, args);
-      return "";
-    }
-
-  /* ---- event item (Global.ReplaceOOProperty evt branch) ---- */
+    return s.dirs ();
   if (ctx.is_event)
-    {
-      if (fn.empty ())
-        return ctx.keys.empty () ? "" : ctx.keys[0];
-      if ((fn == "Position" || fn == "Length") && !ctx.keys.empty ())
-        {
-          long v = 0;
-          if (a5expr_event_prop_hook
-              && a5expr_event_prop_hook (ctx.keys[0].c_str (), fn.c_str (), &v))
-            return std::to_string (v);
-          *ok = 0;        /* no host hook (a5text_dump): unresolved */
-          return "";
-        }
-      return "";
-    }
-
-  /* ---- list path (also single items routed through here when convenient) ---- */
+    return s.event ();
   if (ctx.is_list)
-    {
-      if (fn.empty ())
-        return join_keys (ctx.keys);
-      if (fn == "Count")
-        return std::to_string (ctx.keys.size ());
-      if (fn == "Sum")
-        {
-          long sum = 0;
-          for (auto &k : ctx.keys)
-            { const char *v = a5state_entity_prop (st, k.c_str (), ctx.prop_key.c_str ());
-              if (v) sum += strtol (v, NULL, 10); }
-          return std::to_string (sum);
-        }
-      if (fn == "Description")
-        { std::string r; for (auto &k : ctx.keys)
-            { if (!r.empty ()) r += "  "; r += item_description (st, k); } return r; }
-      if (fn == "List" || fn == "Name")
-        return render_list (st, ctx.keys, args);
-      if (fn == "Parent")
-        {
-          Ctx nc; nc.is_list = 1;
-          for (auto &k : ctx.keys)
-            { const char *pk = parent_key (st, k.c_str ());
-              if (pk) { int dup = 0; for (auto &e : nc.keys) if (e == pk) dup = 1;
-                        if (!dup) nc.keys.push_back (pk); } }
-          if (!rem.empty ()) return oo_prop (st, nc, rem, depth + 1, ok);
-          return "";
-        }
-      if (fn == "Children" || fn == "Contents")
-        {
-          Ctx nc; nc.is_list = 1;
-          for (auto &k : ctx.keys)
-            for (auto &c : oo_children_set (st, k.c_str (), fn, args))
-              nc.keys.push_back (c);
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      if (fn == "Objects")
-        {
-          Ctx nc; nc.is_list = 1;
-          for (auto &k : ctx.keys)
-            if (a5model_location (st->adv, k.c_str ()))
-              for (auto &o : objs_in_location (st, k.c_str ()))
-                nc.keys.push_back (o);
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      if (fn == "Characters")
-        {
-          Ctx nc; nc.is_list = 1;
-          for (auto &k : ctx.keys)
-            if (a5model_location (st->adv, k.c_str ()))
-              for (auto &c : chars_in_location (st, k.c_str ()))
-                nc.keys.push_back (c);
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      /* else: a property key -> filter / aggregate.  Carry it for .Sum. */
-      {
-        /* A SelectionOnly (valueless marker) property applied to a list is a
-           FILTER, not a value: the runner's ReplaceOOProperty (Global.vb:931-1082) keeps
-           the members that carry the marker and yields those member KEYS (a
-           reference / sub-collection), because a SelectionOnly prop has no value
-           to render.  So `%Player%.Location.Objects.ObjectIsAT` -> the cube's
-           key (AlienDiver binds this to set the cube's target number / craft /
-           extract), and `...ObjectIsAT.Count` counts only the cubes.  Any other
-           property type (Integer/ValueList/StateList/Text/entity-key) keeps the
-           long-standing carry-for-.Sum / terminal-first-value behaviour. */
-        const a5_propdef_t *pd = a5model_propdef (st->adv, fn.c_str ());
-        if (pd != NULL && streq (pd->type, "SelectionOnly"))
-          {
-            /* An argument inverts the filter: `.Isscore(False)` (or `(0)`)
-               keeps the members that do NOT carry the marker (ReplaceOOProperty:
-               a has-property member is dropped on "false"/"0", Global.vb:971,
-               and a lacks-property member kept, vb:1040).  Symphonica 64's
-               inventory line is `%Player%.Held(False).Isscore(False).List(..)`
-               -- the non-score items. */
-            std::string a = lower (args);
-            int want = !(a == "false" || a == "0");
-            Ctx nc; nc.is_list = 1;
-            for (auto &k : ctx.keys)
-              if (!!a5state_entity_has_prop (st, k.c_str (), fn.c_str ()) == want)
-                nc.keys.push_back (k);
-            if (!rem.empty ())
-              return oo_prop (st, nc, rem, depth + 1, ok);
-            return join_keys (nc.keys);
-          }
-        Ctx nc; nc.is_list = 1; nc.keys = ctx.keys; nc.prop_key = fn;
-        if (!rem.empty ())
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        /* terminal property on a list: emit the first item's value */
-        for (auto &k : ctx.keys)
-          { const char *v = a5state_entity_prop (st, k.c_str (), fn.c_str ());
-            if (v) return v; }
-        return "";
-      }
-    }
+    return s.list ();
 
-  /* ---- single item ---- */
   if (ctx.keys.empty ()) { *ok = 0; return ""; }
-  const std::string key = ctx.keys[0];
-  char kind = item_kind (st, key.c_str ());
-
-  if (kind == 'o')
+  s.key = ctx.keys[0];
+  switch (item_kind (st, s.key.c_str ()))
     {
-      const a5_object_t *o = a5model_object (st->adv, key.c_str ());
-      if (fn == "Adjective" || fn == "Prefix") return o->prefix ? o->prefix : "";
-      if (fn == "Article")                     return o->article ? o->article : "";
-      if (fn == "Count")                       return "1";
-      if (fn == "Noun")                        return o->n_names > 0 ? o->names[0] : "";
-      if (fn.empty ())                         return key;
-      if (fn == "Description")                 return item_description (st, key);
-      if (fn == "Name" || fn == "List")
-        {
-          a5_article_t art = A5_ART_DEFINITE;
-          if (contains (lower (args), "indefinite")) art = A5_ART_INDEFINITE;
-          else if (contains (lower (args), "none"))  art = A5_ART_NONE;
-          return item_name (st, key, art);
-        }
-      if (fn == "Parent")
-        {
-          const char *pk = parent_key (st, key.c_str ());
-          Ctx nc; if (pk) nc.keys.push_back (pk);
-          if (pk == NULL) { return ""; }
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      if (fn == "Location")
-        {
-          /* The runner's object .Location resolves to a SINGLE clsLocation when the
-             object has one root (ReplaceOOProperty collapses a 1-item list),
-             which matters for terminal rich-Text properties: the single-item
-             branch renders their <Value><Description> node (The Salvage's
-             `%Player%.daz7Ship1.Location.daz7StationNam` station name) where
-             the list branch has no value_node fallback. */
-          Ctx nc; nc.keys = location_roots (st, key.c_str ());
-          if (nc.keys.size () != 1) nc.is_list = 1;
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      if (fn == "Children" || fn == "Contents")
-        {
-          Ctx nc; nc.is_list = 1;
-          nc.keys = oo_children_set (st, key.c_str (), fn, args);
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      /* a property key on the object */
-      return item_prop_terminal (st, key, fn, rem, o->props, o->n_props,
-                                 depth, ok);
-    }
-
-  if (kind == 'c')
-    {
-      const a5_character_t *c = a5model_character (st->adv, key.c_str ());
-      if (fn == "Count")        return "1";
-      if (fn.empty ())          return key;
-      if (fn == "Description")  return item_description (st, key);
-      if (fn == "Name")
-        { char *n = a5text_character_oo_name (st, c, args.c_str ());
-          std::string r = n ? n : key; free (n); return r; }
-      if (fn == "ProperName")
-        { /* clsCharacter.ProperName (Global.vb:1334): the CharacterProperName
-             override (typed-in player name) else the model Name, "" ->
-             "Anonymous". */
-          const char *pn = a5state_entity_prop (st, key.c_str (),
-                                                "CharacterProperName");
-          if (pn == NULL || pn[0] == '\0')
-            pn = (c != NULL && c->name != NULL && c->name[0] != '\0')
-                   ? c->name : "Anonymous";
-          return pn; }
-      if (fn == "Descriptor")   return c->n_descriptors > 0 ? c->descriptors[0] : "";
-      if (fn == "Exits")
-        {
-          int ci = a5state_character_index (st, key.c_str ());
-          const char *cl = (ci >= 0) ? st->char_loc[ci] : NULL;
-          Ctx nc; nc.is_dirs = 1;
-          nc.dirs = char_exit_dirs (st, key.c_str (), cl);
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      if (fn == "Held" || fn == "Worn")
-        {
-          /* clsCharacter.Held/Worn(Optional bIncludeSubObjects=True): the
-             default recurses into the held/worn containers; (False) is the
-             direct list only.  The inventory contents segment keys off
-             Held.Count > Held(False).Count to detect sub-objects. */
-          std::string a = lower (args);
-          int include_sub = !(a == "false" || a == "0");
-          Ctx nc; nc.is_list = 1;
-          nc.keys = objs_carried_by (st, key.c_str (),
-                                     fn == "Held" ? A5_OWHERE_HELD_BY
-                                                  : A5_OWHERE_WORN_BY);
-          if (include_sub)
-            add_descendants (st, nc.keys);
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      if (fn == "WornAndHeld")
-        {
-          /* clsCharacter WornAndHeld OO step (Global.vb:1350): worn objects
-             followed by held objects, as one list. */
-          Ctx nc; nc.is_list = 1;
-          nc.keys = objs_carried_by (st, key.c_str (), A5_OWHERE_WORN_BY);
-          for (auto &h : objs_carried_by (st, key.c_str (), A5_OWHERE_HELD_BY))
-            nc.keys.push_back (h);
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      if (fn == "Location")
-        {
-          int ci = a5state_character_index (st, key.c_str ());
-          Ctx nc; if (ci >= 0 && st->char_loc[ci]) nc.keys.push_back (st->char_loc[ci]);
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      if (fn == "Parent")
-        {
-          /* clsCharacter.Parent == Location.Key (clsCharacter.vb:189): the object
-             the character is on/in (char_onobj) when seated/contained, else the
-             location.  parent_key only handles objects, so resolve the character
-             case here -- e.g. Grandpa's `(getting off %Player%.Parent.Name first)`
-             needs the chair the Player stands on. */
-          int ci = a5state_character_index (st, key.c_str ());
-          const char *pk = (ci >= 0)
-            ? (st->char_onobj[ci] ? st->char_onobj[ci] : st->char_loc[ci])
-            : NULL;
-          if (pk == NULL) return "";
-          Ctx nc; nc.keys.push_back (pk);
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      return item_prop_terminal (st, key, fn, rem, c->props, c->n_props,
-                                 depth, ok);
-    }
-
-  if (kind == 'l')
-    {
-      const a5_location_t *l = a5model_location (st->adv, key.c_str ());
-      if (fn.empty ())          return key;
-      if (fn == "Name" || fn == "List")
-        { char *n = a5text_location_short_plain (st, key.c_str ());
-          std::string r = n ? n : ""; free (n); return r; }
-      if (fn == "Description")  return item_description (st, key);
-      if (fn == "Exits")
-        {
-          Ctx nc; nc.is_dirs = 1;
-          for (int i = 0; i < 12; i++)
-            if (a5model_exit_dest (st->adv, key.c_str (), kEnumDirs[i]) != NULL)
-              nc.dirs.push_back (kEnumDirs[i]);
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      if (fn == "Objects")
-        {
-          Ctx nc; nc.is_list = 1; nc.keys = objs_in_location (st, key.c_str ());
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      if (fn == "Characters")
-        {
-          Ctx nc; nc.is_list = 1; nc.keys = chars_in_location (st, key.c_str ());
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      if (fn == "LocationTo")
-        {
-          /* Global.ReplaceOOProperty "LocationTo" (Global.vb:1475): the raw
-             destination key(s) of the location's exit(s) in the given
-             direction(s) -- arlDirections lookup, NO exit-restriction check.
-             The Salvage's ship-walk message ends
-             `%Player%.Location.LocationTo(%direction%).Name`. */
-          Ctx nc;
-          std::vector<std::string> dests;
-          std::string dl = lower (args), cur;
-          for (size_t i = 0; i <= dl.size (); i++)
-            {
-              if (i < dl.size () && dl[i] != '|') { cur += dl[i]; continue; }
-              for (int d = 0; d < 12; d++)
-                if (cur == lower (kEnumDirs[d]))
-                  {
-                    const char *dest = a5model_exit_dest (st->adv, key.c_str (),
-                                                         kEnumDirs[d]);
-                    if (dest != NULL)
-                      dests.push_back (dest);
-                    break;
-                  }
-              cur.clear ();
-            }
-          nc.keys = dests;
-          if (dests.size () != 1)
-            nc.is_list = 1;
-          return oo_prop (st, nc, rem, depth + 1, ok);
-        }
-      return item_prop_terminal (st, key, fn, rem, l->props, l->n_props,
-                                 depth, ok);
+    case 'o': return s.object ();
+    case 'c': return s.character ();
+    case 'l': return s.location ();
     }
 
   *ok = 0;
@@ -933,11 +991,11 @@ char *
 a5expr_eval (a5_state_t *st, const char *firstkeys, const char *chain,
              int force_list)
 {
-  if (firstkeys == NULL || chain == NULL)
-    return NULL;
+  if (firstkeys == nullptr || chain == nullptr)
+    return nullptr;
   Ctx ctx = resolve_first (st, firstkeys);
   if (ctx.keys.empty () && !ctx.is_list && !ctx.is_dirs)
-    return NULL;
+    return nullptr;
   /* A plural reference (%objects%/%characters%) is a collection even when it
      bound a single object, so list aggregators (.Sum/.Count/.List) and the
      list .Parent step apply -- e.g. the stock take task's
@@ -949,12 +1007,12 @@ a5expr_eval (a5_state_t *st, const char *firstkeys, const char *chain,
   std::string rem = chain;
   while (!rem.empty () && rem[0] == '.') rem.erase (rem.begin ());
   if (rem.empty ())
-    return NULL;
+    return nullptr;
 
   int ok = 1;
   std::string r = oo_prop (st, ctx, rem, 0, &ok);
   if (!ok)
-    return NULL;
+    return nullptr;
   return strdup (r.c_str ());
 }
 
@@ -1034,7 +1092,7 @@ expr_replace_impl (a5_state_t *st, const char *text, int expression)
                     {
                       std::string chain (k, (size_t) (chain_end - k));
                       char *v = a5expr_eval (st, firstkeys.c_str (), chain.c_str ());
-                      if (v != NULL)
+                      if (v != nullptr)
                         {
                           /* Expression mode (Global.vb:645): a non-integer OO
                              value becomes a quoted string literal -- unless the
@@ -1052,9 +1110,9 @@ expr_replace_impl (a5_state_t *st, const char *text, int expression)
                           int quote = 0;
                           if (expression && (p == text || p[-1] != '"'))
                             {
-                              char *endp = NULL;
+                              char *endp = nullptr;
                               (void) strtol (v, &endp, 10);
-                              quote = (v[0] == '\0' || (endp != NULL && *endp != '\0'));
+                              quote = (v[0] == '\0' || (endp != nullptr && *endp != '\0'));
                             }
                           if (quote) out += '"';
                           out += v;

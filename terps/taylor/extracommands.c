@@ -11,112 +11,80 @@
 
 #include "extracommands.h"
 #include "parseinput.h"
+#include "player.h"
 #include "restorestate.h"
 #include "utility.h"
 
+strid_t Transcript = NULL;
+
+/* Every interpreter provides this for the shared common_utils.c, whose
+   Fatal() calls it after printing its message. */
+GLK_ATTRIBUTE_NORETURN void CleanupAndExit(void)
+{
+    if (Transcript)
+        glk_stream_close(Transcript, NULL);
+    glk_exit();
+}
+
 typedef enum {
-    NO_COMMAND,
-    RESTART,
-    RESTORE,
-    SAVE_EXTR,
-    RAMSAVE_EXTR,
-    RAMLOAD_EXTR,
-    UNDO,
-    RAM,
-    SCRIPT,
-    GAME,
-    COMMAND,
-    ALL,
-    IT,
-    ON,
-    OFF
+    EXTRA_NONE,
+    EXTRA_RESTART,
+    EXTRA_RESTORE,
+    EXTRA_SAVE,
+    EXTRA_RAMSAVE,
+    EXTRA_RAMLOAD,
+    EXTRA_UNDO,
+    EXTRA_RAM,
+    EXTRA_SCRIPT,
+    EXTRA_GAME,
+    EXTRA_COMMAND,
+    EXTRA_ON,
+    EXTRA_OFF,
+    EXTRA_OTHER_WORD /* A word of the game's dictionary */
 } extra_command;
 
-const char *ExtraCommands[] = {
-    "restart",
-    "#restart",
-    "save",
-    "#save",
-    "restore",
-    "load",
-    "#restore",
-    "bom",
-    "oops",
-    "undo",
-    "#undo",
-    "ram",
-    "ramload",
-    "qload",
-    "quickload",
-    "ramrestore",
-    "#quickload",
-    "quicksave",
-    "qsave",
-    "ramsave",
-    "#quicksave",
-    "game",
-    "story",
-    "move",
-    "command",
-    "turn",
-    "#script",
-    "script",
-    "#transcript",
-    "transcript",
-    "on",
-    "off",
-    NULL
+/* Words understood by the interpreter itself, on top of the game's
+   dictionary. */
+static const struct {
+    const char *word;
+    extra_command command;
+} ExtraCommands[] = {
+    { "restart", EXTRA_RESTART },
+    { "#restart", EXTRA_RESTART },
+    { "save", EXTRA_SAVE },
+    { "#save", EXTRA_SAVE },
+    { "restore", EXTRA_RESTORE },
+    { "load", EXTRA_RESTORE },
+    { "#restore", EXTRA_RESTORE },
+    { "bom", EXTRA_UNDO },
+    { "oops", EXTRA_UNDO },
+    { "undo", EXTRA_UNDO },
+    { "#undo", EXTRA_UNDO },
+    { "ram", EXTRA_RAM },
+    { "ramload", EXTRA_RAMLOAD },
+    { "qload", EXTRA_RAMLOAD },
+    { "quickload", EXTRA_RAMLOAD },
+    { "ramrestore", EXTRA_RAMLOAD },
+    { "#quickload", EXTRA_RAMLOAD },
+    { "#qload", EXTRA_RAMLOAD },
+    { "quicksave", EXTRA_RAMSAVE },
+    { "qsave", EXTRA_RAMSAVE },
+    { "ramsave", EXTRA_RAMSAVE },
+    { "#quicksave", EXTRA_RAMSAVE },
+    { "#qsave", EXTRA_RAMSAVE },
+    { "game", EXTRA_GAME },
+    { "story", EXTRA_GAME },
+    { "move", EXTRA_COMMAND },
+    { "command", EXTRA_COMMAND },
+    { "turn", EXTRA_COMMAND },
+    { "#script", EXTRA_SCRIPT },
+    { "script", EXTRA_SCRIPT },
+    { "#transcript", EXTRA_SCRIPT },
+    { "transcript", EXTRA_SCRIPT },
+    { "on", EXTRA_ON },
+    { "off", EXTRA_OFF },
+    { NULL, EXTRA_NONE }
 };
-
-const extra_command ExtraCommandsKey[] = {
-    RESTART,
-    RESTART,
-    SAVE_EXTR,
-    SAVE_EXTR,
-    RESTORE,
-    RESTORE,
-    RESTORE,
-    UNDO,
-    UNDO,
-    UNDO,
-    UNDO,
-    RAM,
-    RAMLOAD_EXTR,
-    RAMLOAD_EXTR,
-    RAMLOAD_EXTR,
-    RAMLOAD_EXTR,
-    RAMLOAD_EXTR,
-    RAMSAVE_EXTR,
-    RAMSAVE_EXTR,
-    RAMSAVE_EXTR,
-    RAMSAVE_EXTR,
-    GAME,
-    GAME,
-    COMMAND,
-    COMMAND,
-    COMMAND,
-    SCRIPT,
-    SCRIPT,
-    SCRIPT,
-    SCRIPT,
-    ON,
-    OFF,
-    NO_COMMAND
-};
-
-extern int ShouldRestart;
-extern int StopTime;
-extern int Redraw;
-extern int WordsInInput;
-extern int PrintedOK;
-extern int InKaylethPreview;
-extern uint8_t Word[];
-
-extern winid_t Bottom;
-
-int YesOrNo(void);
-void SaveGame(void);
-int LoadGame(void);
 
 static void TranscriptOn(void)
 {
@@ -140,10 +108,8 @@ static void TranscriptOn(void)
         return;
     }
 
-    char *start_of_transcript = "Start of transcript\n\n";
-    glk_put_string_stream(Transcript, start_of_transcript);
-    glk_put_string_stream(glk_window_get_stream(Bottom),
-        "Transcript is now on.\n");
+    glk_put_string_stream(Transcript, "Start of transcript\n\n");
+    Display(Bottom, "Transcript is now on.\n");
     glk_window_set_echo_stream(Bottom, Transcript);
 }
 
@@ -154,130 +120,110 @@ static void TranscriptOff(void)
         return;
     }
 
-    char *end_of_transcript = "\n\nEnd of transcript\n";
-    glk_put_string_stream(Transcript, end_of_transcript);
+    glk_put_string_stream(Transcript, "\n\nEnd of transcript\n");
 
     glk_stream_close(Transcript, NULL);
     glk_window_set_echo_stream(Bottom, NULL);
     Transcript = NULL;
-    glk_put_string_stream(glk_window_get_stream(Bottom),
-        "Transcript is now off.\n");
+    Display(Bottom, "Transcript is now off.\n");
 }
 
-int ParseExtraCommand(char *p)
+static void RestoreGame(void)
 {
-    if (p == NULL)
-        return NO_COMMAND;
-    size_t len = strlen(p);
-    if (len == 0)
-        return NO_COMMAND;
-    int j = 0;
-    int found = 0;
-    while (ExtraCommands[j] != NULL) {
-        size_t commandlen = strlen(ExtraCommands[j]);
-        if (commandlen == len) {
-            char *c = p;
-            found = 1;
-            for (int i = 0; i < len; i++) {
-                if (tolower(*c++) != ExtraCommands[j][i]) {
-                    found = 0;
-                    break;
-                }
-            }
-            if (found) {
-                return ExtraCommandsKey[j];
-            }
-        }
-        j++;
-    }
-    return NO_COMMAND;
+    LoadGame();
 }
 
-extern int FoundExtraCommand;
+static void AskRestart(void)
+{
+    Display(Bottom, "Restart? (Y/N) ");
+    if (YesOrNo()) {
+        ShouldRestart = 1;
+    }
+}
+
+static void Undo(void)
+{
+    RestoreUndo(1);
+}
+
+/* What an extra command does, by the word that follows it (EXTRA_NONE when
+   it is the last word). A pair not listed here is left to the game. */
+static const struct {
+    extra_command verb;
+    extra_command noun;
+    void (*action)(void);
+} ExtraActions[] = {
+    { EXTRA_RESTORE, EXTRA_NONE, RestoreGame },
+    { EXTRA_RESTORE, EXTRA_GAME, RestoreGame },
+    { EXTRA_RESTART, EXTRA_NONE, AskRestart },
+    { EXTRA_RESTART, EXTRA_GAME, AskRestart },
+    { EXTRA_SAVE, EXTRA_NONE, SaveGame },
+    { EXTRA_SAVE, EXTRA_GAME, SaveGame },
+    { EXTRA_UNDO, EXTRA_NONE, Undo },
+    { EXTRA_UNDO, EXTRA_COMMAND, Undo },
+    { EXTRA_RAM, EXTRA_RESTORE, RamLoad },
+    { EXTRA_RAM, EXTRA_SAVE, RamSave },
+    { EXTRA_RAMSAVE, EXTRA_NONE, RamSave },
+    { EXTRA_RAMLOAD, EXTRA_NONE, RamLoad },
+    { EXTRA_SCRIPT, EXTRA_NONE, TranscriptOn },
+    { EXTRA_SCRIPT, EXTRA_ON, TranscriptOn },
+    { EXTRA_SCRIPT, EXTRA_OFF, TranscriptOff },
+};
+
+static extra_command ParseExtraCommand(const char *word)
+{
+    if (word == NULL)
+        return EXTRA_NONE;
+    for (int i = 0; ExtraCommands[i].word != NULL; i++) {
+        if (EqualsIgnoringCase(word, ExtraCommands[i].word))
+            return ExtraCommands[i].command;
+    }
+    return EXTRA_NONE;
+}
+
+int IsExtraCommand(const char *word)
+{
+    return ParseExtraCommand(word) != EXTRA_NONE;
+}
+
+/* GAME in RESTART GAME, ON in SCRIPT ON: words that only follow a command */
+static int IsSecondWord(extra_command command)
+{
+    return command == EXTRA_GAME || command == EXTRA_COMMAND
+        || command == EXTRA_ON || command == EXTRA_OFF;
+}
 
 int TryExtraCommand(void)
 {
     if (InKaylethPreview)
         return 0;
-    FoundExtraCommand = 0;
-    int verb_position = WordPositions[0];
-    int verb = ParseExtraCommand(InputWordStrings[verb_position]);
-    int noun = NO_COMMAND;
+    int verb_position = FirstWordPosition;
+    extra_command verb = ParseExtraCommand(InputWordStrings[verb_position]);
+    extra_command noun = EXTRA_NONE;
 
-    if (verb > SCRIPT && verb_position > 0) {
+    /* The first word the game knows may be the second word of the command:
+       GAME in RESTART GAME, or, in a game that has a SAVE of its own but no
+       RAM, SAVE in RAM SAVE. */
+    if (verb_position > 0
+        && (IsSecondWord(verb) || ParseExtraCommand(InputWordStrings[verb_position - 1]) == EXTRA_RAM)) {
         verb_position--;
         verb = ParseExtraCommand(InputWordStrings[verb_position]);
     }
     if (verb_position + 1 < WordsInInput)
         noun = ParseExtraCommand(InputWordStrings[verb_position + 1]);
-    if (noun == NO_COMMAND)
-        noun = Word[1];
+    /* A dictionary word is not an extra command, whatever its code */
+    if (noun == EXTRA_NONE && KnownWords > 1)
+        noun = EXTRA_OTHER_WORD;
 
-    StopTime = 1;
-    PrintedOK = 1;
-    Redraw = 1;
-    switch (verb) {
-    case RESTORE:
-        if (noun == NO_COMMAND || noun == GAME) {
-            LoadGame();
+    for (size_t i = 0; i < sizeof ExtraActions / sizeof ExtraActions[0]; i++) {
+        if (ExtraActions[i].verb == verb && ExtraActions[i].noun == noun) {
+            StopTime = 1;
+            PrintedOK = 1;
+            Redraw = 1;
+            ExtraActions[i].action();
             return 1;
         }
-        break;
-    case RESTART:
-        if (noun == NO_COMMAND || noun == GAME) {
-            Display(Bottom, "Restart? (Y/N) ");
-            if (YesOrNo()) {
-                ShouldRestart = 1;
-            }
-            return 1;
-        }
-        break;
-    case SAVE_EXTR:
-        if (noun == NO_COMMAND || noun == GAME) {
-            SaveGame();
-            return 1;
-        }
-        break;
-    case UNDO:
-        if (noun == NO_COMMAND || noun == COMMAND) {
-            RestoreUndo(1);
-            return 1;
-        }
-        break;
-    case RAM:
-        if (noun == RESTORE) {
-            RamLoad();
-            return 1;
-        } else if (noun == SAVE_EXTR) {
-            RamSave(1);
-            return 1;
-        }
-        break;
-    case RAMSAVE_EXTR:
-        if (noun == NO_COMMAND) {
-            RamSave(1);
-            return 1;
-        }
-        break;
-    case RAMLOAD_EXTR:
-        if (noun == NO_COMMAND) {
-            RamLoad();
-            return 1;
-        }
-        break;
-    case SCRIPT:
-        if (noun == ON || noun == 0) {
-            TranscriptOn();
-            return 1;
-        } else if (noun == OFF) {
-            TranscriptOff();
-            return 1;
-        }
-        break;
-    default:
-        break;
     }
-
     StopTime = 0;
     Redraw = 0;
     return 0;

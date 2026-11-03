@@ -1,5 +1,24 @@
 /* vi: set ts=8:
  *
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * Written from a reading of the ADRIFT 5 Runner source as released in
+ * FrankenDrift, to reproduce its behaviour; no code from it is used.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
  * ADRIFT 5 support for Scarier -- in-memory object model.
  *
  * A typed index over the parsed XML DOM (a5xml).  Each record carries the hot,
@@ -181,6 +200,13 @@ typedef struct a5_task_s {
   const char *override_type;        /* <SpecificOverrideType>, or NULL       */
   a5_specific_t *specifics; int n_specifics;
 } a5_task_t;
+
+/* Upper bound the loader clamps <ArrayLength> to (the array is allocated and
+   filled up front, so the file's value cannot be trusted as-is). */
+enum { A5_MAX_ARRAY_LENGTH = 65536 };
+
+/* Upper bound the loader clamps <WaitTurns> to. */
+enum { A5_MAX_WAIT_TURNS = 1000 };
 
 typedef struct a5_variable_s {
   const char *key;
@@ -394,12 +420,22 @@ typedef struct a5_adventure_s {
 extern a5_adventure_t *a5model_from_doc (a5_xml_doc_t *doc);
 
 /* key -> array index via the load-time hash (kind: 'O' objects, 'L' locations,
-   'C' characters, 'T' tasks, 'V' variables); -1 when absent.  Falls back to
-   the linear scan when the index is not built (hand-assembled test models). */
+   'C' characters, 'T' tasks, 'V' variables, 'G' groups); -1 when absent.  Falls
+   back to the linear scan when the index is not built (hand-assembled test
+   models). */
 extern int a5model_key_index (const a5_adventure_t *a, int kind, const char *key);
+
+/* Is `key` in group number `grp`'s static <Member> list? */
+extern int a5model_group_has_member (const a5_adventure_t *a, int grp,
+                                     const char *key);
 
 /* Full pipeline: read a Blorb/.taf file, deobfuscate, inflate, parse, model. */
 extern a5_adventure_t *a5model_load (const char *path);
+
+/* Same pipeline from an in-memory file image. Takes ownership of file_buf
+   (always frees it, including on failure). Used by Glk hosts that already have
+   the game open as a stream (e.g. Emglken with FILESYSTEM=0). */
+extern a5_adventure_t *a5model_load_buffer (uint8_t *file_buf, uint32_t file_len);
 
 /*
  * The "Adventure Upgrade" question (FileIO.vb:634, headless answer semantics in
@@ -467,15 +503,20 @@ static inline const char *
 obj_prop (const a5_object_t *o, const char *key)
 {
   const a5_prop_t *p = a5_prop_find (o->props, o->n_props, key);
-  return p ? p->value : NULL;
+  return p ? p->value : nullptr;
 }
 
 /* Per-type key lookups (linear; adequate for load + Phase 1). */
 extern const a5_object_t    *a5model_object    (const a5_adventure_t *a, const char *key);
+/* The object, character and location carrying `key` (each NULL when there is
+   none), from a single hash of the key. */
+extern void a5model_entity (const a5_adventure_t *a, const char *key,
+                            const a5_object_t **o,
+                            const a5_character_t **c,
+                            const a5_location_t **l);
 extern const a5_location_t  *a5model_location  (const a5_adventure_t *a, const char *key);
 extern const a5_character_t *a5model_character (const a5_adventure_t *a, const char *key);
 extern const a5_task_t      *a5model_task      (const a5_adventure_t *a, const char *key);
-extern const a5_variable_t  *a5model_variable  (const a5_adventure_t *a, const char *key);
 extern const a5_propdef_t   *a5model_propdef   (const a5_adventure_t *a, const char *key);
 extern const char *a5model_valuelist_value (const a5_propdef_t *pd,
                                             const char *label);

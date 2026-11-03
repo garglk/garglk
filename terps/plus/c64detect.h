@@ -8,7 +8,7 @@
 #ifndef c64detect_h
 #define c64detect_h
 
-#include <stdio.h>
 int DetectC64(uint8_t **sf, size_t *extent);
+void PatchSpidermanImages(void);
 
 #endif /* c64detect_h */

@@ -1,55 +1,23 @@
-/* This is a cut-down version of UNP64 with only the bare minimum
- * needed to decompress a number of Commodore 64 adventure games.
- * It is distributed under the zlib License by kind permission of
- * the original authors Magnus Lind and iAN CooG.
+/* Part of a cut-down version of UNP64, the generic Commodore 64 prg
+ * unpacker, with only what is needed to decompress a number of Commodore 64
+ * adventure games.
+ *
+ * (C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
+ * Copyright (c) 2002 - 2023 Magnus Lind
+ * C++ version based on code adapted to ScummVM by Avijeet Maurya
+ *
+ * Distributed under the zlib License by kind permission of the original
+ * authors Magnus Lind and iAN CooG. The notice is in the file LICENSE in
+ * the directory above (terps/unp64), which has to go wherever this file goes.
  */
 
-/*
-UNP64 - generic Commodore 64 prg unpacker
-(C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
-original source and idea: testrun.c, taken from exo20b7
-
-Follows original disclaimer
-*/
-
-/*
- * Copyright (c) 2002 - 2023 Magnus Lind.
- *
- *
- * This software is provided 'as-is', without any express or implied
- * warranty. In no event will the authors be held liable for any damages
- * arising from the use of this software.
- *
- * Permission is granted to anyone to use this software for any purpose,
- * including commercial applications, and to alter it and redistribute it
- * freely, subject to the following restrictions:
- *
- * 1. The origin of this software must not be misrepresented; you must not
- * claim that you wrote the original software. If you use this software
- * in a product, an acknowledgment in the product documentation would be
- * appreciated but is not required.
- * 2. Altered source versions must be plainly marked as such, and must not be
- * misrepresented as being the original software.
- * 3. This notice may not be removed or altered from any source distribution.
- *
- */
-
-/*
- C++ version based on code adapted to ScummVM by Avijeet Maurya
- */
-
-#include "exo_util.h"
-#include "types.h"
-#include "unp64.h"
+#include "scanners.h"
 
 namespace Unp64 {
 
 void scnTBCMultiComp(UnpStr *unp) {
-	uint8_t *mem;
+	uint8_t *mem = unp->_mem;
 	int p = 0, q = 0, strtmp;
-	if (unp->_idFlag)
-		return;
-	mem = unp->_mem;
 	if (unp->_depAdr == 0) {
 		if (u32eqmasked(mem + 0x82c, 0xfffffffd, 0x9ACA0184) &&
 			u32eq(mem + 0x830, 0xA001004C) &&
@@ -59,11 +27,11 @@ void scnTBCMultiComp(UnpStr *unp) {
 			if (mem[0x84a] == 0x81) {
 				if (u32eq(mem + 0x820, 0x32BDE9A2)) {
 					unp->_forced = 0x820;
-					unp->_retAdr = READ_LE_UINT16(&mem[0x8b2]); // mem[0x8b2] | mem[0x8b3] << 8;
+					unp->_retAdr = READ_LE_UINT16(&mem[0x8b2]);
 					if (unp->_retAdr == 0x1e1) {
 						if (u32eq(mem + 0x916, 0x4CA87120)) {
-							p = *(unsigned short int *)(mem + 0x91a);
-							if (p == 0xa7ae) {
+							p = READ_LE_UINT16(mem + 0x91a);
+							if (p == kBasicRun) {
 								unp->_retAdr = p;
 								mem[0x8b2] = 0xae;
 								mem[0x8b3] = 0xa7;
@@ -72,13 +40,13 @@ void scnTBCMultiComp(UnpStr *unp) {
 								unp->_retAdr = p;
 							}
 						} else if ((mem[0x916] == 0x4C) || (mem[0x916] == 0x20)) {
-							unp->_retAdr = READ_LE_UINT16(&mem[0x917]); // mem[0x917] | mem[0x918] << 8;
+							unp->_retAdr = READ_LE_UINT16(&mem[0x917]);
 						} else if (mem[0x919] == 0x4c) {
-							unp->_retAdr = READ_LE_UINT16(&mem[0x91a]); // mem[0x91a] | mem[0x91b] << 8;
+							unp->_retAdr = READ_LE_UINT16(&mem[0x91a]);
 						}
 					}
 					if ((unp->_retAdr == 0) && (mem[0x8b1] == 0)) {
-						unp->_retAdr = 0xa7ae;
+						unp->_retAdr = kBasicRun;
 						mem[0x8b1] = 0x4c;
 						mem[0x8b2] = 0xae;
 						mem[0x8b3] = 0xa7;
@@ -90,18 +58,18 @@ void scnTBCMultiComp(UnpStr *unp) {
 			else if (mem[0x84a] == 0x7b) {
 				if (u32eq(mem + 0x81d, 0x32BDE9A2)) {
 					unp->_forced = 0x81d;
-					unp->_retAdr = READ_LE_UINT16(&mem[0x8ac]); // mem[0x8ac] | mem[0x8ad] << 8;
+					unp->_retAdr = READ_LE_UINT16(&mem[0x8ac]);
 					p = 0x8eb;
 				}
 			}
 			if (unp->_forced) {
 				unp->_depAdr = 0x100;
-				unp->_strMem = READ_LE_UINT16(&mem[p + 1]); // mem[p + 1] | mem[p + 2] << 8;
+				unp->_strMem = READ_LE_UINT16(&mem[p + 1]);
 				q = p;
 				q += mem[p];
 				unp->_endAdr = 0;
 				for (; q > p; q -= 4) {
-					strtmp = READ_LE_UINT16(&mem[q - 1]); //(mem[q - 1] | mem[q] << 8);
+					strtmp = READ_LE_UINT16(&mem[q - 1]);
 					if (strtmp == 0)
 						strtmp = 0x10000;
 					if (strtmp > unp->_endAdr)
@@ -128,14 +96,14 @@ void scnTBCMultiComp(UnpStr *unp) {
 				}
 			}
 			unp->_depAdr = 0x334;
-			unp->_retAdr = READ_LE_UINT16(&mem[0x92a]); // mem[0x92a] | mem[0x92b] << 8;
+			unp->_retAdr = READ_LE_UINT16(&mem[0x92a]);
 			p = 0x94d;
-			unp->_strMem = READ_LE_UINT16(&mem[p + 1]); // mem[p + 1] | mem[p + 2] << 8;
+			unp->_strMem = READ_LE_UINT16(&mem[p + 1]);
 			q = p;
 			q += mem[p];
 			unp->_endAdr = 0;
 			for (; q > p; q -= 4) {
-				strtmp = READ_LE_UINT16(&mem[q - 1]); //(mem[q - 1] | mem[q] << 8);
+				strtmp = READ_LE_UINT16(&mem[q - 1]);
 				if (strtmp == 0)
 					strtmp = 0x10000;
 				if (strtmp > unp->_endAdr)
@@ -160,14 +128,14 @@ void scnTBCMultiComp(UnpStr *unp) {
 				}
 			}
 			unp->_depAdr = 0x100;
-			unp->_retAdr = READ_LE_UINT16(&mem[0x8c5]); // mem[0x8c5] | mem[0x8c6] << 8;
+			unp->_retAdr = READ_LE_UINT16(&mem[0x8c5]);
 			p = 0x8fe;
-			unp->_strMem = READ_LE_UINT16(&mem[p + 1]); // mem[p + 1] | mem[p + 2] << 8;
+			unp->_strMem = READ_LE_UINT16(&mem[p + 1]);
 			q = p;
 			q += mem[p];
 			unp->_endAdr = 0;
 			for (; q > p; q -= 4) {
-				strtmp = READ_LE_UINT16(&mem[q - 1]); //(mem[q - 1] | mem[q] << 8);
+				strtmp = READ_LE_UINT16(&mem[q - 1]);
 				if (strtmp == 0)
 					strtmp = 0x10000;
 				if (strtmp > unp->_endAdr)

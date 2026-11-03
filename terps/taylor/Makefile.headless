@@ -1,0 +1,131 @@
+# Headless builds of the TaylorMade interpreter: the image probe, for the
+# picture regression tests (test/images/README.md), and taylor_hl, a stdio
+# build for the command script tests (test/scripts/README.md).
+#
+# The whole interpreter is linked against the vendored CheapGlk for streams and
+# files, and against the fake window layer in ../common_imagetest for windows
+# and events: the interpreter sources are compiled with -include image_glk.h,
+# which renames their Glk window calls, so that the pictures land in a
+# framebuffer (CheapGlk has no graphics window).
+#
+# Usage:
+#   make -f Makefile.headless imagecheck
+#   make -f Makefile.headless mamecheck
+#   make -f Makefile.headless scriptcheck
+#   make -f Makefile.headless damagecheck
+#   make -f Makefile.headless totcheck
+#   ./taylor_image_probe -d /tmp/pictures /path/to/rebelplanet.z80
+
+CHEAPGLK_DIR := ../cheapglk
+PROBE_DIR    := ../common_imagetest
+COMMON_DIR   := ../common_utils
+GRAPHICS_DIR := ../aiukgraphics
+ZXSCREEN_DIR := ../common_zxscreen
+Z80_DIR      := ../decompressz80
+C64DISK_DIR  := ../c64diskimage
+UNP64_DIR    := ../unp64
+OBJDIR       := headless_obj
+
+CC  ?= clang
+CXX ?= clang++
+
+# -I$(PROBE_DIR) comes first so glkimp.h resolves to the probe's stand-in, and
+# -I$(CHEAPGLK_DIR) before the rest so glk.h is CheapGlk's.
+COMMON_INC := -I$(PROBE_DIR) -I. -I$(CHEAPGLK_DIR) -I$(COMMON_DIR) -I$(GRAPHICS_DIR) \
+              -I$(ZXSCREEN_DIR) -I$(Z80_DIR) -I$(C64DISK_DIR) -I$(UNP64_DIR)
+DEPFLAGS   := -MMD -MP
+BASEFLAGS  := -O0 -g -Wall -Wno-unknown-pragmas -Wno-unused-function \
+              $(COMMON_INC) $(DEPFLAGS) -include stddef.h -DSPATTERLIGHT
+CFLAGS     := $(BASEFLAGS) -include image_glk.h
+CXXFLAGS   := -O0 -g -std=c++17 -w -I$(UNP64_DIR) $(DEPFLAGS)
+
+SRCS := $(wildcard *.c) test/image_probe.c \
+        $(wildcard $(COMMON_DIR)/*.c) \
+        $(wildcard $(GRAPHICS_DIR)/*.c) \
+        $(ZXSCREEN_DIR)/zx_title.c \
+        $(wildcard $(Z80_DIR)/*.c) \
+        $(C64DISK_DIR)/c64diskimage.c
+UNP64_SRCS := $(wildcard $(UNP64_DIR)/*.cpp) $(wildcard $(UNP64_DIR)/scanners/*.cpp)
+
+PROBE_OBJS := $(OBJDIR)/image_glk.o $(OBJDIR)/fake_glk_window.o
+OBJS := $(patsubst %.c,$(OBJDIR)/%.o,$(notdir $(SRCS))) $(PROBE_OBJS) \
+        $(patsubst %.cpp,$(OBJDIR)/%.o,$(notdir $(UNP64_SRCS)))
+VPATH := .:test:$(PROBE_DIR):$(COMMON_DIR):$(GRAPHICS_DIR):$(ZXSCREEN_DIR):$(Z80_DIR):$(C64DISK_DIR):$(UNP64_DIR):$(UNP64_DIR)/scanners
+
+# CheapGlk without its main.o: the probe has its own main().
+CHEAPGLK_LIB  := $(CHEAPGLK_DIR)/libcheapglk.a
+CHEAPGLK_OBJS := $(addprefix $(CHEAPGLK_DIR)/,cgblorb.o cgdate.o cgfref.o cggestal.o \
+                 cgmisc.o cgschan.o cgstream.o cgstyle.o cgunicod.o cgwindow.o \
+                 gi_blorb.o gi_debug.o gi_dispa.o)
+
+taylor_image_probe: $(OBJS) $(CHEAPGLK_LIB)
+	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(CHEAPGLK_OBJS) -lz
+
+$(CHEAPGLK_LIB):
+	$(MAKE) -C $(CHEAPGLK_DIR)
+
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
+
+$(OBJDIR)/%.o: %.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJDIR)/%.o: %.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# The window layer itself calls the real Glk, so it is built without the
+# renames.
+$(PROBE_OBJS): $(OBJDIR)/%.o: $(PROBE_DIR)/%.c | $(OBJDIR)
+	$(CC) $(BASEFLAGS) -c $< -o $@
+
+# Picture regression tests. Rows whose game is not in test/images/games/ are
+# skipped, so this passes on a bare checkout.
+imagecheck: taylor_image_probe
+	@python3 $(PROBE_DIR)/run_image_tests.py test/images ./taylor_image_probe
+
+# The room pictures against screens captured from the original games in MAME
+# (test/images/mame_capture.py). Games without captures are skipped.
+mamecheck: taylor_image_probe
+	@python3 test/images/mame_compare.py
+
+# The interpreter on plain CheapGlk: commands on stdin, transcript on stdout,
+# no pictures. The same sources as the probe, built without the window
+# renames, with $(PROBE_DIR)/text_main.c in place of the probe and its window
+# layer.
+#
+#   printf '\n\n\nlook\n' | ./taylor_hl /path/to/rebelplanet.z80
+TEXT_OBJDIR := headless_text_obj
+TEXT_SRCS   := $(filter-out test/image_probe.c,$(SRCS)) $(PROBE_DIR)/text_main.c
+TEXT_OBJS   := $(patsubst %.c,$(TEXT_OBJDIR)/%.o,$(notdir $(TEXT_SRCS))) \
+               $(patsubst %.cpp,$(OBJDIR)/%.o,$(notdir $(UNP64_SRCS)))
+
+taylor_hl: $(TEXT_OBJS) $(CHEAPGLK_LIB)
+	$(CXX) $(LDFLAGS) -o $@ $(TEXT_OBJS) $(CHEAPGLK_OBJS) -lz
+
+$(TEXT_OBJDIR):
+	mkdir -p $(TEXT_OBJDIR)
+
+$(TEXT_OBJDIR)/%.o: %.c | $(TEXT_OBJDIR)
+	$(CC) $(BASEFLAGS) -c $< -o $@
+
+# Command script replays on the picture test images: transcript hashes of
+# whole playthroughs. Skips, like imagecheck, the rows whose game is missing.
+scriptcheck: taylor_hl
+	@python3 $(PROBE_DIR)/run_script_tests.py test/scripts test/images ./taylor_hl
+
+# Damaged copies of the picture test images: a file with unreadable pictures
+# must play on without them, and a file cut short must not crash or hang.
+damagecheck: taylor_hl
+	@python3 test/images/damaged.py test/images ./taylor_hl
+
+# The version menus of Temple of Terror: the C64 menu (graphics, text only,
+# combined) and the Spectrum question whether to combine the two tape sides.
+totcheck: taylor_image_probe taylor_hl
+	@python3 test/images/tot_versions.py test/images ./taylor_image_probe ./taylor_hl
+
+clean:
+	rm -rf $(OBJDIR) $(TEXT_OBJDIR) taylor_image_probe taylor_hl
+
+.PHONY: clean imagecheck mamecheck scriptcheck damagecheck totcheck
+
+-include $(OBJS:.o=.d) $(TEXT_OBJS:.o=.d)

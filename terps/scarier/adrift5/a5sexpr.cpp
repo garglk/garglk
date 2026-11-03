@@ -1,5 +1,24 @@
 /* vi: set ts=8:
  *
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * Written from a reading of the ADRIFT 5 Runner source as released in
+ * FrankenDrift, to reproduce its behaviour; no code from it is used.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
  * ADRIFT 5 support for Scarier -- the string-capable `<#...#>` expression
  * evaluator.  See a5sexpr.h for the grammar and rationale.
  *
@@ -10,6 +29,7 @@
  */
 
 #include <ctype.h>
+#include <limits.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,10 +41,10 @@
 #include "a5util.h"
 
 /* Wired to a5rand_between by the run harness; NULL in RNG-less builds. */
-long (*a5sexpr_rng_hook) (long lo, long hi) = NULL;
+long (*a5sexpr_rng_hook) (long lo, long hi) = nullptr;
 /* Wired to a5rand_norepeat (the runner NoRepeatRandom) by the run harness; urand()
    falls back to a plain a5sexpr_rng_hook draw when unset. */
-long (*a5sexpr_urand_hook) (long lo, long hi) = NULL;
+long (*a5sexpr_urand_hook) (long lo, long hi) = nullptr;
 
 namespace {
 
@@ -125,6 +145,17 @@ val_of (const Val &v)
   return (end == p) ? 0.0 : d;
 }
 
+/* val_of() as a long, saturated: a cast of a double outside long's range is
+   undefined behaviour, and game text can hold any number. */
+long
+long_of (const Val &v)
+{
+  double d = val_of (v);
+  if (d >= (double) LONG_MAX) return LONG_MAX;
+  if (d <= (double) LONG_MIN) return LONG_MIN;
+  return (long) d;
+}
+
 /* --------------------------------------------------------------- tokens */
 
 enum TokKind { T_NUM, T_STR, T_IDENT, T_OP, T_END };
@@ -204,8 +235,10 @@ tokenise (const char *expr)
           std::string id (s, (size_t) (p - s));
           std::string lid = lower (id);
           if (lid == "and") { Tok o; o.kind = T_OP; o.text = "AND"; o.num = 0; out.push_back (o); }
-          else if (lid == "or") { Tok o; o.kind = T_OP; o.text = "OR"; o.num = 0; out.push_back (o); }
-          else if (lid == "mod") { Tok o; o.kind = T_OP; o.text = "mod"; o.num = 0; out.push_back (o); }
+          else if (lid == "or")
+            { Tok o; o.kind = T_OP; o.text = "OR"; o.num = 0; out.push_back (o); }
+          else if (lid == "mod")
+            { Tok o; o.kind = T_OP; o.text = "mod"; o.num = 0; out.push_back (o); }
           else { Tok o; o.kind = T_IDENT; o.text = id; o.num = 0; out.push_back (o); }
           continue;
         }
@@ -222,6 +255,7 @@ tokenise (const char *expr)
 struct Parser {
   std::vector<Tok> toks;
   size_t pos;
+  int depth;            /* parse_unary() nesting, capped against "((((..." */
   const Tok &cur () const { return toks[pos]; }
   bool is_op (const char *o) const
     { return toks[pos].kind == T_OP && toks[pos].text == o; }
@@ -237,7 +271,7 @@ is_function (const std::string &lid)
     "if", "min", "max", "abs", "upr", "lwr", "ppr", "len", "val", "str",
     "mid", "replace", "lft", "rgt", "ist", "either", "oneof", "rand", "urand",
     "ucase", "lcase", "upper", "lower", "proper", "pcase", "left", "right",
-    "instr", "len", NULL
+    "instr", "len", nullptr
   };
   for (int i = 0; fns[i]; i++)
     if (lid == fns[i]) return true;
@@ -266,7 +300,9 @@ apply_function (const std::string &lid, std::vector<Val> &a)
   if (f == "abs" && n >= 1)
     return mk_num (fabs (val_of (a[0])));
   if (f == "upr" && n >= 1)
-    { std::string s = a[0].s; for (char &c : s) c = (char) toupper ((unsigned char) c); return mk_str (s); }
+    { std::string s = a[0].s;
+      for (char &c : s) c = (char) toupper ((unsigned char) c);
+      return mk_str (s); }
   if (f == "lwr" && n >= 1)
     return mk_str (lower (a[0].s));
   if (f == "ppr" && n >= 1)
@@ -274,11 +310,11 @@ apply_function (const std::string &lid, std::vector<Val> &a)
   if (f == "len" && n >= 1)
     return mk_num ((double) a[0].s.size ());
   if (f == "val" && n >= 1)
-    return mk_num ((double) (long) val_of (a[0]));
+    return mk_num (trunc (val_of (a[0])));
   if (f == "str" && n >= 1)
     return mk_str (a[0].s);
   if (f == "mid" && n >= 3)
-    { long start = (long) val_of (a[1]), cnt = (long) val_of (a[2]);
+    { long start = long_of (a[1]), cnt = long_of (a[2]);
       if (start < 1) start = 1;
       std::string s = a[0].s;
       if ((size_t) (start - 1) >= s.size ()) return mk_str ("");
@@ -290,14 +326,15 @@ apply_function (const std::string &lid, std::vector<Val> &a)
             { s.replace (i, from.size (), to); i += to.size (); } }
       return mk_str (s); }
   if (f == "lft" && n >= 2)
-    { long k = (long) val_of (a[1]); if (k < 0) k = 0;
+    { long k = long_of (a[1]); if (k < 0) k = 0;
       return mk_str (a[0].s.substr (0, (size_t) k)); }
   if (f == "rgt" && n >= 2)
-    { long k = (long) val_of (a[1]); if (k < 0) k = 0;
+    { long k = long_of (a[1]); if (k < 0) k = 0;
       std::string s = a[0].s;
       return mk_str ((size_t) k >= s.size () ? s : s.substr (s.size () - (size_t) k)); }
   if (f == "ist" && n >= 2)
-    { size_t i = a[0].s.find (a[1].s); return mk_num (i == std::string::npos ? 0 : (double) (i + 1)); }
+    { size_t i = a[0].s.find (a[1].s);
+      return mk_num (i == std::string::npos ? 0 : (double) (i + 1)); }
   /* either/oneof/rand/urand draw via the host RNG hook (a5rand_between, wired by
      the run harness) so shipped <# OneOf(...) #> picks match frankendrift's --
      e.g. Stone of Wisdom's troll-approach lines.  Without the hook (a5text_dump)
@@ -307,14 +344,15 @@ apply_function (const std::string &lid, std::vector<Val> &a)
     return (a5sexpr_rng_hook && a5sexpr_rng_hook (0, 1) == 1) ? a[0] : a[1];
   if (f == "oneof" && n >= 1)
     { long idx = a5sexpr_rng_hook ? a5sexpr_rng_hook (0, (long) n - 1) : 0;
-      if (idx < 0) idx = 0; if ((size_t) idx >= n) idx = (long) n - 1;
+      if (idx < 0) idx = 0;
+      if ((size_t) idx >= n) idx = (long) n - 1;
       return a[idx]; }
   if ((f == "rand" || f == "urand") && n >= 2)
     {
       /* rand(min,max) -> Random(min,max); urand(min,max) -> NoRepeatRandom
          (a per-range shuffled pool consumed without repeats -- The Salvage's
          planet-name assignment urand(1,33)). */
-      long lo = (long) val_of (a[0]), hi = (long) val_of (a[1]);
+      long lo = long_of (a[0]), hi = long_of (a[1]);
       if (f == "urand" && a5sexpr_urand_hook)
         return mk_num ((double) a5sexpr_urand_hook (lo, hi));
       return mk_num ((double) (a5sexpr_rng_hook ? a5sexpr_rng_hook (lo, hi) : lo));
@@ -323,7 +361,7 @@ apply_function (const std::string &lid, std::vector<Val> &a)
     {
       /* clsVariable.SetToExpression single-arg rand: Random(0, value) -- inclusive
          0..value (e.g. RAND(8) draws 0..8), NOT the bare literal. */
-      long hi = (long) val_of (a[0]);
+      long hi = long_of (a[0]);
       if (f == "urand" && a5sexpr_urand_hook)
         return mk_num ((double) a5sexpr_urand_hook (0, hi));
       return mk_num ((double) (a5sexpr_rng_hook ? a5sexpr_rng_hook (0, hi) : hi));
@@ -368,9 +406,21 @@ parse_atom (Parser &p)
   return mk_str ("");
 }
 
+/* Every nested '(', function argument and unary sign passes through here, so
+   this is where a pathologically deep expression is cut off (it reduces to
+   "") rather than overflowing the stack. */
+enum { PARSE_DEPTH_LIMIT = 256 };
+
 Val
 parse_unary (Parser &p)
 {
+  struct Guard {
+    Parser &p;
+    explicit Guard (Parser &p_) : p (p_) { p.depth++; }
+    ~Guard () { p.depth--; }
+  } guard (p);
+  if (p.depth > PARSE_DEPTH_LIMIT)
+    return mk_str ("");
   if (p.is_op ("-")) { p.adv (); return mk_num (-val_of (parse_unary (p))); }
   if (p.is_op ("+")) { p.adv (); return mk_num (val_of (parse_unary (p))); }
   return parse_atom (p);
@@ -424,9 +474,11 @@ parse_add (Parser &p)
         }
       else if (p.is_op ("-")) { p.adv (); left = mk_num (val_of (left) - val_of (parse_mul (p))); }
       else if (p.is_op ("mod"))
-        { p.adv (); long r = (long) val_of (parse_mul (p));
-          left = mk_num (r == 0 ? 0.0 : (double) ((long) val_of (left) % r)); }
-      else if (p.is_op ("^")) { p.adv (); left = mk_num (pow (val_of (left), val_of (parse_mul (p)))); }
+        { p.adv (); long r = long_of (parse_mul (p));
+          /* r == -1 too: LONG_MIN % -1 traps. */
+          left = mk_num (r == 0 || r == -1 ? 0.0 : (double) (long_of (left) % r)); }
+      else if (p.is_op ("^"))
+        { p.adv (); left = mk_num (pow (val_of (left), val_of (parse_mul (p)))); }
       else break;
     }
   return left;
@@ -499,6 +551,7 @@ a5_eval_sexpr (const char *expr)
   Parser p;
   p.toks = tokenise (expr);
   p.pos = 0;
+  p.depth = 0;
   Val v = parse_logic (p);
   return strdup (v.s.c_str ());
 }

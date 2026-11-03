@@ -1,0 +1,146 @@
+# Headless builds of the Plus interpreter: the image probe, for the picture
+# regression tests (test/images/README.md), and plus_hl, a stdio build for the
+# command script tests (test/scripts/README.md).
+#
+# The whole interpreter is linked against the vendored CheapGlk for streams and
+# files, and against the fake window layer in ../common_imagetest for windows
+# and events: the interpreter sources are compiled with -include image_glk.h,
+# which renames their Glk window calls, so that the pictures land in a
+# framebuffer (CheapGlk has no graphics window).
+#
+# Usage:
+#   make -f Makefile.headless imagecheck
+#   make -f Makefile.headless companioncheck
+#   make -f Makefile.headless trunccheck
+#   make -f Makefile.headless containercheck
+#   make -f Makefile.headless scriptcheck
+#   make -f Makefile.headless synthcheck
+#   make -f Makefile.headless check-asan
+#   ./plus_image_probe -d /tmp/pictures "/path/to/Spider-Man side A.atr"
+
+CHEAPGLK_DIR := ../cheapglk
+PROBE_DIR    := ../common_imagetest
+COMMON_DIR   := ../common_utils
+SAGADRAW_DIR := ../common_sagadraw
+READWOZ_DIR  := ../readwoz
+C64DISK_DIR  := ../c64diskimage
+OBJDIR       := headless_obj
+TEXT_OBJDIR  := headless_text_obj
+PROBE        := plus_image_probe
+HL           := plus_hl
+
+CC ?= clang
+
+# -I$(PROBE_DIR) comes first so glkimp.h resolves to the probe's stand-in, and
+# -I$(CHEAPGLK_DIR) before the rest so glk.h is CheapGlk's.
+COMMON_INC := -I$(PROBE_DIR) -I. -I$(CHEAPGLK_DIR) -I$(COMMON_DIR) -I$(SAGADRAW_DIR) \
+              -I$(READWOZ_DIR) -I$(C64DISK_DIR)
+DEPFLAGS   := -MMD -MP
+SANFLAGS   :=
+BASEFLAGS  := -O0 -g -Wall -Wno-unknown-pragmas $(SANFLAGS) \
+              $(COMMON_INC) $(DEPFLAGS) -include stddef.h -DSPATTERLIGHT
+CFLAGS     := $(BASEFLAGS) -include image_glk.h
+
+SRCS := $(wildcard *.c) test/image_probe.c \
+        $(wildcard $(COMMON_DIR)/*.c) \
+        $(SAGADRAW_DIR)/apple2draw.c $(SAGADRAW_DIR)/c64a8draw.c $(SAGADRAW_DIR)/pcdraw.c \
+        $(SAGADRAW_DIR)/gm_artifact.c \
+        $(READWOZ_DIR)/woz2nib.c $(READWOZ_DIR)/ciderpress.c \
+        $(C64DISK_DIR)/c64diskimage.c
+
+PROBE_OBJS := $(OBJDIR)/image_glk.o $(OBJDIR)/fake_glk_window.o
+OBJS := $(patsubst %.c,$(OBJDIR)/%.o,$(notdir $(SRCS))) $(PROBE_OBJS)
+VPATH := .:test:$(PROBE_DIR):$(COMMON_DIR):$(SAGADRAW_DIR):$(READWOZ_DIR):$(C64DISK_DIR)
+
+# CheapGlk without its main.o: the probe has its own main().
+CHEAPGLK_LIB  := $(CHEAPGLK_DIR)/libcheapglk.a
+CHEAPGLK_OBJS := $(addprefix $(CHEAPGLK_DIR)/,cgblorb.o cgdate.o cgfref.o cggestal.o \
+                 cgmisc.o cgschan.o cgstream.o cgstyle.o cgunicod.o cgwindow.o \
+                 gi_blorb.o gi_debug.o gi_dispa.o)
+
+$(PROBE): $(OBJS) $(CHEAPGLK_LIB)
+	$(CC) $(LDFLAGS) $(SANFLAGS) -o $@ $(OBJS) $(CHEAPGLK_OBJS) -lz
+
+$(CHEAPGLK_LIB):
+	$(MAKE) -C $(CHEAPGLK_DIR)
+
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
+
+$(OBJDIR)/%.o: %.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# The window layer itself calls the real Glk, so it is built without the
+# renames.
+$(PROBE_OBJS): $(OBJDIR)/%.o: $(PROBE_DIR)/%.c | $(OBJDIR)
+	$(CC) $(BASEFLAGS) -c $< -o $@
+
+# Picture regression tests. Rows whose game is not in test/images/games/ are
+# skipped, so this passes on a bare checkout.
+imagecheck: $(PROBE)
+	@python3 $(PROBE_DIR)/run_image_tests.py test/images ./$(PROBE)
+
+# The two-disk sets of the same games, with one disk missing and under other
+# file names: does each disk find the other? Skips like imagecheck.
+companioncheck: $(PROBE)
+	@python3 $(PROBE_DIR)/run_companion_tests.py test/images ./$(PROBE)
+
+# The binary database of every game, cut short at a thousand-odd lengths: does
+# the loader refuse each one? See test/run_truncation_tests.py. Skips like
+# imagecheck.
+trunccheck: $(PROBE)
+	@python3 test/run_truncation_tests.py test/images ./$(PROBE)
+
+# The disk images themselves, cut short and damaged: does any copy crash or
+# hang the probe? Only worth running on a probe built with AddressSanitizer,
+# which check-asan does. Skips like imagecheck.
+containercheck: $(PROBE)
+	@python3 test/run_truncation_tests.py --containers test/images ./$(PROBE)
+
+# The interpreter on plain CheapGlk: commands on stdin, transcript on stdout,
+# no pictures. The same sources as the probe, built without the window
+# renames, with $(PROBE_DIR)/text_main.c in place of the probe and its window
+# layer.
+#
+#   printf '\n\n\nlook\n' | ./plus_hl /path/to/SPL53P.DAT
+TEXT_SRCS   := $(filter-out test/image_probe.c,$(SRCS)) $(PROBE_DIR)/text_main.c
+TEXT_OBJS   := $(patsubst %.c,$(TEXT_OBJDIR)/%.o,$(notdir $(TEXT_SRCS)))
+
+$(HL): $(TEXT_OBJS) $(CHEAPGLK_LIB)
+	$(CC) $(LDFLAGS) $(SANFLAGS) -o $@ $(TEXT_OBJS) $(CHEAPGLK_OBJS) -lz
+
+$(TEXT_OBJDIR):
+	mkdir -p $(TEXT_OBJDIR)
+
+$(TEXT_OBJDIR)/%.o: %.c | $(TEXT_OBJDIR)
+	$(CC) $(BASEFLAGS) -c $< -o $@
+
+# Command script replays on the picture test images: transcript hashes of
+# whole playthroughs. Skips, like imagecheck, the rows whose game is missing.
+scriptcheck: $(HL)
+	@python3 $(PROBE_DIR)/run_script_tests.py test/scripts test/images ./$(HL)
+
+# The same on a made-up database that is in the repository, for the opcodes
+# no real game reaches (test/synthetic/README.md).
+synthcheck: $(HL)
+	@python3 test/synthetic/mkdatabase.py --check
+	@python3 $(PROBE_DIR)/run_script_tests.py test/synthetic test/synthetic ./$(HL)
+
+# Every suite again, built with AddressSanitizer and UBSan into objects and
+# binaries of their own. The loaders and detectors are the only code here
+# that parse untrusted bytes; this is the check for them.
+ASAN := OBJDIR=headless_asan_obj TEXT_OBJDIR=headless_asan_text_obj \
+        PROBE=plus_image_probe_asan HL=plus_hl_asan \
+        SANFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined"
+
+check-asan:
+	ASAN_OPTIONS=detect_leaks=0 $(MAKE) -f Makefile.headless $(ASAN) \
+	    imagecheck companioncheck trunccheck scriptcheck synthcheck containercheck
+
+clean:
+	rm -rf $(OBJDIR) $(TEXT_OBJDIR) headless_asan_obj headless_asan_text_obj \
+	    plus_image_probe plus_hl plus_image_probe_asan plus_hl_asan
+
+.PHONY: clean imagecheck companioncheck scriptcheck synthcheck trunccheck containercheck check-asan
+
+-include $(OBJS:.o=.d) $(TEXT_OBJS:.o=.d)

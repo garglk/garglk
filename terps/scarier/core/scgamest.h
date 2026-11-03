@@ -1,0 +1,419 @@
+/* vi: set ts=2 shiftwidth=2 expandtab:
+ *
+ * Copyright (C) 2003-2008  Simon Baldwin and Mark J. Tilford
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301
+ * USA
+ */
+
+#ifndef SCARIER_GAMESTATE_H
+#define SCARIER_GAMESTATE_H
+
+#include "scarier.h"
+#include "scutils.h"
+#include "scprops.h"
+#include "scvars.h"
+#include "scprintf.h"
+#include "scmemos.h"
+#include "scdebug.h"
+
+#include <vector>
+
+/* Room state structure, tracks rooms visited by the player. */
+typedef struct scr_roomstate_s
+{
+  scr_bool visited;
+} scr_roomstate_t;
+
+/*
+ * Object state structure, tracks object movement, position, parent, openness
+ * for openable objects, state for stateful objects, and whether seen or not
+ * by the player.  The enumerations are values assigned to position when the
+ * object is other than just "in a room"; otherwise position contains the
+ * room number + 1.
+ */
+enum
+{ OBJ_HIDDEN = -1,
+  OBJ_HELD_PLAYER = 0, OBJ_HELD_NPC = -200,
+  OBJ_WORN_PLAYER = -100, OBJ_WORN_NPC = -300,
+  OBJ_PART_PLAYER = -30, OBJ_PART_NPC = -30,
+  OBJ_ON_OBJECT = -20, OBJ_IN_OBJECT = -10
+};
+
+/*
+ * The Runner's corpse marker as it appears in an NPC's room field, and so in
+ * the .tas stream.  The decompiler renders it `push &HFB 'Byte`, but the
+ * opcode is P32Dasm's LitI2_Byte, which SIGN-EXTENDS its one-byte operand --
+ * the same encoding gives &HFF for True (-1) and, right above, &HF6/&HEC/&HE2
+ * for the -10/-20/-30 object positions.  So the marker is -5, not 251.  In
+ * memory we keep the corpse at location 0 with the `dead` flag below set;
+ * this constant exists for the save format alone.
+ */
+enum { NPC_DEAD_LOCATION = -5 };
+typedef struct scr_objectstate_s
+{
+  scr_int position;
+  scr_int parent;
+  /*
+   * The Runner's per-object container field ([2E]/global_46 in run400),
+   * which its recursive weigh routine (Proc_21_55 @447680) matches children
+   * on with no position check.  The loader fills it from the raw .taf Parent
+   * value for every dynamic object -- including worn, held, in-room and
+   * not-yet-anywhere ones, where that value is leftover authoring data --
+   * except NPC-held/worn placements, which it clears.  After that only a
+   * put-in/put-on ever points it at an object again, and it is cleared only
+   * on a *detach*: moving out of an in/on placement (whatever the
+   * destination), removing a worn object, or entering NPC possession.
+   * Ordinary takes from a room, drops, and task moves of uncontained
+   * objects leave it untouched, so a stale value silently adds the object's
+   * weight to whichever container shares its Parent number for the whole
+   * game (measured live in run400 2026-08-22: goldilocks' package, object
+   * 0, weighs 19 more than its contents because the worn-from-the-start
+   * watch and dress and the never-placed broken bottle all carry Parent 0
+   * -- and the bottle keeps doing so through a take and a drop, while
+   * remove-then-drop of the watch shed its 9).  -1 means cleared; the
+   * Runner writes &HFF, which we do not reproduce because it could falsely
+   * match object 255 in a large game.
+   *
+   * Since 2026-10-17 the weigh routine no longer reads this field (the
+   * phantom weight is a deliberate deviation, see obj_weigh()); it is kept
+   * for the possession predicates gs_runner_possessed() / gs_runner_worn(),
+   * which walk it through closed containers.
+   */
+  scr_int runner_parent;
+  scr_int openness;
+  scr_int state;
+  scr_bool seen;
+  scr_bool unmoved;
+  scr_bool static_unmoved;
+  /*
+   * A 4.0 static object's room-presence set once an event has moved it: the
+   * Runner's per-room array o(28), which is all its presence test reads for
+   * a static (obhere, run400 General 452E67).  Sorted 0-based rooms.  Empty
+   * means "use position", which is all pre-4.0 games and legacy saves have.
+   */
+  std::vector<scr_int> static_rooms;
+} scr_objectstate_t;
+
+/* Task state structure, tracks task done, and if task scored. */
+typedef struct scr_taskstate_s
+{
+  scr_bool done;
+  scr_bool scored;
+} scr_taskstate_t;
+
+/* Event state structure, holds event state, and timing information. */
+enum
+{ ES_WAITING = 1,
+  ES_RUNNING = 2, ES_AWAITING = 3, ES_FINISHED = 4, ES_PAUSED = 5
+};
+typedef struct scr_eventstate_s
+{
+  scr_int state;
+  scr_int time;
+
+  /*
+   * Runner-compatible RNG mode only (SCR_RNG=xoshiro): an immediate-start
+   * event's length, rolled where run400 rolls it -- in openadv, at load --
+   * and handed to evt_start_event() in place of its own roll.  -1 when there
+   * is nothing stashed.  Not serialised: it is consumed at game start.
+   */
+  scr_int loadtime;
+
+  /*
+   * The Runner's per-event snapshot of its starter task's completed flag
+   * (run380 event field 42, run390 the same, run400 field 46), rewritten for
+   * every event with a TaskNum by a second loop over the events at the END
+   * of each events() pass, after every checkevent has run.  An awaiting
+   * event starts only when the task is complete AND this snapshot says it
+   * was not at the end of the previous pass; a running one drops back to
+   * awaiting only when the task is incomplete AND the snapshot says it was
+   * complete.  Serialised (it is the boolean beside each event in a .tas).
+   */
+  scr_int taskstate;
+
+  /*
+   * run400 only: the Runner's per-event "ticked this turn" byte (event
+   * field 196).  checkevent's running block -- pause test, decrement, the
+   * PrefTime notifications and the finish test -- runs only when the byte
+   * is clear, and sets it (46FF48).  The command processor clears it for
+   * every event at the top of each typed line (48A2EA) and after each
+   * events() pass of its WaitTurns loop (48AC40), so an event started or
+   * ticked by an out-of-order checkevent (an execute-task action's
+   * immediate check, a finishing event's lower-index recheck) is not
+   * decremented again by the ordered pass of the same turn.  Not
+   * serialised: it never survives a turn.
+   */
+  scr_int ticked;
+} scr_eventstate_t;
+
+/*
+ * Mutable battle attributes.  Slots for the four ranged combat attributes,
+ * each carrying a current [lo,hi] roll range and a maximum cap.
+ */
+enum
+{ BATTLE_STRENGTH = 0, BATTLE_ACCURACY = 1,
+  BATTLE_DEFENSE = 2, BATTLE_AGILITY = 3, BATTLE_ATTR_COUNT = 4
+};
+
+/*
+ * Per-character mutable Battle System attributes.  Seeded from the game bundle
+ * by battle_start(), then alterable at runtime by "Change battle attribute"
+ * task actions (type 7).  Attitude and speed apply to NPCs only.  Live current
+ * stamina and the recovery/attack counters are held in the fields above and in
+ * the player block, not here.
+ */
+typedef struct scr_battle_s
+{
+  scr_bool seeded;
+  scr_int attitude;                     /* 0 = neutral, 1 = ally, 2 = enemy. */
+  scr_int maxstamina;
+  scr_int speed;                        /* 0..4 attack cadence. */
+  scr_int lo[BATTLE_ATTR_COUNT];
+  scr_int hi[BATTLE_ATTR_COUNT];
+  scr_int max[BATTLE_ATTR_COUNT];
+} scr_battle_t;
+
+/*
+ * NPC state structure, tracks the NPC location and position, any parent
+ * object, whether the NPC seen, and if the NPC walks, the count of walk
+ * steps and a steps array sized to this count.
+ */
+typedef struct scr_npcstate_s
+{
+  scr_int location;
+  /*
+   * TRUE when this NPC's location was stamped by a walk's "Hidden" stop.  The
+   * Runner spells "not a room" two ways -- 0 for an NPC the game never placed
+   * anywhere, and &HFF for one a walk has just hidden (run400 loc_468D4A) --
+   * and its arrival announcement suppresses only the first (run380 @4416F4,
+   * run390 loc_45A99B, run400 @468A5D; 3.7 has no such test at all, run370
+   * @43955E).  We store both as location 0, so this flag carries the half of
+   * the distinction the announcement needs.  Any other placement clears it,
+   * because gs_set_npc_location() does.  Not part of the .tas stream: the
+   * Runner's own save writes a room byte in 0..NumRooms, so a restored
+   * hidden walker reads back as never-placed at either engine.
+   */
+  scr_bool walk_hidden;
+  /*
+   * TRUE for an NPC the battle system has killed.  The Runner spends a third
+   * "not a room" value on this -- -5, see NPC_DEAD_LOCATION above -- writing
+   * it into the NPC's room field as the last thing battle death does
+   * (run400 Battles.bas @44B127,
+   * run390 @42D3FA), and reading it back in exactly two places: the walk
+   * ticker skips every walk of an NPC carrying it (run400 @4685B6,
+   * run390 @45A4BC), and `where <name>` answers "<Name> is dead!" (run400
+   * @47FDB9, run390 @459D68).  We store the corpse at location 0 like any
+   * other hidden NPC and carry the distinction here, because the Runner does
+   * keep ticking the walks of a merely hidden one -- that is how a hidden
+   * walker comes back.  Any other placement clears it, since it clears the
+   * Runner's room field too, so a task that moves a corpse revives its walks
+   * at both engines.  3.7 and 3.8 have no battle system, so neither reader
+   * exists there.
+   */
+  scr_bool dead;
+  scr_int position;
+  scr_int parent;
+  scr_int walkstep_count;
+  std::vector<scr_int> walksteps;
+  scr_bool seen;
+
+  /* Battle system state -- current stamina, recovery and attack counters. */
+  scr_int stamina;
+  scr_int staminacounter;
+  scr_int attackcounter;
+
+  /* Mutable battle attributes (attitude, ranges, max stamina, speed). */
+  scr_battle_t battle;
+} scr_npcstate_t;
+
+/*
+ * Resource tracking structure, holds the resource name, including any
+ * trailing "##" for looping sounds, its offset into the game file, and its
+ * length.  Two resources are held -- active, and requested.  The game main
+ * loop compares the two, and notifies the interface on a change.
+ */
+typedef struct scr_resource_s
+{
+  const scr_char *name;
+  scr_int offset;
+  scr_int length;
+} scr_resource_t;
+
+/*
+ * Overall game state structure.  Arrays are malloc'ed for the appropriate
+ * number of each of the above state structures.
+ */
+typedef struct scr_game_s
+{
+  scr_uint magic;
+
+  /* References to assorted helper subsystems. */
+  scr_var_setref_t vars;
+  scr_prop_setref_t bundle;
+  scr_filterref_t filter;
+  scr_memo_setref_t memento;
+  scr_debuggerref_t debugger;
+
+  /* Undo information, also used by the debugger. */
+  struct scr_game_s *temporary;
+  struct scr_game_s *undo;
+  scr_bool undo_available;
+
+  /*
+   * Basic game state -- rooms, objects, and so on.  The state arrays are
+   * std::vector: they free themselves when the game is delete'd, so a throw
+   * partway through gs_create (a prop_* scr_fatal) leaks none of the
+   * already-allocated arrays.  The *_count fields remain the iteration source
+   * of truth (matching every existing loop, the serializer, and the asserts);
+   * the vectors are sized to match.
+   */
+  scr_int room_count;
+  std::vector<scr_roomstate_t> rooms;
+  scr_int object_count;
+  std::vector<scr_objectstate_t> objects;
+  scr_int task_count;
+  std::vector<scr_taskstate_t> tasks;
+  scr_int event_count;
+  std::vector<scr_eventstate_t> events;
+  scr_int npc_count;
+  std::vector<scr_npcstate_t> npcs;
+  scr_int playerroom;
+  scr_int playerposition;
+  scr_int playerparent;
+
+  /*
+   * Battle system state for the player -- current stamina, recovery, and the
+   * object index of the weapon the player has wielded (-1 for none).
+   */
+  scr_int playerstamina;
+  scr_int playerstaminacounter;
+  scr_int playerwield;
+
+  /* Mutable battle attributes for the player (no attitude/speed). */
+  scr_battle_t playerbattle;
+
+  scr_int turns;
+  scr_int score;
+  scr_bool bold_room_names;
+  scr_bool verbose;
+  scr_bool notify_score_change;
+  /*
+   * Owning game-status strings, freed at scope exit.
+   * scr_owned_string preserves the engine's char* contract exactly -- .get()
+   * hands the raw pointer to readers and NULL stays NULL (no empty-vs-unset
+   * confusion) -- while a scr_fatal_error / run_loop_halt thrown mid-turn
+   * (e.g. from a pf_filter -> prop_* deep in run_update_status) does not
+   * leak the buffer being replaced.  Having non-trivial members makes
+   * scr_game_s non-POD, so gs_create new()s it and gs_destroy delete()s it.
+   */
+  scr_owned_string current_room_name;
+  scr_owned_string status_line;
+  scr_owned_string title;
+  scr_owned_string author;
+  scr_owned_string hint_text;
+
+  /* Resource management data. */
+  scr_resource_t requested_sound;
+  scr_resource_t requested_graphic;
+  scr_bool stop_sound;
+  scr_bool sound_active;
+
+  scr_resource_t playing_sound;
+  scr_resource_t displayed_graphic;
+
+  /* Game running and game completed flags. */
+  scr_bool is_running;
+  scr_bool has_completed;
+
+  /*
+   * The ending an EndGame task action has armed, held until the end of the
+   * turn: 0 for none, otherwise the action's Var1 plus one (so 1 = win,
+   * 2 = lose, 3 = dead, 4 = "just stop").  The Runner keeps the same thing in
+   * a byte of its own, but numbers it differently -- its EndGame handler maps
+   * Var1 0,1,2,3 to 1,3,2,4 (0008D66E) and its endmessage switches on that --
+   * so the two are not interchangeable.  Set inside the turn and consumed by
+   * task_print_end_game_message(); never live across a command, so it is not
+   * part of the saved stream.
+   */
+  scr_int pending_endgame;
+
+  /* Player's setting for waitturns; overrides the game's. */
+  scr_int waitturns;
+
+  /*
+   * ADRIFT-style carried-load running totals.  The real Runner keeps the
+   * player's carried weight and size as running totals, updated incrementally
+   * on each take/drop; a take of an object already possessed indirectly
+   * (inside or on something carried or worn) adjusts nothing, so there is no
+   * container double-count.  It recomputes them only when loading state.
+   * These mirror that: maintained incrementally during play, recomputed at
+   * game create/copy/restore.  Derived state -- not part of the saved stream
+   * (the Runner stores live totals in the save but recomputes on load).
+   * carried_ready gates the incremental tracker off during game setup.
+   */
+  scr_int carried_weight;
+  scr_int carried_size;
+  scr_bool carried_ready;
+
+  /*
+   * When TRUE, position changes bypass the incremental tracker.  The task
+   * and event object movers set this while they move: the Runner's task
+   * mover does its own total accounting (Proc_19_10), and its event mover
+   * does none at all.  Transient -- never saved, only set across a call.
+   */
+  scr_bool carried_suspend;
+
+  /*
+   * When TRUE, the capacity checks recompute the carried load from currently
+   * held objects each time (legacy SCARE behaviour); when FALSE (default)
+   * they consult the running totals above, matching the real Runner.  Toggled
+   * with the "capacity" metacommand.
+   */
+  scr_bool capacity_recompute;
+
+  /*
+   * The 3.9/4.0 Runner's phantom object: its object array is dimensioned
+   * 0 To count and loaded 0..count-1, so slot [count] stays zeroed -- and
+   * a zero position reads as "held by the player".  TRUE while that slot
+   * is still held; see task_move_phantom_object().
+   */
+  scr_bool runner_phantom_held;
+
+  /* Miscellaneous library and main loop conveniences. */
+  scr_int waitcounter;
+  scr_bool has_notified;
+  scr_bool is_admin;
+  /*
+   * TRUE once the library's movement command has moved the player on this
+   * input line; gates the 4.0 player-side walk meet (npc_tick_npcs).
+   */
+  scr_bool player_moved_by_command;
+  scr_bool do_again;
+  scr_int redo_sequence;
+  scr_bool do_restart;
+  scr_bool do_restore;
+  std::vector<scr_bool> object_references;
+  std::vector<scr_bool> multiple_references;
+  std::vector<scr_bool> npc_references;
+  scr_int it_object;
+  scr_int it_form;          /* UIP_IT_INDEFINITE, _DEFINITE or _BARE */
+  scr_int him_npc;
+  scr_int her_npc;
+  scr_int it_npc;
+  scr_int last_npc;
+} scr_game_t;
+
+#endif

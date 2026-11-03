@@ -8,16 +8,17 @@
 #include <stdio.h>
 
 #include "definitions.h"
+#include "gameinfo.h"
 
-const struct GameInfo games[] = {
+const GameInfo games[] = {
     {
         "Buckaroo Banzai",
         "BUCKAROO",
         BANZAI,
 
-        27, // no room images
-        24, // no item images
-        20, // no special images
+        27, // room images
+        24, // item images
+        20, // special images
     },
 
     {
@@ -50,14 +51,16 @@ const struct GameInfo games[] = {
         21, // special images
     },
 
+    /* The unfinished X-Men survives as an MS-DOS database (SPL54.DAT)
+       with no pictures: a maze to explore but no way to win. */
     {
         "Questprobe 4: X-Men (Unfinished)",
         "X-MEN ",
         XMEN, // game ID
 
-        0, // room images
-        0, // item images
-        0, // special images
+        0, // no room images
+        0, // no item images
+        0, // no special images
     },
 
     { NULL }
@@ -73,28 +76,10 @@ const char *sysdict[MAX_SYSMESS] = {
     "Up",
     "Down",
     "The game is now over. Play again?",
-    "You have stored",
-    "treasures. ",
-    "On a scale of 0 to 100 that rates",
-    "O.K.",
-    "O.K.",
     "O.K. ",
-    "Well done.\n",
     "I don't understand ",
     "You can't do that yet. ",
     "Huh ? ",
-    "Give me a direction too. ",
-    "You haven't got it. ",
-    "You have it. ",
-    "You don't see it. ",
-    "It is beyond your power to do that. ",
-    "\nDangerous to move in the dark! ",
-    "You fell down and broke your neck. ",
-    "You can't go in that direction. ",
-    "I don't know how to \"",
-    "\" something. ",
-    "I don't know what a \"",
-    "\" is. ",
     "You can't see. It is too dark!\n",
     "You are in a ",
     "\nYou can also see: ",
@@ -103,20 +88,12 @@ const char *sysdict[MAX_SYSMESS] = {
     "Nothing.\n",
     "Tell me what to do ? ",
     "<Hit any key>",
-    "Light has run out. ",
-    "Light runs out in",
-    "turns! ",
     "You've too much to carry. Try -TAKE INVENTORY-\n",
     "You're dead. ",
     "Resume a saved game? ",
     "None",
-    "There's nothing here to take. ",
-    "You carry nothing. ",
-    "Your light is growing dim. ",
     ", ",
-    " ",
     " - ",
-    "What ?",
     "yes",
     "no",
     "\nAnswer yes or no. ",
@@ -125,7 +102,6 @@ const char *sysdict[MAX_SYSMESS] = {
     "Can't undo on first turn. ",
     "No more undo states stored. ",
     "Saved. ",
-    "You can't use ALL with that verb. ",
     "Transcript is now off. ",
     "Transcript is now on. ",
     "No transcript is currently running. ",
@@ -136,7 +112,8 @@ const char *sysdict[MAX_SYSMESS] = {
     "BAD DATA! Invalid save file. ",
     "State saved. ",
     "State restored. ",
-    "No saved state exists. "
+    "No saved state exists. ",
+    "No previous action exists. "
 };
 
 /* These are supposed to be the original ScottFree system
@@ -149,28 +126,10 @@ const char *sysdict_i_am[MAX_SYSMESS] = {
     "up",
     "down",
     "The game is now over. Play again?",
-    "You have stored",
-    "treasures. ",
-    "On a scale of 0 to 100 that rates",
-    "O.K.",
-    "O.K.",
     "O.K. ",
-    "Well done.\n",
     "I didn't completely understand your command. ",
     "I can't do that yet. ",
     "Huh ? ",
-    "Give me a direction too.",
-    "I'm not carrying it. ",
-    "I already have it. ",
-    "I don't see it here. ",
-    "It is beyond my power to do that. ",
-    "Dangerous to move in the dark! ",
-    "\nI fell and broke my neck.",
-    "I can't go in that direction. ",
-    "I don't know how to \"",
-    "\" something. ",
-    "I don't know what a \"",
-    "\" is. ",
     "I can't see. It is too dark!\n",
     "I'm in a ",
     ", and I see here",
@@ -179,18 +138,11 @@ const char *sysdict_i_am[MAX_SYSMESS] = {
     " nothing at all.",
     "I WANT YOU TO ",
     "<Hit any key>",
-    "Light has run out. ",
-    "Light runs out in",
-    "turns! ",
     "I've too much to carry. Try INVENTORY.\n",
     " I'm dead... ",
     "Resume a saved game? ",
     "None",
-    "There's nothing here to take. ",
-    "I have nothing to drop. ",
-    "My light is growing dim. ",
     ", ",
-    " ",
     ",",
     NULL
 };

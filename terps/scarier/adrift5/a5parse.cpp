@@ -1,5 +1,24 @@
 /* vi: set ts=8:
  *
+ * Copyright (C) 2026  Petter Sjölund
+ *
+ * Written from a reading of the ADRIFT 5 Runner source as released in
+ * FrankenDrift, to reproduce its behaviour; no code from it is used.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
  * ADRIFT 5 support for Scarier -- command-pattern matcher.  See a5parse.h.
  *
  * A direct port of the Adrift 5 runner clsUserSession.ConvertToRE (clsUserSession.vb:
@@ -108,7 +127,7 @@ static std::string cached_dirs_re;   /* invalidated by a5parse_set_directions */
    pattern on every task-command probe, every turn -- yet a pattern always
    yields the same regexes and ref names.  Caching the whole variant list also
    drops the per-probe variant_pattern() string rebuild and the hash of the
-   (longer) expanded string that the old per-variant cache paid.  Invalidated
+   (longer) expanded string.  Invalidated
    alongside cached_dirs_re when the direction table changes, since a
    %direction% group embeds directions_re() output.
 
@@ -143,12 +162,12 @@ a5parse_set_directions (const char *const *raw_by_enum)
   ensure_dirs_default ();
   cached_dirs_re.clear ();
   cached_variants.clear ();
-  if (raw_by_enum == NULL)
+  if (raw_by_enum == nullptr)
     return;
   for (e = 0; e < 12; e++)
     {
       const char *raw = raw_by_enum[e];
-      if (raw == NULL || raw[0] == '\0')
+      if (raw == nullptr || raw[0] == '\0')
         continue;
       for (j = 0; j < kNumDirs; j++)
         if (strcmp (kDirs[j].canonical, kDirEnum[e]) == 0)
@@ -172,13 +191,13 @@ const char *
 a5parse_direction_name (const char *canonical)
 {
   int j;
-  if (canonical == NULL)
-    return NULL;
+  if (canonical == nullptr)
+    return nullptr;
   ensure_dirs_default ();
   for (j = 0; j < kNumDirs; j++)
     if (strcmp (kDirs[j].canonical, canonical) == 0)
       return g_dirs[j].name.c_str ();
-  return NULL;
+  return nullptr;
 }
 
 /* The full direction alternation, lowercased, built once.  The Adrift 5 runner's
@@ -223,8 +242,8 @@ const char *
 a5parse_canonical_direction (const char *text)
 {
   std::string t;
-  if (text == NULL)
-    return NULL;
+  if (text == nullptr)
+    return nullptr;
   /* UTF-8-aware lowercase (so "Øst"/"ØST" canonicalize like "øst"), then drop
      whitespace so "south east" matches the "southeast" synonym. */
   std::string low = lower_utf8 (text);
@@ -232,7 +251,7 @@ a5parse_canonical_direction (const char *text)
     if (!isspace ((unsigned char) c))
       t += c;
   if (t.empty ())
-    return NULL;
+    return nullptr;
   ensure_dirs_default ();
   /* Resolve synonyms in DirectionsEnum order (kDirEnum), NOT raw compass order,
      mirroring the Adrift 5 runner's `For eDirection = North To NorthWest` scan.  This
@@ -268,7 +287,7 @@ a5parse_canonical_direction (const char *text)
         start = bar + 1;
       } while (bar != std::string::npos);
     }
-  return NULL;
+  return nullptr;
 }
 
 /* ---------------------------------------------------------- string helpers */
@@ -576,7 +595,7 @@ a5_correct_command (const char *cmd)
   std::string in = cmd ? cmd : "";
   std::string out = cc_process_block (in);
   char *r = (char *) malloc (out.size () + 1);
-  if (r != NULL)
+  if (r != nullptr)
     memcpy (r, out.c_str (), out.size () + 1);
   return r;
 }
@@ -665,9 +684,9 @@ re_leading_literal (const std::string &s, size_t i)
   for (; i < s.size (); i++)
     {
       unsigned char c = (unsigned char) s[i];
-      if (c >= 0x80 || strchr (meta, (char) c) != NULL)
+      if (c >= 0x80 || strchr (meta, (char) c) != nullptr)
         break;
-      if (i + 1 < s.size () && strchr ("?*+{", s[i + 1]) != NULL)
+      if (i + 1 < s.size () && strchr ("?*+{", s[i + 1]) != nullptr)
         break;
       out += ascii_lower (c);
     }
@@ -819,11 +838,11 @@ static int
 match_one_pattern (const a5_compiled_pattern &cp, const char *input,
                    a5_match_t *m)
 {
-  if (m != NULL)
+  if (m != nullptr)
     m->n_refs = 0;
   if (!cp.ok)
     return 0;
-  if (input != NULL && !prefilter_pass (cp, input))
+  if (input != nullptr && !prefilter_pass (cp, input))
     return 0;
 
   std::smatch mt;
@@ -842,7 +861,7 @@ match_one_pattern (const a5_compiled_pattern &cp, const char *input,
      generic library put). */
   if (!std::regex_search (in, mt, cp.re))
     return 0;
-  if (m != NULL)
+  if (m != nullptr)
     {
       int n = 0;
       for (size_t g = 1; g < mt.size () && n < A5_MAX_REFS; g++)
@@ -920,10 +939,10 @@ a5parse_match_command (const char *pattern, const char *input, a5_match_t *m)
 const char *
 a5parse_ref (const a5_match_t *m, const char *name)
 {
-  if (m == NULL || name == NULL)
-    return NULL;
+  if (m == nullptr || name == nullptr)
+    return nullptr;
   for (int i = 0; i < m->n_refs; i++)
     if (strcmp (m->ref_name[i], name) == 0)
       return m->ref_text[i];
-  return NULL;
+  return nullptr;
 }

@@ -8,8 +8,6 @@
 #ifndef extracommands_h
 #define extracommands_h
 
-#include <stdio.h>
-
 typedef enum {
     COM_IT = 1,
     COM_AGAIN = 2,

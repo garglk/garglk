@@ -1,3 +1,202 @@
+2026-10-17  Petter Sjölund <ignalina@me.com>
+
+	* Unreleased; changes since Spatterlight 1.5.4.
+
+	* Map: pan with the arrow buttons and zoom with the + and - buttons in
+	the pane's corner, or "glk zoom N" (3 to 32; below 10 the rooms lose
+	their names).  The buttons also work while the game waits for a key or
+	a pop-up answer, the map is redrawn at each such pause, rooms on
+	another level are drawn fainter, the Up and Down badges show arrows,
+	and the default palette gained in-between tints.  Clicking just off a
+	side or corner of the current room walks one step through that exit,
+	even into an unseen room; a map-click walk starts on the prompt's own
+	line and no longer runs half-typed input or draws an "I don't
+	understand" in ADRIFT 4 games.  Removed "glk map colour".
+	* New "glk notify" sets score notification and "glk statusline" (or
+	"glk stats") prints the status line, for when a game's own task or a
+	build without SCARE's meta-commands puts the plain words out of reach.
+	"glk summary" no longer turns verbose on as it reports it, and an
+	abbreviation such as "glk stat" or "glk col" that also prefixes the
+	command's aliases is no longer ambiguous.
+	* Text set in Wingdings, Wingdings 3 or Symbol is translated to
+	Unicode, as Webdings already was.
+	* Autosave at a "press a key" pause, at the ADRIFT 4 name and gender
+	prompts, and at ADRIFT 5 pop-up questions and pending "Get what?"
+	questions.  The ADRIFT 4 autosave also keeps the AGAIN buffer, the
+	command history, the pronouns, a pending "Which one?" and the verbose
+	and notify settings.  A Spatterlight autosave regression suite (make
+	autosave) covers both engines.
+	* Media a game names but never packed into its file is looked up beside
+	the .taf by file name, whatever its case.  Fixed an occasional crash
+	loading a picture or sound after an autorestore; the Blorb resource map
+	is registered again after one.
+	* ADRIFT 3.7 to 4: 37 games whose own data makes them unwinnable are
+	patched as they load, each keyed to the exact release ("glk patches
+	off" disables).  A title picture is a title screen of its own or sits
+	above the first text.  The assists share one "glk assist" command, with
+	"glk assist repeat" and "glk assist room" new, and games known to need
+	one get it turned on automatically with a notice at startup.
+	* ADRIFT 3.7 and 3.8 games follow their own Runners rather than 3.9's:
+	the wording for take, put, open and refusals, PUT IN and PUT ON as one
+	handler, container listings, the disambiguation prompt, and the
+	descriptions and restrictions those versions evaluate differently.
+	Where Runner parity would only have made the parser understand less,
+	Scarier keeps UNDO, Z, LOOK X, comma splitting, GO TO and the other
+	verbs, and retries an unmatched command under looser rules; the text
+	stays grammatical where a Runner printed an accident.
+	* A few more deliberate departures from the Runners: LOOK AROUND shows
+	the room at every version, GET OFF X answers "You are not standing on
+	anything!" instead of taking X, and before 4.0 a task that runs and
+	prints nothing says "Done." rather than the game's "don't understand"
+	text, and no longer hides the object's own text on a READ line.
+	* Random numbers come from a stream compatible with the original
+	Runners (SCR_RNG=xoshiro), so chance-driven games and the walkthroughs
+	that depend on them play out as they do there.
+	* Battle system settled further against the 3.9 and 4.0 Runners: a blow
+	strikes every character the line names, the "Who do you want to
+	attack?" and "with what?" questions carry into the next line, THROW is
+	a battle verb, stamina recovery revives a fallen character, the
+	narration follows the game's perspective, and attribute changes land as
+	both Runners apply them.
+	* The meta-commands are the Runner's own: PAST, BYE, END and ENDGAME
+	are understood, and a dozen invented commands no longer take a line
+	away from the game's tasks.  SCARE's own words (VERBOSE, NOTIFY,
+	HINTS, STATUSLINE, STATS and the rest) stand aside whenever the game
+	has a task whose command matches the line.  UNDO prints the restored turn's output in
+	each version's wording.
+	* Another long round of parser and world-model work measured command by
+	command against all four Runners: noun resolution and its tie-breaks,
+	the "Which one?" prompt, PUT and TAKE precedence and the auto-supplied
+	"from", capacity and the carried-load model, what counts as seen, ALR
+	and synonym rewriting, wildcard task matching, the line splitter, and
+	the rule of one game task per typed line.  Bold, italics and underline
+	are on/off toggles as in the Runners, and an intro's unclosed style no
+	longer reaches the first room.  Walk steps land on the exact tick, a
+	stopped walk still stamps the walker, events recheck a run task's
+	restrictions, and the turn an event starts is itself a tick.
+	* A Cyrillic or accented capital in a battle line spelling the
+	player's name, or in a refused command, is now folded through the
+	game's code page like the rest of the line, instead of being left
+	alone and failing to match.
+	* A game or saved game that names an object, character, room, task
+	or event that does not exist, in a place the loader does not already
+	repair, now stops the game cleanly instead of aborting the
+	interpreter, and says why: under Spatterlight in an error sheet,
+	elsewhere in the main window.
+	* Performance: the ALR table is indexed instead of scanned per line,
+	undo snapshots are no longer compressed, the map's unchanging data is
+	read once per game rather than at every prompt, the map is flushed as
+	merged rectangles rather than one-row spans, and an ADRIFT 5 game no
+	longer takes a full state snapshot every turn when autosave is off and
+	reuses its unchanged sections when it does.  Command matching is
+	cheaper, the ALR lookup is filtered before it searches, and ADRIFT 5
+	property and group lookups are hashed.
+	The one-second pause before a finished game restarts honours the
+	delays preference.
+	* ADRIFT 5: identical <# #> tags in one block of text all show the
+	first one's value, as the Runner's replace-all does; music turned off
+	at an opening question stays off; a finished sound can be replayed.
+	Builds with GCC, Visual C++ and clang-cl, and plays ADRIFT 5 pictures and sounds under
+	Windows Glk.
+	* Source layout: a top-level review split scrunner.cpp into runner/,
+	sclibrar.cpp into topic fragments, os_glk into glk/, sctafpar.cpp into
+	parser, fixups and patches, scrun_dispatch.cpp into tables, dispatch,
+	input and census, and the a5run and a5text families into subfolders
+	under adrift5/.  A second pass moved the ADRIFT 4 engine into core/
+	with one prototype header per module in place of scprotos.h, the
+	console and autosave files into platform/, the dump and trace tools
+	into tools/ and the test stubs into headless/; split scparser,
+	scprintf, sctasks, the disambiguation, take and put libraries by
+	topic and some forty long functions into stages; gathered each
+	module's file-scope state into one struct; opens the game file by
+	path in one place; and lets the Makefile find its sources by
+	wildcard.  A third pass split another dozen long functions into
+	helpers and removed the last goto, and scarier.h is now documented as
+	a supported embedding API for other hosts.  Every step verified
+	against the headless suite's recorded output.
+	* Test tree: test/adrift4 and test/adrift5, with sha256 manifests and
+	fetch_games.sh for the corpora.  The ADRIFT 4 walkthrough suite grew to
+	675 rows, backed by a library of transcripts recorded from the original
+	3.7, 3.8, 3.9 and 4.0 Runners; a headless scmap_dump map renderer, now
+	seeded like the other harnesses.  notes/ holds the comparisons with
+	SCARE 1.3.10, FrankenDrift and between ADRIFT 4 and 5, and the
+	ADRIFT 5 XML notes.
+
+2026-08-17  Petter Sjölund <ignalina@me.com>
+
+	* Released with Spatterlight 1.5.4.
+
+	* Text colours are displayed, toggled with "glk colour".  Bold, italic
+	and right-justified text in ADRIFT 4 games.
+	* New "glk undo", "glk restore", "glk restart" and "glk quit" for when
+	the standard commands are unavailable, as at the name prompt.  "glk map
+	colour" switches the map to a scheme derived from the current theme,
+	remembered per game.
+	* The map draws its connectors as the Runner does, with opaque badges
+	and arrowheads on one-way exits, and no longer opens an empty pane for
+	a hidden player.  ADRIFT 5 maps open when the game asks, and draw In
+	and Out connectors with a badge at both ends.
+	* Plays the two known ADRIFT 3.7 games.  Reads and writes the pre-4.0
+	save format as well as the 4.0 one, so saves move between Spatterlight
+	and the old Runner in either direction.
+	* Symbol fonts such as the dove under the Topaz title are translated to
+	Unicode.  The right-hand status text no longer overwrites the room name
+	in a narrow window.
+	* Container capacity is a volume rather than a count, as in the Runner.
+	Timed events and NPC walks match the Runners in detail: immediate
+	events start while the game loads, zero-length and restarting events
+	fire the right number of times, walk arrivals trigger their tasks once,
+	and event room descriptions print last.
+	* Battle system settled command by command against the 3.9 and 4.0
+	Runners: weapons and armour, wielding, thrown weapons, the combat
+	narration and the status display.
+	* Fixed a random-number bug that made choices between two outcomes far
+	less random than intended.
+	* Parser and world-model fixes: PUT precedence, taking and dropping,
+	restrictions that reach into closed carried containers, the "You pick
+	up" / "You take" version split, the pre-4.0 refusals and death message,
+	where the ending message appears, room-name headings, and LAST and
+	PREVIOUS as AGAIN.  The Runners' end-of-game score summary is printed,
+	and score notification is off by default.
+	* ADRIFT 5: pop-up questions such as the player's name and gender are
+	asked in the story window; an adventure with no locations is refused
+	with the Runner's error; the <del> tag erases earlier text, even across
+	turns.  A large batch of engine fixes found by the adrift-5-rs
+	conformance suite, imported as test/a5probes/, and by reviewing the
+	file format: restrictions, task actions, walks, user functions, object
+	references, conversation and a dozen text functions.  ADRIFT-5-XML.md,
+	a hand-written specification of the adventure and save formats,
+	contributed by Dan Fabulich.
+	* Harness: sha256 manifests and a fetch script for the game corpora;
+	the ADRIFT 4 walkthrough suite grew from 26 to 242 rows.
+
+2026-07-29  Petter Sjölund <ignalina@me.com>
+
+	* Scarier 1.5.0, first released with Spatterlight 1.5.2.
+
+	* Forked from SCARE 1.3.10 as C++, with the sc_ prefixes renamed scr_,
+	and joined by an ADRIFT 5 engine derived from FrankenDrift under
+	adrift5/, so that one interpreter plays every known ADRIFT game.
+	* Map display, at the side or the top, zoomable with glk commands.
+	Sound and graphics.  Autosave and autorestore.
+	* ADRIFT 4: the 4.0 battle system (stamina, weapons and armour) and the
+	very different 3.8/3.9 one.  "glk combatassist" and "glk moveassist"
+	for games broken by their conversion to 4.0, "glk capacity" for the
+	original carrying limits, and "glk verbose" for games whose own VERBOSE
+	does not work.  Loads and saves the original 4.0 save format.  Asks for
+	the player's name and gender at the start when the game did.  Events
+	and NPC actions run in the Runner's order.  No spurious "You can't go
+	in any direction!" after a room description; the Glk single-letter
+	shortcuts no longer shadow single-letter game commands; crashes on
+	malformed game data fixed; full support for LAIR of the CYBER-COW.
+	* ADRIFT 5: every game found plays from start to finish, matching
+	FrankenDrift.  Multi-level undo.  Saves in the Runner's and
+	FrankenDrift's .tas format.  Danish and real-time events supported;
+	font tags and text colours not yet.  The ADRIFT 4 glk meta-commands
+	(transcript, inputlog, summary and so on) work here too.
+	* Harness: a FrankenDrift ground-truth diff harness, and a walkthrough
+	regression suite for both engines with a save/restore self-check.
+
 2008-05-01  Simon Baldwin <simon_baldwin@yahoo.com>
 
 	* Release 1.3.10.

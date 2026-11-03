@@ -1,69 +1,37 @@
-/* This is a cut-down version of UNP64 with only the bare minimum
- * needed to decompress a number of Commodore 64 adventure games.
- * It is distributed under the zlib License by kind permission of
- * the original authors Magnus Lind and iAN CooG.
+/* Part of a cut-down version of UNP64, the generic Commodore 64 prg
+ * unpacker, with only what is needed to decompress a number of Commodore 64
+ * adventure games.
+ *
+ * (C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
+ * Copyright (c) 2002 - 2023 Magnus Lind
+ * C++ version based on code adapted to ScummVM by Avijeet Maurya
+ *
+ * Distributed under the zlib License by kind permission of the original
+ * authors Magnus Lind and iAN CooG. The notice is in the file LICENSE in
+ * the directory above (terps/unp64), which has to go wherever this file goes.
  */
 
-/*
-UNP64 - generic Commodore 64 prg unpacker
-(C) 2008-2022 iAN CooG/HVSC Crew^C64Intros
-original source and idea: testrun.c, taken from exo20b7
-
-Follows original disclaimer
-*/
-
-/*
- * Copyright (c) 2002 - 2023 Magnus Lind.
- *
- *
- * This software is provided 'as-is', without any express or implied
- * warranty. In no event will the authors be held liable for any damages
- * arising from the use of this software.
- *
- * Permission is granted to anyone to use this software for any purpose,
- * including commercial applications, and to alter it and redistribute it
- * freely, subject to the following restrictions:
- *
- * 1. The origin of this software must not be misrepresented; you must not
- * claim that you wrote the original software. If you use this software
- * in a product, an acknowledgment in the product documentation would be
- * appreciated but is not required.
- * 2. Altered source versions must be plainly marked as such, and must not be
- * misrepresented as being the original software.
- * 3. This notice may not be removed or altered from any source distribution.
- *
- */
-
-/*
- C++ version based on code adapted to ScummVM by Avijeet Maurya
- */
-
-#include "types.h"
-#include "unp64.h"
-#include "exo_util.h"
+#include "scanners.h"
 
 namespace Unp64 {
 
 void scnECA(UnpStr *unp) {
-	uint8_t *mem;
+	uint8_t *mem = unp->_mem;
 	int q, p;
-	if (unp->_idFlag)
-		return;
-	mem = unp->_mem;
 	if (unp->_depAdr == 0) {
 		// for(p=0x810;p<0x830;p+=0x4)
 		for (p = 0x80d; p < 0x830; p += 0x1) {
 			if (u32eq(mem + p + 0x08, (unsigned int)(0x2D9D0032 + p)) &&
 				u32eq(mem + p + 0x3a, 0x2a2a2a2a) &&
 				u32eq(mem + p + 0x0c, 0xF710CA00)) {
-				if (((*(unsigned int *)(mem + p + 0x00) & 0xf4fff000) == 0x8434A000) &&
+				if (u32eqmasked(mem + p, 0xf4fff000, 0x8434A000) &&
 					u32eq(mem + p + 0x04, 0xBD05A201)) {
 					unp->_forced = p + 1;
-				} else if (((*(unsigned int *)(mem + p + 0x00) & 0xffffff00) == 0x04A27800) &&
+				} else if (u32eqmasked(mem + p + 0x00, 0xffffff00, 0x04A27800) &&
 						   u32eq(mem + p + 0x04, 0xBDE80186)) {
 					unp->_forced = p + 1;
-				} else if (((*(unsigned int *)(mem + p - 0x03) & 0xffffff00) == 0x04A27800) &&
-                        u32eq(mem + p + 0x04, 0xBDE80186)) {
+				} else if (u32eqmasked(mem + p - 0x03, 0xffffff00, 0x04A27800) &&
+					u32eq(mem + p + 0x04, 0xBDE80186)) {
 					unp->_forced = p - 2;
 				} else if (u32eq(mem + p - 0x03, 0x8D00a978)) {
 					unp->_forced = p - 2;
@@ -111,16 +79,16 @@ void scnECA(UnpStr *unp) {
 							q += 2;
 							continue;
 						} else {
-							unp->_retAdr = READ_LE_UINT16(&mem[p + q + 1]); // mem[p + q + 1] | mem[p + q + 2] << 8;
+							unp->_retAdr = READ_LE_UINT16(&mem[p + q + 1]);
 							break;
 						}
 					}
 					if (mem[p + q] == 0x4c) {
-						unp->_retAdr = READ_LE_UINT16(&mem[p + q + 1]); // mem[p + q + 1] | mem[p + q + 2] << 8;
+						unp->_retAdr = READ_LE_UINT16(&mem[p + q + 1]);
 						break;
 					}
 				}
-				unp->_depAdr = READ_LE_UINT16(&mem[p + 0x30]); // mem[p + 0x30] | mem[p + 0x31] << 8;
+				unp->_depAdr = READ_LE_UINT16(&mem[p + 0x30]);
 				// some use $2d, some $ae
 				for (q = 0xed; q < 0x108; q++) {
 					if (u32eq(mem + p + q, 0xA518F7D0)) {
@@ -153,10 +121,10 @@ void scnECA(UnpStr *unp) {
 				extensively. use -v to know when it does the adjustments. 28/10/09:
 				whoops, was clearing ONLY $d000-dfff =)
 				*/
-				unp->_strMem = READ_LE_UINT16(&mem[p + 0x32]); // mem[p + 0x32] | mem[p + 0x33] << 8;
+				unp->_strMem = READ_LE_UINT16(&mem[p + 0x32]);
 				for (q = 0xcd; q < 0xd0; q++) {
 					if (u32eqmasked(mem + p + q, 0xffff00ff, 0xa9010020)) {
-						unp->_ecaFlg = READ_LE_UINT16(&mem[p + q + 1]); // mem[p + q + 1] | mem[p + q + 2] << 8;
+						unp->_ecaFlg = READ_LE_UINT16(&mem[p + q + 1]);
 						for (q = 0x110; q < 0x11f; q++) {
 							if (u32eq(mem + p + q, 0x99EF00B9) &&
 								mem[p + q + 0x12] == 0xc9) {
@@ -189,9 +157,9 @@ void scnECA(UnpStr *unp) {
 			u32eq(mem + 0x85b, 0x2A2A2A2A)) {
 			unp->_forced = 0x81b;
 			unp->_depAdr = 0x100;
-			unp->_strMem = READ_LE_UINT16(&mem[0x853]); // mem[0x853] | mem[0x854] << 8;
+			unp->_strMem = READ_LE_UINT16(&mem[0x853]);
 			unp->_endAdr = mem[0x895];
-			unp->_retAdr = READ_LE_UINT16(&mem[0x885]); // mem[0x885] | mem[0x886] << 8;
+			unp->_retAdr = READ_LE_UINT16(&mem[0x885]);
 			unp->_idFlag = 1;
 			return;
 		}

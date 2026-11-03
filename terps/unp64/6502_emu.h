@@ -1,54 +1,43 @@
-/* Code from Exomizer distributed under the zlib License
- * by kind permission of the original authors
- * Magnus Lind and iAN CooG.
+/* Code from Exomizer, as changed for UNP64.
+ *
+ * Copyright (c) 2002 - 2023 Magnus Lind
+ * Modifications for UNP64: iAN CooG and Petter Sjölund
+ * C++ version based on code adapted to ScummVM by Avijeet Maurya
+ *
+ * Distributed under the zlib License by kind permission of the original
+ * authors Magnus Lind and iAN CooG. The notice is in the file LICENSE in
+ * this directory (terps/unp64), which has to go wherever this file goes.
  */
-
-/*
- * Copyright (c) 2002 - 2023 Magnus Lind.
- *
- *
- * This software is provided 'as-is', without any express or implied
- * warranty. In no event will the authors be held liable for any damages
- * arising from the use of this software.
- *
- * Permission is granted to anyone to use this software for any purpose,
- * including commercial applications, and to alter it and redistribute it
- * freely, subject to the following restrictions:
- *
- * 1. The origin of this software must not be misrepresented; you must not
- * claim that you wrote the original software. If you use this software
- * in a product, an acknowledgment in the product documentation would be
- * appreciated but is not required.
- * 2. Altered source versions must be plainly marked as such, and must not be
- * misrepresented as being the original software.
- * 3. This notice may not be removed or altered from any source distribution.
- *
- */
-
-/*
- Original: Magnus Lind
- Modifications for UNP64: iAN CooG and Petter Sjölund
- C++ version based on code adapted to ScummVM by Avijeet Maurya
- */
-
 
 #ifndef UNP64_6502_EMU_H
 #define UNP64_6502_EMU_H
 
+#include <cstdint>
+
 namespace Unp64 {
 
 struct CpuCtx {
-	uint32_t _cycles;
-	uint16_t _pc;
-	uint8_t *_mem;
-	uint8_t _sp;
-	uint8_t _flags;
-	uint8_t _a;
-	uint8_t _x;
-	uint8_t _y;
+	/* Counted only to give the raster register something to return; nothing
+	 * is timed by it. */
+	uint32_t _cycles = 0;
+	uint16_t _pc = 0;
+	uint8_t *_mem = nullptr;
+	uint8_t _sp = 0;
+	uint8_t _flags = 0;
+	uint8_t _a = 0;
+	uint8_t _x = 0;
+	uint8_t _y = 0;
+
+	/* What the I/O chips read back as, for as long as one unp64() call
+	 * lasts (the layers of a nested packer see one continuous machine). */
+	int _d011[2] = {0, 0}; /* VIC $D011 as last written, and the raster line in $D012 */
+	int _retfire = 0xff;   /* CIA1 $DC00: joystick 2, fire toggles on every read */
+	int _retspace = 0xff;  /* CIA1 $DC01: keyboard, space toggles on every read */
 };
 
-int nextInst(CpuCtx *r);
+/* Run one instruction. True if the emulation has to stop: an opcode that is
+ * not implemented, or BRK. */
+bool nextInst(CpuCtx *r);
 
 } // End of namespace Unp64
 
