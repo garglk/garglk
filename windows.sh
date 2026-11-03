@@ -154,6 +154,7 @@ copy_plugin "${qt_plugins}" "platforms/qwindows"
 
 if [[ "${GARGOYLE_IMAGES}" == "QT" ]]
 then
+    copy_plugin "${qt_plugins}" "imageformats/qgif"
     copy_plugin "${qt_plugins}" "imageformats/qjpeg"
 fi
 

@@ -49,6 +49,7 @@ jobs:
           libfmt-dev
           libfontconfig1-dev
           libfreetype-dev
+          libgif-dev
           libjpeg-dev
           libkf6kio-dev
           libkf6service-dev

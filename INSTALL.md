@@ -12,6 +12,7 @@ development environment (compiler, linker, etc.):
 - fmt
 - Fontconfig
 - FreeType
+- giflib (5.1 or newer) (optional, and only used with `IMAGES=SYSTEM`; see below)
 - libjpeg (8 or newer) or libjpeg-turbo (2.0 or newer) (only required with `IMAGES=SYSTEM`; see below)
 - libpng (1.6 or newer) (only required with `IMAGES=SYSTEM`; see below)
 - zlib
@@ -134,10 +135,11 @@ In addition, Gargoyle supports the following options:
   for SDL3 sound support, "QT", for Qt sound support, and "NONE", for no sound
   support. "SDL" is accepted as a backward-compatible alias for "SDL2".
 
-- `IMAGES`: Selects the backend for image loading. `SYSTEM` uses libpng and
-  libjpeg; `QT` uses Qt's built-in image loaders, which drops the libpng and
-  libjpeg dependencies. The default is `QT` when `INTERFACE=QT`, and `SYSTEM`
-  otherwise. `IMAGES=QT` requires `INTERFACE=QT`.
+- `IMAGES`: Selects the backend for image loading. `SYSTEM` uses libpng,
+  libjpeg, and giflib; `QT` uses Qt's built-in image loaders, which drops those
+  dependencies. With `SYSTEM`, giflib is optional, but GIF images will not load
+  without it. The default is `QT` when `INTERFACE=QT`, and `SYSTEM` otherwise.
+  `IMAGES=QT` requires `INTERFACE=QT`.
 
 - `JPEGLIB`: Gargoyle can use either the original libjpeg from the Independent
   JPEG Group (IJG), or libjpeg-turbo. There is no practical difference between
@@ -240,6 +242,7 @@ For the MacPorts packages you'll need, type:
 
     sudo port install libsdl2
     sudo port install libsdl2_mixer
+    sudo port install giflib
     sudo port install libpng
     sudo port install libjpeg-turbo
     sudo port install freetype
@@ -249,6 +252,7 @@ If you're using Homebrew, instead type:
 
     brew install sdl2
     brew install sdl2_mixer
+    brew install giflib
     brew install libpng
     brew install libjpeg-turbo
     brew install libvorbis

@@ -25,7 +25,7 @@ jobs:
         run: brew update
 
       - name: Install packages
-        run: brew install fmt jpeg-turbo pkg-config sdl3 fluid-synth libopenmpt libsndfile libvorbis mpg123
+        run: brew install fmt giflib jpeg-turbo pkg-config sdl3 fluid-synth libopenmpt libsndfile libvorbis mpg123
 
       - name: Build
         run: |
