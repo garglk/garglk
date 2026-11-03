@@ -97,11 +97,16 @@ namespace {
 
 struct ThemeStyles {
     std::array<ColorPair, style_NUMSTYLES> colors;
+    // Named per-style theme entries are explicit; "default" is not, so
+    // those styles can inherit CSS_Window color and show window chrome through.
+    std::array<bool, style_NUMSTYLES> color_explicit{};
 
     void to(Styles &styles) const {
         for (int i = 0; i < style_NUMSTYLES; i++) {
             styles[i].fg = colors[i].fg;
             styles[i].bg = colors[i].bg;
+            styles[i].fg_explicit = color_explicit[i];
+            styles[i].bg_explicit = color_explicit[i];
         }
     }
 };
@@ -179,6 +184,7 @@ private:
     static ThemeStyles get_user_styles(const json &j, const std::string &wintype)
     {
         std::array<std::optional<ColorPair>, style_NUMSTYLES> possible_colors;
+        std::array<bool, style_NUMSTYLES> possible_explicit{};
         std::unordered_map<std::string, json> styles = j.at(wintype);
 
         static const std::unordered_map<std::string, int> stylemap = {
@@ -210,17 +216,21 @@ private:
         styles.erase("default");
         for (const auto &[style, color] : styles) {
             try {
-                parse_colors(color, stylemap.at(style));
+                int idx = stylemap.at(style);
+                parse_colors(color, idx);
+                possible_explicit[idx] = true;
             } catch (const std::out_of_range &) {
                 throw std::runtime_error(Format("invalid style in {}: {}", wintype, style));
             }
         }
 
         auto colors = make_array<style_NUMSTYLES>(ColorPair{white, black});
+        std::array<bool, style_NUMSTYLES> color_explicit{};
         std::vector<std::string> missing;
         for (const auto &[style, val] : stylemap) {
             try {
                 colors[val] = possible_colors[val].value();
+                color_explicit[val] = possible_explicit[val];
             } catch (const std::bad_optional_access &) {
                 missing.push_back(style);
             }
@@ -230,7 +240,7 @@ private:
             throw std::runtime_error(Format("{} is missing the following styles: {}", wintype, garglk::join(missing, ", ")));
         }
 
-        return {colors};
+        return {colors, color_explicit};
     }
 };
 

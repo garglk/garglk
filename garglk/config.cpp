@@ -921,6 +921,10 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                         for (int i = 0; i < style_NUMSTYLES; i++) {
                             parsecolor(fg, styles[i].fg);
                             parsecolor(bg, styles[i].bg);
+                            // Wildcard theme colors are inheritance roots,
+                            // not per-style overrides.
+                            styles[i].fg_explicit = false;
+                            styles[i].bg_explicit = false;
                         }
                     } else {
                         int i = parse_int(style);
@@ -928,6 +932,8 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                         if (i >= 0 && i < style_NUMSTYLES) {
                             parsecolor(fg, styles[i].fg);
                             parsecolor(bg, styles[i].bg);
+                            styles[i].fg_explicit = true;
+                            styles[i].bg_explicit = true;
                         }
                     }
                 }
