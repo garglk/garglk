@@ -204,6 +204,11 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
             return TRUE;
 #endif
 
+#ifdef GLK_MODULE_WINDOW_BACKGROUND_IMMEDIATE
+        case gestalt_WindowBackgroundImmediate:
+            return TRUE;
+#endif
+
         default:
             return 0;
 
