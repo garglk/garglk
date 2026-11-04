@@ -148,7 +148,10 @@ static FT_LcdFilter freetype_preset_filter = FT_LCD_FILTER_DEFAULT;
 
 bool garglk::set_lcdfilter(const std::string &filter)
 {
-    use_freetype_preset_filter = true;
+    if (filter == "custom") {
+        use_freetype_preset_filter = false;
+        return true;
+    }
 
     if (filter == "none") {
         freetype_preset_filter = FT_LCD_FILTER_NONE;
@@ -158,12 +161,11 @@ bool garglk::set_lcdfilter(const std::string &filter)
         freetype_preset_filter = FT_LCD_FILTER_LIGHT;
     } else if (filter == "legacy") {
         freetype_preset_filter = FT_LCD_FILTER_LEGACY;
-    } else if (filter == "custom") {
-        use_freetype_preset_filter = false;
     } else {
-        use_freetype_preset_filter = false;
         return false;
     }
+
+    use_freetype_preset_filter = true;
 
     return true;
 }
