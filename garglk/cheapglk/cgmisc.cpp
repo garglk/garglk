@@ -112,6 +112,10 @@ void glk_exit()
     if (garglk::winisfullscreen()) {
         for (auto *win = glk_window_iterate(nullptr, 0); win != nullptr; win = glk_window_iterate(win, 0)) {
             if (win->type == wintype_TextBuffer) {
+                // Printing is refused while line input is pending.
+                if (win->line_request || win->line_request_uni) {
+                    glk_cancel_line_event(win, nullptr);
+                }
                 glk_set_style_stream(glk_window_get_stream(win), style_Subheader);
                 glk_put_string_stream(glk_window_get_stream(win), const_cast<char *>("\n[Press any key to exit]"));
             }
