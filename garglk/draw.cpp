@@ -808,21 +808,23 @@ int Font::charkern(glui32 c0, glui32 c1)
     }
 
     unsigned long long key = (static_cast<unsigned long long>(c0) << 32) | c1;
-    try {
-        return m_kerncache.at(key);
-    } catch (const std::out_of_range &) {
+    auto cached = m_kerncache.find(key);
+    if (cached != m_kerncache.end()) {
+        return cached->second;
     }
 
     g0 = FT_Get_Char_Index(m_face.get(), c0);
     g1 = FT_Get_Char_Index(m_face.get(), c1);
 
     if (g0 == 0 || g1 == 0) {
+        m_kerncache.emplace(key, 0);
         return 0;
     }
 
     // Missing kerning isn't worth stopping the game over.
     err = FT_Get_Kerning(m_face.get(), g0, g1, FT_KERNING_UNFITTED, &v);
     if (err != 0) {
+        m_kerncache.emplace(key, 0);
         return 0;
     }
 
