@@ -30,6 +30,7 @@
 
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <utility>
 #include <vector>
 
@@ -87,6 +88,10 @@ static channel_t *gli_channellist = nullptr;
 
 static SDL_AudioDeviceID device = 0;
 
+// A fade tick runs on SDL's timer thread and uses a channel's stream, which the
+// main thread creates and destroys, since a fade outlives the sound.
+static std::mutex stream_mutex;
+
 static schanid_t gli_bleep_channel;
 
 gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
@@ -99,10 +104,12 @@ gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
 // fade timer uses are no-ops here; see sndsdl-common.h.
 void gli_sound_backend_lock()
 {
+    stream_mutex.lock();
 }
 
 void gli_sound_backend_unlock()
 {
+    stream_mutex.unlock();
 }
 
 // Pull decoded PCM for one channel. SDL calls this from its audio thread while
@@ -224,17 +231,15 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
 
 static void cleanup_channel(schanid_t chan)
 {
-    // Stop any fade first: cancel_fade waits out an in-flight fade callback and
-    // untracks the channel, so afterward no fade callback will call
-    // apply_volume() (and thus touch chan->stream).
-    cancel_fade(chan);
-
     // Destroying the stream unbinds it and, per SDL, guarantees the stream
     // get-callback is no longer running once this returns, so the decoder can
     // then be freed.
-    if (chan->stream != nullptr) {
-        SDL_DestroyAudioStream(chan->stream);
-        chan->stream = nullptr;
+    {
+        std::lock_guard<std::mutex> guard(stream_mutex);
+        if (chan->stream != nullptr) {
+            SDL_DestroyAudioStream(chan->stream);
+            chan->stream = nullptr;
+        }
     }
 
     chan->decoder.reset();
@@ -252,6 +257,7 @@ void glk_schannel_destroy(schanid_t chan)
         return;
     }
 
+    cancel_fade(chan);
     glk_schannel_stop(chan);
     cleanup_channel(chan);
     if (gli_unregister_obj != nullptr) {
@@ -369,7 +375,14 @@ static glui32 play_sound(schanid_t chan, glui32 type, std::vector<unsigned char>
 
     // dst is null: binding sets the stream's output format to the device's, and
     // the stream resamples each channel's native rate for us.
-    chan->stream = SDL_CreateAudioStream(&spec, nullptr);
+    {
+        std::lock_guard<std::mutex> guard(stream_mutex);
+        chan->stream = SDL_CreateAudioStream(&spec, nullptr);
+        if (chan->stream != nullptr) {
+            SDL_SetAudioStreamGain(chan->stream, volume_to_gain(chan->volume));
+        }
+    }
+
     if (chan->stream == nullptr) {
         gli_strict_warning("play sound failed");
         gli_strict_warning(SDL_GetError());
@@ -380,7 +393,6 @@ static glui32 play_sound(schanid_t chan, glui32 type, std::vector<unsigned char>
     chan->notified = false;
 
     SDL_SetAudioStreamGetCallback(chan->stream, stream_callback, chan);
-    SDL_SetAudioStreamGain(chan->stream, volume_to_gain(chan->volume));
 
     if (!SDL_BindAudioStream(device, chan->stream)) {
         gli_strict_warning("play sound failed");
