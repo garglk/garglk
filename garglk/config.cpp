@@ -751,13 +751,16 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 std::stringstream ss(arg);
                 std::string entry;
 
+                gli_conf_save_window_size = false;
+                gli_conf_save_window_location = false;
+
                 while (ss >> entry) {
                     entry = garglk::downcase(entry);
                     if (entry == "size") {
                         gli_conf_save_window_size = true;
                     } else if (entry == "location") {
                         gli_conf_save_window_location = true;
-                    } else {
+                    } else if (entry != "none") {
                         throw ConfigError(Format("invalid value: {}", entry));
                     }
                 }
