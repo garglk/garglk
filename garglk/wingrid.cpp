@@ -300,6 +300,18 @@ static void win_textgrid_init_impl(window_t *win, void *buf, int maxlen, int ini
 {
     window_textgrid_t *dwin = win->wingrid();
 
+    // The cursor may have been left outside the window. As with printing, a
+    // column past the end wraps. There's no room for input below the last row,
+    // so that gets an empty input area.
+    if (dwin->curx >= dwin->width) {
+        dwin->curx = 0;
+        dwin->cury++;
+    }
+    if (dwin->cury >= dwin->height) {
+        dwin->curx = dwin->width;
+        dwin->cury = std::max(dwin->height - 1, 0);
+    }
+
     dwin->inunicode = unicode;
     dwin->inoriglen = maxlen;
     if (maxlen > (dwin->width - dwin->curx)) {
