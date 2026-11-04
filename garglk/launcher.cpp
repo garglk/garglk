@@ -324,6 +324,12 @@ static std::optional<Interpreter> configterp(const std::string &gamepath)
     }
 
     for (const auto &config : garglk::configs(gamepath)) {
+        // A config file that came along with a game must not get to choose
+        // what the launcher executes.
+        if (config.type == garglk::ConfigFile::Type::PerGame) {
+            continue;
+        }
+
         auto interpreter = findterp(config.path, story);
         if (interpreter.has_value()) {
             return interpreter;
