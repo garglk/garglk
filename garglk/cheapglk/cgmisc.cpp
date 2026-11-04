@@ -384,6 +384,13 @@ void gidispatch_set_object_registry(
             fref = glk_fileref_iterate(fref, NULL)) {
             fref->disprock = (*gli_register_obj)(fref, gidisp_Class_Fileref);
         }
+#ifdef GARGLK
+        for (channel_t *chan = glk_schannel_iterate(NULL, NULL);
+            chan;
+            chan = glk_schannel_iterate(chan, NULL)) {
+            gli_sound_set_channel_disprock(chan, (*gli_register_obj)(chan, gidisp_Class_Schannel));
+        }
+#endif
     }
 }
 

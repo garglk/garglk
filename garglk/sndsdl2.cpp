@@ -102,6 +102,11 @@ gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
     return chan->disprock;
 }
 
+void gli_sound_set_channel_disprock(channel_t *chan, gidispatch_rock_t rock)
+{
+    chan->disprock = rock;
+}
+
 // The fade timer holds this around its critical section to keep a consistent
 // lock order with the teardown paths; see sndsdl-common.h. This is the mixer's
 // audio-device lock, which apply_volume() (via Mix_VolumeMusic) also takes.

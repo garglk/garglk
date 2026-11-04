@@ -245,6 +245,11 @@ gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
     return chan->disprock;
 }
 
+void gli_sound_set_channel_disprock(channel_t *chan, gidispatch_rock_t rock)
+{
+    chan->disprock = rock;
+}
+
 void gli_initialize_sound()
 {
     garglk::init_decoders();

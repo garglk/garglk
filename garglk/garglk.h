@@ -1118,6 +1118,7 @@ extern void gli_tts_flush();
 extern void gli_tts_purge();
 
 extern gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan);
+extern void gli_sound_set_channel_disprock(channel_t *chan, gidispatch_rock_t rock);
 
 // ----------------------------------------------------------------------
 //
