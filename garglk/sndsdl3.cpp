@@ -240,7 +240,6 @@ static void cleanup_channel(schanid_t chan)
     chan->decoder.reset();
     chan->buffer.clear();
 
-    chan->paused = false;
     chan->notified = false;
 }
 
@@ -396,15 +395,11 @@ static glui32 play_sound(schanid_t chan, glui32 type, std::vector<unsigned char>
 static glui32 gli_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify, const std::function<garglk::Expected<std::pair<int, std::vector<unsigned char>>>(glui32)> &load_resource)
 {
     glui32 result = 0;
-    bool paused = false;
 
     if (chan == nullptr) {
         gli_strict_warning("schannel_play_ext: invalid id.");
         return 0;
     }
-
-    // store paused state of channel
-    paused = chan->paused;
 
     // stop previous noise
     glk_schannel_stop(chan);
@@ -422,12 +417,6 @@ static glui32 gli_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, 
 
     chan->notify = notify;
     chan->resid = snd;
-
-    // If the channel was paused, restore that before binding the stream so the
-    // replayed sound starts silent rather than leaking a moment of audio before
-    // a post-play re-pause. The flag is set before bind, so the callback (which
-    // only runs once bound) sees it without a race.
-    chan->paused = paused;
 
     switch (type) {
     case giblorb_ID_FORM:
