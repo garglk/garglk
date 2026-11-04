@@ -183,6 +183,18 @@ void garglk::winwarning(const std::string &title, const std::string &msg)
     NSRunAlertPanel(nsTitle, @"%@", nil, nil, nil, nsMsg);
 }
 
+// Story metadata isn't guaranteed to be valid UTF-8, and stringWithUTF8String:
+// returns nil if it isn't.
+static NSString *ns_string_lenient(const std::string &str)
+{
+    NSString *result = [NSString stringWithUTF8String: str.c_str()];
+    if (result == nil) {
+        result = [NSString stringWithCString: str.c_str() encoding: NSISOLatin1StringEncoding];
+    }
+
+    return result;
+}
+
 void winexit()
 {
     [gargoyle closeWindow:processID];
@@ -590,22 +602,22 @@ void garglk::show_game_info(const garglk::GameInfo &info, bool show_once)
     NSFont *body_font = [NSFont systemFontOfSize: [NSFont systemFontSize]];
 
     [attr_text appendAttributedString: [[NSAttributedString alloc]
-        initWithString: [NSString stringWithUTF8String: info.title.c_str()]
+        initWithString: ns_string_lenient(info.title)
             attributes: @{NSFontAttributeName: bold_font, NSForegroundColorAttributeName: text_color}]];
 
     if (info.headline.has_value()) {
         [attr_text appendAttributedString: [[NSAttributedString alloc]
-            initWithString: [@"\n" stringByAppendingString: [NSString stringWithUTF8String: info.headline->c_str()]]
+            initWithString: [@"\n" stringByAppendingString: ns_string_lenient(*info.headline)]
                 attributes: @{NSFontAttributeName: italic_font, NSForegroundColorAttributeName: text_color}]];
     }
 
     [attr_text appendAttributedString: [[NSAttributedString alloc]
-        initWithString: [@"\nby " stringByAppendingString: [NSString stringWithUTF8String: info.author.c_str()]]
+        initWithString: [@"\nby " stringByAppendingString: ns_string_lenient(info.author)]
             attributes: @{NSFontAttributeName: body_font, NSForegroundColorAttributeName: text_color}]];
 
     for (const auto &paragraph : info.description) {
         [attr_text appendAttributedString: [[NSAttributedString alloc]
-            initWithString: [@"\n\n" stringByAppendingString: [NSString stringWithUTF8String: paragraph.c_str()]]
+            initWithString: [@"\n\n" stringByAppendingString: ns_string_lenient(paragraph)]
                 attributes: @{NSFontAttributeName: body_font, NSForegroundColorAttributeName: text_color}]];
     }
 
