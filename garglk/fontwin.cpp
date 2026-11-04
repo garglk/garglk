@@ -64,7 +64,7 @@ static int CALLBACK font_cb(ENUMLOGFONTEXA *lpelfe, NEWTEXTMETRICEXA *, int, LPA
         filler->add(FontFiller::Style::BoldItalic, filepath);
     }
 
-    return 0;
+    return 1;
 }
 
 static std::string make_font_filepath(const std::string &filename)
