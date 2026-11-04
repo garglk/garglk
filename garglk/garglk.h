@@ -1191,6 +1191,7 @@ void gli_input_handle_key(glui32 key);
 void gli_input_handle_key_paste(glui32 key);
 void gli_input_handle_click(int x, int y, int clicks);
 void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2);
+void gli_event_remove_window(const window_t *win);
 
 extern stream_t *gli_new_stream(int type, int readable, int writable,
     glui32 rock);

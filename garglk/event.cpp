@@ -96,6 +96,18 @@ void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2)
     gli_events.push_back(store);
 }
 
+// A closed window's queued events can't be delivered: they would hand the
+// program a pointer to a window that no longer exists.
+void gli_event_remove_window(const window_t *win)
+{
+#ifdef GARGLK_CONFIG_SDL
+    std::lock_guard guard(event_mutex);
+#endif
+    gli_events.remove_if([win](const auto &event) {
+        return event.win == win;
+    });
+}
+
 void glk_tick()
 {
 #ifdef GARGLK_CONFIG_TICK

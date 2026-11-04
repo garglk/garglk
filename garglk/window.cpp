@@ -305,6 +305,8 @@ static void gli_window_close(window_t *win, bool recurse)
         }
     }
 
+    gli_event_remove_window(win);
+
     delete win;
 }
 
