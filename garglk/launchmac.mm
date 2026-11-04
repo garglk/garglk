@@ -1141,10 +1141,20 @@ static int winexec(const std::string &cmd, const std::vector<std::string> &args)
         [proc setLaunchPath: nsCmd];
         [proc setArguments: nsArgs];
         [proc setEnvironment: nsEnv];
-        [proc launch];
+
+        // This raises if the interpreter is missing.
+        @try {
+            [proc launch];
+        } @catch (NSException *) {
+            [proc release];
+            return false;
+        }
     }
 
-    return [proc isRunning];
+    bool running = [proc isRunning];
+    [proc release];
+
+    return running;
 }
 
 bool garglk::winterp(const std::string &exe, const std::vector<std::string> &flags, const std::string &game)
