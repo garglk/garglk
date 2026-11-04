@@ -566,7 +566,8 @@ static void maybe_set_save_dir(NSSavePanel *panel, NSString *savedir)
         return;
     }
 
-    auto initial_directory = get_save_dir(savedir);
+    // The Gamedir and Fixed locations are already real directories.
+    auto initial_directory = [savedir isAbsolutePath] ? [NSURL fileURLWithPath: savedir] : get_save_dir(savedir);
 
     if (initial_directory != nil) {
         NSURL *startingDirectoryURL = [NSURL fileURLWithPath: [initial_directory path]];
