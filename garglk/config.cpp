@@ -780,7 +780,8 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             } else if (cmd == "tmarginy") {
                 gli_tmarginy = config_atleast(parse_int(arg), 0);
             } else if (cmd == "gamma") {
-                gli_conf_gamma = config_atleast(parse_double(arg), 0.0);
+                // 0 isn't usable: it maps every pixel, even empty ones, to white.
+                gli_conf_gamma = config_atleast(parse_double(arg), 0.01);
             } else if (cmd == "caretcolor") {
                 parsecolor(arg, gli_caret_color);
                 parsecolor(arg, gli_caret_save);
