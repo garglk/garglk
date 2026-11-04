@@ -669,6 +669,8 @@ void gli_initialize_fonts()
         gli_cellw = (entry.adv + GLI_SUBPIX - 1) / GLI_SUBPIX;
     } catch (const Font::LoadError &e) {
         garglk::winabort(Format("Unable to load font file \"{}\" ({}).", e.filename(), e.what()));
+    } catch (const std::exception &e) {
+        garglk::winabort(Format("Unable to use monospace font: {}.", e.what()));
     }
 
     if (!problem_fonts.empty()) {
@@ -811,9 +813,10 @@ int Font::charkern(glui32 c0, glui32 c1)
         return 0;
     }
 
+    // Missing kerning isn't worth stopping the game over.
     err = FT_Get_Kerning(m_face.get(), g0, g1, FT_KERNING_UNFITTED, &v);
     if (err != 0) {
-        throw std::runtime_error(garglk::convert_ft_error(err, "FT_Get_Kerning"));
+        return 0;
     }
 
     int value = (v.x * GLI_SUBPIX) / 64.0;
@@ -876,14 +879,16 @@ static int gli_string_impl(int x, FontFace fontface, const glui32 *s, std::size_
 
             auto it = fallback_cache.find(key);
             if (it == fallback_cache.end()) {
+                // A glyph can be missing (std::out_of_range), or FreeType can
+                // fail on it (std::runtime_error). Either way, try the next font.
                 try {
                     it = fallback_cache.emplace(key, f.getglyph(c)).first;
-                } catch (const std::out_of_range &) {
+                } catch (const std::exception &) {
                     for (auto &font : glyph_substitution_fonts[fontface]) {
                         try {
                             it = fallback_cache.emplace(key, font.getglyph(c)).first;
                             break;
-                        } catch (const std::out_of_range &) {
+                        } catch (const std::exception &) {
                         }
                     }
                 }
@@ -893,7 +898,7 @@ static int gli_string_impl(int x, FontFace fontface, const glui32 *s, std::size_
                     std::cerr << msg << std::endl;
                     try {
                         it = fallback_cache.emplace(key, f.getglyph(UNICODE_QUESTION_MARK)).first;
-                    } catch (const std::out_of_range &) {
+                    } catch (const std::exception &) {
                         garglk::winabort(Format("{}, and substituting '?' failed", msg));
                     }
                 }
