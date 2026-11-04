@@ -1366,8 +1366,8 @@ static void win_textbuffer_init_impl(window_t *win, void *buf, int maxlen, int i
     }
 
     // make sure we have some space left for typing...
-    pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2) * GLI_SUBPIX;
-    pw = pw - 2 * SLOP - dwin->radjw + dwin->ladjw;
+    pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2 - scroll_width(win)) * GLI_SUBPIX;
+    pw = pw - 2 * SLOP - dwin->radjw - dwin->ladjw;
     if (calcwidth(dwin, dwin->chars, dwin->attrs, 0, dwin->numchars, -1) >= pw * 3 / 4) {
         win_textbuffer_putchar_uni(win, '\n');
     }
