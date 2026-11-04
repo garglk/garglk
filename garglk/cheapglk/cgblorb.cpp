@@ -112,7 +112,7 @@ bool giblorb_copy_resource(glui32 usage, glui32 resnum, glui32 &type, std::vecto
     switch (blorbfile->type) {
     case strtype_File:
         if (std::fseek(blorbfile->file, pos, SEEK_SET) == -1 ||
-            std::fread(buf.data(), len, 1, blorbfile->file) != 1) {
+            std::fread(buf.data(), 1, len, blorbfile->file) != len) {
             return false;
         }
         break;
