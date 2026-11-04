@@ -224,7 +224,7 @@ static const std::unordered_map<FileFilter, std::string> winfilters = {
     }
 
     [[NSNotificationCenter defaultCenter] addObserver: self
-                                             selector: @selector(performRefresh:)
+                                             selector: @selector(performMove:)
                                                  name: NSWindowDidMoveNotification
                                                object: self];
 
@@ -504,11 +504,9 @@ static BOOL isTextbufferEvent(NSEvent *evt)
                 [config setObject: [NSString stringWithUTF8String: size.c_str()] forKey: @"window.size"];
             }
 
-            if (gli_conf_save_window_location || gli_conf_save_window_size) {
-                auto is_fullscreen = (self.styleMask & NSWindowStyleMaskFullScreen) == NSWindowStyleMaskFullScreen;
-                auto as_object = [NSNumber numberWithBool: is_fullscreen];
-                [config setObject: as_object forKey: @"window.fullscreen"];
-            }
+            auto is_fullscreen = (self.styleMask & NSWindowStyleMaskFullScreen) == NSWindowStyleMaskFullScreen;
+            auto as_object = [NSNumber numberWithBool: is_fullscreen];
+            [config setObject: as_object forKey: @"window.fullscreen"];
 
             [config writeToFile: path atomically: YES];
         }
