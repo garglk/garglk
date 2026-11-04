@@ -499,7 +499,8 @@ static BOOL isTextbufferEvent(NSEvent *evt)
             }
 
             if (gli_conf_save_window_size) {
-                auto size = Format("@Size({} {})", self.frame.size.width, self.frame.size.height);
+                auto content = [NSWindow contentRectForFrameRect: self.frame styleMask: self.styleMask];
+                auto size = Format("@Size({} {})", static_cast<int>(content.size.width), static_cast<int>(content.size.height));
                 [config setObject: [NSString stringWithUTF8String: size.c_str()] forKey: @"window.size"];
             }
 
@@ -728,8 +729,7 @@ static void maybe_set_save_dir(NSSavePanel *panel, NSString *savedir)
 
     [window makeKeyAndOrderFront: window];
     if (move) {
-        rect = NSMakeRect(x, coord_flip(window) - y, width, height);
-        [window setFrame: rect display: YES];
+        [window setFrameOrigin: NSMakePoint(x, coord_flip(window) - y)];
     } else {
         [window center];
     }
