@@ -1103,8 +1103,9 @@ static std::string winpath()
 {
     char exepath[PROC_PIDPATHINFO_MAXSIZE];
 
-    if (proc_pidpath(getpid(), exepath, sizeof exepath) == -1) {
+    if (proc_pidpath(getpid(), exepath, sizeof exepath) <= 0) {
         garglk::winmsg("Unable to locate executable path");
+        return "";
     }
 
     std::string buffer = exepath;
@@ -1161,6 +1162,9 @@ bool garglk::winterp(const std::string &exe, const std::vector<std::string> &fla
 {
     // get dir of executable
     auto interpreter_dir = winpath();
+    if (interpreter_dir.empty()) {
+        return false;
+    }
 
     auto cmd = Format("{}/{}", interpreter_dir, exe);
 
