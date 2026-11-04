@@ -662,9 +662,12 @@ void glk_schannel_stop(schanid_t chan)
         gli_strict_warning("schannel_stop: invalid id.");
         return;
     }
+    // Resume the underlying SDL channel, but the Glk channel stays paused.
+    bool paused = chan->paused;
     SDL_LockAudio();
     glk_schannel_unpause(chan);
     SDL_UnlockAudio();
+    chan->paused = paused;
     switch (chan->status) {
     case CHANNEL_SOUND:
         chan->notify = 0;
