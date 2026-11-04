@@ -352,9 +352,11 @@ static void music_completion_callback()
         gli_strict_warning("music callback failed");
         return;
     } else {
-        gli_event_store(evtype_SoundNotify, nullptr, music_channel->resid,
-            music_channel->notify);
-        gli_notification_waiting();
+        if (music_channel->notify != 0) {
+            gli_event_store(evtype_SoundNotify, nullptr, music_channel->resid,
+                music_channel->notify);
+            gli_notification_waiting();
+        }
     }
     cleanup_channel(music_channel);
 }
