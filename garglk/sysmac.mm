@@ -277,29 +277,28 @@ void winclipreceive()
     if ([clipboard availableTypeFromArray: [NSArray arrayWithObject: NSStringPboardType]]) {
         NSString *input = [clipboard stringForType: NSStringPboardType];
         if (input) {
-            len = [input length];
+            // Convert the whole string: converting one UTF-16 unit at a time
+            // can't handle characters that need two.
+            NSData *utf32 = [input dataUsingEncoding: NSUTF32LittleEndianStringEncoding];
+            const glui32 *chars = static_cast<const glui32 *>([utf32 bytes]);
+            len = [utf32 length] / sizeof(glui32);
             for (i = 0; i < len; i++) {
-                if ([input getBytes: &ch maxLength: sizeof ch usedLength: nullptr
-                           encoding: UTF32StringEncoding
-                            options: 0
-                              range: NSMakeRange(i, 1)
-                     remainingRange: nullptr]) {
-                    switch (ch) {
-                    case '\0':
-                        return;
+                ch = chars[i];
+                switch (ch) {
+                case '\0':
+                    return;
 
-                    case '\b':
-                    case '\t':
-                        break;
+                case '\b':
+                case '\t':
+                    break;
 
-                    case '\r':
-                    case '\n':
-                        gli_input_handle_key_paste(keycode_Return);
-                        break;
+                case '\r':
+                case '\n':
+                    gli_input_handle_key_paste(keycode_Return);
+                    break;
 
-                    default:
-                        gli_input_handle_key_paste(ch);
-                    }
+                default:
+                    gli_input_handle_key_paste(ch);
                 }
             }
         }
