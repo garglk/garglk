@@ -21,9 +21,11 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <iostream>
 #include <iterator>
+#include <optional>
 #include <string>
 
 #ifdef _WIN32
@@ -346,7 +348,12 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    gli_read_config(argc, argv);
+    // The story may have come from the file chooser, and a relative argument
+    // would be read relative to the directory changed to above, so give the
+    // config reader the resolved path.
+    auto story_path = story.toStdString();
+    std::array<char *, 2> config_argv = {argv[0], story_path.data()};
+    gli_read_config(config_argv.size(), config_argv.data());
 
     // run story file
     return garglk::rungame(story.toStdString()) ? 0 : 1;
