@@ -269,7 +269,8 @@ static QString parse_args(const QApplication &app)
         };
 
         std::cout << "Configuration file paths:\n\n";
-        for (const auto &config : garglk::configs(gamefile.toStdString())) {
+        auto gamepath = gamefile.isEmpty() ? std::nullopt : std::optional(gamefile.toStdString());
+        for (const auto &config : garglk::configs(gamepath)) {
             auto path = canonicalize(config.path);
             auto type = QString::fromStdString(config.format_type());
 
