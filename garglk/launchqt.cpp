@@ -126,6 +126,26 @@ static QString winbrowsefile()
     return QFileDialog::getOpenFileName(nullptr, AppName, "", filter_string, nullptr, options);
 }
 
+// The launcher opens files through narrow paths, which on Windows use the ANSI code
+// page rather than UTF-8.
+static std::string to_native_path(const QString &path)
+{
+#ifdef _WIN32
+    return path.toLocal8Bit().toStdString();
+#else
+    return path.toStdString();
+#endif
+}
+
+static QString from_native_path(const std::string &path)
+{
+#ifdef _WIN32
+    return QString::fromLocal8Bit(path.c_str());
+#else
+    return QString::fromStdString(path);
+#endif
+}
+
 bool garglk::winterp(const std::string &exe, const std::vector<std::string> &flags, const std::string &game)
 {
     // Find the directory that contains the interpreters. By default
@@ -154,7 +174,7 @@ bool garglk::winterp(const std::string &exe, const std::vector<std::string> &fla
     for (const auto &flag : flags) {
         args.push_back(QString::fromStdString(flag));
     }
-    args.push_back(QString::fromStdString(game));
+    args.push_back(from_native_path(game));
 
     QProcess proc;
     proc.setProcessChannelMode(QProcess::ForwardedChannels);
@@ -351,10 +371,10 @@ int main(int argc, char **argv)
     // The story may have come from the file chooser, and a relative argument
     // would be read relative to the directory changed to above, so give the
     // config reader the resolved path.
-    auto story_path = story.toStdString();
+    auto story_path = to_native_path(story);
     std::array<char *, 2> config_argv = {argv[0], story_path.data()};
     gli_read_config(config_argv.size(), config_argv.data());
 
     // run story file
-    return garglk::rungame(story.toStdString()) ? 0 : 1;
+    return garglk::rungame(story_path) ? 0 : 1;
 }
