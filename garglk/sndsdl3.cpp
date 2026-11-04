@@ -91,7 +91,10 @@ static SDL_AudioDeviceID device = 0;
 
 // A fade tick runs on SDL's timer thread and uses a channel's stream, which the
 // main thread creates and destroys, since a fade outlives the sound.
-static std::mutex stream_mutex;
+//
+// As with the fade state in sndsdl-common.cpp, this is never destroyed because
+// a fade tick can run during exit.
+static std::mutex &stream_mutex = *new std::mutex;
 
 static schanid_t gli_bleep_channel;
 
