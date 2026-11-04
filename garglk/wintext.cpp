@@ -1213,7 +1213,9 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 
     if (gli_conf_dashes != 0 && !monospace) {
         if (ch == '-') {
-            dwin->dashed++;
+            // A dash at the start of a line has nothing to merge with, even if
+            // it continues a run of dashes that was split by a line wrap.
+            dwin->dashed = dwin->numchars == 0 ? 1 : dwin->dashed + 1;
             if (dwin->dashed == 2) {
                 dwin->numchars--;
                 if (gli_conf_dashes == 2) {
