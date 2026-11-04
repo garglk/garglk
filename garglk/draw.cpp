@@ -929,6 +929,12 @@ int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb,
         int px = x / GLI_SUBPIX;
         int sx = x % GLI_SUBPIX;
 
+        // Division truncates toward zero, but the subpixel offset can't be negative.
+        if (sx < 0) {
+            px--;
+            sx += GLI_SUBPIX;
+        }
+
         if (glyphs[sx].lcd) {
             draw_bitmap_lcd_gamma(glyphs[sx], px, y, rgb);
         } else {
