@@ -17,6 +17,7 @@
 // along with Gargoyle; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+#include <array>
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -139,21 +140,8 @@ static std::string unicode_to_utf8(const std::vector<glui32> &src)
     std::string dst;
 
     for (const auto &c : src) {
-        if (c < 0x80) {
-            dst.push_back(c);
-        } else if (c < 0x800) {
-            dst.push_back(0xc0 | ((c >> 6) & 0x1f));
-            dst.push_back(0x80 | ((c     ) & 0x3f));
-        } else if (c < 0x10000) {
-            dst.push_back(0xe0 | ((c >> 12) & 0x0f));
-            dst.push_back(0x80 | ((c >>  6) & 0x3f));
-            dst.push_back(0x80 | ((c      ) & 0x3f));
-        } else if (c < 0x200000) {
-            dst.push_back(0xf0 | ((c >> 18) & 0x07));
-            dst.push_back(0x80 | ((c >> 12) & 0x3f));
-            dst.push_back(0x80 | ((c >>  6) & 0x3f));
-            dst.push_back(0x80 | ((c      ) & 0x3f));
-        }
+        std::array<char, 4> buf;
+        dst.append(buf.data(), gli_encode_utf8(c, buf.data(), buf.size()));
     }
 
     return dst;
