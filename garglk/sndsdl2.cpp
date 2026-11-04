@@ -204,17 +204,11 @@ static void cleanup_channel(schanid_t chan)
 {
     // A fade outlives the sound. Fade ticks read status and sdl_channel with the
     // audio device locked, so callers must hold that lock here too.
-    if (chan->sdl_rwops != nullptr) {
-        SDL_RWclose(chan->sdl_rwops);
-        chan->sdl_rwops = nullptr;
-    }
-
-    chan->sdl_memory.clear();
-
     switch (chan->status) {
     case CHANNEL_SOUND:
         if (chan->sample != nullptr) {
             Mix_FreeChunk(chan->sample);
+            chan->sample = nullptr;
         }
         if (chan->sdl_channel >= 0) {
             Mix_GroupChannel(chan->sdl_channel, FREE);
@@ -231,6 +225,14 @@ static void cleanup_channel(schanid_t chan)
     chan->status = CHANNEL_IDLE;
     chan->sdl_channel = -1;
     chan->music = nullptr;
+
+    // These back the music, so they go after it.
+    if (chan->sdl_rwops != nullptr) {
+        SDL_RWclose(chan->sdl_rwops);
+        chan->sdl_rwops = nullptr;
+    }
+
+    chan->sdl_memory.clear();
 }
 
 void glk_schannel_destroy(schanid_t chan)
