@@ -81,15 +81,20 @@ static void winhandler(int signal);
 
 - (void) sleep
 {
+    // Allow mach messages before checking for events: a notification between
+    // the check and here would otherwise only set a flag nothing is looking at,
+    // and the run loop would sleep through it.
+    gli_mach_allowed = true;
+
     while (!timeouts && !gli_event_waiting) {
         if (!gli_window_alive) {
             std::exit(1);
         }
 
-        gli_mach_allowed = true;
         [[NSRunLoop currentRunLoop] acceptInputForMode: NSDefaultRunLoopMode beforeDate: [NSDate distantFuture]];
-        gli_mach_allowed = false;
     }
+
+    gli_mach_allowed = false;
 }
 
 - (void) track: (CFTimeInterval) seconds
