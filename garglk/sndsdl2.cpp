@@ -309,7 +309,7 @@ glui32 glk_schannel_play_multi(schanid_t *chanarray, glui32 chancount,
 {
     int successes = 0;
 
-    for (glui32 i = 0; i < chancount; i++) {
+    for (glui32 i = 0; i < std::min(chancount, soundcount); i++) {
         successes += glk_schannel_play_ext(chanarray[i], sndarray[i], 1, notify);
     }
 
