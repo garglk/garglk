@@ -870,10 +870,10 @@ void winkey(NSEvent *evt)
         }},
     };
 
-    try {
-        keys.at({modmasked, [evt keyCode]})();
+    auto key = keys.find({modmasked, [evt keyCode]});
+    if (key != keys.end()) {
+        key->second();
         return;
-    } catch (const std::out_of_range &) {
     }
 
     // send combined keystrokes to text buffer
