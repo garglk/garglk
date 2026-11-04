@@ -448,8 +448,8 @@ void winopen()
     bool move = false;
     int x = 0;
     int y = 0;
-    unsigned int width = gli_wmarginx * 2 + gli_cellw * gli_cols / BACKING_SCALE_FACTOR;
-    unsigned int height = gli_wmarginy * 2 + gli_cellh * gli_rows / BACKING_SCALE_FACTOR;
+    unsigned int width = (gli_wmarginx * 2 + gli_cellw * gli_cols) / BACKING_SCALE_FACTOR;
+    unsigned int height = (gli_wmarginy * 2 + gli_cellh * gli_rows) / BACKING_SCALE_FACTOR;
     NSColor *windowColor = [NSColor colorWithCalibratedRed: (float) gli_window_color[0] / 255.0f
                                                      green: (float) gli_window_color[1] / 255.0f
                                                       blue: (float) gli_window_color[2] / 255.0f
