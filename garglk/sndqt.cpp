@@ -544,7 +544,6 @@ void glk_schannel_stop(schanid_t chan)
     // undefined behavior. Simply ignore this request in that case.
     if (!gli_exiting) {
         chan->audio->stop();
-        chan->timer.stop();
         chan->audio.reset();
     }
 }
