@@ -80,7 +80,7 @@ struct glk_schannel_struct : SdlSoundChannel {
     channel_t *chain_next, *chain_prev;
 
     void apply_volume() override {
-        if (status == CHANNEL_SOUND) {
+        if (status == CHANNEL_SOUND && sdl_channel >= 0) {
             Mix_Volume(sdl_channel, volume);
         } else if (status == CHANNEL_MUSIC) {
             Mix_VolumeMusic(volume);
@@ -202,11 +202,8 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
 
 static void cleanup_channel(schanid_t chan)
 {
-    // Stop any fade first (waiting out an in-flight fade callback and untracking
-    // the channel) so no fade tick can call apply_volume() against the channel
-    // while the fields it reads (status, sdl_channel) are torn down below.
-    cancel_fade(chan);
-
+    // A fade outlives the sound. Fade ticks read status and sdl_channel with the
+    // audio device locked, so callers must hold that lock here too.
     if (chan->sdl_rwops != nullptr) {
         SDL_RWclose(chan->sdl_rwops);
         chan->sdl_rwops = nullptr;
@@ -245,8 +242,11 @@ void glk_schannel_destroy(schanid_t chan)
         return;
     }
 
+    cancel_fade(chan);
     glk_schannel_stop(chan);
+    SDL_LockAudio();
     cleanup_channel(chan);
+    SDL_UnlockAudio();
     if (gli_unregister_obj != nullptr) {
         (*gli_unregister_obj)(chan, gidisp_Class_Schannel, chan->disprock);
     }
