@@ -63,10 +63,7 @@ giblorb_err_t giblorb_set_resource_map(strid_t file)
       blorbmap = nullptr;
   }
 
-  if (blorbfile != nullptr) {
-      glk_stream_close(blorbfile, nullptr);
-      blorbfile = nullptr;
-  }
+  blorbfile = nullptr;
 #endif
 
   err = giblorb_create_map(file, &blorbmap);
