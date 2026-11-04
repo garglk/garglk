@@ -119,7 +119,6 @@ static void reflow(window_t *win)
     attr_t curattr;
     attr_t oldattr;
     int i, k, p, s;
-    int x, f;
 
     if (dwin->height < 4 || dwin->width < 20) {
         return;
@@ -129,23 +128,23 @@ static void reflow(window_t *win)
 
     std::vector<attr_t> attrbuf;
     std::vector<glui32> charbuf;
-    std::vector<int> alignbuf;
-    std::vector<std::shared_ptr<picture_t>> pictbuf;
-    std::vector<glui32> hyperbuf;
-    std::vector<int> offsetbuf;
-    std::vector<int> flowbreakbuf;
+
+    // Pictures and flow breaks to replay. These have to stay in order because
+    // several can share an offset: consecutive inline images, for example, are
+    // each a picture followed by a flow break.
+    struct Replay {
+        int offset;
+        std::shared_ptr<picture_t> pic; // null for a flow break
+        glui32 align;
+        glui32 hyper;
+    };
+    std::vector<Replay> replays;
 
     // allocate temp buffers
     try {
         attrbuf.resize(SCROLLBACK * TBLINELEN);
         charbuf.resize(SCROLLBACK * TBLINELEN);
-        // Each line can have two pictures and a flow break, and the offset
-        // lists also need room for their terminators.
-        alignbuf.resize(SCROLLBACK * 2);
-        pictbuf.resize(SCROLLBACK * 2);
-        hyperbuf.resize(SCROLLBACK * 2);
-        offsetbuf.resize(SCROLLBACK * 2 + 1);
-        flowbreakbuf.resize(SCROLLBACK + 1);
+        replays.reserve(SCROLLBACK * 3);
     } catch (const std::bad_alloc &) {
         return;
     }
@@ -155,8 +154,6 @@ static void reflow(window_t *win)
     oldattr = win->attr;
     curattr.clear();
 
-    x = 0;
-    f = 0;
     p = 0;
     s = dwin->scrollmax < SCROLLBACK ? dwin->scrollmax : SCROLLBACK - 1;
 
@@ -167,25 +164,16 @@ static void reflow(window_t *win)
         }
 
         if (dwin->lines[k].lpic) {
-            offsetbuf[x] = p;
-            alignbuf[x] = imagealign_MarginLeft;
-            pictbuf[x] = dwin->lines[k].lpic;
-            hyperbuf[x] = dwin->lines[k].lhyper;
-            x++;
+            replays.push_back({p, dwin->lines[k].lpic, imagealign_MarginLeft, dwin->lines[k].lhyper});
         }
 
         if (dwin->lines[k].rpic) {
-            offsetbuf[x] = p;
-            alignbuf[x] = imagealign_MarginRight;
-            pictbuf[x] = dwin->lines[k].rpic;
-            hyperbuf[x] = dwin->lines[k].rhyper;
-            x++;
+            replays.push_back({p, dwin->lines[k].rpic, imagealign_MarginRight, dwin->lines[k].rhyper});
         }
 
         auto flow_break_pos = dwin->lines[k].flow_break_pos;
         if (flow_break_pos.has_value()) {
-            flowbreakbuf[f] = p + *flow_break_pos;
-            f++;
+            replays.push_back({p + *flow_break_pos, nullptr, 0, 0});
         }
 
         for (i = 0; i < dwin->lines[k].len; i++) {
@@ -201,35 +189,36 @@ static void reflow(window_t *win)
         }
     }
 
-    offsetbuf[x] = -1;
-    flowbreakbuf[f] = -1;
-
     // clear window
 
     win_textbuffer_clear(win);
 
     // and dump text back
 
-    x = 0;
-    f = 0;
+    auto replay = replays.begin();
+    auto replay_through = [&](int offset) {
+        for (; replay != replays.end() && replay->offset <= offset; ++replay) {
+            if (replay->pic) {
+                put_picture(dwin, replay->pic, replay->align, replay->hyper);
+            } else {
+                scrolloneline(dwin, false, true);
+            }
+        }
+    };
+
     for (i = 0; i < p; i++) {
         if (i == inputbyte) {
             break;
         }
         win->attr = attrbuf[i];
 
-        if (offsetbuf[x] == i) {
-            put_picture(dwin, pictbuf[x], alignbuf[x], hyperbuf[x]);
-            x++;
-        }
-
-        if (flowbreakbuf[f] == i) {
-            scrolloneline(dwin, false, true);
-            f++;
-        }
+        replay_through(i);
 
         win_textbuffer_putchar_uni(win, charbuf[i]);
     }
+
+    // Anything left comes after the last character, or at the start of input.
+    replay_through(p);
 
     // terribly sorry about this...
     dwin->lastseen = 0;
