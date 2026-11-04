@@ -445,11 +445,16 @@ static Font make_font(FontFace fontface, const std::string &fallback, std::vecto
     // (e.g. propr, monor, etc).
     std::optional<Font::LoadError> error;
     FT_Face face;
-    if (path.has_value() && FT_New_Face(ftlib, path->c_str(), 0, &face) == 0) {
-        try {
-            return {fontface, UniqueFace(face), *path};
-        } catch (const Font::LoadError &e) {
-            error = e;
+    if (path.has_value()) {
+        FT_Error err = FT_New_Face(ftlib, path->c_str(), 0, &face);
+        if (err == 0) {
+            try {
+                return {fontface, UniqueFace(face), *path};
+            } catch (const Font::LoadError &e) {
+                error = e;
+            }
+        } else {
+            error = Font::LoadError(err, *path, "FT_New_Face");
         }
     }
 
