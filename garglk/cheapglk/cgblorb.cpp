@@ -117,6 +117,9 @@ bool giblorb_copy_resource(glui32 usage, glui32 resnum, glui32 &type, std::vecto
         }
         break;
     case strtype_Memory:
+        if (pos > blorbfile->buflen || len > blorbfile->buflen - pos) {
+            return false;
+        }
         std::copy(blorbfile->buf + pos, blorbfile->buf + pos + len, buf.begin());
         break;
     default:
