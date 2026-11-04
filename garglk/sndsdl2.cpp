@@ -627,6 +627,7 @@ void glk_schannel_pause(schanid_t chan)
         return;
     }
 
+    SDL_LockAudio();
     switch (chan->status) {
     case CHANNEL_SOUND:
         Mix_Pause(chan->sdl_channel);
@@ -635,6 +636,7 @@ void glk_schannel_pause(schanid_t chan)
         Mix_PauseMusic();
         break;
     }
+    SDL_UnlockAudio();
 
     chan->paused = true;
 }
@@ -645,6 +647,7 @@ void glk_schannel_unpause(schanid_t chan)
         gli_strict_warning("schannel_unpause: invalid id.");
         return;
     }
+    SDL_LockAudio();
     switch (chan->status) {
     case CHANNEL_SOUND:
         Mix_Resume(chan->sdl_channel);
@@ -653,6 +656,7 @@ void glk_schannel_unpause(schanid_t chan)
         Mix_ResumeMusic();
         break;
     }
+    SDL_UnlockAudio();
 
     chan->paused = false;
 }
@@ -667,7 +671,6 @@ void glk_schannel_stop(schanid_t chan)
     bool paused = chan->paused;
     SDL_LockAudio();
     glk_schannel_unpause(chan);
-    SDL_UnlockAudio();
     chan->paused = paused;
     switch (chan->status) {
     case CHANNEL_SOUND:
@@ -681,7 +684,6 @@ void glk_schannel_stop(schanid_t chan)
         Mix_HaltMusic();
         break;
     }
-    SDL_LockAudio();
     cleanup_channel(chan);
     SDL_UnlockAudio();
 }
