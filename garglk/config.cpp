@@ -855,7 +855,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 if (argstream >> number >> duration >> frequency) {
                     gli_bleeps.update(
                             config_range(parse_int(number), 1, 2),
-                            parse_double(duration),
+                            config_range(parse_double(duration), 0.0, 60.0),
                             parse_int(frequency));
                 }
             } else if (cmd == "zbleep_file") {
