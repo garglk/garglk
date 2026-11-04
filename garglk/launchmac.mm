@@ -357,7 +357,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     }
 
     if (store) {
-        [eventlog insertObject: [event copy] atIndex: 0];
+        [eventlog insertObject: [[event copy] autorelease] atIndex: 0];
         if (isTextbufferEvent(event)) {
             [textbuffer interpretKeyEvents: [NSArray arrayWithObject: event]];
         }
@@ -376,7 +376,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     NSEvent *event = nullptr;
 
     if ([eventlog count]) {
-        event = [eventlog lastObject];
+        event = [[[eventlog lastObject] retain] autorelease];
         [eventlog removeLastObject];
     }
 
