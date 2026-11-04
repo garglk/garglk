@@ -46,7 +46,9 @@ static NSRange purgeRange;
 {
     if (finishSpeaking == NO) {
         // speaking stopped abruptly (see gli_tts_purge())
-        [phraseQueue removeObjectsInRange: purgeRange];
+        // Two purges can get two callbacks, and the first shrinks the queue.
+        NSUInteger count = MIN(purgeRange.length, phraseQueue.count);
+        [phraseQueue removeObjectsInRange: NSMakeRange(0, count)];
     } else {
         // remove the head of the list which just completed speaking
         if (phraseQueue.count > 0) {
