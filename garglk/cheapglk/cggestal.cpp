@@ -68,8 +68,15 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
         case gestalt_CharInput: 
             if (val >= 32 && val < 127)
                 return TRUE;
+#ifdef GARGLK
+            /* All special keys except keycode_Unknown can be delivered. */
+            else if ((val >= keycode_End && val <= keycode_Left) ||
+                     (val >= keycode_Func12 && val <= keycode_Func1))
+                return TRUE;
+#else
             else if (val == keycode_Return)
                 return TRUE;
+#endif
             else {
                 /* If we're doing UTF-8 input, we can input any Unicode
                    character. Except control characters. */
