@@ -121,7 +121,10 @@ void fontload()
         if (!CTFontManagerRegisterFontsForURL((__bridge CFURLRef)fontURL, kCTFontManagerScopeProcess, &error)) {
             CFStringRef msg = CFErrorCopyFailureReason(error);
             NSLog(@"fontload: %@", msg);
-            CFRelease(msg);
+            if (msg != nullptr) {
+                CFRelease(msg);
+            }
+            CFRelease(error);
             continue;
         }
 
@@ -144,7 +147,10 @@ void fontunload()
             if (!CTFontManagerUnregisterFontsForURL(urlRef, kCTFontManagerScopeProcess, &error)) {
                 CFStringRef msg = CFErrorCopyFailureReason(error);
                 NSLog(@"fontunload: %@", msg);
-                CFRelease(msg);
+                if (msg != nullptr) {
+                    CFRelease(msg);
+                }
+                CFRelease(error);
             }
         }
 
