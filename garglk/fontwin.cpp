@@ -81,6 +81,7 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
     HKEY hkey;
     DWORD size;
     std::string face;
+    // RegQueryValueExA() doesn't always terminate strings, so leave room for that.
     char filename[256];
 
     // open the Fonts registry key
@@ -91,9 +92,10 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
     // check for a TrueType font
     face = Format("{} (TrueType)", facename);
 
-    size = sizeof(filename);
+    size = sizeof(filename) - 1;
 
     if (RegQueryValueExA(hkey, face.c_str(), nullptr, nullptr, (PBYTE)filename, &size) == ERROR_SUCCESS) {
+        filename[size] = '\0';
         filepath = make_font_filepath(filename);
         RegCloseKey(hkey);
         return true;
@@ -102,9 +104,10 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
     // check for an OpenType font
     face = Format("{} (OpenType)", facename);
 
-    size = sizeof(filename);
+    size = sizeof(filename) - 1;
 
     if (RegQueryValueExA(hkey, face.c_str(), nullptr, nullptr, (PBYTE)filename, &size) == ERROR_SUCCESS) {
+        filename[size] = '\0';
         filepath = make_font_filepath(filename);
         RegCloseKey(hkey);
         return true;
