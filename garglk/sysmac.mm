@@ -862,29 +862,25 @@ void winkey(NSEvent *evt)
     // send combined keystrokes to text buffer
     [gargoyle setWindow: processID charString: evt];
 
-    // retrieve character from buffer as string
-    NSString *evt_char = [gargoyle getWindowCharString: processID];
+    // retrieve characters from buffer as string
+    NSString *evt_chars = [gargoyle getWindowCharString: processID];
 
-    // convert character to UTF-32 value
-    glui32 ch;
-    NSUInteger used;
-    if ([evt_char getBytes: &ch maxLength: sizeof ch usedLength: &used
-                  encoding: UTF32StringEncoding
-                   options: 0
-                     range: NSMakeRange(0, [evt_char length])
-            remainingRange: nullptr]) {
-        if (used != 0) {
-            switch (ch) {
-            case '\n':
-                gli_input_handle_key(keycode_Return);
-                break;
-            case '\t':
-                gli_input_handle_key(keycode_Tab);
-                break;
-            default:
-                gli_input_handle_key(ch);
-                break;
-            }
+    // Queued key events share this buffer, so it can hold more than one character
+    // when typing quickly, and the buffer is about to be cleared.
+    NSData *utf32 = [evt_chars dataUsingEncoding: NSUTF32LittleEndianStringEncoding];
+    const glui32 *chars = static_cast<const glui32 *>([utf32 bytes]);
+    NSUInteger count = [utf32 length] / sizeof(glui32);
+    for (NSUInteger i = 0; i < count; i++) {
+        switch (chars[i]) {
+        case '\n':
+            gli_input_handle_key(keycode_Return);
+            break;
+        case '\t':
+            gli_input_handle_key(keycode_Tab);
+            break;
+        default:
+            gli_input_handle_key(chars[i]);
+            break;
         }
     }
 
