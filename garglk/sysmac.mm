@@ -88,6 +88,10 @@ static void winhandler(int signal);
 
     while (!timeouts && !gli_event_waiting) {
         if (!gli_window_alive) {
+            for (channel_t *chan = glk_schannel_iterate(nullptr, nullptr); chan; chan = glk_schannel_iterate(chan, nullptr)) {
+                glk_schannel_stop(chan);
+            }
+
             std::exit(1);
         }
 
@@ -365,29 +369,25 @@ void winmach(CFMachPortRef port, void *msg, CFIndex size, void *info)
 
 static void winhandler(int signal)
 {
-    if (signal == SIGUSR1) {
-        if (gli_mach_allowed) {
-            mach_msg_header_t header;
-            header.msgh_bits        = MACH_MSGH_BITS(MACH_MSG_TYPE_MAKE_SEND, 0);
-            header.msgh_size        = sizeof(header);
-            header.msgh_remote_port = gli_signal_port;
-            header.msgh_local_port  = MACH_PORT_NULL;
-            header.msgh_reserved    = 0;
-            header.msgh_id          = signal;
-
-            mach_msg_send(&header);
-        } else {
-            gli_event_waiting = true;
-        }
-    }
-
     if (signal == SIGUSR2) {
         gli_window_alive = false;
+    } else if (!gli_mach_allowed) {
+        gli_event_waiting = true;
+    }
 
-        // Stop all sound channels
-        for (channel_t *chan = glk_schannel_iterate(nullptr, nullptr); chan; chan = glk_schannel_iterate(chan, nullptr)) {
-            glk_schannel_stop(chan);
-        }
+    // Wake the run loop. This is safe in a signal handler, and is the only thing
+    // here that does more than set a flag: anything that locks or frees has to
+    // wait for the main loop.
+    if (gli_mach_allowed) {
+        mach_msg_header_t header;
+        header.msgh_bits        = MACH_MSGH_BITS(MACH_MSG_TYPE_MAKE_SEND, 0);
+        header.msgh_size        = sizeof(header);
+        header.msgh_remote_port = gli_signal_port;
+        header.msgh_local_port  = MACH_PORT_NULL;
+        header.msgh_reserved    = 0;
+        header.msgh_id          = signal;
+
+        mach_msg_send(&header);
     }
 }
 
