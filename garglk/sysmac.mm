@@ -396,7 +396,13 @@ void wininit()
     gli_backingscalefactor = BACKING_SCALE_FACTOR;
 
     // establish link to launcher
-    NSString *linkName = [NSString stringWithUTF8String: std::getenv("GargoyleApp")];
+    const char *app_name = std::getenv("GargoyleApp");
+    if (app_name == nullptr) {
+        NSLog(@"GargoyleApp isn't set: interpreters must be started by the Gargoyle launcher");
+        std::exit(1);
+    }
+
+    NSString *linkName = [NSString stringWithUTF8String: app_name];
     NSConnection *link = [NSConnection connectionWithRegisteredName: linkName host: nullptr];
     [link retain];
 
