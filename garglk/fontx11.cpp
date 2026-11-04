@@ -394,16 +394,17 @@ int encoding_rank(const XlfdFields &fields)
 // Reject unusable matches before their bitmap size can affect fallback text.
 std::optional<std::string> font_is_unusable(const XFont &xfont, FontType type)
 {
-    FT_Library ftlib;
-    FT_Error err = FT_Init_FreeType(&ftlib);
-    if (err != 0) {
-        return garglk::convert_ft_error(err, "FT_Init_FreeType");
+    // A font pattern can have many candidates, and each style repeats the search.
+    static FT_Library ftlib;
+    static const FT_Error init_err = FT_Init_FreeType(&ftlib);
+    if (init_err != 0) {
+        return garglk::convert_ft_error(init_err, "FT_Init_FreeType");
     }
 
     std::optional<std::string> reason;
     FT_Face face;
 
-    err = FT_New_Face(ftlib, xfont.path.c_str(), 0, &face);
+    FT_Error err = FT_New_Face(ftlib, xfont.path.c_str(), 0, &face);
     if (err != 0) {
         reason = garglk::convert_ft_error(err, "FT_New_Face");
     } else {
@@ -420,8 +421,6 @@ std::optional<std::string> font_is_unusable(const XFont &xfont, FontType type)
 
         FT_Done_Face(face);
     }
-
-    FT_Done_FreeType(ftlib);
 
     return reason;
 }
