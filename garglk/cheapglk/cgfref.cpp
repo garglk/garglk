@@ -184,7 +184,6 @@ frefid_t glk_fileref_create_temp(glui32 usage, glui32 rock)
 #ifdef _WIN32
     char tempdir[MAX_PATH];
     char filename[MAX_PATH];
-    GetTempPathA(MAX_PATH, tempdir);
     if(GetTempPathA(MAX_PATH, tempdir) == 0 ||
        GetTempFileNameA(tempdir, "glk", 0, filename) == 0)
     {
