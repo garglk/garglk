@@ -46,7 +46,7 @@ static std::optional<std::string> findfont(const std::string &fontname)
     }
 
     auto fs = garglk::unique(FcFontList(cfg, p.get(), os.get()), FcFontSetDestroy);
-    if (fs->nfont == 0) {
+    if (fs == nullptr || fs->nfont == 0) {
         return std::nullopt;
     }
 
