@@ -963,7 +963,8 @@ static void scrolloneline(window_textbuffer_t *dwin, bool forced, bool flow_brea
         *dwin->unread_marker_line += lines_to_scroll;
     }
 
-    if (dwin->scrollmax > dwin->scrollback - lines_to_scroll
+    // A flow break past a tall image can scroll by more than one resize adds.
+    while (dwin->scrollmax > dwin->scrollback - lines_to_scroll
             || dwin->lastseen > dwin->scrollback - lines_to_scroll) {
         scrollresize(dwin);
     }
