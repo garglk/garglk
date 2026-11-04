@@ -386,7 +386,6 @@ void glk_schannel_set_volume_ext(schanid_t chan, glui32 vol, glui32 duration, gl
         vol = GLK_MAXVOLUME;
     }
 
-    chan->current_volume = chan->target_volume;
     chan->target_volume = vol;
     chan->volume_notify = notify;
 
