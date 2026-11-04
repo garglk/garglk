@@ -192,7 +192,7 @@ struct glk_schannel_struct {
     void set_current_volume() {
         // QAudioSink's volume is a raw linear gain; map through a perceptual
         // curve so the volume control behaves evenly across its range.
-        auto gain = std::pow(static_cast<double>(current_volume) / GLK_MAXVOLUME, std::log(4));
+        auto gain = std::pow(current_volume / GLK_MAXVOLUME, std::log(4));
         if (audio) {
             audio->setVolume(gain);
         }
@@ -230,7 +230,7 @@ struct glk_schannel_struct {
     double duration = 0;
     double difference = 0;
     std::chrono::steady_clock::time_point last_volume_bump;
-    long current_volume;
+    double current_volume;
     glui32 target_volume;
     glui32 volume_notify = 0;
 
@@ -396,7 +396,7 @@ void glk_schannel_set_volume_ext(schanid_t chan, glui32 vol, glui32 duration, gl
         chan->set_current_volume();
     } else {
         chan->duration = duration / 1000.0;
-        chan->difference = static_cast<double>(chan->target_volume) - chan->current_volume;
+        chan->difference = chan->target_volume - chan->current_volume;
         chan->timer.start(100);
     }
 
