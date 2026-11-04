@@ -139,11 +139,13 @@ static void reflow(window_t *win)
     try {
         attrbuf.resize(SCROLLBACK * TBLINELEN);
         charbuf.resize(SCROLLBACK * TBLINELEN);
-        alignbuf.resize(SCROLLBACK);
-        pictbuf.resize(SCROLLBACK);
-        hyperbuf.resize(SCROLLBACK);
-        offsetbuf.resize(SCROLLBACK);
-        flowbreakbuf.resize(SCROLLBACK);
+        // Each line can have two pictures and a flow break, and the offset
+        // lists also need room for their terminators.
+        alignbuf.resize(SCROLLBACK * 2);
+        pictbuf.resize(SCROLLBACK * 2);
+        hyperbuf.resize(SCROLLBACK * 2);
+        offsetbuf.resize(SCROLLBACK * 2 + 1);
+        flowbreakbuf.resize(SCROLLBACK + 1);
     } catch (const std::bad_alloc &) {
         return;
     }
