@@ -463,7 +463,7 @@ void winopen()
             NSString *positionobj = config[@"window.position"];
             if (positionobj) {
                 std::string position = [positionobj UTF8String];
-                std::regex position_re(R"(^@Point\((\d+) (\d+)\)$)");
+                std::regex position_re(R"(^@Point\((-?\d+) (-?\d+)\)$)");
                 std::smatch cm;
                 if (std::regex_match(position, cm, position_re) && cm.size() == 3) {
                     try {

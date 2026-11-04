@@ -494,7 +494,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
             }
 
             if (gli_conf_save_window_location) {
-                auto location = Format("@Point({} {})", self.frame.origin.x, coord_flip(self) - self.frame.origin.y);
+                auto location = Format("@Point({} {})", static_cast<int>(self.frame.origin.x), static_cast<int>(coord_flip(self) - self.frame.origin.y));
                 [config setObject: [NSString stringWithUTF8String: location.c_str()] forKey: @"window.position"];
             }
 
@@ -703,8 +703,8 @@ static void maybe_set_save_dir(NSSavePanel *panel, NSString *savedir)
 
 - (BOOL) initWindow: (pid_t) processID
                move: (BOOL) move
-                  x: (unsigned int) x
-                  y: (unsigned int) y
+                  x: (int) x
+                  y: (int) y
               width: (unsigned int) width
              height: (unsigned int) height
          fullscreen: (BOOL) fullscreen

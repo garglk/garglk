@@ -80,8 +80,8 @@
 
 - (BOOL) initWindow: (pid_t) processID
                move: (BOOL) move
-                  x: (unsigned int) x
-                  y: (unsigned int) y
+                  x: (int) x
+                  y: (int) y
               width: (unsigned int) width
              height: (unsigned int) height
          fullscreen: (BOOL) fullscreen
