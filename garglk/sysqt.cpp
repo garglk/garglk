@@ -133,7 +133,15 @@ static void handle_input(const QString &input, bool from_paste)
     auto fn = from_paste ? gli_input_handle_key_paste :
                            gli_input_handle_key;
 
+    uint prev = 0;
     for (const uint &c : input.toUcs4()) {
+        // A CRLF pair is one line break.
+        bool crlf = c == '\n' && prev == '\r';
+        prev = c;
+        if (crlf) {
+            continue;
+        }
+
         if (c == '\r' || c == '\n') {
             fn(keycode_Return);
         } else if (QChar::isPrint(c)) {

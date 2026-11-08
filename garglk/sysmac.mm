@@ -304,8 +304,15 @@ void winclipreceive()
                 case '\t':
                     break;
 
-                case '\r':
                 case '\n':
+                    // A CRLF pair is one line break.
+                    if (i > 0 && chars[i - 1] == '\r') {
+                        break;
+                    }
+                    gli_input_handle_key_paste(keycode_Return);
+                    break;
+
+                case '\r':
                     gli_input_handle_key_paste(keycode_Return);
                     break;
 
