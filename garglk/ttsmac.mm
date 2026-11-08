@@ -49,6 +49,9 @@ static NSRange purgeRange;
         // Two purges can get two callbacks, and the first shrinks the queue.
         NSUInteger count = MIN(purgeRange.length, phraseQueue.count);
         [phraseQueue removeObjectsInRange: NSMakeRange(0, count)];
+
+        // A second callback must not remove phrases queued since the purge.
+        purgeRange = NSMakeRange(0, 0);
     } else {
         // remove the head of the list which just completed speaking
         if (phraseQueue.count > 0) {
