@@ -120,6 +120,7 @@ fi
 # explicitly. Plugins are copied before copy_dll_deps so their own
 # imports get picked up transitively.
 copy_plugin "${qt_plugins}" "platforms/qwindows"
+copy_plugin "${qt_plugins}" "imageformats/qgif"
 copy_plugin "${qt_plugins}" "imageformats/qjpeg"
 copy_plugin "${qt_plugins}" "multimedia/windowsmediaplugin"
 

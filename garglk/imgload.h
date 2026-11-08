@@ -33,5 +33,6 @@ struct ImageLoadError : public std::runtime_error {
 
 Canvas<4> gli_load_image_jpeg(const std::vector<unsigned char> &buf);
 Canvas<4> gli_load_image_png(const std::vector<unsigned char> &buf);
+Canvas<4> gli_load_image_gif(const std::vector<unsigned char> &buf);
 
 #endif

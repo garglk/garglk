@@ -74,3 +74,8 @@ Canvas<4> gli_load_image_png(const std::vector<unsigned char> &buf)
 {
     return load_image(buf, "png");
 }
+
+Canvas<4> gli_load_image_gif(const std::vector<unsigned char> &buf)
+{
+    return load_image(buf, "gif");
+}
