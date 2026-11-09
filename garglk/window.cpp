@@ -759,14 +759,23 @@ static bool gli_overlay_waits_for_pager(const window_t *overlay)
 
 void gli_window_rearrange(window_t *win, rect_t *box)
 {
-    // Use the requested rectangle, clamped in case a resize made it stale.
+    // Use the requested rectangle, moved back inside the frame in case a
+    // resize made it stale. Shrinking it instead would lose contents: a
+    // text grid blanks any rows and columns it regains, so if a smaller
+    // frame squeezed one to nothing, it would come back empty when the
+    // program moved it somewhere that fits. Only a box larger than the
+    // frame is reduced.
+    auto fit = [](int &lo, int &hi, int limit) {
+        int size = std::min(hi - lo, limit);
+        lo = std::clamp(lo, 0, limit - size);
+        hi = lo + size;
+    };
+
     rect_t overlay;
     if (win->overlay.has_value()) {
         overlay = win->overlay->box;
-        overlay.x0 = std::clamp(overlay.x0, 0, gli_image_rgb.width());
-        overlay.x1 = std::clamp(overlay.x1, overlay.x0, gli_image_rgb.width());
-        overlay.y0 = std::clamp(overlay.y0, 0, gli_image_rgb.height());
-        overlay.y1 = std::clamp(overlay.y1, overlay.y0, gli_image_rgb.height());
+        fit(overlay.x0, overlay.x1, gli_image_rgb.width());
+        fit(overlay.y0, overlay.y1, gli_image_rgb.height());
 
         // The tiled layout's margins keep a grid within what its lines can
         // hold; an overlay box must be held there itself, so that the box
