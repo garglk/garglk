@@ -48,23 +48,22 @@ static int CALLBACK font_cb(ENUMLOGFONTEXA *lpelfe, NEWTEXTMETRICEXA *, int, LPA
 {
     FontFiller *filler = reinterpret_cast<FontFiller *>(filler_);
     std::string filepath;
-    std::string style = reinterpret_cast<char *>(lpelfe->elfStyle);
+    // Style names are localized ("Fett" on German Windows), so use the attributes.
+    // Other weights, such as Light and Black, can't stand in for these four.
+    const auto weight = lpelfe->elfLogFont.lfWeight;
+    const bool italic = lpelfe->elfLogFont.lfItalic != 0;
 
     if (!find_font_file(reinterpret_cast<char *>(lpelfe->elfFullName), filepath)) {
         return 1;
     }
 
-    if (style == "Regular" || style == "Roman") {
-        filler->add(FontFiller::Style::Regular, filepath);
-    } else if (style == "Bold") {
-        filler->add(FontFiller::Style::Bold, filepath);
-    } else if (style == "Italic" || style == "Oblique") {
-        filler->add(FontFiller::Style::Italic, filepath);
-    } else if (style == "Bold Italic" || style == "Bold Oblique" || style == "BoldItalic" || style == "BoldOblique") {
-        filler->add(FontFiller::Style::BoldItalic, filepath);
+    if (weight == FW_NORMAL) {
+        filler->add(italic ? FontFiller::Style::Italic : FontFiller::Style::Regular, filepath);
+    } else if (weight == FW_BOLD) {
+        filler->add(italic ? FontFiller::Style::BoldItalic : FontFiller::Style::Bold, filepath);
     }
 
-    return 0;
+    return 1;
 }
 
 static std::string make_font_filepath(const std::string &filename)
@@ -82,6 +81,7 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
     HKEY hkey;
     DWORD size;
     std::string face;
+    // RegQueryValueExA() doesn't always terminate strings, so leave room for that.
     char filename[256];
 
     // open the Fonts registry key
@@ -92,9 +92,10 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
     // check for a TrueType font
     face = Format("{} (TrueType)", facename);
 
-    size = sizeof(filename);
+    size = sizeof(filename) - 1;
 
     if (RegQueryValueExA(hkey, face.c_str(), nullptr, nullptr, (PBYTE)filename, &size) == ERROR_SUCCESS) {
+        filename[size] = '\0';
         filepath = make_font_filepath(filename);
         RegCloseKey(hkey);
         return true;
@@ -103,9 +104,10 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
     // check for an OpenType font
     face = Format("{} (OpenType)", facename);
 
-    size = sizeof(filename);
+    size = sizeof(filename) - 1;
 
     if (RegQueryValueExA(hkey, face.c_str(), nullptr, nullptr, (PBYTE)filename, &size) == ERROR_SUCCESS) {
+        filename[size] = '\0';
         filepath = make_font_filepath(filename);
         RegCloseKey(hkey);
         return true;

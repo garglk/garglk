@@ -224,7 +224,7 @@ static const std::unordered_map<FileFilter, std::string> winfilters = {
     }
 
     [[NSNotificationCenter defaultCenter] addObserver: self
-                                             selector: @selector(performRefresh:)
+                                             selector: @selector(performMove:)
                                                  name: NSWindowDidMoveNotification
                                                object: self];
 
@@ -357,7 +357,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     }
 
     if (store) {
-        [eventlog insertObject: [event copy] atIndex: 0];
+        [eventlog insertObject: [[event copy] autorelease] atIndex: 0];
         if (isTextbufferEvent(event)) {
             [textbuffer interpretKeyEvents: [NSArray arrayWithObject: event]];
         }
@@ -376,7 +376,7 @@ static BOOL isTextbufferEvent(NSEvent *evt)
     NSEvent *event = nullptr;
 
     if ([eventlog count]) {
-        event = [eventlog lastObject];
+        event = [[[eventlog lastObject] retain] autorelease];
         [eventlog removeLastObject];
     }
 
@@ -494,20 +494,19 @@ static BOOL isTextbufferEvent(NSEvent *evt)
             }
 
             if (gli_conf_save_window_location) {
-                auto location = Format("@Point({} {})", self.frame.origin.x, coord_flip(self) - self.frame.origin.y);
+                auto location = Format("@Point({} {})", static_cast<int>(self.frame.origin.x), static_cast<int>(coord_flip(self) - self.frame.origin.y));
                 [config setObject: [NSString stringWithUTF8String: location.c_str()] forKey: @"window.position"];
             }
 
             if (gli_conf_save_window_size) {
-                auto size = Format("@Size({} {})", self.frame.size.width, self.frame.size.height);
+                auto content = [NSWindow contentRectForFrameRect: self.frame styleMask: self.styleMask];
+                auto size = Format("@Size({} {})", static_cast<int>(content.size.width), static_cast<int>(content.size.height));
                 [config setObject: [NSString stringWithUTF8String: size.c_str()] forKey: @"window.size"];
             }
 
-            if (gli_conf_save_window_location || gli_conf_save_window_size) {
-                auto is_fullscreen = (self.styleMask & NSWindowStyleMaskFullScreen) == NSWindowStyleMaskFullScreen;
-                auto as_object = [NSNumber numberWithBool: is_fullscreen];
-                [config setObject: as_object forKey: @"window.fullscreen"];
-            }
+            auto is_fullscreen = (self.styleMask & NSWindowStyleMaskFullScreen) == NSWindowStyleMaskFullScreen;
+            auto as_object = [NSNumber numberWithBool: is_fullscreen];
+            [config setObject: as_object forKey: @"window.fullscreen"];
 
             [config writeToFile: path atomically: YES];
         }
@@ -566,7 +565,8 @@ static void maybe_set_save_dir(NSSavePanel *panel, NSString *savedir)
         return;
     }
 
-    auto initial_directory = get_save_dir(savedir);
+    // The Gamedir and Fixed locations are already real directories.
+    auto initial_directory = [savedir isAbsolutePath] ? [NSURL fileURLWithPath: savedir] : get_save_dir(savedir);
 
     if (initial_directory != nil) {
         NSURL *startingDirectoryURL = [NSURL fileURLWithPath: [initial_directory path]];
@@ -701,8 +701,8 @@ static void maybe_set_save_dir(NSSavePanel *panel, NSString *savedir)
 
 - (BOOL) initWindow: (pid_t) processID
                move: (BOOL) move
-                  x: (unsigned int) x
-                  y: (unsigned int) y
+                  x: (int) x
+                  y: (int) y
               width: (unsigned int) width
              height: (unsigned int) height
          fullscreen: (BOOL) fullscreen
@@ -727,8 +727,7 @@ static void maybe_set_save_dir(NSSavePanel *panel, NSString *savedir)
 
     [window makeKeyAndOrderFront: window];
     if (move) {
-        rect = NSMakeRect(x, coord_flip(window) - y, width, height);
-        [window setFrame: rect display: YES];
+        [window setFrameOrigin: NSMakePoint(x, coord_flip(window) - y)];
     } else {
         [window center];
     }
@@ -1102,8 +1101,9 @@ static std::string winpath()
 {
     char exepath[PROC_PIDPATHINFO_MAXSIZE];
 
-    if (proc_pidpath(getpid(), exepath, sizeof exepath) == -1) {
+    if (proc_pidpath(getpid(), exepath, sizeof exepath) <= 0) {
         garglk::winmsg("Unable to locate executable path");
+        return "";
     }
 
     std::string buffer = exepath;
@@ -1140,16 +1140,29 @@ static int winexec(const std::string &cmd, const std::vector<std::string> &args)
         [proc setLaunchPath: nsCmd];
         [proc setArguments: nsArgs];
         [proc setEnvironment: nsEnv];
-        [proc launch];
+
+        // This raises if the interpreter is missing.
+        @try {
+            [proc launch];
+        } @catch (NSException *) {
+            [proc release];
+            return false;
+        }
     }
 
-    return [proc isRunning];
+    bool running = [proc isRunning];
+    [proc release];
+
+    return running;
 }
 
 bool garglk::winterp(const std::string &exe, const std::vector<std::string> &flags, const std::string &game)
 {
     // get dir of executable
     auto interpreter_dir = winpath();
+    if (interpreter_dir.empty()) {
+        return false;
+    }
 
     auto cmd = Format("{}/{}", interpreter_dir, exe);
 
@@ -1173,6 +1186,7 @@ int main(int argc, char **argv)
     [pool drain];
 
     // Read the config file here so that the "save_window" settings are available.
+    garglk::theme::init();
     gli_read_config(argc, argv);
 
     return NSApplicationMain(argc, const_cast<const char **>(argv));

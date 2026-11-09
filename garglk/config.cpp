@@ -751,13 +751,16 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 std::stringstream ss(arg);
                 std::string entry;
 
+                gli_conf_save_window_size = false;
+                gli_conf_save_window_location = false;
+
                 while (ss >> entry) {
                     entry = garglk::downcase(entry);
                     if (entry == "size") {
                         gli_conf_save_window_size = true;
                     } else if (entry == "location") {
                         gli_conf_save_window_location = true;
-                    } else {
+                    } else if (entry != "none") {
                         throw ConfigError(Format("invalid value: {}", entry));
                     }
                 }
@@ -780,7 +783,8 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             } else if (cmd == "tmarginy") {
                 gli_tmarginy = config_atleast(parse_int(arg), 0);
             } else if (cmd == "gamma") {
-                gli_conf_gamma = config_atleast(parse_double(arg), 0.0);
+                // 0 isn't usable: it maps every pixel, even empty ones, to white.
+                gli_conf_gamma = config_atleast(parse_double(arg), 0.01);
             } else if (cmd == "caretcolor") {
                 parsecolor(arg, gli_caret_color);
                 parsecolor(arg, gli_caret_save);
@@ -851,7 +855,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 if (argstream >> number >> duration >> frequency) {
                     gli_bleeps.update(
                             config_range(parse_int(number), 1, 2),
-                            parse_double(duration),
+                            config_range(parse_double(duration), 0.0, 60.0),
                             parse_int(frequency));
                 }
             } else if (cmd == "zbleep_file") {

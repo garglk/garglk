@@ -46,7 +46,7 @@ static std::optional<std::string> findfont(const std::string &fontname)
     }
 
     auto fs = garglk::unique(FcFontList(cfg, p.get(), os.get()), FcFontSetDestroy);
-    if (fs->nfont == 0) {
+    if (fs == nullptr || fs->nfont == 0) {
         return std::nullopt;
     }
 
@@ -55,6 +55,22 @@ static std::optional<std::string> findfont(const std::string &fontname)
     }
 
     return reinterpret_cast<char *>(strval);
+}
+
+// In a fontconfig pattern, a - after the family starts a size, so one that's part
+// of the family's name needs to be escaped, unless the user already did that.
+static std::string escape_family(const std::string &family)
+{
+    std::string escaped;
+
+    for (std::size_t i = 0; i < family.size(); i++) {
+        if (family[i] == '-' && (i == 0 || family[i - 1] != '\\')) {
+            escaped.push_back('\\');
+        }
+        escaped.push_back(family[i]);
+    }
+
+    return escaped;
 }
 
 static std::optional<std::string> find_font_by_styles(const std::string &basefont, const std::vector<std::string> &styles, const std::vector<int> &weights, const std::vector<std::string> &slants)
@@ -66,7 +82,7 @@ static std::optional<std::string> find_font_by_styles(const std::string &basefon
         for (const auto &style : styles) {
             for (const auto &weight : weights) {
                 for (const auto &slant : slants) {
-                    auto fontname = Format("{}:style={}:weight={}:{}{}", basefont, style, weight, slant, width);
+                    auto fontname = Format("{}:style={}:weight={}:{}{}", escape_family(basefont), style, weight, slant, width);
 
                     auto fontpath = findfont(fontname);
                     if (fontpath.has_value()) {

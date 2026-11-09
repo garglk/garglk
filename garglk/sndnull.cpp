@@ -35,6 +35,10 @@ gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
     };
 }
 
+void gli_sound_set_channel_disprock(channel_t *chan, gidispatch_rock_t rock)
+{
+}
+
 schanid_t glk_schannel_create(glui32 rock)
 {
     return nullptr;

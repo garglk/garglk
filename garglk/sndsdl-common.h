@@ -71,8 +71,8 @@ struct SdlSoundChannel {
 // callback acquires the backend's device lock before the fade mutex via these
 // hooks; without that the timer thread (fade mutex -> device lock) and a
 // teardown (device lock -> fade mutex) can deadlock. Each backend provides an
-// implementation: SDL2 locks the mixer's device, SDL3 has no such global lock
-// and implements them as no-ops.
+// implementation: SDL2 locks the mixer's device, and SDL3 has no such global lock
+// so uses a mutex protecting each channel's stream.
 void gli_sound_backend_lock();
 void gli_sound_backend_unlock();
 

@@ -148,7 +148,10 @@ static FT_LcdFilter freetype_preset_filter = FT_LCD_FILTER_DEFAULT;
 
 bool garglk::set_lcdfilter(const std::string &filter)
 {
-    use_freetype_preset_filter = true;
+    if (filter == "custom") {
+        use_freetype_preset_filter = false;
+        return true;
+    }
 
     if (filter == "none") {
         freetype_preset_filter = FT_LCD_FILTER_NONE;
@@ -158,12 +161,11 @@ bool garglk::set_lcdfilter(const std::string &filter)
         freetype_preset_filter = FT_LCD_FILTER_LIGHT;
     } else if (filter == "legacy") {
         freetype_preset_filter = FT_LCD_FILTER_LEGACY;
-    } else if (filter == "custom") {
-        use_freetype_preset_filter = false;
     } else {
-        use_freetype_preset_filter = false;
         return false;
     }
+
+    use_freetype_preset_filter = true;
 
     return true;
 }
@@ -445,11 +447,16 @@ static Font make_font(FontFace fontface, const std::string &fallback, std::vecto
     // (e.g. propr, monor, etc).
     std::optional<Font::LoadError> error;
     FT_Face face;
-    if (path.has_value() && FT_New_Face(ftlib, path->c_str(), 0, &face) == 0) {
-        try {
-            return {fontface, UniqueFace(face), *path};
-        } catch (const Font::LoadError &e) {
-            error = e;
+    if (path.has_value()) {
+        FT_Error err = FT_New_Face(ftlib, path->c_str(), 0, &face);
+        if (err == 0) {
+            try {
+                return {fontface, UniqueFace(face), *path};
+            } catch (const Font::LoadError &e) {
+                error = e;
+            }
+        } else {
+            error = Font::LoadError(err, *path, "FT_New_Face");
         }
     }
 
@@ -669,6 +676,8 @@ void gli_initialize_fonts()
         gli_cellw = (entry.adv + GLI_SUBPIX - 1) / GLI_SUBPIX;
     } catch (const Font::LoadError &e) {
         garglk::winabort(Format("Unable to load font file \"{}\" ({}).", e.filename(), e.what()));
+    } catch (const std::exception &e) {
+        garglk::winabort(Format("Unable to use monospace font: {}.", e.what()));
     }
 
     if (!problem_fonts.empty()) {
@@ -799,21 +808,24 @@ int Font::charkern(glui32 c0, glui32 c1)
     }
 
     unsigned long long key = (static_cast<unsigned long long>(c0) << 32) | c1;
-    try {
-        return m_kerncache.at(key);
-    } catch (const std::out_of_range &) {
+    auto cached = m_kerncache.find(key);
+    if (cached != m_kerncache.end()) {
+        return cached->second;
     }
 
     g0 = FT_Get_Char_Index(m_face.get(), c0);
     g1 = FT_Get_Char_Index(m_face.get(), c1);
 
     if (g0 == 0 || g1 == 0) {
+        m_kerncache.emplace(key, 0);
         return 0;
     }
 
+    // Missing kerning isn't worth stopping the game over.
     err = FT_Get_Kerning(m_face.get(), g0, g1, FT_KERNING_UNFITTED, &v);
     if (err != 0) {
-        throw std::runtime_error(garglk::convert_ft_error(err, "FT_Get_Kerning"));
+        m_kerncache.emplace(key, 0);
+        return 0;
     }
 
     int value = (v.x * GLI_SUBPIX) / 64.0;
@@ -876,14 +888,16 @@ static int gli_string_impl(int x, FontFace fontface, const glui32 *s, std::size_
 
             auto it = fallback_cache.find(key);
             if (it == fallback_cache.end()) {
+                // A glyph can be missing (std::out_of_range), or FreeType can
+                // fail on it (std::runtime_error). Either way, try the next font.
                 try {
                     it = fallback_cache.emplace(key, f.getglyph(c)).first;
-                } catch (const std::out_of_range &) {
+                } catch (const std::exception &) {
                     for (auto &font : glyph_substitution_fonts[fontface]) {
                         try {
                             it = fallback_cache.emplace(key, font.getglyph(c)).first;
                             break;
-                        } catch (const std::out_of_range &) {
+                        } catch (const std::exception &) {
                         }
                     }
                 }
@@ -893,7 +907,7 @@ static int gli_string_impl(int x, FontFace fontface, const glui32 *s, std::size_
                     std::cerr << msg << std::endl;
                     try {
                         it = fallback_cache.emplace(key, f.getglyph(UNICODE_QUESTION_MARK)).first;
-                    } catch (const std::out_of_range &) {
+                    } catch (const std::exception &) {
                         garglk::winabort(Format("{}, and substituting '?' failed", msg));
                     }
                 }
@@ -928,6 +942,12 @@ int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb,
     return gli_string_impl(x, face, text, len, spacewidth, [&y, &rgb](int x, const std::array<Bitmap, GLI_SUBPIX> &glyphs) {
         int px = x / GLI_SUBPIX;
         int sx = x % GLI_SUBPIX;
+
+        // Division truncates toward zero, but the subpixel offset can't be negative.
+        if (sx < 0) {
+            px--;
+            sx += GLI_SUBPIX;
+        }
 
         if (glyphs[sx].lcd) {
             draw_bitmap_lcd_gamma(glyphs[sx], px, y, rgb);

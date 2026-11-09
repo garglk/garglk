@@ -28,8 +28,10 @@
 #define SDL_MAIN_HANDLED
 #endif
 
+#include <algorithm>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <utility>
 #include <vector>
 
@@ -87,6 +89,13 @@ static channel_t *gli_channellist = nullptr;
 
 static SDL_AudioDeviceID device = 0;
 
+// A fade tick runs on SDL's timer thread and uses a channel's stream, which the
+// main thread creates and destroys, since a fade outlives the sound.
+//
+// As with the fade state in sndsdl-common.cpp, this is never destroyed because
+// a fade tick can run during exit.
+static std::mutex &stream_mutex = *new std::mutex;
+
 static schanid_t gli_bleep_channel;
 
 gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
@@ -94,15 +103,22 @@ gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
     return chan->disprock;
 }
 
+void gli_sound_set_channel_disprock(channel_t *chan, gidispatch_rock_t rock)
+{
+    chan->disprock = rock;
+}
+
 // SDL3 mixes streams without a single global audio-device lock (each stream has
 // its own lock, and the fade path never needs it), so the lock-order hooks the
 // fade timer uses are no-ops here; see sndsdl-common.h.
 void gli_sound_backend_lock()
 {
+    stream_mutex.lock();
 }
 
 void gli_sound_backend_unlock()
 {
+    stream_mutex.unlock();
 }
 
 // Pull decoded PCM for one channel. SDL calls this from its audio thread while
@@ -224,23 +240,20 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
 
 static void cleanup_channel(schanid_t chan)
 {
-    // Stop any fade first: cancel_fade waits out an in-flight fade callback and
-    // untracks the channel, so afterward no fade callback will call
-    // apply_volume() (and thus touch chan->stream).
-    cancel_fade(chan);
-
     // Destroying the stream unbinds it and, per SDL, guarantees the stream
     // get-callback is no longer running once this returns, so the decoder can
     // then be freed.
-    if (chan->stream != nullptr) {
-        SDL_DestroyAudioStream(chan->stream);
-        chan->stream = nullptr;
+    {
+        std::lock_guard<std::mutex> guard(stream_mutex);
+        if (chan->stream != nullptr) {
+            SDL_DestroyAudioStream(chan->stream);
+            chan->stream = nullptr;
+        }
     }
 
     chan->decoder.reset();
     chan->buffer.clear();
 
-    chan->paused = false;
     chan->notified = false;
 }
 
@@ -253,6 +266,7 @@ void glk_schannel_destroy(schanid_t chan)
         return;
     }
 
+    cancel_fade(chan);
     glk_schannel_stop(chan);
     cleanup_channel(chan);
     if (gli_unregister_obj != nullptr) {
@@ -317,7 +331,7 @@ glui32 glk_schannel_play_multi(schanid_t *chanarray, glui32 chancount,
 {
     int successes = 0;
 
-    for (glui32 i = 0; i < chancount; i++) {
+    for (glui32 i = 0; i < std::min(chancount, soundcount); i++) {
         successes += glk_schannel_play_ext(chanarray[i], sndarray[i], 1, notify);
     }
 
@@ -370,7 +384,14 @@ static glui32 play_sound(schanid_t chan, glui32 type, std::vector<unsigned char>
 
     // dst is null: binding sets the stream's output format to the device's, and
     // the stream resamples each channel's native rate for us.
-    chan->stream = SDL_CreateAudioStream(&spec, nullptr);
+    {
+        std::lock_guard<std::mutex> guard(stream_mutex);
+        chan->stream = SDL_CreateAudioStream(&spec, nullptr);
+        if (chan->stream != nullptr) {
+            SDL_SetAudioStreamGain(chan->stream, volume_to_gain(chan->volume));
+        }
+    }
+
     if (chan->stream == nullptr) {
         gli_strict_warning("play sound failed");
         gli_strict_warning(SDL_GetError());
@@ -381,7 +402,6 @@ static glui32 play_sound(schanid_t chan, glui32 type, std::vector<unsigned char>
     chan->notified = false;
 
     SDL_SetAudioStreamGetCallback(chan->stream, stream_callback, chan);
-    SDL_SetAudioStreamGain(chan->stream, volume_to_gain(chan->volume));
 
     if (!SDL_BindAudioStream(device, chan->stream)) {
         gli_strict_warning("play sound failed");
@@ -396,15 +416,11 @@ static glui32 play_sound(schanid_t chan, glui32 type, std::vector<unsigned char>
 static glui32 gli_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify, const std::function<garglk::Expected<std::pair<int, std::vector<unsigned char>>>(glui32)> &load_resource)
 {
     glui32 result = 0;
-    bool paused = false;
 
     if (chan == nullptr) {
         gli_strict_warning("schannel_play_ext: invalid id.");
         return 0;
     }
-
-    // store paused state of channel
-    paused = chan->paused;
 
     // stop previous noise
     glk_schannel_stop(chan);
@@ -422,12 +438,6 @@ static glui32 gli_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, 
 
     chan->notify = notify;
     chan->resid = snd;
-
-    // If the channel was paused, restore that before binding the stream so the
-    // replayed sound starts silent rather than leaking a moment of audio before
-    // a post-play re-pause. The flag is set before bind, so the callback (which
-    // only runs once bound) sees it without a race.
-    chan->paused = paused;
 
     switch (type) {
     case giblorb_ID_FORM:

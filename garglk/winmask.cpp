@@ -113,7 +113,7 @@ glui32 gli_get_hyperlink(int x, int y)
         return 0;
     }
 
-    if (x >= gli_mask.hor || y >= gli_mask.ver) {
+    if (x < 0 || y < 0 || x >= gli_mask.hor || y >= gli_mask.ver) {
         gli_strict_warning("get_hyperlink: invalid range given");
         return 0;
     }

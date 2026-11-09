@@ -63,10 +63,7 @@ giblorb_err_t giblorb_set_resource_map(strid_t file)
       blorbmap = nullptr;
   }
 
-  if (blorbfile != nullptr) {
-      glk_stream_close(blorbfile, nullptr);
-      blorbfile = nullptr;
-  }
+  blorbfile = nullptr;
 #endif
 
   err = giblorb_create_map(file, &blorbmap);
@@ -112,11 +109,14 @@ bool giblorb_copy_resource(glui32 usage, glui32 resnum, glui32 &type, std::vecto
     switch (blorbfile->type) {
     case strtype_File:
         if (std::fseek(blorbfile->file, pos, SEEK_SET) == -1 ||
-            std::fread(buf.data(), len, 1, blorbfile->file) != 1) {
+            std::fread(buf.data(), 1, len, blorbfile->file) != len) {
             return false;
         }
         break;
     case strtype_Memory:
+        if (pos > blorbfile->buflen || len > blorbfile->buflen - pos) {
+            return false;
+        }
         std::copy(blorbfile->buf + pos, blorbfile->buf + pos + len, buf.begin());
         break;
     default:

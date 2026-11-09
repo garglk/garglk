@@ -136,9 +136,15 @@ void glk_stylehint_clear(glui32 wintype, glui32 styl, glui32 hint)
             break;
 
         case stylehint_Proportional:
+            style.font.monospace = def.font.monospace;
+            break;
+
         case stylehint_Weight:
+            style.font.bold = def.font.bold;
+            break;
+
         case stylehint_Oblique:
-            style.font = def.font;
+            style.font.italic = def.font.italic;
             break;
 
         case stylehint_Justification:

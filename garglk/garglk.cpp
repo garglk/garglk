@@ -184,8 +184,8 @@ void garglk_cells_in_pixels(glui32 width, glui32 height, glui32 *columns, glui32
     }
 }
 
-// Map tuples of (usage, filename, offset) to IDs
-static std::map<std::tuple<glui32, std::string, glui32>, glui32> resource_ids;
+// Map tuples of (usage, filename, offset, length) to IDs
+static std::map<std::tuple<glui32, std::string, glui32, glui32>, glui32> resource_ids;
 
 // Map IDs to chunks loaded from files
 static std::map<glui32, std::map<glui32, std::vector<unsigned char>>> resource_maps;
@@ -233,7 +233,7 @@ glui32 garglk_add_resource_from_file(glui32 usage, const char *filename_, glui32
     }
 #endif
 
-    auto key = std::make_tuple(usage, filename, offset);
+    auto key = std::make_tuple(usage, filename, offset, len);
 
     try {
         return resource_ids.at(key);

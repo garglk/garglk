@@ -39,8 +39,11 @@
 // callback refuses to touch any channel that is no longer present in
 // fade_timer_channels. A channel is added when its fade timer is armed and
 // removed (under the lock) by cancel_fade.
-static std::mutex fade_timer_mutex;
-static std::set<SdlSoundChannel *> fade_timer_channels;
+//
+// These are deliberately never destroyed: nothing stops the timer thread at
+// exit, so a fade tick could otherwise use them after static destruction.
+static std::mutex &fade_timer_mutex = *new std::mutex;
+static std::set<SdlSoundChannel *> &fade_timer_channels = *new std::set<SdlSoundChannel *>;
 
 namespace {
 

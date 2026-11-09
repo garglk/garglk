@@ -305,6 +305,8 @@ static void gli_window_close(window_t *win, bool recurse)
         }
     }
 
+    gli_event_remove_window(win);
+
     delete win;
 }
 
@@ -1567,7 +1569,13 @@ void glk_window_erase_rect(winid_t win,
         gli_strict_warning("window_erase_rect: not a graphics window");
         return;
     }
-    win_graphics_erase_rect(win->wingraphics(), false, left, top, width, height);
+    // Unlike the rest of the graphics window API, win_graphics_erase_rect()
+    // takes device pixels.
+    glsi32 x0 = gli_zoom_int(left);
+    glsi32 y0 = gli_zoom_int(top);
+    glsi32 x1 = gli_zoom_int(left + static_cast<glsi32>(width));
+    glsi32 y1 = gli_zoom_int(top + static_cast<glsi32>(height));
+    win_graphics_erase_rect(win->wingraphics(), false, x0, y0, x1 - x0, y1 - y0);
 }
 
 void glk_window_fill_rect(winid_t win, glui32 color,

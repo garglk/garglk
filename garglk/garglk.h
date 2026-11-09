@@ -1118,6 +1118,7 @@ extern void gli_tts_flush();
 extern void gli_tts_purge();
 
 extern gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan);
+extern void gli_sound_set_channel_disprock(channel_t *chan, gidispatch_rock_t rock);
 
 // ----------------------------------------------------------------------
 //
@@ -1191,6 +1192,7 @@ void gli_input_handle_key(glui32 key);
 void gli_input_handle_key_paste(glui32 key);
 void gli_input_handle_click(int x, int y, int clicks);
 void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2);
+void gli_event_remove_window(const window_t *win);
 
 extern stream_t *gli_new_stream(int type, int readable, int writable,
     glui32 rock);

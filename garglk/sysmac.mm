@@ -81,15 +81,24 @@ static void winhandler(int signal);
 
 - (void) sleep
 {
+    // Allow mach messages before checking for events: a notification between
+    // the check and here would otherwise only set a flag nothing is looking at,
+    // and the run loop would sleep through it.
+    gli_mach_allowed = true;
+
     while (!timeouts && !gli_event_waiting) {
         if (!gli_window_alive) {
+            for (channel_t *chan = glk_schannel_iterate(nullptr, nullptr); chan; chan = glk_schannel_iterate(chan, nullptr)) {
+                glk_schannel_stop(chan);
+            }
+
             std::exit(1);
         }
 
-        gli_mach_allowed = true;
         [[NSRunLoop currentRunLoop] acceptInputForMode: NSDefaultRunLoopMode beforeDate: [NSDate distantFuture]];
-        gli_mach_allowed = false;
     }
+
+    gli_mach_allowed = false;
 }
 
 - (void) track: (CFTimeInterval) seconds
@@ -172,6 +181,18 @@ void garglk::winwarning(const std::string &title, const std::string &msg)
     auto *nsTitle = [NSString stringWithCString: title.c_str() encoding: NSUTF8StringEncoding];
     auto *nsMsg = [NSString stringWithCString: msg.c_str() encoding: NSUTF8StringEncoding];
     NSRunAlertPanel(nsTitle, @"%@", nil, nil, nil, nsMsg);
+}
+
+// Story metadata isn't guaranteed to be valid UTF-8, and stringWithUTF8String:
+// returns nil if it isn't.
+static NSString *ns_string_lenient(const std::string &str)
+{
+    NSString *result = [NSString stringWithUTF8String: str.c_str()];
+    if (result == nil) {
+        result = [NSString stringWithCString: str.c_str() encoding: NSISOLatin1StringEncoding];
+    }
+
+    return result;
 }
 
 void winexit()
@@ -268,29 +289,35 @@ void winclipreceive()
     if ([clipboard availableTypeFromArray: [NSArray arrayWithObject: NSStringPboardType]]) {
         NSString *input = [clipboard stringForType: NSStringPboardType];
         if (input) {
-            len = [input length];
+            // Convert the whole string: converting one UTF-16 unit at a time
+            // can't handle characters that need two.
+            NSData *utf32 = [input dataUsingEncoding: NSUTF32LittleEndianStringEncoding];
+            const glui32 *chars = static_cast<const glui32 *>([utf32 bytes]);
+            len = [utf32 length] / sizeof(glui32);
             for (i = 0; i < len; i++) {
-                if ([input getBytes: &ch maxLength: sizeof ch usedLength: nullptr
-                           encoding: UTF32StringEncoding
-                            options: 0
-                              range: NSMakeRange(i, 1)
-                     remainingRange: nullptr]) {
-                    switch (ch) {
-                    case '\0':
-                        return;
+                ch = chars[i];
+                switch (ch) {
+                case '\0':
+                    return;
 
-                    case '\b':
-                    case '\t':
+                case '\b':
+                case '\t':
+                    break;
+
+                case '\n':
+                    // A CRLF pair is one line break.
+                    if (i > 0 && chars[i - 1] == '\r') {
                         break;
-
-                    case '\r':
-                    case '\n':
-                        gli_input_handle_key_paste(keycode_Return);
-                        break;
-
-                    default:
-                        gli_input_handle_key_paste(ch);
                     }
+                    gli_input_handle_key_paste(keycode_Return);
+                    break;
+
+                case '\r':
+                    gli_input_handle_key_paste(keycode_Return);
+                    break;
+
+                default:
+                    gli_input_handle_key_paste(ch);
                 }
             }
         }
@@ -360,29 +387,25 @@ void winmach(CFMachPortRef port, void *msg, CFIndex size, void *info)
 
 static void winhandler(int signal)
 {
-    if (signal == SIGUSR1) {
-        if (gli_mach_allowed) {
-            mach_msg_header_t header;
-            header.msgh_bits        = MACH_MSGH_BITS(MACH_MSG_TYPE_MAKE_SEND, 0);
-            header.msgh_size        = sizeof(header);
-            header.msgh_remote_port = gli_signal_port;
-            header.msgh_local_port  = MACH_PORT_NULL;
-            header.msgh_reserved    = 0;
-            header.msgh_id          = signal;
-
-            mach_msg_send(&header);
-        } else {
-            gli_event_waiting = true;
-        }
-    }
-
     if (signal == SIGUSR2) {
         gli_window_alive = false;
+    } else if (!gli_mach_allowed) {
+        gli_event_waiting = true;
+    }
 
-        // Stop all sound channels
-        for (channel_t *chan = glk_schannel_iterate(nullptr, nullptr); chan; chan = glk_schannel_iterate(chan, nullptr)) {
-            glk_schannel_stop(chan);
-        }
+    // Wake the run loop. This is safe in a signal handler, and is the only thing
+    // here that does more than set a flag: anything that locks or frees has to
+    // wait for the main loop.
+    if (gli_mach_allowed) {
+        mach_msg_header_t header;
+        header.msgh_bits        = MACH_MSGH_BITS(MACH_MSG_TYPE_MAKE_SEND, 0);
+        header.msgh_size        = sizeof(header);
+        header.msgh_remote_port = gli_signal_port;
+        header.msgh_local_port  = MACH_PORT_NULL;
+        header.msgh_reserved    = 0;
+        header.msgh_id          = signal;
+
+        mach_msg_send(&header);
     }
 }
 
@@ -392,7 +415,13 @@ void wininit()
     gli_backingscalefactor = BACKING_SCALE_FACTOR;
 
     // establish link to launcher
-    NSString *linkName = [NSString stringWithUTF8String: std::getenv("GargoyleApp")];
+    const char *app_name = std::getenv("GargoyleApp");
+    if (app_name == nullptr) {
+        NSLog(@"GargoyleApp isn't set: interpreters must be started by the Gargoyle launcher");
+        std::exit(1);
+    }
+
+    NSString *linkName = [NSString stringWithUTF8String: app_name];
     NSConnection *link = [NSConnection connectionWithRegisteredName: linkName host: nullptr];
     [link retain];
 
@@ -443,8 +472,8 @@ void winopen()
     bool move = false;
     int x = 0;
     int y = 0;
-    unsigned int width = gli_wmarginx * 2 + gli_cellw * gli_cols / BACKING_SCALE_FACTOR;
-    unsigned int height = gli_wmarginy * 2 + gli_cellh * gli_rows / BACKING_SCALE_FACTOR;
+    unsigned int width = (gli_wmarginx * 2 + gli_cellw * gli_cols) / BACKING_SCALE_FACTOR;
+    unsigned int height = (gli_wmarginy * 2 + gli_cellh * gli_rows) / BACKING_SCALE_FACTOR;
     NSColor *windowColor = [NSColor colorWithCalibratedRed: (float) gli_window_color[0] / 255.0f
                                                      green: (float) gli_window_color[1] / 255.0f
                                                       blue: (float) gli_window_color[2] / 255.0f
@@ -458,7 +487,7 @@ void winopen()
             NSString *positionobj = config[@"window.position"];
             if (positionobj) {
                 std::string position = [positionobj UTF8String];
-                std::regex position_re(R"(^@Point\((\d+) (\d+)\)$)");
+                std::regex position_re(R"(^@Point\((-?\d+) (-?\d+)\)$)");
                 std::smatch cm;
                 if (std::regex_match(position, cm, position_re) && cm.size() == 3) {
                     try {
@@ -580,22 +609,22 @@ void garglk::show_game_info(const garglk::GameInfo &info, bool show_once)
     NSFont *body_font = [NSFont systemFontOfSize: [NSFont systemFontSize]];
 
     [attr_text appendAttributedString: [[NSAttributedString alloc]
-        initWithString: [NSString stringWithUTF8String: info.title.c_str()]
+        initWithString: ns_string_lenient(info.title)
             attributes: @{NSFontAttributeName: bold_font, NSForegroundColorAttributeName: text_color}]];
 
     if (info.headline.has_value()) {
         [attr_text appendAttributedString: [[NSAttributedString alloc]
-            initWithString: [@"\n" stringByAppendingString: [NSString stringWithUTF8String: info.headline->c_str()]]
+            initWithString: [@"\n" stringByAppendingString: ns_string_lenient(*info.headline)]
                 attributes: @{NSFontAttributeName: italic_font, NSForegroundColorAttributeName: text_color}]];
     }
 
     [attr_text appendAttributedString: [[NSAttributedString alloc]
-        initWithString: [@"\nby " stringByAppendingString: [NSString stringWithUTF8String: info.author.c_str()]]
+        initWithString: [@"\nby " stringByAppendingString: ns_string_lenient(info.author)]
             attributes: @{NSFontAttributeName: body_font, NSForegroundColorAttributeName: text_color}]];
 
     for (const auto &paragraph : info.description) {
         [attr_text appendAttributedString: [[NSAttributedString alloc]
-            initWithString: [@"\n\n" stringByAppendingString: [NSString stringWithUTF8String: paragraph.c_str()]]
+            initWithString: [@"\n\n" stringByAppendingString: ns_string_lenient(paragraph)]
                 attributes: @{NSFontAttributeName: body_font, NSForegroundColorAttributeName: text_color}]];
     }
 
@@ -848,38 +877,34 @@ void winkey(NSEvent *evt)
         }},
     };
 
-    try {
-        keys.at({modmasked, [evt keyCode]})();
+    auto key = keys.find({modmasked, [evt keyCode]});
+    if (key != keys.end()) {
+        key->second();
         return;
-    } catch (const std::out_of_range &) {
     }
 
     // send combined keystrokes to text buffer
     [gargoyle setWindow: processID charString: evt];
 
-    // retrieve character from buffer as string
-    NSString *evt_char = [gargoyle getWindowCharString: processID];
+    // retrieve characters from buffer as string
+    NSString *evt_chars = [gargoyle getWindowCharString: processID];
 
-    // convert character to UTF-32 value
-    glui32 ch;
-    NSUInteger used;
-    if ([evt_char getBytes: &ch maxLength: sizeof ch usedLength: &used
-                  encoding: UTF32StringEncoding
-                   options: 0
-                     range: NSMakeRange(0, [evt_char length])
-            remainingRange: nullptr]) {
-        if (used != 0) {
-            switch (ch) {
-            case '\n':
-                gli_input_handle_key(keycode_Return);
-                break;
-            case '\t':
-                gli_input_handle_key(keycode_Tab);
-                break;
-            default:
-                gli_input_handle_key(ch);
-                break;
-            }
+    // Queued key events share this buffer, so it can hold more than one character
+    // when typing quickly, and the buffer is about to be cleared.
+    NSData *utf32 = [evt_chars dataUsingEncoding: NSUTF32LittleEndianStringEncoding];
+    const glui32 *chars = static_cast<const glui32 *>([utf32 bytes]);
+    NSUInteger count = [utf32 length] / sizeof(glui32);
+    for (NSUInteger i = 0; i < count; i++) {
+        switch (chars[i]) {
+        case '\n':
+            gli_input_handle_key(keycode_Return);
+            break;
+        case '\t':
+            gli_input_handle_key(keycode_Tab);
+            break;
+        default:
+            gli_input_handle_key(chars[i]);
+            break;
         }
     }
 
