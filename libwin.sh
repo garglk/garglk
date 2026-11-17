@@ -19,6 +19,18 @@ copy_plugin() {
     cp "${plugins_dir}/${plugin_path}.dll" "build/dist/plugins/${subdir}"
 }
 
+# Write build/dist/qt.conf pointing Qt at build/dist/plugins.
+#
+# With QtCore next to the executable, Qt roots its prefix at the
+# executable's directory and appends its configured plugin path. That's
+# "plugins" for official Qt builds, but distribution builds can use
+# something else (the system MinGW Qt6 uses lib/qt6/plugins, so its own
+# plugins don't collide with the MinGW Qt5 ones in the same sysroot).
+# qt.conf makes the deployed layout independent of how Qt was configured.
+write_qt_conf() {
+    printf '[Paths]\nPlugins = plugins\n' > build/dist/qt.conf
+}
+
 # Select a MinGW/LLVM objdump that understands all Windows PE arches.
 resolve_pe_objdump() {
     if [[ -n "${MINGW_TRIPLE:-}" ]] && command -v "${MINGW_TRIPLE}-objdump" >/dev/null 2>&1

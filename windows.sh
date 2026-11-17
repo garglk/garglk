@@ -143,9 +143,16 @@ make install
 if [[ -n "${GARGOYLE_QT_HOME}" ]]
 then
     qt_plugins="${GARGOYLE_QT_HOME}/plugins"
+elif [[ "${QT_VERSION}" == "6" ]]
+then
+    # The system MinGW Qt6 keeps its plugins under lib/qt6 so they don't
+    # collide with the system MinGW Qt5 ones.
+    qt_plugins="${mingw_location}/${target}/lib/qt6/plugins"
 else
     qt_plugins="${mingw_location}/${target}/plugins"
 fi
+
+write_qt_conf
 
 # Qt plugins are runtime-loaded (not in import tables), so copy them
 # explicitly. Plugins are copied before copy_dll_deps so their own

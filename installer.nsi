@@ -85,6 +85,7 @@ Section "DoInstall"
 
     File "build\dist\*.exe"
     File "build\dist\*.dll"
+    File "build\dist\qt.conf"
     File "licenses\*.txt"
     File "fonts\*.ttf"
     File "fonts\unifont*.otf"
@@ -178,6 +179,7 @@ Section "Uninstall"
 
     Delete $INSTDIR\*.exe
     Delete $INSTDIR\*.dll
+    Delete $INSTDIR\qt.conf
     Delete $INSTDIR\*.txt
     Delete $INSTDIR\*.ttf
     Delete $INSTDIR\unifont*.otf
