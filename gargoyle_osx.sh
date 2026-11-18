@@ -49,6 +49,10 @@ fi
 if [ "${MAC_USEHOMEBREW}" == "yes" ]; then
   command -v brew &> /dev/null || fatal "Homebrew requested but not found"
   HOMEBREW_OR_MACPORTS_LOCATION="$(brew --prefix)"
+
+  # fluidsynth.pc requires readline, which is keg-only in Homebrew, so its .pc
+  # file isn't on pkg-config's default search path.
+  export PKG_CONFIG_PATH="$(brew --prefix readline)/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
 else
   command -v port &> /dev/null || fatal "Neither Homebrew nor MacPorts is available"
   HOMEBREW_OR_MACPORTS_LOCATION="$(cd "$(dirname "$(which port)")/.." && pwd)"
