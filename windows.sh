@@ -145,9 +145,13 @@ then
     qt_plugins="${GARGOYLE_QT_HOME}/plugins"
 elif [[ "${QT_VERSION}" == "6" ]]
 then
-    # The system MinGW Qt6 keeps its plugins under lib/qt6 so they don't
-    # collide with the system MinGW Qt5 ones.
-    qt_plugins="${mingw_location}/${target}/lib/qt6/plugins"
+    # Ask Qt where its plugins are. The system MinGW Qt6 uses
+    # lib/qt6/plugins, so its plugins don't collide with the MinGW Qt5
+    # ones, but the CI sysroots use plain plugins.
+    qt_install_paths="${mingw_location}/${target}/lib/cmake/Qt6/QtInstallPaths.cmake"
+    qt_plugins_rel=$(sed -n 's/^set(QT6_INSTALL_PLUGINS "\(.*\)")$/\1/p' "${qt_install_paths}")
+    [[ -n "${qt_plugins_rel}" ]] || { echo "QT6_INSTALL_PLUGINS not found in ${qt_install_paths}" >&2; exit 1; }
+    qt_plugins="${mingw_location}/${target}/${qt_plugins_rel}"
 else
     qt_plugins="${mingw_location}/${target}/plugins"
 fi
