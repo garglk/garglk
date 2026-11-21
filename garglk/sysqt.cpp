@@ -1000,7 +1000,9 @@ std::vector<std::string> garglk::winthemedirs()
     paths.push_back(QCoreApplication::applicationDirPath().toStdString() + "/themes");
 #endif
 
-#if GARGLK_CONFIG_APPIMAGE
+#if GARGLK_CONFIG_APPIMAGE || defined(__APPLE__)
+    // QStandardPaths doesn't know about these locations: AppImages keep
+    // their data next to the binary, and on macOS it ignores XDG_DATA_DIRS.
     paths.push_back(Format("{}/themes", garglk::windatadir()));
 #endif
 

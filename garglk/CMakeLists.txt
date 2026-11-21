@@ -135,6 +135,10 @@ warnings(garglk-common)
 if(UNIX AND NOT APPLE)
     target_compile_definitions(garglk-common PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
     target_compile_definitions(garglk-common PRIVATE "GARGLK_CONFIG_DATADIR=\"${CMAKE_INSTALL_FULL_DATAROOTDIR}/gargoyle\"")
+elseif(APPLE AND NOT DIST_INSTALL)
+    # Outside of the app bundle, fonts and themes are installed here (see
+    # below), so Qt builds have to be told where to find them.
+    target_compile_definitions(garglk-common PRIVATE "GARGLK_CONFIG_DATADIR=\"${CMAKE_INSTALL_FULL_DATAROOTDIR}/gargoyle\"")
 endif()
 
 if(DEFAULT_SOUNDFONT)
