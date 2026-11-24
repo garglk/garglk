@@ -361,7 +361,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Plus (from Spatterlight 1.5.5) for Scott Adams Graphic Adventures Plus games
+# Plus (from Spatterlight 1.5.6) for Scott Adams Graphic Adventures Plus games
 #
 if(WITH_PLUS)
     set(PLUS_INCLUDE_DIRS plus common_utils common_sagadraw readwoz)
@@ -401,7 +401,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# SCARIER (from Spatterlight 1.5.5) for Adrift 4 and 5 games
+# SCARIER (from Spatterlight 1.5.6) for Adrift 4 and 5 games
 #
 if(WITH_SCARIER)
     find_package(ZLIB REQUIRED)
@@ -458,8 +458,8 @@ int main()
         scarier/core/scprintf.cpp scarier/core/scprintf_alr.cpp
         scarier/core/scprintf_buffer.cpp scarier/core/scprintf_input.cpp
         scarier/core/scprintf_output.cpp scarier/core/scprops.cpp
-        scarier/core/scresour.cpp scarier/core/screstrs.cpp scarier/core/scserial.cpp
-        scarier/core/sctaffil.cpp scarier/core/sctafpar.cpp
+        scarier/core/scresour.cpp scarier/core/screstrs.cpp scarier/core/scrooms.cpp
+        scarier/core/scserial.cpp scarier/core/sctaffil.cpp scarier/core/sctafpar.cpp
         scarier/core/sctafpar_fixups.cpp scarier/core/sctafpar_patches.cpp
         scarier/core/sctasks.cpp scarier/core/sctasks_action.cpp
         scarier/core/sctasks_endgame.cpp scarier/core/sctasks_move.cpp
@@ -470,24 +470,33 @@ int main()
         scarier/glk/os_glk_locale.cpp scarier/glk/os_glk_map.cpp
         scarier/glk/os_glk_output.cpp scarier/glk/os_glk_platform.cpp
         scarier/glk/os_glk_resources.cpp scarier/glk/os_glk_status.cpp
-        scarier/glk/os_glk_symbols.cpp scarier/library/sclibrar_battle.cpp
+        scarier/glk/os_glk_styles.cpp scarier/glk/os_glk_symbols.cpp
+        scarier/library/sclibrar_alrs.cpp scarier/library/sclibrar_battle.cpp
         scarier/library/sclibrar_disambig.cpp scarier/library/sclibrar_disambig_400.cpp
         scarier/library/sclibrar_disambig_scan.cpp scarier/library/sclibrar_dispatch.cpp
         scarier/library/sclibrar_drop.cpp scarier/library/sclibrar_examine.cpp
-        scarier/library/sclibrar_go.cpp scarier/library/sclibrar_meta.cpp
-        scarier/library/sclibrar_misc.cpp scarier/library/sclibrar_open.cpp
+        scarier/library/sclibrar_go.cpp scarier/library/sclibrar_locate.cpp
+        scarier/library/sclibrar_meta.cpp scarier/library/sclibrar_misc.cpp
+        scarier/library/sclibrar_names.cpp scarier/library/sclibrar_open.cpp
         scarier/library/sclibrar_print.cpp scarier/library/sclibrar_put.cpp
-        scarier/library/sclibrar_put_multiple.cpp scarier/library/sclibrar_read.cpp
-        scarier/library/sclibrar_refuse.cpp scarier/library/sclibrar_room.cpp
-        scarier/library/sclibrar_sitstand.cpp scarier/library/sclibrar_take.cpp
-        scarier/library/sclibrar_take_multiple.cpp scarier/library/sclibrar_takefrom.cpp
+        scarier/library/sclibrar_put_multiple.cpp
+        scarier/library/sclibrar_put_pre400.cpp scarier/library/sclibrar_read.cpp
+        scarier/library/sclibrar_refuse.cpp scarier/library/sclibrar_resolve_400.cpp
+        scarier/library/sclibrar_room.cpp scarier/library/sclibrar_sitstand.cpp
+        scarier/library/sclibrar_take.cpp scarier/library/sclibrar_take_multiple.cpp
+        scarier/library/sclibrar_take_pre400.cpp scarier/library/sclibrar_takefrom.cpp
         scarier/library/sclibrar_talk.cpp scarier/library/sclibrar_topic.cpp
-        scarier/library/sclibrar_verbobj.cpp scarier/library/sclibrar_verbs.cpp
-        scarier/mapdraw.cpp scarier/runner/scrun_dispatch.cpp
-        scarier/runner/scrun_input.cpp scarier/runner/scrun_match.cpp
-        scarier/runner/scrun_match_refusal.cpp scarier/runner/scrun_match_run.cpp
-        scarier/runner/scrun_respell.cpp scarier/runner/scrun_split.cpp
-        scarier/runner/scrun_tables.cpp scarier/runner/scrunner.cpp
+        scarier/library/sclibrar_two_verb_pre400.cpp scarier/library/sclibrar_verbs.cpp
+        scarier/map/map_layout.cpp scarier/map/map_links.cpp scarier/map/map_raster.cpp
+        scarier/map/mapdraw.cpp scarier/runner/scapi.cpp
+        scarier/runner/scrun_dispatch.cpp scarier/runner/scrun_input.cpp
+        scarier/runner/scrun_lifecycle.cpp scarier/runner/scrun_load_draws.cpp
+        scarier/runner/scrun_match.cpp scarier/runner/scrun_match_refusal.cpp
+        scarier/runner/scrun_match_run.cpp scarier/runner/scrun_priority.cpp
+        scarier/runner/scrun_respell.cpp scarier/runner/scrun_rows.cpp
+        scarier/runner/scrun_session.cpp scarier/runner/scrun_split.cpp
+        scarier/runner/scrun_tables.cpp scarier/runner/scrun_therest.cpp
+        scarier/runner/scrunner.cpp
         INCLUDE_DIRS scarier ${ZLIB_INCLUDE_DIRS}
         LIBS ${ZLIB_LIBRARIES}
         CXXSTD 17)
@@ -499,7 +508,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# ScottFree (from Spatterlight 1.5.5) for Scott Adams games
+# ScottFree (from Spatterlight 1.5.6) for Scott Adams games
 #
 
 if(WITH_SCOTT)
@@ -609,7 +618,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# TaylorMade (from Spatterlight 1.5.5) for later Adventure Soft UK games
+# TaylorMade (from Spatterlight 1.5.6) for later Adventure Soft UK games
 #
 
 if(WITH_TAYLOR)
