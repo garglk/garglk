@@ -164,7 +164,7 @@ uip_next_token (void)
        * on the washing machine` for task 21 "Amber sit on {the}  {standard}
        * washing machine" and falls through to the library's "You sit down
        * on the standard washing machine." (runner_transcripts/
-       * christmaspresent.txt T53, 2026-09-26): {the} is included, and "the
+       * christmaspresent.txt T53): {the} is included, and "the
        * " with two spaces never matches "the w".  uip_parse_element() gives
        * such a run its own node, and uip_match_group_double_whitespace()
        * asks whether the group it follows matched empty.  A run between a
@@ -201,7 +201,7 @@ uip_next_token (void)
 
   /*
    * Search for a non-special variable reference.  This is apparently an
-   * Adrift extension to the standard pattern match, allowing %user_var% to
+   * ADRIFT extension to the standard pattern match, allowing %user_var% to
    * be used in patterns.  If found, return a variable with the name as the
    * token value.  We can't interpolate the value into the string either
    * here or earlier, so we have to save the variable's name, and retrieve
@@ -404,10 +404,7 @@ uip_new_node (scr_pttype_t type)
 {
   scr_ptnoderef_t node;
 
-  /*
-   * Unless the pool is empty, search forwards from the next cursor position
-   * until an unused slot is found, or until the index wraps to the cursor.
-   */
+  /* Search the pool as uip_new_word() does. */
   if (uip.pools.node_available > 0)
     {
       scr_int index_;
@@ -555,10 +552,10 @@ uip_parse_element (void)
          * " " -- and 3.7-3.9 checkwild (run390 4346A8) compares literally
          * with nothing collapsed at all.  So a pattern with a double space
          * inside it never matches a normally typed line.  "Ticket to No
-         * Where" (4.00) has task 347 "ask  *girl* about *" -- the girl's
+         * Where" (4.0) has task 347 "ask  *girl* about *" -- the girl's
          * CharTask, meant to run from her walk -- and run400 answers `ask
          * young girl about grantby` from her conversation topic ("Wie
-         * bitte? Grantby?", runner_probes/ticket.run400.txt, 2026-09-12);
+         * bitte? Grantby?", runner_probes/ticket.run400.txt);
          * Scarier ran the task instead, and the extra random(0,12) draw put
          * the whole rest of the transcript out of step.  The multi-space flag
          * belongs to the lookahead token, so read it before advancing.
@@ -714,7 +711,7 @@ uip_parse_list (scr_ptnoderef_t list)
            * uip_match_whitespace().  So is one after a closing %object%:
            * p4BEYOND's `polish %object% ` matches nothing in run400, `polish
            * orb` being the object catch-all (make_beyondprobe.py,
-           * runner_probes/beyond.run400.txt, 2026-09-26), as in all three
+           * runner_probes/beyond.run400.txt), as in all three
            * older Runners.  Not after a group or a wildcard: House's task 190
            * `*get *cathy* ` answers `get cathy`
            * (runner_transcripts/house.txt:146).
@@ -781,10 +778,11 @@ uip_parse_list (scr_ptnoderef_t list)
                * "{move/run/walk/go/climb} {to/towards} {the} [d/out/in]{own}"
                * (d, down, out, in) and "[s]{outh}{ /-}[w]{est}", where the
                * explicit "{ /-}" for the space in "south west" is the proof
-               * that adjacency alone does not imply one.  This node used to be
-               * a plain NODE_WHITESPACE, which insisted on a space or a word
-               * boundary, so "north" never matched "[n]{orth}" and the game's
-               * own published walkthrough could not leave the first room.
+               * that adjacency alone does not imply one.  A plain
+               * NODE_WHITESPACE here would insist on a space or a word
+               * boundary, so "north" would never match "[n]{orth}" and the
+               * game's own published walkthrough could not leave the first
+               * room.
                */
               if ((child->type == NODE_OPTIONAL || child->type == NODE_CHOICE)
                   && (node->type == NODE_OPTIONAL || node->type == NODE_CHOICE))
@@ -953,7 +951,11 @@ uip_compile_pattern (const scr_char *pattern)
     scr_trace ("UIParser: pattern \"%s\"\n", cleansed);
   uip_tokenize_start (cleansed);
 
-  /* Try parsing the pattern, and catch errors. */
+  /*
+   * Try parsing the pattern, and catch errors.  scr_longjmp skips destructors,
+   * so no frame between here and the uip_parse_* functions that jump may own a
+   * C++ object with one: keep them static, with plain-data locals.
+   */
   if (scr_setjmp (uip.parse.error) == 0)
     {
       /* Parse the pattern into a match tree. */

@@ -1,13 +1,18 @@
-//
-//  player.c
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Created by Petter Sjölund on 2022-04-05.
-//
-//  Game state, room display, the per-turn input loop and glk_main.
-//  Text output lives in textoutput.c, file loading and table lookup in
-//  gameload.c, and the condition/action interpreter in actions.c.
-//
+/*
+ *  player.c
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-04-05.
+ *
+ *  Game state, room display, the per-turn input loop and glk_main.
+ *  Text output lives in textoutput.c, file loading and table lookup in
+ *  gameload.c, and the condition/action interpreter in actions.c.
+ */
 
 #include <ctype.h>
 #include <stdio.h>
@@ -35,22 +40,23 @@
 #include "taylor.h"
 
 uint8_t Flag[128];      /* Game state flags (conditions, counters, etc.) */
-uint8_t ObjectLoc[256]; /* Location of each object (room number or special values) */
+uint8_t ObjectLoc[256]; /* Room number or special location of each object */
 
 /* Objects below this index are "low objects" — printed as part of the
-   room description rather than after the "You can see:" prompt. */
+   room description rather than after the "You see:" prompt. */
 static int NumLowObjects;
 
 int PrintedOK;             /* Whether "OK" has been printed this turn */
 int Redraw = 0;            /* Room description needs refreshing */
 
 int StopTime = 0;          /* Suppress status table runs for this many turns */
-int JustStarted = 1;       /* True until the first player command */
+int JustStarted = 1;       /* True until the first turn not paused by StopTime
+                              or spent in the Kayleth preview */
 int ShouldRestart = 0;     /* Set to trigger a full game restart */
 
 int NoGraphics = 0;        /* Disable graphics display */
 
-char DelimiterChar = '_';  /* Word separator in dictionary entries */
+char DelimiterChar = '_';  /* Character of the top window's separator bar */
 
 static int LastNoun = 0; /* Last noun for "IT" pronoun substitution */
 static int GoVerb = 0;   /* Dictionary code for "GO" */
@@ -99,7 +105,6 @@ int CarryItem(void)
 {
     if (Version == QUESTPROBE3_TYPE)
         return 1;
-    /* Flag 5: Items carried. Flag 4: Max carried */
     if (ItemsCarried == MaxCarried && CurrentGame != BLIZZARD_PASS)
         return 0;
     if (ItemsCarried < 255)
@@ -162,8 +167,8 @@ static void NewGame(void)
     memset(Flag, 0, sizeof(Flag));
     memcpy(Flag, FileImage + FlagBase, Version == QUESTPROBE3_TYPE ? 4 : 7);
     if (Version == QUESTPROBE3_TYPE) {
-        CarriedLoc = LOC_INV_THING;  /* Carried() — default is Thing, before randomization */
-        OtherGuyInv = LOC_INV_TORCH; /* Worn() slot used for other character's inventory */
+        CarriedLoc = LOC_INV_THING;  /* Thing by default, before randomization */
+        OtherGuyInv = LOC_INV_TORCH; /* The other character's inventory */
     }
     /* Start in room 0 (the intro/title pseudo-room). */
     MyLoc = 0;
@@ -233,8 +238,6 @@ LoadResult LoadGame(void)
     SavedState *state = SaveCurrentState();
     LoadResult result;
 
-    /* Restore saved game data. */
-
     if (glk_get_buffer_stream(stream, (char *)Flag, sizeof(Flag)) != sizeof(Flag)
         || glk_get_buffer_stream(stream, (char *)ObjectLoc, sizeof(ObjectLoc)) != sizeof(ObjectLoc)
         || (size_t)GetGlkFileLength(stream) != sizeof(Flag) + sizeof(ObjectLoc)) {
@@ -273,8 +276,8 @@ void Inventory(void)
                 OutReplace(0);
                 SysMessage(NOWWORN);
                 if (CurrentGame == REBEL_PLANET) {
-                    /* Rebel Planet uses a comma between items instead of
-                       the default trailing space. */
+                    /* Rebel Planet puts a comma after a worn item instead
+                       of the default trailing space. */
                     OutKillSpace();
                     OutFlush();
                     OutChar(',');
@@ -308,7 +311,6 @@ void SaveGame(void)
         return;
     }
 
-    /* Write game state. */
     glk_put_buffer_stream(file, (char *)Flag, sizeof(Flag));
     glk_put_buffer_stream(file, (char *)ObjectLoc, sizeof(ObjectLoc));
     glk_stream_close(file, NULL);
@@ -569,9 +571,9 @@ static int IsMoveCommand(unsigned char verb)
     return IsDir(verb) || (Word[0] == GoVerb && IsDir(Word[1]));
 }
 
-/* Process one player command: try extra commands, direction auto-exits,
-   the command action table, and implicit verb carry-forward. Then run
-   the status table and handle any pending room redraw. */
+/* Process one player command: try extra commands, direction auto-exits
+   and the event table. Then run the status table and handle any pending
+   room redraw. */
 static void RunOneInput(void)
 {
     PrintedOK = 0;
@@ -604,7 +606,8 @@ static void RunOneInput(void)
         }
     }
 
-    /* Handle IT */
+    /* IT is word code 128 in every game but Questprobe 3, whose dictionary
+       has no IT. It stands for the last noun. */
     if (Word[1] == 128)
         Word[1] = LastNoun;
     if (Word[1] != 0)
@@ -689,7 +692,7 @@ static void RestartGame(void)
    it is. Sets Game and FileBaselineOffset; does not return on failure. */
 static void IdentifyGame(void)
 {
-    /* Step 1: load the game file. DetectC64 handles both raw image files
+    /* Load the game file. DetectC64 handles both raw image files
        and C64 disk-image containers, decrunching as needed; the file is
        installed into FileImage/FileImageLen on success. */
     if (DetectC64(&FileImage, &FileImageLen) != UNKNOWN_GAME) {
@@ -701,13 +704,13 @@ static void IdentifyGame(void)
 
     debug_print("Loaded %zu bytes.\n", FileImageLen);
 
-    /* Step 2: locate the verb table by scanning for its signature */
+    /* Locate the verb table by scanning for its signature */
     VerbBase = FindVerbTable();
     if (VerbBase == NOT_FOUND) {
         Fatal("This is not a TaylorMade game: no verb table found");
     }
 
-    /* Step 3: identify which game we're playing. The verb table's offset
+    /* Identify which game we're playing. The verb table's offset
        relative to its expected (in-game) address tells us how far the
        loaded file's addressing differs from the original Z80 layout. */
     if (!Game)
@@ -720,7 +723,7 @@ static void IdentifyGame(void)
     debug_print("FileBaselineOffset: %ld\n", FileBaselineOffset);
 }
 
-/* Step 5: initialize state and present the opening room. NewGame()
+/* Initialize state and present the opening room. NewGame()
    resets flags and objects; GuessLowObjectEnd() determines which
    objects render inline vs. in the "You see:" list; the initial
    state is snapshotted for the RESTART command. */
@@ -774,8 +777,8 @@ void glk_main(void)
         LookForSecondTOTGame();
     }
 
-    /* Cache the dictionary code for "GO" — used by the implicit-verb
-       fallback when the player types just a direction. */
+    /* Cache the dictionary code for "GO", which IsMoveCommand accepts
+       as a move when followed by a direction. */
     GoVerb = ParseWord("GO");
 
     InitGraphics();
@@ -785,7 +788,7 @@ void glk_main(void)
     if (CurrentGame == QUESTPROBE3 || CurrentGame == REBEL_PLANET)
         DelimiterChar = '=';
 
-    /* Step 4: locate all the remaining tables (tokens, messages, rooms,
+    /* Locate all the remaining tables (tokens, messages, rooms,
        actions, etc.) using game-specific offsets or signature scans. */
     FindTables();
     InitActionDebugging();

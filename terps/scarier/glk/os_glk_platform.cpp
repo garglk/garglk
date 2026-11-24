@@ -100,7 +100,7 @@ glk_main (void)
   gsc_main_called = TRUE;
 
   /* ADRIFT 5 games run the dedicated a5 turn loop; everything else (ADRIFT
-   * <=4) uses the scare engine. */
+   * <=4) uses the ADRIFT 4 engine. */
   if (gsc_is_a5)
     gsc_a5_main ();
   else
@@ -144,6 +144,8 @@ glkunix_argumentlist_t glkunix_arguments[] = {
   {(char *) "-c", glkunix_arg_NoValue,
    (char *) "-c         Start in the game's own Adrift colours"},
 #endif
+  {(char *) "-m", glkunix_arg_NoValue,
+   (char *) "-m         Start with the map showing (or set SCR_MAP_ENABLED)"},
   {(char *) "-r", glkunix_arg_ValueFollows,
    (char *) "-r FILE    Restore from FILE on starting the game"},
   {(char *) "", glkunix_arg_ValueCanFollow,
@@ -188,17 +190,17 @@ glkunix_startup_code (glkunix_startup_t * data)
     {
       if (strcmp (argv[argv_index], "-nc") == 0)
         {
-          gsc_commands_enabled = FALSE;
+          gsc_options.commands_enabled = FALSE;
           continue;
         }
       if (strcmp (argv[argv_index], "-na") == 0)
         {
-          gsc_abbreviations_enabled = FALSE;
+          gsc_options.abbreviations_enabled = FALSE;
           continue;
         }
       if (strcmp (argv[argv_index], "-nu") == 0)
         {
-          gsc_unicode_enabled = FALSE;
+          gsc_options.unicode_enabled = FALSE;
           continue;
         }
 #ifdef GSC_HAVE_ZCOLORS
@@ -207,10 +209,15 @@ glkunix_startup_code (glkunix_startup_t * data)
          that could never arrive. */
       if (strcmp (argv[argv_index], "-c") == 0)
         {
-          gsc_colour_startup = TRUE;
+          gsc_colour.startup = TRUE;
           continue;
         }
 #endif
+      if (strcmp (argv[argv_index], "-m") == 0)
+        {
+          gsc_map_pane.startup = TRUE;
+          continue;
+        }
       if (strcmp (argv[argv_index], "-r") == 0)
         {
           restore_from = argv[++argv_index];
@@ -232,7 +239,7 @@ glkunix_startup_code (glkunix_startup_t * data)
     }
 
   /* Remember the game file path for hosts that reopen it (graphics/sound via
-   * gsc_open_game_path). ADRIFT 5 game data itself is loaded from the Glk
+   * gsc_open_game_path).  ADRIFT 5 game data itself is loaded from the Glk
    * stream above via a5model_load_buffer. */
   snprintf (gsc_game_path, sizeof gsc_game_path, "%s", argv[argv_index]);
 
@@ -273,6 +280,8 @@ glkunix_startup_code (glkunix_startup_t * data)
   else
     trace_flags = 0;
   enable_debugger = (getenv ("SCR_DEBUGGER_ENABLED") != nullptr);
+  if (getenv ("SCR_MAP_ENABLED") != nullptr)
+    gsc_map_pane.startup = TRUE;
 #if defined (SPATTERLIGHT)
   stable_random = gli_determinism;
 #else
@@ -380,6 +389,8 @@ winglk_startup_code (const char *cmdline)
   else
     trace_flags = 0;
   enable_debugger = (getenv ("SCR_DEBUGGER_ENABLED") != nullptr);
+  if (getenv ("SCR_MAP_ENABLED") != nullptr)
+    gsc_map_pane.startup = TRUE;
   stable_random = (getenv ("SCR_STABLE_RANDOM_ENABLED") != nullptr);
   locale = getenv ("SCR_LOCALE");
 

@@ -41,7 +41,7 @@ gsc_a5_draw_image (winid_t win, glui32 number)
   glui32 width = 0, height = 0;
   strid_t str;
 
-  if (!gsc_a5_graphics_ok || number == 0 || win == nullptr)
+  if (!gsc_a5_media.graphics_ok || number == 0 || win == nullptr)
     return FALSE;
   if (!glk_image_get_info (number, &width, &height))
     return FALSE;
@@ -57,12 +57,13 @@ gsc_a5_draw_image (winid_t win, glui32 number)
  * gsc_a5_span_style()
  *
  * Pick the Glk style for a text span given its alignment and weight/oblique
- * nesting depths.  Glk styles don't combine, so alignment wins over character
- * styles: centered+bold keeps User2 (weight-hinted); right uses Note with no
- * bold/italic combo.  Unaligned bold+italic (or bold+underline) maps to Alert;
- * italic or underline alone to Emphasized; bold alone to Subheader (as the
- * ADRIFT 4 path does in gsc_set_glk_style).  Underline marks are distinct for
- * a future CSS path; for now they share italic's Glk styles.
+ * nesting depths, looked up in the style assignment the way the ADRIFT 4
+ * path's gsc_set_glk_style() does.  Glk styles don't combine, so alignment
+ * wins over character styles: centered+bold keeps User2 (weight-hinted);
+ * right uses Note with no bold/italic combo.  Unaligned bold+italic (or
+ * bold+underline) maps to Alert; italic or underline alone to Emphasized;
+ * bold alone to Subheader.  Underline marks are distinct, but share italic's
+ * Glk styles.
  *
  * `input_colour` says the span's ink is the input colour (a <c> span, or the
  * game title, which the Runner Displays as one).  That ink only exists in
@@ -70,27 +71,24 @@ gsc_a5_draw_image (winid_t win, glui32 number)
  * the same stand-in gsc_set_glk_style() gives the ADRIFT 4 path -- rather
  * than coming out indistinguishable from body text.  Alignment and bold keep
  * their precedence over the stand-in, as they do there.
+ *
+ * `monospaced` and `points` are the face and size of the innermost <font>
+ * that set them, as the colour spans carry them (see colour_open).
  */
 static glui32
 gsc_a5_span_style (int center_depth, int right_depth,
                    int bold_depth, int italic_depth, int underline_depth,
-                   int input_colour)
+                   int input_colour, int monospaced, int points)
 {
-  const int oblique = italic_depth > 0 || underline_depth > 0;
-
-  if (right_depth > 0)
-    return style_Note;
-  if (center_depth > 0)
-    return bold_depth > 0 ? style_User2 : style_User1;
-  if (bold_depth > 0 && oblique)
-    return style_Alert;
-  if (oblique)
-    return style_Emphasized;
-  if (bold_depth > 0)
-    return style_Subheader;
-  if (input_colour && !gsc_colour_visible ())
-    return style_Emphasized;
-  return style_Normal;
+  return gsc_style_lookup (gsc_styles_table (),
+                           gsc_style_combo (bold_depth > 0,
+                                            italic_depth > 0
+                                            || underline_depth > 0,
+                                            monospaced, center_depth > 0,
+                                            right_depth > 0,
+                                            input_colour
+                                            && !gsc_colour_visible (),
+                                            points));
 }
 
 /*
@@ -109,7 +107,7 @@ gsc_a5_open_side_window (void)
 {
   if (gsc_a5_side_window == nullptr)
     {
-      gsc_a5_side_window = glk_window_open (gsc_main_window,
+      gsc_a5_side_window = glk_window_open (gsc_io.main_window,
                                             winmethod_Right
                                               | winmethod_Proportional,
                                             40, wintype_TextBuffer, 0);
@@ -117,7 +115,7 @@ gsc_a5_open_side_window (void)
       /* A window opened in colour mode starts in the theme's background: it
          takes the game's only from a clear made with the colours in force,
          and there is nothing in it yet to lose to one. */
-      if (gsc_colour_enabled && gsc_a5_side_window)
+      if (gsc_colour.enabled && gsc_a5_side_window)
         {
           gsc_colour_apply (gsc_a5_side_window, GSC_COLOUR_NONE);
           glk_window_clear (gsc_a5_side_window);
@@ -192,6 +190,10 @@ struct gsc_a5_display_t
   int center_depth, right_depth, bold_depth, italic_depth, underline_depth;
   glui32 colour_stack[GSC_MAX_STYLE_NESTING];
   int colour_is_input[GSC_MAX_STYLE_NESTING];
+  /* The face and size in force inside each colour span: a <font> may set
+     either, and a <c> or a <font> that doesn't keeps the enclosing one. */
+  int monospaced_stack[GSC_MAX_STYLE_NESTING];
+  int points_stack[GSC_MAX_STYLE_NESTING];
   int colour_depth;
 
   /* The window a run of text is currently going to: the main story window, or
@@ -208,6 +210,7 @@ struct gsc_a5_display_t
   int saved_pauses;
   int silent;
 
+  glui32 style () const;
   void plain_run (const char *seg);
   void cls ();
   void window_open ();
@@ -225,19 +228,31 @@ struct gsc_a5_display_t
 
 } /* namespace */
 
+/* The style for the spans open here. */
+glui32
+gsc_a5_display_t::style () const
+{
+  return gsc_a5_span_style (center_depth, right_depth, bold_depth,
+                            italic_depth, underline_depth,
+                            gsc_a5_colour_top_is_input (colour_stack,
+                                                        colour_is_input,
+                                                        colour_depth),
+                            colour_depth > 0
+                              ? monospaced_stack[colour_depth - 1] : FALSE,
+                            colour_depth > 0
+                              ? points_stack[colour_depth - 1]
+                              : GSC_STYLE_DEFAULT_POINTS);
+}
+
 /* Flush the plain text run before this mark (or before the end). */
 void
 gsc_a5_display_t::plain_run (const char *seg)
 {
-  size_t n = (size_t) (p - seg);
-  char *chunk = (char *) gsc_malloc (n + 1);
-  memcpy (chunk, seg, n);
-  chunk[n] = '\0';
+  const std::string chunk (seg, (size_t) (p - seg));
   if (!silent)
-    gsc_a5_put_string (chunk);
-  else if (cur_window == gsc_main_window)
-    gsc_main_window_empty = FALSE;
-  free (chunk);
+    gsc_a5_put_string (chunk.c_str ());
+  else if (cur_window == gsc_io.main_window)
+    gsc_io.main_window_empty = FALSE;
 }
 
 void
@@ -245,8 +260,8 @@ gsc_a5_display_t::cls ()
 {
   if (!silent)
     glk_window_clear (cur_window);
-  if (cur_window == gsc_main_window)
-    gsc_main_window_empty = TRUE;
+  if (cur_window == gsc_io.main_window)
+    gsc_io.main_window_empty = TRUE;
 }
 
 void
@@ -259,7 +274,7 @@ gsc_a5_display_t::window_open ()
   const char *e = strchr (p + 1, A5_WINDOW_MARK);
   winid_t w = gsc_a5_open_side_window ();
 
-  cur_window = w != nullptr ? w : gsc_main_window;
+  cur_window = w != nullptr ? w : gsc_io.main_window;
   glk_set_window (cur_window);
   gsc_colour_apply (cur_window,
                     gsc_a5_colour_top (colour_stack, colour_depth));
@@ -271,7 +286,7 @@ void
 gsc_a5_display_t::window_close ()
 {
   /* Side-window span closes: text returns to the main story window. */
-  cur_window = gsc_main_window;
+  cur_window = gsc_io.main_window;
   glk_set_window (cur_window);
   gsc_colour_apply (cur_window,
                     gsc_a5_colour_top (colour_stack, colour_depth));
@@ -284,14 +299,14 @@ gsc_a5_display_t::waitkey ()
   int resumed = FALSE;
 
   if (saved_pauses)
-    gsc_a5_waitkey_count++;
+    gsc_replay.a5_waitkey_count++;
   if (silent)
     {
-      if (gsc_a5_waitkey_count < gsc_a5_waitkey_skip)
+      if (gsc_replay.a5_waitkey_count < gsc_replay.a5_waitkey_skip)
         return;
       /* The pause the game was closed at: what follows is new. */
       silent = FALSE;
-      gsc_a5_waitkey_skip = 0;
+      gsc_replay.a5_waitkey_skip = 0;
       resumed = TRUE;
     }
 
@@ -313,7 +328,7 @@ gsc_a5_display_t::waitkey ()
 #else
   (void) resumed;
 #endif
-  glk_request_char_event (gsc_main_window);
+  glk_request_char_event (gsc_io.main_window);
   gsc_event_wait (evtype_CharInput, &event);
   /* gsc_a5_status (and gsc_map_redraw, if it opens the pane) leave
      the main window selected; restore the span's routing window so
@@ -333,7 +348,7 @@ gsc_a5_display_t::commit ()
   center_depth = right_depth = bold_depth = italic_depth
     = underline_depth = 0;
   colour_depth = 0;
-  glk_set_style (gsc_a5_span_style (0, 0, 0, 0, 0, FALSE));
+  glk_set_style (style ());
   gsc_colour_apply (cur_window, GSC_COLOUR_NONE);
 }
 
@@ -343,13 +358,15 @@ gsc_a5_display_t::colour_open ()
   /* Colour span opens: \027<value>\027, the value being a colour name
      or hex triplet, the reserved token "input" for <c> (which the
      Runner draws in its input colour), or empty for a <font> tag with
-     no colour of its own. */
+     no colour of its own -- then, for a <font>, ";size=..." and
+     ";face=..." when it has them. */
   const char *e = strchr (p + 1, A5_COLOUR_MARK);
 
   if (e != nullptr)
     {
-      char token[32];
+      char token[96];
       size_t n = (size_t) (e - (p + 1));
+      char *part;
 
       if (n >= sizeof token)
         n = sizeof token - 1;
@@ -358,25 +375,41 @@ gsc_a5_display_t::colour_open ()
 
       if (colour_depth < GSC_MAX_STYLE_NESTING)
         {
+          int monospaced = colour_depth > 0
+                           ? monospaced_stack[colour_depth - 1] : FALSE;
+          int points = colour_depth > 0 ? points_stack[colour_depth - 1]
+                                        : GSC_STYLE_DEFAULT_POINTS;
+
+          for (part = strchr (token, ';'); part != nullptr;
+               part = strchr (part + 1, ';'))
+            {
+              *part = '\0';
+              if (strncmp (part + 1, "size=", 5) == 0)
+                points = gsc_style_apply_font_size (part + 1, points);
+              else if (strncmp (part + 1, "face=", 5) == 0)
+                {
+                  /* Quoted, the way the ADRIFT 4 path sees it. */
+                  char face[48];
+                  snprintf (face, sizeof face, "face=\"%.*s\"",
+                            (int) strcspn (part + 6, ";"), part + 6);
+                  monospaced = gsc_style_face_is_monospaced (face);
+                }
+            }
+
           const int is_input = strcmp (token, "input") == 0;
 
           colour_is_input[colour_depth] = is_input;
+          monospaced_stack[colour_depth] = monospaced;
+          points_stack[colour_depth] = points;
           colour_stack[colour_depth++]
-            = is_input ? gsc_colour_input
+            = is_input ? gsc_colour.input
                        : gsc_colour_lookup (token);
           gsc_colour_apply (cur_window,
                             gsc_a5_colour_top (colour_stack,
                                                colour_depth));
-          /* Colour spans carry a style too, for the colourless case
-             (see gsc_a5_span_style); with colours on this re-asserts
-             the style already in force. */
-          glk_set_style (gsc_a5_span_style (center_depth, right_depth,
-                                            bold_depth, italic_depth,
-                                            underline_depth,
-                                            gsc_a5_colour_top_is_input
-                                              (colour_stack,
-                                               colour_is_input,
-                                               colour_depth)));
+          /* Colour spans carry a style too: the colourless case of <c>
+             (see gsc_a5_span_style), and a <font>'s size and face. */
+          glk_set_style (style ());
         }
       p = e;
     }
@@ -389,12 +422,7 @@ gsc_a5_display_t::colour_close ()
     colour_depth--;
   gsc_colour_apply (cur_window,
                     gsc_a5_colour_top (colour_stack, colour_depth));
-  glk_set_style (gsc_a5_span_style (center_depth, right_depth,
-                                    bold_depth, italic_depth,
-                                    underline_depth,
-                                    gsc_a5_colour_top_is_input
-                                      (colour_stack, colour_is_input,
-                                       colour_depth)));
+  glk_set_style (style ());
 }
 
 void
@@ -427,12 +455,7 @@ gsc_a5_display_t::span ()
     underline_depth++;
   else if (*p == A5_ENDUNDERLINE_MARK && underline_depth > 0)
     underline_depth--;
-  glk_set_style (gsc_a5_span_style (center_depth, right_depth,
-                                    bold_depth, italic_depth,
-                                    underline_depth,
-                                    gsc_a5_colour_top_is_input
-                                      (colour_stack, colour_is_input,
-                                       colour_depth)));
+  glk_set_style (style ());
 }
 
 void
@@ -497,7 +520,7 @@ gsc_a5_display_t::finish ()
   /* A replay that never reached the pause it was after (the turn did not
      come out as it did before) is over all the same. */
   if (silent)
-    gsc_a5_waitkey_skip = 0;
+    gsc_replay.a5_waitkey_skip = 0;
 
   /* A dangling span must not bleed into prompts and later turns. */
   if (center_depth > 0 || right_depth > 0
@@ -508,8 +531,8 @@ gsc_a5_display_t::finish ()
     gsc_colour_apply (cur_window, GSC_COLOUR_NONE);
   /* Likewise a dangling <window> span: prompts and input echo belong in the
      main story window. */
-  if (cur_window != gsc_main_window)
-    glk_set_window (gsc_main_window);
+  if (cur_window != gsc_io.main_window)
+    glk_set_window (gsc_io.main_window);
 }
 
 /*
@@ -535,15 +558,15 @@ gsc_a5_display (const char *text)
   gsc_a5_display_t d = {};
 
   d.p = text;
-  d.cur_window = gsc_main_window;
-  d.saved_pauses = gsc_a5_popup_context != GSC_A5_POPUP_ELSEWHERE;
-  d.silent = d.saved_pauses && gsc_a5_waitkey_skip > 0;
+  d.cur_window = gsc_io.main_window;
+  d.saved_pauses = gsc_replay.a5_popup_context != GSC_A5_POPUP_ELSEWHERE;
+  d.silent = d.saved_pauses && gsc_replay.a5_waitkey_skip > 0;
 
   if (text == nullptr)
     return;
 
-  glk_set_window (gsc_main_window);
-  gsc_colour_apply (gsc_main_window, GSC_COLOUR_NONE);
+  glk_set_window (gsc_io.main_window);
+  gsc_colour_apply (gsc_io.main_window, GSC_COLOUR_NONE);
 
   while (TRUE)
     {
@@ -620,7 +643,7 @@ gsc_a5_sound_event (const a5_media_event_t *m)
   int ch = m->channel;
   int trace = getenv ("A5_TRACE_MEDIA") != nullptr;
 
-  if (!gsc_a5_sound_ok)
+  if (!gsc_a5_media.sound_ok)
     {
       if (trace)
         fprintf (stderr, "[a5 media] kind=%d ch=%d (no sound support)\n",
@@ -636,22 +659,22 @@ gsc_a5_sound_event (const a5_media_event_t *m)
                  m->kind, ch);
       return;
     }
-  if (gsc_a5_channels[ch] == nullptr)
-    gsc_a5_channels[ch] = glk_schannel_create ((glui32) ch);
-  if (gsc_a5_channels[ch] == nullptr)
+  if (gsc_a5_media.channels[ch] == nullptr)
+    gsc_a5_media.channels[ch] = glk_schannel_create ((glui32) ch);
+  if (gsc_a5_media.channels[ch] == nullptr)
     return;
   if (m->kind == A5_MEDIA_SOUND_STOP)
     {
       if (trace)
         fprintf (stderr, "[a5 media] stop ch=%d\n", ch);
-      glk_schannel_stop (gsc_a5_channels[ch]);
-      gsc_a5_chan_sound[ch] = 0;
+      glk_schannel_stop (gsc_a5_media.channels[ch]);
+      gsc_a5_media.chan_sound[ch] = 0;
     }
   else if (m->kind == A5_MEDIA_SOUND_PAUSE)
     {
       if (trace)
         fprintf (stderr, "[a5 media] pause ch=%d\n", ch);
-      glk_schannel_pause (gsc_a5_channels[ch]);
+      glk_schannel_pause (gsc_a5_media.channels[ch]);
     }
   else if (m->number > 0)
     {
@@ -661,22 +684,22 @@ gsc_a5_sound_event (const a5_media_event_t *m)
          restart the track every time the room is re-shown.  Only a
          different sound, or one that has finished (see
          gsc_a5_sound_finished), (re)starts the channel. */
-      if ((glui32) m->number == gsc_a5_chan_sound[ch])
+      if ((glui32) m->number == gsc_a5_media.chan_sound[ch])
         {
           if (trace)
             fprintf (stderr, "[a5 media] keep ch=%d snd=%d (already "
                      "playing)\n", ch, m->number);
-          glk_schannel_unpause (gsc_a5_channels[ch]);
+          glk_schannel_unpause (gsc_a5_media.channels[ch]);
         }
       else
         {
           if (trace)
             fprintf (stderr, "[a5 media] play ch=%d snd=%d loop=%d\n",
                      ch, m->number, m->loop);
-          glk_schannel_play_ext (gsc_a5_channels[ch],
+          glk_schannel_play_ext (gsc_a5_media.channels[ch],
                                  (glui32) m->number,
                                  m->loop ? 0xffffffffu : 1, (glui32) ch);
-          gsc_a5_chan_sound[ch] = (glui32) m->number;
+          gsc_a5_media.chan_sound[ch] = (glui32) m->number;
         }
     }
 }
@@ -693,8 +716,8 @@ gsc_a5_sound_finished (const event_t *event)
   glui32 ch = event->val2;
 
   if (ch > 0 && ch < GSC_A5_MAX_CHANNELS
-      && gsc_a5_chan_sound[ch] == event->val1)
-    gsc_a5_chan_sound[ch] = 0;
+      && gsc_a5_media.chan_sound[ch] == event->val1)
+    gsc_a5_media.chan_sound[ch] = 0;
 }
 
 /*
@@ -826,7 +849,7 @@ gsc_a5_show_cover (void)
   giblorb_result_t chunk;
   const unsigned char *p;
 
-  if (!gsc_a5_graphics_ok)
+  if (!gsc_a5_media.graphics_ok)
     return;
   map = giblorb_get_resource_map ();
   if (map == nullptr)
@@ -838,7 +861,7 @@ gsc_a5_show_cover (void)
   if (chunk.length >= 4 && chunk.data.ptr != nullptr)
     {
       p = (const unsigned char *) chunk.data.ptr;
-      gsc_a5_draw_image (gsc_main_window,
+      gsc_a5_draw_image (gsc_io.main_window,
                          ((glui32) p[0] << 24) | ((glui32) p[1] << 16)
                          | ((glui32) p[2] << 8) | (glui32) p[3]);
     }
@@ -862,11 +885,11 @@ gsc_a5_present_intro_media (a5_run_t *run)
  * gsc_a5_printed_width()
  * gsc_a5_next_char()
  *
- * The grid cells gsc_a5_put_string() fills for a UTF-8 string, and the start of
- * the character following the one a string points at.  With Unicode output each
- * multi-byte sequence prints as a single cell; without it the bytes go out as
- * they are, one cell each.  Stepping is by whole sequences either way, so that
- * a truncated tail stays well-formed UTF-8.
+ * The grid cells gsc_a5_put_string() fills for a UTF-8 string, and the start
+ * of the character following the one a string points at.  With Unicode output
+ * each multi-byte sequence prints as a single cell; without it the bytes go
+ * out as they are, one cell each.  Stepping is by whole sequences either way,
+ * so that a truncated tail stays well-formed UTF-8.
  */
 static glui32
 gsc_a5_printed_width (const char *string)
@@ -874,7 +897,7 @@ gsc_a5_printed_width (const char *string)
   const unsigned char *p = (const unsigned char *) string;
   glui32 width = 0;
 
-  if (!gsc_unicode_enabled)
+  if (!gsc_options.unicode_enabled)
     return (glui32) strlen (string);
 
   for (; *p != '\0'; p++)
@@ -903,19 +926,18 @@ static const gsc_status_writer_t GSC_A5_STATUS_WRITER = {
 /*
  * gsc_a5_status()
  *
- * Redraw the one-line status window: the current room name at the left, and the
- * score (when the game keeps a Score variable) plus move count at the right.
+ * Redraw the status window: the current room name at the left, and the score
+ * (when the game keeps a Score variable) plus move count at the right, or on
+ * a second row when they do not fit there (gsc_status_draw).
  */
 void
 gsc_a5_status (a5_run_t *run)
 {
-  glui32 width;
   char *room;
   char right[96];
   long score, maxscore;
-  glui32 room_end;
 
-  if (!gsc_status_begin (&width))
+  if (!gsc_io.status_window)
     return;
 
   /* Right-hand score / moves. */
@@ -930,19 +952,7 @@ gsc_a5_status (a5_run_t *run)
   else
     snprintf (right, sizeof right, "Moves: %d", a5run_turns (run));
 
-  /* Room name at the left. */
-  glk_window_move_cursor (gsc_status_window, 1, 0);
   room = a5run_location_name (run);
-  room_end = 1;
-  if (room)
-    {
-      gsc_a5_put_string (room);
-      room_end += gsc_a5_printed_width (room);
-      free (room);
-    }
-
-  /* Right-justified score/moves. */
-  gsc_status_put_right (width, room_end, right, &GSC_A5_STATUS_WRITER);
-
-  gsc_status_end ();
+  gsc_status_draw (room, right, &GSC_A5_STATUS_WRITER);
+  free (room);
 }

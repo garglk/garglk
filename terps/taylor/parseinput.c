@@ -1,9 +1,14 @@
-//
-//  parseinput.c
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Created by Petter Sjölund on 2022-06-04.
-//
+/*
+ *  parseinput.c
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-06-04.
+ */
 
 #include <ctype.h>
 #include <stdio.h>
@@ -35,8 +40,9 @@ int KnownWords = 0;            /* Number of dictionary words in the command */
 int WordsInInput = 0;          /* Number of word strings in InputWordStrings */
 int WordIndex = 0;             /* Position in InputWordStrings of the next command */
 
-int FoundExtraCommand = 0;     /* Set by Parser when a word of the command is not
-                                  in the dictionary but is an extra command */
+/* Set by Parser when a word of the command is not in the dictionary but is an
+   extra command */
+int FoundExtraCommand = 0;
 
 /* Free all allocated word strings and reset input state. */
 void FreeInputWords(void)

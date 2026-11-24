@@ -21,13 +21,8 @@
 /*
  * Module notes:
  *
- * o Gender enumerations are 0/1/2, but 1/2/3 in jAsea.  The 0/1/2 values
- *   seem to be right.  Is jAsea off by one?
- *
- * o jAsea tries to read Globals.CompileDate.  It's just CompileDate.
- *
- * o State_ and obstate are implemented, but not fully tested due to a lack
- *   of games that use them.
+ * o State_ and obstate are implemented, but few games use them, so they
+ *   are lightly tested.
  */
 
 #include <assert.h>
@@ -49,9 +44,10 @@
 #include "scvars.h"
 #include "scgamest_api.h"
 #include "scparser.h"
-#include "sclibrar_api.h"
+#include "schooks.h"
 #include "scnpcs.h"
 #include "scobjcts.h"
+#include "scrooms.h"
 #include "sclocale.h"
 #include "scgamest.h"
 
@@ -72,11 +68,11 @@ static scr_bool var_trace = FALSE;
  *
  * ADRIFT's %time% / elapsed-seconds system variable is
  * difftime(time(NULL), game_start), genuinely non-reproducible: it makes
- * day/night-style displays flip across runs depending on how a replay straddles
- * a wall-clock second boundary.  Freezing it (delta == 0, so only time_offset
- * remains) makes scripted regression replays byte-stable, exactly as seeding
- * the RNG does.  When determinism is off, faithful real-time behaviour (as in
- * the reference Runner) is retained.
+ * day/night-style displays flip across runs depending on how a replay
+ * straddles a wall-clock second boundary.  Freezing it (delta == 0, so only
+ * time_offset remains) makes scripted regression replays byte-stable, exactly
+ * as seeding the RNG does.  When determinism is off, faithful real-time
+ * behaviour (as in the reference Runner) is retained.
  */
 static scr_bool
 var_is_clock_frozen (void)
@@ -339,10 +335,10 @@ var_put (scr_var_setref_t vars,
   else
     {
       /*
-       * Special case %scarier_version%.  If a game defines this and initializes
-       * it to zero, re-initialize it to Scarier's version number.  Games that
-       * define %scarier_version%, initially zero, can use this to test if
-       * running under Scarier or Runner.
+       * Special case %scarier_version%.  If a game defines this and
+       * initializes it to zero, re-initialize it to Scarier's version number.
+       * Games that define %scarier_version%, initially zero, can use this to
+       * test if running under Scarier or Runner.
        */
       if (strcmp (name, "scarier_version") == 0 && vt_value.integer == 0)
         {
@@ -426,8 +422,10 @@ var_append_temp (scr_var_setref_t vars, const scr_char *string)
     }
   else
     {
-      /* Append string to existing temporary; `noted` is already the length to
-         append at, and is reused below to case the first new character. */
+      /*
+       * Append string to existing temporary; `noted` is already the length to
+       * append at, and is reused below to case the first new character.
+       */
       new_sentence = (vars->temporary[0] == NUL);
       noted = strlen (vars->temporary);
       {
@@ -652,16 +650,16 @@ var_select_list_plurality (scr_gameref_t game, scr_int associate,
  * See lib_list_in_object() in sclibrar_examine.cpp for the derivation and
  * for the live measurements behind it.
  *
- * The variables used to take the alternate format unconditionally.  Measured
- * live in run400 under Wine 2026-08-24 on WhereAreMyKeys.taf, whose fridge is
- * opened by a task whose CompleteText ends "%in_fridge%": with three objects
- * in it the Runner answers "You open the fridge and the light comes on.  Well
- * that's something. Inside the fridge is a tub of butter, a butter knife and
- * a bottle of milk." (runner_probes/where_are_my_keys.run400.txt), where we
- * printed "A tub of butter, a butter knife and a bottle of milk are inside the
- * fridge."  The same replay shows the two-object case keeping the alternate
- * format, from the library lister: `open unit` -> "A large knife and a jar of
- * coffee are inside the kitchen unit."
+ * The variables do not take the alternate format unconditionally.  Measured
+ * live in run400 under Wine on WhereAreMyKeys.taf, whose fridge is opened by a
+ * task whose CompleteText ends "%in_fridge%": with three objects in it the
+ * Runner answers "You open the fridge and the light comes on.  Well that's
+ * something. Inside the fridge is a tub of butter, a butter knife and a bottle
+ * of milk." (runner_probes/where_are_my_keys.run400.txt), not "A tub of
+ * butter, a butter knife and a bottle of milk are inside the fridge."  The
+ * same replay shows the two-object case keeping the alternate format, from the
+ * library lister: `open unit` -> "A large knife and a jar of coffee are inside
+ * the kitchen unit."
  */
 static scr_bool
 var_use_alternate_format (scr_gameref_t game, scr_int associate, size_t count)
@@ -693,7 +691,7 @@ var_use_alternate_format (scr_gameref_t game, scr_int associate, size_t count)
  * through whatisinon (46A950), which writes the seen byte for each object it
  * names, in the on-half at 46A376 and the in-half at 46A81E.  Darkness and
  * Fire in the Blood describe a table with "%on_round table%" and then expect
- * a plain `get plate` to work (runner_transcripts darkness, 2026-10-09).
+ * a plain `get plate` to work (runner_transcripts darkness).
  */
 static var_list_t
 var_collect_at_object (scr_gameref_t game, scr_int associate, scr_int position)
@@ -827,7 +825,7 @@ var_list_onin_object (scr_gameref_t game, scr_int associate)
     {
       /*
        * With something on the surface as well, the contents run onto the
-       * same sentence.  MEASURED 2026-09-28, run400 on p4ONIN.taf
+       * same sentence.  MEASURED in run400 on p4ONIN.taf
        * (runner_probes/onin.run400.txt; make_400_oninprobe.py): "A plate and a
        * bowl are on the crate, and inside is a key and a ring." and "... on
        * the rack, and inside is a nail." -- whatisinon's literal ", and inside
@@ -905,7 +903,7 @@ var_return_global_string (scr_var_setref_t vars, const scr_char *key,
 }
 
 static scr_bool
-var_return_game_count (scr_var_setref_t vars, scr_int scr_game_s::*count,
+var_return_game_count (scr_var_setref_t vars, scr_int scr_world_t::*count,
                        const scr_char *what,
                        scr_int *type, scr_vartype_t *vt_rvalue)
 {
@@ -918,7 +916,7 @@ var_return_game_count (scr_var_setref_t vars, scr_int scr_game_s::*count,
       return var_return_integer (0, type, vt_rvalue);
     }
 
-  return var_return_integer (game->*count, type, vt_rvalue);
+  return var_return_integer (game->world.*count, type, vt_rvalue);
 }
 
 
@@ -982,7 +980,7 @@ var_find_object_by_short (scr_gameref_t game, const scr_char *name,
  * Find the object that a %status_<name>% marker names, and return its index,
  * or -1 for no match.
  *
- * MEASURED 2026-09-07, run400 on p4STATUS.taf
+ * MEASURED in run400 on p4STATUS.taf
  * (runner_probes/status.run400.txt, .b.txt and .c.txt, all eleven commands
  * echoed each time; make_400_statusprobe.py).  The probe holds two closed
  * doors, object 0 in Alpha and object 1 in Bravo, and opens and closes them
@@ -1045,7 +1043,7 @@ var_status_object (scr_gameref_t game, const scr_char *name)
  * anything else the parser alone can resolve).
  *
  * MEASURED escape_to_new_york turn 72 `open desk` (Ticket run400 xoshiro
- * trace 2026-09-12): the room's Long reads %in_desk% and two objects carry
+ * trace): the room's Long reads %in_desk% and two objects carry
  * a desk-shaped name, a low-indexed plain "desk" and a higher-indexed
  * "roll-top desk"; the Runner always lists the LOW one's contents, while
  * uip_match()'s last-match-wins walk had been picking the high one whenever
@@ -1073,7 +1071,7 @@ var_resolve_marker_object (scr_gameref_t game, const scr_char *name,
  * the referenced object as it was.  `marker` and `unavailable` are for the
  * error paths.
  *
- * MEASURED 2026-09-28, run400 on p4ONIN.taf (runner_probes/onin.run400.txt;
+ * MEASURED in run400 on p4ONIN.taf (runner_probes/onin.run400.txt;
  * make_400_oninprobe.py): two boxes, the low-indexed one in Alpha, and
  * from Bravo all three markers come back empty.  The low box wins, as the
  * name scan says, and whatisinon() (46A950) lists nothing for it because
@@ -1157,17 +1155,14 @@ var_system_character (scr_var_setref_t vars, const scr_char * /* name */,
   else
     {
       /*
-       * An unbound reference is printed RAW, in every Runner: the
-       * substitution simply does not happen, so the pattern itself
-       * reaches the player.  p*OBJREF's task 2 `zork` prints "ZORKED
-       * %object% and %character%." -- its command binds neither -- and
-       * all four Runners answer it literally, including the turn right
-       * after `nurb rock` has bound the red rock
-       * (runner_probes/objref.run370.rtf,
-       * runner_probes/objref.run380.rtf,
-       * runner_probes/objref.run390.txt,
-       * runner_probes/objref.run400.txt, 2026-09-20).  We used to
-       * print "[Character unknown]".
+       * An unbound reference is printed RAW, in every Runner: the substitution
+       * simply does not happen, so the pattern itself reaches the player.
+       * p*OBJREF's task 2 `zork` prints "ZORKED %object% and %character%." --
+       * its command binds neither -- and all four Runners answer it literally,
+       * including the turn right after `nurb rock` has bound the red rock
+       * (runner_probes/objref.run370.rtf, runner_probes/objref.run380.rtf,
+       * runner_probes/objref.run390.txt, runner_probes/objref.run400.txt), not
+       * "[Character unknown]".
        */
       return var_return_string ("%character%", type, vt_rvalue);
     }
@@ -1350,7 +1345,7 @@ var_system_obstatus (scr_var_setref_t vars, const scr_char * /* name */,
       return var_return_string ("[Obstatus unavailable]", type, vt_rvalue);
     }
 
-  /* If not an openable object, return unopenable to match Adrift. */
+  /* If not an openable object, return unopenable to match ADRIFT. */
   if (prop_get_indexed_integer (bundle, "Objects", vars->referenced_object,
                                 "Openable") == 0)
     return var_return_string ("unopenable", type, vt_rvalue);
@@ -1387,14 +1382,13 @@ var_system_player (scr_var_setref_t vars, const scr_char * /* name */,
 
   /*
    * Return player's name from properties.  An empty authored name is
-   * "Anonymous" at 4.0: run400's openadv fills it at load (48F39F,
-   * `If field(4) = "" Then field(4) = "Anonymous"`), and that field is
-   * what %player% and the third-person pronoun array (48F6F2) read.
-   * Measured live 2026-09-19, probe ANON (make_arena_probe.py,
-   * runner_probes/anon.run400.txt, PromptName off, Perspective third):
-   * `i` answers "Anonymous is carrying nothing." and a task's "Name is
-   * [%player%]." prints "Name is [Anonymous]."  Scarier said "Player"
-   * for both.
+   * "Anonymous" at 4.0: run400's openadv fills it at load (48F39F, `If
+   * field(4) = "" Then field(4) = "Anonymous"`), and that field is what
+   * %player% and the third-person pronoun array (48F6F2) read.  Measured live,
+   * probe ANON (make_arena_probe.py, runner_probes/anon.run400.txt, PromptName
+   * off, Perspective third): `i` answers "Anonymous is carrying nothing." and
+   * a task's "Name is [%player%]." prints "Name is [Anonymous]."  Scarier said
+   * "Player" for both.
    *
    * run390 has no load-time default (its name prompt is the only
    * writer, 4416C8), so before 4.0 the empty name would stay empty;
@@ -1454,7 +1448,7 @@ var_system_score (scr_var_setref_t vars, const scr_char * /* name */,
                   scr_int *type, scr_vartype_t *vt_rvalue)
 {
   /* Return the current game score. */
-  return var_return_game_count (vars, &scr_game_s::score, "score",
+  return var_return_game_count (vars, &scr_world_t::score, "score",
                                 type, vt_rvalue);
 }
 
@@ -1500,7 +1494,7 @@ var_system_state (scr_var_setref_t vars, const scr_char *name, scr_int *type,
     }
 
   /*
-   * MEASURED 2026-08-25, run400 on p4STATE.taf
+   * MEASURED in run400 on p4STATE.taf
    * (runner_probes/state.run400.txt, all 29 commands echoed):
    * %state_<obj>% comes back LOWER-CASED, over the whole string, wherever
    * it sits in the sentence --
@@ -1556,12 +1550,11 @@ var_system_t_number (scr_var_setref_t vars, const scr_char * /* name */,
                      scr_int *type, scr_vartype_t *vt_rvalue)
 {
   /*
-   * There is no such thing as "no referenced number yet": the Runner
-   * keeps one Long (run390 MemVar_4681AC, run400 MemVar_49420C) and it
-   * starts at 0, so the very first turn of p39NUMREF and p4NUMREF
-   * answers task 5's `zap` with "ZAP [0] [zero]." before any line has
-   * named a number (runner_probes/numref.run390.txt,
-   * runner_probes/numref.run400.txt, 2026-09-20).  We used to print
+   * There is no such thing as "no referenced number yet": the Runner keeps one
+   * Long (run390 MemVar_4681AC, run400 MemVar_49420C) and it starts at 0, so
+   * the very first turn of p39NUMREF and p4NUMREF answers task 5's `zap` with
+   * "ZAP [0] [zero]." before any line has named a number
+   * (runner_probes/numref.run390.txt, runner_probes/numref.run400.txt), not
    * "[Number unknown]".
    */
   return var_return_string (var_number_text (vars,
@@ -1667,7 +1660,7 @@ var_system_turns (scr_var_setref_t vars, const scr_char * /* name */,
                   scr_int *type, scr_vartype_t *vt_rvalue)
 {
   /* Return the count of game turns. */
-  return var_return_game_count (vars, &scr_game_s::turns, "turns",
+  return var_return_game_count (vars, &scr_world_t::turns, "turns",
                                 type, vt_rvalue);
 }
 
@@ -1675,7 +1668,7 @@ static scr_bool
 var_system_version (scr_var_setref_t /* vars */, const scr_char * /* name */,
                     scr_int *type, scr_vartype_t *vt_rvalue)
 {
-  /* Return the Adrift emulation level of Scarier. */
+  /* Return the ADRIFT emulation level of Scarier. */
   return var_return_integer (SCARIER_EMULATION, type, vt_rvalue);
 }
 
@@ -1881,13 +1874,13 @@ var_is_user_ordered (scr_var_setref_t vars, const scr_char *name)
  *
  * Which references a Runner knows is a plain string census of the exe, and
  * it splits cleanly by version: "%object%" is in all four, "%character%"
- * from 3.80, "%number%" and "%t_number%" from 3.90, "%text%" at 4.00 only
+ * from 3.8, "%number%" and "%t_number%" from 3.9, "%text%" at 4.0 only
  * (run370 and run380 hold no "%number%", "%t_number%" or "%text%" literal
  * anywhere at all).  p37NUMREF and p38NUMREF confirm the print side:
  * task 5's `zap` answers "ZAP [%number%] [%t_number%]." at every turn of
  * the feed, including the turns right after a line naming a number, while
  * p39NUMREF and p4NUMREF answer "ZAP [5] [five]."
- * (runner_probes/numref.run*.*, 2026-09-20).  The matcher side is
+ * (runner_probes/numref.run*.*).  The matcher side is
  * run_match_task_commands().
  */
 scr_bool
@@ -1915,13 +1908,13 @@ var_is_unknown_reference (scr_var_setref_t vars, const scr_char *name)
  * 44AF07-44AFDA; run400 45F105-45F1B3 inside the shared substituter
  * Proc_19_36_45F268).  Three things follow, and p39VARREF/p4VARREF measure
  * all three (runner_probes/varref.run390.txt,
- * runner_probes/varref.run400.txt, 2026-09-20):
+ * runner_probes/varref.run400.txt):
  *
  *  - The value is the NUMERIC one, always.  `word` is the string "quux" at
- *    4.00, and run400 refuses `nurb quux` against task 4's "nurb %word%"
- *    while running it on `nurb 0`.  (3.90 cannot even ask: its VARIABLE
+ *    4.0, and run400 refuses `nurb quux` against task 4's "nurb %word%"
+ *    while running it on `nurb 0`.  (3.9 cannot even ask: its VARIABLE
  *    record has no Type field -- sctafpar.cpp spells it `ZType`, a
- *    defaulted zero read from nothing -- so every 3.90 variable is a
+ *    defaulted zero read from nothing -- so every 3.9 variable is a
  *    number.)
  *  - The command is LOWER-CASED before the walk and the Name is not, so a
  *    marker reaches a variable only when the stored Name is itself all
@@ -1963,13 +1956,12 @@ var_get_command_number (scr_var_setref_t vars, const scr_char *name,
 /*
  * var_get_command_text()
  *
- * Deliberate deviation (2026-09-30), for lenient task matching only: a
- * task command's %name% as Scarier read it before the Runner port
- * (72ae49a1e).  The name is found in any case, and a string variable
- * spells its text, so Lair of the Vampire's `drop %item%` and a `call
- * %who%` over who="bob" answer the words the variable holds.  The Runner
- * lower-cases the marker, finds no capitalised Name and spells a string
- * variable as 0 (var_get_command_number()).
+ * Deliberate deviation, for lenient task matching only: a task command's
+ * %name% is read in Scarier's own way, not the Runner's.  The name is found in
+ * any case, and a string variable spells its text, so Lair of the Vampire's
+ * `drop %item%` and a `call %who%` over who="bob" answer the words the
+ * variable holds.  The Runner lower-cases the marker, finds no capitalised
+ * Name and spells a string variable as 0 (var_get_command_number()).
  */
 scr_bool
 var_get_command_text (scr_var_setref_t vars, const scr_char *name,
@@ -2166,8 +2158,8 @@ var_indexed_name (scr_prop_setref_t bundle, scr_int index_)
    * The keys never change once a game is loaded, but finding one means
    * comparing against every earlier variable's Name, and gs_copy() asks for
    * every variable on every turn -- quadratic in the variable count, and a
-   * fifth of some walkthroughs' run time.  So remember each key; the runner
-   * calls var_forget_bundle() before destroying a bundle.
+   * fifth of some walkthroughs' run time.  So remember each key; the `run_`
+   * code calls var_forget_bundle() before destroying a bundle.
    */
   if (bundle != var_names_bundle)
     {
@@ -2391,8 +2383,8 @@ var_get_ref_number (scr_var_setref_t vars)
  *
  * Peek at, and put back, the whole referenced-number state -- the value and
  * the "has one ever been set" flag that %number% substitution tests.  Used by
- * the runner's scr_ref_number_guard (runner/scrunner.h) to keep Scarier's own
- * meta commands ("wait 5", "hist 3") from writing the game's referenced
+ * the `run_` code's scr_ref_number_guard (runner/scrunner.h) to keep Scarier's
+ * own meta commands ("wait 5", "hist 3") from writing the game's referenced
  * number: they match a %number% pattern, but the real Runner has no such
  * commands and only ever sets its referenced number (run400 MemVar_49420C,
  * written solely by numintext/numintext2 off the wildcard expansion in

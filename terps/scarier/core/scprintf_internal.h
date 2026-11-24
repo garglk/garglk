@@ -23,8 +23,7 @@
 
 /*
  * Internal header of the printfilter: what scprintf.cpp and the four files
- * split out of it share.  They were one translation unit, so much here is
- * shared state rather than interface.
+ * listed below share.  Much here is shared state rather than interface.
  *
  *   scprintf.cpp         the filter object, its create/destroy, the ALR
  *                        and synonym caches, tracing
@@ -40,10 +39,9 @@
 /*
  * Module notes:
  *
- * o Is the whole interpolation and ALR passes thing right?  There's no
- *   documentation on it, and it's not intuitively implemented in Adrift.
- *
- * o Is dissecting HTML tags the right thing to do?
+ * o The order of the interpolation and ALR passes follows run400 as
+ *   measured by the alrsrc probes; the evidence is at the header of the
+ *   filter's ALR pass in scprintf_buffer.cpp.
  */
 
 #include <assert.h>
@@ -124,7 +122,8 @@ typedef struct scr_filter_s
    * to treat as if it were not there.  See pf_hide_prefix(). */
   size_t hidden;
   /* Length of a prefix of the buffer the Runner has already printed, and so
-   * already filtered: no later filtering touches it.  See pf_print_so_far(). */
+   * already filtered: no later filtering touches it.  See pf_print_so_far().
+   * */
   size_t frozen;
   /* Buffer length at the last pf_print_so_far(), where the Runner's own
    * string restarted; -1 otherwise.  Unlike frozen, it rides the task
@@ -151,21 +150,21 @@ typedef struct scr_filter_s
  *
  * Two immutable game tables drive the filters below as (original ->
  * replacement) string pairs: the ALRs (Automatic Language Replacements)
- * applied to output by pf_replace_alrs(), and the Synonyms applied to input
- * by pf_filter_input().
- * Both used to re-resolve every entry from the string-keyed property tree
- * ("<table>"/index/"Original"|"Replacement") on every call -- an O(count)
+ * applied to output by pf_replace_alrs(), and the Synonyms applied to input by
+ * pf_filter_input().  Re-resolving every entry from the string-keyed property
+ * tree ("<table>"/index/"Original"|"Replacement") on every call is an O(count)
  * prop_get() storm per call, dominated by the prop_find_child() strcmp scan
  * each lookup drives.  For the ALRs, which run on every output flush and every
  * filter pass, profiling text-heavy ADRIFT 4 games (humbug) put ~30% of engine
  * time there.
  *
- * Each table is resolved once into a flat array the consumer iterates directly,
- * with no prop_get() calls left in the hot loop.  The two tables differ enough
- * to keep separate builders -- ALRs are taken in a length-sorted order held in
- * "ALRs2"/"ALRIndex", synonyms in raw property order -- but they share the
- * entry shape, the storage (pointers straight into the property store, which
- * owns the strings for the game's lifetime; no copies), and the lifetime.
+ * Each table is resolved once into a flat array the consumer iterates
+ * directly, with no prop_get() calls left in the hot loop.  The two tables
+ * differ enough to keep separate builders -- ALRs are taken in a length-sorted
+ * order held in "ALRs2"/"ALRIndex", synonyms in raw property order -- but they
+ * share the entry shape, the storage (pointers straight into the property
+ * store, which owns the strings for the game's lifetime; no copies), and the
+ * lifetime.
  *
  * Lifetime: both are reset by pf_state_reset() from pf_create(), which
  * run_create() calls exactly once per game, so the cached pointers can never

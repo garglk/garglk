@@ -193,7 +193,7 @@ loc_check_tables_synchronized (const scr_locale_t *locale)
  * Locale for Latin1.  The signatures in this locale are null since it is the
  * default locale; no matching required.  Also, none may be practical, as this
  * locale works for a large number of Western European languages (though in
- * practice, it seems that only English and French Adrift Latin1 games exist).
+ * practice, it seems that only English and French ADRIFT Latin1 games exist).
  */
 static const scr_locale_t LATIN1_LOCALE = {
   "Latin1",
@@ -378,11 +378,11 @@ loc_detect_game_locale (scr_prop_setref_t bundle)
  * loc_ascii_tolower()
  * loc_ascii_strncasecmp()
  *
- * The standard scr_strncasecmp() calls scr_tolower(), which is locale specific.
- * This isn't a particular problem because it will set the Latin1 locale
- * automatically before continuing.  However, since locale names should always
- * be in ascii anyway, it's slightly safer to just use an ascii-only version
- * of this function.
+ * The standard scr_strncasecmp() calls scr_tolower(), which is locale
+ * specific.  This isn't a particular problem because it will set the Latin1
+ * locale automatically before continuing.  However, since locale names should
+ * always be in ascii anyway, it's slightly safer to just use an ascii-only
+ * version of this function.
  */
 static scr_char
 loc_ascii_tolower (scr_char ch)

@@ -93,6 +93,11 @@ extern scr_bool prop_put_string (scr_prop_setref_t bundle,
                                 const scr_char *value,
                                 const scr_vartype_t vt_key[]);
 extern void prop_adopt (scr_prop_setref_t bundle, void *addr);
+extern void prop_walk_strings (scr_prop_setref_t bundle,
+                               void (*visit) (const scr_char *path,
+                                              const scr_char *string,
+                                              void *opaque),
+                               void *opaque);
 /* The TAF the properties were parsed from, still owned by the bundle. */
 extern scr_tafref_t prop_get_taf (scr_prop_setref_t bundle);
 extern void prop_debug_trace (scr_bool flag);

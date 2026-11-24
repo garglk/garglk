@@ -48,14 +48,13 @@ static const scr_char CARRIAGE_RETURN = '\r';
 
 
 /*
- * Legacy sentinel that introduced Scarier's old private Battle System block,
- * once written (for battle games only) as extra lines after the ADRIFT turns
- * count.  Current saves no longer emit it: the live battle state is interleaved
- * inline in the player and NPC records, matching the Runner's own layout (see
- * ser_save_battle_block and the version-header note below).  The marker is kept
- * only so ser_load_game can still read those older Scarier saves; it is
- * deliberately non-numeric so it can never be mistaken for a numeric ADRIFT
- * field.
+ * Sentinel that introduces the private Battle System block that older Scarier
+ * saves (battle games only) append after the ADRIFT turns count.  Saves are
+ * written without it: the live battle state is interleaved in the player and
+ * NPC records, matching the Runner's own layout (see ser_save_battle_block and
+ * the version-header note below).  ser_load_game reads it so those older saves
+ * still load; it is deliberately non-numeric so it can never be mistaken for a
+ * numeric ADRIFT field.
  *
  * The Runner's layout (reverse-engineered from run400.exe savegame @477318)
  * interleaves battle data -- a 15-field block right after the player fields,
@@ -87,13 +86,13 @@ static const scr_char *const SER_BATTLE_MARKER_V1 = "ScarierBattleState/1";
  * i.e. the byte 0xAC ('<not>', Chr(172)) followed by the Major version, the
  * Minor zero-padded to three digits, and the Revision zero-padded to two.  For
  * the shipped run400.exe, which reports file version 4.0.0.52, that is exactly
- * "\xAC" "400052".  Scarier historically omitted this line entirely (its stream
- * started at GameName), so a Runner save and a Scarier save were mutually
- * unreadable.  We now emit the header so the Runner will accept our saves, and
- * on read we treat the leading 0xAC byte as an unambiguous discriminator: a
- * line beginning with it is a Runner/new-format save whose version line we
- * skip; any other first line is a legacy SCARE save whose first line is the
- * GameName.
+ * "\xAC" "400052".  Scarier historically omitted this line entirely (its
+ * stream started at GameName), so a Runner save and a Scarier save were
+ * mutually unreadable.  We now emit the header so the Runner will accept our
+ * saves, and on read we treat the leading 0xAC byte as an unambiguous
+ * discriminator: a line beginning with it is a Runner/new-format save whose
+ * version line we skip; any other first line is a legacy SCARE save whose
+ * first line is the GameName.
  */
 static const scr_byte SER_VERSION_LEAD = 0xAC;
 static const scr_char *const SER_VERSION_HEADER = "\xAC" "400052";
@@ -145,11 +144,12 @@ ser_openness_pre_v4 (scr_int openness)
  * never interoperates with a Runner, so they can skip zlib entirely: profiling
  * put the per-turn deflate at ~20-48% of the interpreter, and it buys nothing
  * for a buffer we rewrite every 16 turns and read back ourselves.  memo_save_-
- * game()/memo_load_game() set this around their ser_save_game()/ser_load_game()
- * calls; the save side (ser_flush) then passes bytes straight through, and the
- * load side (ser_load_game) reads them back via taf_create_tas_raw().  File
- * saves never set it, so their zlib format -- and the save-file sniffer -- are
- * untouched.  Both entry points self-clear it, like ser.pre_v4.
+ * game()/memo_load_game() set this around their
+ * ser_save_game()/ser_load_game() calls; the save side (ser_flush) then passes
+ * bytes straight through, and the load side (ser_load_game) reads them back
+ * via taf_create_tas_raw().  File saves never set it, so their zlib format --
+ * and the save-file sniffer -- are untouched.  Both entry points self-clear
+ * it, like ser.pre_v4.
  */
 
 
@@ -458,9 +458,9 @@ ser_buffer_buffer (const scr_char *buffer, scr_int length)
    * Copy in chunks, flushing eagerly whenever the buffer fills -- every
    * helper (ser_buffer_character included) relies on the buffer never being
    * left exactly full.  The undo snapshot funnels the whole game state
-   * through here every turn, so this is memcpy rather than the old
-   * per-character loop; the deflate stream sees the same byte sequence
-   * either way (Z_NO_FLUSH output depends only on the data).
+   * through here every turn, so this is memcpy rather than a per-character
+   * loop; the deflate stream sees the same byte sequence either way
+   * (Z_NO_FLUSH output depends only on the data).
    */
   while (offset < length)
     {
@@ -590,9 +590,9 @@ ser_buffer_boolean (scr_bool boolean)
  * The Runner stores the four ranged battle attributes in the save in the
  * order Strength, Defence, Accuracy, Agility -- Scarier's scr_battle_t slots
  * 0, 2, 1, 3 (BATTLE_STRENGTH/ACCURACY/DEFENSE/AGILITY) -- and writes each as
- * max, hi, lo.  (Order derived from real run400.exe saves; the original
- * capture notes are no longer in the tree, so re-confirm against a Runner
- * save before changing it.)
+ * max, hi, lo.  (Order derived from real run400.exe saves; no capture of
+ * those saves is in the tree, so re-confirm against a Runner save before
+ * changing it.)
  */
 static const scr_int SER_BATTLE_SLOTS[BATTLE_ATTR_COUNT] = {
   BATTLE_STRENGTH, BATTLE_DEFENSE, BATTLE_ACCURACY, BATTLE_AGILITY
@@ -611,10 +611,10 @@ static const scr_int SER_BATTLE_SLOTS[BATTLE_ATTR_COUNT] = {
  * The Runner prints these with the raw VB Print numeric format, i.e.
  * space-padded; ser_buffer_int_special matches it byte for byte.
  *
- * NOTE: the byte-exact correspondence to real run400.exe saves was originally
- * validated against captured .tas fixtures; those notes are no longer checked
- * into the tree, so treat cross-Runner compatibility as unverified against this
- * repo alone until re-confirmed with a Runner-produced battle save.
+ * NOTE: the byte-exact correspondence to real run400.exe saves was validated
+ * against captured .tas fixtures that are not in the tree, so treat
+ * cross-Runner compatibility as unverified against this repo alone until
+ * re-confirmed with a Runner-produced battle save.
  */
 static void
 ser_save_battle_block (scr_gameref_t game, scr_int npc)
@@ -815,7 +815,8 @@ ser_save_object_location (scr_gameref_t game, scr_int object)
     {
       /* Relocated static object: present in its current room, or nowhere. */
       const scr_int position = gs_object_position (game, object);
-      const std::vector<scr_int> &rooms = game->objects[object].static_rooms;
+      const std::vector<scr_int> &rooms
+          = game->world.objects[object].static_rooms;
 
       /* ...or, once 4.0 finish moves have piled up, in all of these. */
       if (position != OBJ_HELD_PLAYER && !rooms.empty ())
@@ -918,8 +919,8 @@ ser_save_header (scr_gameref_t game)
 
   /*
    * Write the ADRIFT v4 version line first, so the real Runner (and other v4
-   * interpreters) recognise the file as one of theirs.  See SER_VERSION_HEADER.
-   * Pre-4.0 saves have no version line at all.
+   * interpreters) recognise the file as one of theirs.  See
+   * SER_VERSION_HEADER. Pre-4.0 saves have no version line at all.
    */
   if (!ser.pre_v4)
     ser_buffer_string (SER_VERSION_HEADER);
@@ -937,7 +938,7 @@ ser_save_header (scr_gameref_t game)
   ser_buffer_int (gs_npc_count (game));
 
   /* Write the score. */
-  ser_buffer_int (game->score);
+  ser_buffer_int (game->world.score);
 }
 
 /* The player block, encumbrance, and the player's battle block. */
@@ -968,9 +969,9 @@ ser_save_player (scr_gameref_t game)
    * Write encumbrance details: the player's size and weight limits (constant
    * for a game, the same converted values the Runner stores), then the current
    * carried size and weight.  We maintain these running totals (matching
-   * the Runner's accounting, double-count and all), so we write the live values
-   * just as the Runner does.  They are still recomputed from inventory on load,
-   * so a reader that ignores them remains correct.
+   * the Runner's accounting, double-count and all), so we write the live
+   * values just as the Runner does.  They are still recomputed from inventory
+   * on load, so a reader that ignores them remains correct.
    */
   ser_buffer_int (obj_get_player_size_limit (game));
   ser_buffer_int (gs_carried_size (game));
@@ -978,8 +979,8 @@ ser_save_player (scr_gameref_t game)
   ser_buffer_int (gs_carried_weight (game));
 
   /*
-   * Battle System: the player's interleaved battle block sits here, between the
-   * encumbrance fields and the room-seen flags, for battle games only.
+   * Battle System: the player's interleaved battle block sits here, between
+   * the encumbrance fields and the room-seen flags, for battle games only.
    */
   if (battle_is_enabled (game))
     ser_save_battle_block (game, -1);
@@ -1194,14 +1195,13 @@ ser_save_game_body (scr_gameref_t game)
   ser_buffer_uint (var_get_elapsed_seconds (vars));
 
   /* Save turns count. */
-  ser_buffer_uint ((scr_uint) game->turns);
+  ser_buffer_uint ((scr_uint) game->world.turns);
 
   /*
    * Note: the live Battle System state (stamina, attributes, attitudes, etc.)
-   * is now written inline, in the player and NPC blocks, matching the
-   * Runner's layout.  We no longer append the private trailing
-   * SER_BATTLE_MARKER block; older Scarier saves that carry one are still read
-   * (see ser_load_game).
+   * is written inline, in the player and NPC blocks, matching the Runner's
+   * layout.  Nothing follows the turns count; older Scarier saves that
+   * append a SER_BATTLE_MARKER block are still read (see ser_load_game).
    */
 }
 
@@ -1390,8 +1390,8 @@ ser_get_boolean (void)
  * ser_reject_if()
  *
  * Reject the save currently being restored (via the restore error throw) when
- * a value read from the untrusted save file is out of range for this game.  The
- * gs_* accessors only assert their index arguments, which is a no-op under
+ * a value read from the untrusted save file is out of range for this game.
+ * The gs_* accessors only assert their index arguments, which is a no-op under
  * NDEBUG, so without these explicit checks a corrupt save could plant
  * out-of-range room/object/NPC indices that later read or write game-state
  * arrays out of bounds.
@@ -1430,11 +1430,11 @@ ser_get_wield (scr_gameref_t game)
 /*
  * ser_restore_battle_attributes()
  *
- * Read back the version-2 mutable battle attributes of one character.  The
- * matching writer no longer exists: current saves interleave the battle block
- * (ser_restore_battle_block below), so this field order matches nothing we
- * write today and only runs against saves from the removed v2 writer.  Verify
- * against a real legacy v2 save before changing it.
+ * Read back the version-2 mutable battle attributes of one character, from
+ * saves made by older Scarier builds.  Scarier writes no v2 saves (the battle
+ * block is interleaved, see ser_restore_battle_block below), so this field
+ * order is checked by nothing in the tree.  Verify against a real legacy v2
+ * save before changing it.
  */
 static void
 ser_restore_battle_attributes (scr_battle_t *battle)
@@ -1458,8 +1458,8 @@ ser_restore_battle_attributes (scr_battle_t *battle)
  * ser_restore_battle_block()
  *
  * Read back one character's interleaved ADRIFT battle block, in the order
- * ser_save_battle_block() wrote it, restoring live stamina and (for the player)
- * the wielded weapon or (for an NPC) the attack counter as it goes.
+ * ser_save_battle_block() wrote it, restoring live stamina and (for the
+ * player) the wielded weapon or (for an NPC) the attack counter as it goes.
  */
 static void
 ser_restore_battle_block (scr_gameref_t game, scr_int npc)
@@ -1508,9 +1508,10 @@ ser_restore_battle_block (scr_gameref_t game, scr_int npc)
  * ser_object_parent_valid()
  *
  * Validate a dynamic object's restored position and parent.  A position is one
- * of the OBJ_* sentinels or a 1-based room number.  A parent is an object index
- * for on/in-object positions, an NPC index for held/worn/part-of-NPC positions
- * (or -1 for part-of-player), and is unused (so unconstrained) otherwise.
+ * of the OBJ_* sentinels or a 1-based room number.  A parent is an object
+ * index for on/in-object positions, an NPC index for held/worn/part-of-NPC
+ * positions (or -1 for part-of-player), and is unused (so unconstrained)
+ * otherwise.
  */
 static scr_bool
 ser_object_position_valid (scr_gameref_t game, scr_int position)
@@ -1561,8 +1562,8 @@ ser_object_parent_valid (scr_gameref_t game, scr_int position, scr_int parent)
  *     piled up (evt_move_object).  (The saver writes a static held by the
  *     player as none.)
  *
- * Until 2026-09-14 both forms were discarded, so every restore -- a saved
- * game, the undo tail and Spatterlight's autosave -- put an event-moved static
+ * Both forms must be kept.  Discarding them, every restore -- a saved game,
+ * the undo tail and Spatterlight's autosave -- would put an event-moved static
  * back where the game started it: wrecked.taf's hole in the sewer wall.
  *
  * A dynamic object, or any object in a legacy save, is a single position
@@ -1578,7 +1579,7 @@ ser_restore_object_location (scr_gameref_t game, scr_int object,
 
       if (position >= OBJ_HELD_PLAYER && position <= gs_room_count (game))
         {
-          game->objects[object].position = position;
+          game->world.objects[object].position = position;
           gs_set_object_static_unmoved (game, object, FALSE);
         }
     }
@@ -1597,7 +1598,7 @@ ser_restore_object_location (scr_gameref_t game, scr_int object,
         {
           if (count == 0)
             {
-              game->objects[object].position = OBJ_HIDDEN;
+              game->world.objects[object].position = OBJ_HIDDEN;
               gs_set_object_static_unmoved (game, object, FALSE);
             }
           else
@@ -1613,7 +1614,7 @@ ser_restore_object_location (scr_gameref_t game, scr_int object,
                          && rooms[index_] <= gs_room_count (game);
               if (!valid)
                 return;
-              game->objects[object].position = rooms[count];
+              game->world.objects[object].position = rooms[count];
               gs_set_object_static_unmoved (game, object, FALSE);
               gs_object_static_rooms_clear (game, object);
               for (index_ = 1; index_ <= count; index_++)
@@ -1622,7 +1623,7 @@ ser_restore_object_location (scr_gameref_t game, scr_int object,
         }
     }
   else
-    game->objects[object].position = ser_get_int ();
+    game->world.objects[object].position = ser_get_int ();
 }
 
 
@@ -1670,9 +1671,9 @@ ser_load_header (scr_gameref_t game)
 
   /*
    * Compare the saved GameName with the one in the game.  Fail if they don't
-   * match exactly.  A tighter check than this would perhaps be preferable, say,
-   * something based on the TAF file header, but this isn't in the save file
-   * format.
+   * match exactly.  A tighter check than this would perhaps be preferable,
+   * say, something based on the TAF file header, but this isn't in the save
+   * file format.
    */
   vt_key[0].string = "Globals";
   vt_key[1].string = "GameName";
@@ -1756,7 +1757,7 @@ ser_load_object (scr_gameref_t game, scr_int object, scr_bool runner_format)
   /* Bypass mutators for position and parent.  Fix later? */
   ser_restore_object_location (game, object, runner_format);
   gs_set_object_seen (game, object, ser_get_boolean ());
-  game->objects[object].parent = ser_get_int ();
+  game->world.objects[object].parent = ser_get_int ();
 
   /*
    * Validate a dynamic object's restored position and parent against the
@@ -1765,8 +1766,8 @@ ser_load_object (scr_gameref_t game, scr_int object, scr_bool runner_format)
    */
   if (!obj_is_static (game, object))
     {
-      const scr_int position = game->objects[object].position;
-      const scr_int parent = game->objects[object].parent;
+      const scr_int position = game->world.objects[object].position;
+      const scr_int parent = game->world.objects[object].parent;
 
       ser_reject_if (!ser_object_position_valid (game, position));
       ser_reject_if (!ser_object_parent_valid (game, position, parent));
@@ -1816,11 +1817,11 @@ ser_load_object_runner_parent (scr_gameref_t game, scr_int object)
     gs_set_object_runner_parent (game, object, -1);
   else
     {
-      const scr_int position = game->objects[object].position;
+      const scr_int position = game->world.objects[object].position;
 
       if (position == OBJ_IN_OBJECT || position == OBJ_ON_OBJECT)
         gs_set_object_runner_parent (game, object,
-                                     game->objects[object].parent);
+                                     game->world.objects[object].parent);
       else if (position == OBJ_HELD_NPC || position == OBJ_WORN_NPC)
         gs_set_object_runner_parent (game, object, -1);
       else
@@ -1854,11 +1855,11 @@ ser_reject_containment_loops (scr_gameref_t game)
       scr_int object = index_, steps = 0;
 
       while (!obj_is_static (game, object)
-             && (game->objects[object].position == OBJ_IN_OBJECT
-                 || game->objects[object].position == OBJ_ON_OBJECT))
+             && (game->world.objects[object].position == OBJ_IN_OBJECT
+                 || game->world.objects[object].position == OBJ_ON_OBJECT))
         {
           ser_reject_if (++steps > gs_object_count (game));
-          object = game->objects[object].parent;
+          object = game->world.objects[object].parent;
         }
     }
 }
@@ -1982,13 +1983,13 @@ ser_load_legacy_battle (scr_gameref_t game, scr_bool runner_format)
 
   /*
    * Legacy battle saves (no version header) carry their combat state in a
-   * private trailing block introduced by a sentinel on the line after the turns
-   * count.  Runner-format saves carry it inline (read above), so we only look
-   * for the trailing block when reading a legacy save.  battle_start() seeded
-   * fresh state earlier, so a legacy save that predates the battle extension --
-   * or one with no trailing block -- simply keeps that re-rolled state.
-   * taf_next_line returns NULL at end of data without faulting, so the peek is
-   * safe even when nothing follows the turns count.
+   * private trailing block introduced by a sentinel on the line after the
+   * turns count.  Runner-format saves carry it inline (read above), so we only
+   * look for the trailing block when reading a legacy save.  battle_start()
+   * seeded fresh state earlier, so a legacy save that predates the battle
+   * extension -- or one with no trailing block -- simply keeps that re-rolled
+   * state. taf_next_line returns NULL at end of data without faulting, so the
+   * peek is safe even when nothing follows the turns count.
    */
   if (!runner_format && battle_is_enabled (game))
     {
@@ -2049,15 +2050,15 @@ ser_load_game_body (scr_gameref_t game,
   /* All set to load TAF (TAS) data into the new game. */
 
   /*
-   * Seed the Battle System state up front so that the interleaved battle blocks
-   * read below (Runner format) can overwrite it, and so that fields the Runner
-   * does not persist (the stamina counters) keep a sane zero.  A no-op for
-   * non-battle games.
+   * Seed the Battle System state up front so that the interleaved battle
+   * blocks read below (Runner format) can overwrite it, and so that fields the
+   * Runner does not persist (the stamina counters) keep a sane zero.  A no-op
+   * for non-battle games.
    */
   battle_start (new_game);
 
   /* Restore the score. */
-  new_game->score = ser_get_int ();
+  new_game->world.score = ser_get_int ();
 
   saved_carried_weight = ser_load_player (new_game, runner_format);
 
@@ -2093,7 +2094,7 @@ ser_load_game_body (scr_gameref_t game,
   var_set_elapsed_seconds (new_vars, ser_get_uint ());
 
   /* Restore turns count. */
-  new_game->turns = (scr_int) ser_get_uint ();
+  new_game->world.turns = (scr_int) ser_get_uint ();
 
   ser_load_legacy_battle (new_game, runner_format);
 
@@ -2103,8 +2104,8 @@ ser_load_game_body (scr_gameref_t game,
    * game.  This way, both the requested and the active resources in the
    * game are unchanged by restore.
    */
-  new_game->requested_sound = game->requested_sound;
-  new_game->requested_graphic = game->requested_graphic;
+  new_game->media.requested_sound = game->media.requested_sound;
+  new_game->media.requested_graphic = game->media.requested_graphic;
 
   /*
    * Reseed the carried-load totals from the restored inventory the way the
@@ -2119,7 +2120,7 @@ ser_load_game_body (scr_gameref_t game,
    * after a drop, 39 again once restored; a base-only reseed would say 30).
    */
   if (obj_uses_running_weight (new_game) && !obj_uses_running_load (new_game))
-    new_game->carried_weight = saved_carried_weight;
+    new_game->carried.weight = saved_carried_weight;
 
   /*
    * If we got this far, we successfully restored the game from the file.

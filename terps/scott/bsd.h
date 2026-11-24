@@ -1,3 +1,8 @@
+/*
+ *  bsd.h
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ */
+
 #ifndef bsd_h
 #define bsd_h
 

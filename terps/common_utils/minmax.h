@@ -1,18 +1,38 @@
-//
-//  minmax.h
-//  Spatterlight
-//
-//  Created by Administrator on 2025-12-20.
-//
+/*
+ *  minmax.h
+ *
+ *  Copyright (c) 2025 Petter Sjölund
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *  THE SOFTWARE.
+ *
+ *  MIN and MAX, unless a system header got there first. As with any macro, an
+ *  argument may be evaluated twice.
+ */
 
 #ifndef minmax_h
 #define minmax_h
 
 #if !defined MIN
-#define MIN(a,b) (a < b ? a : b)
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 #if !defined MAX
-#define MAX(a,b) (a > b ? a : b)
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
 #endif /* minmax_h */

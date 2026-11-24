@@ -14,6 +14,12 @@ taylor by the Xcode project and by `scott/Makefile.headless`,
 `taylor/Makefile.headless`, `scott/saga/test/Makefile` and the two terps' test
 probes.
 
+## Licences
+
+Everything here is GPL 2 or later, which suits both ScottFree (GPL 2 or later) and
+TaylorMade (GPL 2 only). `irmak.c` and `aiukpalette.c` also keep David Lodge's MIT
+notice, because they descend from his Sagadraw.
+
 ## The suites
 
 ```

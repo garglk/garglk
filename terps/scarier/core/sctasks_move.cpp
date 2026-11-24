@@ -302,9 +302,9 @@ task_move_object (scr_gameref_t game, scr_int object,
    * Ignore negative object indexes, as evt_move_object() does.  Var1 = 2 is
    * "the referenced object", and a task reached by redirection (or matched by
    * a pattern with no %object%) has none, so var_get_ref_object() hands back
-   * -1.  The Runner's Select Case simply moves nothing; SCARE used to walk
-   * into gs_object_*() and abort on its range assertion.  Mortality's task
-   * 314 [? the return] does exactly this.
+   * -1.  The Runner's Select Case simply moves nothing; SCARE walks into
+   * gs_object_*() and aborts on its range assertion.  Mortality's task 314 [?
+   * the return] does exactly this.
    */
   if (object < 0)
     {
@@ -317,8 +317,8 @@ task_move_object (scr_gameref_t game, scr_int object,
    * Static objects do not move for a task action.  run400's object mover
    * (Sub_20_11 @0008C200) skips them at @0008C360 -- "If Objects(o).Static = 1
    * Then <next object>" -- before any destination case runs, so the refusal
-   * covers every destination, not just the room ones.  Measured live
-   * (test/adrift4/notes/RUNNER_TESTS_TODO.md section 9): a task whose action
+   * covers every destination, not just the room ones.  Measured live ("Probe
+   * backlog" in test/adrift4/notes/RUNNER_TESTS.md): a task whose action
    * moves the referenced object to "held by player" prints its completion text
    * for "grab plaque" and leaves the plaque exactly where it was, and a
    * move-to-hidden aimed at a static the player is already holding (an event
@@ -382,7 +382,7 @@ task_move_object (scr_gameref_t game, scr_int object,
    * swaps the empty canteen inside the shut bucket for a full one.  With
    * the openness-aware predicate the empty canteen's 9/3 never came off,
    * and every `count` for the rest of the game read 9 size and 3 weight
-   * high (measured against run400, 2026-08-23).
+   * high (measured against run400).
    */
   {
     const scr_bool was_possessed = gs_runner_possessed (game, object);
@@ -426,21 +426,21 @@ task_move_object (scr_gameref_t game, scr_int object,
      * plate onto the dinner tray before the player has examined the table,
      * so the plate stays unseen and `take plate` answers "Take what?".
      *
-     * run390's execute_action (455C24-4573DA) stamps by destination the
-     * same way -- room only when the player's (455E16), into/onto only when
-     * the parent is seen (455F53, 455FCA), held or worn by the player always
+     * run390's execute_action (455C24-4573DA) stamps by destination the same
+     * way -- room only when the player's (455E16), into/onto only when the
+     * parent is seen (455F53, 455FCA), held or worn by the player always
      * (45602E, 45612E), same room as the player always (456232) and as a
-     * character when that character's room is the player's (456287, 4562EE),
-     * a roomgroup never -- except that an object handed to or worn by a
+     * character when that character's room is the player's (456287, 4562EE), a
+     * roomgroup never -- except that an object handed to or worn by a
      * character is never stamped (456099-4560DA, 45618B-4561DA), where 4.0
-     * stamps a held one it can see afterwards.  secret_of_lost_world T52
-     * `put tooth in skull` (run390, runner_transcripts/secret_of_lost_world,
-     * 2026-09-19) moves the blue gem onto the fresh skeleton before anything
-     * has listed the skeleton, so the gem stays unseen, and the next turn's
-     * `take blue gem` has one seen "gem" present -- the held green one --
-     * for takes()'s co() to name: "You already have the green gem!".  With
-     * the visibility stamp Scarier counted two and took the blue gem.
-     * Earlier versions keep the visibility stamp, unread.
+     * stamps a held one it can see afterwards.  secret_of_lost_world T52 `put
+     * tooth in skull` (run390, runner_transcripts/secret_of_lost_world) moves
+     * the blue gem onto the fresh skeleton before anything has listed the
+     * skeleton, so the gem stays unseen, and the next turn's `take blue gem`
+     * has one seen "gem" present -- the held green one -- for takes()'s co()
+     * to name: "You already have the green gem!".  With the visibility stamp
+     * Scarier counted two and took the blue gem.  Earlier versions keep the
+     * visibility stamp, unread.
      */
     if (taf_version >= TAF_VERSION_390
         ? stamp_seen
@@ -590,7 +590,7 @@ task_move_npc_to_room (scr_gameref_t game, scr_int npc, scr_int room)
 /*
  * task_same_room_npc_390()
  *
- * The "to same room as" arm (Var2 = 2) at 3.90 names its NPC by raw array
+ * The "to same room as" arm (Var2 = 2) at 3.9 names its NPC by raw array
  * index: run390 execute_action copies MemVar_468028(Var3).room for the NPC
  * arm (4567C9-4567EB) and the player arm (456514-456531) alike, with no
  * player or referenced-character entries ahead of the NPCs.  run400 decodes

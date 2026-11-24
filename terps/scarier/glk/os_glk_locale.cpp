@@ -26,6 +26,8 @@
 
 #include "os_glk_internal.h"
 
+#include <vector>
+
 /*---------------------------------------------------------------------*/
 /*  Glk port locale data                                               */
 /*---------------------------------------------------------------------*/
@@ -375,11 +377,12 @@ gsc_put_char_locale (scr_char ch,
    * rendering also routes through here, and must not clobber the flag that
    * os_show_graphic() relies on to decide whether to emit a leading break.
    */
-  if (gsc_main_window
-      && glk_stream_get_current () == glk_window_get_stream (gsc_main_window))
+  if (gsc_io.main_window
+      && glk_stream_get_current ()
+         == glk_window_get_stream (gsc_io.main_window))
     {
       gsc_main_at_line_start = (ch == '\n');
-      gsc_main_window_empty = FALSE;
+      gsc_io.main_window_empty = FALSE;
     }
   unsigned char character;
   glui32 unicode;
@@ -429,7 +432,7 @@ gsc_put_char_locale (scr_char ch,
        * the character that way.  The transcript is a unicode stream
        * (gsc_open_log_stream), so the echo writes it too.
        */
-      if (gsc_unicode_enabled)
+      if (gsc_options.unicode_enabled)
         {
           if (glk_gestalt (gestalt_CharOutput,
                            unicode) == gestalt_CharOutput_ExactPrint)
@@ -555,7 +558,7 @@ int gsc_line_echo_manual = FALSE;
  *
  * Read in a line and translate out of the given locale.  Returns the count
  * of characters placed in the buffer.  When a click on the map cancelled the
- * request to start a walk, gsc_sc_walk_clicked is set, the count is 0, and
+ * request to start a walk, gsc_walk.sc_clicked is set, the count is 0, and
  * the prompt is left as it was, in the input colour, for the walk's first
  * step to follow.
  */
@@ -576,11 +579,11 @@ gsc_read_line_locale (scr_char *buffer,
 #ifdef GLK_MODULE_LINE_ECHO
   if (glk_gestalt (gestalt_LineInputEcho, 0))
     {
-      glk_set_echo_line_event (gsc_main_window, 0);
+      glk_set_echo_line_event (gsc_io.main_window, 0);
       gsc_line_echo_manual = TRUE;
     }
 #endif
-  gsc_sc_walk_clicked = FALSE;
+  gsc_walk.sc_clicked = FALSE;
 
   /* The Runner echoes what the player types in its own "typed" colour, a
      different one from the text the game writes back. */
@@ -590,36 +593,31 @@ gsc_read_line_locale (scr_char *buffer,
    * If we have unicode, we have to use it to ensure that characters not in
    * the Latin1 locale are properly translated.
    */
-  if (gsc_unicode_enabled)
+  if (gsc_options.unicode_enabled)
     {
-      glui32 *unicode;
-
       /*
        * Allocate a unicode buffer long enough to hold all the characters,
        * then read in a unicode line.
        */
-      unicode = (decltype(unicode)) gsc_malloc (length * sizeof (*unicode));
-      memset (unicode, 0, length * sizeof (*unicode));
-      glk_request_line_event_uni (gsc_main_window, unicode, length, 0);
+      std::vector<glui32> unicode (length);
+      glk_request_line_event_uni (gsc_io.main_window, unicode.data (),
+                                  length, 0);
       gsc_event_wait (evtype_LineInput, &event);
 
       /* A click on the map took the request: there is no line. */
-      if (gsc_sc_walk_clicked)
-        {
-          free (unicode);
-          return 0;
-        }
+      if (gsc_walk.sc_clicked)
+        return 0;
       if (gsc_line_echo_manual)
         {
           glk_set_style (style_Input);
-          glk_put_buffer_uni (unicode, event.val1);
+          glk_put_buffer_uni (unicode.data (), event.val1);
           glk_set_style (style_Normal);
           glk_put_char ('\n');
         }
 
-      /* Convert the unicode buffer out, then free it. */
-      gsc_unicode_buffer_to_locale (unicode, event.val1, buffer, locale);
-      free (unicode);
+      /* Convert the unicode buffer out. */
+      gsc_unicode_buffer_to_locale (unicode.data (), event.val1, buffer,
+                                    locale);
 
       /* Return the count of characters placed in the buffer. */
       gsc_colour_echo (FALSE);
@@ -627,10 +625,10 @@ gsc_read_line_locale (scr_char *buffer,
     }
 
   /* No success with unicode, so fall back to standard line input. */
-  glk_request_line_event (gsc_main_window, buffer, length, 0);
+  glk_request_line_event (gsc_io.main_window, buffer, length, 0);
   gsc_event_wait (evtype_LineInput, &event);
 
-  if (gsc_sc_walk_clicked)
+  if (gsc_walk.sc_clicked)
     return 0;
   if (gsc_line_echo_manual)
     {
@@ -664,13 +662,13 @@ gsc_read_line (scr_char *buffer, scr_int length)
  * The number of grid cells gsc_put_string() will fill for this string.  Nearly
  * always one per byte, but a character with neither an iso 8859-1 nor a
  * printable unicode form falls back to a multi-character ascii substitute (see
- * gsc_put_char_locale()) -- "sh" for a Cyrillic sha, say -- so a plain strlen()
- * can under-count.  This mirrors gsc_put_char_locale()'s decision tree so that
- * right-justification lands where the text actually ends.
+ * gsc_put_char_locale()) -- "sh" for a Cyrillic sha, say -- so a plain
+ * strlen() can under-count.  This mirrors gsc_put_char_locale()'s decision
+ * tree so that right-justification lands where the text actually ends.
  *
- * Upstream instead subtracted a flat ten-column "slop" from the right margin to
- * absorb that case, which left every status line -- all-ascii ones included --
- * floating well short of the right edge.
+ * Upstream instead subtracted a flat ten-column "slop" from the right margin
+ * to absorb that case, which left every status line -- all-ascii ones included
+ * -- floating well short of the right edge.
  */
 glui32
 gsc_status_printed_width (const scr_char *string)
@@ -698,7 +696,7 @@ gsc_status_printed_width (const scr_char *string)
               width++;
               continue;
             }
-          if (gsc_unicode_enabled
+          if (gsc_options.unicode_enabled
               && glk_gestalt (gestalt_CharOutput,
                               unicode) == gestalt_CharOutput_ExactPrint)
             {

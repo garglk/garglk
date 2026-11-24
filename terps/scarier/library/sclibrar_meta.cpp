@@ -20,9 +20,11 @@
 
 /*
  * Look, quit, restart, undo, history/redo, hints, help and the other
- * out-of-game commands, plus wait, verbose/brief, notify and time.
+ * out-of-game commands, plus wait, verbose/brief, notify, time, save,
+ * restore, turns and score.
  *
- * See sclibrar.h for what the library files share.
+ * Out-of-game output that is not the game's own text prints directly rather
+ * than through the printfilter, to avoid possible clashes with ALRs.
  */
 
 #include "sclibrar.h"
@@ -58,7 +60,7 @@ lib_cmd_look (scr_gameref_t game)
  * look.  Bare `x`, `ex` and `examine` are not an examine either: examines
  * opens with `If input = "examine" Or "ex" Or "x" Then Exit` (run400 471340,
  * run390 44B758), and the line ends in the game's DontUnderstand.  Measured
- * on Lair of the Vampire (4.00), whose synonym 2 rewrites `look` to `x`:
+ * on Lair of the Vampire (4.0), whose synonym 2 rewrites `look` to `x`:
  * run400 answers `look` with "Try something different." in three separate
  * captures (runner_probes/lair.run400.[abc].txt), and because the room is
  * never listed, the cobalt key an earlier task dropped there stays unseen and
@@ -79,12 +81,10 @@ lib_cmd_look (scr_gameref_t game)
  * Deliberate deviation: any line this row matches that names the room or
  * location looks, so `examine room`, `look at room` and `x the room` show
  * the room instead of "Nothing special." (3.7-3.9) or "You see no such
- * thing." (4.0).  Below 3.9 since 2026-09-27, at every version since
- * 2026-09-30 (bec2def78).  `look around` and `l around` look as well, at
- * every version since 2026-10-15; the Runners answer them as above.  The
- * bare forms keep the Runner's answer.  A
- * typed `l` or `look` that a game synonym would turn into a bare `x` stays
- * a look; see run_element_filtered().
+ * thing." (4.0).  This is at every version.  `look around` and `l around` look
+ * as well; the Runners answer them as above.  The bare forms keep the Runner's
+ * answer.  A typed `l` or `look` that a game synonym would turn into a bare
+ * `x` stays a look; see run_element_filtered().
  */
 scr_bool
 lib_cmd_look_typed (scr_gameref_t game)
@@ -141,9 +141,9 @@ lib_cmd_look_typed (scr_gameref_t game)
  *     run370 loc_43C07E:  Me.Global.Unload MemVar_4461A8
  *     run370 loc_43C089:  MemVar_4460E4 = "I'm so glad you said no..."
  *
- * (run380 loc_44A6xx, run390 loc_45FA5D, run400 loc_48AABA/48AAC2 are the same
- * pair) -- because VB's Unload raises Form_QueryUnload, which is where the
- * Runner puts the "Are you sure?" box.  Confirm and the process is gone before
+ * (run380 loc_4428D2/4428DD, run390 loc_45FB82/45FB8A, run400
+ * loc_48AABA/48AAC2 are the same pair) -- because VB's Unload raises
+ * Form_QueryUnload, which is where the Runner puts the "Are you sure?" box.  Confirm and the process is gone before
  * the assignment can matter; decline and Unload simply returns, leaving the
  * line as the turn's whole output.  Note it is an assignment, not an append,
  * so it *replaces* anything the turn had buffered; here the buffer is
@@ -160,7 +160,7 @@ lib_cmd_quit (scr_gameref_t game)
   else
     pf_buffer_string (gs_get_filter (game), "I'm so glad you said no...\n");
 
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   return TRUE;
 }
 
@@ -179,9 +179,11 @@ lib_cmd_quit (scr_gameref_t game)
  * reaches.  run400 loc_48AAC9-48ABB8:
  *
  *     If cmd = "endgame" Then
- *       out &= "You scored" & Str(score) & " out of the maximum" & Str(MaxScore) & "!" & CRLF
+ *       out &= "You scored" & Str(score) & " out of the maximum" &
+ *         Str(MaxScore) & "!" & CRLF
  *       If MaxScore = 0 Then MaxScore = 1
- *       out &= "That is" & Str(Int(score * (100 / MaxScore))) & "% of the game!" & CRLF & CRLF
+ *       out &= "That is" & Str(Int(score * (100 / MaxScore))) &
+ *         "% of the game!" & CRLF & CRLF
  *       out &= "[Press any key to end]"
  *       gameover = 3
  *
@@ -193,7 +195,7 @@ lib_cmd_quit (scr_gameref_t game)
  * one as 100%, so the two printers are deliberately kept apart.
  *
  * All four Runners carry the branch, identically worded (run370 loc_43C095,
- * run380 loc_442xxx, run390 loc_45FB94, run400 loc_48AAC9), and every literal
+ * run380 loc_4428E9, run390 loc_45FB91, run400 loc_48AAC9), and every literal
  * is in all four constant pools, so it is not gated on a version.
  *
  * "[Press any key to end]" is the Runner's own end-of-session prompt, printed
@@ -211,7 +213,7 @@ lib_cmd_endgame (scr_gameref_t game)
   max_score = prop_get_global_integer (bundle, "MaxScore");
 
   pf_buffer_string (filter, "You scored ");
-  snprintf (buffer, sizeof (buffer), "%ld", game->score);
+  snprintf (buffer, sizeof (buffer), "%ld", game->world.score);
   pf_buffer_string (filter, buffer);
   pf_buffer_string (filter, " out of the maximum ");
   snprintf (buffer, sizeof (buffer), "%ld", max_score);
@@ -219,21 +221,25 @@ lib_cmd_endgame (scr_gameref_t game)
   pf_buffer_string (filter, "!\n");
 
   divisor = max_score == 0 ? 1 : max_score;
-  percent = (scr_int) floor (game->score * (100.0 / divisor));
+  percent = (scr_int) floor (game->world.score * (100.0 / divisor));
   pf_buffer_string (filter, "That is ");
   snprintf (buffer, sizeof (buffer), "%ld", percent);
   pf_buffer_string (filter, buffer);
   pf_buffer_string (filter, "% of the game!\n");
 
-  /* The second of the block's two CRLFs, and then the Runner's own
-     end-of-session prompt on the far side of the blank line it leaves
-     ("...% of the game!" & CRLF & CRLF & the prompt), exactly as
-     Form1.endmessage closes an ending; see task_print_end_keyprompt(). */
+  /*
+   * The second of the block's two CRLFs, and then the Runner's own
+   * end-of-session prompt on the far side of the blank line it leaves
+   * ("...% of the game!" & CRLF & CRLF & the prompt), exactly as
+   * Form1.endmessage closes an ending; see task_print_end_keyprompt().
+   */
   pf_buffer_answer_break (filter);
   task_print_end_keyprompt (game);
 
-  /* Stop the game, and note that it's not resumeable -- the gameover byte the
-     Runner sets here is the same one an EndGame task action writes. */
+  /*
+   * Stop the game, and note that it's not resumeable -- the gameover byte the
+   * Runner sets here is the same one an EndGame task action writes.
+   */
   game->is_running = FALSE;
   game->has_completed = TRUE;
   return TRUE;
@@ -273,10 +279,10 @@ lib_cmd_restart (scr_gameref_t game)
   if (if_confirm (SCR_CONF_RESTART))
     {
       game->is_running = FALSE;
-      game->do_restart = TRUE;
+      game->turn.do_restart = TRUE;
     }
 
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   return TRUE;
 }
 
@@ -287,22 +293,22 @@ lib_cmd_restart (scr_gameref_t game)
  * Called on "undo".  Restores any undo game or memo to the main game.
  *
  * The wording is a three-way version split, and none of the three is what
- * SCARE used to say.  Measured 2026-09-07 from the four Runners' constant
- * pools and the handlers that print them:
+ * SCARE says.  Measured from the four Runners' constant pools and the handlers
+ * that print them:
  *
- *   3.70  has no `undo` at all -- the word does not occur in run370's pool,
+ *   3.7   has no `undo` at all -- the word does not occur in run370's pool,
  *         so the line falls through to the game's DontUnderstand.
- *   3.80  knows the word and has nothing behind it: run380 generaltasks
+ *   3.8   knows the word and has nothing behind it: run380 generaltasks
  *         @442EE9 tests `c("undo")` and answers "I can't undo your
  *         blundering." every time, with no state to restore.
- *   3.90+ answers "Undone." on success (run390 do_undo @436AB5, run400
+ *   3.9+ answers "Undone." on success (run390 do_undo @436AB5, run400
  *         Proc_19_62 @45B0FF) and "I can't undo any more of your
  *         blunderings!" when the history is empty (@45B158).
  *
  * "[The previous turn has been undone.]", "Sorry, no more undo is
  * available." and "You can't undo what hasn't been done." are in no Runner's
  * pool at all, and neither Runner prints a room name with the answer:
- * runner_transcripts/cellar.txt (4.00) reads plain "Undone." three times
+ * runner_transcripts/cellar.txt (4.0) reads plain "Undone." three times
  * running.
  *
  * 3.9 and 4.0 also REPLAY the restored turn's output.  Each Runner keeps a
@@ -326,8 +332,8 @@ lib_cmd_undo (scr_gameref_t game)
   const scr_memo_setref_t memento = gs_get_memento (game);
 
   /*
-   * Deliberate deviation: 3.70 and 3.80 undo as 3.9/4.0 do.  The 3.70
-   * Runner does not know the word and 3.80 refuses it every time, but an
+   * Deliberate deviation: 3.7 and 3.8 undo as 3.9/4.0 do.  The 3.7
+   * Runner does not know the word and 3.8 refuses it every time, but an
    * interpreter that can undo should; a game's own `undo` task still wins,
    * because tasks are matched before the library (Cut_the_Red_Wire).  No
    * 3.7/3.8 corpus game names undo in a task.
@@ -338,7 +344,7 @@ lib_cmd_undo (scr_gameref_t game)
    * runner_probes/admin.run390.txt's `turns` after
    * undo/redo/x me/i/z/wait/exits/yes reads 37, one per element typed.
    */
-  const scr_int turns = game->turns;
+  const scr_int turns = game->world.turns;
   std::string replay;
 
   /* If an undo buffer is available, restore it. */
@@ -346,7 +352,7 @@ lib_cmd_undo (scr_gameref_t game)
     {
       gs_copy (game, game->undo);
       if (lib_is_version_390 (game))
-        game->turns = turns;
+        game->world.turns = turns;
       game->undo_available = FALSE;
 
       pf_buffer_string (filter, "Undone.\n");
@@ -354,7 +360,7 @@ lib_cmd_undo (scr_gameref_t game)
                          run_get_undo_text ());
 
       /* Undo can't properly unravel layered sounds... */
-      game->stop_sound = TRUE;
+      game->media.stop_sound = TRUE;
     }
 
   /*
@@ -370,10 +376,10 @@ lib_cmd_undo (scr_gameref_t game)
       pf_buffer_printed (filter, gs_get_vars (game), gs_get_bundle (game),
                          replay);
       if (lib_is_version_390 (game))
-        game->turns = turns;
+        game->world.turns = turns;
 
       game->is_running = FALSE;
-      game->do_restore = TRUE;
+      game->turn.do_restore = TRUE;
     }
 
   /* If no undo buffer and memo restore failed, there's no undo available. */
@@ -382,7 +388,7 @@ lib_cmd_undo (scr_gameref_t game)
                       "I can't undo any more of your blunderings!\n");
 
   /* A turn in 3.9; see lib_is_version_390(). */
-  game->is_admin = !lib_is_version_390 (game);
+  game->turn.is_admin = !lib_is_version_390 (game);
   return TRUE;
 }
 
@@ -414,8 +420,8 @@ lib_format_elapsed_time (scr_int timestamp, scr_char *buffer, size_t length)
  * lib_cmd_history_number()
  * lib_cmd_history()
  *
- * Prints a history of saved commands for the game.  Print directly rather
- * than using the printfilter to avoid possible clashes with ALRs.
+ * Prints a history of saved commands for the game.  Prints directly; see the
+ * file head.
  */
 static scr_bool
 lib_cmd_history_common (scr_gameref_t game, scr_int limit)
@@ -425,14 +431,14 @@ lib_cmd_history_common (scr_gameref_t game, scr_int limit)
   scr_int first, count, timestamp;
 
   /*
-   * The runner main loop will add an entry for the "history" command that
+   * The Runner main loop will add an entry for the "history" command that
    * got us here, but it hasn't done so yet.  To keep the history list
    * accurate for recalling commands, we add a surrogate "history" command
    * to the history here, and remove it when we've done listing.  This matches
    * the c-shell, which always shows 'history' listed last.
    */
   timestamp = var_get_elapsed_seconds (vars);
-  memo_save_command (memento, "[history]", timestamp, game->turns);
+  memo_save_command (memento, "[history]", timestamp, game->world.turns);
 
   /* Decide on the first history to display; all if limit is 0 or less. */
   if (limit > 0)
@@ -498,7 +504,7 @@ lib_cmd_history_number (scr_gameref_t game)
     {
       if_print_string ("That's not a valid history length.\n");
 
-      game->is_admin = TRUE;
+      game->turn.is_admin = TRUE;
       return TRUE;
     }
 
@@ -526,10 +532,10 @@ lib_cmd_history (scr_gameref_t game)
 scr_bool
 lib_cmd_again (scr_gameref_t game)
 {
-  game->do_again = TRUE;
-  game->redo_sequence = 0;
+  game->turn.do_again = TRUE;
+  game->turn.redo_sequence = 0;
 
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   return TRUE;
 }
 
@@ -548,8 +554,8 @@ lib_cmd_redo_number (scr_gameref_t game)
   sequence = var_get_ref_number (vars);
   if (sequence != 0 && memo_find_command (memento, sequence))
     {
-      game->do_again = TRUE;
-      game->redo_sequence = sequence;
+      game->turn.do_again = TRUE;
+      game->turn.redo_sequence = sequence;
     }
   else
     {
@@ -558,18 +564,18 @@ lib_cmd_redo_number (scr_gameref_t game)
       /*
        * This is a failed redo, but returning FALSE will cause the game's
        * unknown command message to come up.  However, returning TRUE will
-       * cause the runner main loop to add this to its history, and at some
+       * cause the `run_` main loop to add this to its history, and at some
        * point a "redo 7" could cause problems (say, when it's at sequence 7,
        * where it'll cause an infinite loop).  To work round this, here we'll
-       * return a redo_sequence _without_ do_again, and have the runner catch
-       * that as an indication not to save the command in its history.  Sorry
-       * for the ugliness.
+       * return a redo_sequence _without_ do_again, and have the `run_` code
+       * catch that as an indication not to save the command in its history.
+       * Sorry for the ugliness.
        */
-      game->do_again = FALSE;
-      game->redo_sequence = INT_MAX;
+      game->turn.do_again = FALSE;
+      game->turn.redo_sequence = INT_MAX;
     }
 
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   return TRUE;
 }
 
@@ -598,10 +604,10 @@ lib_cmd_redo_text_last_common (scr_gameref_t game, const scr_char *target)
       if_print_string ("No matching entry found in the command history.\n");
 
       /* As with failed numeric redo above, special-case this return. */
-      game->do_again = FALSE;
-      game->redo_sequence = INT_MAX;
+      game->turn.do_again = FALSE;
+      game->turn.redo_sequence = INT_MAX;
 
-      game->is_admin = TRUE;
+      game->turn.is_admin = TRUE;
       return TRUE;
     }
 
@@ -655,19 +661,19 @@ lib_cmd_redo_text_last_common (scr_gameref_t game, const scr_char *target)
   /* If we found a match, set the redo values accordingly. */
   if (matched_sequence > 0)
     {
-      game->do_again = TRUE;
-      game->redo_sequence = matched_sequence;
+      game->turn.do_again = TRUE;
+      game->turn.redo_sequence = matched_sequence;
     }
   else
     {
       if_print_string ("No matching entry found in the command history.\n");
 
       /* As with failed numeric redo above, special-case this return. */
-      game->do_again = FALSE;
-      game->redo_sequence = INT_MAX;
+      game->turn.do_again = FALSE;
+      game->turn.redo_sequence = INT_MAX;
     }
 
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   return TRUE;
 }
 
@@ -724,11 +730,13 @@ lib_cmd_hints (scr_gameref_t game)
         }
       else
         {
-          /* The Runners' own line: run380 42D2D4, run390 437A24 and run400
-             45A0CC all say "No hints currently available."; run370 426D72
-             "No hints available.".  Dolg (3.90) ALRs the 3.8+ wording into
-             Russian, so the exact text matters (runner_transcripts/dolg.txt
-             T4). */
+          /*
+           * The Runners' own line: run380 42D2D4, run390 437A24 and run400
+           * 45A0CC all say "No hints currently available."; run370 426D72
+           * "No hints available.".  Dolg (3.9) ALRs the 3.8+ wording into
+           * Russian, so the exact text matters (runner_transcripts/dolg.txt
+           * T4).
+           */
           const scr_prop_setref_t bundle = gs_get_bundle (game);
 
           pf_buffer_string (filter,
@@ -747,7 +755,7 @@ lib_cmd_hints (scr_gameref_t game)
     }
 
   /* A turn in 3.7-3.9; see lib_is_version_390(). */
-  game->is_admin = lib_is_version_400 (game);
+  game->turn.is_admin = lib_is_version_400 (game);
   return TRUE;
 }
 
@@ -780,8 +788,7 @@ lib_print_string_italics (const scr_char *string)
  * lib_cmd_license()
  *
  * A form of standard help output for games that don't define it themselves,
- * and the GPL licensing.  Print directly rather than using the printfilter
- * to avoid possible clashes with ALRs.
+ * and the GPL licensing.  Prints directly; see the file head.
  */
 scr_bool
 lib_cmd_help (scr_gameref_t game)
@@ -834,7 +841,7 @@ lib_cmd_help (scr_gameref_t game)
     " to print both Scarier's and the game's version number.\n");
 
   /* A turn in 3.7-3.9; see lib_is_version_390(). */
-  game->is_admin = lib_is_version_400 (game);
+  game->turn.is_admin = lib_is_version_400 (game);
   return TRUE;
 }
 
@@ -873,7 +880,7 @@ lib_cmd_license (scr_gameref_t game)
   lib_print_string_italics ("https://github.com/angstsmurf/spatterlight/issues");
   if_print_string (".\n");
 
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   return TRUE;
 }
 
@@ -882,8 +889,7 @@ lib_cmd_license (scr_gameref_t game)
  * lib_cmd_information()
  *
  * Display a few small pieces of game information, done by a dialog GUI
- * in real Adrift.  Prints directly rather than using the printfilter to
- * avoid possible clashes with ALRs.
+ * in real ADRIFT.  Prints directly; see the file head.
  */
 scr_bool
 lib_cmd_information (scr_gameref_t game)
@@ -939,7 +945,7 @@ lib_cmd_clear (scr_gameref_t game)
   pf_buffer_string (filter, "Screen cleared.\n");
 
   /* A turn in 3.7-3.9; see lib_is_version_390(). */
-  game->is_admin = lib_is_version_400 (game);
+  game->turn.is_admin = lib_is_version_400 (game);
   return TRUE;
 }
 
@@ -948,22 +954,23 @@ lib_cmd_clear (scr_gameref_t game)
  * lib_cmd_statusline()
  *
  * Display the status line as would be shown by the Runner.  Useful for
- * interpreter builds that can't offer a true status line.  Prints directly
- * rather than using the printfilter to avoid possible clashes with ALRs.
+ * interpreter builds that can't offer a true status line.  Prints directly;
+ * see the file head.
  */
 scr_bool
 lib_cmd_statusline (scr_gameref_t game)
 {
-  const scr_char *name, *author, *room, *status;
-  scr_int score;
-
   /*
    * Retrieve the game's name and author, the description of the current
    * game room, and any formatted game status line.
    */
-  run_get_attributes (game, &name, &author, nullptr, nullptr,
-                      &score, nullptr, &room, &status,
-                      nullptr, nullptr, nullptr, nullptr);
+  const run_attrs_t attrs
+      = run_get_attributes (game, RUN_ATTR_NAME | RUN_ATTR_AUTHOR
+                                  | RUN_ATTR_SCORE | RUN_ATTR_ROOM
+                                  | RUN_ATTR_STATUS_LINE);
+  const scr_char *const name = attrs.name, *const author = attrs.author;
+  const scr_char *const room = attrs.room, *const status = attrs.status_line;
+  const scr_int score = attrs.score;
 
   /* If nothing is yet determined, print the game name and author. */
   if (!room || scr_strempty (room))
@@ -992,7 +999,7 @@ lib_cmd_statusline (scr_gameref_t game)
     }
   if_print_character ('\n');
 
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   return TRUE;
 }
 
@@ -1000,8 +1007,7 @@ lib_cmd_statusline (scr_gameref_t game)
 /*
  * lib_cmd_version()
  *
- * Display the "Runner version".  Prints directly rather than using the
- * printfilter to avoid possible clashes with ALRs.
+ * Display the "Runner version".  Prints directly; see the file head.
  */
 scr_bool
 lib_cmd_version (scr_gameref_t game)
@@ -1029,7 +1035,7 @@ lib_cmd_version (scr_gameref_t game)
   if_print_string (".\n");
 
   /* A turn in 3.9; see lib_is_version_390(). */
-  game->is_admin = !lib_is_version_390 (game);
+  game->turn.is_admin = !lib_is_version_390 (game);
   return TRUE;
 }
 
@@ -1039,7 +1045,7 @@ lib_cmd_version (scr_gameref_t game)
  * lib_cmd_wait_number()
  *
  * Set game waitcounter to a count of turns for which the main loop will run
- * without taking input.  Many Adrift Runners ignore any WaitTurns setting in
+ * without taking input.  Many ADRIFT Runners ignore any WaitTurns setting in
  * the game, and use always use one; this might make a game misbehave, so to
  * try to cover this case we supply 'wait N' as a player control to override
  * the game's setting.  The latter prints directly rather than using the
@@ -1054,17 +1060,17 @@ lib_cmd_wait (scr_gameref_t game)
 
   /* Note if wait turns is different from the game's setting. */
   waitturns = prop_get_global_integer (bundle, "WaitTurns");
-  if (waitturns != game->waitturns)
+  if (waitturns != game->settings.waitturns)
     {
 
       pf_buffer_string (filter, "(");
-      pf_buffer_integer (filter, game->waitturns);
-      pf_buffer_string (filter,
-                        game->waitturns == 1 ? " turn)\n" : " turns)\n");
+      pf_buffer_integer (filter, game->settings.waitturns);
+      pf_buffer_string (filter, game->settings.waitturns == 1
+                                ? " turn)\n" : " turns)\n");
     }
 
   /* Reset the wait counter to the current waitturns setting. */
-  game->waitcounter = game->waitturns;
+  game->turn.waitcounter = game->settings.waitturns;
 
   /*
    * 4.0 stores "Time passes..." with a vbCrLf of its own (run400 48ABDA:
@@ -1093,12 +1099,12 @@ lib_cmd_wait_number (scr_gameref_t game)
   if (waitturns < 1 || waitturns > 20)
     {
       if_print_string ("You can only wait between 1 and 20 turns.\n");
-      game->is_admin = TRUE;
+      game->turn.is_admin = TRUE;
       return TRUE;
     }
 
   /* Update the game setting, and confirm for the player. */
-  game->waitturns = waitturns;
+  game->settings.waitturns = waitturns;
 
   if_print_string ("The game will now wait ");
   snprintf (buffer, sizeof(buffer), "%ld", waitturns);
@@ -1106,7 +1112,7 @@ lib_cmd_wait_number (scr_gameref_t game)
   if_print_string (waitturns == 1 ? " turn" : " turns");
   if_print_string (" for each 'wait' command you enter.\n");
 
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   return TRUE;
 }
 
@@ -1115,14 +1121,13 @@ lib_cmd_wait_number (scr_gameref_t game)
  * lib_cmd_verbose()
  * lib_cmd_brief()
  *
- * Set/clear game verbose flag.  Print directly rather than using the
- * printfilter to avoid possible clashes with ALRs.
+ * Set/clear game verbose flag.  Prints directly; see the file head.
  */
 scr_bool
 lib_cmd_verbose (scr_gameref_t game)
 {
   /* Set game verbose flag and return. */
-  game->verbose = TRUE;
+  game->settings.verbose = TRUE;
   if_print_string ("The game is now in its ");
   if_print_tag (SCR_TAG_ITALICS, "");
   if_print_string ("verbose");
@@ -1130,7 +1135,7 @@ lib_cmd_verbose (scr_gameref_t game)
   if_print_string (" mode, which always gives long descriptions of locations"
                    " (even if you've been there before).\n");
 
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   return TRUE;
 }
 
@@ -1138,7 +1143,7 @@ scr_bool
 lib_cmd_brief (scr_gameref_t game)
 {
   /* Clear game verbose flag and return. */
-  game->verbose = FALSE;
+  game->settings.verbose = FALSE;
   if_print_string ("The game is now in its ");
   if_print_tag (SCR_TAG_ITALICS, "");
   if_print_string ("brief");
@@ -1146,7 +1151,7 @@ lib_cmd_brief (scr_gameref_t game)
   if_print_string (" mode, which gives long descriptions of places never"
                    " before visited and short descriptions otherwise.\n");
 
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   return TRUE;
 }
 
@@ -1154,8 +1159,8 @@ lib_cmd_brief (scr_gameref_t game)
  * lib_cmd_notify_on_off()
  * lib_cmd_notify()
  *
- * Set/clear/query game score change notification flag.  Print directly
- * rather than using the printfilter to avoid possible clashes with ALRs.
+ * Set/clear/query game score change notification flag.  Prints directly; see
+ * the file head.
  */
 scr_bool
 lib_cmd_notify_on_off (scr_gameref_t game)
@@ -1168,7 +1173,7 @@ lib_cmd_notify_on_off (scr_gameref_t game)
   if (scr_strcasecmp (control, "on") == 0)
     {
       /* Set score change notification. */
-      game->notify_score_change = TRUE;
+      game->settings.notify_score_change = TRUE;
       if_print_string ("Game score change notification is now ");
       if_print_tag (SCR_TAG_ITALICS, "");
       if_print_string ("on");
@@ -1179,7 +1184,7 @@ lib_cmd_notify_on_off (scr_gameref_t game)
   else if (scr_strcasecmp (control, "off") == 0)
     {
       /* Clear score change notification. */
-      game->notify_score_change = FALSE;
+      game->settings.notify_score_change = FALSE;
       if_print_string ("Game score change notification is now ");
       if_print_tag (SCR_TAG_ITALICS, "");
       if_print_string ("off");
@@ -1193,7 +1198,7 @@ lib_cmd_notify_on_off (scr_gameref_t game)
                        " score notification.\n");
     }
 
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   return TRUE;
 }
 
@@ -1203,10 +1208,10 @@ lib_cmd_notify (scr_gameref_t game)
   /* Report the current state of notification. */
   if_print_string ("Game score change notification is ");
   if_print_tag (SCR_TAG_ITALICS, "");
-  if_print_string (game->notify_score_change ? "on" : "off");
+  if_print_string (game->settings.notify_score_change ? "on" : "off");
   if_print_tag (SCR_TAG_ENDITALICS, "");
 
-  if (game->notify_score_change)
+  if (game->settings.notify_score_change)
     {
       if_print_string (", and the game will tell you of any changes in the"
                        " score.\n");
@@ -1217,18 +1222,16 @@ lib_cmd_notify (scr_gameref_t game)
                        " score.\n");
     }
 
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   return TRUE;
 }
 
 
 /*
  * lib_cmd_time()
- * lib_cmd_date()
  *
- * Print elapsed game time, and smart-alec "date" response.  The Adrift
- * Runner responds here with the system time and date, but we'll do something
- * different.
+ * Print elapsed game time.  The ADRIFT Runner responds here with the system
+ * time, but we'll do something different.
  */
 scr_bool
 lib_cmd_time (scr_gameref_t game)
@@ -1246,12 +1249,112 @@ lib_cmd_time (scr_gameref_t game)
   if_print_string (".\n");
 
   /* A turn in 3.9; see lib_is_version_390(). */
-  game->is_admin = !lib_is_version_390 (game);
+  game->turn.is_admin = !lib_is_version_390 (game);
+  return TRUE;
+}
+
+
+/*
+ * lib_cmd_save()
+ * lib_cmd_restore()
+ *
+ * Save/restore a game.
+ */
+scr_bool
+lib_cmd_save (scr_gameref_t game)
+{
+  if (if_confirm (SCR_CONF_SAVE))
+    {
+      if (ser_save_game_prompted (game))
+        if_print_string ("Ok.\n");
+      else
+        if_print_string ("Save failed.\n");
+    }
+
+  /*
+   * A turn in 3.9 (see lib_is_version_390()): run390 answers `save` with
+   * "Game saved." and then the event tick, which is where FarFromHome's
+   * event clock gained a tick per save.
+   */
+  game->turn.is_admin = !lib_is_version_390 (game);
   return TRUE;
 }
 
 scr_bool
-lib_cmd_date (scr_gameref_t game)
+lib_cmd_restore (scr_gameref_t game)
 {
-  return lib_print_message (game, "Maybe we should just be good friends.\n");
+  if (if_confirm (SCR_CONF_RESTORE))
+    {
+      if (ser_load_game_prompted (game))
+        {
+          if_print_string ("Ok.\n");
+          game->is_running = FALSE;
+          game->turn.do_restore = TRUE;
+        }
+      else
+        if_print_string ("Restore failed.\n");
+    }
+
+  /* A turn in 3.9; see lib_is_version_390(). */
+  game->turn.is_admin = !lib_is_version_390 (game);
+  return TRUE;
+}
+
+
+/*
+ * lib_cmd_turns()
+ * lib_cmd_score()
+ *
+ * Display turns taken and score so far.
+ */
+scr_bool
+lib_cmd_turns (scr_gameref_t game)
+{
+  const scr_filterref_t filter = gs_get_filter (game);
+
+  /*
+   * Deliberate deviation: no Runner singularises "1 turns" (run400 48ACA1
+   * concatenates the one literal; measured run400 EV16
+   * runner_probes/ev16.run400.txt and run390 BobBobsly.taf
+   * runner_probes/bob_bobsly.run390.txt, both "You have taken 1 turns so
+   * far."), but no corpus ALR quotes it, so the agreement is fixed here.
+   */
+  pf_buffer_string (filter, "You have taken ");
+  pf_buffer_integer (filter, game->world.turns);
+  pf_buffer_string (filter, game->world.turns == 1 ? " turn so far.\n"
+                                             : " turns so far.\n");
+
+  lib_set_admin (game);
+  return TRUE;
+}
+
+scr_bool
+lib_cmd_score (scr_gameref_t game)
+{
+  const scr_filterref_t filter = gs_get_filter (game);
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_int max_score, percent;
+
+  /* Get max score, and calculate score as a percentage. */
+  max_score = prop_get_global_integer (bundle, "MaxScore");
+  if (game->world.score > 0 && max_score > 0)
+    percent = (game->world.score * 100) / max_score;
+  else
+    percent = 0;
+
+  /* Output carefully formatted response. */
+  pf_buffer_string (filter,
+                    lib_select_response (game,
+                                         "Your score is ",
+                                         "My score is ",
+                                         "%player%'s score is "));
+  pf_buffer_integer (filter, game->world.score);
+  pf_buffer_string (filter, " out of a maximum of ");
+  pf_buffer_integer (filter, max_score);
+  pf_buffer_string (filter, ".  (");
+  pf_buffer_integer (filter, percent);
+  pf_buffer_string (filter, "%)\n");
+
+  lib_set_admin (game);
+  return TRUE;
 }

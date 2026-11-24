@@ -19,20 +19,20 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  *
- * ADRIFT 5 support for Scarier -- restriction evaluation (Phase 2 subset).
+ * ADRIFT 5 support for Scarier -- restriction evaluation.
  *
- * Evaluates a <Restrictions> block (the restricted-description and, later,
- * task gating mechanism) against the runtime state.  A restriction is a single
- * line "<key1> Must|MustNot <Operator> <key2>" wrapped in a type element
- * (<Object>/<Location>/<Character>/<Variable>/<Task>/...), combined by the
- * block's <BracketSequence> ('#' = a restriction, 'A' = and, 'O' = or, with
- * '('/'[' and ')'/']' brackets).
+ * Evaluates a <Restrictions> block (the mechanism behind restricted
+ * descriptions and task gating) against the runtime state.  A restriction is a
+ * single line "<key1> Must|MustNot <Operator> <key2>" wrapped in a type
+ * element (<Object>/<Location>/<Character>/<Variable>/<Task>/...), combined by
+ * the block's <BracketSequence> ('#' = a restriction, 'A' = and, 'O' = or,
+ * with '('/'[' and ')'/']' brackets).
  *
- * Phase 2 implements the object/location/variable/task operators the static
- * world's descriptions depend on, plus best-effort character handling; the
- * structure (a ported EvaluateRestrictionBlock + a typed PassSingleRestriction)
- * is the one Phase 3 grows for the full task engine.  Mirrors the Adrift 5 runner
- * clsUserSession.PassRestrictions / EvaluateRestrictionBlock / PassSingleRestriction.
+ * The structure is a ported EvaluateRestrictionBlock over a typed
+ * PassSingleRestriction, covering every restriction type; an operator a type
+ * does not mirror passes leniently.  Mirrors the Runner's
+ * clsUserSession.PassRestrictions / EvaluateRestrictionBlock /
+ * PassSingleRestriction.
  */
 
 #ifndef SCARIER_A5RESTR_H
@@ -47,26 +47,30 @@ extern int a5restr_pass (a5_state_t *st, const a5_xml_node_t *restrictions);
 /*
  * 1 if the block contains a restriction with the `Exist` operator on the given
  * reference type ('o' = Object, 'c' = Character).  Mirrors clsTask's
- * HasObjectExistRestriction / HasCharacterExistRestriction: it is the gate that
- * decides whether a command whose reference resolves to nothing nonetheless
- * "matches" the task (so the task can surface its Must-Exist message on the
- * second-chance pass) rather than not matching at all.  Must/MustNot is ignored,
- * exactly like the originals (they test eObject/eCharacter == Exist only).
+ * HasObjectExistRestriction / HasCharacterExistRestriction: it is the gate
+ * that decides whether a command whose reference resolves to nothing
+ * nonetheless "matches" the task (so the task can surface its Must-Exist
+ * message on the second-chance pass) rather than not matching at all.
+ * Must/MustNot is ignored, exactly like the originals (they test
+ * eObject/eCharacter == Exist only).
  */
 extern int a5restr_has_exist (const a5_xml_node_t *restrictions, char type);
 
-/* The <Message> node of the task's first "ReferencedObject(s) Must Exist" Object
- * restriction, or NULL.  Used to prefix a failing multi-match %objects% noun with
- * the Adrift 5 runner's "Sorry, I'm not sure which object ..." ambiguity indicator. */
+/* The <Message> node of the task's first "ReferencedObject(s) Must Exist"
+   Object
+ * restriction, or NULL.  Used to prefix a failing multi-match %objects% noun
+ * with the Runner's "Sorry, I'm not sure which object ..." ambiguity
+ * indicator. */
 extern const a5_xml_node_t *a5restr_exist_message (const a5_xml_node_t *restrictions);
 
 /*
  * Does a `<ref_alias> Must Exist` restriction (e.g. "ReferencedObject2") fall
  * within the task's *evaluated* BracketSequence (the first M restrictions, M =
- * number of '#' in the bracket)?  Lets resolve_refine decide whether an unmatched
- * reference is genuinely required: a Must Exist truncated out of the bracket means
- * the reference is optional, so a sibling reference's out-of-scope ambiguity
- * surfaces instead of this reference's no-reference fallback.
+ * number of '#' in the bracket)?  Lets resolve_refine decide whether an
+ * unmatched reference is genuinely required: a Must Exist truncated out of the
+ * bracket means the reference is optional, so a sibling reference's
+ * out-of-scope ambiguity surfaces instead of this reference's no-reference
+ * fallback.
  */
 extern int a5restr_exist_evaluated (const a5_xml_node_t *restrictions,
                                     const char *ref_alias);
@@ -88,7 +92,7 @@ extern const a5_xml_node_t *a5restr_fail_message (a5_state_t *st,
  *
  * When `blocked_msg` is non-NULL it is set to the blocking exit-restriction's
  * <Message> node if the exit exists but its restriction fails (left untouched
- * otherwise) -- the Adrift 5 runner's sRouteError, which overrides the movement task's
+ * otherwise) -- the Runner's sRouteError, which overrides the movement task's
  * generic "There is no route..." message.
  *
  * The evaluation is memoised per (charkey, lockey, dir) for the current turn,
@@ -103,7 +107,7 @@ extern const char *a5restr_exit_in_direction (a5_state_t *st, const char *charke
 extern void a5restr_route_cache_clear (a5_state_t *st);
 extern void a5restr_route_cache_free (a5_state_t *st);
 
-/* Has this exit's route restriction ever evaluated false?  The runner's
+/* Has this exit's route restriction ever evaluated false?  The Runner's
    clsDirection.bEverBeenBlocked, which HasRouteInDirection sets on every
    failed evaluation and nothing ever resets.  The map draws a restricted
    connector solid until this says the player has actually been blocked there

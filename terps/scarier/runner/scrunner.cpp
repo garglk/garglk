@@ -19,10 +19,10 @@
  */
 
 /*
- * Game lifecycle, session state, the main loop and Runner load-draw replay.
+ * Game lifecycle, the startup prompts and the main loop, save/restore/undo,
+ * attributes and hints.
  *
- * Split out of scrunner.cpp; see scrunner.h for what the runner files
- * share.
+ * See scrunner.h for what the `run_` files share.
  */
 
 #include <assert.h>
@@ -38,7 +38,6 @@
 #include "core/scprotos.h"
 #include "core/scgamest.h"
 #include "scrunner.h"
-#include "sessrec.h"
 
 
 
@@ -49,14 +48,15 @@
  * run_interpret() when a *running* game is quit / restarted / restored / has a
  * turn undone.  This replaces a longjmp(game->quitter) that skipped the
  * destructors of any non-trivial C++ local live in the command/task/print/expr
- * call tree -- undefined behaviour once that tree holds std::string/std::vector,
- * which is what blocked RAII across the runner.  Throwing unwinds the same
- * frames but runs their destructors.  All throw sites and the sole catch are in
- * this file; the meaning (quit vs restart vs restore) is still carried by the
- * game's do_restart/do_restore flags exactly as before, so the type is empty.
+ * call tree -- undefined behaviour once that tree holds
+ * std::string/std::vector, which is what blocked RAII across the `run_` code.
+ * Throwing unwinds the same frames but runs their destructors.  All throw
+ * sites and the sole catch are in this file; the meaning (quit vs restart vs
+ * restore) is still carried by the game's do_restart/do_restore flags exactly
+ * as before, so the type is empty.
  *
- * It is caught specifically (never `catch (...)`) so that a P2 scr_fatal_error
- * -- or any other genuine exception -- still propagates to the scinterf boundary
+ * It is caught specifically (never `catch (...)`) so that a scr_fatal_error --
+ * or any other genuine exception -- still propagates to the scapi boundary
  * instead of being mistaken for a normal halt.
  */
 namespace { struct run_loop_halt {}; }
@@ -122,60 +122,30 @@ run_notify_score_change (scr_gameref_t game)
    * already done this once this turn.
    */
   if (!game->undo_available
-      || !game->notify_score_change || game->has_notified)
+      || !game->settings.notify_score_change || game->turn.has_notified)
     return;
 
   /* Note any change in the score. */
-  if (game->score > undo->score)
+  if (game->world.score > undo->world.score)
     {
       if_print_string ("(Your score has increased by ");
-      snprintf (buffer, sizeof(buffer), "%ld", game->score - undo->score);
+      snprintf (buffer, sizeof(buffer), "%ld",
+                game->world.score - undo->world.score);
       if_print_string (buffer);
       if_print_string (")\n");
     }
-  else if (game->score < undo->score)
+  else if (game->world.score < undo->world.score)
     {
       if_print_string ("(Your score has decreased by ");
-      snprintf (buffer, sizeof(buffer), "%ld", undo->score - game->score);
+      snprintf (buffer, sizeof(buffer), "%ld",
+                undo->world.score - game->world.score);
       if_print_string (buffer);
       if_print_string (")\n");
     }
-  game->has_notified = TRUE;
+  game->turn.has_notified = TRUE;
 }
 
 
-/*
- * run_session_state()
- * run_restore_session_state()
- *
- * What a Spatterlight autosave needs beyond the saved game.  The save stream
- * carries what an ADRIFT save file does, and an in-game restore deliberately
- * leaves the rest alone; an autorestore resumes the same session, so it puts
- * that back as well:
- *
- *   - the line element `again` repeats, and the command history;
- *   - the pronouns, in the game and in the one-turn undo buffer, and the
- *     parser's pronoun echo flags;
- *   - a question the next line answers: the 4.0 ambiguity prompt (see
- *     lib_co_400_raise()) together with the list it offered, which decides
- *     "That is still ambiguous!" against the prompt, and the question
- *     prefix ("Who do you want to attack?", "Wear what?", "...with?");
- *   - the output each undo state replays after "Undone." (see
- *     lib_cmd_undo()): the finished turn's, still to be taken by the next
- *     line; the undo game's; and one per memo ring entry, oldest first, set
- *     after the container has rebuilt the ring;
- *   - the player's settings: verbose, score notification and wait turns;
- *   - the name and gender typed at the startup prompts, which live in the
- *     property bundle;
- *   - which startup prompt the save was taken at, if either: see
- *     run_startup_prompt().
- *
- * The encoding is a run of session records (sessrec.h), the framing the
- * ADRIFT 5 engine's parser continuation shares.  The reader skips keys it
- * does not know and keeps the current value of any it does not find, so
- * records can be added without breaking an older autosave; only broken
- * framing fails the restore.
- */
 /*
  * The startup prompt a line is being read for, and the one an autorestore
  * resumes at: 0 for neither, else RUN_STARTUP_NAME or RUN_STARTUP_GENDER.
@@ -184,271 +154,13 @@ run_notify_score_change (scr_gameref_t game)
  * leave out what the restored transcript already shows -- the title, the
  * startup text, any earlier prompt, and the question itself.
  */
-enum { RUN_STARTUP_NAME = 1, RUN_STARTUP_GENDER = 2 };
-static scr_int run_startup_stage = 0;
-static scr_int run_startup_resume = 0;
+scr_int run_startup_stage = 0;
+scr_int run_startup_resume = 0;
 
 scr_int
 run_startup_prompt (void)
 {
   return run_startup_stage;
-}
-
-static std::string
-run_session_join (const std::vector<scr_int> &values)
-{
-  std::string text;
-  size_t index_;
-
-  for (index_ = 0; index_ < values.size (); index_++)
-    {
-      if (index_ > 0)
-        text += ' ';
-      text += std::to_string ((long) values[index_]);
-    }
-  return text;
-}
-
-/* Up to count leading integers; *rest, if given, is what follows them. */
-static std::vector<scr_int>
-run_session_split (const std::string &text, size_t count,
-                   const scr_char **rest)
-{
-  std::vector<scr_int> values;
-  const scr_char *cursor = text.c_str ();
-
-  while (values.size () < count)
-    {
-      scr_char *end;
-      const long value = strtol (cursor, &end, 10);
-
-      if (end == cursor)
-        break;
-      values.push_back (value);
-      cursor = end;
-    }
-  if (rest)
-    *rest = (*cursor == ' ') ? cursor + 1 : cursor;
-  return values;
-}
-
-static std::string
-run_session_pronouns (scr_gameref_t game)
-{
-  return run_session_join ({game->it_object, game->it_form,
-                            game->him_npc, game->her_npc, game->it_npc,
-                            game->last_npc});
-}
-
-static void
-run_session_set_pronouns (scr_gameref_t game, scr_gameref_t target,
-                          const std::string &text)
-{
-  const std::vector<scr_int> values (run_session_split (text, 6, nullptr));
-  const scr_int npcs = gs_npc_count (game);
-  scr_int index_;
-
-  if (values.size () < 6
-      || values[0] < -1 || values[0] >= gs_object_count (game))
-    return;
-  for (index_ = 2; index_ < 6; index_++)
-    {
-      if (values[index_] < -1 || values[index_] >= npcs)
-        return;
-    }
-
-  target->it_object = values[0];
-  target->it_form = values[1] >= UIP_IT_INDEFINITE && values[1] <= UIP_IT_BARE
-                    ? values[1] : UIP_IT_INDEFINITE;
-  target->him_npc = values[2];
-  target->her_npc = values[3];
-  target->it_npc = values[4];
-  target->last_npc = values[5];
-}
-
-std::string
-run_session_state (scr_gameref_t game)
-{
-  const scr_prop_setref_t bundle = gs_get_bundle (game);
-  const scr_memo_setref_t memento = gs_get_memento (game);
-  std::string out, term, command, prefix, prefix_at_line, with_prefix;
-  std::vector<scr_int> candidates, offered_list;
-  scr_bool is_pending, offered, used, definite;
-
-  sessrec_put (out, "name", prop_get_global_string (bundle, "PlayerName"));
-  sessrec_put (out, "gender",
-               std::to_string ((long) prop_get_global_integer
-                               (bundle, "PlayerGender")));
-  if (run_startup_stage != 0)
-    sessrec_put (out, "startup_prompt",
-                 std::to_string ((long) run_startup_stage));
-  sessrec_put (out, "settings",
-               run_session_join ({game->verbose,
-                                  game->notify_score_change,
-                                  game->waitturns}));
-
-  sessrec_put (out, "pronouns", run_session_pronouns (game));
-  if (game->undo_available)
-    sessrec_put (out, "undo_pronouns", run_session_pronouns (game->undo));
-  uip_get_pronoun_flags (&used, &definite);
-  sessrec_put (out, "pronoun_flags", run_session_join ({used, definite}));
-
-  sessrec_put (out, "printed", pf_get_printed (gs_get_filter (game)));
-  if (game->undo_available)
-    sessrec_put (out, "undo_text", run_undo_text);
-  for (scr_int index_ = 0; index_ < memo_get_undo_count (memento); index_++)
-    sessrec_put (out, "ring_text", memo_get_undo_text (memento, index_));
-
-  sessrec_put (out, "again", run_prior_element);
-  sessrec_put (out, "typed_line", run_typed_line);
-  sessrec_put (out, "previous_typed_line", run_previous_typed_line);
-  memo_first_command (memento);
-  while (memo_more_commands (memento))
-    {
-      const scr_char *entry;
-      scr_int sequence, timestamp, turns;
-
-      memo_next_command (memento, &entry, &sequence, &timestamp, &turns);
-      sessrec_put (out, "history",
-                   run_session_join ({sequence, timestamp, turns})
-                   + ' ' + entry);
-    }
-
-  lib_co_400_get_question (&is_pending, &term, &command, &candidates,
-                           &offered, &offered_list);
-  if (is_pending)
-    {
-      sessrec_put (out, "which_term", term);
-      sessrec_put (out, "which_command", command);
-      sessrec_put (out, "which_candidates", run_session_join (candidates));
-    }
-  /* The list the last prompt offered outlives the question: a line that
-     ties on it again gets "That is still ambiguous!", not the prompt. */
-  if (offered)
-    sessrec_put (out, "which_offered", run_session_join (offered_list));
-  lib_battle_who_get_prefix (&prefix, &prefix_at_line);
-  sessrec_put (out, "prefix", prefix);
-  sessrec_put (out, "prefix_at_line", prefix_at_line);
-  lib_with_prefix_390_get (&with_prefix);
-  sessrec_put (out, "with_prefix", with_prefix);
-  return out;
-}
-
-scr_bool
-run_restore_session_state (scr_gameref_t game, const std::string &state)
-{
-  const scr_prop_setref_t bundle = gs_get_bundle (game);
-  const scr_memo_setref_t memento = gs_get_memento (game);
-  std::string which_term, which_command, which_candidates, which_offered;
-  std::string prefix, prefix_at_line, with_prefix;
-  scr_bool has_which = FALSE, has_offered = FALSE, has_prefix = FALSE;
-  scr_bool has_history = FALSE, has_with_prefix = FALSE;
-  scr_int ring_text = 0;
-  scr_vartype_t vt_key[2];
-  size_t pos = 0;
-
-  vt_key[0].string = "Globals";
-  while (pos < state.size ())
-    {
-      std::string key, value;
-
-      if (!sessrec_next (state, &pos, &key, &value))
-        return FALSE;
-
-      const std::vector<scr_int> numbers
-          (run_session_split (value, (size_t) -1, nullptr));
-
-      if (key == "name")
-        {
-          vt_key[1].string = "PlayerName";
-          prop_put_string (bundle, "S<-ss", value.c_str (), vt_key);
-        }
-      else if (key == "gender" && numbers.size () == 1
-               && (numbers[0] == NPC_MALE || numbers[0] == NPC_FEMALE
-                   || numbers[0] == NPC_NEUTER))
-        {
-          vt_key[1].string = "PlayerGender";
-          prop_put_integer (bundle, "I<-ss", numbers[0], vt_key);
-        }
-      else if (key == "startup_prompt" && numbers.size () == 1
-               && (numbers[0] == RUN_STARTUP_NAME
-                   || numbers[0] == RUN_STARTUP_GENDER))
-        run_startup_resume = numbers[0];
-      else if (key == "settings" && numbers.size () >= 3)
-        {
-          game->verbose = numbers[0] != 0;
-          game->notify_score_change = numbers[1] != 0;
-          if (numbers[2] >= 0)
-            game->waitturns = numbers[2];
-        }
-      else if (key == "pronouns")
-        run_session_set_pronouns (game, game, value);
-      else if (key == "undo_pronouns" && game->undo_available)
-        run_session_set_pronouns (game, game->undo, value);
-      else if (key == "pronoun_flags" && numbers.size () >= 2)
-        uip_set_pronoun_flags (numbers[0] != 0, numbers[1] != 0);
-      else if (key == "printed")
-        pf_set_printed (gs_get_filter (game), value);
-      else if (key == "undo_text" && game->undo_available)
-        run_undo_text = value;
-      else if (key == "ring_text")
-        memo_set_undo_text (memento, ring_text++, value.c_str ());
-      else if (key == "again" && value.size () < LINE_BUFFER_SIZE)
-        memcpy (run_prior_element, value.c_str (), value.size () + 1);
-      else if (key == "typed_line")
-        run_typed_line = value;
-      else if (key == "previous_typed_line")
-        run_previous_typed_line = value;
-      else if (key == "history")
-        {
-          const scr_char *entry;
-          const std::vector<scr_int> fields
-              (run_session_split (value, 3, &entry));
-
-          if (!has_history)
-            memo_clear_commands (memento);
-          has_history = TRUE;
-          if (fields.size () == 3)
-            memo_restore_command (memento, entry,
-                                  fields[0], fields[1], fields[2]);
-        }
-      else if (key == "which_term")
-        which_term = value, has_which = TRUE;
-      else if (key == "which_command")
-        which_command = value;
-      else if (key == "which_candidates")
-        which_candidates = value;
-      else if (key == "which_offered")
-        which_offered = value, has_offered = TRUE;
-      else if (key == "prefix")
-        prefix = value, has_prefix = TRUE;
-      else if (key == "prefix_at_line")
-        prefix_at_line = value;
-      else if (key == "with_prefix")
-        with_prefix = value, has_with_prefix = TRUE;
-    }
-
-  if (has_which || has_offered)
-    {
-      std::vector<scr_int> candidates
-          (run_session_split (which_candidates, (size_t) -1, nullptr));
-      std::vector<scr_int> offered
-          (run_session_split (which_offered, (size_t) -1, nullptr));
-      scr_bool valid = TRUE;
-
-      for (scr_int candidate : candidates)
-        valid = valid && candidate >= 0 && candidate < gs_object_count (game);
-      for (scr_int candidate : offered)
-        valid = valid && candidate >= 0 && candidate < gs_object_count (game);
-      if (valid)
-        lib_co_400_set_question (has_which, which_term, which_command,
-                                 candidates, has_offered, offered);
-    }
-  if (has_prefix)
-    lib_battle_who_set_prefix (prefix, prefix_at_line);
-  if (has_with_prefix)
-    lib_with_prefix_390_set (with_prefix);
-  return TRUE;
 }
 
 
@@ -518,7 +230,7 @@ run_prompt_restore (scr_gameref_t game, const scr_char *reply)
  * here, mirroring the Runner.  Like the gender choice, the answer is stored in
  * the session-persistent property bundle.
  *
- * The two Runners that have the prompt disagree (read 2026-09-13).  run400
+ * The two Runners that have the prompt disagree (read).  run400
  * (Form1 46EA89) asks whenever the option is set, seeds the box with the
  * current name, and turns an empty answer into "Anonymous" (46EAEF).  run390
  * (4416B8) asks only while the name is still EMPTY -- an authored name
@@ -532,13 +244,15 @@ run_prompt_player_name (scr_gameref_t game, scr_int resume)
   const scr_filterref_t filter = gs_get_filter (game);
   const scr_prop_setref_t bundle = gs_get_bundle (game);
   const scr_var_setref_t vars = gs_get_vars (game);
-  const scr_bool is_400 = run_get_version (bundle) >= TAF_VERSION_400;
+  const scr_bool is_400 = prop_get_taf_version (bundle) >= TAF_VERSION_400;
   scr_vartype_t vt_key[2];
   scr_char buffer[LINE_BUFFER_SIZE];
   const scr_char *name;
 
-  /* Answered before the autosave being resumed was taken; the name came
-     back with the session state. */
+  /*
+   * Answered before the autosave being resumed was taken; the name came
+   * back with the session state.
+   */
   if (resume > RUN_STARTUP_NAME)
     return;
   if (!prop_get_global_boolean (bundle, "PromptName"))
@@ -587,7 +301,7 @@ run_prompt_player_name (scr_gameref_t game, scr_int resume)
 /*
  * run_prompt_player_gender()
  *
- * Adrift stores the player's gender as Male, Female, or Unknown.  When it is
+ * ADRIFT stores the player's gender as Male, Female, or Unknown.  When it is
  * Unknown, the Runner shows a "Please choose player gender" dialog at game
  * start and stores the answer; tasks and restrictions then test it (for
  * example, "the Player is Male").  Without this choice such a restriction can
@@ -598,12 +312,12 @@ run_prompt_player_name (scr_gameref_t game, scr_int resume)
  * fresh load re-asks -- exactly as the Runner behaves.
  *
  * The stored value is ADRIFT's own gender enumeration -- Male 0, Female 1,
- * Unknown/Neuter 2, the NPC_MALE/NPC_FEMALE/NPC_NEUTER of scprotos.h -- because
- * that is what a type-3 var2=7 restriction compares against (screstrs.cpp case
- * 7 does a bare `gender == var3`).  Recording male as 1 and female as 0, as
- * this used to, silently ran every gender-gated task on the opposite branch:
- * "Provenance" dressed a male player in a house dress, and "The Secret of the
- * Lost World" answered "female" but took the male path (ring to the princess).
+ * Unknown/Neuter 2, the NPC_MALE/NPC_FEMALE/NPC_NEUTER of scprotos.h --
+ * because that is what a type-3 var2=7 restriction compares against
+ * (screstrs.cpp case 7 does a bare `gender == var3`).  Recording male as 1 and
+ * female as 0 silently runs every gender-gated task on the opposite branch:
+ * "Provenance" dresses a male player in a house dress, and "The Secret of the
+ * Lost World" answers "female" but takes the male path (ring to the princess).
  */
 static void
 run_prompt_player_gender (scr_gameref_t game, scr_int resume)
@@ -718,7 +432,7 @@ run_main_intro (scr_gameref_t game)
    * Print the game name.  The Runner gives this line a look of its own,
    * not the plain body style: one step larger than normal text, in the
    * secondary ("command") colour -- the same red that <c> spans and the
-   * player's own typing come out in.  Measured off a 3.90 Runner shot of
+   * player's own typing come out in.  Measured off a 3.9 Runner shot of
    * rich_text_390.taf: the title's ascenders run 13px against normal
    * text's 11 (12pt -> 14pt), with the stroke weight of normal text, not
    * of bold.
@@ -735,12 +449,12 @@ run_main_intro (scr_gameref_t game)
   pf_buffer_character (filter, '\n');
 
   /*
-   * Print the game header.  Adrift StartupText conventionally ends with a
+   * Print the game header.  ADRIFT StartupText conventionally ends with a
    * <br> tag to set off the intro from the first room.  Scarier supplies its
    * own paragraph break below (the forced newline here plus the leading
    * newline from lib_cmd_look()), so adding a terminator when the text
    * already ends in a line break leaves the first room preceded by two
-   * blank lines.  The Adrift Runner shows just one; only add the
+   * blank lines.  The ADRIFT Runner shows just one; only add the
    * terminator when the displayed text doesn't already end in a newline.
    */
   vt_key[0].string = "Header";
@@ -786,8 +500,10 @@ run_main_startup (scr_gameref_t game)
 
   run_startup_resume = 0;
 
-  /* An autorestore to one of the startup prompts below picks up at that
-     prompt: everything before it is in the restored transcript. */
+  /*
+   * An autorestore to one of the startup prompts below picks up at that
+   * prompt: everything before it is in the restored transcript.
+   */
   if (resume == 0)
     run_main_intro (game);
 
@@ -822,18 +538,17 @@ run_main_startup (scr_gameref_t game)
   battle_start (game);
 
   /*
-   * Nudge events, but NOT NPC walks: the Runner's walk handler (Sub_20_2)
-   * is reachable only from the typed-command evaluator (Sub_20_62, called
-   * solely by Form1.evaluate), so walks never tick before the first
-   * command -- settled live 2026-08-01 in BOTH Runners (walk probe C: no
-   * CharTask fires before the first prompt; Scarier used to move walking
-   * NPCs, and fire their CharTask, during startup).
+   * Nudge events, but NOT NPC walks: the Runner's walk handler (Sub_20_2) is
+   * reachable only from the typed-command evaluator (Sub_20_62, called solely
+   * by Form1.evaluate), so walks never tick before the first command --
+   * settled live in BOTH Runners (walk probe C: no CharTask fires before the
+   * first prompt).
    *
    * The zero-length half of the load start finishes here rather than
    * above: its FinishText, TaskAffected and any restart land BELOW the
    * opening description in the real Runner.
    *
-   * Both halves are 3.90+ only.  The startup tick is run390's `tstart'
+   * Both halves are 3.9+ only.  The startup tick is run390's `tstart'
    * (42E940) calling events() at 42E90B straight after viewroom, and
    * run400's tstart calling 449310 the same way; run380's events()
    * (425094) and run370's (432538) have exactly ONE caller each,
@@ -843,7 +558,7 @@ run_main_startup (scr_gameref_t game)
    * no StartText, the same silent start as above -- and a StarterType=2
    * event into WAITING with its rolled delay, which the first command
    * then decrements: a delay of 1 starts the event on turn 1, not at
-   * load.  Measured 2026-09-04 in run380 with haunt.taf (transcript
+   * load.  Measured in run380 with haunt.taf (transcript
    * runner_probes/haunt.run380.rtf): its Weather event (delay 1..1, length
    * 4, restart after delay) prints "Thunder rumbles ominously." on the
    * first command turn and cycles from there, where the startup tick had
@@ -855,7 +570,7 @@ run_main_startup (scr_gameref_t game)
    * whose only effect is an un-complete of a task nothing has completed
    * yet.
    */
-  if (run_get_version (bundle) >= TAF_VERSION_390)
+  if (prop_get_taf_version (bundle) >= TAF_VERSION_390)
     {
       evt_finish_load_events (game);
       evt_tick_events (game);
@@ -879,7 +594,7 @@ run_main_turn_input (scr_gameref_t game)
   scr_bool status;
 
   /* If waitcounter is zero, accept and try a command. */
-  if (game->waitcounter == 0)
+  if (game->turn.waitcounter == 0)
     {
       /* Not waiting, so handle a player input line. */
       run_update_status (game);
@@ -889,8 +604,8 @@ run_main_turn_input (scr_gameref_t game)
        * If waitcounter is now set, decrement it, as this turn counts as
        * one of them.
        */
-      if (game->waitcounter > 0)
-        game->waitcounter--;
+      if (game->turn.waitcounter > 0)
+        game->turn.waitcounter--;
     }
   else
     {
@@ -898,7 +613,7 @@ run_main_turn_input (scr_gameref_t game)
        * Currently "waiting"; decrement wait turns, then run a turn having
        * taken no input.
        */
-      game->waitcounter--;
+      game->turn.waitcounter--;
       status = TRUE;
     }
 
@@ -913,10 +628,10 @@ run_main_turn_tick (scr_gameref_t game, scr_bool status)
    * last command didn't match, or the last command did match but was
    * administrative.
    */
-  if (status && game->is_admin)
+  if (status && game->turn.is_admin)
     SCR_TRACE_IF ("SCR_TRACE_ADMIN", "ADMIN turn=%ld after [%s]\n",
-                  game->turns, run_trace_last_input.c_str ());
-  if (status && !game->is_admin)
+                  game->world.turns, run_trace_last_input.c_str ());
+  if (status && !game->turn.is_admin)
     {
       /*
        * Increment turn counter, and clear notifications done flag.  3.8
@@ -932,8 +647,8 @@ run_main_turn_tick (scr_gameref_t game, scr_bool status)
       if (!run_counts_line_elements (game)
           && !(prop_get_taf_version (gs_get_bundle (game))
                >= TAF_VERSION_400 && !game->is_running))
-        game->turns++;
-      game->has_notified = FALSE;
+        game->world.turns++;
+      game->turn.has_notified = FALSE;
 
       if (game->is_running)
         {
@@ -986,12 +701,12 @@ run_main_turn_end (scr_gameref_t game)
    * (run390 43CBB9, run380 431FF2).  A walk the game ended stops there.
    */
   if (run_goto_arrival_due && game->is_running
-      && game->pending_endgame == 0)
+      && game->turn.pending_endgame == 0)
     {
       pf_buffer_string (filter, run_goto_arrival.c_str ());
       run_finish_goto_walk ();
     }
-  else if (!game->is_running || game->pending_endgame != 0)
+  else if (!game->is_running || game->turn.pending_endgame != 0)
     run_cancel_goto_walk ();
 
   /*
@@ -1095,7 +810,7 @@ run_main_loop (scr_gameref_t game)
        * notion of administrative commands from input.
        */
       pf_flush (filter, vars, bundle);
-      game->is_admin = FALSE;
+      game->turn.is_admin = FALSE;
 
       status = run_main_turn_input (game);
       run_main_turn_tick (game, status);
@@ -1105,258 +820,6 @@ run_main_loop (scr_gameref_t game)
   run_main_shutdown (game);
 }
 
-
-/*
- * run_runner_resource_draws()
- * run_runner_load_draws()
- *
- * Runner-compatible RNG mode (SCR_RNG=xoshiro) only: consume the words run400
- * draws while it loads a game, in its order, so that a Scarier stream seeded
- * like the Runner's (vbrng.dll, VBRNG=xoshiro) stays aligned draw for draw
- * from the first turn.  Every site is in openadv (mdlSpreadTheLoad 49347C):
- *
- *   48ED52  the decoded .taf's temp file, `\_<Int(Rnd * 10000)>.tmp`;
- *   48F48E  the player's starting stamina, Battle System games only,
- *           read with the header: `Int(Rnd * (hi - lo)) + lo`;
- *   491628  each StarterType 1 event's length, `Int(Rnd*(T2-T1))+T1+1`,
- *   491678  each StarterType 2 event's delay, `Int(Rnd*(End-Start))+Start`,
- *           in event order -- StarterType 3 rolls nothing;
- *   4920B1  each NPC's starting stamina, Battle System games only;
- *   454874  one `Int(Rnd * 100000)` per resource the .taf carries data for
- *           (name set, length > 0 -- a back-reference or an external file
- *           rolls nothing), naming its temp file.  These are throwaways, so
- *           only their count matters, but the Runner's order is kept:
- *           IntroRes, WinRes, then rooms (Res, then per alternate Res1 and
- *           Res2), objects (Res1, Res2), tasks (Res), events (Res 0-4),
- *           NPCs (Res 0-3), sound before graphic for each.
- *
- * Scarier makes the same rolls in its own places -- gs_create(),
- * evt_start_load_events(), battle_start() -- and in its own order; in this
- * mode those consume what is rolled here instead (see gs_event_loadtime(),
- * battle_preroll_*()).  Called at the end of run_create() and again on
- * restart, which in the Runner is a fresh load.
- */
-static void
-run_runner_resource_draw (scr_prop_setref_t bundle,
-                          const scr_char *partial_format,
-                          const scr_vartype_t vt_partial[],
-                          const scr_char *embedded_key)
-{
-  scr_vartype_t vt_key[8], vt_rvalue;
-  scr_char format[16];
-  size_t length;
-
-  length = strlen (partial_format);
-  assert (length + 1 < sizeof (vt_key) / sizeof (vt_key[0]));
-  memcpy (vt_key, vt_partial, length * sizeof (vt_key[0]));
-  vt_key[length].string = embedded_key;
-  snprintf (format, sizeof (format), "I<-%ss", partial_format);
-
-  /* The key is absent when the game has no sound or no graphics at all. */
-  if (prop_get (bundle, format, &vt_rvalue, vt_key) && vt_rvalue.integer)
-    scr_randomint (0, 99999);
-}
-
-static void
-run_runner_resource_draws (scr_prop_setref_t bundle,
-                           const scr_char *partial_format,
-                           const scr_vartype_t vt_partial[])
-{
-  run_runner_resource_draw (bundle, partial_format, vt_partial,
-                            "SoundEmbedded");
-  run_runner_resource_draw (bundle, partial_format, vt_partial,
-                            "GraphicEmbedded");
-}
-
-/*
- * run_runner_event_draws()
- *
- * The event starts every Runner draws while loading (run390 46616F/4661BF,
- * run400 491628/491678): for each event with a random starter, one DRAW
- * between Time1 and Time2 (StarterType 1, the load time) or between
- * StartTime and EndTime (StarterType 2, the start time).
- */
-static void
-run_runner_event_draws (scr_gameref_t game,
-                        scr_int (*draw) (scr_int lo, scr_int hi))
-{
-  const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[3];
-  scr_int index_;
-
-  GS_FOR_EACH_EVENT (game, index_)
-    {
-      scr_int startertype, lo, hi;
-
-      vt_key[0].string = "Events";
-      vt_key[1].integer = index_;
-      vt_key[2].string = "StarterType";
-      startertype = prop_get_integer (bundle, "I<-sis", vt_key);
-
-      switch (startertype)
-        {
-        case 1:
-          vt_key[2].string = "Time1";
-          lo = prop_get_integer (bundle, "I<-sis", vt_key);
-          vt_key[2].string = "Time2";
-          hi = prop_get_integer (bundle, "I<-sis", vt_key);
-          gs_set_event_loadtime (game, index_, draw (lo, hi));
-          break;
-
-        case 2:
-          vt_key[2].string = "StartTime";
-          lo = prop_get_integer (bundle, "I<-sis", vt_key);
-          vt_key[2].string = "EndTime";
-          hi = prop_get_integer (bundle, "I<-sis", vt_key);
-          gs_set_event_time (game, index_, draw (lo, hi));
-          break;
-
-        default:
-          break;
-        }
-    }
-}
-
-/* Int(Rnd * (hi - lo)) + lo, from the codec's LCG; see below. */
-static scr_int
-run_legacy_event_draw (scr_int lo, scr_int hi)
-{
-  return lo + (scr_int) floor (scr_vb_rnd () * (hi - lo));
-}
-
-static void
-run_runner_legacy_load_draws (scr_gameref_t game)
-{
-  /*
-   * A 3.9 game draws NOTHING from the game stream while loading: run390
-   * seeds with Timer only at the end of openadv (467013), after the codec's
-   * `Randomize 1976`, so its event starts (46616F/4661BF, the same formulas
-   * as run400's) and Speed 1 attack counters (466A43) come from the codec's
-   * own LCG, continued from the last file byte -- deterministic, and replayed
-   * here from the decoder's state (taf_runtime_rnd).  Events are read before
-   * NPCs.  No temp-file draw, no stamina draws, no embedded resources.
-   */
-  taf_runtime_rnd_reset ();
-  run_runner_event_draws (game, run_legacy_event_draw);
-  battle_preroll_legacy (game);
-}
-
-static void
-run_runner_load_draws (scr_gameref_t game)
-{
-  const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[6], vt_rvalue;
-  scr_int index_, count, sub;
-
-  if (!scr_is_runner_random ())
-    return;
-
-  vt_key[0].string = "Version";
-  if (prop_get (bundle, "I<-s", &vt_rvalue, vt_key)
-      && vt_rvalue.integer < TAF_VERSION_400)
-    {
-      run_runner_legacy_load_draws (game);
-      return;
-    }
-
-  /* 48ED52: the temp file name. */
-  scr_randomint (0, 9999);
-
-  /* 48F48E: the player's stamina. */
-  battle_preroll_player_stamina (game);
-
-  /* 491628 / 491678: event starts. */
-  run_runner_event_draws (game, scr_randomint_exclusive);
-
-  /* 4920B1: NPC stamina. */
-  battle_preroll_npc_stamina (game);
-
-  /* 454874: temp files for the embedded resources, 4.0 games only. */
-  vt_key[0].string = "Globals";
-  vt_key[1].string = "Embedded";
-  if (!prop_get_boolean (bundle, "B<-ss", vt_key))
-    return;
-
-  vt_key[1].string = "IntroRes";
-  run_runner_resource_draws (bundle, "ss", vt_key);
-  vt_key[1].string = "WinRes";
-  run_runner_resource_draws (bundle, "ss", vt_key);
-
-  vt_key[0].string = "Rooms";
-  count = prop_get_child_count (bundle, "I<-s", vt_key);
-  for (index_ = 0; index_ < count; index_++)
-    {
-      scr_int alts;
-
-      vt_key[1].integer = index_;
-      vt_key[2].string = "Res";
-      run_runner_resource_draws (bundle, "sis", vt_key);
-
-      vt_key[2].string = "Alts";
-      alts = prop_get_child_count (bundle, "I<-sis", vt_key);
-      for (sub = 0; sub < alts; sub++)
-        {
-          /* Both sounds, then both graphics (492B4B..492CA0). */
-          vt_key[3].integer = sub;
-          vt_key[4].string = "Res1";
-          run_runner_resource_draw (bundle, "sisis", vt_key, "SoundEmbedded");
-          vt_key[4].string = "Res2";
-          run_runner_resource_draw (bundle, "sisis", vt_key, "SoundEmbedded");
-          vt_key[4].string = "Res1";
-          run_runner_resource_draw (bundle, "sisis", vt_key,
-                                    "GraphicEmbedded");
-          vt_key[4].string = "Res2";
-          run_runner_resource_draw (bundle, "sisis", vt_key,
-                                    "GraphicEmbedded");
-        }
-    }
-
-  vt_key[0].string = "Objects";
-  count = prop_get_child_count (bundle, "I<-s", vt_key);
-  for (index_ = 0; index_ < count; index_++)
-    {
-      vt_key[1].integer = index_;
-      vt_key[2].string = "Res1";
-      run_runner_resource_draws (bundle, "sis", vt_key);
-      vt_key[2].string = "Res2";
-      run_runner_resource_draws (bundle, "sis", vt_key);
-    }
-
-  vt_key[0].string = "Tasks";
-  count = prop_get_child_count (bundle, "I<-s", vt_key);
-  for (index_ = 0; index_ < count; index_++)
-    {
-      vt_key[1].integer = index_;
-      vt_key[2].string = "Res";
-      run_runner_resource_draws (bundle, "sis", vt_key);
-    }
-
-  vt_key[0].string = "Events";
-  count = prop_get_child_count (bundle, "I<-s", vt_key);
-  for (index_ = 0; index_ < count; index_++)
-    {
-      vt_key[1].integer = index_;
-      vt_key[2].string = "Res";
-      for (sub = 0; sub < 5; sub++)
-        {
-          vt_key[3].integer = sub;
-          run_runner_resource_draws (bundle, "sisi", vt_key);
-        }
-    }
-
-  vt_key[0].string = "NPCs";
-  count = prop_get_child_count (bundle, "I<-s", vt_key);
-  for (index_ = 0; index_ < count; index_++)
-    {
-      vt_key[1].integer = index_;
-      vt_key[2].string = "Res";
-      for (sub = 0; sub < 4; sub++)
-        {
-          vt_key[3].integer = sub;
-          run_runner_resource_draws (bundle, "sisi", vt_key);
-        }
-    }
-}
 
 /*
  * run_destroy_bundle()
@@ -1370,10 +833,7 @@ run_runner_load_draws (scr_gameref_t game)
 static void
 run_destroy_bundle (scr_prop_setref_t bundle)
 {
-  obj_forget_bundle (bundle);
-  var_forget_bundle (bundle);
-  lib_forget_bundle (bundle);
-  restr_forget_bundle (bundle);
+  run_lifecycle_forget_bundle (bundle);
   prop_destroy (bundle);
 }
 
@@ -1576,7 +1036,7 @@ run_restore_handler (scr_gameref_t game)
    * be too broad; stopping sounds (in case one is looping) is the one thing
    * done.
    */
-  game->stop_sound = TRUE;
+  game->media.stop_sound = TRUE;
 }
 
 
@@ -1660,16 +1120,16 @@ run_interpret (scr_gameref_t game)
        * restart or restore game adjustments, and set the game running
        * again.
        */
-      if (game->do_restart)
+      if (game->turn.do_restart)
         {
-          game->do_restart = FALSE;
+          game->turn.do_restart = FALSE;
           run_restart_handler (game);
           game->is_running = TRUE;
         }
 
-      if (game->do_restore)
+      if (game->turn.do_restore)
         {
-          game->do_restore = FALSE;
+          game->turn.do_restore = FALSE;
           run_restore_handler (game);
           game->is_running = TRUE;
         }
@@ -1781,7 +1241,7 @@ run_restart (scr_gameref_t game)
   if (game->is_running)
     {
       game->is_running = FALSE;
-      game->do_restart = TRUE;
+      game->turn.do_restart = TRUE;
       throw run_loop_halt ();
     }
 
@@ -1869,7 +1329,7 @@ run_restore_common (scr_gameref_t game,
       if (game->is_running)
         {
           game->is_running = FALSE;
-          game->do_restore = TRUE;
+          game->turn.do_restore = TRUE;
           throw run_loop_halt ();
         }
     }
@@ -1937,14 +1397,11 @@ run_undo (scr_gameref_t game)
       /* Loading a game clears is_running -- restore it here. */
       game->is_running = is_running;
 
-      /*
-       * If the game is (was) running, set flags so that the interpreter
-       * loop cycles, and exit the main loop by throwing run_loop_halt.
-       */
+      /* If the game is (was) running, cycle as in run_restore_common(). */
       if (game->is_running)
         {
           game->is_running = FALSE;
-          game->do_restore = TRUE;
+          game->turn.do_restore = TRUE;
           throw run_loop_halt ();
         }
 
@@ -2005,25 +1462,21 @@ run_is_undo_available (scr_gameref_t game)
  * run_get_attributes()
  * run_set_attributes()
  *
- * Get and set selected game attributes.
+ * Get and set selected game attributes.  The getter returns the ones
+ * `wanted` names (RUN_ATTR_* bits) and leaves the rest zero; see
+ * run_attrs_t.
  */
-void
-run_get_attributes (scr_gameref_t game,
-                    const scr_char **game_name, const scr_char **game_author,
-                    const scr_char **game_compile_date,
-                    scr_int *turns, scr_int *score, scr_int *max_score,
-                    const scr_char **current_room_name,
-                    const scr_char **status_line, const scr_char **preferred_font,
-                    scr_bool *bold_room_names, scr_bool *verbose,
-                    scr_bool *notify_score_change)
+run_attrs_t
+run_get_attributes (scr_gameref_t game, scr_uint wanted)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
   const scr_var_setref_t vars = gs_get_vars (game);
   scr_vartype_t vt_key[2];
+  run_attrs_t attrs = run_attrs_t ();
   assert (gs_is_game_valid (game));
 
   /* Return the game name, author, and compile date if requested. */
-  if (game_name)
+  if (wanted & RUN_ATTR_NAME)
     {
       if (!game->title)
         {
@@ -2036,9 +1489,9 @@ run_get_attributes (scr_gameref_t game,
           pf_strip_tags (filtered);
           game->title.reset (filtered);
         }
-      *game_name = game->title.get ();
+      attrs.name = game->title.get ();
     }
-  if (game_author)
+  if (wanted & RUN_ATTR_AUTHOR)
     {
       if (!game->author)
         {
@@ -2051,48 +1504,46 @@ run_get_attributes (scr_gameref_t game,
           pf_strip_tags (filtered);
           game->author.reset (filtered);
         }
-      *game_author = game->author.get ();
+      attrs.author = game->author.get ();
     }
-  if (game_compile_date)
+  if (wanted & RUN_ATTR_COMPILE_DATE)
     {
       vt_key[0].string = "CompileDate";
-      *game_compile_date = prop_get_string (bundle, "S<-s", vt_key);
+      attrs.compile_date = prop_get_string (bundle, "S<-s", vt_key);
     }
 
   /* Return the current room name and status line if requested. */
-  if (current_room_name)
-    *current_room_name = game->current_room_name.get ();
-  if (status_line)
-    *status_line = game->status_line.get ();
+  if (wanted & RUN_ATTR_ROOM)
+    attrs.room = game->current_room_name.get ();
+  if (wanted & RUN_ATTR_STATUS_LINE)
+    attrs.status_line = game->status_line.get ();
 
   /* Return any game preferred font, or NULL if none. */
-  if (preferred_font)
+  if (wanted & RUN_ATTR_PREFERRED_FONT)
     {
       vt_key[0].string = "CustomFont";
       if (prop_get_boolean (bundle, "B<-s", vt_key))
         {
           vt_key[0].string = "FontNameSize";
-          *preferred_font = prop_get_string (bundle, "S<-s", vt_key);
+          attrs.preferred_font = prop_get_string (bundle, "S<-s", vt_key);
         }
-      else
-        *preferred_font = nullptr;
     }
 
   /* Return any other selected game attributes. */
-  if (turns)
-    *turns = game->turns;
-  if (score)
-    *score = game->score;
-  if (max_score)
-    {
-      *max_score = prop_get_global_integer (bundle, "MaxScore");
-    }
-  if (bold_room_names)
-    *bold_room_names = game->bold_room_names;
-  if (verbose)
-    *verbose = game->verbose;
-  if (notify_score_change)
-    *notify_score_change = game->notify_score_change;
+  if (wanted & RUN_ATTR_TURNS)
+    attrs.turns = game->world.turns;
+  if (wanted & RUN_ATTR_SCORE)
+    attrs.score = game->world.score;
+  if (wanted & RUN_ATTR_MAX_SCORE)
+    attrs.max_score = prop_get_global_integer (bundle, "MaxScore");
+  if (wanted & RUN_ATTR_BOLD_ROOM_NAMES)
+    attrs.bold_room_names = game->settings.bold_room_names;
+  if (wanted & RUN_ATTR_VERBOSE)
+    attrs.verbose = game->settings.verbose;
+  if (wanted & RUN_ATTR_NOTIFY_SCORE_CHANGE)
+    attrs.notify_score_change = game->settings.notify_score_change;
+
+  return attrs;
 }
 
 void
@@ -2103,9 +1554,9 @@ run_set_attributes (scr_gameref_t game,
   assert (gs_is_game_valid (game));
 
   /* Set game options. */
-  game->bold_room_names = bold_room_names;
-  game->verbose = verbose;
-  game->notify_score_change = notify_score_change;
+  game->settings.bold_room_names = bold_room_names;
+  game->settings.verbose = verbose;
+  game->settings.notify_score_change = notify_score_change;
 }
 
 
@@ -2133,7 +1584,7 @@ run_hint_iterate (scr_gameref_t game, scr_hintref_t hint)
   else
     {
       /* Convert into pointer, and range check. */
-      task = hint - game->tasks.data ();
+      task = hint - game->world.tasks.data ();
       if (task < 0 || task >= gs_task_count (game))
         {
           scr_error ("run_hint_iterate: invalid iteration hint\n");
@@ -2152,7 +1603,7 @@ run_hint_iterate (scr_gameref_t game, scr_hintref_t hint)
     }
 
   /* Return a pointer to the state of the task identified, or NULL. */
-  return task < gs_task_count (game) ? &game->tasks[task] : nullptr;
+  return task < gs_task_count (game) ? &game->world.tasks[task] : nullptr;
 }
 
 
@@ -2180,7 +1631,7 @@ run_get_hint_common (scr_gameref_t game, scr_hintref_t hint,
   assert (gs_is_game_valid (game));
 
   /* Verify the caller passed in a valid hint. */
-  task = hint - game->tasks.data ();
+  task = hint - game->world.tasks.data ();
   if (task < 0 || task >= gs_task_count (game))
     {
       scr_error ("run_get_hint_common: invalid iteration hint\n");

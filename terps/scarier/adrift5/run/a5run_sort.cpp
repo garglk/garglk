@@ -24,10 +24,10 @@
  * clsTask.Children orders a parent's Specific overrides with
  * List(Of String).Sort(TaskPrioritySortComparer), i.e. .NET's UNSTABLE
  * introsort.  Ties on Priority therefore resolve to wherever that particular
- * algorithm happens to leave them, so matching the Adrift 5 runner means porting
- * it byte-for-byte rather than reaching for std::sort or std::stable_sort.  Split
- * out of a5run_action.cpp: it is self-contained (it touches nothing but task
- * priorities) and is the one piece of that file testable in isolation.
+ * algorithm happens to leave them, so matching the Runner means porting
+ * it byte-for-byte rather than reaching for std::sort or std::stable_sort.
+ * Split out of a5run_action.cpp: it is self-contained (it touches nothing but
+ * task priorities) and is the one piece of that file testable in isolation.
  *
  * Entry point: net_introspective_sort, declared in a5run_internal.h.
  */
@@ -35,21 +35,22 @@
 #include "a5run_internal.h"
 
 /* clsTask.Children sorts a parent's Specific overrides with
-   List(Of String).Sort(TaskPrioritySortComparer) (clsTask.vb:328-345) -- .NET's
-   UNSTABLE introspective sort, keyed on Priority alone.  When two passing
-   overrides tie on priority the one that runs is decided by where introsort
-   happens to leave them, so being faithful means porting the algorithm
-   byte-for-byte (.NET ArraySortHelper<T>.IntrospectiveSort with a comparer,
-   IntrosortSizeThreshold 16; dotnet/runtime ArraySortHelper.cs).  E.g. Fortress
-   of Fear has two 'talk to baker' Overrides of Task66 both at priority 1211 --
-   Task58 (2023 revision: +3 score, "baker,") and Task1803 (2015: no score,
-   "baker, ") -- and the runner runs Task1803 because introsort orders the tie
-   [Task2536, Task1803, Task58].  A stable sort keeps XML order and runs Task58:
-   wrong text AND a +3 score drift.  The sort input is the parent's children in
-   XML load order (TaskHashTable = Dictionary preserves insertion order), with
-   completed non-repeatable tasks filtered out BEFORE sorting (the Children
-   property's bIncludeCompleted=False filter) -- the filter changes the array
-   introsort sees, so it must precede the sort exactly as in the runner. */
+   List(Of String).Sort(TaskPrioritySortComparer) (clsTask.vb:328-345) --
+   .NET's UNSTABLE introspective sort, keyed on Priority alone.  When two
+   passing overrides tie on priority the one that runs is decided by where
+   introsort happens to leave them, so being faithful means porting the
+   algorithm byte-for-byte (.NET ArraySortHelper<T>.IntrospectiveSort with a
+   comparer, IntrosortSizeThreshold 16; dotnet/runtime ArraySortHelper.cs).
+   E.g. Fortress of Fear has two 'talk to baker' Overrides of Task66 both at
+   priority 1211 -- Task58 (2023 revision: +3 score, "baker,") and Task1803
+   (2015: no score, "baker, ") -- and the Runner runs Task1803 because
+   introsort orders the tie [Task2536, Task1803, Task58].  A stable sort keeps
+   XML order and runs Task58:  wrong text AND a +3 score drift.  The sort input
+   is the parent's children in XML load order (TaskHashTable = Dictionary
+   preserves insertion order), with completed non-repeatable tasks filtered out
+   BEFORE sorting (the Children property's bIncludeCompleted=False filter) --
+   the filter changes the array introsort sees, so it must precede the sort
+   exactly as in the Runner. */
 
 static int
 net_cmp_pri (const a5_adventure_t *adv, int a, int b)

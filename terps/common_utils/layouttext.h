@@ -1,15 +1,23 @@
-//
-//  layouttext.h
-//  Part of TaylorMade, ScottFree and Plus,
-//  interpreters of related text adventure formats.
-//
-//  Created by Petter Sjölund on 2022-01-11.
-//
+/*
+ *  layouttext.h
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version.
+ *
+ *  Word wrapping for a text grid, shared by TaylorMade, ScottFree and Plus.
+ *  Created by Petter Sjölund on 2022-01-11.
+ */
 
 #ifndef layouttext_h
 #define layouttext_h
 
 #include "glk.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Word-wraps a null-terminated string to lines of at most columns - 1
    characters, which leaves the last column of a text grid free. Leading
@@ -27,5 +35,9 @@ char *LineBreakText(const char *source, int columns, int *rows);
    further. Returns 1 if top was resized, so its last row is free, else 0. */
 int ShowTextInTopWindow(winid_t top, winid_t bottom, const char *text,
     void (*print)(winid_t win, const char *text));
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* layouttext_h */

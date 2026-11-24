@@ -23,9 +23,9 @@
 
 /*
  * Internal header of the match files: what scrun_match.cpp and the two
- * files split out of it share with each other and with no other runner
- * file (scrunner.h has what the runner files share).  They were one
- * translation unit, so some of this is shared state.
+ * files below share with each other and with no other `run_` file
+ * (scrunner.h has what the `run_` files share).  Some of this is shared
+ * state.
  *
  *   scrun_match.cpp          the pattern cache, reference substitution,
  *                            run_match_task_commands(), the take/put

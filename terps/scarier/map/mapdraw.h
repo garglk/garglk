@@ -32,8 +32,8 @@
  *
  * Once either engine has produced a map_t, almost everything below is common,
  * so a v4 map and a v5 map look alike in Spatterlight -- even though the
- * ADRIFT 4 runner's own map, built out of Visual Basic control arrays, looked
- * nothing like the ADRIFT 5 one.  Geometry follows the Adrift 5 runner's
+ * ADRIFT 4 Runner's own map, built out of Visual Basic control arrays, looked
+ * nothing like the ADRIFT 5 one.  Geometry follows the ADRIFT 5 Runner's
  * Map.vb, whose plan view is the one a player sees unless they drag the map:
  * X to the right, Y downward, one map unit = `scale` pixels.  The one thing
  * that does not carry over is the shape of a connector, because a VB Line
@@ -47,7 +47,7 @@
 #ifndef MAPDRAW_H
 #define MAPDRAW_H
 
-#include "common_utils/rgbsurface.h"
+#include "../common_utils/rgbsurface.h"
 
 /*
  * The twelve directions, in the order both engines number them: ADRIFT 5's
@@ -91,7 +91,7 @@ map_is_badge_dir (int dir)
 }
 
 /*
- * The runner's node defaults (FileIO.vb only writes Width/Height when they
+ * The Runner's node defaults (FileIO.vb only writes Width/Height when they
  * differ from these).  The ADRIFT 4 mapper adopts them too, so a room box is
  * the same size whichever engine placed it.
  */
@@ -139,7 +139,7 @@ typedef struct map_node_s
   int x, y, z;                /* top-left corner, in map units               */
   int w, h;                   /* size in map units                           */
   int page;
-  int hidden;                 /* Location <Hide>: the runner omits the box
+  int hidden;                 /* Location <Hide>: the Runner omits the box
                                  but still draws connectors to a seen hidden
                                  room (Map.vb:1156 DrawNode vs DrawLinks)    */
   /*
@@ -231,7 +231,7 @@ typedef struct map_view_s
   /*
    * Has this exit's movement restriction ever evaluated false (the ADRIFT 5
    * runner's clsDirection.bEverBeenBlocked)?  When set, the renderer applies
-   * the ADRIFT 5 runner's route gates: a restricted connector is hidden while
+   * the ADRIFT 5 Runner's route gates: a restricted connector is hidden while
    * its restrictions currently fail and drawn solid until the player has been
    * blocked there once (Map.vb:1429/1447), and the IN/OUT badges only show
    * while their route is open (Map.vb:1328/1337).  NULL for ADRIFT 4, whose
@@ -312,7 +312,7 @@ map_chrome_enabled (const map_chrome_t *chrome, int id)
  * under cam->chrome_h, which the caller sets.  With `zoom` 0 the scale is the
  * automatic fit; a positive `zoom` pins it (within MAP_ZOOM_MIN and
  * MAP_ZOOM_MAX).  An axis the rooms fit along is centred on them.  One they
- * overflow is centred on the player's room if `follow` (the runner's
+ * overflow is centred on the player's room if `follow` (the Runner's
  * LockPlayerCentre), and otherwise keeps the cam->cx/cy passed in -- the last
  * frame's, or a map_pan since -- and either way stops at the edge of the
  * rooms.  A hidden or missing player room is never followed.  `chrome`, if
@@ -389,7 +389,7 @@ extern int map_hit_dir (const map_t *map, const map_view_t *view,
 
 /*
  * The first step of the shortest route from `from` to `to`: a direction index
- * (0..11), or -1 if there is no route.  This is the runner's map-click walk
+ * (0..11), or -1 if there is no route.  This is the Runner's map-click walk
  * (clsCharacter.Dijkstra / DoWalk): edges are the restriction-checked exits,
  * and only rooms the player has already seen may be walked through.  The
  * caller submits that direction as an ordinary command, one room per turn,

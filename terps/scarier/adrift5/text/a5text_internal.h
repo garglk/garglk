@@ -37,7 +37,7 @@
 
 #include "../a5expr.h"
 #include "../a5restr.h"
-#include "../a5sb.h"     /* sb_t growable string builder (shared with a5run_*) */
+#include "../a5sb.h"     /* sb_t string builder (shared with a5run_*) */
 #include "../a5sexpr.h"
 #include "../a5text.h"
 #include "../a5util.h"
@@ -67,7 +67,7 @@ sb_clear (sb_t *sb)
     sb->p[0] = '\0';
 }
 
-/* Join names the way the runner's list builders do: "a", "a and b",
+/* Join names the way the Runner's list builders do: "a", "a and b",
    "a, b and c". */
 static inline std::string
 join_and (const std::vector<std::string> &names)
@@ -82,16 +82,19 @@ join_and (const std::vector<std::string> &names)
   return out;
 }
 
-/* The pronoun a character name renders as (clsCharacter.Name's PronounEnum). */
+/* The pronoun a character name renders as (clsCharacter.Name's PronounEnum).
+   */
 typedef enum { A5_PRO_SUBJ, A5_PRO_OBJ, A5_PRO_POSS, A5_PRO_REFL } a5_pronoun_t;
 
 /* ------------------------------------------- a5text.cpp: pipeline and ALRs */
 
-/* Does s end with text that warrants a double space before the next segment? */
+/* Does s end with text that warrants a double space before the next segment?
+   */
 int   add_space (const char *s, size_t len);
 char *location_long_desc (a5_state_t *st, const char *lockey);
 char *auto_capitalise (const char *src);
-/* %functions% / OO / <#exprs#> / ALRs, no capitalisation (depth = ALR recursion). */
+/* %functions% / OO / <#exprs#> / ALRs, no capitalisation (depth = ALR
+   recursion). */
 char *process_inner (a5_state_t *st, const char *src, int depth);
 char *replace_alrs (a5_state_t *st, const char *src, int depth);
 char *seal_alr_sites (a5_state_t *st, char *text);

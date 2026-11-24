@@ -1,9 +1,16 @@
-//
-//  detectgame.c
-//  part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  Created by Petter Sjölund on 2022-01-10.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  detect_game.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2022-01-10.
+ */
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -62,9 +69,9 @@ struct dictionaryKey {
 struct dictionaryKey dictKeys[] = {
     { FOUR_LETTER_UNCOMPRESSED, "AUTO\0GO", 8 },
     { THREE_LETTER_UNCOMPRESSED, "AUT\0GO", 7 },
-    { FIVE_LETTER_UNCOMPRESSED, "GO\0\0\0\0*CROSS*RUN", 17 }, // Claymorgue
+    { FIVE_LETTER_UNCOMPRESSED, "GO\0\0\0\0*CROSS*RUN", 17 }, /* Claymorgue */
     { FOUR_LETTER_COMPRESSED, "aUTOgO", 7 },
-    { GERMAN_C64, "gEHENSTEIGE", 11 }, // Gremlins German C64
+    { GERMAN_C64, "gEHENSTEIGE", 11 }, /* Gremlins German C64 */
     { GERMAN, "\xc7"
               "EHENSTEIGE", 10 },
     { SPANISH, "\x81\0\0\0\xc9R\0\0ANDAENTR", 16 },
@@ -119,7 +126,8 @@ DictionaryType GetId(const uint8_t *data, size_t dataLen, size_t *offset)
     return NOT_A_GAME;
 }
 
-/* Read HEADER_WORDS little-endian 16-bit values from ptr into the global header[].
+/* Read HEADER_WORDS little-endian 16-bit values from ptr into the global
+   header[].
    Returns a pointer to the last byte read (ptr + 29). */
 uint8_t *ReadHeader(uint8_t *ptr)
 {
@@ -142,10 +150,10 @@ static int SanityCheckHeader(void)
     v = GameHeader.NumActions;
     if (v < 100 || v > 500)
         return 0;
-    v = GameHeader.NumWords; // word pairs
+    v = GameHeader.NumWords; /* word pairs */
     if (v < 50 || v > 190)
         return 0;
-    v = GameHeader.NumRooms; // Number of rooms
+    v = GameHeader.NumRooms; /* Number of rooms */
     if (v < 10 || v > 100)
         return 0;
 
@@ -363,7 +371,8 @@ int ParseHeader(int *h, HeaderType type, Header *out)
     return 0;
 }
 
-/* Print parsed header values for debugging (only active when DEBUG_PRINT is set).
+/* Print parsed header values for debugging (only active when DEBUG_PRINT is
+   set).
    h is the raw header[] array to dump first, or NULL. */
 void PrintHeaderInfo(int *h, const Header *hdr)
 {
@@ -520,7 +529,8 @@ int ReadItemLocations(uint8_t **ptr, int num_items, const uint8_t *endptr)
 /* Read NUL-terminated room descriptions from binary data, rejecting
    any string containing a byte > 127. Assigns room images based on
    whether the images are in vector format and whether the game has
-   pictures. (Irmak tile style room images are already assigned in TryLoading().)
+   pictures. (Irmak tile style room images are already assigned in
+   TryLoading().)
    Returns 0 on invalid data. */
 static int ReadBinaryRoomDescs(uint8_t **ptr, int num_rooms, int has_pictures, int vector)
 {
@@ -707,9 +717,9 @@ static int ReadRoomDescs(uint8_t **ptr, const GameInfo *info, int compressed)
 
     /* Rooms hold NumRooms+1 entries (0..NumRooms); the last room is the
        death/limbo room the engine jumps to in PlayerIsDead() and the
-       dark-move death. Every other room loop uses <=; this one must too,
-       or Rooms[NumRooms].Text is left uninitialised and Look() reads a
-       wild pointer the first time the player dies. */
+       dark-move death. Stopping short of it would leave Rooms[NumRooms].Text
+       uninitialised, and Look() would read a wild pointer the first time the
+       player dies. */
     for (int ct = 0; ct <= GameHeader.NumRooms; ct++) {
         Rooms[ct].Text = DecompressText(*ptr, ct);
         if (Rooms[ct].Text == NULL)
@@ -813,33 +823,33 @@ static GameIDType TryLoadingOld(const GameInfo *info, int dict_start)
     if (!LoadGameHeader(info, dict_start, &ptr, &offset))
         return UNKNOWN_GAME;
 
-// MARK: actions
+/* MARK: actions */
 
     SEEK_OR_FAIL(info->start_of_actions);
 
     ReadActions(&ptr, GameHeader.NumActions, 0);
 
-// MARK: room connections
+/* MARK: room connections */
 
     SEEK_OR_FAIL(info->start_of_room_connections);
 
     if (!ReadRoomExits(&ptr, GameHeader.NumRooms, entire_file + file_length))
         return UNKNOWN_GAME;
 
-// MARK: item locations
+/* MARK: item locations */
 
     SEEK_OR_FAIL(info->start_of_item_locations);
 
     if (!ReadItemLocations(&ptr, GameHeader.NumItems, entire_file + file_length))
         return UNKNOWN_GAME;
 
-// MARK: dictionary
+/* MARK: dictionary */
 
     SEEK_OR_FAIL(info->start_of_dictionary);
 
     ptr = ReadDictionary(info, ptr);
 
-// MARK: rooms
+/* MARK: rooms */
 
     if (info->start_of_room_descriptions != 0) {
         SEEK_OR_FAIL(info->start_of_room_descriptions);
@@ -851,23 +861,23 @@ static GameIDType TryLoadingOld(const GameInfo *info, int dict_start)
             return UNKNOWN_GAME;
     }
 
-// MARK: messages
+/* MARK: messages */
 
     SEEK_OR_FAIL(info->start_of_messages);
 
     ReadBinaryMessages(&ptr);
 
-// MARK: items
+/* MARK: items */
 
     SEEK_OR_FAIL(info->start_of_item_descriptions);
 
     ReadBinaryItemDescs(&ptr, GameHeader.NumItems);
 
-// MARK: line images
+/* MARK: line images */
 
     LoadVectorData(info, ptr);
 
-// MARK: System messages
+/* MARK: System messages */
 
     SEEK_OR_FAIL(info->start_of_system_messages);
 
@@ -899,11 +909,12 @@ static GameIDType TryLoadingOld(const GameInfo *info, int dict_start)
    compressed (packed condition/command counts) and uncompressed action
    formats, and compressed vs plain NUL-terminated text strings.
 
-   On success, all global game arrays are populated and the game ID is returned. */
+   On success, all global game arrays are populated and the game ID is
+   returned. */
 GameIDType TryLoading(uint8_t *data, size_t datasize, const GameInfo *info, int dict_start)
 {
     /* TryLoading's downstream helpers (LoadGameHeader, SeekIfNeeded,
-       SeekToPos, ReadDictionary, etc.) currently read the game buffer
+       SeekToPos, ReadDictionary, etc.) read the game buffer
        via the global entire_file / file_length pair. Adopt the caller's
        buffer into those globals here. If the caller passed a buffer
        different from the current entire_file (e.g. a PRG extracted from
@@ -915,7 +926,7 @@ GameIDType TryLoading(uint8_t *data, size_t datasize, const GameInfo *info, int 
     }
     file_length = datasize;
 
-    /* The UK versions of Hulk uses the Mak Jukic binary database format */
+    /* The UK versions of Hulk use the Mak Jukic binary database format */
     if (info->gameID == HULK || info->gameID == HULK_C64) {
         GameIDType result = LoadBinaryDatabase(entire_file, file_length, *info, dict_start);
         if (result != UNKNOWN_GAME) {
@@ -936,7 +947,7 @@ GameIDType TryLoading(uint8_t *data, size_t datasize, const GameInfo *info, int 
 
     int compressed = (info->dictionary == FOUR_LETTER_COMPRESSED);
 
-// MARK: room images
+/* MARK: room images */
 
     if (info->start_of_room_image_list != 0) {
         SEEK_OR_FAIL(info->start_of_room_image_list);
@@ -946,7 +957,7 @@ GameIDType TryLoading(uint8_t *data, size_t datasize, const GameInfo *info, int 
             debug_print("Room %d image: %d\n", ct, Rooms[ct].Image);
         }
     }
-// MARK: Item flags
+/* MARK: Item flags */
 
     if (info->start_of_item_flags != 0) {
         SEEK_OR_FAIL(info->start_of_item_flags);
@@ -955,7 +966,7 @@ GameIDType TryLoading(uint8_t *data, size_t datasize, const GameInfo *info, int 
             Items[ct].Flag = *(ptr++);
     }
 
-// MARK: item images
+/* MARK: item images */
 
     if (info->start_of_item_image_list != 0) {
         SEEK_OR_FAIL(info->start_of_item_image_list);
@@ -966,7 +977,7 @@ GameIDType TryLoading(uint8_t *data, size_t datasize, const GameInfo *info, int 
                 ptr - entire_file - file_baseline_offset);
     }
 
-// MARK: actions
+/* MARK: actions */
 
     SEEK_OR_FAIL(info->start_of_actions);
 
@@ -986,13 +997,13 @@ GameIDType TryLoading(uint8_t *data, size_t datasize, const GameInfo *info, int 
     debug_print("Offset after reading actions: %lx\n",
             ptr - entire_file - file_baseline_offset);
 
-// MARK: dictionary
+/* MARK: dictionary */
 
     SEEK_OR_FAIL(info->start_of_dictionary);
 
     ptr = ReadDictionary(info, ptr);
 
-// MARK: rooms
+/* MARK: rooms */
 
     if (info->start_of_room_descriptions != 0) {
         SEEK_OR_FAIL(info->start_of_room_descriptions);
@@ -1001,38 +1012,38 @@ GameIDType TryLoading(uint8_t *data, size_t datasize, const GameInfo *info, int 
             return UNKNOWN_GAME;
     }
 
-// MARK: room connections
+/* MARK: room connections */
 
     SEEK_OR_FAIL(info->start_of_room_connections);
 
     if (!ReadRoomExits(&ptr, GameHeader.NumRooms, entire_file + file_length))
         return UNKNOWN_GAME;
 
-// MARK: messages
+/* MARK: messages */
 
     SEEK_OR_FAIL(info->start_of_messages);
 
     if (!ReadMessages(&ptr, compressed))
         return UNKNOWN_GAME;
 
-// MARK: items
+/* MARK: items */
 
     SEEK_OR_FAIL(info->start_of_item_descriptions);
 
     ReadItemDescs(&ptr, compressed);
 
-// MARK: item locations
+/* MARK: item locations */
 
     SEEK_OR_FAIL(info->start_of_item_locations);
 
     if (!ReadItemLocations(&ptr, GameHeader.NumItems, entire_file + file_length))
         return UNKNOWN_GAME;
 
-// MARK: vector images
+/* MARK: vector images */
 
     LoadVectorData(info, ptr);
 
-// MARK: System messages
+/* MARK: System messages */
 
     if (SeekIfNeeded(info->start_of_system_messages, &offset, &ptr) == 0)
         return info->gameID;
@@ -1130,10 +1141,9 @@ static uint8_t *DecompressParsec(uint8_t *start, uint8_t *end, uint8_t *dataptr)
     return dataptr;
 }
 
-/* ---------------------------------------------------------------------------
-   Alkatraz tape decryption
+/* MARK: Alkatraz tape decryption */
 
-   Some commercial Scott Adams tapes (notably the U.S. Gold "Scott Adams
+/* Some commercial Scott Adams tapes (notably the U.S. Gold "Scott Adams
    Scoops" compilation) are protected with the Appleby Associates "Alkatraz"
    loader, which decrypts the game with a rolling-key XOR as it streams from
    tape, so the raw .tzx contains no recognisable dictionary. We reverse the
@@ -1146,8 +1156,7 @@ static uint8_t *DecompressParsec(uint8_t *start, uint8_t *end, uint8_t *dataptr)
    the key seed (loacon), the destination/count and the source pointer.
 
    The DeAlkatraz decryption primitive itself lives in the shared decompressz80
-   library (and is also used by the TaylorMade interpreter).
-   --------------------------------------------------------------------------- */
+   library (and is also used by the TaylorMade interpreter). */
 
 /* One game on an Alkatraz compilation tape: its title (shown in the selection
    menu) and the per-game key parameters. source_offset/target/size are shared
@@ -1160,7 +1169,8 @@ typedef struct {
     uint8_t add2;
 } AlkatrazGame;
 
-/* One Alkatraz-protected release, identified by exact file length + checksum. */
+/* One Alkatraz-protected release, identified by exact file length +
+   checksum. */
 typedef struct {
     int32_t file_length;   /* exact .tzx length identifying the release */
     uint16_t file_chk;     /* sum-of-bytes checksum of the whole file */
@@ -1373,8 +1383,8 @@ static void SetUpGameSpecifics(GameIDType detectedGame)
     }
 
     /* Game-specific post-load setup: load extra data (Robin of Sherwood
-       forest images, Seas of Blood combat tables), fix image assignments, and map
-       system_messages[] indices to the sys[] slots the engine uses. */
+       forest images, Seas of Blood combat tables), fix image assignments, and
+       map system_messages[] indices to the sys[] slots the engine uses. */
     switch (detectedGame) {
     case ROBIN_OF_SHERWOOD:
         LoadExtraSherwoodData(0);
@@ -1402,7 +1412,7 @@ static void SetUpGameSpecifics(GameIDType detectedGame)
             SecretMission64Sysmess();
             break;
         }
-        // fallthrough
+        /* fallthrough */
     case ADVENTURELAND: {
         int src = MapSysRange(PLAY_AGAIN, ON_A_SCALE_THAT_RATES, 2);
         src = MapSysRange(OK, YOU_HAVENT_GOT_IT, src);
@@ -1429,7 +1439,7 @@ static void SetUpGameSpecifics(GameIDType detectedGame)
         break;
     case SAVAGE_ISLAND_C64:
         Items[20].Image = 13;
-        // fallthrough
+        /* fallthrough */
     case SAVAGE_ISLAND2_C64:
         Supergran64Sysmess();
         sys[IM_DEAD] = "I'm DEAD!! ";
@@ -1438,10 +1448,10 @@ static void SetUpGameSpecifics(GameIDType detectedGame)
         break;
     case SAVAGE_ISLAND:
         Items[20].Image = 13;
-        // fallthrough
+        /* fallthrough */
     case SAVAGE_ISLAND2:
         MyLoc = 30; /* Both parts of Savage Island begin in room 30 */
-        // fallthrough
+        /* fallthrough */
     case GREMLINS_GERMAN:
     case GREMLINS:
     case SUPERGRAN:
@@ -1490,7 +1500,8 @@ static void SetUpGameSpecifics(GameIDType detectedGame)
     if ((Game->subtype & (MYSTERIOUS | C64)) == (MYSTERIOUS | C64))
         Mysterious64Sysmess();
 
-    /* If it is a C64 or a Mysterious Adventures game, we have set up the graphics already */
+    /* If it is a C64 or a Mysterious Adventures game, we have set up the
+       graphics already */
     if (!(Game->subtype & (C64 | MYSTERIOUS)) && Game->number_of_pictures > 0) {
         SagaGraphicsSetup(0);
     }
@@ -1539,25 +1550,25 @@ GameIDType DetectGame(const char *file_name)
     }
     fclose(f);
 
-    if (detectedGame == UNKNOWN_GAME) { /* Not a ScottFree game, check if TI99/4A */
+    if (detectedGame == UNKNOWN_GAME) { /* Not a ScottFree game: try each format in turn */
         if (result == 0)
             Fatal("File empty or read error!");
 
         detectedGame = DetectTI994A();
 
-        if (detectedGame == UNKNOWN_GAME) { /* Not a TI99/4A game, check if C64 */
+        if (detectedGame == UNKNOWN_GAME) {
             detectedGame = DetectC64(&entire_file, &file_length, file_name);
         }
 
-        if (detectedGame == UNKNOWN_GAME) { /* Not a C64 game, check if Atari */
+        if (detectedGame == UNKNOWN_GAME) {
             detectedGame = DetectAtari8(&entire_file, &file_length);
         }
 
-        if (detectedGame == UNKNOWN_GAME) { /* Not an Atari game, check if Apple 2 */
+        if (detectedGame == UNKNOWN_GAME) {
             detectedGame = DetectApple2(&entire_file, &file_length);
         }
 
-        if (detectedGame == UNKNOWN_GAME) { /* Not an Apple 2 game, check if ZX Spectrum */
+        if (detectedGame == UNKNOWN_GAME) {
             detectedGame = DetectZXSpectrum();
         }
 

@@ -1,15 +1,20 @@
-//
-//  alkatraz.c
-//
-//  Part of the decompressz80 library: undoes the Alkatraz copy protection
-//  (Appleby Associates) of ZX Spectrum tapes. The loader decrypts the game
-//  with a rolling key as it comes off the tape and then moves blocks of it
-//  about in memory. These functions do the same to a 64K image of the
-//  Spectrum's memory. Which block of which tape to give them, and with which
-//  numbers, is for the interpreters to know.
-//
-//  Created by Petter Sjölund on 2022-04-11.
-//
+/*
+ *  alkatraz.c
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version.
+ *
+ *  Part of the decompressz80 library: undoes the Alkatraz copy protection
+ *  (Appleby Associates) of ZX Spectrum tapes. The loader decrypts the game
+ *  with a rolling key as it comes off the tape and then moves blocks of it
+ *  about in memory. These functions do the same to a 64K image of the
+ *  Spectrum's memory. Which block of which tape to give them, and with which
+ *  numbers, is for the interpreters to know.
+ *
+ *  Created by Petter Sjölund on 2022-04-11.
+ */
 
 #include <stddef.h>
 #include <stdint.h>

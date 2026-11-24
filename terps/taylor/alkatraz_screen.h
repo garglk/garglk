@@ -1,15 +1,22 @@
-//
-//  alkatraz_screen.h
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Generic re-implementation of the Alkatraz Protection System's screen
-//  address-order generator (the loader's "SCADDS" routine). The loader draws
-//  a loading picture as a list of rectangular "windows", each a strip of
-//  characters in one of four directions; simultaneous windows are drawn
-//  byte-interleaved. Given a game's window descriptors this produces the exact
-//  order in which the loader writes screen addresses, so the pixel bytes
-//  streamed from tape can be placed correctly.
-//
+/*
+ *  alkatraz_screen.h
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2026-06-04.
+ *
+ *  Generic re-implementation of the Alkatraz Protection System's screen
+ *  address-order generator (the loader's "SCADDS" routine). The loader draws
+ *  a loading picture as a list of rectangular "windows", each a strip of
+ *  characters in one of four directions; simultaneous windows are drawn
+ *  byte-interleaved. Given a game's window descriptors this produces the exact
+ *  order in which the loader writes screen addresses, so the pixel bytes
+ *  streamed from tape can be placed correctly.
+ */
 
 #ifndef alkatraz_screen_h
 #define alkatraz_screen_h

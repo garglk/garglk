@@ -22,17 +22,17 @@
  * ADRIFT 5 support for Scarier -- the conversation layer.
  *
  * clsUserSession's FindConversationNode / ExecuteConversation: driving a
- * Greet/Ask/Tell/Command/Farewell against a character, picking the best topic at
- * the current conversation node (Ask/Tell by keyword score, Command by command
- * pattern, Greet/Farewell by restrictions alone), emitting its reply and running
- * its actions, and ending the conversation when the partner walks away.  Split
- * out of the action layer (now a5run_act.cpp), which keeps the dispatch that
- * calls in here (the Conversation action and the MoveCharacter branches).
+ * Greet/Ask/Tell/Command/Farewell against a character, picking the best topic
+ * at the current conversation node (Ask/Tell by keyword score, Command by
+ * command pattern, Greet/Farewell by restrictions alone), emitting its reply
+ * and running its actions, and ending the conversation when the partner walks
+ * away.  The action layer (a5run_act.cpp) keeps the dispatch that calls in
+ * here (the Conversation action and the MoveCharacter branches).
  *
  * Entry points used from a5run_act.cpp -- exec_conversation,
  * clear_conv_if_partner_gone, conv_contains_word and the A5_CONV_* bits -- are
  * declared in a5run_internal.h.  Topic actions run back through run_action
- * there, so the two files are mutually recursive by design: the runner's
+ * there, so the two files are mutually recursive by design: the Runner's
  * ExecuteConversation likewise calls ExecuteActions.
  */
 
@@ -41,14 +41,14 @@
 /* ContainsWord (clsUserSession.vb:3885): every space-separated word of `check`
    appears among the space-separated words of `sentence` (case-insensitive).
 
-   FAITHFUL QUIRK: the runner splits with VB `Split(x, " ")`, which KEEPS empty tokens.
-   So an empty `check` (an empty-keyword Ask/Tell topic, e.g. RtC's "ask about
-   igor" Topic6 with <Keywords/>) splits to the single check-word "", which is
-   found only when the sentence also has an empty token -- i.e. a non-empty
-   subject like "freeze" never matches an empty keyword.  C++ `split_ws` drops
-   empties, so an empty keyword used to match EVERYTHING (Topic6 stole the turn
-   from the keyworded "freeze" Topic7).  Mirror VB Split (split on a single
-   space, keep empties) exactly. */
+   FAITHFUL QUIRK: the Runner splits with VB `Split(x, " ")`, which KEEPS empty
+   tokens.  So an empty `check` (an empty-keyword Ask/Tell topic, e.g. RtC's
+   "ask about igor" Topic6 with <Keywords/>) splits to the single check-word
+   "", which is found only when the sentence also has an empty token -- i.e. a
+   non-empty subject like "freeze" never matches an empty keyword.  C++
+   `split_ws` drops empties, so with it an empty keyword would match EVERYTHING
+   (Topic6 stealing the turn from the keyworded "freeze" Topic7).  Mirror VB
+   Split (split on a single space, keep empties) exactly. */
 int
 conv_contains_word (const std::string &sentence, const std::string &check)
 {
@@ -102,7 +102,7 @@ emit_conv (char *rendered_owned, sb_t *out)
 }
 
 /* Render a topic's <Conversation> with `ctx_key` as the text context and the
-   intro flag set (the runner's conversation-reply emit), restoring both around
+   intro flag set (the Runner's conversation-reply emit), restoring both around
    the one AddResponse.  Shared by the intro / topic-reply / implicit-farewell
    paths of exec_conversation and clear_conv_if_partner_gone. */
 static void
@@ -126,9 +126,9 @@ emit_topic_conv (a5_run_t *run, const char *ctx_key,
 }
 
 /* On a topic whose trigger matched but whose restrictions failed, capture the
-   restriction's fail-message text into *restr_text (last wins), so the caller can
-   surface it as the "doesn't understand" default.  A no-op when restr_text is
-   NULL (the callers that do not want the default). */
+   restriction's fail-message text into *restr_text (last wins), so the caller
+   can surface it as the "doesn't understand" default.  A no-op when restr_text
+   is NULL (the callers that do not want the default). */
 static void
 capture_restr_text (a5_state_t *st, const a5_xml_node_t *restrictions,
                     std::string *restr_text)
@@ -137,7 +137,8 @@ capture_restr_text (a5_state_t *st, const a5_xml_node_t *restrictions,
     return;
   const a5_xml_node_t *fm = a5restr_fail_message (st, restrictions);
   if (fm != nullptr)
-    { a5_intro_guard ig (st, 1);          /* fail text expands in Display (vb:1247) */
+    { /* fail text expands in Display (vb:1247) */
+      a5_intro_guard ig (st, 1);
       char *t2 = a5text_describe (st, fm); *restr_text = t2; free (t2); }
 }
 
@@ -150,17 +151,17 @@ capture_restr_text (a5_state_t *st, const a5_xml_node_t *restrictions,
  * into *restr_text (last wins), so the caller can surface it as the default.
  *
  * TIE-BREAK / ITERATION ORDER (measured 2026-08-11, Dinner Plans).  The score
- * comparison is the runner's own (`>` for matches, then `>` for percent), so
+ * comparison is the Runner's own (`>` for matches, then `>` for percent), so
  * the FIRST topic considered wins a tie -- and we consider them in the order
  * the model lists them, which is the order FileIO adds them (verified: FD's
  * loader logs Topic1..Topic13 in document order).  FrankenDrift then iterates
  * `htblTopics.Values`, a Dictionary that by playing time has been rebuilt by
  * the state machinery, so its enumeration is a stable but scrambled slot order
- * (Topic11, 4, 13, 6, 5, 7, 2, 3, 12, 1, ... for Emily) -- a .NET artifact, not
- * anything in the runner source.  It only shows when two topics score exactly
- * equal, which needs one keyword to be a superset phrase of another's: Emily's
- * Topic1 "pizza" and Topic2 "pizza bella" both score 1 match / 100% on `ask
- * emily about pizza bella`, and FD answers Topic2 where we answer Topic1.
+ * (Topic11, 4, 13, 6, 5, 7, 2, 3, 12, 1, ... for Emily) -- a .NET artifact,
+ * not anything in the Runner source.  It only shows when two topics score
+ * exactly equal, which needs one keyword to be a superset phrase of another's:
+ * Emily's Topic1 "pizza" and Topic2 "pizza bella" both score 1 match / 100% on
+ * `ask emily about pizza bella`, and FD answers Topic2 where we answer Topic1.
  * Leave the order alone: matching FD here would mean emulating .NET dictionary
  * internals, and document order is what the source it ports actually implies.
  */
@@ -248,7 +249,7 @@ find_conv_node (a5_run_t *run, const a5_character_t *ch, int conv_type,
   return best;
 }
 
-/* Run a topic's actions.  The runner runs them through the ActionArrayList
+/* Run a topic's actions.  The Runner runs them through the ActionArrayList
    ExecuteActions overload, which passes task = Nothing to ExecuteSingleAction
    -- so they carry NO owning task even though a library Say/Ask task triggered
    the conversation (and a topic's Score changes never land; see the Score gate
@@ -268,10 +269,10 @@ run_topic_actions (a5_run_t *run, const a5_topic_t *topic, sb_t *out)
 }
 
 /*
- * ExecuteConversation (clsUserSession): drive a Greet/Ask/Tell/Command/Farewell
- * against a character -- implicit/explicit intro on first contact, then the
- * matching topic's reply + actions, else a default "doesn't understand" message
- * (or a topic restriction's fail text).
+ * ExecuteConversation (clsUserSession): drive a
+ * Greet/Ask/Tell/Command/Farewell against a character -- implicit/explicit
+ * intro on first contact, then the matching topic's reply + actions, else a
+ * default "doesn't understand" message (or a topic restriction's fail text).
  */
 void
 exec_conversation (a5_run_t *run, const char *char_key, int conv_type,
@@ -338,10 +339,10 @@ exec_conversation (a5_run_t *run, const char *char_key, int conv_type,
   if (topic != nullptr)
     {
       /* A pure Greet's main lookup can re-find the very topic just emitted as
-         the intro.  The runner emits both, but AddResponse (clsUserSession.vb:
+         the intro.  The Runner emits both, but AddResponse (clsUserSession.vb:
          1296) keys responses by message TEXT and merges the duplicate, so only
          one copy is displayed.  Skip the re-emission; the node bookkeeping and
-         actions below still run (the runner runs them from this block too). */
+         actions below still run (the Runner runs them from this block too). */
       if (topic != intro_emitted)
         emit_topic_conv (run, conv_ch->key, topic->conversation, out);
       if (topic_has_children (conv_ch, topic->key))
@@ -370,9 +371,9 @@ exec_conversation (a5_run_t *run, const char *char_key, int conv_type,
     }
 }
 
-/* clsCharacter.Move conversation maintenance (clsCharacter.vb:535-545): after the
-   Player moves, if we are in a conversation whose partner is no longer at the
-   Player's (new) location, show an implicit Farewell topic and end the
+/* clsCharacter.Move conversation maintenance (clsCharacter.vb:535-545): after
+   the Player moves, if we are in a conversation whose partner is no longer at
+   the Player's (new) location, show an implicit Farewell topic and end the
    conversation.  Without this, conv_char persists across rooms so `say %text%`
    keeps matching `Say` (BeInConversationWith) instead of falling to `SayLazy`
    (BeAloneWith) -- e.g. Stone of Wisdom's `say yes` to Pamba never routes

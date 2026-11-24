@@ -33,7 +33,7 @@
  * +percent+ with < > %, then send to the OS-specific output functions.
  */
 static void
-pf_output_text (const scr_char *string)
+pf_output_text (const scr_char *string, const scr_markup_sink_t *sink)
 {
   scr_int index_;
   std::string buffer;
@@ -43,7 +43,7 @@ pf_output_text (const scr_char *string)
         || strstr (string, ENTITY_GREATERTHAN)
         || strstr (string, ENTITY_PERCENT)))
     {
-      if_print_string (string);
+      sink->text (string, sink->opaque);
       return;
     }
 
@@ -51,7 +51,7 @@ pf_output_text (const scr_char *string)
    * Copy characters from the string into the buffer, replacing any &..;
    * elements by their single-character equivalents.  We also replace any
    * +percent+ elements by percent characters; apparently an undocumented
-   * Adrift Runner extension.
+   * ADRIFT Runner extension.
    */
   buffer.reserve (strlen (string));
   for (index_ = 0; string[index_] != NUL; index_++)
@@ -79,7 +79,7 @@ pf_output_text (const scr_char *string)
     }
 
   /* Print the rebuilt string. */
-  if_print_string (buffer.c_str ());
+  sink->text (buffer.c_str (), sink->opaque);
 }
 
 
@@ -89,7 +89,7 @@ pf_output_text (const scr_char *string)
  * Output an HTML-like tag element to the OS-specific tag handling function.
  */
 static void
-pf_output_tag (const scr_char *contents)
+pf_output_tag (const scr_char *contents, const scr_markup_sink_t *sink)
 {
   const scr_html_tags_t *entry;
   const scr_char *argument;
@@ -97,7 +97,7 @@ pf_output_tag (const scr_char *contents)
   /* For a simple <br> tag, just print out a newline. */
   if (scr_compare_word (contents, "br", 2))
     {
-      if_print_character ('\n');
+      sink->text ("\n", sink->opaque);
       return;
     }
 
@@ -122,8 +122,8 @@ pf_output_tag (const scr_char *contents)
            * the whole tag with "<waitkey>"); anything else starting "<wait"
            * is a timed <wait> whose Val() of the remainder decides the
            * delay, so "<waitkey 4>" is a zero-second wait and NOT a
-           * keypress pause.  Vardock Bates (4.00) writes one after the
-           * Jhave wall; run400 does not stop there (transcript 2026-08-29).
+           * keypress pause.  Vardock Bates (4.0) writes one after the
+           * Jhave wall; run400 does not stop there (transcript).
            */
           if (entry->tag == SCR_TAG_WAITKEY)
             {
@@ -141,7 +141,7 @@ pf_output_tag (const scr_char *contents)
   /* If not matched, output an unknown tag with contents as its argument. */
   if (!entry->name)
     {
-      if_print_tag (SCR_TAG_UNKNOWN, contents);
+      sink->tag (SCR_TAG_UNKNOWN, contents, sink->opaque);
       return;
     }
 
@@ -154,21 +154,24 @@ pf_output_tag (const scr_char *contents)
   argument += (entry->tag != SCR_TAG_BGCOLOUR) ? entry->length : 0;
   while (scr_isspace (argument[0]))
     argument++;
-  if_print_tag (entry->tag, argument);
+  sink->tag (entry->tag, argument, sink->opaque);
 }
 
 
 /*
- * pf_output_untagged()
+ * pf_dissect_markup()
  *
  * Break apart HTML-like string into normal text elements, and HTML-like
- * tags.
+ * tags, and hand each to the sink in order.  The printfilter's own output
+ * goes through here (pf_output_untagged() below); scr_game_scan_markup()
+ * sends a game's authored strings through it too, so a host tallying the
+ * markup sees the same tags and text the screen would.
  */
-static void
-pf_output_untagged (const scr_char *string)
+void
+pf_dissect_markup (const scr_char *string, const scr_markup_sink_t *sink)
 {
-  scr_char *untagged, *contents, *cursor;
-  const scr_char *marker;
+  scr_char *untagged, *contents;
+  const scr_char *marker, *cursor;
 
   /*
    * Optimize away the allocation and copy if possible.  We need to check
@@ -180,7 +183,7 @@ pf_output_untagged (const scr_char *string)
            || strstr (string, ENTITY_GREATERTHAN)
            || strstr (string, ENTITY_PERCENT)))
     {
-      if_print_string (string);
+      sink->text (string, sink->opaque);
       return;
     }
 
@@ -193,15 +196,15 @@ pf_output_untagged (const scr_char *string)
 
   /* Run through the string looking for <...> tags. */
   marker = string;
-  for (cursor = (scr_char *) strchr (marker, LESSTHAN);
-       cursor; cursor = (scr_char *) strchr (marker, LESSTHAN))
+  for (cursor = strchr (marker, LESSTHAN);
+       cursor; cursor = strchr (marker, LESSTHAN))
     {
       scr_char close;
 
       /* Handle characters up to the tag start; untagged text. */
       memcpy (untagged, marker, cursor - marker);
       untagged[cursor - marker] = NUL;
-      pf_output_text (untagged);
+      pf_output_text (untagged, sink);
 
       /* Catch and ignore completely empty tags. */
       if (cursor[1] == GREATERTHAN)
@@ -212,16 +215,18 @@ pf_output_untagged (const scr_char *string)
 
       /*
        * Get the text within the tag, reusing the temporary buffer.  If this
-       * fails, allow the remainder of the line to be delivered as a tag;
-       * unknown, probably.
+       * fails, allow the remainder of the line to be delivered as a tag,
+       * normally an unknown one.
        */
       if (sscanf (cursor, "<%[^>]%c", contents, &close) != 2
           || close != GREATERTHAN)
         {
           if (sscanf (cursor, "<%[^>]", contents) != 1)
             {
-              scr_error ("pf_output_untagged: mismatched '%c'\n", LESSTHAN);
-              if_print_character (LESSTHAN);
+              static const scr_char lessthan[] = {LESSTHAN, NUL};
+
+              scr_error ("pf_dissect_markup: mismatched '%c'\n", LESSTHAN);
+              sink->text (lessthan, sink->opaque);
               marker = cursor + 1;
               continue;
             }
@@ -229,13 +234,41 @@ pf_output_untagged (const scr_char *string)
 
       /* Output tag, and advance marker over the <...> tag. */
       if (!scr_strempty (contents))
-        pf_output_tag (contents);
+        pf_output_tag (contents, sink);
       marker = cursor + strlen (contents) + 1;
       marker += (marker[0] == GREATERTHAN) ? 1 : 0;
     }
 
   /* Output any remaining string text; the temporary buffer frees itself. */
-  pf_output_text (marker);
+  pf_output_text (marker, sink);
+}
+
+
+/*
+ * pf_output_untagged()
+ *
+ * Dissect the string straight to the interface's print calls.
+ */
+static void
+pf_output_print_text (const scr_char *text, void *)
+{
+  if_print_string (text);
+}
+
+static void
+pf_output_print_tag (scr_int tag, const scr_char *argument, void *)
+{
+  if_print_tag (tag, argument);
+}
+
+static void
+pf_output_untagged (const scr_char *string)
+{
+  static const scr_markup_sink_t sink = {
+    nullptr, pf_output_print_text, pf_output_print_tag, nullptr
+  };
+
+  pf_dissect_markup (string, &sink);
 }
 
 
@@ -252,7 +285,7 @@ pf_output_untagged (const scr_char *string)
  * How many times the Runner walks the ALR list is a version split, and both
  * halves are measured rather than argued (harness/make_400_alrprobe.py and
  * harness/make_39_alrprobe.py, one task per cell, run under run400.exe and
- * run390.exe in Wine on 2026-08-24):
+ * run390.exe in Wine on):
  *
  *                      ALRs                       run390     run400
  *    "AAA."      AAA -> qAAA                      qAAA.      qqAAA.
@@ -279,12 +312,11 @@ pf_output_untagged (const scr_char *string)
  * "Vous vous deplacez in.".
  *
  * A self-containing ALR is held to one expansion per walk not by a retirement
- * flag -- SCARE's, which this used to keep -- but by 4.0's whole-text equality
- * test: filtering [Okay.  I put ] for the ALR [I put ] -> [Okay.  I put ]
- * finds the original, sees the text IS the replacement and hands it back
- * untouched.  Every other ALR fires whenever its original is in front of the
- * cursor.  Measured, with [TOKEN] -> [tok] and [zebra] -> [TOKEN] over
- * "TOKEN zebra.":
+ * flag -- SCARE's -- but by 4.0's whole-text equality test: filtering [Okay.
+ * I put ] for the ALR [I put ] -> [Okay.  I put ] finds the original, sees the
+ * text IS the replacement and hands it back untouched.  Every other ALR fires
+ * whenever its original is in front of the cursor.  Measured, with [TOKEN] ->
+ * [tok] and [zebra] -> [TOKEN] over "TOKEN zebra.":
  *
  *                                                 run390     run400
  *    "TOKEN zebra."                               tok TOKEN. tok tok.
@@ -299,7 +331,7 @@ pf_output_untagged (const scr_char *string)
  * harness/make_400_alrsrcprobe.py).  Every cell of the probe above is a task
  * CompleteText, so that second walk is where run400's extra "q" and its third
  * and fourth "EEE" come from -- one recursive walk of "AAA." gives "qAAA.",
- * and walking that again gives "qqAAA.".  That is the humbug (4.00) divergence
+ * and walking that again gives "qqAAA.".  That is the humbug (4.0) divergence
  * this all started from -- its "[I put ] -> [Okay.  I put ]" is
  * self-containing, so task 80's CompleteText answers `Put sweet on plinth`
  * with "Okay.  Okay.  I put the sweet on the plinth."
@@ -353,7 +385,7 @@ pf_filter_internal (const scr_char *string,
   alr_pass_done = FALSE;
 
   /*
-   * Loop for a sort-of arbitrary number of passes; probably enough.
+   * Loop for at most ITERATION_LIMIT passes, an arbitrary bound.
    * 'have_current' tracks whether any replacement has produced a 'current'
    * string yet; until then we work on the input 'string'.
    */

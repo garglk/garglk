@@ -1,9 +1,14 @@
-//
-//  stdetect.c
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Created by Petter Sjölund on 2022-08-02.
-//
+/*
+ *  stdetect.c
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-08-02.
+ */
 
 #define MAX_ST_LENGTH 368640
 #define MIN_ST_LENGTH 213610
@@ -12,9 +17,9 @@
 #include <string.h>
 
 #include "common.h"
-#include "definitions.h"
+#include "minmax.h"
 #include "graphics.h"
-#include "read_le16.h"
+#include "byteorder.h"
 
 #include "stdetect.h"
 
@@ -210,12 +215,11 @@ static msdos_dir_entry *ReadFAT12DirEntry(uint8_t **pointer)
     return dir;
 }
 
-/*
- * Return the next cluster in the chain of the provided cluster from the FAT.
- * If the cluster you find is out of bounds, return 0
- *
- * For FAT12, two entries are stored in 3 bytes. if the bytes are uv, wx, yz then the entries are xuv and yzw
- */
+/* Return the next cluster in the chain of the provided cluster from the FAT.
+   If the cluster you find is out of bounds, return 0.
+
+   For FAT12, two entries are stored in 3 bytes. If the bytes are uv, wx, yz
+   then the entries are xuv and yzw. */
 static uint32_t get_next_cluster12(const uint8_t *sf, size_t disksize, uint32_t cluster)
 {
     uint8_t fat_hi, fat_lo;
@@ -225,17 +229,18 @@ static uint32_t get_next_cluster12(const uint8_t *sf, size_t disksize, uint32_t 
     size_t entry = fat_offset + ((cluster / 2) * 3);
     if (entry + 3 > disksize)
         return 0;
-    // If the cluster number is odd, we're getting the last half of the three bytes.
+    /* If the cluster number is odd, we're getting the last half of the three
+       bytes. */
     if (cluster & 1) {
         fat_lo = sf[entry + 1];
         fat_hi = sf[entry + 2];
         new_clust = (fat_hi << 4) | (fat_lo >> 4);
-    } else { // If it's even we're getting the first half.
+    } else { /* If it's even we're getting the first half. */
         fat_lo = sf[entry];
         fat_hi = sf[entry + 1] & 0x0f;
         new_clust = (fat_hi << 8) | fat_lo;
     }
-    // for FAT12, the valid entries are between 0x2 and 0xfef.
+    /* For FAT12, the valid entries are between 0x2 and 0xfef. */
     if ((new_clust >= 0x02) && (new_clust <= 0xfef)) {
         return new_clust;
     }

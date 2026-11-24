@@ -33,16 +33,16 @@
 
 #include "a5text_internal.h"
 
-/* Does s contain an OO property expression "X.Prop..."?  the runner's AddSpace regex
-   `.*?(%?[A-Za-z][\w\|_-]*%?)(\.%?[A-Za-z][\w\|_-]*%?(\([A-Za-z ,_]+?\))?)+`
-   is an UNANCHORED IsMatch -- a contains test, not an ends-with test -- and
-   spaces are only legal inside a parenthesised argument list, never in the
-   identifiers themselves.  A match reduces to: some '.' whose left neighbour
-   run `[\w|-]*%?` (walked over identifier chars, one optional '%' adjacent to
-   the dot) contains a letter, and whose right side is `%?[A-Za-z]`.  (The old
-   backward walk here allowed spaces in the run, so a plain sentence tail like
-   "...has its lid closed" walked back through whole sentences to an earlier
-   full stop and matched -- adding a two-space join where the runner adds none:
+/* Does s contain an OO property expression "X.Prop..."?  the Runner's AddSpace
+   regex `.*?(%?[A-Za-z][\w\|_-]*%?)(\.%?[A-Za-z][\w\|_-]*%?(\([A-Za-z
+   ,_]+?\))?)+` is an UNANCHORED IsMatch -- a contains test, not an ends-with
+   test -- and spaces are only legal inside a parenthesised argument list,
+   never in the identifiers themselves.  A match reduces to: some '.' whose
+   left neighbour run `[\w|-]*%?` (walked over identifier chars, one optional
+   '%' adjacent to the dot) contains a letter, and whose right side is
+   `%?[A-Za-z]`.  (Allowing spaces in the run would let a plain sentence tail
+   like "...has its lid closed" walk back through whole sentences to an earlier
+   full stop and match -- adding a two-space join where the Runner adds none:
    DieFeuerfaust's chieftain's-tent chest.) */
 static int
 contains_oo_expr (const char *s, size_t len)
@@ -83,7 +83,8 @@ contains_oo_expr (const char *s, size_t len)
   return 0;
 }
 
-/* Does s end with text that warrants a double space before the next segment? */
+/* Does s end with text that warrants a double space before the next segment?
+   */
 int
 add_space (const char *s, size_t len)
 {
@@ -95,19 +96,19 @@ add_space (const char *s, size_t len)
     return 0;
   if (c == '.' || c == '!' || c == '?' || c == '%')
     return 1;
-  /* an OO expression anywhere in the text (the runner's unanchored regex IsMatch,
-     Global.vb:3873) -- it will expand at display time. */
+  /* an OO expression anywhere in the text (the Runner's unanchored regex
+     IsMatch, Global.vb:3873) -- it will expand at display time. */
   return contains_oo_expr (s, len);
 }
 
-/* ----------------------------------------------------- description -> source */
+/* --------------------------------------------------- description -> source */
 
 /* Process every <Description> child of `wrapper` into the running buffer `sb`,
    threading clsDescription.ToString's `first`/`default_text` state so several
-   wrappers can be concatenated into one logical Description (the runner's
-   oShortDesc.Copy + appended group-property SingleDescriptions, clsLocation.vb:62).
-   Returns 1 when a DisplayOnce segment terminated the description (no later
-   wrapper should be considered), else 0. */
+   wrappers can be concatenated into one logical Description (the Runner's
+   oShortDesc.Copy + appended group-property SingleDescriptions,
+   clsLocation.vb:62).  Returns 1 when a DisplayOnce segment terminated the
+   description (no later wrapper should be considered), else 0. */
 static int
 eval_desc_into (a5_state_t *st, sb_t *psb, int *pfirst, const char **pdefault,
                 const a5_xml_node_t *wrapper)
@@ -134,14 +135,15 @@ eval_desc_into (a5_state_t *st, sb_t *psb, int *pfirst, const char **pdefault,
       if (first)
         default_text = text;
 
-      /* A <DisplayOnce> segment is suppressed once it has been shown (the start
-         room's "soft rain" line in Stone of Wisdom shows at game start, then not
-         on a later LOOK) -- clsDescription.ToString: "If Not sd.DisplayOnce
-         OrElse Not sd.Displayed". */
-      /* FileIO.GetBool semantics: RtC serialises <DisplayOnce>True</DisplayOnce>,
-         not "1", so a literal "1" compare missed it and the first-visit segment
-         never short-circuited (later StartDescriptionWithThis segments overrode
-         it).  Route through a5xml_bool like every other model boolean. */
+      /* A <DisplayOnce> segment is suppressed once it has been shown (the
+         start room's "soft rain" line in Stone of Wisdom shows at game start,
+         then not on a later LOOK) -- clsDescription.ToString: "If Not
+         sd.DisplayOnce OrElse Not sd.Displayed". */
+      /* FileIO.GetBool semantics: RtC serialises
+         <DisplayOnce>True</DisplayOnce>, not "1", so a literal "1" compare
+         missed it and the first-visit segment never short-circuited (later
+         StartDescriptionWithThis segments overrode it).  Route through
+         a5xml_bool like every other model boolean. */
       once = a5xml_bool (a5xml_child_text (c, "DisplayOnce"));
       if (once && a5state_disp_once_seen (st, c))
         {
@@ -157,11 +159,11 @@ eval_desc_into (a5_state_t *st, sb_t *psb, int *pfirst, const char **pdefault,
              `If .DisplayOnce` *regardless* of whether the restrictions passed
              (it only sets Displayed=True when they did).  So a not-yet-shown
              DisplayOnce segment whose restrictions FAIL still terminates the
-             loop -- later segments are not considered -- but is left un-retired
-             so it can show on a future turn.  (Anno's Room 101 has two identical
-             "narrow opening" appends straddling a DisplayOnce faint segment; The runner
-             shows the line once because the failing faint segment returns before
-             the second append.)  */
+             loop -- later segments are not considered -- but is left
+             un-retired so it can show on a future turn.  (Anno's Room 101 has
+             two identical "narrow opening" appends straddling a DisplayOnce
+             faint segment; the Runner shows the line once because the failing
+             faint segment returns before the second append.)  */
           if (once)
             { terminated = 1; break; }
           continue;
@@ -211,20 +213,22 @@ eval_desc_into (a5_state_t *st, sb_t *psb, int *pfirst, const char **pdefault,
         {
           if (add_space (sb->p, sb->len))
             sb_puts (sb, "  ");
-          /* The "<>" marker (the Adrift 5 runner ToString) is a zero-width separator: it
-             keeps an unexpanded "%x%.Prop" at the join from merging with the next
-             segment's text into one corrupt token.  render_plain drops it. */
+          /* The "<>" marker (the Runner's ToString) is a zero-width separator:
+             it keeps an unexpanded "%x%.Prop" at the join from merging with
+             the next segment's text into one corrupt token.  render_plain
+             drops it. */
           sb_puts (sb, "<>");
           sb_puts (sb, text);
         }
       first = 0;
-      /* A DisplayOnce segment terminates the description: clsDescription.ToString
-         does `Return sb.ToString` inside `If .DisplayOnce`, so once a not-yet-
-         shown DisplayOnce segment is output, later segments are NOT considered.
-         This is what makes a location's "long first-visit / short thereafter"
-         pair work -- the long block is DisplayOnce + StartDescriptionWithThis, so
-         a plain StartDescriptionWithThis follow-up only wins once the first has
-         been retired. */
+      /* A DisplayOnce segment terminates the description:
+         clsDescription.ToString does `Return sb.ToString` inside `If
+         .DisplayOnce`, so once a not-yet- shown DisplayOnce segment is output,
+         later segments are NOT considered.  This is what makes a location's
+         "long first-visit / short thereafter" pair work -- the long block is
+         DisplayOnce + StartDescriptionWithThis, so a plain
+         StartDescriptionWithThis follow-up only wins once the first has been
+         retired. */
       if (once)
         { terminated = 1; break; }
     }
@@ -245,14 +249,14 @@ a5text_eval_description (a5_state_t *st, const a5_xml_node_t *wrapper)
   return sb_finish (&sb);
 }
 
-/* The effective Short/LongDescription of a location (clsLocation.vb:62/78): the
-   base <`tag`> Description, with any inherited `group_prop` group property's
-   SingleDescriptions appended.
+/* The effective Short/LongDescription of a location (clsLocation.vb:62/78):
+   the base <`tag`> Description, with any inherited `group_prop` group
+   property's SingleDescriptions appended.
 
    Short: a DarkLocations member with no LightSources in scope renders
    "Everything is dark" (its dark alternate is StartDescriptionWithThis +
    restricted).  Routed through by %LocationName%, %DisplayLocation%'s room
-   name, and the `.ShortDescription` OO reads, mirroring the runner where every
+   name, and the `.ShortDescription` OO reads, mirroring the Runner where every
    short-name read goes through the property getter.
 
    Long: both properties are created GroupOnly by FileIO (vb:2429/2441), so a
@@ -340,19 +344,22 @@ replace_alrs (a5_state_t *st, const char *src, int depth)
             fprintf (stderr, "[ALR fragment] hit old=\"%s\" in \"%.60s\"\n",
                      alr->old_text, cur);
           /* Defer bare %variable% tokens inside the NewText to the Display
-             boundary (A5_VARDEF_MARK): the runner only expands ALRs at Display time,
-             so their variables read the end-of-turn state.  The boundary pass
-             (a5text_display_alr) expands eagerly -- it IS the boundary. */
+             boundary (A5_VARDEF_MARK): the Runner only expands ALRs at Display
+             time, so their variables read the end-of-turn state.  The boundary
+             pass (a5text_display_alr) expands eagerly -- it IS the boundary.
+             */
           int prev_defer = st->alr_defer_vars;
           st->alr_defer_vars = 1;
           char *raw = a5text_eval_description (st, alr->new_text);
-          /* Mirror the runner's `If sText = sALR Then Exit For` (Global.vb:532): when the
-             whole current text already equals the (unprocessed) replacement, stop
-             processing ALRs entirely -- crucially BEFORE recursing.  This is what
-             terminates identity/self-referential ALRs (e.g. this game's ~25 copies
-             of a 25-asterisk banner line whose OldText == NewText): without it,
-             process_inner recurses on the replacement, which re-matches all the
-             identity ALRs, branching ~N-fold per level down to the depth-8 cap. */
+          /* Mirror the Runner's `If sText = sALR Then Exit For`
+             (Global.vb:532): when the whole current text already equals the
+             (unprocessed) replacement, stop processing ALRs entirely --
+             crucially BEFORE recursing.  This is what terminates
+             identity/self-referential ALRs (e.g. this game's ~25 copies of a
+             25-asterisk banner line whose OldText == NewText): without it,
+             process_inner recurses on the replacement, which re-matches all
+             the identity ALRs, branching ~N-fold per level down to the depth-8
+             cap. */
           if (streq (cur, raw))
             {
               free (raw);
@@ -371,9 +378,9 @@ replace_alrs (a5_state_t *st, const char *src, int depth)
   return cur;
 }
 
-/* ------------------------------------------------------ auto-capitalisation */
+/* ----------------------------------------------------- auto-capitalisation */
 
-/* Mirror the Adrift 5 runner's CapAfterFullStop regex
+/* Mirror the Runner's CapAfterFullStop regex
    "^(?<cap>[a-z])|\n(?<cap>[a-z])|[a-z][\.\!\?] ( )?(?<cap>[a-z])"
    (Global.vb:539).  The third alternative requires a *lowercase letter*
    immediately before the .!? so an ellipsis ("...") or a digit/upper char
@@ -387,17 +394,18 @@ a5_is_lower (char c)
 static int
 is_sentence_start (const char *s, size_t i, int allow_line_start)
 {
-  /* The `^` and `\n` alternatives (start-of-text / start-of-line).  The runner applies
-     CapAfterFullStop to still-MARKED-UP text, where a formatting tag (<del>,
-     <c>, <b>, <font...>) between the line break and the letter blocks these two
-     alternatives (the regex sees the tag's '>' immediately before the letter,
-     not '^'/'\n').  Scarier's per-fragment a5text_process runs the full cap on
-     marked-up text too, so intra-fragment line starts are already handled there;
-     the Display-boundary re-cap (a5text_display_alr) runs on PLAIN text, where
-     those tags are gone, so honouring `^`/`\n` there wrongly capitalises a letter
-     the runner left alone (e.g. Call of the Shaman's `<del>https://...` credits URLs).
-     The boundary therefore passes allow_line_start=0 -- only real sentence
-     punctuation (which no tag can hide) drives a cap in the second pass. */
+  /* The `^` and `\n` alternatives (start-of-text / start-of-line).  The Runner
+     applies CapAfterFullStop to still-MARKED-UP text, where a formatting tag
+     (<del>, <c>, <b>, <font...>) between the line break and the letter blocks
+     these two alternatives (the regex sees the tag's '>' immediately before
+     the letter, not '^'/'\n').  Scarier's per-fragment a5text_process runs the
+     full cap on marked-up text too, so intra-fragment line starts are already
+     handled there; the Display-boundary re-cap (a5text_display_alr) runs on
+     PLAIN text, where those tags are gone, so honouring `^`/`\n` there wrongly
+     capitalises a letter the Runner left alone (e.g. Call of the Shaman's
+     `<del>https://...` credits URLs).  The boundary therefore passes
+     allow_line_start=0 -- only real sentence punctuation (which no tag can
+     hide) drives a cap in the second pass. */
   if (allow_line_start)
     {
       if (i == 0)
@@ -441,7 +449,7 @@ a5text_is_sentence_start (const char *text, size_t pos)
   return is_sentence_start (text, pos, 1);
 }
 
-/* --------------------------------------------------- perspective conjugation */
+/* ------------------------------------------------- perspective conjugation */
 
 /* Player perspective -> index into a [1st/2nd/3rd] verb-ending bracket.
    The CURRENT player (BECOME retargets it) through the same clsCharacter
@@ -455,10 +463,10 @@ perspective_index (a5_state_t *st)
   return char_perspective (st, p) - 1;
 }
 
-/* The runner GetPerspective (Global.vb:2481): the PronounKeys entry with the highest
-   offset at or before `pos` decides the perspective of a conjugation bracket
-   there; iHighest starts at 0, so an entry at offset 0 can never win.  0 =
-   no preceding rendered name (caller falls back to the player). */
+/* The Runner's GetPerspective (Global.vb:2481): the PronounKeys entry with the
+   highest offset at or before `pos` decides the perspective of a conjugation
+   bracket there; iHighest starts at 0, so an entry at offset 0 can never win.
+   0 = no preceding rendered name (caller falls back to the player). */
 static int
 perspective_at (const a5_state_t *st, long pos)
 {
@@ -474,13 +482,13 @@ perspective_at (const a5_state_t *st, long pos)
 }
 
 /*
- * Resolve ADRIFT verb-conjugation brackets: "move[//s]" -> "move"/"moves" by the
- * perspective of the nearest preceding rendered character name (PronounKeys),
- * defaulting to the player's ("The medic [am/are/is] wearing ..." -> "is", but
- * "you [am/are/is] carrying" with no name before it -> "are").  Only a "[a/b/c]"
- * group (slash-separated, no nested markup) is touched; everything else passes
- * through.  Mirrors the perspective half of the Adrift 5 runner Global.ReplaceFunctions
- * / _FrankenDrift_Pronouns.
+ * Resolve ADRIFT verb-conjugation brackets: "move[//s]" -> "move"/"moves" by
+ * the perspective of the nearest preceding rendered character name
+ * (PronounKeys), defaulting to the player's ("The medic [am/are/is] wearing
+ * ..." -> "is", but "you [am/are/is] carrying" with no name before it ->
+ * "are").  Only a "[a/b/c]" group (slash-separated, no nested markup) is
+ * touched; everything else passes through.  Mirrors the perspective half of
+ * the Runner's Global.ReplaceFunctions / _FrankenDrift_Pronouns.
  */
 static char *
 resolve_perspective (a5_state_t *st, const char *src)
@@ -494,13 +502,13 @@ resolve_perspective (a5_state_t *st, const char *src)
     {
       if (*p == '[')
         {
-          /* The runner's rePerspective regex is \[(first)/(second)/(third)\]: the
-             bracket must hold at least TWO slashes (split at the first two;
-             the third part is the rest, slashes and all) and lie on one line
-             ('.' doesn't span \n).  A one-slash bracket is NOT a perspective
-             group -- GFS's "[more (<u>more</u> means ...)]" and "[type ...
-             <b>E</b> to exit]" pass through literally (the tags render away
-             later). */
+          /* The Runner's rePerspective regex is \[(first)/(second)/(third)\]:
+             the bracket must hold at least TWO slashes (split at the first
+             two; the third part is the rest, slashes and all) and lie on one
+             line ('.' doesn't span \n).  A one-slash bracket is NOT a
+             perspective group -- GFS's "[more (<u>more</u> means ...)]" and
+             "[type ...  <b>E</b> to exit]" pass through literally (the tags
+             render away later). */
           const char *q = p + 1;
           const char *s1 = nullptr, *s2 = nullptr;
           while (*q && *q != ']' && *q != '[' && *q != '\n')
@@ -529,9 +537,9 @@ resolve_perspective (a5_state_t *st, const char *src)
   return sb_finish (&sb);
 }
 
-/* ------------------------------------------------- embedded <#...#> expressions */
+/* -------------------------------------------- embedded <#...#> expressions */
 
-/* A signed decimal integer? (the Adrift 5 runner's bIntValue -- expression results
+/* A signed decimal integer? (the Runner's bIntValue -- expression results
    that are pure integers are left unquoted; everything else is quoted.) */
 static int
 is_signed_int (const char *s)
@@ -547,8 +555,9 @@ is_signed_int (const char *s)
   return 1;
 }
 
-/* Emit a substituted value into `sb`, quoting it (the Adrift 5 runner's bExpression
-   path) unless it is a bare integer or we are already inside a quoted literal. */
+/* Emit a substituted value into `sb`, quoting it (the Runner's bExpression
+   path) unless it is a bare integer or we are already inside a quoted literal.
+   */
 static void
 sb_quote_val (sb_t *sb, const char *val, int in_quote)
 {
@@ -559,12 +568,12 @@ sb_quote_val (sb_t *sb, const char *val, int in_quote)
 }
 
 /*
- * Substitute the %references%, %variables% and OO property-expressions inside a
- * `<#...#>` expression body, quoting non-numeric results so the evaluator sees a
- * self-contained expression.  Ports the Adrift 5 runner's ReplaceFunctions(expr, True)
- * + ReplaceOO(bExpression:=True) (Global.vb:639-647): a substituted value is
- * wrapped in double quotes unless it is an integer or already lies between
- * quotes in the source.
+ * Substitute the %references%, %variables% and OO property-expressions inside
+ * a `<#...#>` expression body, quoting non-numeric results so the evaluator
+ * sees a self-contained expression.  Ports the Runner's ReplaceFunctions(expr,
+ * True) + ReplaceOO(bExpression:=True) (Global.vb:639-647): a substituted
+ * value is wrapped in double quotes unless it is an integer or already lies
+ * between quotes in the source.
  */
 static char *
 expr_substitute (a5_state_t *st, const char *src)
@@ -681,11 +690,12 @@ expr_bears_random (const char *body)
 
 /* Would SUBSTITUTING this `<#...#>` body draw?  True when it holds a
    `%name[args]%` reference whose args invoke an RNG function -- OS/PlugIn.Exe
-   deals its cards with `<#if(%bjValue[1]%=10, %cardPicture[RAND(1, 4)]%, ..)#>`.
-   Such a body cannot be frozen operand-first (the usual deferral): the draw
-   would land at render time, ahead of the `%cardType[RAND(1, 4)]%` that follows
-   it in the text, while the runner -- which holds the WHOLE aggregate message to
-   Display -- draws them in text order.  So defer the raw body instead. */
+   deals its cards with `<#if(%bjValue[1]%=10, %cardPicture[RAND(1, 4)]%,
+   ..)#>`.  Such a body cannot be frozen operand-first (the usual deferral):
+   the draw would land at render time, ahead of the `%cardType[RAND(1, 4)]%`
+   that follows it in the text, while the Runner -- which holds the WHOLE
+   aggregate message to Display -- draws them in text order.  So defer the raw
+   body instead. */
 static int
 expr_sub_draws_random (const char *body)
 {
@@ -724,27 +734,29 @@ defer_dup_prefix (size_t orig)
   return std::string (buf);
 }
 
-/* Evaluate every `<#...#>` expression in `src` (the Adrift 5 runner ReplaceExpressions:
-   substitute the body, then reduce it to its string value). */
+/* Evaluate every `<#...#>` expression in `src` (the Runner's
+   ReplaceExpressions:  substitute the body, then reduce it to its string
+   value). */
 static char *
 replace_expressions (a5_state_t *st, const char *src)
 {
   sb_t sb;
   const char *p = src;
-  /* Identical `<#..#>` bodies in ONE block show ONE value.  The runner's
+  /* Identical `<#..#>` bodies in ONE block show ONE value.  The Runner's
      ReplaceExpressions (Global.vb:510) collects its regex matches up front
      and then does `sText = sText.Replace(m.Value, EvaluateExpression(..))`
      per match -- a replace-ALL, so the first match's value lands in every
      identical slot, while the later matches still call EvaluateExpression
      (their OneOf/Rand/URand DRAW, keeping the RNG stream in step) and have
-     nowhere left to land.  The Last Expedition's "<#oneOf("Eight","Seven",..)#>
-     minutes later they both came to. .. <#same#> minutes later they both came
-     to their sense again" and Lost Coastlines' "<# Oneof("two","three","four")#>
-     return empty handed...<#same#> do not return at all" print the same number
-     twice in the runner.  Keyed on the raw body (the substituted text is
-     identical for identical raw bodies within one block); a deferred repeat
-     is pushed as `\005<orig>\005body` so the flush draws it but displays
-     entry <orig>'s value (a5run_draw_defer_entry). */
+     nowhere left to land.  The Last Expedition's
+     "<#oneOf("Eight","Seven",..)#> minutes later they both came to. ..
+     <#same#> minutes later they both came to their sense again" and Lost
+     Coastlines' "<# Oneof("two","three","four")#> return empty
+     handed...<#same#> do not return at all" print the same number twice in the
+     Runner.  Keyed on the raw body (the substituted text is identical for
+     identical raw bodies within one block); a deferred repeat is pushed as
+     `\005<orig>\005body` so the flush draws it but displays entry <orig>'s
+     value (a5run_draw_defer_entry). */
   std::unordered_map<std::string, std::string> seen_val;
   std::unordered_map<std::string, size_t> seen_slot;
 
@@ -791,28 +803,29 @@ replace_expressions (a5_state_t *st, const char *src)
                   continue;
                 }
               char *sub = expr_substitute (st, inner);
-              /* Resolve any BARE OO-chain (no leading %) left in the body, e.g.
-                 `<#LCASE(cl_Door1.OpenStatus)#>` in a room description --
-                 expr_substitute only handles %ref%.Prop, and the outer
-                 a5expr_replace pass skipped this body because protect_exprs hid
-                 it.  Mirrors a5text_eval_expression's second pass (the runner's
-                 EvaluateExpression -> ReplaceFunctions includes ReplaceOO).  A
-                 `<#..#>` body IS an expression, so use the EXPRESSION-mode
-                 replace (bExpression=True): a multi-word OO value like
-                 `CrashedShi.Location.Name` ("Ocean M053") must be emitted as a
-                 quoted string literal, or the sexpr tokeniser splits it at the
-                 space and drops the tail -- and a bare concat argument to
-                 `if(..)` then reduces to nothing, blanking AlienDiver's "Crashed
-                 Ship Location:" status line. */
+              /* Resolve any BARE OO-chain (no leading %) left in the body,
+                 e.g.  `<#LCASE(cl_Door1.OpenStatus)#>` in a room description
+                 -- expr_substitute only handles %ref%.Prop, and the outer
+                 a5expr_replace pass skipped this body because protect_exprs
+                 hid it.  Mirrors a5text_eval_expression's second pass (the
+                 Runner's EvaluateExpression -> ReplaceFunctions includes
+                 ReplaceOO).  A `<#..#>` body IS an expression, so use the
+                 EXPRESSION-mode replace (bExpression=True): a multi-word OO
+                 value like `CrashedShi.Location.Name` ("Ocean M053") must be
+                 emitted as a quoted string literal, or the sexpr tokeniser
+                 splits it at the space and drops the tail -- and a bare concat
+                 argument to `if(..)` then reduces to nothing, blanking
+                 AlienDiver's "Crashed Ship Location:" status line. */
               char *oo = a5expr_replace_expr (st, sub);
-              /* Deferred draw: an AggregateOutput completion message renders its
-                 static skeleton NOW (correct position and separators) but holds
-                 the RNG draw of a random `<#..#>` to end-of-command, matching
-                 the runner's Display-time ReplaceExpressions (so Lost Coastlines'
-                 `Execute EnemyIsMer` ship-name OneOf draws AFTER the following
-                 `Execute ShipCombat` action draws, not inline before them).  The
-                 operands are frozen here (oo is self-contained) so only the
-                 reduce moves; a `\004<idx>\004` sentinel marks the value slot. */
+              /* Deferred draw: an AggregateOutput completion message renders
+                 its static skeleton NOW (correct position and separators) but
+                 holds the RNG draw of a random `<#..#>` to end-of-command,
+                 matching the Runner's Display-time ReplaceExpressions (so Lost
+                 Coastlines' `Execute EnemyIsMer` ship-name OneOf draws AFTER
+                 the following `Execute ShipCombat` action draws, not inline
+                 before them).  The operands are frozen here (oo is
+                 self-contained) so only the reduce moves; a `\004<idx>\004`
+                 sentinel marks the value slot. */
               if (st->expr_defer != nullptr && expr_bears_random (oo))
                 {
                   defer (key, repeat, oo);
@@ -851,8 +864,8 @@ a5text_eval_expression (a5_state_t *st, const char *expr)
   /* Resolve any BARE OO-chain (no leading %), e.g. `Event12.Position` in a
      rain-gate restriction -- expr_substitute only handles %ref%.Prop, so the
      bare-key form needs the same ReplaceOO pass that process_inner runs on
-     display text (the runner's EvaluateExpression -> ReplaceFunctions includes it).
-     Expression mode: string values are quoted (Global.vb:645). */
+     display text (the Runner's EvaluateExpression -> ReplaceFunctions includes
+     it).  Expression mode: string values are quoted (Global.vb:645). */
   {
     char *oo = a5expr_replace_expr (st, sub);
     free (sub);
@@ -861,7 +874,7 @@ a5text_eval_expression (a5_state_t *st, const char *expr)
   val = a5_eval_sexpr (sub);
   /* A5_TRACE_EXPR=1 shows each restriction/SetVariable expression as raw ->
      substituted -> value; the substituted form is where most divergences from
-     the runner live (an OO chain that resolved to "" instead of "0", say). */
+     the Runner live (an OO chain that resolved to "" instead of "0", say). */
   if (getenv ("A5_TRACE_EXPR") != nullptr)
     fprintf (stderr, "A5_EXPR: %s  ==>  %s  ==>  %s\n", expr, sub, val);
   free (sub);
@@ -869,7 +882,7 @@ a5text_eval_expression (a5_state_t *st, const char *expr)
 }
 
 /* Swap each `<#...#>` for a \x01<n>\x01 sentinel so the %function%/OO passes
-   leave the expression body untouched (the Adrift 5 runner guards them behind GUIDs);
+   leave the expression body untouched (the Runner guards them behind GUIDs);
    the sentinel survives both passes verbatim and is restored before
    replace_expressions evaluates the bodies. */
 std::string
@@ -922,9 +935,9 @@ restore_exprs (const char *src, const std::vector<std::string> &saved)
   return out;
 }
 
-/* ------------------------------------------------------------- process core */
+/* ------------------------------------------------------------ process core */
 
-/* The substitution half of the runner's text pipeline, in its order:
+/* The substitution half of the Runner's text pipeline, in its order:
    %functions%/%variables%, key.Property OO chains, then <#expressions#>.
    The <#...#> blocks are shielded from the first two passes so a function
    result cannot be re-parsed as expression syntax. */
@@ -949,14 +962,14 @@ process_inner_ex (a5_state_t *st, const char *src, int depth, int *pre_alr_ink)
   char *alrs;
   if (pre_alr_ink != nullptr)
     {
-      /* Did the text have visible content BEFORE the ALR pass?  the runner stores task
-         responses at this stage (functions/expressions replaced, ALRs not yet
-         -- ReplaceALRs runs inside Display, vb:308) and its bHasOutput keeps
-         the message on this form.  A game ALR that maps a phrase to nothing
-         (Tribute's `(from the enormous mirror)` TextOverride) therefore blanks
-         the text only AFTER its response slot exists, leaving an empty
-         paragraph where Scarier's post-ALR whitespace test would drop the
-         whole message. */
+      /* Did the text have visible content BEFORE the ALR pass?  the Runner
+         stores task responses at this stage (functions/expressions replaced,
+         ALRs not yet -- ReplaceALRs runs inside Display, vb:308) and its
+         bHasOutput keeps the message on this form.  A game ALR that maps a
+         phrase to nothing (Tribute's `(from the enormous mirror)`
+         TextOverride) therefore blanks the text only AFTER its response slot
+         exists, leaving an empty paragraph where Scarier's post-ALR whitespace
+         test would drop the whole message. */
       char *pp = a5text_render_plain (exprs);
       const char *q = pp;
       *pre_alr_ink = 0;
@@ -989,16 +1002,16 @@ process_inner_ex (a5_state_t *st, const char *src, int depth, int *pre_alr_ink)
   return alrs;
 }
 
-/* Seal a text's ALR adjudication.  The runner runs ReplaceALRs once per Display()
-   call (clsUserSession.vb:308) and never revisits that text, so any OldText
-   occurrence still present after an emit-time ALR pass -- an override whose
-   restriction-gated alternative rendered IDENTICAL to its OldText (XXR's
+/* Seal a text's ALR adjudication.  The Runner runs ReplaceALRs once per
+   Display() call (clsUserSession.vb:308) and never revisits that text, so any
+   OldText occurrence still present after an emit-time ALR pass -- an override
+   whose restriction-gated alternative rendered IDENTICAL to its OldText (XXR's
    cl_EenyMeenyA camel-tether postfix while the camels are untethered), or one
    materialised by another ALR's replacement -- is DEAD: the Display-boundary
    pass (a5text_display_alr) must not re-evaluate it with end-of-turn state,
    after the turn's tasks have run.  Insert an A5_ALR_MARK sentinel after the
-   first byte of each surviving site so the boundary strstr cannot match
-   across it; the boundary still catches OldText spans assembled ACROSS
+   first byte of each surviving site so the boundary strstr cannot match across
+   it; the boundary still catches OldText spans assembled ACROSS
    separately-emitted texts (which carry no mark), and finish_turn strips the
    sentinels from the output. */
 char *
@@ -1066,7 +1079,7 @@ char *
 a5text_process_noalr (a5_state_t *st, const char *src)
 {
   /* %functions%/OO/<#exprs#> WITHOUT the ALR pass: for evaluating ACTION
-     values.  The runner's SetVariable path goes through EvaluateExpression
+     values.  The Runner's SetVariable path goes through EvaluateExpression
      (ReplaceFunctions only) -- ReplaceALRs runs at Display time (vb:308)
      and must not rewrite stored values.  GFS defines a display ALR
      "17000" -> "1.700.0" that would otherwise corrupt
@@ -1088,10 +1101,10 @@ a5text_strip_pres_marks (char *s)
         {
           /* A spanning mark goes with its payload: \006<number>\006 and
              friends, or nothing at all if the closing mark is missing. */
-          const char *e = strchr (r + 1, *r);
+          char *e = strchr (r + 1, *r);
 
           if (e != nullptr)
-            r = (char *) e;
+            r = e;
           continue;
         }
       if (a5_is_pres_mark (*r)
@@ -1105,7 +1118,7 @@ a5text_strip_pres_marks (char *s)
 /* str_replace_all, except an occurrence of `find` that is part of an ALREADY-
    PRESENT copy of `repl` is left as it is.  The Display-boundary first ALR
    round runs over text whose per-fragment ALR pass has already applied every
-   override, whereas the runner's single Display round (Global.vb:530) sees
+   override, whereas the Runner's single Display round (Global.vb:530) sees
    unprocessed text -- so an ALR whose NewText CONTAINS its own OldText
    (Magnetic Moon's "some electrical cable" -> "some electrical cable[.]"
    tied-state suffix) must not expand a second time here.  Only a NewText
@@ -1145,15 +1158,16 @@ str_replace_unapplied (const char *src, const char *find, const char *repl)
 }
 
 /* One ALR pass for the Display boundary: like replace_alrs, but the input and
-   output are PLAIN text -- each NewText is fully rendered (functions/expr/ALR +
-   markup -> plain) before substitution, so an override that carries markup (e.g.
-   "<br>Tiden gaar...<br>") lands as plain text rather than leaking literal tags.
-   The whole-output markup renderer is deliberately not used (it would eat a
-   literal '<' the descriptions legitimately carry).  `skip_applied` selects the
-   already-applied-occurrence skip (str_replace_unapplied): the FIRST boundary
-   round mirrors the runner's single Display round over per-fragment-processed text, so
-   it must skip; the bChanged-gated SECOND round runs over ALREADY-substituted
-   text in the runner too, so it re-expands exactly like the runner (plain replace). */
+   output are PLAIN text -- each NewText is fully rendered (functions/expr/ALR
+   + markup -> plain) before substitution, so an override that carries markup
+   (e.g.  "<br>Tiden gaar...<br>") lands as plain text rather than leaking
+   literal tags.  The whole-output markup renderer is deliberately not used (it
+   would eat a literal '<' the descriptions legitimately carry).
+   `skip_applied` selects the already-applied-occurrence skip
+   (str_replace_unapplied): the FIRST boundary round mirrors the Runner's
+   single Display round over per-fragment-processed text, so it must skip; the
+   bChanged-gated SECOND round runs over ALREADY-substituted text in the Runner
+   too, so it re-expands exactly like the Runner (plain replace). */
 static char *
 boundary_alr_once (a5_state_t *st, const char *src, int skip_applied)
 {
@@ -1194,32 +1208,33 @@ a5text_display_alr (a5_state_t *st, const char *plain)
   char *a1, *cap, *a2;
   if (plain == nullptr)
     return strdup ("");
-  /* No ALRs -> the boundary is a pure pass-through (English games never pay for
-     this; their per-fragment ALR already ran).  Mirrors Display() doing nothing
-     when htblALRs is empty. */
+  /* No ALRs -> the boundary is a pure pass-through (English games never pay
+     for this; their per-fragment ALR already ran).  Mirrors Display() doing
+     nothing when htblALRs is empty. */
   if (st == nullptr || st->adv == nullptr || st->adv->n_alrs == 0)
     return strdup (plain);
-  /* ReplaceALRs: ALR loop -> auto-capitalise -> a second ALR round (the input is
-     already plain and per-fragment-processed, so the function/expression passes
-     have nothing left to expand). */
+  /* ReplaceALRs: ALR loop -> auto-capitalise -> a second ALR round (the input
+     is already plain and per-fragment-processed, so the function/expression
+     passes have nothing left to expand). */
   a1 = boundary_alr_once (st, plain, 1);
   /* Boundary re-cap runs on plain text: suppress the `^`/`\n` line-start rules
      (a5text_process already applied them per-fragment on marked-up text) so a
-     stripped formatting tag cannot expose a line-leading word to a spurious cap;
-     only true sentence punctuation drives this pass (see is_sentence_start).
-     And run it ONLY when ALR round 1 actually rewrote something: the runner's display
-     cap operates on the still-MARKED-UP buffer, where a description-segment
-     "<>" join or any formatting tag sits between the full stop and the next
-     letter and blocks the regex -- Scarier's per-fragment cap (which also sees
-     the markup) has already adjudicated those positions identically, so the
-     only faithful NEW caps here are on text an ALR substitution just changed
-     (Starship Quest's appended lowercase "native's ..." examine segment must
-     stay lowercase, as in the runner). */
+     stripped formatting tag cannot expose a line-leading word to a spurious
+     cap; only true sentence punctuation drives this pass (see
+     is_sentence_start).  And run it ONLY when ALR round 1 actually rewrote
+     something: the Runner's display cap operates on the still-MARKED-UP
+     buffer, where a description-segment "<>" join or any formatting tag sits
+     between the full stop and the next letter and blocks the regex --
+     Scarier's per-fragment cap (which also sees the markup) has already
+     adjudicated those positions identically, so the only faithful NEW caps
+     here are on text an ALR substitution just changed (Starship Quest's
+     appended lowercase "native's ..." examine segment must stay lowercase, as
+     in the Runner). */
   if (streq (a1, plain))
     cap = strdup (a1);
   else
     cap = auto_capitalise_ex (a1, 0);
-  /* The runner's second ALR round runs ONLY `If bChanged` -- when the auto-cap
+  /* The Runner's second ALR round runs ONLY `If bChanged` -- when the auto-cap
      actually rewrote something (Global.vb:550).  Unconditionally re-running
      it doubles any ALR whose NewText still contains its OldText (Magnetic
      Moon's suits disambiguation "(type X EVA SUITS ...)" suffix). */
@@ -1235,9 +1250,9 @@ a5text_display_alr (a5_state_t *st, const char *plain)
 /* Expand the A5_VARDEF_MARK deferred-variable sentinels (a bare %variable%
    inside an eagerly-applied ALR NewText, see a5text.h) with the variable's
    CURRENT -- i.e. end-of-turn -- value.  finish_turn runs this on the
-   assembled turn output before the boundary ALR pass, mirroring the runner Display's
-   ReplaceFunctions-before-ReplaceALRs order, and once more after it for any
-   sentinel a boundary-applied ALR introduced. */
+   assembled turn output before the boundary ALR pass, mirroring the Runner
+   Display's ReplaceFunctions-before-ReplaceALRs order, and once more after it
+   for any sentinel a boundary-applied ALR introduced. */
 char *
 a5text_expand_var_defers (a5_state_t *st, const char *text)
 {
@@ -1277,14 +1292,15 @@ a5text_expand_var_defers (a5_state_t *st, const char *text)
   return sb_finish (&sb);
 }
 
-/* The runner applies pSpace to its RAW (markup-bearing) output buffer, so a message whose
-   raw text ends in something other than a real newline -- a stripped tag
-   (`...\n<font colour=X>`), a trailing `<br>`, or an entity -- leaves the buffer
-   non-vbLf and the NEXT message space-joins with two leading spaces.  Scarier
-   strips markup per message, so its stripped text ends in the '\n' that preceded
-   the trailing tag and it would drop that join.  When the pre-strip text ends
-   non-'\n' but the stripped text ends in '\n', append A5_PS_MARK so sb_pspace
-   still treats this message as a non-newline tail (finish_turn strips the mark). */
+/* The Runner applies pSpace to its RAW (markup-bearing) output buffer, so a
+   message whose raw text ends in something other than a real newline -- a
+   stripped tag (`...\n<font colour=X>`), a trailing `<br>`, or an entity --
+   leaves the buffer non-vbLf and the NEXT message space-joins with two leading
+   spaces.  Scarier strips markup per message, so its stripped text ends in the
+   '\n' that preceded the trailing tag and it would drop that join.  When the
+   pre-strip text ends non-'\n' but the stripped text ends in '\n', append
+   A5_PS_MARK so sb_pspace still treats this message as a non-newline tail
+   (finish_turn strips the mark). */
 char *
 ps_mark_trailing (const char *proc, char *plain)
 {
@@ -1313,14 +1329,15 @@ a5text_describe (a5_state_t *st, const a5_xml_node_t *wrapper, int *raw_nonblank
 
 /* a5text_describe WITHOUT the final markup strip: the processed text keeps its
    formatting tags and the "<>" description-segment join markers.  This is what
-   an OO `.Description` read must return -- the runner's Description.ToString hands the
-   still-MARKED-UP composition to the caller (tags survive comparisons and
-   re-embedding; the UI strips them once, at the very end).  When the value is
-   re-embedded in a task response, the later a5text_process cap sees the "<>"
-   between a full stop and a lowercase segment start and leaves it alone,
-   exactly like the runner's Display-time CapAfterFullStop (Starship Quest's DeadNative
-   "native's only clothing ..." append stays lowercase); the response's own
-   final render_plain drops the markers from the display text. */
+   an OO `.Description` read must return -- the Runner's Description.ToString
+   hands the still-MARKED-UP composition to the caller (tags survive
+   comparisons and re-embedding; the UI strips them once, at the very end).
+   When the value is re-embedded in a task response, the later a5text_process
+   cap sees the "<>" between a full stop and a lowercase segment start and
+   leaves it alone, exactly like the Runner's Display-time CapAfterFullStop
+   (Starship Quest's DeadNative "native's only clothing ..." append stays
+   lowercase); the response's own final render_plain drops the markers from the
+   display text. */
 char *
 a5text_describe_marked (a5_state_t *st, const a5_xml_node_t *wrapper)
 {
@@ -1331,14 +1348,15 @@ a5text_describe_marked (a5_state_t *st, const a5_xml_node_t *wrapper)
 }
 
 /* a5text_describe, additionally reporting whether the text had visible content
-   before the ALR pass (the runner's bHasOutput on the stored response -- see
+   before the ALR pass (the Runner's bHasOutput on the stored response -- see
    process_inner_ex).  *pre_alr_ink = 1 with a whitespace-only result means a
    game ALR blanked the message at Display time; the caller should keep the
    whitespace remainder so the message's paragraph slot survives, as it does in
-   the runner's output stream. */
-/* The runner's Display() appends the still-MARKED-UP string to sOutputText, so its
-   `sOutputText = ""` NotUnderstood test counts markup-only messages as output
-   (see a5_state_t.turn_out_nonempty).  Flag any non-blank marked-up render. */
+   the Runner's output stream. */
+/* The Runner's Display() appends the still-MARKED-UP string to sOutputText, so
+   its `sOutputText = ""` NotUnderstood test counts markup-only messages as
+   output (see a5_state_t.turn_out_nonempty).  Flag any non-blank marked-up
+   render. */
 static void
 note_marked_output (a5_state_t *st, const char *marked)
 {
@@ -1362,16 +1380,16 @@ a5text_describe_ex (a5_state_t *st, const a5_xml_node_t *wrapper,
   return plain;
 }
 
-/* a5text_describe_ex applied to a PRE-FROZEN raw description template (a string
-   a5text_eval_description returned earlier): the %function%/OO/<#...#>/ALR
-   passes only -- segment selection is NOT re-evaluated.  This is how the runner
-   re-renders a Before completion message around its actions
-   (clsUserSession.vb:1178/1200/1204): sMessage is captured ONCE via
-   CompletionMessage.ToString and the later ReplaceExpressions(ReplaceFunctions())
-   calls rework that frozen string, so a restriction-gated segment whose gate the
-   actions flip (Spectre of Castle Coris's banish hiding the Spectre mid-task)
-   still re-renders -- and still draws its <# Either #> -- on the post-action
-   compare. */
+/* a5text_describe_ex applied to a PRE-FROZEN raw description template (a
+   string a5text_eval_description returned earlier): the
+   %function%/OO/<#...#>/ALR passes only -- segment selection is NOT
+   re-evaluated.  This is how the Runner re-renders a Before completion message
+   around its actions (clsUserSession.vb:1178/1200/1204): sMessage is captured
+   ONCE via CompletionMessage.ToString and the later
+   ReplaceExpressions(ReplaceFunctions()) calls rework that frozen string, so a
+   restriction-gated segment whose gate the actions flip (Spectre of Castle
+   Coris's banish hiding the Spectre mid-task) still re-renders -- and still
+   draws its <# Either #> -- on the post-action compare. */
 char *
 a5text_process_frozen (a5_state_t *st, const char *raw, int *pre_alr_ink,
                        char **marked)

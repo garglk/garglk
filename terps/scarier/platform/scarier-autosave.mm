@@ -107,6 +107,9 @@ static void scarier_library_archive(TempLibrary * /* library */, NSCoder *encode
     [encoder encodeInt32:st->map_cy forKey:@"scarier_map_cy"];
     [encoder encodeInt32:st->map_page forKey:@"scarier_map_page"];
     [encoder encodeInt32:st->colour_on forKey:@"scarier_colour_on"];
+    [encoder encodeInt32:(int32_t)st->colour_bg forKey:@"scarier_colour_bg"];
+    [encoder encodeInt32:(int32_t)st->colour_main_fg
+                  forKey:@"scarier_colour_main_fg"];
     [encoder encodeInt32:st->rng_usenative forKey:@"scarier_rng_usenative"];
     for (int i = 0; i < 4; i++)
         [encoder encodeInt32:(int32_t)st->rng_state[i]
@@ -149,6 +152,10 @@ static void scarier_library_unarchive(TempLibrary * /* library */, NSCoder *deco
     st->map_cy = [decoder decodeInt32ForKey:@"scarier_map_cy"];
     st->map_page = [decoder decodeInt32ForKey:@"scarier_map_page"];
     st->colour_on = [decoder decodeInt32ForKey:@"scarier_colour_on"];
+    st->colour_saved = [decoder containsValueForKey:@"scarier_colour_bg"];
+    st->colour_bg = (uint32_t)[decoder decodeInt32ForKey:@"scarier_colour_bg"];
+    st->colour_main_fg =
+        (uint32_t)[decoder decodeInt32ForKey:@"scarier_colour_main_fg"];
     st->rng_usenative =
         [decoder containsValueForKey:@"scarier_rng_usenative"]
             ? [decoder decodeInt32ForKey:@"scarier_rng_usenative"] : -1;

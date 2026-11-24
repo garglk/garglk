@@ -20,8 +20,6 @@
 
 /*
  * Asking NPCs about topics.
- *
- * See sclibrar.h for what the library files share.
  */
 
 #include "sclibrar.h"
@@ -72,8 +70,10 @@ lib_subject_in_text_390 (const scr_char *subject, scr_int posn,
 }
 
 #ifdef SCARIER_DUMP_TOOLS
-/* The 3.7/3.8 InStr subject test, for SCR_TRACE_DEVIATIONS only; see
-   lib_npc_find_topic(). */
+/*
+ * The 3.7/3.8 InStr subject test, for SCR_TRACE_DEVIATIONS only; see
+ * lib_npc_find_topic().
+ */
 static scr_bool
 lib_subject_in_text_3738 (const scr_char *subject, scr_int posn,
                           const scr_char *string)
@@ -182,11 +182,10 @@ lib_npc_reply_to (scr_gameref_t game, scr_int npc, scr_int topic)
  * (run380x): `ask her about good time` gets Suzie's "me, myself" reply, since
  * "time" contains "me".
  *
- * Deliberate deviation (2026-09-30): 3.7/3.8 use the 3.9 whole-word test,
+ * Deliberate deviation: 3.7/3.8 use the 3.9 whole-word test,
  * case-free.  The 3.7/3.8 InStr answered `ask bob about good time` from a
  * "me" topic and `ask bob about paper` from an "ape" one, and since it
- * lower-cased only the text, a subject authored as "Key" never matched
- * (baf1e529d).
+ * lower-cased only the text, a subject authored as "Key" never matched.
  */
 scr_int
 lib_npc_find_topic (scr_gameref_t game, scr_int npc)
@@ -295,8 +294,10 @@ lib_ask_npc_about (scr_gameref_t game, const scr_char *verb,
         }
     }
 
-  /* Get the referenced npc, and if none, consider complete.  Pre-4.0 takes
-     the LAST present character: `ask guard about key` is "BOB KEY.". */
+  /*
+   * Get the referenced npc, and if none, consider complete.  Pre-4.0 takes
+   * the LAST present character: `ask guard about key` is "BOB KEY.".
+   */
   npc = lib_disambiguate_npc_pick (game, verb, &is_ambiguous, NPC_PICK_LAST);
   if (npc == -1)
     return is_ambiguous;
@@ -377,12 +378,12 @@ lib_cmd_talk_to_npc_about (scr_gameref_t game)
  * `c("ask") Or c("talk to")` block (4597FE) with no test of the task-ran flag
  * MemVar_468198, and every topic reply is a plain assignment to the message
  * buffer (459A7A, 459AA7, 459AD4), so the task's text is overwritten, not
- * joined.  Only a reply does that: the no-topic answer (459B46) is written over
- * an empty or "can't talk to that." buffer alone, and the NPC must be in the
- * player's room (459941).  4.0 gates the same block on the flag (run400
+ * joined.  Only a reply does that: the no-topic answer (459B46) is written
+ * over an empty or "can't talk to that." buffer alone, and the NPC must be in
+ * the player's room (459941).  4.0 gates the same block on the flag (run400
  * 47F900), so there a task keeps the line.
  *
- * Measured on Zombies Are Cool (ZAC.taf, 3.90; run390x
+ * Measured on Zombies Are Cool (ZAC.taf, 3.9; run390x
  * runner_transcripts/zombies.txt, turns 10-14, 29 and 30): the task `talk to
  * stu` / `ask stu about *` prints "Stu shakes his head, as if he doesn't
  * understand the question.", and run390 shows Stu's topic reply alone on
@@ -390,7 +391,7 @@ lib_cmd_talk_to_npc_about (scr_gameref_t game)
  *
  * The task that ran may also have printed NOTHING: then the buffer the ask
  * block finds is empty, and with no topic the no-response answer (459B46) is
- * written after all.  That is the toronto case (A Day In Toronto, 3.90; run390x
+ * written after all.  That is the toronto case (A Day In Toronto, 3.9; run390x
  * runner_transcripts/toronto.txt T9): task 3 `ask waiter about burger` has no
  * CompleteText and only moves the burger in, and the Runner answers the line
  * with the Waiter's topic "ok" where the silent-task rule alone would have

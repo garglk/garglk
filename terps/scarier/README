@@ -46,8 +46,8 @@ any non-v5 file, in which case the ADRIFT 4 (SCARE) path takes over.
 Both engines share the Glk seam in glk/ (title screens, the map pane,
 status line, side windows, media, real-time timer events, saves, the `glk`
 meta-commands and the Spatterlight autosave) and the map model and
-rasteriser in mapdraw.cpp / core/scmap.cpp; mapdraw.cpp and sessrec.h stay
-at the root because both engines use them.  headless/ holds the os-layer stub
+rasteriser in map/ / core/scmap.cpp; map/ and sessrec.h sit outside
+both engines' folders because both engines use them.  headless/ holds the os-layer stub
 (sxstubs.cpp) the headless harnesses link instead of glk/;
 platform/ holds the other host layers, os_ansi.cpp (the plain stdout
 front end) and scarier-autosave.mm (the Spatterlight autosave bridge the
@@ -59,7 +59,11 @@ and never into a shipping build.
 See notes/ADRIFT4_vs_ADRIFT5.md for a detailed comparison of the two code paths
 (formats, saves, restriction evaluation, division rounding, and RNG
 streams), and notes/ADRIFT-5-XML.md for a specification of the ADRIFT 5
-adventure and save formats.
+adventure and save formats.  The comments in core/, library/ and runner/
+cite addresses in the original Runners; notes/RUNNER_ADDRESSES.md says how
+to read them and where the decompiled listings live.  notes/GLOSSARY.md says
+what Scarier, SCARE, the Runner and run400 each mean in them, and sets out
+the comment style.
 
 
 Playing

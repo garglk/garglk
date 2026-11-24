@@ -1,22 +1,35 @@
-//
-//  atari8detect.c
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Created by Petter Sjölund on 2022-01-30.
-//
+/*
+ *  atari8detect.c
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-01-30.
+ */
 
 #include <stdlib.h>
 #include <string.h>
 
 #include "common.h"
 #include "companionfile.h"
-#include "definitions.h"
-#include "gameinfo.h"
+#include "common_defines.h"
 #include "graphics.h"
 #include "loaddatabase.h"
-#include "read_le16.h"
+#include "byteorder.h"
 
 #include "atari8detect.h"
+
+/* Where on a disk without a file system a picture is found */
+typedef struct imglist {
+    const char *filename;
+    size_t offset;
+    /* Nonzero if the picture is on the disk with the database rather than
+       on the picture disk (Atari 8-bit only) */
+    int on_boot_disk;
+} imglist;
 
 /* The pictures are found through a table on the boot disk, which gives
    two bytes for each picture: 100 room pictures (R), 100 object pictures
@@ -177,8 +190,8 @@ int DetectAtari8(uint8_t **sf, size_t *extent)
     size_t main_size = *extent;
     int result = 0;
     size_t data_start = 0xff8e;
-    // Header actually starts at offset 0xffc0 (0xff8e + 0x32).
-    // We add 50 bytes at the head to match the C64 files.
+    /* Header actually starts at offset 0xffc0 (0xff8e + 0x32).
+       We add 50 bytes at the head to match the C64 files. */
 
     if (main_size > MAX_LENGTH || main_size < data_start)
         return 0;

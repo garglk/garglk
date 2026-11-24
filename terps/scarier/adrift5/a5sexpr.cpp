@@ -24,8 +24,8 @@
  *
  * Implementation: tokenise once, then a recursive-descent reducer over the
  * tokens.  Each parse step yields a Val (a string plus, when applicable, a
- * numeric interpretation), mirroring clsVariable's "expr" tokens whose .Value is
- * a string that math/comparison operators re-interpret via Val().
+ * numeric interpretation), mirroring clsVariable's "expr" tokens whose .Value
+ * is a string that math/comparison operators re-interpret via Val().
  */
 
 #include <ctype.h>
@@ -42,8 +42,8 @@
 
 /* Wired to a5rand_between by the run harness; NULL in RNG-less builds. */
 long (*a5sexpr_rng_hook) (long lo, long hi) = nullptr;
-/* Wired to a5rand_norepeat (the runner NoRepeatRandom) by the run harness; urand()
-   falls back to a plain a5sexpr_rng_hook draw when unset. */
+/* Wired to a5rand_norepeat (the Runner's NoRepeatRandom) by the run harness;
+   urand() falls back to a plain a5sexpr_rng_hook draw when unset. */
 long (*a5sexpr_urand_hook) (long lo, long hi) = nullptr;
 
 namespace {
@@ -126,11 +126,11 @@ is_numeric_str (const std::string &s)
 /* VB Val(): the leading numeric prefix of a string, else 0.
 
    clsVariable keeps every reduced token as a STRING, so a division by zero --
-   which Math.Round(x / 0) leaves as Double.NaN -- is stored as the literal text
-   "NaN", and any later Val() of it is 0, not NaN.  (Beginner's Cave leans on
-   this: its to-hit formula divides the armour-penalty sum by an unarmoured
-   NPC's RequiredEx sum, i.e. 0/0, so every enemy attack goes through the
-   NaN path.)  strtod would happily read "NaN"/"inf" back as those values, so
+   which Math.Round(x / 0) leaves as Double.NaN -- is stored as the literal
+   text "NaN", and any later Val() of it is 0, not NaN.  (Beginner's Cave leans
+   on this: its to-hit formula divides the armour-penalty sum by an unarmoured
+   NPC's RequiredEx sum, i.e. 0/0, so every enemy attack goes through the NaN
+   path.)  strtod would happily read "NaN"/"inf" back as those values, so
    answer 0 for them here. */
 double
 val_of (const Val &v)
@@ -335,12 +335,14 @@ apply_function (const std::string &lid, std::vector<Val> &a)
   if (f == "ist" && n >= 2)
     { size_t i = a[0].s.find (a[1].s);
       return mk_num (i == std::string::npos ? 0 : (double) (i + 1)); }
-  /* either/oneof/rand/urand draw via the host RNG hook (a5rand_between, wired by
-     the run harness) so shipped <# OneOf(...) #> picks match frankendrift's --
-     e.g. Stone of Wisdom's troll-approach lines.  Without the hook (a5text_dump)
-     they fall back to the deterministic first operand / lower bound. */
+  /* either/oneof/rand/urand draw via the host RNG hook (a5rand_between, wired
+     by the run harness) so shipped <# OneOf(...) #> picks match frankendrift's
+     -- e.g. Stone of Wisdom's troll-approach lines.  Without the hook
+     (a5text_dump) they fall back to the deterministic first operand / lower
+     bound. */
   if (f == "either" && n >= 2)
-    /* clsVariable.SetToExpression "either": Random(1)=1 -> left, else right. */
+    /* clsVariable.SetToExpression "either": Random(1)=1 -> left, else right.
+       */
     return (a5sexpr_rng_hook && a5sexpr_rng_hook (0, 1) == 1) ? a[0] : a[1];
   if (f == "oneof" && n >= 1)
     { long idx = a5sexpr_rng_hook ? a5sexpr_rng_hook (0, (long) n - 1) : 0;
@@ -359,8 +361,8 @@ apply_function (const std::string &lid, std::vector<Val> &a)
     }
   if ((f == "rand" || f == "urand") && n >= 1)
     {
-      /* clsVariable.SetToExpression single-arg rand: Random(0, value) -- inclusive
-         0..value (e.g. RAND(8) draws 0..8), NOT the bare literal. */
+      /* clsVariable.SetToExpression single-arg rand: Random(0, value) --
+         inclusive 0..value (e.g. RAND(8) draws 0..8), NOT the bare literal. */
       long hi = long_of (a[0]);
       if (f == "urand" && a5sexpr_urand_hook)
         return mk_num ((double) a5sexpr_urand_hook (0, hi));
@@ -397,7 +399,8 @@ parse_atom (Parser &p)
           if (p.is_op (")")) p.adv ();
           return apply_function (lid, args);
         }
-      /* a bare identifier is a string literal (clsVariable's "vlu" fallback) */
+      /* a bare identifier is a string literal (clsVariable's "vlu" fallback)
+         */
       p.adv ();
       return mk_str (id);
     }
@@ -436,7 +439,8 @@ parse_mul (Parser &p)
       if (p.is_op ("*")) { p.adv (); left = mk_num (val_of (left) * val_of (parse_unary (p))); }
       else if (p.is_op ("/"))
         { p.adv (); double r = val_of (parse_unary (p));
-          double q = val_of (left) / r;       /* IEEE: x/0 -> +/-inf, 0/0 -> NaN */
+          /* IEEE: x/0 -> +/-inf, 0/0 -> NaN */
+          double q = val_of (left) / r;
           double rounded = (isnan (q) || isinf (q)) ? q
                          : (q >= 0 ? floor (q + 0.5) : ceil (q - 0.5));
           /* Math.Round(AwayFromZero) preserves -0.0 (0 / -96 -> -0); our

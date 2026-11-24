@@ -22,13 +22,13 @@
  * ADRIFT 5 support for Scarier -- in-memory object model.
  *
  * A typed index over the parsed XML DOM (a5xml).  Each record carries the hot,
- * cross-cutting fields most code needs (keys, names, types, property maps) plus
- * a pointer back into the DOM for the structure that later phases interpret
- * (descriptions, restrictions, actions, walks, topics, sub-events).  The model
- * owns the underlying a5_xml_doc, so all the const char * fields alias into it
- * and stay valid until a5model_free().
+ * cross-cutting fields most code needs (keys, names, types, property maps)
+ * plus a pointer back into the DOM for the structure that the state, text and
+ * run layers interpret (descriptions, restrictions, actions, walks, topics,
+ * sub-events).  The model owns the underlying a5_xml_doc, so all the const
+ * char * fields alias into it and stay valid until a5model_free().
  *
- * Mirrors the Adrift 5 runner's clsAdventure collections (FileIO.Load500).
+ * Mirrors the Runner's clsAdventure collections (FileIO.Load500).
  */
 
 #ifndef SCARIER_A5MODEL_H
@@ -39,10 +39,10 @@
 #include "a5xml.h"
 
 /*
- * One ADRIFT property value on an entity.  ADRIFT is property-driven: most world
- * state lives here.  A property is either a flag (just a Key -> value/value_node
- * both NULL), a simple scalar (value set), or a rich text value (value_node set
- * to the <Value> description block).
+ * One ADRIFT property value on an entity.  ADRIFT is property-driven: most
+ * world state lives here.  A property is either a flag (just a Key ->
+ * value/value_node both NULL), a simple scalar (value set), or a rich text
+ * value (value_node set to the <Value> description block).
  */
 typedef struct a5_prop_s {
   const char *key;
@@ -54,7 +54,8 @@ typedef struct a5_object_s {
   const char *key;
   const char *article;
   const char *prefix;
-  const char **names;       int n_names;        /* aliases (<Name> list)      */
+  /* aliases (<Name> list) */
+  const char **names;       int n_names;
   a5_prop_t *props;         int n_props;
   const a5_xml_node_t *node;
 } a5_object_t;
@@ -62,11 +63,12 @@ typedef struct a5_object_s {
 typedef struct a5_location_s {
   const char *key;
   a5_prop_t *props;         int n_props;
-  const a5_xml_node_t *node;        /* ShortDescription/LongDescription/Movement here */
+  /* ShortDescription/LongDescription/Movement here */
+  const a5_xml_node_t *node;
 } a5_location_t;
 
-/* One conversation node of a character (clsTopic): a reply gated by keywords or
-   a command pattern, with its own restrictions and actions.  Greet/Farewell
+/* One conversation node of a character (clsTopic): a reply gated by keywords
+   or a command pattern, with its own restrictions and actions.  Greet/Farewell
    topics carry no keyword; Ask/Tell match on comma-separated keywords; Command
    matches the player's subject against a command pattern. */
 typedef struct a5_topic_s {
@@ -74,7 +76,8 @@ typedef struct a5_topic_s {
   const char *parent_key;           /* <ParentKey> ("" = top-level node)     */
   const char *keywords;             /* <Keywords> (comma list or pattern)    */
   int is_intro, is_ask, is_tell, is_command, is_farewell, stay_in_node;
-  const a5_xml_node_t *conversation; /* the reply <Description> block         */
+  /* the reply <Description> block */
+  const a5_xml_node_t *conversation;
   const a5_xml_node_t *restrictions; /* <Restrictions>, or NULL              */
   const a5_xml_node_t *actions;      /* <Actions>, or NULL                   */
 } a5_topic_t;
@@ -94,8 +97,8 @@ typedef struct a5_eventctrl_s {
   const char *task_key;
 } a5_eventctrl_t;
 
-/* One <Step> of a walk (clsWalk.clsStep): a destination key (location / group /
-   character / "%Player%") reached after a turn duration (random range). */
+/* One <Step> of a walk (clsWalk.clsStep): a destination key (location / group
+   / character / "%Player%") reached after a turn duration (random range). */
 typedef struct a5_walkstep_s {
   const char *location;             /* destination key                       */
   long ft_from, ft_to;              /* duration in turns (random range)      */
@@ -125,8 +128,8 @@ typedef struct a5_subwalk_s {
 } a5_subwalk_t;
 
 /* One character walk (clsWalk): a turn-based state machine that moves the
-   character along its steps, runs sub-walk activities, and is started/stopped by
-   WalkControls on task (un)completion. */
+   character along its steps, runs sub-walk activities, and is started/stopped
+   by WalkControls on task (un)completion. */
 typedef struct a5_walk_s {
   const char *char_key;             /* owning character key                  */
   const char *description;
@@ -151,48 +154,48 @@ typedef struct a5_character_s {
   const a5_xml_node_t *node;
 } a5_character_t;
 
-/* One <Specific> constraint of a Specific (override) task: a reference index of
-   a given type, optionally restricted to one or more keys ("" = match any). */
+/* One <Specific> constraint of a Specific (override) task: a reference index
+   of a given type, optionally restricted to one or more keys ("" = match any).
+   */
 typedef struct a5_specific_s {
-  const char *type;                 /* Object / Character / Location / ...    */
-  const char **keys;        int n_keys;   /* allowed keys ("" entry = any)    */
+  /* Object / Character / Location / ... */
+  const char *type;
+  /* allowed keys ("" entry = any) */
+  const char **keys;        int n_keys;
 } a5_specific_t;
 
 typedef struct a5_task_s {
   const char *key;
   long priority;
   const char *type;                 /* General / Specific / System           */
-  int run_immediately;              /* <RunImmediately>: a System task the runner runs
-                                       once at game start (clsUserSession init
-                                       loop, vb:209-216) before the title --
-                                       e.g. PlayTune (title music) whose audio
-                                       markup contributes the title's leading
-                                       space, or ts_tasInitialise (set time). */
-  const char *location_trigger;     /* <LocationTrigger>: a System task armed
-                                       when the Player moves into this location
-                                       (clsCharacter.Move), or NULL            */
+  /* <RunImmediately>: a System task the Runner runs once at game start
+     (clsUserSession init loop, vb:209-216) before the title -- e.g. PlayTune
+     (title music) whose audio markup contributes the title's leading space, or
+     ts_tasInitialise (set time). */
+  int run_immediately;
+  /* <LocationTrigger>: a System task armed when the Player moves into this
+     location (clsCharacter.Move), or NULL */
+  const char *location_trigger;
   const char **commands;    int n_commands;
   int repeatable;
-  int continue_lower;               /* <Continue>ContinueAlways: keep running
-                                       lower-priority matching tasks after this */
-  int low_priority;                 /* <LowPriority>: clsTask.LowPriority -- a
-                                       low-priority task is skipped once a
-                                       higher-priority failing-with-output task
-                                       (or a continuation floor) has been seen
-                                       (GetGeneralTask iPriorityFail filter)   */
-  int aggregate;                    /* clsTask.AggregateOutput: the runner defers an
-                                       aggregate task's completion-message
-                                       function replacement to final Display, so
-                                       its text reflects state changed by its
-                                       After* override children.  Default True;
-                                       False only on <Aggregate>0</Aggregate>.  */
+  /* <Continue>ContinueAlways: keep running lower-priority matching tasks after
+     this */
+  int continue_lower;
+  /* <LowPriority>: clsTask.LowPriority -- a low-priority task is skipped once
+     a higher-priority failing-with-output task (or a continuation floor) has
+     been seen (GetGeneralTask iPriorityFail filter) */
+  int low_priority;
+  /* clsTask.AggregateOutput: the Runner defers an aggregate task's
+     completion-message function replacement to final Display, so its text
+     reflects state changed by its After* override children.  Default True;
+     False only on <Aggregate>0</Aggregate>. */
+  int aggregate;
   const a5_xml_node_t *restrictions; /* <Restrictions> node, or NULL         */
   const a5_xml_node_t *actions;      /* <Actions> node, or NULL              */
-  const a5_xml_node_t *fail_override;/* <FailOverride> Description, or NULL:
-                                        shown for a "get all"-style command when
-                                        no item passed (clsTask.FailOverride,
-                                        clsUserSession.vb:788) -- "There is
-                                        nothing worth taking here." */
+  /* <FailOverride> Description, or NULL: shown for a "get all"-style command
+     when no item passed (clsTask.FailOverride, clsUserSession.vb:788) --
+     "There is nothing worth taking here." */
+  const a5_xml_node_t *fail_override;
   const a5_xml_node_t *node;
 
   /* Specific-override task linkage (clsTask Specifics / GeneralKey). */
@@ -213,12 +216,14 @@ typedef struct a5_variable_s {
   const char *name;
   const char *type;                 /* Numeric / Text                        */
   const char *initial;              /* InitialValue text                     */
-  int         array_length;         /* <ArrayLength> (clsVariable.Length); 1 = scalar */
+  /* <ArrayLength> (clsVariable.Length); 1 = scalar */
+  int         array_length;
   const a5_xml_node_t *node;
 } a5_variable_t;
 
-/* One <SubEvent>: at `when` (an offset measured in turns, a random range
-   [ft_from, ft_to]) do `what` to `key` (clsEvent.SubEvent). */
+/* One <SubEvent>: at `when` (an offset in turns or, when `seconds` is set,
+   in seconds -- a random range [ft_from, ft_to]) do `what` to `key`
+   (clsEvent.SubEvent). */
 typedef enum {
   A5_SE_FROM_LAST  = 0,             /* FromLastSubEvent                      */
   A5_SE_FROM_START = 1,             /* FromStartOfEvent                      */
@@ -232,7 +237,12 @@ typedef enum {
 } a5_se_what_t;
 typedef struct a5_subevent_s {
   a5_se_when_t when;
-  long ft_from, ft_to;              /* turn offset (random range)            */
+  long ft_from, ft_to;              /* turn/second offset (random range)     */
+  /* <Measure>Seconds</Measure> (SubEvent.eMeasure; default Turns).  On a
+     TurnBased event such a sub-event runs off its own timer instead of the
+     turn count -- see ev_tick_second_timers in run/a5run_events.cpp.  On a
+     TimeBased event the measure makes no difference. */
+  int seconds;
   a5_se_what_t what;
   const char *key;                  /* task/location key (ExecuteTask/...)   */
   const a5_xml_node_t *description; /* <Action> Description (DisplayMessage) */
@@ -241,7 +251,8 @@ typedef struct a5_subevent_s {
 typedef struct a5_event_s {
   const char *key;
   const char *type;                 /* TurnBased / TimeBased                 */
-  int when_start;                   /* 1 Immediately/2 BetweenXY/3 AfterATask */
+  /* 1 Immediately/2 BetweenXY/3 AfterATask */
+  int when_start;
   long start_from, start_to;        /* StartDelay random range               */
   long length_from, length_to;      /* Length random range                   */
   int repeating;
@@ -256,9 +267,9 @@ typedef struct a5_group_s {
   const char *type;                 /* Locations / Objects / Characters      */
   const char *name;
   const char **members;     int n_members;
-  a5_prop_t *props;         int n_props;  /* group <Property> list; for Objects
-                                             groups these are inherited by member
-                                             objects (clsItem htblInheritedProperties) */
+  /* group <Property> list; for Objects groups these are inherited by member
+     objects (clsItem htblInheritedProperties) */
+  a5_prop_t *props;         int n_props;
   const a5_xml_node_t *node;
 } a5_group_t;
 
@@ -267,17 +278,18 @@ typedef struct a5_propdef_s {
   const char *type;                 /* Boolean / Integer / Text / ...        */
   const char *property_of;          /* Objects / Characters / Locations      */
   const char *dependent_key;
-  const char *append_to;            /* <AppendTo>: a StateList whose value is
-                                       appended to another property's state
-                                       list (e.g. LockStatus -> OpenStatus).
-                                       the runner's BeInState ignores appended props.  */
+  /* <AppendTo>: a StateList whose value is appended to another property's
+     state list (e.g. LockStatus -> OpenStatus).  the Runner's BeInState
+     ignores appended props. */
+  const char *append_to;
   const a5_xml_node_t *node;
 } a5_propdef_t;
 
 typedef struct a5_alr_s {
   const char *key;
   const char *old_text;             /* OldText                               */
-  const a5_xml_node_t *new_text;    /* NewText description block              */
+  /* NewText description block */
+  const a5_xml_node_t *new_text;
   const a5_xml_node_t *node;
 } a5_alr_t;
 
@@ -292,14 +304,18 @@ typedef struct a5_udf_s {
    restriction block, so a hint only offers itself once its puzzle is live.
    The Question is a plain String property (clsHint.sQuestion), not a
    Description; only the two answers are restricted-description blocks.
-   The runner reaches these through a GUI hints window rather than a command,
+   The Runner reaches these through a GUI hints window rather than a command,
    so the port drives them from "glk hints" (os_glk gsc_a5_display_hints). */
 typedef struct a5_hint_s {
   const char *key;
-  const char *question;               /* <Question> plain text                */
-  const a5_xml_node_t *subtle;        /* <Subtle> wrapper, or NULL            */
-  const a5_xml_node_t *sledgehammer;  /* <Sledgehammer> wrapper, or NULL      */
-  const a5_xml_node_t *restrictions;  /* <Restrictions>, or NULL (= always)   */
+  /* <Question> plain text */
+  const char *question;
+  /* <Subtle> wrapper, or NULL */
+  const a5_xml_node_t *subtle;
+  /* <Sledgehammer> wrapper, or NULL */
+  const a5_xml_node_t *sledgehammer;
+  /* <Restrictions>, or NULL (= always) */
+  const a5_xml_node_t *restrictions;
   const a5_xml_node_t *node;
 } a5_hint_t;
 
@@ -309,76 +325,76 @@ typedef struct a5_hint_s {
    replacement word. */
 typedef struct a5_synonym_s {
   const char *key;
-  const char **from;  int n_from;    /* From                                   */
-  const char *to;                    /* To                                     */
+  /* From */
+  const char **from;  int n_from;
+  /* To */
+  const char *to;
   const a5_xml_node_t *node;
 } a5_synonym_t;
 
 /* <FileMappings>/<Mapping>: maps an embedded-media resource number (the number
    used by <img src>/<audio src> references, via the original file path) to the
-   Blorb resource number.  In ADRIFT 5 Blorbs the <Resource> number IS the Blorb
-   resource number (a single sequence shared across Pict and Snd usages), so the
-   driver loads giblorb (Pict|Snd, number) directly. */
+   Blorb resource number.  In ADRIFT 5 Blorbs the <Resource> number IS the
+   Blorb resource number (a single sequence shared across Pict and Snd usages),
+   so the driver loads giblorb (Pict|Snd, number) directly. */
 typedef struct a5_filemap_s {
-  int number;                       /* <Resource> (== Blorb resource number)  */
-  const char *file;                 /* <File> original path (aliases the doc)  */
+  /* <Resource> (== Blorb resource number) */
+  int number;
+  /* <File> original path (aliases the doc) */
+  const char *file;
 } a5_filemap_t;
 
 typedef struct a5_adventure_s {
   a5_xml_doc_t *doc;                /* owned                                 */
   const a5_xml_node_t *root;
   const a5_xml_node_t *introduction;
-  const a5_xml_node_t *end_game_text;   /* <EndGameText> (clsAdventure.WinningText),
-                                           shown after the win/lose line, or NULL */
+  /* <EndGameText> (clsAdventure.WinningText), shown after the win/lose line,
+     or NULL */
+  const a5_xml_node_t *end_game_text;
 
   const char *title;
   const char *author;
   const char *version;
-  const char *ifid;                 /* Babel IFID from the plaintext <ifid>
-                                       tag in the <ifindex> metadata block
-                                       (owned; NULL when the file embeds none) */
+  /* Babel IFID from the plaintext <ifid> tag in the <ifindex> metadata block
+     (owned; NULL when the file embeds none) */
+  const char *ifid;
   const char *release;              /* <release><version> from the same
                                        <ifindex> block (%release%'s
                                        BabelTreatyInfo ... Release.Version);
                                        owned; NULL when absent               */
-  int map_pane_open;                /* The author's Runner window layout, if
-                                       the Blorb carries one (a5blorb.h,
-                                       a5blorb_find_layout): 1 when its Map
-                                       pane is open, 0 when closed, -1 when
-                                       the game ships no layout at all.  This
-                                       is what makes a game start with its map
-                                       showing in run500.exe                  */
-  int show_first_location;          /* <ShowFirstLocation> (default 1): show
-                                       the start room after the intro          */
-  uint32_t bg_colour;               /* <BackgroundColour>, <InputColour>,      */
-  uint32_t input_colour;            /* <OutputColour> and <LinkColour>: the    */
-  uint32_t output_colour;           /* author's Runner palette, held as        */
-  uint32_t link_colour;             /* 0xRRGGBB.  The XML carries them as OLE
-                                       (blue-green-red) integers in decimal and
-                                       omits any that matches the Runner
-                                       default, so these are always set -- see
-                                       ADRIFT-5-XML.md 2.6                      */
-  int show_exits;                   /* <ShowExits> (default 1): append the
-                                       "Exits are .../An exit leads ..." listing
-                                       to each location view (clsAdventure.
-                                       bShowExits default True)                 */
-  int wait_turns;                   /* <WaitTurns> (default 3): turns a single
-                                       "wait"/"z" advances                      */
-  int hp_passing;                   /* <TaskExecution> == HighestPriorityPassingTask:
-                                       a failing-with-output task does NOT claim
-                                       the turn; the scan keeps looking for a
-                                       passing task (clsAdventure.TaskExecution,
-                                       default HighestPriorityTask => 0)        */
-  const char *dir_re[12];           /* <DirectionNorth>..<DirectionDown>:
-                                       localized direction synonym specs, indexed
-                                       by DirectionsEnum (North=0, East=1,
-                                       South=2, West=3, Up=4, Down=5, In=6,
-                                       Out=7, NorthEast=8, SouthEast=9,
-                                       SouthWest=10, NorthWest=11); NULL when the
-                                       game omits the field (=> English default).
-                                       Slash-separated synonyms, first = display
-                                       name (clsAdventure.sDirectionsRE /
-                                       Global.DirectionName)                     */
+  /* The author's Runner window layout, if the Blorb carries one (a5blorb.h,
+     a5blorb_find_layout): 1 when its Map pane is open, 0 when closed, -1 when
+     the game ships no layout at all.  This is what makes a game start with its
+     map showing in run500.exe */
+  int map_pane_open;
+  /* <ShowFirstLocation> (default 1): show the start room after the intro */
+  int show_first_location;
+  /* <BackgroundColour>, <InputColour>, */
+  uint32_t bg_colour;
+  /* <OutputColour> and <LinkColour>: the */
+  uint32_t input_colour;
+  /* author's Runner palette, held as */
+  uint32_t output_colour;
+  /* 0xRRGGBB.  The XML carries them as OLE (blue-green-red) integers in
+     decimal and omits any that matches the Runner default, so these are always
+     set -- see ADRIFT-5-XML.md 2.6 */
+  uint32_t link_colour;
+  /* <ShowExits> (default 1): append the "Exits are .../An exit leads ..."
+     listing to each location view (clsAdventure.  bShowExits default True) */
+  int show_exits;
+  /* <WaitTurns> (default 3): turns a single "wait"/"z" advances */
+  int wait_turns;
+  /* <TaskExecution> == HighestPriorityPassingTask: a failing-with-output task
+     does NOT claim the turn; the scan keeps looking for a passing task
+     (clsAdventure.TaskExecution, default HighestPriorityTask => 0) */
+  int hp_passing;
+  /* <DirectionNorth>..<DirectionDown>: localized direction synonym specs,
+     indexed by DirectionsEnum (North=0, East=1, South=2, West=3, Up=4, Down=5,
+     In=6, Out=7, NorthEast=8, SouthEast=9, SouthWest=10, NorthWest=11); NULL
+     when the game omits the field (=> English default).  Slash-separated
+     synonyms, first = display name (clsAdventure.sDirectionsRE /
+     Global.DirectionName) */
+  const char *dir_re[12];
 
   a5_object_t    *objects;    int n_objects;
   a5_location_t  *locations;  int n_locations;
@@ -402,16 +418,18 @@ typedef struct a5_adventure_s {
   /* "Adventure Upgrade" bracket auto-correction (FileIO.vb:634): a file saved
      before 5.0.26 whose restriction blocks contain an AND-then-OR
      BracketSequence ("#A#O#") gets a one-time question at load; answering yes
-     rewrites each "#A#O#..." into "#A(#O#...)" (the runner CorrectBracketSequence).
-     See a5model_upgrade_pending / a5model_upgrade_answer below. */
+     rewrites each "#A#O#..." into "#A(#O#...)" (the Runner's
+     CorrectBracketSequence).  See a5model_upgrade_pending /
+     a5model_upgrade_answer below. */
   int upgrade_scanned;        /* pending-condition memoised                  */
   int upgrade_wanted;         /* version < 5.0.26 and some block has #A#O#   */
   int upgrade_prompted;       /* the host asked the question (either answer) */
-  int upgrade_silent;         /* host resolved it WITHOUT showing the dialog:
-                                 a5run_intro emits no question prose and starts
-                                 the intro cleanly (Glk frontend default)     */
+  /* host resolved it WITHOUT showing the dialog: a5run_intro emits no question
+     prose and starts the intro cleanly (Glk frontend default) */
+  int upgrade_silent;
   int upgrade_applied;        /* answered yes; sequences corrected           */
-  int upgrade_count;          /* The runner iCorrectedTasks (one per Replace call)   */
+  /* The Runner iCorrectedTasks (one per Replace call) */
+  int upgrade_count;
   char **upgrade_owned;       /* corrected BracketSequence copies (owned)    */
   int n_upgrade_owned;
 } a5_adventure_t;
@@ -420,48 +438,51 @@ typedef struct a5_adventure_s {
 extern a5_adventure_t *a5model_from_doc (a5_xml_doc_t *doc);
 
 /* key -> array index via the load-time hash (kind: 'O' objects, 'L' locations,
-   'C' characters, 'T' tasks, 'V' variables, 'G' groups); -1 when absent.  Falls
-   back to the linear scan when the index is not built (hand-assembled test
-   models). */
+   'C' characters, 'T' tasks, 'V' variables, 'G' groups); -1 when absent.
+   Falls back to the linear scan when the index is not built (hand-assembled
+   test models). */
 extern int a5model_key_index (const a5_adventure_t *a, int kind, const char *key);
 
 /* Is `key` in group number `grp`'s static <Member> list? */
 extern int a5model_group_has_member (const a5_adventure_t *a, int grp,
                                      const char *key);
 
-/* Full pipeline: read a Blorb/.taf file, deobfuscate, inflate, parse, model. */
+/* Full pipeline: read a Blorb/.taf file, deobfuscate, inflate, parse, model.
+   */
 extern a5_adventure_t *a5model_load (const char *path);
 
-/* Same pipeline from an in-memory file image. Takes ownership of file_buf
-   (always frees it, including on failure). Used by Glk hosts that already have
-   the game open as a stream (e.g. Emglken with FILESYSTEM=0). */
+/* Same pipeline from an in-memory file image.  Takes ownership of file_buf
+   (always frees it, including on failure).  Used by Glk hosts that already
+   have the game open as a stream (e.g. Emglken with FILESYSTEM=0). */
 extern a5_adventure_t *a5model_load_buffer (uint8_t *file_buf, uint32_t file_len);
 
 /*
- * The "Adventure Upgrade" question (FileIO.vb:634, headless answer semantics in
- * FrankenDrift.Headless AskYesNoQuestion): when a5model_upgrade_pending returns
- * non-zero the host should show a5model_upgrade_question (title "Adventure
- * Upgrade") and read the player's yes/no through its NORMAL input channel (the
- * next command-script line headless, a typed line in the Glk frontend -- like
- * the ADRIFT 4 gender prompt), then call a5model_upgrade_answer.  On yes the
- * BracketSequence nodes are corrected in place and the call returns the number
- * of Replace passes (the runner's "N tasks have been updated." count); on no it returns
- * 0 and the sequences stay verbatim.  A host that never asks leaves the model
- * unchanged, and a5run_intro then renders the question itself with an implicit
- * "no" (the pre-existing behaviour, matching an unattended the runner).
+ * The "Adventure Upgrade" question (FileIO.vb:634, headless answer semantics
+ * in FrankenDrift.Headless AskYesNoQuestion): when a5model_upgrade_pending
+ * returns non-zero the host should show a5model_upgrade_question (title
+ * "Adventure Upgrade") and read the player's yes/no through its NORMAL input
+ * channel (the next command-script line headless, a typed line in the Glk
+ * frontend -- like the ADRIFT 4 gender prompt), then call
+ * a5model_upgrade_answer.  On yes the BracketSequence nodes are corrected in
+ * place and the call returns the number of Replace passes (the Runner's "N
+ * tasks have been updated." count); on no it returns 0 and the sequences stay
+ * verbatim.  A host that never asks leaves the model unchanged, and
+ * a5run_intro then renders the question itself with an implicit "no" (the
+ * pre-existing behaviour, matching an unattended the Runner).
  */
 extern int a5model_upgrade_pending (const a5_adventure_t *a);
 extern const char *a5model_upgrade_question (void);
 extern int a5model_upgrade_answer (a5_adventure_t *a, int yes);
 
 /* Whether an interactive host that suppresses the dialog should force YES for
-   this game (hard-wired allow-list, keyed on the Babel IFID); default is NO. */
+   this game (hard-wired allow-list, keyed on the Babel IFID); default is NO.
+   */
 extern int a5model_upgrade_forced_yes (const a5_adventure_t *a);
 
 /*
- * Non-NULL when the adventure cannot be played at all, in which case the return
- * is the runner's own error text for the host to show.  Today the only such
- * case is an adventure with zero locations: clsUserSession.OpenAdventure
+ * Non-NULL when the adventure cannot be played at all, in which case the
+ * return is the Runner's own error text for the host to show.  Today the only
+ * such case is an adventure with zero locations: clsUserSession.OpenAdventure
  * vb:433 (FrankenDrift's clsUserSession.vb:278) ends the load with
  * ErrMsg("This adventure has no locations.  Cannot continue.") / Return False.
  *
@@ -473,10 +494,10 @@ extern int a5model_upgrade_forced_yes (const a5_adventure_t *a);
 extern const char *a5model_load_error (const a5_adventure_t *a);
 
 /* Non-zero when any of the four palette fields differs from the Runner's own
-   default, i.e. when the author chose a colour scheme rather than accepting the
-   one every ADRIFT 5 game starts from.  A host that would otherwise show the
-   story in its own theme uses this to decide whether the adventure has a look
-   worth honouring. */
+   default, i.e. when the author chose a colour scheme rather than accepting
+   the one every ADRIFT 5 game starts from.  A host that would otherwise show
+   the story in its own theme uses this to decide whether the adventure has a
+   look worth honouring. */
 extern int a5model_custom_palette (const a5_adventure_t *a);
 
 /* Offer every authored string in the adventure to `accept`, depth-first, and
@@ -506,7 +527,7 @@ obj_prop (const a5_object_t *o, const char *key)
   return p ? p->value : nullptr;
 }
 
-/* Per-type key lookups (linear; adequate for load + Phase 1). */
+/* Per-type key lookups. */
 extern const a5_object_t    *a5model_object    (const a5_adventure_t *a, const char *key);
 /* The object, character and location carrying `key` (each NULL when there is
    none), from a single hash of the key. */
@@ -522,26 +543,26 @@ extern const char *a5model_valuelist_value (const a5_propdef_t *pd,
                                             const char *label);
 
 /* Resolve an <img>/<audio> src reference (an original file path) to its Blorb
-   resource number via <FileMappings>, matching on the path's basename.  Returns
-   -1 when there is no matching mapping. */
+   resource number via <FileMappings>, matching on the path's basename.
+   Returns -1 when there is no matching mapping. */
 extern int a5model_resource_for_file (const a5_adventure_t *a, const char *src);
 
-/* ------------------------------------------------------------- exit lookups */
+/* ------------------------------------------------------------ exit lookups */
 
-/* The location's <Movement> child for canonical direction `dir`, or NULL.  Pass
-   the previous result back as `after` to resume the scan: a location may hold
-   more than one Movement for a direction, and a5restr_exit_in_direction walks
-   past the route-restricted ones to reach the next candidate.  Pass after=NULL
-   to start from the first child. */
+/* The location's <Movement> child for canonical direction `dir`, or NULL.
+   Pass the previous result back as `after` to resume the scan: a location may
+   hold more than one Movement for a direction, and a5restr_exit_in_direction
+   walks past the route-restricted ones to reach the next candidate.  Pass
+   after=NULL to start from the first child. */
 extern const a5_xml_node_t *a5model_movement (const a5_location_t *loc,
                                               const a5_xml_node_t *after,
                                               const char *dir);
 
-/* The raw Destination key of `lockey`'s first exit in `dir`, or NULL when there
-   is no such exit (or its Destination is empty).  This is the runner's
+/* The raw Destination key of `lockey`'s first exit in `dir`, or NULL when
+   there is no such exit (or its Destination is empty).  This is the Runner's
    arlDirections(d).LocationKey read: the *unconditional* map, with no route
-   restriction evaluated -- unlike a character's HasRouteInDirection, which goes
-   through a5restr_exit_in_direction. */
+   restriction evaluated -- unlike a character's HasRouteInDirection, which
+   goes through a5restr_exit_in_direction. */
 extern const char *a5model_exit_dest (const a5_adventure_t *a,
                                       const char *lockey, const char *dir);
 

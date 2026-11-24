@@ -1,14 +1,21 @@
-//
-//  c64a8scott.c
-//  Spatterlight
-//
-//  The ScottFree-specific code required by
-//  the common code in common_sagadraw/c64a8draw.c
-//  to draw the bitmap graphics of Atari 8-bit and
-//  Commodore 64 games.
-//
-//  Created by Administrator on 2025-12-15.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  c64a8scott.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  The ScottFree-specific code required by
+ *  the common code in common_sagadraw/c64a8draw.c
+ *  to draw the bitmap graphics of Atari 8-bit and
+ *  Commodore 64 games.
+ *
+ *  Created by Petter Sjölund on 2025-12-15.
+ */
 
 #include "scott.h"
 #include "c64a8draw.h"
@@ -42,17 +49,14 @@ static void C64A8AdjustScott(struct c64a8_bounds *bounds) {
         glui32 optimal_height = ImageHeight * pixel_size;
 
         if (curheight != optimal_height) {
-            winid_t parent = glk_window_get_parent(Graphics);
-            if (parent)
-                glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-                                           optimal_height, NULL);
+            SetFixedWindowHeight(Graphics, optimal_height);
         }
     }
 }
 
 static enum c64a8_variant C64A8Variant(USImage *image)
 {
-    // Claymorgue is the only game with these images on the C64
+    /* Claymorgue is the only game with these images on the C64 */
     if (image->systype == SYS_C64)
         return C64A8_C64_CLAYMORGUE;
     if (CurrentGame == COUNT_US || CurrentGame == VOODOO_CASTLE_US)

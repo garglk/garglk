@@ -86,16 +86,15 @@ uip_note_definite_reference (void)
  *                               " " & Short, even when generaltasks goes on
  *                               to replace the description with a question
  *
- * (co()'s third call, 464848, sits behind var_8A > 1 on a path only mode 3
- * reaches, and mode 3 returned at 4643B2 for any var_8A > 0: dead.)  The
- * setter stores nothing when the line holds the word "it" (flag 0), which
- * is uip.pronoun.used here.  A question is not a turn, but these writes
+ * (co()'s third call, 464848, sits on a path only mode 3 reaches, behind a
+ * test mode 3 has already returned on (4643B2): dead.)  The setter stores
+ * nothing when the line holds the word "it" (flag 0), which is
+ * uip.pronoun.used here.  A question is not a turn, but these writes
  * stand: `cut rope with stone` then `x it` echoes "(stone)" and asks
  * "Which stone." again.
  *
- * Measured on p4WTIE/p4WTIE3 (make_400_withtieprobe.py [--desc], run400
- * runner_probes/wtie.run400.it1.txt, runner_probes/wtie3.run400.it2.txt,
- * runner_probes/wtie.run400.it3.txt, 2026-09-21): `zzz red stone` and `cut
+ * Measured on p4WTIE/p4WTIE3 (make_400_withtieprobe.py [--desc],
+ * runner_probes/wtie*.run400.it[123].txt): `zzz red stone` and `cut
  * stone red` "(the red stone)" (the scorer; "red" is a Prefix word), `cut rope
  * with blue stone ruby` "(the blue stone)", `cut red stone with stone` "(a red
  * stone)" (the -2 arm; the line asks), `cut rope with gems` "(emerald)", `x
@@ -148,16 +147,16 @@ uip_pronoun_was_used (void)
  * uip_commit_antecedent_400()
  *
  * Store the line's noted antecedent.  uip_assign_pronouns() calls this for
- * a turn; the runner calls it itself for a 4.0 line that was not one.
+ * a turn; the `run_` code calls it itself for a 4.0 line that was not one.
  */
 void
 uip_commit_antecedent_400 (scr_gameref_t game)
 {
   if (uip.pronoun.antecedent_object >= 0 && !uip.pronoun.used)
     {
-      game->it_object = uip.pronoun.antecedent_object;
-      game->it_form = uip.pronoun.antecedent_form;
-      game->it_npc = -1;
+      game->pronouns.it_object = uip.pronoun.antecedent_object;
+      game->pronouns.it_form = uip.pronoun.antecedent_form;
+      game->pronouns.it_npc = -1;
     }
   uip.pronoun.antecedent_object = -1;
   uip.pronoun.antecedent_stage = -1;
@@ -187,13 +186,45 @@ uip_set_pronoun_flags (scr_bool used, scr_bool pending_definite)
 
 
 /*
+ * uip_echo_reference()
+ *
+ * Print a "References in brackets" echo, "(the shovel)".
+ *
+ * Deliberate deviation: when the text is a register's seeded placeholder --
+ * "Absolutely nothing", "No male", "No female", "Nobody", "to Nobody" -- the
+ * Runner still prints it ("(Absolutely nothing)" before "You see no such
+ * thing.", ptgood_again T5), which reads as a bug and names nothing.  It is
+ * left out, unless one of the game's ALRs quotes the bracketed string: the
+ * authors of dusk, iachini, mind of master and others restyle or delete
+ * "(Absolutely nothing)", "(No female)" and "(to Nobody)", so there the echo
+ * stays for their ALR to act on.  The text spliced into the command is
+ * unchanged (showtime T59's `get * hand` task matches "get no female hand").
+ */
+static void
+uip_echo_reference (scr_gameref_t game, const scr_char *text,
+                    scr_bool placeholder)
+{
+  if (placeholder)
+    {
+      const std::string bracketed = std::string ("(") + text + ")";
+
+      if (!pf_alr_mentions (gs_get_bundle (game), bracketed.c_str ()))
+        return;
+    }
+  pf_buffer_reference (gs_get_filter (game), text, gs_get_vars (game),
+                       gs_get_bundle (game));
+}
+
+
+/*
  * uip_pronoun_t
  *
  * One pronoun word of the line, for uip_replace_pronouns(): the word, the
  * register it refers to ('object' or 'npc', or neither), and what goes into
  * the command for it -- 'prefix' and 'name', over 'extent' characters of the
- * line -- with 'echo' set where the bracket echo is not that same text.
- * 'definite' owns the prefix when it had to be composed.
+ * line -- with 'echo' set where the bracket echo is not that same text,
+ * and 'placeholder' set when that is a register's seeded never-assigned
+ * string.  'definite' owns the prefix when it had to be composed.
  */
 namespace {
 
@@ -206,6 +237,7 @@ struct uip_pronoun_t
 
   scr_int object, npc, extent;
   const scr_char *prefix, *name, *echo;
+  scr_bool placeholder;
   std::string definite;
 
   void find_register ();
@@ -227,45 +259,45 @@ void
 uip_pronoun_t::find_register ()
 {
   /*
-   * Search for pronouns where we have an assigned object or NPC.  We
-   * can't be sure of getting plurality right, and it's not always
-   * intuitive even in English -- is "a pair of scissors" an "it", or
-   * a "them"?  Because of this, we just treat "it" and "them" equally
-   * for now.
+   * Search for pronouns where we have an assigned object or NPC.  Plurality
+   * isn't modelled, and it's not always intuitive even in English -- is "a
+   * pair of scissors" an "it", or a "them"?  So "it" and "them" are treated
+   * equally.
    */
-  if (game->it_object != -1 && scr_compare_word (word, "it", 2))
+  if (game->pronouns.it_object != -1 && scr_compare_word (word, "it", 2))
     {
-      object = game->it_object;
+      object = game->pronouns.it_object;
       extent = 2;
     }
-  else if (game->it_object != -1 && scr_compare_word (word, "them", 4))
+  else if (game->pronouns.it_object != -1
+           && scr_compare_word (word, "them", 4))
     {
-      object = game->it_object;
+      object = game->pronouns.it_object;
       extent = 4;
     }
-  else if (game->him_npc != -1 && scr_compare_word (word, "him", 3))
+  else if (game->pronouns.him_npc != -1 && scr_compare_word (word, "him", 3))
     {
-      npc = game->him_npc;
+      npc = game->pronouns.him_npc;
       extent = 3;
     }
-  else if (game->him_npc != -1 && scr_compare_word (word, "he", 2))
+  else if (game->pronouns.him_npc != -1 && scr_compare_word (word, "he", 2))
     {
-      npc = game->him_npc;
+      npc = game->pronouns.him_npc;
       extent = 2;
     }
-  else if (game->her_npc != -1 && scr_compare_word (word, "her", 3))
+  else if (game->pronouns.her_npc != -1 && scr_compare_word (word, "her", 3))
     {
-      npc = game->her_npc;
+      npc = game->pronouns.her_npc;
       extent = 3;
     }
-  else if (game->her_npc != -1 && scr_compare_word (word, "she", 3))
+  else if (game->pronouns.her_npc != -1 && scr_compare_word (word, "she", 3))
     {
-      npc = game->her_npc;
+      npc = game->pronouns.her_npc;
       extent = 3;
     }
-  else if (game->it_npc != -1 && scr_compare_word (word, "it", 2))
+  else if (game->pronouns.it_npc != -1 && scr_compare_word (word, "it", 2))
     {
-      npc = game->it_npc;
+      npc = game->pronouns.it_npc;
       extent = 2;
     }
 }
@@ -286,10 +318,10 @@ uip_pronoun_t::object_phrase ()
 
   /*
    * An empty Prefix is an "a" prefix: every Runner's .taf loader
-   * substitutes the literal on the way in (run380 @4481B2, run370
-   * @43F5DA, run400 loc_4900EC), so the antecedent the Runner builds
-   * through Proc_21_31_448710 reads "a Cupboard".  Measured on
-   * man_overboard (4.00): `open it` after `x cupboard` echoes "(a
+   * substitutes the literal on the way in (run400 4900EC), so the
+   * antecedent the Runner builds through Proc_21_31_448710 reads "a
+   * Cupboard".  Measured on
+   * man_overboard (4.0): `open it` after `x cupboard` echoes "(a
    * Cupboard)", and likewise "(a wardrobe)", "(a pantry)", "(a
    * toolbox)".  parse_trim_object_names does the substitution now, so
    * the prefix read back here already carries it.
@@ -301,10 +333,10 @@ uip_pronoun_t::object_phrase ()
    * has two modes: mode 1 is Prefix & " " & Short as authored, mode 0
    * passes the prefix through tense (Proc_21_13_44F474: "a", "an" and
    * "some" become "the", anything else is left alone).  Examine
-   * composes in mode 1 (loc_471749-471789), take/drop/open/close and
+   * composes in mode 1 (471749), take/drop/open/close and
    * the "I don't understand what you want me to do with" reply in
-   * mode 0 -- see uip_definite_form().  Measured on humbug (4.00,
-   * runner_probes/humbug.run400.it.txt, 2026-08-29): `x plane` then
+   * mode 0 -- see uip_definite_form().  Measured on humbug (4.0,
+   * runner_probes/humbug.run400.it.txt): `x plane` then
    * `x it` echoes "(a paper aeroplane)", `get plane` then `x it`
    * "(the paper aeroplane)", `open satchel` "(the satchel)", `throw
    * shovel` (no such verb) "(the shovel)"; "some gloves" and "an
@@ -313,24 +345,23 @@ uip_pronoun_t::object_phrase ()
    *
    * 3.7 and 3.8 store the antecedent in generaltasks' pre-pass over
    * the typed line, before any handler: when exactly one object is
-   * named it becomes tense(Prefix) & " " & Short (run380 441EF1 and
-   * 442038, run370 43B696 and 43B805), held or not, whatever the
-   * verb.  Measured on wrecked (3.80, run380x
-   * runner_transcripts/wrecked.rtf, 2026-09-14): `get jacket` then `x
+   * named it becomes tense(Prefix) & " " & Short (run380 441EF1),
+   * held or not, whatever the verb.  Measured on wrecked (3.8, run380x
+   * runner_transcripts/wrecked.rtf): `get jacket` then `x
    * it` echoes "(the tweed jacket)", `get form` then `x it` "(an
    * application form)" (Prefix "an", which tense() leaves alone), and
    * `wave wand` on the held wand makes the later `drop it` the wand.
    */
-  if (game->it_form == UIP_IT_BARE
+  if (game->pronouns.it_form == UIP_IT_BARE
       && prop_get_taf_version (bundle) >= TAF_VERSION_400)
     prefix = "";            /* co()'s park arm; see above */
-  else if (game->it_form == UIP_IT_DEFINITE
+  else if (game->pronouns.it_form == UIP_IT_DEFINITE
            && prop_get_taf_version (bundle) < TAF_VERSION_390)
     {
       definite = uip_tense_prefix_3738 (prefix);
       prefix = definite.c_str ();
     }
-  else if (game->it_form == UIP_IT_DEFINITE)
+  else if (game->pronouns.it_form == UIP_IT_DEFINITE)
     {
       if (scr_compare_word (prefix, "a", 1))
         definite = std::string ("the") + (prefix + 1);
@@ -362,13 +393,14 @@ uip_pronoun_t::no_object ()
    * "Absolutely nothing") -- and never a "no reference" state, so
    * the pronoun is still replaced: "nothing" goes into the command
    * and "Absolutely nothing" is what the bracket echo prints.
-   * Measured on ptgood_again (4.00) turns 5-6: `x it` with nothing
+   * Measured on ptgood_again (4.0) turns 5-6: `x it` with nothing
    * yet referenced answers "(Absolutely nothing)" then "You see no
    * such thing."; `g` repeats "(x it)", "(Absolutely nothing)".
    */
   prefix = "";
   name = "nothing";
   echo = "Absolutely nothing";
+  placeholder = TRUE;
   extent = scr_compare_word (word, "it", 2) ? 2 : 4;
 }
 
@@ -380,19 +412,17 @@ uip_pronoun_t::no_character ()
    * has no "no reference" state -- the register is a seeded string,
    * so him/he/her/she are rewritten even before anything has been
    * referred to.  3.9 and 4.0 keep a register per gender, seeded
-   * "No male" and "No female" (run400 loc_45A7F9/45A800 in
-   * Proc_19_4_45AA98, run390 loc_434969/434970 in clear(); assigned
-   * the NPC's Name by gender byte at run400 loc_47F3B9/47F3D0 and
-   * run390 loc_4592D7/4592EE, which is Scarier's him_npc/her_npc).
-   * 3.7 and 3.8 have ONE character register for all four pronouns,
-   * seeded "Nobody" (run370 loc_42398D MemVar_4460B4, read by every
-   * branch of its() at 42CAFA/42CBC6/42CC9B/42CD67; run380
-   * loc_4289F1).  Unlike the object register there is no second
+   * "No male" and "No female" (run400 Proc_19_4_45AA98, run390
+   * clear() 434969; assigned the NPC's Name by gender byte at run400
+   * 47F3B9, which is Scarier's him_npc/her_npc).  3.7 and 3.8 have
+   * ONE character register for all four pronouns, seeded "Nobody"
+   * (run370 42398D MemVar_4460B4, read by every branch of its()).
+   * Unlike the object register there is no second
    * lower-case copy: the echo and the text spliced into the command
    * are the same string, and the whole command is lower-cased after
    * the splice.
    *
-   * Measured on showtime (4.00, runner_transcripts/showtime.txt turn
+   * Measured on showtime (4.0, runner_transcripts/showtime.txt turn
    * 59): `get her hand` with no female yet referenced answers "(No
    * female)" and then runs the game's task, which survives because
    * its command is the wildcard `get * hand` and the rewritten line
@@ -406,6 +436,7 @@ uip_pronoun_t::no_character ()
   else
     name = "Nobody";
   echo = name;
+  placeholder = TRUE;
   extent = scr_compare_word (word, "he", 2) ? 2 : 3;
 }
 
@@ -423,6 +454,7 @@ uip_pronoun_t::resolve ()
   /* Initially, no object or NPC, no names, and a zero extent. */
   object = npc = -1;
   prefix = name = echo = nullptr;
+  placeholder = FALSE;
   extent = 0;
 
   find_register ();
@@ -437,16 +469,16 @@ uip_pronoun_t::resolve ()
    * the object and "Nobody" (4.0 adds "No male" / "No female") for the
    * character, and the character one is assigned the Name field alone:
    *
-   *   run370  loc_438332   MemVar_4460B4 = var_164(0)         [Name]
+   *   run370  loc_438332   MemVar_4460B4 = npc(0)             [Name]
    *   run370  loc_43B696   MemVar_4460AC = tense(Prefix) & " " & Short
-   *   run400  loc_47F3B9   MemVar_494184 = var_140(0)         [Name]
+   *   run400  loc_47F3B9   MemVar_494184 = npc(0)             [Name]
    *
-   * Field 0 of a character really is the Name, not a prefix: run390's
-   * room lister builds "<(0)> is <(4)> <(8)>." at loc_459248 -- "Chloe is
-   * a girl." -- and matches the typed word against (0) and (8) at
-   * loc_4592B8.  We used to prepend the NPC's Prefix too, which turned
-   * "ask him about pens" into "ask the Harold about pens" (wrecked, 3.80)
-   * where the Runner writes "ask harold about pens".
+   * Field 0 of a character really is the Name, not a prefix: run390's room
+   * lister builds "<(0)> is <(4)> <(8)>." at 459248 -- "Chloe is a girl."
+   * -- and matches the typed word against (0) and (8).
+   * Prepending the NPC's Prefix too would turn "ask him about pens" into "ask
+   * the Harold about pens" (wrecked, 3.8) where the Runner writes "ask harold
+   * about pens".
    */
   if (object > -1)
     object_phrase ();
@@ -490,73 +522,64 @@ uip_pronoun_t::substitute (std::string &buffer, scr_int offset) const
    * its own before the command's response -- "(a trophy)".  4.0 does
    * it whenever Options -> Display & Media... -> "References in
    * brackets" is ticked, the reference setting Scarier models: run400
-   * Proc_19_49_461F38 (him/he/her/she/it/them branches, e.g. "it" at
-   * loc_461DA5) tests MemVar_4942BA then prints "(" & antecedent &
-   * ")" & vbCrLf through Proc_21_19_47B568.  Measured on adrift_maze
-   * (4.00) commands 24-25: "read it" answers "(a trophy)" then "It
+   * Proc_19_49_461F38 (one branch per pronoun) tests MemVar_4942BA
+   * then prints "(" & antecedent & ")" & vbCrLf through
+   * Proc_21_19_47B568.  Measured on adrift_maze
+   * (4.0) commands 24-25: "read it" answers "(a trophy)" then "It
    * has the following engraved on it."
    *
    * 3.9 is the same line behind the same setting: run390 Sub its()
-   * @43D968 tests m_showbrackets (loc_43D6C2 for "it", 43D7BF "them",
-   * 43D884 "one") and prints "(" & MemVar_46811C & ")" through
-   * Proc_2_28_45CBD0; the menu item is read from ADRIFT\Runner
-   * "showbrackets" at loc_44526F with default True (loc_44526B).
-   * Measured on Archie's Birthday (3.90, run390, 2026-09-05): `x
+   * @43D968 tests m_showbrackets and prints "(" & MemVar_46811C & ")"
+   * through Proc_2_28_45CBD0; the menu item is read from
+   * ADRIFT\Runner "showbrackets" at 44526F with default True.
+   * Measured on Archie's Birthday (3.9, run390): `x
    * camcorder` then `take it` answers "(a camcorder)" then "You take
-   * a camcorder from the desk."; and on veteran (3.90, run390, same
+   * a camcorder from the desk."; and on veteran (3.9, run390, same
    * day) `x bag`, `take it`, `open it` echo "(a bag)" both times --
    * 3.9's takes @455067 and drops @445BE6 compose the antecedent in
    * mode 1 (authored Prefix).  Lines no handler names an object on
    * keep co()'s mode-0 "the X" from its pre-pass (43B69E), a form
-   * Scarier doesn't model: see uip_assign_pronouns() on 8f7dc3d7a.
-   * (An earlier reading of run390 had it keeping showbrackets only
-   * for the "ask about"/"talk about" rewrite at loc_459036/459107
-   * and echoing nothing -- wrong.)
+   * Scarier doesn't model: see uip_assign_pronouns().
    *
-   * 3.7 and 3.8 print the same line UNGATED -- run370 Sub Form1.its
-   * @2CA9C (loc_42CAFA ...) and run380 @326B4 have no Appearance menu
-   * -- with the same antecedents: the NPC's Name, or tense(Prefix) &
-   * " " & Short for an object, which is what 'replacement' holds.
-   * Measured on wrecked (3.80, run380x
-   * runner_transcripts/wrecked.rtf, 2026-09-14).
+   * 3.7 and 3.8 print the same line UNGATED -- neither run370's its()
+   * (Sub Form1.its @2CA9C) nor run380's has an Appearance menu -- with
+   * the same antecedents: the NPC's Name, or tense(Prefix) & " " & Short
+   * for an object, which is what 'replacement' holds.  Measured on
+   * wrecked (3.8, run380x runner_transcripts/wrecked.rtf).
    */
-  pf_buffer_reference (gs_get_filter (game),
-                       echo ? echo : replacement.c_str (),
-                       gs_get_vars (game), gs_get_bundle (game));
+  uip_echo_reference (game, echo ? echo : replacement.c_str (), placeholder);
 
   /*
    * Splice the replacement in for the matched extent, and lower-case
    * the whole line again -- the Runner assigns
    * `cmd = LCase(Left$ & antecedent & Right$)` after every splice
-   * (run400 Proc_19_49_461F38 loc_461ACB..461AD7 for "him",
-   * loc_461BA5..461BB1 for "he", and so on down the branches), so an
-   * authored capital in the Name never survives into the parsed
-   * command.  Without this, uip_case_folds_name() would refuse the
-   * very character the pronoun just named: "ask him about pens" in
-   * wrecked (3.80) becomes "ask harold about pens", not "ask Harold
+   * (run400 Proc_19_49_461F38, in every branch, e.g. 461ACB for
+   * "him"), so an authored capital in the Name never survives into the
+   * parsed command.  Without this, uip_case_folds_name() would refuse
+   * the very character the pronoun just named: "ask him about pens" in
+   * wrecked (3.8) becomes "ask harold about pens", not "ask Harold
    * about pens".
    *
    * 3.7 and 3.8 echo tense(Prefix) & " " & Short but splice only the
    * Short into the line: the pre-pass stores the two apart (run380
-   * 441EF1 / 441F09, run370 43B696 / 43B6AE) and its() writes
-   * Left$ & " " & MemVar_44F0B8 & Right$ (run380 432A95).  Measured
-   * on wrecked T129 (run380x): `ask aslan about it` after the wand
-   * answers the "wand" topic, not the later "witch" one that "the
-   * witch's magic wand" would hit under the substring topic match.
+   * 441EF1 / 441F09) and its() writes Left$ & " " & MemVar_44F0B8 &
+   * Right$ (run380 432A95).  Measured on wrecked T129 (run380x): `ask
+   * aslan about it` after the wand answers the "wand" topic, not the
+   * later "witch" one that "the witch's magic wand" would hit under the
+   * substring topic match.
    *
    * 3.9 keeps the same pair (MemVar_46811C echo, MemVar_468120
-   * splice).  Its handlers write one composed string to both
-   * (takes 455067/455071, drops 445BE6/445BF0), but co()'s pre-pass
-   * writes "the X" to the echo (43B69E) and the bare Short to the
-   * splice (global_4, 43B6B0).  Blue Sky: `ask maria about burger`
-   * then `give it to her` echoes "(the burger)" and runs the game's
-   * `give burger to maria` task, which "give the burger to maria"
-   * would not match.
+   * splice).  Its handlers write one composed string to both (takes
+   * 455067, drops 445BE6), but co()'s pre-pass writes "the X" to the
+   * echo (43B69E) and the bare Short to the splice (global_4, 43B6B0).
+   * Blue Sky: `ask maria about burger` then `give it to her` echoes
+   * "(the burger)" and runs the game's `give burger to maria` task,
+   * which "give the burger to maria" would not match.
    */
   if (object > -1
       && (prop_get_taf_version (bundle) < TAF_VERSION_390
           || (prop_get_taf_version (bundle) < TAF_VERSION_400
-              && game->it_form == UIP_IT_DEFINITE)))
+              && game->pronouns.it_form == UIP_IT_DEFINITE)))
     replacement = name;
   buffer.replace (offset, extent, replacement);
   scr_lowercase (&buffer[0]);
@@ -598,10 +621,10 @@ uip_replace_pronouns (scr_gameref_t game, const scr_char *string)
   /*
    * Search for pronouns until no more string remains, the character ones
    * first and "it"/"them" on a second pass: the Runner works through them
-   * by kind, not by where they stand on the line (run390 its(): "him"
-   * 43D310, "he" 43D3EB, "her" 43D4CF, "she" 43D5AA, "it" 43D685, "them"
-   * 43D782), and each prints its bracket echo as it goes.  Blue Sky (3.90,
-   * run390x, 2026-10-09): `give it to her` echoes "(Maria)" and then "(the
+   * by kind, not by where they stand on the line (run390 its() takes
+   * "him", "he", "her", "she", "it" and "them" in that order, from
+   * 43D310), and each prints its bracket echo as it goes.  Blue Sky (3.9,
+   * run390x): `give it to her` echoes "(Maria)" and then "(the
    * burger)".
    */
   for (pass = 0; pass < 2; pass++)
@@ -713,17 +736,16 @@ uip_phrase_in (const std::string &lowered, const scr_char *phrase)
  *
  * Does the command name this NPC?  run400 Proc_21_40_45E99C: c(LCase(Name))
  * and, only if that fails, c(LCase(alias)) for each alias -- the alias loop
- * assigns without breaking (loc_45E623..45E67D), so the LAST matching alias
- * is the one that survives, while a matching Name jumps the loop entirely
- * (loc_45E620).  There is no presence test -- an NPC two rooms away still
- * counts.
+ * assigns without breaking, so the LAST matching alias is the one that
+ * survives, while a matching Name jumps the loop entirely.  There is no
+ * presence test -- an NPC two rooms away still counts.
  *
  * Whichever string was chosen is then lower-cased and looked for in the
  * command with a case-SENSITIVE InStr; see uip_case_folds_name().
  *
  * run390 names a character by c(LCase(Name)) Or c(LCase(Alias(0))) alone --
- * characters() 4592B8 for the register, the give rewrite's count at
- * 45F9FB-45FA89 -- and c() lower-cases both sides (4334B0).
+ * characters() for the register, the give rewrite's count -- and c()
+ * lower-cases both sides (4334B0).
  */
 static scr_bool
 uip_npc_named (scr_gameref_t game, scr_int npc, const std::string &lowered,
@@ -797,12 +819,12 @@ uip_last_npc_name (scr_gameref_t game, scr_int npc)
  *
  * The same loop in characters() writes the him/her registers too, by the
  * NPC's gender byte, for every character the line names by Name or alias --
- * no presence or seen test (run400 loc_47F3A2..47F402, run390 loc_4592B8..
- * 459326); a neuter character goes to the object antecedent (run400 pushes
- * Name to Proc_21_41_448C24).  Pronoun replacement has already run on the
- * line by then, so it read the previous line's value.  Before 3.9 there is
+ * no presence or seen test (run400 47F3A2); a neuter character goes to the
+ * object antecedent (run400 pushes Name to Proc_21_41_448C24).  Pronoun
+ * replacement has already run on the line by then, so it read the previous
+ * line's value.  Before 3.9 there is
  * no gender byte and uip_assign_pronouns() keeps the old handling.
- * Measured on British Fox (4.00, runner_transcripts/britishfox.txt turn
+ * Measured on British Fox (4.0, runner_transcripts/britishfox.txt turn
  * 188): Sharon was last seen at reception, yet `ask about grace` in the
  * cells makes `tell her it was sabrina` echo "(Grace)", Grace being named
  * but never seen.
@@ -818,14 +840,14 @@ uip_note_npc_pronoun (scr_gameref_t game, scr_int npc)
   switch (prop_get_indexed_integer (bundle, "NPCs", npc, "Gender"))
     {
     case NPC_MALE:
-      game->him_npc = npc;
+      game->pronouns.him_npc = npc;
       break;
     case NPC_FEMALE:
-      game->her_npc = npc;
+      game->pronouns.her_npc = npc;
       break;
     case NPC_NEUTER:
-      game->it_npc = npc;
-      game->it_object = -1;
+      game->pronouns.it_npc = npc;
+      game->pronouns.it_object = -1;
       break;
     default:
       break;
@@ -837,21 +859,20 @@ uip_note_npc_pronoun (scr_gameref_t game, scr_int npc)
  * uip_note_named_npcs()
  *
  * Update the last-named-character register from a command about to run.
- * run400 Proc_19_0_480674 loc_47F2C5..47F3A2 walks the NPCs in index order
+ * run400 Proc_19_0_480674 walks the NPCs in index order
  * and assigns Name for every one Proc_21_40_45E99C finds in the line, so
  * the highest-indexed match wins; it runs AFTER the routine's own "ask
  * about" rewrite, which is why the rewrite sees the previous command's
  * value (run_all_commands() keeps that by remembering the index it had
  * before this ran).
  *
- * The loop is unconditional, and characters() itself is reached at 48B56E
- * on EVERY line -- the task dispatch's early exits jump to 48B4E3, which is
- * still above it -- so a line a task answered names its characters too.
- * Measured 2026-09-05 (runner_probes/sommeril.run400.npcprobe.txt,
- * sommeril.taf): "ask about zzz" in the gargoyle's street echoes "(Nobody)"
- * even with GARGOYLE listed in the room description, then the task-answered
- * "give silver orb to gargoyle" makes the next "ask about zzz" echo
- * "(GARGOYLE)".
+ * The loop is unconditional, and characters() itself is reached at 48B56E on
+ * EVERY line -- the task dispatch's early exits jump to 48B4E3, which is still
+ * above it -- so a line a task answered names its characters too.  Measured
+ * (runner_probes/sommeril.run400.npcprobe.txt, sommeril.taf): "ask about zzz"
+ * in the gargoyle's street echoes "(Nobody)" even with GARGOYLE listed in the
+ * room description, then the task-answered "give silver orb to gargoyle" makes
+ * the next "ask about zzz" echo "(GARGOYLE)".
  */
 void
 uip_note_named_npcs (scr_gameref_t game, const scr_char *string)
@@ -859,16 +880,16 @@ uip_note_named_npcs (scr_gameref_t game, const scr_char *string)
   const std::string lowered = uip_lowered (string);
   scr_int index_;
 
-  uip.pronoun.npc_before_noting = game->last_npc;
-  uip.pronoun.him_before_noting = game->him_npc;
-  uip.pronoun.her_before_noting = game->her_npc;
-  uip.pronoun.it_before_noting = game->it_npc;
-  uip.pronoun.it_object_before_noting = game->it_object;
+  uip.pronoun.npc_before_noting = game->pronouns.last_npc;
+  uip.pronoun.him_before_noting = game->pronouns.him_npc;
+  uip.pronoun.her_before_noting = game->pronouns.her_npc;
+  uip.pronoun.it_before_noting = game->pronouns.it_npc;
+  uip.pronoun.it_object_before_noting = game->pronouns.it_object;
   GS_FOR_EACH_NPC (game, index_)
     {
       if (uip_npc_named (game, index_, lowered, string))
         {
-          game->last_npc = index_;
+          game->pronouns.last_npc = index_;
           uip_note_npc_pronoun (game, index_);
         }
     }
@@ -880,7 +901,7 @@ uip_note_named_npcs (scr_gameref_t game, const scr_char *string)
  *
  * gotoplace cuts the GLOBAL command line in place before characters() reads
  * it -- Right(line, Len-5) for "goto", wherever c() found it, 6 for "go to",
- * 3 for "go" from 3.9, and 3.7's own goto word first (run400 4649C1..4649CA,
+ * 3 for "go" from 3.9, and 3.7's own goto word first (run400 4649C1,
  * run380 31BC4) -- so the register is noted from what is left of the line,
  * not from what was typed; after a walk the line is "&&&" and characters()
  * never runs (run400 48B56E is jumped to 48BBAA, run370 43C8A6 needs a
@@ -911,13 +932,13 @@ uip_renote_named_npcs (scr_gameref_t game, const scr_char *cut_line,
                                   || lowered[0] == ',');
   scr_int index_;
 
-  game->last_npc = uip.pronoun.npc_before_noting;
-  game->him_npc = uip.pronoun.him_before_noting;
-  game->her_npc = uip.pronoun.her_before_noting;
-  if (game->it_npc != uip.pronoun.it_before_noting)
+  game->pronouns.last_npc = uip.pronoun.npc_before_noting;
+  game->pronouns.him_npc = uip.pronoun.him_before_noting;
+  game->pronouns.her_npc = uip.pronoun.her_before_noting;
+  if (game->pronouns.it_npc != uip.pronoun.it_before_noting)
     {
-      game->it_npc = uip.pronoun.it_before_noting;
-      game->it_object = uip.pronoun.it_object_before_noting;
+      game->pronouns.it_npc = uip.pronoun.it_before_noting;
+      game->pronouns.it_object = uip.pronoun.it_object_before_noting;
     }
   if (walked)
     return;
@@ -943,7 +964,7 @@ uip_renote_named_npcs (scr_gameref_t game, const scr_char *cut_line,
         }
       if (named)
         {
-          game->last_npc = index_;
+          game->pronouns.last_npc = index_;
           uip_note_npc_pronoun (game, index_);
         }
     }
@@ -954,8 +975,8 @@ uip_renote_named_npcs (scr_gameref_t game, const scr_char *cut_line,
  * uip_line_names_npc()
  *
  * TRUE if the line names any character at all -- the same walk over
- * Proc_21_40_45E99C that run400 makes at loc_48B53C..48B569, whose result
- * (var_29C) gates the DontUnderstand text at 48B585.  See the note in
+ * Proc_21_40_45E99C that run400 makes at 48B53C, whose result gates the
+ * DontUnderstand text at 48B585.  See the note in
  * run_element_not_understood().
  */
 scr_bool
@@ -997,7 +1018,7 @@ uip_ask_echo_skip (const std::string &lowered)
  *
  * The echo comes out BEFORE task matching.  run400 prints it from inside the
  * parser proper, and a task that answers the line still prints after it --
- * measured 2026-09-05 on two opposite task shapes: `SPAM.taf` turn 11, whose
+ * measured on two opposite task shapes: `SPAM.taf` turn 11, whose
  * `* ingredients *` wildcard task answers `ask about ingredients` under a
  * bare "(Nobody)" (runner_probes/spam.run400.probe.txt), and `sommeril.taf`
  * turn 36, whose LITERAL task `ask about glass framed page` answers under
@@ -1021,9 +1042,8 @@ uip_print_ask_echo (scr_gameref_t game, const scr_char *string)
   if (uip_ask_echo_skip (lowered) == 0)
     return FALSE;
 
-  pf_buffer_reference (gs_get_filter (game),
-                       uip_last_npc_name (game, game->last_npc),
-                       gs_get_vars (game), gs_get_bundle (game));
+  uip_echo_reference (game, uip_last_npc_name (game, game->pronouns.last_npc),
+                      game->pronouns.last_npc == -1);
   return TRUE;
 }
 
@@ -1038,16 +1058,15 @@ uip_print_ask_echo (scr_gameref_t game, const scr_char *string)
  *   give X [no character named, no "to"]  ->  "(to Bob)"  give X to bob
  *   ask about X / talk about X            ->  "(Bob)"     ask bob about X
  *
- * run400: the give rewrite is loc_48A98A..48AA38 in the input routine
+ * run400: the give rewrite is at 48A98A in the input routine
  * Proc_19_61_48C0F0 (c("give"), a Proc_21_40_45E99C count of zero, Not
  * c("to")); the ask/talk rewrite opens the parser proper, Proc_19_0_480674
- * loc_47F134..47F2BA (Left(cmd, 10) = "ask about ", Left(cmd, 11) = "talk
- * about ").  Both take MemVar_494180 as it stands from the previous
- * command, print through Proc_21_19_47B568 behind MemVar_4942BA, and splice
- * LCase(Name) into the line.  run370 loc_43BED8/43BFC9 and loc_4380CF/
- * 438185 (run380 the same) do both with no gate -- 3.7 has no Appearance
- * menu.  run390 has both too: the ask/talk pair at loc_459036/459107 and
- * the give rewrite in generaltasks at 45F9D5-45FB13 ("(to " at 45FAB9).
+ * (Left(cmd, 10) = "ask about ", Left(cmd, 11) = "talk about ").  Both take
+ * MemVar_494180 as it stands from the previous command, print through
+ * Proc_21_19_47B568 behind MemVar_4942BA, and splice LCase(Name) into the
+ * line.  run370 (43BED8, 4380CF; run380 the same) does both with no gate --
+ * 3.7 has no Appearance menu.  run390 has both too: the ask/talk pair at
+ * 459036 and the give rewrite in generaltasks at 45F9D5.
  * Measured p39ABSNPC (run390x, runner_probes/absnpc.run390.txt): `give stone`
  * after `talk to gina` echoes "(to Gina)" and runs as `give stone to gina`.
  * vardock_bates turn 16 showed "(to Vagabundo)" live in 4.0.
@@ -1058,7 +1077,6 @@ scr_char *
 uip_rewrite_references (scr_gameref_t game, const scr_char *string,
                         scr_int prior_npc, scr_bool echo_printed)
 {
-  const scr_prop_setref_t bundle = gs_get_bundle (game);
   const scr_char *name = uip_last_npc_name (game, prior_npc);
   const std::string lowered_name = uip_lowered (name);
   std::string command (string);
@@ -1077,8 +1095,7 @@ uip_rewrite_references (scr_gameref_t game, const scr_char *string,
         {
           const std::string echo = std::string ("to ") + name;
 
-          pf_buffer_reference (gs_get_filter (game), echo.c_str (),
-                               gs_get_vars (game), bundle);
+          uip_echo_reference (game, echo.c_str (), prior_npc == -1);
           command += " to ";
           command += lowered_name;
           lowered = uip_lowered (command.c_str ());
@@ -1091,8 +1108,7 @@ uip_rewrite_references (scr_gameref_t game, const scr_char *string,
     {
       /* The echo is printed up front now; see uip_print_ask_echo(). */
       if (!echo_printed)
-        pf_buffer_reference (gs_get_filter (game), name,
-                             gs_get_vars (game), bundle);
+        uip_echo_reference (game, name, prior_npc == -1);
       command = "ask " + lowered_name + " about " + command.substr (skip);
       modified = TRUE;
     }
@@ -1121,10 +1137,10 @@ uip_rewrite_references (scr_gameref_t game, const scr_char *string,
  *                              is dead.  A lone namesake stores nothing, so
  *                              this code keeps what was there (UIP_FORM_KEEP)
  *                              and the crowd arms note through
- *                              uip_note_antecedent_400().  (The old "found in
- *                              the room" definite store is run390's co
- *                              @43B69E; `look in dustbin` "(the dustbin)" at
- *                              4.0 is the line-start scorer, 48A3F5.)
+ *                              uip_note_antecedent_400().  (A "found in the
+ *                              room" definite store is run390's co @43B69E;
+ *                              `look in dustbin` "(the dustbin)" at 4.0 is the
+ *                              line-start scorer, 48A3F5.)
  *   examines @471749-471789    mode 1, indefinite: `x shovel` after `get
  *                              shovel` is back to "(a shovel)"; so is `x the
  *                              shovel`.
@@ -1153,7 +1169,7 @@ uip_rewrite_references (scr_gameref_t game, const scr_char *string,
  * A command that used the pronoun leaves the antecedent exactly as it was:
  * `drop it`, `x it`, `look at it`, `examine it` all echo the previous form
  * (runner_probes/humbug.run400.it.txt 321-349), so the caller skips assignment
- * altogether for those.  All measured on humbug, run400, 2026-08-29.
+ * altogether for those.  All measured on humbug, run400.
  */
 enum uip_form_t
 {
@@ -1231,9 +1247,9 @@ uip_definite_form (scr_gameref_t game, const scr_char *command,
 
   /*
    * Anything else is not a handler's: what the line leaves is generaltasks'
-   * scorer write or co()'s (uip_note_antecedent_400()).  The old guess here,
-   * "definite for a room object, untouched for a held one", was run390's
-   * co() (43B69E / 43B456).
+   * scorer write or co()'s (uip_note_antecedent_400()).  "Definite for a room
+   * object, untouched for a held one" is run390's co() (43B69E / 43B456), not
+   * this.
    */
   return UIP_FORM_KEEP;
 }
@@ -1316,14 +1332,14 @@ uip_assign_pronouns (scr_gameref_t game, const scr_char *string)
   uip.pronoun.used = FALSE;
 
   /*
-   * run390 points "it" by a co() pre-pass (generaltasks 45F318-45F430): the
+   * run390 points "it" by a co() pre-pass (generaltasks 45F318): the
    * LAST object in index order that the line names, present, seen and with
    * no present namesake, unless a take, drop, wear, remove, examine or read
    * then names its own object.  So `get jet` from the open cabinet (takes'
    * auto-"from" rewrite, 4552EE) left "it" on the cabinet, and a put, open
    * or task line on whichever object came last in the file (make_39_itprobe
-   * .py, crossworlds4 T240/T241, 8f7dc3d7a).  Deliberate deviation: 3.9 uses
-   * the assignment below, which follows the objects the line names.
+   * .py, crossworlds4 T240/T241).  Deliberate deviation: 3.9 uses the
+   * assignment below, which follows the objects the line names.
    */
 
   /* Save var references so we can restore them later. */
@@ -1347,7 +1363,7 @@ uip_assign_pronouns (scr_gameref_t game, const scr_char *string)
           object = -1;
           GS_FOR_EACH_OBJECT (game, index_)
             {
-              if (game->object_references[index_]
+              if (game->refs.objects[index_]
                   && (gs_object_seen (game, index_)
                       || prop_get_taf_version (bundle) < TAF_VERSION_390)
                   && obj_indirectly_in_room (game,
@@ -1370,10 +1386,10 @@ uip_assign_pronouns (scr_gameref_t game, const scr_char *string)
 
               if (form != UIP_FORM_KEEP && !handler_set)
                 {
-                  game->it_object = object;
-                  game->it_form = form == UIP_FORM_DEFINITE
+                  game->pronouns.it_object = object;
+                  game->pronouns.it_form = form == UIP_FORM_DEFINITE
                                   ? UIP_IT_DEFINITE : UIP_IT_INDEFINITE;
-                  game->it_npc = -1;
+                  game->pronouns.it_npc = -1;
                 }
 
               if (uip.trace)
@@ -1401,9 +1417,9 @@ uip_assign_pronouns (scr_gameref_t game, const scr_char *string)
                * the same treatment.  (3.9 on never reaches here; see the
                * version gate above.)
                */
-              game->him_npc = npc;
-              game->her_npc = npc;
-              game->it_npc = -1;
+              game->pronouns.him_npc = npc;
+              game->pronouns.her_npc = npc;
+              game->pronouns.it_npc = -1;
 
               if (uip.trace)
                 {

@@ -274,12 +274,12 @@ sb_pspace (sb_t *b)
 {
   /* Test ONLY the final byte -- do not "improve" this by walking back over
      zero-width marks to find a buried newline.  Global.pSpace runs on the
-     runner's RAW accumulated text, tags included, so a message whose source
+     Runner's RAW accumulated text, tags included, so a message whose source
      ends in a tag's '>' gets the join spaces even when the character the
      player sees last is a newline.  A trailing mark here means exactly
      "the raw text ended in a tag" (the del arm's A5_ALR_MARK, a stripped
      tag's ps_mark_trailing A5_PS_MARK), so mark != '\n' -> spaces is the
-     runner's own answer.  Measured in run500.exe (delrt probe cases 9-11):
+     Runner's own answer.  Measured in run500.exe (delrt probe cases 9-11):
      "9[x\n\n<del>" + "]END9" really does render "9[x\n  ]END9" -- the join
      spaces are added even though a newline survives the <del>.
 

@@ -1,9 +1,16 @@
-//
-//  vector_common.c
-//  scott
-//
-//  Created by Administrator on 2026-02-01.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  vector_common.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2026-02-01.
+ */
 
 #include <stdlib.h>
 #include <string.h>
@@ -63,13 +70,13 @@ static void StartImageSession(VectorOpList *list) {
 
 int VectorBeginImage(VectorOpList *list, const USImage *img, void (*redraw_shown_image)(void)) {
     if (img->usage == IMG_ROOM) {
-        // Room images reset any drawing
+        /* Room images reset any drawing */
         StartImageSession(list);
         vector_image_shown = img->index;
     } else if (VectorState == SHOWING_VECTOR_IMAGE) {
-        // If this is not a room image and we are already showing an image,
-        // we can assume that we want to draw a room object on top of
-        // the current room image
+        /* If this is not a room image and we are already showing an image,
+           we can assume that we want to draw a room object on top of
+           the current room image */
         redraw_shown_image();
         StartImageSession(list);
     } else if (list->ops == NULL) {

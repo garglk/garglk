@@ -1,13 +1,20 @@
-//
-//  graphics.c
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Palette code based on code by David Lodge
-//  with help from Paul David Doherty (including the colour code)
-//
-//  Original code at https://github.com/tautology0/textadventuregraphics
-//  See also http://aimemorial.if-legends.org/gfxbdp.html
-//
+/*
+ *  graphics.c
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2021-12-15.
+ *
+ *  Palette code, now in ../aiukgraphics/aiukpalette.c, based on code by
+ *  David Lodge with help from Paul David Doherty (including the colour code)
+ *
+ *  Original code at https://github.com/tautology0/textadventuregraphics
+ *  See also http://aimemorial.if-legends.org/gfxbdp.html
+ */
 
 #include <math.h>
 #include <stdio.h>
@@ -196,7 +203,7 @@ static void ExtractSingleQ3Image(Image *img, int picture_number, size_t base, si
     /* In some Spectrum versions, the "wind tunnel" image
        is damaged. As the game contains several (wasteful)
        copies of this image and different ones are broken in
-       different ways, we just make use the data for number 17
+       different ways, we just use the data for number 17
        for all of them (after patching it.)*/
     if (picture_number == 17) {
         img->imagedata = MemCalloc(Q3_WIND_TUNNEL_SIZE);
@@ -244,7 +251,8 @@ static int ExtractQ3Images(Image *img)
 
 /* Bytes of the picture data */
 #define IMAGE_END 0xfe /* Ends each picture */
-#define REPEAT_COMMAND 0x82 /* irmak COMMAND_BIT | REPEAT_BIT: count, then tile */
+/* irmak COMMAND_BIT | REPEAT_BIT: count, then tile */
+#define REPEAT_COMMAND 0x82
 
 /* Tokens of the run-length compression, see DecompressEarlierType() */
 #define TOKEN_REPEAT_1 0xef
@@ -278,8 +286,9 @@ static size_t FindTilesStart(void)
     return pos;
 }
 
-/* The image format stores width and height in a single byte, so max width is 16. */
-/* Blizzard Pass cheats and adds 16 to the width of a hardcoded list of images. */
+/* The image format stores width and height in a single byte, so max width is
+   16. Blizzard Pass cheats and adds 16 to the width of a hardcoded list of
+   images. */
 static void AdjustBlizzardPassImageWidth(Image *img, int picture_number)
 {
     switch (picture_number) {
@@ -524,9 +533,6 @@ void InitGraphics(void)
             img->width = ((widthheight & 0xf0) >> 4) + 1;
             img->height = (widthheight & 0x0f) + 1;
             if (CurrentGame == BLIZZARD_PASS) {
-                /* The image format stores width and height in a single byte,
-                   so max width is 16. Blizzard Pass cheats and adds 16 to
-                   the width of a hardcoded list of images. */
                 AdjustBlizzardPassImageWidth(img, picture_number);
             }
             pos = ExtractImage(img, pos);

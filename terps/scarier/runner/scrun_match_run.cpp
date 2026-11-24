@@ -23,7 +23,7 @@
  * a line matches: run_game_commands_common(), run_does_command_match(),
  * task dispatch for events and NPC walks.
  *
- * Split out of scrun_match.cpp; see scrun_match_internal.h.
+ * See scrun_match_internal.h.
  */
 
 #include <assert.h>
@@ -92,7 +92,7 @@ run_task_restriction (scr_gameref_t game, scr_int task)
  * The case that needs excluding is "Space Boy's First Adventure" task 72,
  * "drop cape to the floor" (+250, no message) -- run400 lets the library's
  * ordinary drop win outright and the task never runs at all
- * (runner_probes/et2.run400.txt, runner_probes/et4.run400.txt, 2026-08-23).
+ * (runner_probes/et2.run400.txt, runner_probes/et4.run400.txt).
  * The case that must NOT be excluded is that same game's task 27,
  * "{take/get}{them/boots}" (CompleteText "Taken."), which must still win over
  * the library's own take (run_v4_walkthroughs.sh space_boy golden, "Taken."
@@ -115,17 +115,17 @@ run_task_restriction (scr_gameref_t game, scr_int task)
  * excluded it from the peek, and let task 18's refusal (identical literal
  * pattern "in") win the peek instead -- breaking the golden.  Also exclude
  * any task with an Execute-Task (action type 5) or End-Game (action type 6)
- * action: task_run_task_action() (sctasks_action.cpp) is the only place besides
- * CompleteText/ShowRoomDesc/AdditionalMessage that can make a task's status
- * come back TRUE, and only those two action types ever set it -- an
+ * action: task_run_task_action() (sctasks_action.cpp) is the only place
+ * besides CompleteText/ShowRoomDesc/AdditionalMessage that can make a task's
+ * status come back TRUE, and only those two action types ever set it -- an
  * End-Game action prints a score summary/ending text of its own, and an
  * Execute-Task action cascades into another task whose own output can't be
- * predicted from here.  The other action types (move object, move NPC,
- * change object status, change variable, change score, change battle
- * attribute) never do.  A task tripping either check just falls through to
- * a full, unexcluded try in the next pass, same as any wildcard-leading
- * task -- this is a conservative "don't know, so don't peek" exclusion, not
- * a correctness requirement in itself.
+ * predicted from here.  The other action types (move object, move NPC, change
+ * object status, change variable, change score, change battle attribute) never
+ * do.  A task tripping either check just falls through to a full, unexcluded
+ * try in the next pass, same as any wildcard-leading task -- this is a
+ * conservative "don't know, so don't peek" exclusion, not a correctness
+ * requirement in itself.
  */
 /*
  * run_task_reachable_by_library_callback()
@@ -143,7 +143,7 @@ run_task_restriction (scr_gameref_t game, scr_int task)
  * floor": the library's short forms are "drop the cape" and "drop cape", and
  * neither matches a pattern that insists on the trailing "to the floor", so
  * the Runner's library claims the command outright and the task never runs
- * (runner_probes/et2.run400.txt, runner_probes/et4.run400.txt, 2026-08-23).
+ * (runner_probes/et2.run400.txt, runner_probes/et4.run400.txt).
  * "Sommeril" task 35 is the bare
  * "take silver orb", which IS the library's own short form for that object,
  * so the Runner runs it (silently, +5) and the library's take then answers
@@ -165,7 +165,7 @@ run_task_reachable_by_library_callback (scr_gameref_t game, scr_int task,
   const std::vector<const scr_char *> &patterns =
       run_task_command_patterns (game, task, is_forwards);
   const scr_ref_entity_guard ref_entity (game);
-  std::vector<scr_bool> references (game->object_references);
+  std::vector<scr_bool> references (game->refs.objects);
   const scr_char *verb;
   scr_int verb_length, object;
   scr_bool is_reachable = FALSE;
@@ -212,7 +212,7 @@ run_task_reachable_by_library_callback (scr_gameref_t game, scr_int task,
         }
     }
 
-  game->object_references = references;
+  game->refs.objects = references;
   return is_reachable;
 }
 
@@ -230,7 +230,7 @@ run_task_is_silent_and_literal (scr_gameref_t game, scr_int task)
   vt_key[2].string = "CompleteText";
   completetext = prop_get_string (bundle, "S<-sis", vt_key);
   /* 4.0: raw, as task_run_task_unrestricted() tests it. */
-  if (run_get_version (bundle) == TAF_VERSION_400
+  if (prop_get_taf_version (bundle) == TAF_VERSION_400
       ? completetext[0] != '\0' : !scr_strempty (completetext))
     return FALSE;
 
@@ -325,17 +325,17 @@ run_task_is_silent_and_literal (scr_gameref_t game, scr_int task)
 /*
  * run_task_run_speaks()
  *
- * Run a matched task and say whether the line counts as answered.  3.9 and
- * 4.0 test the turn's message buffer, not the task's own text: run390 tasks()
+ * Run a matched task and say whether the line counts as answered.  3.9 and 4.0
+ * test the turn's message buffer, not the task's own text: run390 tasks()
  * saves msg on entry and reports handled when it has changed (42BDAD), and
  * run400's dispatcher reports handled when the buffer is non-empty (44CCC0).
- * So text printed by anything the task's actions set off counts -- an event
- * an execute-task action starts prints its StartText into the same buffer
- * (evt_check_events_started_by_task()).  baroo (4.00, runner_transcripts/
- * baroo.txt T107): `close machine` runs task 113, which has no CompleteText;
- * its execute-task action starts the convertor event, and the Runner prints
- * that StartText alone, where the library close used to follow it with "The
- * machine is now closed.".
+ * So text printed by anything the task's actions set off counts -- an event an
+ * execute-task action starts prints its StartText into the same buffer
+ * (evt_check_events_started_by_task()).  baroo (4.0,
+ * runner_transcripts/baroo.txt T107): `close machine` runs task 113, which has
+ * no CompleteText; its execute-task action starts the convertor event, and the
+ * Runner prints that StartText alone, without the library close's "The machine
+ * is now closed.".
  */
 static scr_bool
 run_task_run_speaks (scr_gameref_t game, scr_int task, scr_bool is_forwards)
@@ -346,7 +346,7 @@ run_task_run_speaks (scr_gameref_t game, scr_int task, scr_bool is_forwards)
   if (task_run_task (game, task, is_forwards))
     return TRUE;
 
-  return run_get_version (gs_get_bundle (game)) >= TAF_VERSION_390
+  return prop_get_taf_version (gs_get_bundle (game)) >= TAF_VERSION_390
          && pf_buffer_length (filter) > length;
 }
 
@@ -404,16 +404,16 @@ run_restriction_cache_task_pick (scr_gameref_t game, const scr_char *string)
 /*
  * run_line_matches_task_strictly()
  *
- * Deliberate deviation, the gate for it (2026-09-27).  TRUE if any task the
- * player could run here has a command that matches the line the Runner's
- * way.  When none does, run_all_commands() gives the whole line lenient
- * task matching: the tolerant %object% matcher Scarier had before the
- * Runner ports -- articles, Prefixes, aliases and case forgiven, no seen
- * gate, no pre-4.0 substitute-then-compare -- a forgiven trailing space in a
- * command (uip_set_lenient_tasks()), and, in the library's retries, the
- * canonical verb and the pre-4.0 Prefix form (lib_try_game_command_common()).
- * Every line the Runner matches keeps the Runner's answer; only lines it
- * would turn away from every task are looked at again.
+ * Deliberate deviation, the gate for it.  TRUE if any task the player could
+ * run here has a command that matches the line the Runner's way.  When none
+ * does, run_all_commands() gives the whole line lenient task matching: a
+ * tolerant %object% matcher -- articles, Prefixes, aliases and case forgiven,
+ * no seen gate, no pre-4.0 substitute-then-compare -- a forgiven trailing
+ * space in a command (uip_set_lenient_tasks()), and, in the library's retries,
+ * the canonical verb and the pre-4.0 Prefix form
+ * (lib_try_game_command_common()).  Every line the Runner matches keeps the
+ * Runner's answer; only lines it would turn away from every task are looked at
+ * again.
  *
  * The walk is a peek: the references it binds are put back, so the real
  * dispatch starts from the state it always did.
@@ -428,8 +428,8 @@ run_line_matches_task_strictly (scr_gameref_t game, const scr_char *string,
                                 const scr_char *except, scr_bool anywhere)
 {
   const scr_var_setref_t vars = gs_get_vars (game);
-  const std::vector<scr_bool> object_references = game->object_references;
-  const std::vector<scr_bool> npc_references = game->npc_references;
+  const std::vector<scr_bool> object_references = game->refs.objects;
+  const std::vector<scr_bool> npc_references = game->refs.npcs;
   const scr_int ref_object = var_get_ref_object (vars);
   const scr_int ref_character = var_get_ref_character (vars);
   const scr_int ref_number = var_get_ref_number (vars);
@@ -459,8 +459,8 @@ run_line_matches_task_strictly (scr_gameref_t game, const scr_char *string,
                                                FALSE, FALSE);
     }
 
-  game->object_references = object_references;
-  game->npc_references = npc_references;
+  game->refs.objects = object_references;
+  game->refs.npcs = npc_references;
   var_set_ref_object (vars, ref_object);
   var_set_ref_character (vars, ref_character);
   var_set_ref_number (vars, ref_number);
@@ -495,7 +495,7 @@ run_strict_tasks_requested (const scr_char *string)
 /*
  * run_line_yields_to_library()
  *
- * Deliberate deviation, narrowed (2026-09-30).  TRUE for a line no task
+ * Deliberate deviation, narrowed.  TRUE for a line no task
  * matches the Runner's way, that some task matches leniently, but only by a
  * command that starts with '*' -- one that does not name the verb.  Such a
  * command, read by the tolerant matcher, takes any line holding its words:
@@ -586,7 +586,7 @@ struct run_commands_t
  * restrictions fail with a message still prints that message (run400,
  * Provenance's squeeze-through-the-hole task: a second "s" at the hole
  * re-prints "The only way you are going to make it through that hole is if
- * you drop everything you are carrying.", 2026-08-22).  A spent task whose
+ * you drop everything you are carrying.").  A spent task whose
  * restrictions PASS instead falls through to run_task_refusal(), which
  * answers with RepeatText or "You have already done that.".
  *
@@ -601,7 +601,7 @@ struct run_commands_t
  * by test/adrift4/harness/make_39_doneprobe.py) says run390 orders the two
  * tests the other way about: a spent task answers "You have already done
  * that." whether its restrictions pass or fail, and never prints a fail
- * message (`alpha` and `x book` after dropping the stone, 2026-08-23).
+ * message (`alpha` and `x book` after dropping the stone).
  * Pre-4.0 therefore leaves spent tasks out of the loud restriction pass
  * entirely, and run_task_refusal() answers them.
  */
@@ -777,18 +777,18 @@ run_game_commands_common (scr_gameref_t game, const scr_char *string,
    * The Runner dispatches ONE task per typed line.  run400's dispatcher
    * Proc_19_24_44CCE0 asks the pre-matcher (Proc_19_66_454EF0) for a single
    * task, runs it, and returns "handled" only if the message buffer is
-   * non-empty (44CCC0); the restriction-failure pass (Proc_19_68_45404C)
-   * runs only when no task was found at all (44CCA5).  A silent task
-   * therefore lets the LIBRARY run, but never a second task.  run390's
-   * tasks() (42BDC4) is the same shape: checktask picks one task, execute_task
-   * runs it.  Scarier reaches the same line in several passes (peek, no
-   * restrictions, restrictions), and the later passes used to re-scan from
-   * task 0 with the first task now spent: House (4.00, 2026-09-06,
-   * runner_probes/house.run400.kiss.txt) `kiss cathy` as the first line naming
-   * Cathy runs the silent once-only task 200 `*cathy*`, and run400 then prints
-   * the library's "I'm not sure she would appreciate that!" -- the game's own
-   * kiss task 882 `[hug/kiss/touch/shake] [her/cathy]` only runs on the SECOND
-   * kiss.  Scarier ran 200 and then 882 on the first line.  Library callbacks
+   * non-empty (44CCC0); the restriction-failure pass (Proc_19_68_45404C) runs
+   * only when no task was found at all (44CCA5).  A silent task therefore lets
+   * the LIBRARY run, but never a second task.  run390's tasks() (42BDC4) is
+   * the same shape: checktask picks one task, execute_task runs it.  Scarier
+   * reaches the same line in several passes (peek, no restrictions,
+   * restrictions), and the later passes must not re-scan from task 0 with the
+   * first task now spent: House (4.0, runner_probes/house.run400.kiss.txt)
+   * `kiss cathy` as the first line naming Cathy runs the silent once-only task
+   * 200 `*cathy*`, and run400 then prints the library's "I'm not sure she
+   * would appreciate that!" -- the game's own kiss task 882
+   * `[hug/kiss/touch/shake] [her/cathy]` only runs on the SECOND kiss, where a
+   * re-scan runs 200 and then 882 on the first line.  Library callbacks
    * (is_library) are left alone: those model the Runner's own pre-matcher
    * look-ups from inside the library handlers, which happen after the
    * dispatcher regardless.
@@ -803,7 +803,7 @@ run_game_commands_common (scr_gameref_t game, const scr_char *string,
   pass.is_library = is_library;
   pass.exclude_silent_literal = exclude_silent_literal;
   pass.is_restriction_first =
-      run_get_version (gs_get_bundle (game)) >= TAF_VERSION_400;
+      prop_get_taf_version (gs_get_bundle (game)) >= TAF_VERSION_400;
   pass.is_matched = pass.is_handled = pass.is_abandoned = FALSE;
   if (include_restrictions)
     pass.is_matching.assign (gs_task_count (game), FALSE);
@@ -886,13 +886,12 @@ run_game_commands_in_parser_context (scr_gameref_t game, const scr_char *string,
  *      @453FE2-454028.  A failing restriction with an empty message drops
  *      the task and the walk moves on to the next one @453FC6->454034.
  *
- * Measured live 2026-09-06 on House.taf (runner_probes/house.run400.wood.txt,
+ * Measured live on House.taf (runner_probes/house.run400.wood.txt,
  * runner_probes/house.run400.t92.txt, runner_probes/house.run400.t93.txt): at
  * the fireplace, "put wood in fireplace" with the wood on the floor matches
- * task 60 "* %object%" (a take-flagged task restricted to the house
- * spinning, FailMessage empty), and run400 still prints "(Taking the wood
- * first)" -- the restriction-blind probe used to count that task as a hit
- * and skip the take.
+ * task 60 "* %object%" (a take-flagged task restricted to the house spinning,
+ * FailMessage empty), and run400 still prints "(Taking the wood first)" -- a
+ * restriction-blind probe would count that task as a hit and skip the take.
  */
 static scr_bool
 run_task_match_has_text (scr_gameref_t game, scr_int task,
@@ -919,8 +918,10 @@ run_does_command_match (scr_gameref_t game, const scr_char *string,
 {
   scr_int task_count, task, direction;
 
-  /* The pre-matcher takes its caller's mode alone: name_object's unfiltered
-     look-up still sees a non-put task on a held-object put line. */
+  /*
+   * The pre-matcher takes its caller's mode alone: name_object's unfiltered
+   * look-up still sees a non-put task on a held-object put line.
+   */
   struct put_class_suspend
   {
     const scr_bool saved;
@@ -930,15 +931,15 @@ run_does_command_match (scr_gameref_t game, const scr_char *string,
   } const suspend;
 
   /*
-   * match_kind, when asked for, is the pre-matcher's own return value:
-   * 1 for a hit whose matched direction has text to print, or a fallback
-   * hit (a failing restriction's message, a spent task's RepeatText --
-   * 453C34 stores 1 for both), and 2 for a first-pass hit on a task that
-   * would run silently (453BEC-453BFE).  Callers such as the take piece
-   * 46302C exit only on a 1; a 2 dispatches and carries on.  A hit on a
-   * failing restriction's message is reported as 3 (the Runner's 1 still):
-   * 45404C is called with arg_C=1 there and restores the message buffer, so
-   * nothing prints, which the per-piece take refusal needs to know.
+   * match_kind, when asked for, is the run400 pre-matcher's own return value:
+   * 1 for a hit whose matched direction has text to print, or a fallback hit
+   * (a failing restriction's message, a spent task's RepeatText -- 453C34
+   * stores 1 for both), and 2 for a first-pass hit on a task that would run
+   * silently (453BEC-453BFE).  Callers such as the take piece 46302C exit only
+   * on a 1; a 2 dispatches and carries on.  A hit on a failing restriction's
+   * message is reported as 3 (the Runner's 1 still): 45404C is called with
+   * arg_C=1 there and restores the message buffer, so nothing prints, which
+   * the per-piece take refusal needs to know.
    */
   if (match_kind)
     *match_kind = 0;
@@ -952,7 +953,7 @@ run_does_command_match (scr_gameref_t game, const scr_char *string,
    * for the interface's probe of a raw typed line only.  The Runner's
    * pre-matcher 453C50 applies none: its typed line has been through the
    * synonym table already (run_player_input()), and a line the library
-   * rebuilds reaches it as built.  S.E.R.E. (4.00) maps get -> take and has
+   * rebuilds reaches it as built.  S.E.R.E. (4.0) maps get -> take and has
    * task 40 "take *  sniper * rifle" (two spaces, so the typed line misses)
    * with the alternative "get * rifle": run400 answers `take sniper rifle`
    * in the barn with the task, which the take piece's "get the sniper rifle"
@@ -1005,7 +1006,7 @@ run_does_command_match (scr_gameref_t game, const scr_char *string,
                * results instead of walking; see restr_cache_fallback().
                */
               if (pass_number == 1
-                  && run_get_version (gs_get_bundle (game))
+                  && prop_get_taf_version (gs_get_bundle (game))
                      >= TAF_VERSION_400)
                 {
                   if (restr_cache_fallback (game, task, &fail_message) < 0)
@@ -1099,7 +1100,8 @@ run_does_command_match (scr_gameref_t game, const scr_char *string,
  * command function, and a getdynfromroom() found there sets the Referenced
  * Object for the run.  The task's primary command is not in the array it
  * scans, so a task whose only command is the function never evaluates it.
- * Verified live in run400 (test/adrift4/notes/RUNNER_TESTS_TODO.md section 9):
+ * Verified live in run400 ("Probe backlog" in
+ * test/adrift4/notes/RUNNER_TESTS.md):
  * wrapping each probe in an "execute task" action is the only way to make its
  * function fire at all, and a probe carrying the function as its sole command
  * stays silent.
@@ -1133,8 +1135,8 @@ run_task_run_by_index (scr_gameref_t game, scr_int task)
         break;
     }
 
-  /* The dispatch filter's walk (45FA02) caches a failing result. */
-  if (run_get_version (gs_get_bundle (game)) >= TAF_VERSION_400
+  /* The run400 dispatch filter's walk (45FA02) caches a failing result. */
+  if (prop_get_taf_version (gs_get_bundle (game)) >= TAF_VERSION_400
       && game->is_running)
     {
       const scr_char *fail_message;
@@ -1160,20 +1162,21 @@ run_task_run_by_index (scr_gameref_t game, scr_int task)
  * too: the first task in list order that matches and passes where +
  * restrictions fires, an earlier runnable `*` wildcard steals the execution
  * outright, and a restricted match is skipped silently.  Verified live in
- * run390 (test/adrift4/harness/make_39_walkprobe.py variants E/F/G): with a wildcard first
- * the arrival turn prints the wildcard's text twice and the walk task's
- * never, with the walk task first it fires itself, and a restricted walk
- * task prints nothing.  The matcher dispatch is also what fans one walk
- * trigger out across same-command tasks -- e.g. "Lair of the CyberCow" has
- * two "#lured" tasks (steeple and chapel yard) and the fairy snatches the
- * milk bowl in whichever of those rooms the player is standing.
+ * run390 (test/adrift4/harness/make_39_walkprobe.py variants E/F/G): with a
+ * wildcard first the arrival turn prints the wildcard's text twice and the
+ * walk task's never, with the walk task first it fires itself, and a
+ * restricted walk task prints nothing.  The matcher dispatch is also what fans
+ * one walk trigger out across same-command tasks -- e.g. "Lair of the
+ * CyberCow" has two "#lured" tasks (steeple and chapel yard) and the fairy
+ * snatches the milk bowl in whichever of those rooms the player is standing.
  *
  * The 4.0 Runner instead runs the task directly by index -- its walk handler
  * calls the same direct task runner (Sub_20_22) as its events -- so there is
  * no interception, and a failing restriction prints its FailMessage (which
- * task_run_task does).  Verified live in run400 (test/adrift4/harness/make_400_walkprobe.py
- * variants E/G): the walk task fires with a wildcard listed before it, and
- * a restricted walk task prints its FailMessage on every arrival turn.
+ * task_run_task does).  Verified live in run400
+ * (test/adrift4/harness/make_400_walkprobe.py variants E/G): the walk task
+ * fires with a wildcard listed before it, and a restricted walk task prints
+ * its FailMessage on every arrival turn.
  */
 static void run_task_command_dispatch (scr_gameref_t game, scr_int eventtask);
 
@@ -1186,7 +1189,7 @@ run_npc_walk_task (scr_gameref_t game, scr_int walktask)
   if (!gs_task_valid (game, walktask))
     return;
 
-  if (run_get_version (bundle) < TAF_VERSION_400)
+  if (prop_get_taf_version (bundle) < TAF_VERSION_400)
     run_task_command_dispatch (game, walktask);
   else if (task_can_run_task_directional (game, walktask, TRUE))
     run_task_run_by_index (game, walktask);
@@ -1207,8 +1210,9 @@ run_npc_walk_task (scr_gameref_t game, scr_int walktask)
  * happens even when the affected task itself could not run where the player
  * is standing.  Restricted matches are passed over silently.
  *
- * All of this is verified against the live 3.9 Runner (see
- * test/adrift4/notes/RUNNER_TESTS_TODO.md section 2): "thetest" depends on the
+ * All of this is verified against the live 3.9 Runner (see the wildcard
+ * turn-ordering entry in test/adrift4/notes/RUNNER_TESTS.md): "thetest"
+ * depends on the
  * stealing -- its "Nice try fish face!" `*` task fires on the same turn as the
  * library drop because an always-restarting one-turn event executes a task
  * every turn, and the author's ALRs splice the two messages -- while a probe
@@ -1236,7 +1240,7 @@ run_npc_walk_task (scr_gameref_t game, scr_int walktask)
  * examines()'s own "Nothing special." (referencedob -1, 44BF94; the game's
  * ALR makes it "I can tell you nothing about that").
  *
- * 3.80 has the same route and 3.70 has none (measured 2026-09-20).
+ * 3.8 has the same route and 3.7 has none (measured).
  * p3xEVQ2 from make_3738_eventflagprobe.py is two hats both Short "hat"
  * with the adjective as the Prefix's last word, plus an immediate event
  * that restarts every turn and runs a `zzev` task; each version is built
@@ -1370,7 +1374,7 @@ run_event_task (scr_gameref_t game, scr_int eventtask)
  * In version 3.8 (and so also 3.7) a task whose command matches but whose
  * restrictions fail does NOT get to swallow a direction the player can
  * actually walk in: the movement happens, and the task's fail message is
- * never printed.  Verified live in run380 with "The Twilight" (2026-08-04):
+ * never printed.  Verified live in run380 with "The Twilight":
  * its task 6 is "w" at the Cliff Top, restricted to Gale being present, and
  * before she joins you the Runner answers a bare "w" with "You move west."
  * and no message at all.  Under the version 4.0 ordering the message wins
@@ -1392,7 +1396,7 @@ run_defer_loud_tasks_to_movement (scr_gameref_t game, const scr_char *string)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
 
-  if (run_get_version (bundle) > TAF_VERSION_380)
+  if (prop_get_taf_version (bundle) > TAF_VERSION_380)
     return FALSE;
 
   return run_movement_succeeds (game, string);

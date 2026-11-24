@@ -19,12 +19,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  *
- * ADRIFT 5 support for Scarier -- the property-expression engine.  See a5expr.h.
+ * ADRIFT 5 support for Scarier -- the property-expression engine.  See
+ * a5expr.h.
  *
- * A port of the Adrift 5 runner Global.ReplaceOOProperty (Global.vb:655-1620): a key (or
- * pipe-joined key list) navigated by ".Function(args)" steps.  The first key is
- * resolved to an object / character / location / group / direction (the VB "final
- * Else" block), then each step either navigates to a new item set
+ * A port of the Runner's Global.ReplaceOOProperty (Global.vb:655-1620): a key
+ * (or pipe-joined key list) navigated by ".Function(args)" steps.  The first
+ * key is resolved to an object / character / location / group / direction (the
+ * VB "final Else" block), then each step either navigates to a new item set
  * (Parent/Children/Contents/Location/Held/Worn/Objects) or terminates
  * (Name/List/Description/Count/Sum/<property>).
  */
@@ -59,12 +60,18 @@ int (*a5expr_event_prop_hook) (const char *event_key, const char *prop,
 /* A navigated item-set: a list of entity keys, plus an optional carried
    "property key" used by the .Sum aggregator, mirroring sPropertyKey. */
 struct Ctx {
-  std::vector<std::string> keys;   /* entity keys (objects/characters/locations) */
-  std::vector<std::string> dirs;   /* direction names (the lstDirs path)         */
-  std::string prop_key;            /* sPropertyKey carried for Sum               */
-  int is_list;                     /* lst path (vs a single resolved item)       */
-  int is_dirs;                     /* the lstDirs path (a .Exits direction list) */
-  int is_event;                    /* an event item (keys[0] = event key)        */
+  /* entity keys (objects/characters/locations) */
+  std::vector<std::string> keys;
+  /* direction names (the lstDirs path) */
+  std::vector<std::string> dirs;
+  /* sPropertyKey carried for Sum */
+  std::string prop_key;
+  /* lst path (vs a single resolved item) */
+  int is_list;
+  /* the lstDirs path (a .Exits direction list) */
+  int is_dirs;
+  /* an event item (keys[0] = event key) */
+  int is_event;
   Ctx () : is_list (0), is_dirs (0), is_event (0) {}
 };
 
@@ -145,13 +152,13 @@ objs_carried_by (a5_state_t *st, const char *charkey, a5_owhere_t where)
   return v;
 }
 
-/* Child-set filter for objs_children, mirroring the runner's WhereChildrenEnum
-   (clsObject.Children): the `.Children(...)` / `.Contents` arg selects which of
-   an object's inside/on children to return. */
+/* Child-set filter for objs_children, mirroring the Runner's WhereChildrenEnum
+   (clsObject.Children): the `.Children(...)` / `.Contents` arg selects which
+   of an object's inside/on children to return. */
 enum { A5_CH_BOTH = 0, A5_CH_IN = 1, A5_CH_ON = 2 };
 
 /* Objects directly inside and/or on a container object, filtered by MODE.
-   the runner (clsObject.Children) filters strictly: `,On` yields ONLY OnObject
+   the Runner (clsObject.Children) filters strictly: `,On` yields ONLY OnObject
    children, `,In`/Contents ONLY InsideObject, plain/`OnAndIn` yields both --
    so a supporter query must not pick up an object that is merely inside. */
 static std::vector<std::string>
@@ -170,8 +177,8 @@ objs_children (a5_state_t *st, const char *objkey, int mode)
 }
 
 /* Characters directly inside and/or on an object, filtered by MODE (same
-   In/On/Both semantics as objs_children).  A character sits on/in an object via
-   char_onobj[i] (the object key) + char_in[i] (1=inside, 0=on surface). */
+   In/On/Both semantics as objs_children).  A character sits on/in an object
+   via char_onobj[i] (the object key) + char_in[i] (1=inside, 0=on surface). */
 static std::vector<std::string>
 chars_children (a5_state_t *st, const char *objkey, int mode)
 {
@@ -190,15 +197,16 @@ chars_children (a5_state_t *st, const char *objkey, int mode)
   return v;
 }
 
-/* Resolve a `.Children(<args>)` / `.Contents(<args>)` reference for one container
-   object KEY into its child set, faithfully mirroring the runner's ReplaceOOProperty
-   dispatch (Global.vb:826-911).  BOTH the entity type (Objects/Characters/Both)
-   AND the where (In/On/OnAndIn) come from the arg, objects are listed before
-   characters, and -- crucially -- an unrecognised combination (a bare `On`, or a
-   `Characters,On` on a container with no characters) yields the EMPTY set exactly
-   as the runner's Select Case falls through.  A `.Children(Characters,In)` must therefore
-   return CHARACTERS, not the objects merely inside -- so Halloween's hole (a
-   hook Inside it, no characters) fails dk_ListFirstL1's `.Count>0` gate. */
+/* Resolve a `.Children(<args>)` / `.Contents(<args>)` reference for one
+   container object KEY into its child set, faithfully mirroring the Runner's
+   ReplaceOOProperty dispatch (Global.vb:826-911).  BOTH the entity type
+   (Objects/Characters/Both) AND the where (In/On/OnAndIn) come from the arg,
+   objects are listed before characters, and -- crucially -- an unrecognised
+   combination (a bare `On`, or a `Characters,On` on a container with no
+   characters) yields the EMPTY set exactly as the Runner's Select Case falls
+   through.  A `.Children(Characters,In)` must therefore return CHARACTERS, not
+   the objects merely inside -- so Halloween's hole (a hook Inside it, no
+   characters) fails dk_ListFirstL1's `.Count>0` gate. */
 static std::vector<std::string>
 oo_children_set (a5_state_t *st, const char *key, const std::string &fn,
                  const std::string &args)
@@ -207,14 +215,16 @@ oo_children_set (a5_state_t *st, const char *key, const std::string &fn,
   std::vector<std::string> v;
   if (fn == "Contents")
     {
-      /* The runner lowercases but does NOT space-strip Contents' arg; always InsideObject. */
+      /* The Runner lowercases but does NOT space-strip Contents' arg; always
+         InsideObject. */
       bool objs = (a == "" || a == "all" || a == "objects");
       bool chrs = (a == "" || a == "all" || a == "characters");
       if (objs) for (auto &c : objs_children (st, key, A5_CH_IN)) v.push_back (c);
       if (chrs) for (auto &c : chars_children (st, key, A5_CH_IN)) v.push_back (c);
       return v;
     }
-  std::string b;                       /* Children: space-stripped + lowercased */
+  /* Children: space-stripped + lowercased */
+  std::string b;
   for (char c : a) if (c != ' ') b += c;
   int obj_mode = -1, chr_mode = -1;    /* -1 = type not included */
   if (b == "" || b == "all" || b == "onandin" || b == "all,onandin")
@@ -226,15 +236,15 @@ oo_children_set (a5_state_t *st, const char *key, const std::string &fn,
   else if (b == "objects,in")                          obj_mode = A5_CH_IN;
   else if (b == "objects,on")                          obj_mode = A5_CH_ON;
   else if (b == "objects,onandin" || b == "objects")   obj_mode = A5_CH_BOTH;
-  /* else: no the runner Select Case matches -> empty set. */
+  /* else: no the Runner Select Case matches -> empty set. */
   if (obj_mode >= 0) for (auto &c : objs_children (st, key, obj_mode)) v.push_back (c);
   if (chr_mode >= 0) for (auto &c : chars_children (st, key, chr_mode)) v.push_back (c);
   return v;
 }
 
 /* Append every recursive descendant (inside + on a surface) of each key, so a
-   list "includes sub-objects" (clsObjectList bIncludeSubObjects=True).  Indexed
-   iteration: children appended at the end are themselves expanded. */
+   list "includes sub-objects" (clsObjectList bIncludeSubObjects=True).
+   Indexed iteration: children appended at the end are themselves expanded. */
 static void
 add_descendants (a5_state_t *st, std::vector<std::string> &keys)
 {
@@ -250,7 +260,7 @@ add_descendants (a5_state_t *st, std::vector<std::string> &keys)
 }
 
 /* Objects directly in a location, for the OO `.Objects` property.  The
-   runner's ReplaceOOProperty "Objects" (Global.vb:913/1504) is
+   Runner's ReplaceOOProperty "Objects" (Global.vb:913/1504) is
    loc.ObjectsInLocation.Values with DEFAULT arguments -- AllListedObjects,
    directly -- NOT the restriction evaluator's AllObjects: dynamic objects
    unless ExplicitlyExclude, static objects only when ExplicitlyList
@@ -276,13 +286,14 @@ objs_in_location (a5_state_t *st, const char *lockey)
   return v;
 }
 
-/* Characters in a location, for the OO `.Characters` property (the runner's
-   ReplaceOOProperty "Characters" on a location, loc.CharactersInLocation).  The
-   Player counts -- the runner's list is every character whose location resolves
-   to this room, and a task Execute'd over it filters with its own restrictions
-   (Quest Giver's `view prospects` gates on HaveProperty daz7CharacterI, so the
-   Player drops out there).  a5state_character_location_key resolves a character
-   standing on furniture to the furniture's room, as clsCharacter.Location does. */
+/* Characters in a location, for the OO `.Characters` property (the Runner's
+   ReplaceOOProperty "Characters" on a location, loc.CharactersInLocation).
+   The Player counts -- the Runner's list is every character whose location
+   resolves to this room, and a task Execute'd over it filters with its own
+   restrictions (Quest Giver's `view prospects` gates on HaveProperty
+   daz7CharacterI, so the Player drops out there).
+   a5state_character_location_key resolves a character standing on furniture to
+   the furniture's room, as clsCharacter.Location does. */
 static std::vector<std::string>
 chars_in_location (a5_state_t *st, const char *lockey)
 {
@@ -296,8 +307,8 @@ chars_in_location (a5_state_t *st, const char *lockey)
   return v;
 }
 
-/* The parent key of an object (clsObject.Parent, clsObject.vb:663): the thing it
-   is in/on/held/worn by/part of -- AND, for an object sitting directly in a
+/* The parent key of an object (clsObject.Parent, clsObject.vb:663): the thing
+   it is in/on/held/worn by/part of -- AND, for an object sitting directly in a
    location (or location group), that location key.  st->obj[oi].key holds the
    container key in every placed case (it is the location key for
    A5_OWHERE_LOCATION/LOCGROUP), so all of these return it; only the unplaced
@@ -340,11 +351,12 @@ item_kind (a5_state_t *st, const char *key)
   for (int i = 0; i < st->adv->n_groups; i++)
     if (streq (st->adv->groups[i].key, key)) return 'g';
   for (int i = 0; i < st->adv->n_events; i++)
-    if (streq (st->adv->events[i].key, key)) return 'e';   /* Event.Position/.Length */
+    /* Event.Position/.Length */
+    if (streq (st->adv->events[i].key, key)) return 'e';
   return 0;
 }
 
-/* ------------------------------------------------------------- name rendering */
+/* ---------------------------------------------------------- name rendering */
 
 /* The display name of a single item key, with an article (definite/indef/none)
    for objects; characters use their plain name. */
@@ -378,15 +390,18 @@ item_name (a5_state_t *st, const std::string &key, a5_article_t art)
   return key;
 }
 
-/* Join a key list as a "List"/"Name" string per the args (and/or, article). */
+/* Join a key list as a "List"/"Name" string per the args (and/or, article).
+   "List" also follows each object that has children with what is on or in it,
+   unless the args contain "false" or "0" (Global.vb, Case "List", "Name"). */
 static std::string
 render_list (a5_state_t *st, const std::vector<std::string> &keys,
-             const std::string &args)
+             const std::string &fn, const std::string &args)
 {
   std::string a = lower (args);
   std::string sep = " and ";
   if (contains (a, "or")) sep = " or ";
   int rows = contains (a, "rows");
+  int list_in_on = fn != "Name" && !contains (a, "false") && !contains (a, "0");
   a5_article_t art = A5_ART_DEFINITE;
   if (contains (a, "indefinite")) art = A5_ART_INDEFINITE;
   else if (contains (a, "none"))  art = A5_ART_NONE;
@@ -414,11 +429,21 @@ render_list (a5_state_t *st, const std::vector<std::string> &keys,
             ia = A5_ART_DEFINITE;
         }
       out += item_name (st, keys[i], ia);
+      if (list_in_on)
+        {
+          char *children = a5text_object_children (st, keys[i].c_str ());
+          if (children != nullptr)
+            {
+              out += ".  ";
+              out += children;
+              free (children);
+            }
+        }
     }
   return out;
 }
 
-/* ------------------------------------------------------------- the evaluator */
+/* ----------------------------------------------------------- the evaluator */
 
 static std::string oo_prop (a5_state_t *st, Ctx ctx, const std::string &sProperty,
                             int depth, int *ok);
@@ -434,7 +459,8 @@ join_keys (const std::vector<std::string> &keys)
   return r;
 }
 
-/* Parse "Func(args).Rest" -> function / args / remainder, per ReplaceOOProperty. */
+/* Parse "Func(args).Rest" -> function / args / remainder, per
+   ReplaceOOProperty. */
 static void
 split_property (const std::string &p, std::string &fn, std::string &args,
                 std::string &rem)
@@ -468,20 +494,21 @@ split_property (const std::string &p, std::string &fn, std::string &args,
 static std::string
 item_description (a5_state_t *st, const std::string &key)
 {
-  /* The runner's Description.ToString returns the still-marked-up composition (tags
-     and "<>" segment-join markers intact); the display pipeline strips them
-     once, at the end.  Returning plain text here let a later re-embedding cap
-     capitalise across a stripped "<>" join that the runner leaves alone (Starship
-     Quest's DeadNative lowercase "native's ..." append). */
+  /* The Runner's Description.ToString returns the still-marked-up composition
+     (tags and "<>" segment-join markers intact); the display pipeline strips
+     them once, at the end.  Returning plain text here let a later re-embedding
+     cap capitalise across a stripped "<>" join that the Runner leaves alone
+     (Starship Quest's DeadNative lowercase "native's ..." append). */
   const a5_object_t *o = a5model_object (st->adv, key.c_str ());
   if (o != nullptr)
     { char *d = a5text_describe_marked (st, a5xml_child (o->node, "Description"));
       std::string r = d ? d : ""; free (d);
       /* clsObject.Description getter (clsObject.vb:448): an object whose
          composed description renders empty reads as "There is nothing special
-         about <the object>."  This is the source of the runner's default examine text
-         (ExamineObjects' %object%.Description) AND why Global.DisplayObject's
-         own "sees nothing interesting" branch is dead code for objects. */
+         about <the object>."  This is the source of the Runner's default
+         examine text (ExamineObjects' %object%.Description) AND why
+         Global.DisplayObject's own "sees nothing interesting" branch is dead
+         code for objects. */
       if (r.empty ())
         { char *dn = a5text_object_name (st, o, A5_ART_DEFINITE);
           r = std::string ("There is nothing special about ")
@@ -543,8 +570,9 @@ resolve_first (a5_state_t *st, const std::string &firstkeys)
       char kind = item_kind (st, parts[0].c_str ());
       if (kind == 'g')
         {
-          /* Live members (the runner arlMembers) so a group expression reflects runtime
-             Add/Remove*ToGroup, not just the static <Member> list. */
+          /* Live members (the Runner arlMembers) so a group expression
+             reflects runtime Add/Remove*ToGroup, not just the static <Member>
+             list. */
           const char *gk = parts[0].c_str ();
           int n = a5state_group_count (st, gk);
           ctx.is_list = 1;
@@ -564,7 +592,7 @@ resolve_first (a5_state_t *st, const std::string &firstkeys)
   return ctx;   /* empty: unresolved */
 }
 
-/* A SelectionOnly property carries no value, so on a SINGLE item the runner
+/* A SelectionOnly property carries no value, so on a SINGLE item the Runner
    answers the marker itself: "1" when the item has it (ReplaceOOProperty,
    Global.vb:1216 for objects, :1397 characters, :1538 locations) and "0" when
    it does not (the shared missing-property default, vb:1225).  Returning ""
@@ -603,7 +631,8 @@ item_prop_terminal (a5_state_t *st, const std::string &key, const std::string &f
   const char *v = a5state_entity_prop (st, key.c_str (), fn.c_str ());
   if (v != nullptr)
     {
-      /* if the value is itself an entity key and there's a remainder, walk it */
+      /* if the value is itself an entity key and there's a remainder, walk it
+         */
       if (!rem.empty () && item_kind (st, v) != 0)
         { Ctx nc; nc.keys.push_back (v); return oo_prop (st, nc, rem, depth + 1, ok); }
       return v;
@@ -670,7 +699,7 @@ oo_step_t::event ()
   return "";
 }
 
-/* ---- list path (also single items routed through here when convenient) ---- */
+/* ---- list path (also single items routed through here when convenient) */
 std::string
 oo_step_t::list ()
 {
@@ -690,7 +719,7 @@ oo_step_t::list ()
     { std::string r; for (auto &k : ctx.keys)
         { if (!r.empty ()) r += "  "; r += item_description (st, k); } return r; }
   if (fn == "List" || fn == "Name")
-    return render_list (st, ctx.keys, args);
+    return render_list (st, ctx.keys, fn, args);
   if (fn == "Parent")
     {
       Ctx nc; nc.is_list = 1;
@@ -729,14 +758,14 @@ oo_step_t::list ()
     }
   /* else: a property key -> filter / aggregate.  Carry it for .Sum. */
   /* A SelectionOnly (valueless marker) property applied to a list is a
-     FILTER, not a value: the runner's ReplaceOOProperty (Global.vb:931-1082) keeps
-     the members that carry the marker and yields those member KEYS (a
-     reference / sub-collection), because a SelectionOnly prop has no value
-     to render.  So `%Player%.Location.Objects.ObjectIsAT` -> the cube's
-     key (AlienDiver binds this to set the cube's target number / craft /
-     extract), and `...ObjectIsAT.Count` counts only the cubes.  Any other
-     property type (Integer/ValueList/StateList/Text/entity-key) keeps the
-     long-standing carry-for-.Sum / terminal-first-value behaviour. */
+     FILTER, not a value: the Runner's ReplaceOOProperty (Global.vb:931-1082)
+     keeps the members that carry the marker and yields those member KEYS (a
+     reference / sub-collection), because a SelectionOnly prop has no value to
+     render.  So `%Player%.Location.Objects.ObjectIsAT` -> the cube's key
+     (AlienDiver binds this to set the cube's target number / craft / extract),
+     and `...ObjectIsAT.Count` counts only the cubes.  Any other property type
+     (Integer/ValueList/StateList/Text/entity-key) keeps the long-standing
+     carry-for-.Sum / terminal-first-value behaviour. */
   const a5_propdef_t *pd = a5model_propdef (st->adv, fn.c_str ());
   if (pd != nullptr && streq (pd->type, "SelectionOnly"))
     {
@@ -793,12 +822,12 @@ oo_step_t::object ()
     }
   if (fn == "Location")
     {
-      /* The runner's object .Location resolves to a SINGLE clsLocation when the
-         object has one root (ReplaceOOProperty collapses a 1-item list),
+      /* The Runner's object .Location resolves to a SINGLE clsLocation when
+         the object has one root (ReplaceOOProperty collapses a 1-item list),
          which matters for terminal rich-Text properties: the single-item
          branch renders their <Value><Description> node (The Salvage's
-         `%Player%.daz7Ship1.Location.daz7StationNam` station name) where
-         the list branch has no value_node fallback. */
+         `%Player%.daz7Ship1.Location.daz7StationNam` station name) where the
+         list branch has no value_node fallback. */
       Ctx nc; nc.keys = location_roots (st, key.c_str ());
       if (nc.keys.size () != 1) nc.is_list = 1;
       return oo_prop (st, nc, rem, depth + 1, ok);
@@ -848,15 +877,21 @@ oo_step_t::character ()
       /* clsCharacter.Held/Worn(Optional bIncludeSubObjects=True): the
          default recurses into the held/worn containers; (False) is the
          direct list only.  The inventory contents segment keys off
-         Held.Count > Held(False).Count to detect sub-objects. */
+         Held.Count > Held(False).Count to detect sub-objects.  The Runner
+         (Global.vb:1282-1291, 1351-1360) matches the argument exactly:
+         "", "true", "1", "-1" recurse; "false", "0" do not; anything else
+         falls through its Select with the list left EMPTY. */
       std::string a = lower (args);
-      int include_sub = !(a == "false" || a == "0");
       Ctx nc; nc.is_list = 1;
-      nc.keys = objs_carried_by (st, key.c_str (),
-                                 fn == "Held" ? A5_OWHERE_HELD_BY
-                                              : A5_OWHERE_WORN_BY);
-      if (include_sub)
-        add_descendants (st, nc.keys);
+      if (a == "" || a == "true" || a == "1" || a == "-1"
+          || a == "false" || a == "0")
+        {
+          nc.keys = objs_carried_by (st, key.c_str (),
+                                     fn == "Held" ? A5_OWHERE_HELD_BY
+                                                  : A5_OWHERE_WORN_BY);
+          if (!(a == "false" || a == "0"))
+            add_descendants (st, nc.keys);
+        }
       return oo_prop (st, nc, rem, depth + 1, ok);
     }
   if (fn == "WornAndHeld")
@@ -957,8 +992,8 @@ oo_step_t::location ()
 } /* namespace */
 
 /*
- * Evaluate the navigation step `sProperty` against `ctx`.  *ok stays 1 unless the
- * whole expression turns out to be unresolvable (the "#*!~#" sentinel).
+ * Evaluate the navigation step `sProperty` against `ctx`.  *ok stays 1 unless
+ * the whole expression turns out to be unresolvable (the "#*!~#" sentinel).
  */
 static std::string
 oo_prop (a5_state_t *st, Ctx ctx, const std::string &sProperty, int depth, int *ok)
@@ -1016,13 +1051,13 @@ a5expr_eval (a5_state_t *st, const char *firstkeys, const char *chain,
   return strdup (r.c_str ());
 }
 
-/* ------------------------------------------------------- whole-text OO pass */
+/* ------------------------------------------------------ whole-text OO pass */
 
 static int
 is_key_char (char c)
 {
-  /* The runner's key regex uses \w, which is Unicode-aware in .NET -- accept UTF-8
-     continuation/lead bytes so keys like "ClaudeMoné" scan whole. */
+  /* The Runner's key regex uses \w, which is Unicode-aware in .NET -- accept
+     UTF-8 continuation/lead bytes so keys like "ClaudeMoné" scan whole. */
   return isalnum ((unsigned char) c) || c == '_' || c == '|'
          || (unsigned char) c >= 0x80;
 }
@@ -1058,7 +1093,7 @@ expr_replace_impl (a5_state_t *st, const char *text, int expression)
   const char *p = text ? text : "";
   while (*p)
     {
-      /* A key token starts where the runner's regex could start a `firstkey`
+      /* A key token starts where the Runner's regex could start a `firstkey`
          (Global.vb:630): `%?[A-Za-z][\w\|_]*%?`.  That demands a LETTER, not
          merely a word char, so a digit / '_' / '|' to the left is a legal
          start -- .NET tries every offset in turn and the earlier ones simply
@@ -1079,7 +1114,8 @@ expr_replace_impl (a5_state_t *st, const char *text, int expression)
             {
               std::string firstkeys (p, (size_t) (k - p));
               /* require the first pipe-segment to be a real entity key --
-                 or a bare DirectionsEnum name ("South.Name", Global.vb:1608) */
+                 or a bare DirectionsEnum name ("South.Name", Global.vb:1608)
+                 */
               std::string first = firstkeys.substr (0, firstkeys.find ('|'));
               int resolvable = item_kind (st, first.c_str ()) != 0;
               for (int i = 0; !resolvable && i < 12; i++)
@@ -1095,18 +1131,19 @@ expr_replace_impl (a5_state_t *st, const char *text, int expression)
                       if (v != nullptr)
                         {
                           /* Expression mode (Global.vb:645): a non-integer OO
-                             value becomes a quoted string literal -- unless the
-                             source already quotes the match ("Lid.ReadText") or
-                             we are inside a quoted run.  Magnetic Moon's
-                             `SetProperty Lid ReadText Lid.ReadText & %text%`
-                             needs `"" & "mike"`, not ` & "mike"`.
-                             Known edge case: the strtol test below treats a
-                             digits-then-text value ("3 coins") as non-numeric
-                             and quotes it, while a pure "3" stays bare, so the
-                             two diverge in `&`/`+` contexts.  Left as-is: it
-                             matches the runner for the pure-integer and
-                             pure-text cases that occur in practice, and no
-                             corpus game feeds a partial-numeric OO value here. */
+                             value becomes a quoted string literal -- unless
+                             the source already quotes the match
+                             ("Lid.ReadText") or we are inside a quoted run.
+                             Magnetic Moon's `SetProperty Lid ReadText
+                             Lid.ReadText & %text%` needs `"" & "mike"`, not `
+                             & "mike"`.  Known edge case: the strtol test below
+                             treats a digits-then-text value ("3 coins") as
+                             non-numeric and quotes it, while a pure "3" stays
+                             bare, so the two diverge in `&`/`+` contexts.
+                             Left as-is: it matches the Runner for the
+                             pure-integer and pure-text cases that occur in
+                             practice, and no corpus game feeds a
+                             partial-numeric OO value here. */
                           int quote = 0;
                           if (expression && (p == text || p[-1] != '"'))
                             {

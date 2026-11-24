@@ -1,12 +1,18 @@
-//
-//  decryptloader.h
-//
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  This code is for de-protecting the ZX Spectrum text-only version of Temple of Terror
-//
-//  Created by Petter Sjölund on 2022-04-18.
-//
+/*
+ *  decrypttotloader.h
+ *
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  This code is for de-protecting the ZX Spectrum text-only version of Temple
+ *  of Terror
+ *
+ *  Created by Petter Sjölund on 2022-04-18.
+ */
 
 #ifndef decrypttotloader_h
 #define decrypttotloader_h

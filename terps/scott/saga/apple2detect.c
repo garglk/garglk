@@ -1,9 +1,16 @@
-//
-//  apple2detect.c
-//  Part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  Created by Petter Sjölund on 2022-08-03.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  apple2detect.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2022-08-03.
+ */
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -76,20 +83,20 @@ typedef struct {
 } a2renumber;
 
 static const a2renumber a2renumberlist[] = {
-    { COUNT_US, IMG_ROOM, 80, 90 }, // Closeup package
-    { COUNT_US, IMG_ROOM, 81, 91 }, // Closeup angry mob
-    { COUNT_US, IMG_ROOM_OBJ, 82, 81 }, // Other end of sheet in pit
-    { COUNT_US, IMG_ROOM_OBJ, 83, 82 }, // Coat-of-arms at gate
-    { COUNT_US, IMG_ROOM_OBJ, 81, 83 }, // Daisies in flower box
-    { VOODOO_CASTLE_US, IMG_ROOM, 80, 91 }, // Closeup voodoo doll
-    { VOODOO_CASTLE_US, IMG_ROOM, 81, 92 }, // Closeup voodoo book
-    { VOODOO_CASTLE_US, IMG_ROOM, 82, 93 }, // Closeup ring
-    { VOODOO_CASTLE_US, IMG_ROOM, 83, 94 }, // Closeup ju-ju statue
-    { VOODOO_CASTLE_US, IMG_ROOM, 84, 95 }, // Closeup glowing idol
-    { VOODOO_CASTLE_US, IMG_ROOM, 85, 96 }, // Closeup chemicals
-    { VOODOO_CASTLE_US, IMG_ROOM, 86, 97 }, // Closeup bloody knife
-    { VOODOO_CASTLE_US, IMG_ROOM, 87, 90 }, // Closeup broken sword
-    { VOODOO_CASTLE_US, IMG_ROOM, 88, 101 }, // Closeup Count Cristo
+    { COUNT_US, IMG_ROOM, 80, 90 }, /* Closeup package */
+    { COUNT_US, IMG_ROOM, 81, 91 }, /* Closeup angry mob */
+    { COUNT_US, IMG_ROOM_OBJ, 82, 81 }, /* Other end of sheet in pit */
+    { COUNT_US, IMG_ROOM_OBJ, 83, 82 }, /* Coat-of-arms at gate */
+    { COUNT_US, IMG_ROOM_OBJ, 81, 83 }, /* Daisies in flower box */
+    { VOODOO_CASTLE_US, IMG_ROOM, 80, 91 }, /* Closeup voodoo doll */
+    { VOODOO_CASTLE_US, IMG_ROOM, 81, 92 }, /* Closeup voodoo book */
+    { VOODOO_CASTLE_US, IMG_ROOM, 82, 93 }, /* Closeup ring */
+    { VOODOO_CASTLE_US, IMG_ROOM, 83, 94 }, /* Closeup ju-ju statue */
+    { VOODOO_CASTLE_US, IMG_ROOM, 84, 95 }, /* Closeup glowing idol */
+    { VOODOO_CASTLE_US, IMG_ROOM, 85, 96 }, /* Closeup chemicals */
+    { VOODOO_CASTLE_US, IMG_ROOM, 86, 97 }, /* Closeup bloody knife */
+    { VOODOO_CASTLE_US, IMG_ROOM, 87, 90 }, /* Closeup broken sword */
+    { VOODOO_CASTLE_US, IMG_ROOM, 88, 101 }, /* Closeup Count Cristo */
 };
 
 #define kDiskImageSize 143360
@@ -121,7 +128,7 @@ static void InitA2DiskImage(uint8_t *data, size_t datasize, int isnib)
         InitDskImage(data, datasize);
 }
 
-// The inventory image is stored as a room image with index 98
+/* The inventory image is stored as a room image with index 98 */
 static void SetA2InventoryImage(uint8_t *data, size_t datasize)
 {
     if (!USImages)
@@ -146,13 +153,13 @@ static GameIDType LoadApple2Database(uint8_t *database, size_t length)
     return result;
 }
 
-// The Apple 2 Saga vector graphics games (i.e. Adventureland, Pirate
-// Adventure, Mission Impossible/Secret Mission and Strange Odyssey,
-// sometimes contain a database of a different game version on the data
-// disk (or A side.) This may cause problems, at least in Pirate Adventure,
-// where the alternative version won't display the ship building
-// or the navigation animations. Thus, we reload the correct database
-// from the other disk.
+/* The Apple 2 Saga vector graphics games (i.e. Adventureland, Pirate
+   Adventure, Mission Impossible/Secret Mission and Strange Odyssey)
+   sometimes contain a database of a different game version on the data
+   disk (or A side.) This may cause problems, at least in Pirate Adventure,
+   where the alternative version won't display the ship building
+   or the navigation animations. Thus, we reload the correct database
+   from the other disk. */
 static void ReloadDatabaseFromCompanion(uint8_t *companionfile, size_t companionsize, int isnib)
 {
     uint8_t *invimg = NULL, *m2 = NULL, *m3 = NULL, *closeups = NULL;
@@ -195,8 +202,8 @@ static void SetUpApple2Images(uint8_t *datafile, uint8_t *companionfile,
             ReloadDatabaseFromCompanion(companionfile, companionsize, isnib);
         free(companionfile);
     } else if (CurrentGame == SECRET_MISSION_US) {
-        // There are one-disk versions of Secret Mission,
-        // so look for image files on the main disk as well
+        /* There are one-disk versions of Secret Mission,
+           so look for image files on the main disk as well */
         ExtractImagesFromApple2CompanionFile(sf, extent, sf, extent, isnib);
     } else if (USImages != NULL) {
         free(USImages->imagedata);
@@ -307,8 +314,8 @@ GameIDType DetectApple2(uint8_t **sf, size_t *extent)
         return UNKNOWN_GAME;
     }
 
-    // Header actually starts at offset 0x16d (0x135 + 0x38).
-    // We add 50 bytes before the head to match the C64 files.
+    /* Header actually starts at offset 0x16d (0x135 + 0x38).
+       We add 50 bytes before the head to match the C64 files. */
     size_t data_start = A2_DATABASE_OFFSET;
 
     if (*extent > MAX_LENGTH || *extent < data_start) {
@@ -360,15 +367,15 @@ static uint8_t *A2CompanionReader(const char *filename, size_t *filesize, void *
     return ReadA2DiskImageFile(filename, filesize, (int *)user);
 }
 
-// If side A is not found, try stripping any parenthesis before the extension,
-// mainly to remove "(boot)". If side B is not found, try adding " (boot)".
+/* If side A is not found, try stripping any parenthesis before the extension,
+   mainly to remove "(boot)". If side B is not found, try adding " (boot)". */
 static uint8_t *A2CompanionFallback(char *buffer, size_t bufsize, size_t namelen, int index, CompanionNameType type, CompanionReader read, void *user, size_t *size)
 {
     (void)index;
     int found = 0;
-    if (type == TYPE_A)
+    if (type == COMPANION_TYPE_A)
         found = CompanionStripEnclosed(buffer, namelen, '(', ')', 1);
-    else if (type == TYPE_B)
+    else if (type == COMPANION_TYPE_B)
         found = CompanionInsertBeforeExtension(buffer, bufsize, namelen, " (boot)");
     if (!found)
         return NULL;
@@ -451,15 +458,15 @@ static int ReadA2VectorImageFiles(uint8_t *data, size_t datasize, USImage *image
             if (namelen > 5) {
                 image->index = (shortname[3] - '0') * 100 + (shortname[4] - '0') * 10 + shortname[5] - '0';
             }
-            // Mission Impossible uses index 225
-            // for its title image, while the other
-            // games use 255, so we just fudge it to
-            // be consistent.
+            /* Mission Impossible uses index 225
+               for its title image, while the other
+               games use 255, so we just fudge it to
+               be consistent. */
             if (image->index == 225)
                 image->index = 255;
-            // The games with vector graphics use
-            // the same images for both inventory
-            // and room objects
+            /* The games with vector graphics use
+               the same images for both inventory
+               and room objects */
             image->usage = IMG_INV_AND_ROOM_OBJ;
         } else {
             continue;
@@ -616,8 +623,8 @@ static ExtractResult ExtractImagesFromApple2CompanionFile(uint8_t *data, size_t 
     int has_file_system;
 
     switch (CurrentGame) {
-    // The picture disks of these have an index of
-    // their own instead of a file system.
+    /* The picture disks of these have an index of
+       their own instead of a file system. */
     case CLAYMORGUE_US:
     case CLAYMORGUE_US_126:
     case HULK_US:
@@ -626,8 +633,8 @@ static ExtractResult ExtractImagesFromApple2CompanionFile(uint8_t *data, size_t 
     case VOODOO_CASTLE_US:
         has_file_system = 0;
         break;
-    // These all have proper file systems
-    // with each image in a separate file.
+    /* These all have proper file systems
+       with each image in a separate file. */
     case ADVENTURELAND_US:
     case PIRATE_US:
     case SECRET_MISSION_US:
@@ -651,15 +658,15 @@ static ExtractResult ExtractImagesFromApple2CompanionFile(uint8_t *data, size_t 
 
     ExtractResult result = EVERYTHING_WENT_FINE;
 
-    // The games with line-drawn vector graphics
-    // all have a file system on their companion disk
+    /* The games with line-drawn vector graphics
+       all have a file system on their companion disk */
     if (has_file_system) {
         int number_of_images_found = ReadA2VectorImageFiles(data, datasize, image);
         if (number_of_images_found == 0 && data != otherdata) {
-            // The vector image versions have a game database
-            // file on both disks, so we can't use that
-            // to determine which disk is which. We'll just check
-            // for image files on both disks instead.
+            /* The vector image versions have a game database
+               file on both disks, so we can't use that
+               to determine which disk is which. We'll just check
+               for image files on both disks instead. */
             FreeDiskImage();
             InitA2DiskImage(otherdata, othersize, isnib);
             number_of_images_found = ReadA2VectorImageFiles(otherdata, othersize, image);

@@ -1,9 +1,15 @@
-//
-//  aiukpalette.h
-//  Part of the AI UK graphics library (shared by ScottFree and TaylorMade)
-//
-//  Created by Administrator on 2025-12-13.
-//
+/*
+ *  aiukpalette.h
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version.
+ *
+ *  Part of the AI UK graphics library (shared by ScottFree and TaylorMade)
+ *
+ *  Created by Petter Sjölund on 2025-12-13.
+ */
 
 #ifndef aiukpalette_h
 #define aiukpalette_h

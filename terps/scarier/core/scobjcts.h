@@ -25,6 +25,7 @@
 #ifndef SCARIER_OBJCTS_H
 #define SCARIER_OBJCTS_H
 
+#include <string>
 #include "scprops.h"
 
 /* Object open/closed state enumeration and functions. */
@@ -76,5 +77,9 @@ extern void obj_mark_room_objects_seen (scr_gameref_t game, scr_int room);
 extern void obj_mark_room_statics_seen (scr_gameref_t game, scr_int room);
 extern void obj_mark_npc_parts_seen (scr_gameref_t game);
 extern void obj_debug_trace (scr_bool flag);
+
+/* An object's name behind "the", as %theobject% and the library print it. */
+extern std::string lib_definite_object_name (scr_prop_setref_t bundle,
+                                             scr_int object);
 
 #endif

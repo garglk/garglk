@@ -1,20 +1,25 @@
-//
-//  Based on Sagadraw v2.5 by David Lodge
-//  with help from Paul David Doherty (including the colour code)
-//
-//  Original code at https://github.com/tautology0/textadventuregraphics
-//  See also http://aimemorial.if-legends.org/gfxbdp.html
-//
-//  This file handles setup and initialisation of the Irmak tile-based
-//  graphics system used by Adventure International UK games. It reads
-//  the 256 8x8 tile definitions and per-image offset tables from the
-//  game data, then hands off to the Irmak decoder (irmak.c) which
-//  transforms and composites tiles into final images.
-//
-//  Some game versions contain corrupted data bytes. The
-//  image_patches[] table applies surgical binary fixes at known
-//  offsets so these images render correctly.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  The graphics format was documented by David Lodge's Sagadraw, written with
+ *  help from Paul David Doherty: https://github.com/tautology0/textadventuregraphics
+ *  See also http://aimemorial.if-legends.org/gfxbdp.html
+ *
+ *  This file handles setup and initialisation of the Irmak tile-based
+ *  graphics system used by Adventure International UK games. It reads
+ *  the 256 8x8 tile definitions and per-image offset tables from the
+ *  game data, then hands off to the Irmak decoder (irmak.c) which
+ *  transforms and composites tiles into final images.
+ *
+ *  Some game versions contain corrupted data bytes. The
+ *  image_patches[] table applies surgical binary fixes at known
+ *  offsets so these images render correctly.
+ */
 
 
 #include <stdio.h>
@@ -43,42 +48,44 @@ struct image_patch {
 
 static const struct image_patch image_patches[] = {
     { UNKNOWN_GAME, 0, 0, 0, "" },
-    // Claymorgue C64: Many images are hopelessly broken,
-    // but some can be salvaged.
-    // 12. "Dungeon" room with door
+    /* Claymorgue C64: Many images are hopelessly broken,
+       but some can be salvaged.
+       12. "Dungeon" room with door */
     { CLAYMORGUE_C64, 12, 378, 9, "\x20\xa4\x02\x80\x20\x82\x01\x20\x84" },
-    // 28. Dragon
+    /* 28. Dragon */
     { CLAYMORGUE_C64, 28, 584, 1, "\x90" },
-    // 16. Empty cyan square, "Underwater"
+    /* 16. Empty cyan square, "Underwater" */
     { CLAYMORGUE_C64, 16, 0, 12,
         "\x82\xfd\x00\x82\x81\x00\xff\x05\xff\x05\xff\x05" },
-    // 16. Spectrum version. Empty cyan square, "Underwater"
+    /* 16. Spectrum version. Empty cyan square, "Underwater" */
     { CLAYMORGUE, 14, 0, 12,
         "\x82\xfd\x00\x82\x81\x00\xff\x05\xff\x05\xff\x05" },
-    // 21. Gremlins C64. Snow plough
+    /* 21. Gremlins C64. Snow plough */
     { GREMLINS_C64, 21, 10, 5, "\x01\xa0\x03\x00\x01" },
-    // 44. Behind bar
+    /* 44. Behind bar */
     { GREMLINS_C64, 44, 304, 1, "\xb1" },
-    // 81. Empty pool bottom with drain
+    /* 81. Empty pool bottom with drain */
     { GREMLINS_C64, 81, 176, 1, "\xa0" },
-    // 85. Sports department
+    /* 85. Sports department */
     { GREMLINS_C64, 85, 413, 1, "\x94" },
-    // 20. Garage
+    /* 20. Garage */
     { GREMLINS_GERMAN_C64, 20, 191, 9, "\x03\x00\x94\x0c\xb0\x02\x94\x0d\xb0" },
-    // QP2 Spider-Man: 9. Madame Web. One tile with bad colour in T64 version
+    /* QP2 Spider-Man: 9. Madame Web. One tile with bad colour in T64 version */
     { SPIDERMAN_C64, 9, 1241, 1, "\x81" },
-    // 11. Secret Mission. White visitor's room with window. Broken in D64 version
+    /* 11. Secret Mission. White visitor's room with window. Broken in
+           D64 version */
     { SECRET_MISSION_C64, 11, 88, 2, "\x90\x18" },
-    // 33. Key on window sill, fix middle segment rotation
+    /* 33. Key on window sill, fix middle segment rotation */
     { SECRET_MISSION, 33, 2, 1, "\xa0" },
-    // 33. Key on window sill, fix middle segment rotation
+    /* 33. Key on window sill, fix middle segment rotation */
     { SECRET_MISSION_C64, 33, 2, 1, "\xa0" },
-    // (The broken glass still needs a proper fix to match the background pattern)
-    // 38. Broken glass on window sill, fix bg colour
+    /* (The broken glass still needs a proper fix to match the background
+       pattern)
+       38. Broken glass on window sill, fix bg colour */
     { SECRET_MISSION, 38, 53, 1, "\x53" },
-    // 38. Broken glass on window sill, fix bg colour
+    /* 38. Broken glass on window sill, fix bg colour */
     { SECRET_MISSION_C64, 38, 53, 1, "\x53" },
-    // 34. Left half of room with bricks and pillars, minor misplaced line
+    /* 34. Left half of room with bricks and pillars, minor misplaced line */
     { SEAS_OF_BLOOD_C64, 34, 471, 1, "\xa0" },
     { NUMGAMES, 0, 0, 0, "" },
 };

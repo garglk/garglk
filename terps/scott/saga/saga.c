@@ -1,9 +1,16 @@
-//
-//  saga.c
-//  part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  Created by Petter Sjölund on 2022-09-29.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  saga.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2022-09-29.
+ */
 
 #include <stdlib.h>
 #include <string.h>
@@ -29,10 +36,11 @@
    (The only SAGA graphical game released for MS-DOS)
    Naming convention:
      "R01xx"  — Room image, where xx is the room number.
-     "B01xxR" — Object image associated with a room, where xx is the object index.
+     "B01xxR" — Object image associated with a room, where xx is the object
+     index.
      "B01xxI" — Object image for the inventory screen.
 */
-// clang-format off
+/* clang-format off */
 
 static const char *DOSFilenames[] =
   { "B01024R", "B01044I", "R0109",   "R0190",
@@ -50,7 +58,7 @@ static const char *DOSFilenames[] =
     "R0187",   "B01022R", "B01040R", "R0103",  "R0188",
     "B01023I", "B01042I", "R0104",   "R0189",  NULL };
 
-// clang-format on
+/* clang-format on */
 
 /* Load all DOS-format image files into a linked list of USImage nodes.
    Parses each filename to determine image type (room, room object,
@@ -73,12 +81,14 @@ int LoadDOSImages(void)
             memcpy(image->imagedata, data, datasize);
             free(data);
             image->systype = SYS_MSDOS;
-            /* "R01xx" filenames are room images; extract 2-digit room index from positions 3-4 */
+            /* "R01xx" filenames are room images; extract 2-digit room index
+               from positions 3-4 */
             if (shortname[0] == 'R') {
                 image->usage = IMG_ROOM;
                 image->index = (shortname[3] - '0') * 10 + shortname[4] - '0';
             } else {
-                /* "B01xxR" or "B01xxI" — extract 2-digit object index from positions 4-5 */
+                /* "B01xxR" or "B01xxI" — extract 2-digit object index from
+                   positions 4-5 */
                 image->index = (shortname[4] - '0') * 10 + shortname[5] - '0';
                 if (shortname[6] == 'R') {
                     image->usage = IMG_ROOM_OBJ;
@@ -174,7 +184,8 @@ static int DrawDOSImage(USImage *image) {
 }
 
 /* Dispatch image drawing to the appropriate platform-specific renderer
-   based on the image's system type (DOS, C64, Apple II, Atari 8-bit, TI-99/4A). */
+   based on the image's system type (DOS, C64, Apple II, Atari 8-bit,
+   TI-99/4A). */
 static int DrawUSImage(USImage *image)
 {
     last_image_index = image->index;
@@ -224,7 +235,7 @@ static void DrawRoomObjectImages(void)
        to lowest, to match the original and not get too many
        weird results where objects are partially covered by
        stuff which ought to be behind them.
-       (While the images on the inventory screen are draw in the
+       (While the images on the inventory screen are drawn in the
        opposite order.) */
     for (int i = GameHeader.NumItems; i >= 0; i--) {
         if (Items[i].Location == MyLoc) {
@@ -282,8 +293,8 @@ enum {
    (at sea at night with no floodlights). */
 int DrawFuzzyRoom(int room)
 {
-    /* If at sea at night, and floodlights are off or battery is out, don't draw fuzzy image
-       (because it really is dark) */
+    /* If at sea at night, and floodlights are off or battery is out, don't
+       draw fuzzy image (because it really is dark) */
     if (Items[RTPI_ITEM_DOCK].Location == DESTROYED && (!TestBitFlag(29) || CurrentCounter <= 0))
         return 0;
     /* Bitflag 2 is set while we cannot see clearly: the glasses are off or
@@ -332,11 +343,11 @@ static int USRoomImage(void)
         uint8_t loc;
         uint8_t image;
     } hulk_aliases[] = {
-        { 5, 3 }, { 6, 3 },     // Tunnel going outside
-        { 7, 4 }, { 8, 4 },     // Field
-        { 10, 9 }, { 11, 9 },   // Hole
-        { 13, 2 }, { 14, 2 },   // Dome
-        { 17, 16 }, { 18, 16 }, // warp
+        { 5, 3 }, { 6, 3 },     /* Tunnel going outside */
+        { 7, 4 }, { 8, 4 },     /* Field */
+        { 10, 9 }, { 11, 9 },   /* Hole */
+        { 13, 2 }, { 14, 2 },   /* Dome */
+        { 17, 16 }, { 18, 16 }, /* warp */
     };
 
     if (CurrentGame == HULK_US && USImages && USImages->systype != SYS_APPLE2) {
@@ -370,7 +381,7 @@ static void DrawGameSpecificOverlays(void)
                 DrawUSRoomObject(81);
             if (Items[COUNT_ITEM_COAT_OF_ARMS].Location == MyLoc && MyLoc == COUNT_ROOM_OUTSIDE_CASTLE)
                 DrawUSRoomObject(82);
-            if (Items[COUNT_ITEM_DAISIES].Location == MyLoc && MyLoc == COUNT_ROOM_FLOWER_BOX) // Apple II only
+            if (Items[COUNT_ITEM_DAISIES].Location == MyLoc && MyLoc == COUNT_ROOM_FLOWER_BOX) /* Apple II only */
                 DrawUSRoomObject(83);
             break;
         case VOODOO_CASTLE_US:
@@ -381,12 +392,13 @@ static void DrawGameSpecificOverlays(void)
             /* Dock scene uses layered compositing: underside of dock,
                then beam overlays, and nighttime sea/boat variants. */
             if (MyLoc == RTPI_ROOM_UNDER_DOCK) {
-                DrawUSRoomObject(27); // Draw underside of dock when under the dock
-                DrawUSRoom(31);       // Draw low beam (on top of underside of dock)
+                DrawUSRoomObject(27); /* Draw underside of dock when under the dock */
+                DrawUSRoom(31);       /* Draw low beam (on top of underside of dock) */
             } else if (MyLoc == RTPI_ROOM_SEA) {
                 if (erkyrath_random() % 2 == 1) {
-                    /* If a random chance of 1 in 2 succeeds, randomly draw one of two fish images
-                       (but not if it would end up on top of the boat or dock) */
+                    /* If a random chance of 1 in 2 succeeds, randomly draw one
+                       of two fish images (but not if it would end up on top of
+                       the boat or dock) */
                     int fish = 33 + erkyrath_random() % 2;
                     if (!(fish == 34 && Items[RTPI_ITEM_BOAT_WEST].Location == MyLoc) &&
                         !(fish == 33 && Items[RTPI_ITEM_DOCK_EAST].Location == MyLoc)) {
@@ -394,22 +406,24 @@ static void DrawGameSpecificOverlays(void)
                     }
                 }
                 if (Items[RTPI_ITEM_DOCK].Location == DESTROYED) {
-                    DrawUSRoom(29);       // Draw sea at night
+                    DrawUSRoom(29);       /* Draw sea at night */
                     if (Items[RTPI_ITEM_BOAT_WEST].Location == MyLoc) {
-                        DrawUSRoom(32);   // Boat to the west at night
+                        DrawUSRoom(32);   /* Boat to the west at night */
                     }
                 } else if (Items[RTPI_ITEM_DOCK_UNDERSIDE].Location == MyLoc) {
                     /* Draw high beam */
                     DrawUSRoom(30);
                 }
             } else if (MyLoc == RTPI_ROOM_UNDERSEA) {
-                /* If a random chance of 1 in 2 succeeds, randomly draw one of three fish images */
+                /* If a random chance of 1 in 2 succeeds, randomly draw one of
+                   three fish images */
                 if (erkyrath_random() % 2 == 1) {
                     DrawUSRoom(35 + erkyrath_random() % 3);
                 }
             }
 
-            /* If it is night and we are out of battery, just make the image black by clearing the VDP */
+            /* If it is night and we are out of battery, just make the image
+               black by clearing the VDP */
             if (Items[RTPI_ITEM_DOCK].Location == DESTROYED && (!TestBitFlag(29) || CurrentCounter <= 0)) {
                 ClearVDP();
             }
@@ -479,19 +493,19 @@ void InventoryUS(void)
    room, and message counts fall within reasonable bounds. */
 static int SanityCheckScottFreeHeader(void)
 {
-    int16_t v = header[1]; // items
+    int16_t v = header[1]; /* items */
     if (v < 10 || v > 500)
         return 0;
-    v = header[2]; // actions
+    v = header[2]; /* actions */
     if (v < 100 || v > 500)
         return 0;
-    v = header[3]; // word pairs
+    v = header[3]; /* word pairs */
     if (v < 48 || v > 200)
         return 0;
-    v = header[4]; // rooms
+    v = header[4]; /* rooms */
     if (v < 10 || v > 100)
         return 0;
-    v = header[5]; // messages
+    v = header[5]; /* messages */
     if (v < 10 || v > 255)
         return 0;
 
@@ -530,7 +544,8 @@ static uint8_t *LoadHeader(uint8_t *ptr, size_t length, GameInfo info, int dict_
     uint8_t *data = ptr;
 
     if (dict_start) {
-        /* UK Hulk detection: compute file offset adjustment from known dictionary position */
+        /* UK Hulk detection: compute file offset adjustment from known
+           dictionary position */
         file_baseline_offset = dict_start - info.start_of_dictionary - 645;
         debug_print("LoadBinaryDatabase: file baseline offset:%d\n",
                     file_baseline_offset);
@@ -540,8 +555,9 @@ static uint8_t *LoadHeader(uint8_t *ptr, size_t length, GameInfo info, int dict_
         else
             return NULL;
     } else {
-        /* Standard US binary: scan the preamble for version and adventure number.
-           These are the first two values under 500 in the 0x38-byte preamble. */
+        /* Standard US binary: scan the preamble for version and adventure
+           number. These are the first two values under 500 in the 0x38-byte
+           preamble. */
         if (length < 0x38)
             return NULL;
         int version = 0;
@@ -619,7 +635,7 @@ static uint8_t *ParseDictionary(uint8_t *ptr, uint8_t *endptr) {
     return ReadUSDictionary(ptr);
 }
 
-/* Read and return a lenght-prefixed string and update the pointer.
+/* Read and return a length-prefixed string and update the pointer.
    If string length is 0, return a period string literal (".") */
 static char *ReadPascalString(uint8_t **inptr, uint8_t *endptr) {
     char *string = ".";
@@ -769,7 +785,7 @@ uint8_t *ParseRoomConnections(uint8_t *ptr, uint8_t *endptr, int number_of_rooms
    The UK version stores room-to-image and item-to-image mapping tables
    at known offsets that the standard US parser doesn't handle. */
 static GameIDType HulkUKSpecificParsing(uint8_t *ptr, uint8_t *endptr, GameInfo info) {
-// MARK: room images
+/* MARK: room images */
     size_t offset;
 
     if (SeekIfNeeded(info.start_of_room_image_list, &offset, &ptr) == 0) {
@@ -784,7 +800,7 @@ static GameIDType HulkUKSpecificParsing(uint8_t *ptr, uint8_t *endptr, GameInfo 
         rp++;
     }
 
-// MARK: item images
+/* MARK: item images */
 
     if (SeekIfNeeded(info.start_of_item_image_list, &offset, &ptr) == 0) {
         FreeDatabase();
@@ -840,46 +856,42 @@ GameIDType LoadBinaryDatabase(uint8_t *data, size_t length, GameInfo info, int d
 
     uint8_t *endptr =  data + length - 2;
 
-    // Parse the header
     ptr = LoadHeader(ptr, length, info, dict_start);
     if (ptr == NULL || ptr >= endptr) {
         return FreeGameResources();
     }
 
-    // Parse the dictionary
     ptr = ParseDictionary(ptr, endptr);
     if (ptr == NULL || ptr >= endptr) {
         return FreeGameResources();
     }
 
-    // Parse rooms
     ptr = ParseRooms(ptr, endptr, GameHeader.NumRooms);
     if (ptr == NULL || ptr >= endptr) {
         return FreeGameResources();
     }
 
-    // Parse messages
     ptr = ParseMessages(ptr, endptr, GameHeader.NumMessages);
     if (ptr == NULL || ptr >= endptr) {
         return FreeGameResources();
     }
 
-    // Parse items
+    /* Parse items */
     ptr = ParseItems(ptr, endptr, GameHeader.NumItems, 2);
     if (ptr == NULL || ptr >= endptr) {
         return FreeGameResources();
     }
 
-    // Skip item strings lookup table
+    /* Skip item strings lookup table */
     ptr = Skip(ptr, (GameHeader.NumItems + 1) * 4, data + length);
 
-    // Parse actions
+    /* Parse actions */
     ptr = ParseActions(ptr, data, length, GameHeader.NumActions, 0);
     if (ptr == NULL || ptr >= endptr) {
         return FreeGameResources();
     }
 
-    // Skip room descriptions lookup table
+    /* Skip room descriptions lookup table */
     ptr = Skip(ptr, (GameHeader.NumRooms + 1) * 2, data + length);
 
     endptr += 2;
@@ -889,9 +901,9 @@ GameIDType LoadBinaryDatabase(uint8_t *data, size_t length, GameInfo info, int d
         return FreeGameResources();
     }
 
-    // The dict_start parameter is only set if we are
-    // trying to detect the Adventure International UK
-    // release of Questprobe featuring The Incredible Hulk.
+    /* The dict_start parameter is only set if we are
+       trying to detect the Adventure International UK
+       release of Questprobe featuring The Incredible Hulk. */
     if (dict_start) {
         return HulkUKSpecificParsing(ptr, endptr, info);
     }
@@ -934,9 +946,10 @@ static int CompareFilenames(const char *str1, size_t length1, const char *str2, 
     return 1;
 }
 
-// Give the companion file name the file extension of the game file.
-// This makes the companion file logic work even if the player has renamed the files to, say, end with ".saga"
-// (well, as long as both files have been renamed in the same way.)
+/* Give the companion file name the file extension of the game file.
+   This makes the companion file logic work even if the player has renamed the
+   files to, say, end with ".saga" (well, as long as both files have been
+   renamed in the same way.) */
 static char *AddGameFileExtension(const char *companion_name, size_t *namelength,
                            const char *game_path, size_t gamepathlen) {
     if (!companion_name || !namelength || !game_path) {
@@ -944,37 +957,35 @@ static char *AddGameFileExtension(const char *companion_name, size_t *namelength
         return NULL;
     }
 
-    // Find extension in game_path
+    /* Find extension in game_path */
     const char *game_ext = strrchr(game_path, '.');
-    // Find extension in filename
+    /* Find extension in filename */
     const char *companion_ext = strrchr(companion_name, '.');
 
-    //(It should not really be possible for any of them
-    // to not have an extension)
+    /* (It should not really be possible for any of them
+       to not have an extension) */
     size_t extension_length = game_ext ? (gamepathlen - (game_ext - game_path)) : 0;
     size_t base_length = companion_ext ? companion_ext - companion_name : *namelength;
 
     *namelength = base_length + extension_length;
 
-    // Allocate result
     char *result = MemAlloc(*namelength + 1);
 
-    // Build result string
     memcpy(result, companion_name, base_length + 1);
     if (extension_length > 0) {
-        // Copy includes terminating 0
+        /* Copy includes terminating 0 */
         memcpy(result + base_length, game_ext, extension_length + 1);
     }
     return result;
 }
 
-// Helper to get filename length
 static size_t get_filename_length(const char *filename, size_t length_field)
 {
     return (length_field != 0) ? length_field : strlen(filename);
 }
 
-/* Search a database of filename pairs for a match against the current game file.
+/* Search a database of filename pairs for a match against the current game
+   file.
    Each entry in 'list' is a pair of filenames that belong together (e.g. game
    data file and its companion graphics file). If we match either filename in a
    pair, we return a copy of the other one (the "companion"), with the game
@@ -1001,7 +1012,8 @@ static char *LookForCompanionFilenameInDatabase(const pairrec list[][2], size_t 
    directory as the game file). Does not verify whether the file exists.
 
    For example, if the game file is "/Games/HULK.DAT" and the companion
-   database says HULK.DAT pairs with HULK.PIC, this returns "/Games/HULK.PIC". */
+   database says HULK.DAT pairs with HULK.PIC, this returns
+   "/Games/HULK.PIC". */
 void SwapWithCompanionFile(uint8_t **sf, size_t *extent, uint8_t **companion, size_t *companionsize)
 {
     uint8_t *temp = *companion;
@@ -1044,7 +1056,8 @@ char *LookInDatabase(const pairrec list[][2], const char *game_path, size_t path
             file_delimiter_position = strrchr(game_path, '\\');
         size_t stringlen;
         if (file_delimiter_position == NULL) {
-            /* No directory separator found — file is in the working directory */
+            /* No directory separator found — file is in the working
+               directory */
             return foundname;
         } else {
             stringlen = file_delimiter_position - game_path + 1;

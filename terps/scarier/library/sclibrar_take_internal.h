@@ -30,6 +30,9 @@
  *                               character, lib_take_backend_common()
  *   sclibrar_take_multiple.cpp  "take all", the absent noun, "take X and
  *                               Y", lib_take_multiple_common()
+ *   sclibrar_take_pre400.cpp    the same below 4.0: co(), the takes()
+ *                               loop's crowd and namesake answers, the
+ *                               "and" arm
  */
 
 #include "sclibrar.h"
@@ -53,5 +56,14 @@ extern scr_bool lib_take_single_named;
 extern scr_bool lib_take_refusal_claimed;
 extern scr_bool lib_take_and_pieces_400;
 extern scr_bool lib_take_refusal_redispatch;
+
+/* sclibrar_take_pre400.cpp */
+extern scr_bool lib_take_co_pre400 (scr_gameref_t game, const scr_char *line,
+                                    scr_int object);
+extern scr_int lib_take_crowd_pre400 (scr_gameref_t game, scr_bool *crowded);
+extern scr_bool lib_take_held_namesake_preempt_pre400 (scr_gameref_t game,
+                                                       scr_bool unresolved);
+extern scr_bool lib_take_and_none_pre400 (scr_gameref_t game);
+extern scr_bool lib_take_and_pre400 (scr_gameref_t game);
 
 #endif

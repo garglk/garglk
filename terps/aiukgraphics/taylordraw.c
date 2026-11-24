@@ -1,22 +1,28 @@
-//
-//  taylordraw.c
-//  Part of the AI UK graphics library (shared by ScottFree and TaylorMade)
-//
-//  Created by Administrator on 2025-12-10.
-//
-//  High-level image composition for TaylorMade (Adventure Soft) adventure games
-//  (Fantastic Four, He-Man, Rebel Planet, Blizzard Pass, Kayleth, Temple of Terror.)
-//  Also used by the ScottFree interpreter for Seas of Blood.
-//
-//  Images are assembled by executing a bytecode instruction
-//  stream stored per location. Instructions draw "Irmak" format sub-images
-//  into the shared imagebuffer, then apply post-processing transforms
-//  (mirror, flip, colour replacement) to build the final frame.
-//
-//  The instruction set uses opcodes 0xE8–0xFF for special operations
-//  and treats all other byte values as sub-image indices to draw at
-//  a given (x, y) position via DrawPictureAtPos().
-//
+/*
+ *  taylordraw.c
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version.
+ *
+ *  Part of the AI UK graphics library (shared by ScottFree and TaylorMade)
+ *
+ *  Created by Petter Sjölund on 2025-12-10.
+ *
+ *  High-level image composition for TaylorMade (Adventure Soft) adventure games
+ *  (Fantastic Four, He-Man, Rebel Planet, Blizzard Pass, Kayleth, Temple of Terror.)
+ *  Also used by the ScottFree interpreter for Seas of Blood.
+ *
+ *  Images are assembled by executing a bytecode instruction
+ *  stream stored per location. Instructions draw "Irmak" format sub-images
+ *  into the shared imagebuffer, then apply post-processing transforms
+ *  (mirror, flip, colour replacement) to build the final frame.
+ *
+ *  The instruction set uses opcodes 0xE8–0xFF for special operations
+ *  and treats all other byte values as sub-image indices to draw at
+ *  a given (x, y) position via DrawPictureAtPos().
+ */
 
 #include <stdlib.h>
 #include <string.h>

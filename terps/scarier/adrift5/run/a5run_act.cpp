@@ -26,8 +26,8 @@
  * Set / Inc / Dec and the SetTasks FOR body, SetProperty, SetTasks Execute /
  * Unset, Conversation, Time and EndGame, with the run_action dispatcher that
  * selects one by action kind.  The seen-state bookkeeping the movement actions
- * drive (update_seen, mark_player_arrival_seen, the LocationTrigger queue) sits
- * in front of them.
+ * drive (update_seen, mark_player_arrival_seen, the LocationTrigger queue)
+ * sits in front of them.
  *
  * Split out of a5run_action.cpp, which keeps the task side: the specific-
  * override dispatch and the run_task / run_general drivers.  The two are
@@ -39,9 +39,9 @@
 
 #include "a5run_internal.h"
 
-/* Debug/trace switches, resolved from the environment ONCE: both are tested per
-   variable action, so a function-local static keeps the lookup off that path
-   (as a5run_action.cpp does for its own switches). */
+/* Debug/trace switches, resolved from the environment ONCE: both are tested
+   per variable action, so a function-local static keeps the lookup off that
+   path (as a5run_action.cpp does for its own switches). */
 static const char *
 dbg_setvar (void)
 {
@@ -56,13 +56,13 @@ dbg_score (void)
   return v;
 }
 
-/* ---------------------------------------------------------- operand helpers */
+/* --------------------------------------------------------- operand helpers */
 
-/* The adventure's own (stable, DOM-aliased) pointer for an entity key.  Object,
-   character and location go through the model's hashed key index; only groups
-   (which the index does not cover) still need a scan.  The family order is
-   load-bearing -- a key present in two families resolves to the earlier one --
-   so it is preserved exactly. */
+/* The adventure's own (stable, DOM-aliased) pointer for an entity key.
+   Object, character and location go through the model's hashed key index; only
+   groups (which the index does not cover) still need a scan.  The family order
+   is load-bearing -- a key present in two families resolves to the earlier one
+   -- so it is preserved exactly. */
 static const char *
 canon_key (const a5_adventure_t *adv, const char *k)
 {
@@ -80,10 +80,10 @@ canon_key (const a5_adventure_t *adv, const char *k)
 }
 
 /*
- * Resolve an action operand to a key.  Crucially returns a *stable* pointer for
- * anything that may be stored in the world state (object/character locations):
- * the model's own key string, never a pointer into a temporary token or the
- * per-turn binding buffer (which would dangle).
+ * Resolve an action operand to a key.  Crucially returns a *stable* pointer
+ * for anything that may be stored in the world state (object/character
+ * locations):  the model's own key string, never a pointer into a temporary
+ * token or the per-turn binding buffer (which would dangle).
  */
 static const char *
 act_key (a5_state_t *st, const char *tok)
@@ -91,9 +91,11 @@ act_key (a5_state_t *st, const char *tok)
   const char *b, *resolved, *c;
   if (tok == nullptr) return nullptr;
   if (streq (tok, "%Player%"))
-    resolved = a5state_player_key (st);  /* dynamic: whoever is the player now */
+    /* dynamic: whoever is the player now */
+    resolved = a5state_player_key (st);
   else if (streq (tok, "Player"))
-    resolved = "Player";                 /* literal model key of the player slot */
+    /* literal model key of the player slot */
+    resolved = "Player";
   else
     { b = a5state_lookup_ref (st, tok); resolved = b ? b : tok; }
   c = canon_key (st->adv, resolved);
@@ -101,7 +103,8 @@ act_key (a5_state_t *st, const char *tok)
     return c;
   if (streq (resolved, "Hidden"))
     return "Hidden";
-  return resolved;   /* non-entity (direction/literal): used transiently only */
+  /* non-entity (direction/literal): used transiently only */
+  return resolved;
 }
 
 /* Apply a variable value string ("1", "%roller%", "RAND (1, 4)") -> number. */
@@ -112,26 +115,27 @@ eval_num_value (a5_state_t *st, const char *raw)
   if (raw != nullptr && strncmp (raw, "RAND", 4) == 0)
     {
       /* RAND (min, max): inclusive random in [min, max] via the shared
-         erkyrath_random (the Adrift 5 runner Global.Random(iMin, iMax)).  The data
+         erkyrath_random (the Runner's Global.Random(iMin, iMax)).  The data
          writes it as "RAND (1, 4)" (spaces optional).  A bound may itself be a
-         %variable% (LostCoastlines' item valuation writes `RAND (0, %valuator%)`);
-         the runner resolves it via ReplaceFunctions before Global.Random, so substitute
-         %tokens% first -- otherwise the bound parses as 0 and the whole
-         age/decoration/aura draw collapses to a no-op RAND(0,0). */
+         %variable% (LostCoastlines' item valuation writes `RAND (0,
+         %valuator%)`); the Runner resolves it via ReplaceFunctions before
+         Global.Random, so substitute %tokens% first -- otherwise the bound
+         parses as 0 and the whole age/decoration/aura draw collapses to a
+         no-op RAND(0,0). */
       char *sub = (strchr (raw, '%') != nullptr)
                     ? a5text_process_noalr (st, raw) : nullptr;
       long drawn = a5rand_between_args ((sub ? sub : raw) + 4);
       free (sub);
       return drawn;
     }
-  /* NO ALR pass here: the runner evaluates action values via EvaluateExpression
-     (ReplaceFunctions only); ReplaceALRs is Display-time.  GFS's display ALR
-     "17000" -> "1.700.0" must not turn IncVariable cl_Money = "1700000"
-     into 1. */
+  /* NO ALR pass here: the Runner evaluates action values via
+     EvaluateExpression (ReplaceFunctions only); ReplaceALRs is Display-time.
+     GFS's display ALR "17000" -> "1.700.0" must not turn IncVariable cl_Money
+     = "1700000" into 1. */
   proc = a5text_process_noalr (st, raw ? raw : "0");
-  /* The runner evaluates a SetVariable value through EvaluateExpression
+  /* The Runner evaluates a SetVariable value through EvaluateExpression
      (clsVariable) and reads the numeric result as VB Val(): full arithmetic
-     (+ - * / ^ mod, with runner precedence and away-from-zero division) plus
+     (+ - * / ^ mod, with Runner precedence and away-from-zero division) plus
      function calls -- min/max/if and the rand()/oneof() draws.  a5_eval_sexpr
      IS that evaluator, ^ included (clsVariable reduces ^ on run 2, the +/-
      tier, left-to-right -- see FrankenDrift clsVariable.vb).  %vars% are
@@ -141,11 +145,12 @@ eval_num_value (a5_state_t *st, const char *raw)
 
      The value is Val() of the *result* -- its leading integer, else 0.  So a
      non-numeric value ("Object3") reads as 0, as does an out-of-range result
-     the runner guards with SafeInt(Val(...)): a division by zero evaluates to
+     the Runner guards with SafeInt(Val(...)): a division by zero evaluates to
      "\xe2\x88\x9e" (Val 0), not the leading digit of the raw "5/0". */
   {
     char *sv = a5_eval_sexpr (proc);
-    long e = strtol (sv, nullptr, 10);      /* Val(): leading integer, else 0 */
+    /* Val(): leading integer, else 0 */
+    long e = strtol (sv, nullptr, 10);
     free (sv);
     free (proc);
     return e;
@@ -186,9 +191,10 @@ a5_bare_function_call (const std::string &v, std::string &name)
   size_t start = i;
   while (i < n && (isalpha ((unsigned char) v[i]) || v[i] == '_')) i++;
   size_t name_end = i;
-  /* The runner's tokenizer strips redundant spaces before parsing, so "RAND (a, b)"
-     (LostCoastlines writes its RAND assignments with a space) is the same call
-     as "RAND(a,b)".  Skip any gap between the identifier and its '('. */
+  /* The Runner's tokenizer strips redundant spaces before parsing, so "RAND
+     (a, b)" (LostCoastlines writes its RAND assignments with a space) is the
+     same call as "RAND(a,b)".  Skip any gap between the identifier and its
+     '('. */
   while (i < n && isspace ((unsigned char) v[i])) i++;
   if (name_end == start || i >= n || v[i] != '(')
     return false;
@@ -231,8 +237,8 @@ update_seen (a5_state_t *st)
       /* PrepareForNextTurn also RESETS Introduced for any non-player character
          the player can no longer see (clsUserSession.vb:3794-3797), so a
          character re-encountered later gets the indefinite article again
-         (SampleConversation: after leaving the garden, `look` in the south room
-         still says "an old lady", not "the old lady"). */
+         (SampleConversation: after leaving the garden, `look` in the south
+         room still says "an old lady", not "the old lady"). */
       else if (st->char_introduced != nullptr)
         st->char_introduced[i] = 0;
     }
@@ -248,17 +254,19 @@ update_seen (a5_state_t *st)
   a5state_mark_loc_seen (st, ploc);
 }
 
-/* Mark the destination location, its objects and its visible characters as seen
-   the MOMENT the player arrives (clsCharacter.Move, clsCharacter.vb:524-533):
-   the runner updates HasSeenObject/-Character/-Location at move time -- BEFORE the room
-   render and BEFORE the movement's AfterTextAndActions overrides run -- so a
-   same-turn `Must HaveBeenSeenByCharacter %Player%` restriction driven by such an
-   override already sees the arrival.  (update_seen alone only refreshes at turn
-   boundaries, which lags a discovery that a movement-override task tests in the
-   same turn -- e.g. Alien Diver's ResetRollC -> CheckIfPla1 setting Shipfound as
-   soon as the player walks onto the crashed ship.)  Player-centric, like the rest
-   of our obj_seen/char_seen sets; only marks on an AtLocation arrival, matching
-   the runner's `ToWhere.ExistWhere = AtLocation` gate. */
+/* Mark the destination location, its objects and its visible characters as
+   seen the MOMENT the player arrives (clsCharacter.Move,
+   clsCharacter.vb:524-533):  the Runner updates
+   HasSeenObject/-Character/-Location at move time -- BEFORE the room render
+   and BEFORE the movement's AfterTextAndActions overrides run -- so a
+   same-turn `Must HaveBeenSeenByCharacter %Player%` restriction driven by such
+   an override already sees the arrival.  (update_seen alone only refreshes at
+   turn boundaries, which lags a discovery that a movement-override task tests
+   in the same turn -- e.g. Alien Diver's ResetRollC -> CheckIfPla1 setting
+   Shipfound as soon as the player walks onto the crashed ship.)
+   Player-centric, like the rest of our obj_seen/char_seen sets; only marks on
+   an AtLocation arrival, matching the Runner's `ToWhere.ExistWhere =
+   AtLocation` gate. */
 static void
 mark_player_arrival_seen (a5_state_t *st, const char *loc)
 {
@@ -277,9 +285,9 @@ mark_player_arrival_seen (a5_state_t *st, const char *loc)
         st->char_seen[i] = 1;
 }
 
-/* clsCharacter.Move (Player branch): when the Player moves into a new location,
-   arm every System task whose <LocationTrigger> is that location and that may
-   still run (Repeatable or not yet Completed), by enqueuing it onto
+/* clsCharacter.Move (Player branch): when the Player moves into a new
+   location, arm every System task whose <LocationTrigger> is that location and
+   that may still run (Repeatable or not yet Completed), by enqueuing it onto
    qTasksToRun.  The queue is drained after the turn's task, before the event
    tick (ev_tick_all).  `old_loc` is where the Player was *before* the move. */
 static void
@@ -302,11 +310,11 @@ enqueue_loc_trigger_tasks (a5_run_t *run, const char *old_loc, const char *new_l
     }
 }
 
-/* ------------------------------------------------------------------ actions */
+/* ----------------------------------------------------------------- actions */
 
 /* The run_action per-kind handlers.  They share one signature so the dispatch
-   table at the bottom of the section stays uniform; the operands a handler does
-   not use are left unnamed. */
+   table at the bottom of the section stays uniform; the operands a handler
+   does not use are left unnamed. */
 
 /* The optional property-value operand of a Move/group action: FileIO parses
    `<what> <key1> [value tokens...] <to> <key2>`, joining elements 2..len-3
@@ -349,7 +357,7 @@ withprop_matches (const a5_state_t *st, const char *entkey,
    everything held/worn by a character, inside/on an object, at a location, or
    carrying a property).  MoveObject and AddObjectToGroup/RemoveObjectFromGroup
    share the enum, so they share this collector.  Returns 0 for an unrecognised
-   selector (the caller then does nothing, as the runner does). */
+   selector (the caller then does nothing, as the Runner does). */
 static int
 collect_object_source (a5_state_t *st, const std::string &what,
                        const char *srckey, const char *rawkey,
@@ -363,12 +371,12 @@ collect_object_source (a5_state_t *st, const std::string &what,
     }
   else if (what == "EverythingInGroup")
     {
-      /* Walk the group's LIVE, insertion-ordered membership (the runner
-         arlMembers), not the model's object table: the runner hands the set to
+      /* Walk the group's LIVE, insertion-ordered membership (the Runner
+         arlMembers), not the model's object table: the Runner hands the set to
          the action in member order, and that order is observable whenever the
          objects are appended to another group -- Quest Giver stamps its deck's
-         card IDs by member position, so a model-order copy deals the wrong card
-         for a given roll.  a5state_group_member_at IS the merged view (a
+         card IDs by member position, so a model-order copy deals the wrong
+         card for a given roll.  a5state_group_member_at IS the merged view (a
          RemoveObjectFromGroup drops the member even though its static <Member>
          entry survives). */
       int n = a5state_group_count (st, srckey);
@@ -454,12 +462,12 @@ act_move_object (a5_run_t *run, const char * /*kind*/,
           else { L->where = A5_OWHERE_LOCATION; L->key = k2; } }
       else if (to == "ToLocationGroup")
         {
-          /* The runner MoveObject->ToLocationGroup (clsUserSession.vb:1560): a STATIC
-             object occupies the WHOLE group; a DYNAMIC object lands in ONE
-             random member room (group.RandomKey).  AlienDiver scatters the
-             crashed ship / sea creatures this way -- Seacreatur4 (dynamic) to
-             a random ocean room, then the ship ToSameLocationAs it -- so the
-             ship "must be located" and exit-ship can map back to a single
+          /* The Runner's MoveObject->ToLocationGroup (clsUserSession.vb:1560):
+             a STATIC object occupies the WHOLE group; a DYNAMIC object lands
+             in ONE random member room (group.RandomKey).  AlienDiver scatters
+             the crashed ship / sea creatures this way -- Seacreatur4 (dynamic)
+             to a random ocean room, then the ship ToSameLocationAs it -- so
+             the ship "must be located" and exit-ship can map back to a single
              room.  Setting a dynamic object to the whole group left the ship
              nowhere-in-particular and broke exit-ship. */
           if (L->is_static) { L->where = A5_OWHERE_LOCGROUP; L->key = k2; }
@@ -478,11 +486,12 @@ act_move_object (a5_run_t *run, const char * /*kind*/,
         }
       else if (to == "ToSameLocationAs")
         {
-          /* The target may be a character or an object (clsUserSession.vb:1570).
-             Character: place the object in the character's room (the common
-             "drop" case).  Object: copy the target object's full location
-             (where + key) — e.g. eating "four food rations" reveals the hidden
-             "three food rations" inside the same backpack. */
+          /* The target may be a character or an object
+             (clsUserSession.vb:1570).  Character: place the object in the
+             character's room (the common "drop" case).  Object: copy the
+             target object's full location (where + key) -- e.g. eating "four
+             food rations" reveals the hidden "three food rations" inside the
+             same backpack. */
           int ci = a5state_character_index (st, k2);
           if (ci >= 0)
             {
@@ -528,11 +537,11 @@ act_object_group (a5_run_t *run, const char *kind,
   /* The selector enum is MoveObject's (clsAction shares AddToGroupWhat with
      MoveObjectWhat), so the whole "Everything*" family is legal here too --
      Quest Giver's setup task seeds its live deck with
-     `AddObjectToGroup EverythingInGroup daz6QuestDeckM ToGroup daz6CurrentQue`,
-     and with only the single-Object form implemented the deck stayed at its
-     three authored members, so the game dealt from 3 cards instead of 20.
-     The group key reads from the END: a WithProperty selector may put a
-     multi-token property value between key1 and "ToGroup". */
+     `AddObjectToGroup EverythingInGroup daz6QuestDeckM ToGroup
+     daz6CurrentQue`, and with only the single-Object form implemented the deck
+     stayed at its three authored members, so the game dealt from 3 cards
+     instead of 20.  The group key reads from the END: a WithProperty selector
+     may put a multi-token property value between key1 and "ToGroup". */
   if (!collect_object_source (st, tk[0], srckey, tk[1].c_str (),
                               withprop_value (tk), targets))
     return;
@@ -541,9 +550,9 @@ act_object_group (a5_run_t *run, const char *kind,
 }
 
 /* The "who" selectors shared by MoveCharacter and Add/RemoveCharacterToGroup
-   (clsAction reuses MoveCharacterWhoEnum, clsUserSession.vb:1689/1841): collect
-   the affected character indices from the action's tokens, tk[0] the selector
-   and tk[1] its key.  Returns 0 for a selector it does not know. */
+   (clsAction reuses MoveCharacterWhoEnum, clsUserSession.vb:1689/1841):
+   collect the affected character indices from the action's tokens, tk[0] the
+   selector and tk[1] its key.  Returns 0 for a selector it does not know. */
 static int
 collect_character_who (a5_state_t *st, const std::vector<std::string> &tk,
                        std::vector<int> &cis)
@@ -578,7 +587,8 @@ collect_character_who (a5_state_t *st, const std::vector<std::string> &tk,
     }
   else if (who == "EveryoneWithProperty")
     {
-      /* Here tk[1] is the property, taken as written, and its value follows. */
+      /* Here tk[1] is the property, taken as written, and its value follows.
+         */
       std::string propval = withprop_value (tk);
       for (int i = 0; i < st->adv->n_characters; i++)
         if (withprop_matches (st, st->adv->characters[i].key,
@@ -590,10 +600,10 @@ collect_character_who (a5_state_t *st, const std::vector<std::string> &tk,
   return 1;
 }
 
-/* Add/RemoveCharacterToGroup (clsUserSession.vb:1841): same shape as the object
-   and location group actions, over MoveCharacter's "who" enum.  Quest Giver
-   files each hired adventurer into its "Current Actively Hired Adventurers"
-   group, which is what VIEW HIRED enumerates. */
+/* Add/RemoveCharacterToGroup (clsUserSession.vb:1841): same shape as the
+   object and location group actions, over MoveCharacter's "who" enum.  Quest
+   Giver files each hired adventurer into its "Current Actively Hired
+   Adventurers" group, which is what VIEW HIRED enumerates. */
 static void
 act_character_group (a5_run_t *run, const char *kind,
                      const std::vector<std::string> &tk, const char * /*body*/,
@@ -612,7 +622,7 @@ act_character_group (a5_run_t *run, const char *kind,
 }
 
 /* Move character CI to room NEW_LOC (AtLocation), with the player-move
-   bookkeeping in the runner's order: the LocationTrigger enqueue against the
+   bookkeeping in the Runner's order: the LocationTrigger enqueue against the
    old room first, then the assignment, then the conversation-partner check.
    CLEAR_ONOBJ also drops any on/in-object binding before the partner check
    (the "now at location" destinations); the furniture-sync callers keep the
@@ -633,7 +643,7 @@ relocate_char (a5_run_t *run, int ci, const char *new_loc, int clear_onobj,
 }
 
 /* The room that hosts object `objkey`.  A character seated on / put inside an
-   object has its location keyed off that object (the runner's
+   object has its location keyed off that object (the Runner's
    clsCharacterLocation.LocationKey follows it), so this is what the
    furniture/container branches sync char_loc to.  `cur` (the character's
    current room, or NULL for a plain first-match scan) wins when the object is
@@ -655,7 +665,7 @@ object_host_location (a5_state_t *st, const char *objkey, const char *cur,
   return nullptr;
 }
 
-/* Display(sText) straight to the runner's sOutputText (clsUserSession.vb:298):
+/* Display(sText) straight to the Runner's sOutputText (clsUserSession.vb:298):
    an action's immediate output precedes the task's buffered response, so when
    run_task published a splice point, insert there (with the pSpace join rules
    on both seams); otherwise append -- an After message already follows the
@@ -707,7 +717,7 @@ move_char_in_direction (a5_run_t *run, int ci, const char *k2, sb_t *out)
               : nullptr;
   if (dest == nullptr && blocked != nullptr)
     {
-      /* Route restriction failed: the runner Displays the blocking
+      /* Route restriction failed: the Runner Displays the blocking
          restriction's message and abandons the move (clsUserSession.vb:
          1748 Display(sRestrictionText)) -- immediate output, so it
          precedes the task's buffered completion message.  It is a
@@ -872,7 +882,7 @@ move_char_switch_with (a5_run_t *run, int ci, const char *k2, sb_t *out)
       int new_ci = streq (k1, pk) ? bi : ci;
       const char *new_player = st->adv->characters[new_ci].key;
       st->player_key = new_player;   /* stable model key pointer */
-      /* HasSeenObject/-Location/-Character are per-character in the runner:
+      /* HasSeenObject/-Location/-Character are per-character in the Runner:
          the new viewpoint must not inherit the old player's
          sightings (BugHunt: Jones must not "have seen" the elevator
          sign that Davey saw). */
@@ -884,7 +894,7 @@ move_char_switch_with (a5_run_t *run, int ci, const char *k2, sb_t *out)
     }
   else
     {
-      /* Neither is the player.  The runner's swap (clsUserSession.vb:
+      /* Neither is the player.  The Runner's swap (clsUserSession.vb:
          1837) exchanges the two clsCharacterLocation references -- but
          `dest` was pre-filled from ch's ORIGINAL location (vb:1727) and
          the shared epilogue `ch.Move(dest)` (vb:1902) then moves k1
@@ -905,8 +915,8 @@ act_move_character (a5_run_t *run, const char * /*kind*/,
   a5_state_t *st = run->st;
   if (tk.size () < 3)
     return;
-  /* The "who" set: a single Character, or one of the runner's bulk source forms
-     (clsAction.MoveCharacterWhoEnum, clsUserSession.vb:1689) -- e.g. the
+  /* The "who" set: a single Character, or one of the Runner's bulk source
+     forms (clsAction.MoveCharacterWhoEnum, clsUserSession.vb:1689) -- e.g. the
      wand-teleport `EveryoneAtLocation Location33 ToLocation Location34`.
      Token layout is identical to MoveObject: tk[0]=who, tk[1]=who-key,
      tk[2]=to, tk[3]=to-key. */
@@ -924,17 +934,18 @@ act_move_character (a5_run_t *run, const char * /*kind*/,
      act_key is a pure lookup, so resolve it once for the whole action. */
   const char *k2 = (tk.size () >= 4)
     ? act_key (st, tk[tk.size () - 1].c_str ()) : nullptr;
-  /* ToLocationGroup: the runner computes dest.Key = group.RandomKey ONCE per action
-     (clsUserSession.vb:1767), so the whole MoveCharacter draws a single
+  /* ToLocationGroup: the Runner computes dest.Key = group.RandomKey ONCE per
+     action (clsUserSession.vb:1767), so the whole MoveCharacter draws a single
      RandomKey and sends every affected character to the SAME room -- e.g.
      Jacaranda's champagne `MoveCharacter %Player% ToLocationGroup Group7`. */
   const char *group_dest = nullptr;
   if (to == "ToLocationGroup" && tk.size () >= 4)
     {
-      /* Read the group's LIVE membership (the runner arlMembers), not the static
-         <Member> list: procedural games (Skybreak) populate the destination
-         group at runtime via AddLocationToGroup right before the jump, so a
-         static read finds 0 members and the player lands nowhere. */
+      /* Read the group's LIVE membership (the Runner arlMembers), not the
+         static <Member> list: procedural games (Skybreak) populate the
+         destination group at runtime via AddLocationToGroup right before the
+         jump, so a static read finds 0 members and the player lands nowhere.
+         */
       int n = a5state_group_count (st, k2);
       if (n > 0)
         {
@@ -1003,12 +1014,13 @@ act_move_character (a5_run_t *run, const char * /*kind*/,
     }
 }
 
-/* Store `val` into a Text variable, honouring an array subscript.  A Text array
-   keeps its elements newline-separated inside the one var_text string (the
-   InitialValue layout that expr_substitute reads back), so an element store has
-   to split, pad to the declared length, replace, and rejoin -- assigning the
-   whole string would wipe the siblings.  elem <= 0 or a non-array variable
-   overwrites wholesale, as before.  Takes ownership of `val`. */
+/* Store `val` into a Text variable, honouring an array subscript.  A Text
+   array keeps its elements newline-separated inside the one var_text string
+   (the InitialValue layout that expr_substitute reads back), so an element
+   store has to split, pad to the declared length, replace, and rejoin --
+   assigning the whole string would wipe the siblings.  elem <= 0 or a
+   non-array variable overwrites wholesale, as before.  Takes ownership of
+   `val`. */
 static void
 store_text_var (a5_state_t *st, int vi, long elem, char *val)
 {
@@ -1049,7 +1061,7 @@ store_text_var (a5_state_t *st, int vi, long elem, char *val)
 /* Run a SetVariable body of the form
    "FOR <var> = a TO b : SET <assignment> : NEXT <var>" (FileIO.vb:365-374,
    the SetVariable twin of act_set_tasks' Execute loop).  Unlike SetTasks,
-   the counter IS visible to the body: the runner substitutes it wherever the
+   the counter IS visible to the body: the Runner substitutes it wherever the
    loop variable appears, which in practice is the element index
    (`SET Points[Loop] = 0`) and the %Loop% reference.  OS/PlugIn.Exe deals
    its blackjack hand with `FOR Loop = 1 TO 3 : SET Bjvalue[Loop] =
@@ -1148,14 +1160,14 @@ set_text_variable (a5_state_t *st, int vi, long text_elem,
                    const std::string &name, const std::string &value,
                    const char *body)
 {
-  /* The runner evaluates the RHS as an expression, so a bare string-literal value
-     unwraps to its contents.  ADRIFT writes such literals with their own
-     quotes inside the assignment's delimiters (Playeraxe = ""an"" or
-     = "'an'"); split_assignment stripped one outer layer, leaving "an" /
-     'an'.  Strip a remaining fully-surrounding matched quote pair so
-     %playeraxe% renders `an`, not `'an'`/`"an"` (Tingalan inventory).
-     Only when it is a lone literal (no interior same-quote), so a
-     concatenation like "a" & "b" is left for a5text_process untouched. */
+  /* The Runner evaluates the RHS as an expression, so a bare string-literal
+     value unwraps to its contents.  ADRIFT writes such literals with their own
+     quotes inside the assignment's delimiters (Playeraxe = ""an"" or =
+     "'an'"); split_assignment stripped one outer layer, leaving "an" / 'an'.
+     Strip a remaining fully-surrounding matched quote pair so %playeraxe%
+     renders `an`, not `'an'`/`"an"` (Tingalan inventory).  Only when it is a
+     lone literal (no interior same-quote), so a concatenation like "a" & "b"
+     is left for a5text_process untouched. */
   std::string tv = value;
   if (dbg_setvar ())
     fprintf (stderr, "[SETVAR] %s = <<%s>>\n", name.c_str (), tv.c_str ());
@@ -1173,7 +1185,7 @@ set_text_variable (a5_state_t *st, int vi, long text_elem,
       return;
     }
   /* A string-concatenation expression -- a `+` operator outside any
-     quoted literal, joining %functions%/%vars%/"literals" (the runner's
+     quoted literal, joining %functions%/%vars%/"literals" (the Runner's
      SetToExpression is uniform: `+` on non-numeric operands concatenates,
      and its bExpression ReplaceFunctions drops the quotes around each
      substituted value).  LostCoastlines builds every generated place name
@@ -1196,7 +1208,7 @@ set_text_variable (a5_state_t *st, int vi, long text_elem,
         return;
       }
   }
-  /* The runner evaluates the RHS through SetToExpression, whose
+  /* The Runner evaluates the RHS through SetToExpression, whose
      ReplaceFunctions (bExpression=True) substitutes every TEXT
      variable reference WITH surrounding quotes (Global.vb:1977).
      When the RHS is itself a single quoted literal, that nested
@@ -1205,19 +1217,19 @@ set_text_variable (a5_state_t *st, int vi, long text_elem,
      swallowed (clsVariable.vb SetToExpression's blanket Try) and the
      assignment NEVER LANDS: the variable silently keeps its old
      value.  the virtual human sets Variable28 = "that dream %s/he%
-     had" this way and the runner's %human_thinking% stays empty for the rest
+     had" this way and the Runner's %human_thinking% stays empty for the rest
      of the game.  Numeric variables substitute as bare digits and
      survive, so only a Text-variable reference kills the assignment.
      split_assignment already peeled the literal's quotes off `value`,
      so re-inspect the raw RHS for the quoted-literal shape. */
   {
-    /* Which string does the runner's SetToExpression actually see?  Files
+    /* Which string does the Runner's SetToExpression actually see?  Files
        newer than 5.0.32 (dFileVersion > 5.0000321, FileIO.vb:426)
-       store the expression wrapped in one EXTRA quote layer that the runner
+       store the expression wrapped in one EXTRA quote layer that the Runner
        peels at load -- split_assignment already mirrored that peel,
-       so the runner's view is `tv`.  Older files (the virtual human,
-       5.000017) are stored verbatim and the runner does NOT peel, so the runner's
-       view is the raw RHS, quotes and all. */
+       so the Runner's view is `tv`.  Older files (the virtual human,
+       5.000017) are stored verbatim and the Runner does NOT peel, so the
+       Runner's view is the raw RHS, quotes and all. */
     std::string rhs;
     double fver = (st->adv->version != nullptr) ? atof (st->adv->version) : 0;
     if (fver > 5.0000321)
@@ -1249,14 +1261,15 @@ set_text_variable (a5_state_t *st, int vi, long text_elem,
               if (st->adv->variables[rvi].name != nullptr
                   && strcasecmp (st->adv->variables[rvi].name,
                                  ref.c_str ()) == 0)
-                break;                 /* The runner matches by NAME, any case */
+                /* The Runner matches by NAME, any case */
+                break;
             if (rvi < st->adv->n_variables
                 && streq (st->adv->variables[rvi].type, "Text"))
               {
                 if (dbg_setvar ())
                   fprintf (stderr, "[SETVAR-DROP] %s = <<%s>>\n",
                            name.c_str (), rhs.c_str ());
-                return;                /* The runner: bad expression, no-op */
+                return;                /* The Runner: bad expression, no-op */
               }
             sp = ep + 1;
           }
@@ -1266,11 +1279,11 @@ set_text_variable (a5_state_t *st, int vi, long text_elem,
       && tv[tv.size () - 1] == tv[0]
       && tv.find (tv[0], 1) == tv.size () - 1)
     tv = tv.substr (1, tv.size () - 2);
-  /* Store WITHOUT the display-time auto-capitalisation: the runner keeps the raw
-     evaluated value (Playeraxe = "an") and only capitalises when it is
-     rendered in sentence context.  a5text_process would cap the lone value
-     at position 0 ("an" -> "An"), so %playeraxe% mid-sentence wrongly
-     shows "You have An axe" instead of "an axe". */
+  /* Store WITHOUT the display-time auto-capitalisation: the Runner keeps the
+     raw evaluated value (Playeraxe = "an") and only capitalises when it is
+     rendered in sentence context.  a5text_process would cap the lone value at
+     position 0 ("an" -> "An"), so %playeraxe% mid-sentence wrongly shows "You
+     have An axe" instead of "an axe". */
   char *proc = a5text_process_nocap (st, tv.c_str ());
   store_text_var (st, vi, text_elem, proc);
 }
@@ -1290,7 +1303,7 @@ set_numeric_variable (a5_run_t *run, const char *kind, int vi, long elem_idx,
      `make a leash` cl_TieRopeToD1 and `tie rope to dog` cl_TieDogWith),
      re-awards its points.  Non-Score variables are never gated.
 
-     The guard's other half: the runner only touches Score at all when a task
+     The guard's other half: the Runner only touches Score at all when a task
      is executing (`var.Key <> "Score" OrElse task IsNot Nothing`) --
      actions run from a conversation TOPIC or an event pass task =
      Nothing, so their Score changes silently never land (Thy
@@ -1322,7 +1335,7 @@ set_numeric_variable (a5_run_t *run, const char *kind, int vi, long elem_idx,
              st->turns,
              run->cur_score_ti >= 0 ? st->adv->tasks[run->cur_score_ti].key : "?",
              kind, delta, st->var_num[vi] + (streq (kind, "IncVariable") ? delta : 0));
-  /* The runner stores through SetToExpression(sExpr, iIndex): Inc/Dec build
+  /* The Runner stores through SetToExpression(sExpr, iIndex): Inc/Dec build
      "%name% +/- value", and %name% on an array variable reads element
      1 (GetToken's bare var- token), so the result lands at elem_idx
      but the BASE is always element 1 (== the var_num mirror). */
@@ -1345,7 +1358,7 @@ act_set_variable (a5_run_t *run, const char *kind,
     return;
   if (!split_assignment (body, name, value))
     return;
-  /* The runner's action parser splits the LHS at '[' (FileIO.vb: sKey1 =
+  /* The Runner's action parser splits the LHS at '[' (FileIO.vb: sKey1 =
      sElements(0).Split("[")(0), sKey2 = the bracketed index).  The index is
      ignored for a Length-1 variable (clsUserSession.vb:2135, IntValue
      defaults to 1) -- AoK's push-doors task writes
@@ -1391,34 +1404,35 @@ act_set_property (a5_run_t *run, const char * /*kind*/,
      (clsUserSession.vb:2010) -- e.g. "PCASE(%text%)" for the player's typed
      name, or "RAND (25, 50)" for a randomised item Value.  Key-typed
      properties (Object/Character/LocationKey) and SelectionOnly are stored
-     verbatim (the runner's non-evaluating branches).
+     verbatim (the Runner's non-evaluating branches).
 
-     the runner only reaches that EvaluateExpression on the branch where the property
-     ALREADY EXISTS on the entity (`prop IsNot Nothing`); when a property is
-     being freshly ADDED, only SelectionOnly/ObjectKey are handled and an
-     Integer/Text/... value is left at its clone default -- never evaluated.
-     So gate the value-type evaluation on current presence: force it for a
-     present value-typed property (this is what draws the RNG for
-     LostCoastlines' `SetProperty <obj> Value RAND(a,b)` world-gen block),
-     and otherwise fall back to the %reference% heuristic so a bare
-     key/state value -- or a value on a not-yet-present property (Illumina) --
-     is stored raw (the runner's add-branch / Nothing->raw behaviour). */
+     the Runner only reaches that EvaluateExpression on the branch where the
+     property ALREADY EXISTS on the entity (`prop IsNot Nothing`); when a
+     property is being freshly ADDED, only SelectionOnly/ObjectKey are handled
+     and an Integer/Text/... value is left at its clone default -- never
+     evaluated.  So gate the value-type evaluation on current presence: force
+     it for a present value-typed property (this is what draws the RNG for
+     LostCoastlines' `SetProperty <obj> Value RAND(a,b)` world-gen block), and
+     otherwise fall back to the %reference% heuristic so a bare key/state value
+     -- or a value on a not-yet-present property (Illumina) -- is stored raw
+     (the Runner's add-branch / Nothing->raw behaviour). */
   const a5_propdef_t *pd = a5model_propdef (st->adv, tk[1].c_str ());
   const char *pt = pd ? pd->type : nullptr;
   int value_type = pt != nullptr
                    && (streq (pt, "Integer") || streq (pt, "Text")
                        || streq (pt, "StateList") || streq (pt, "ValueList"));
   int has_prop = a5state_entity_prop (st, k1, tk[1].c_str ()) != nullptr;
-  /* The runner's SetProperties add-branch is asymmetric (clsUserSession.vb): an ABSENT
-     property is cloned-and-added freely for OBJECTS (vb:1989), but for a
-     CHARACTER only a SelectionOnly-<Selected> (vb:2044) or CharacterProperName
-     (vb:2036) is added -- a value-typed property (Integer/Text/StateList/
-     ValueList) set to a plain value on an absent slot is DebugPrinted and
-     ignored (vb:2056).  Galen's Quest shrinks the player with `SetProperty
-     %Player% MaxBulk 90`, but the player has no MaxBulk by default, so in the runner
-     the property is never added and carry stays unlimited -- which is why the
-     729-bulk iron key remains takeable while shrunk inside the miniature
-     castle (where `cast grow on me` is blocked).  Mirror the no-op. */
+  /* The Runner's SetProperties add-branch is asymmetric (clsUserSession.vb):
+     an ABSENT property is cloned-and-added freely for OBJECTS (vb:1989), but
+     for a CHARACTER only a SelectionOnly-<Selected> (vb:2044) or
+     CharacterProperName (vb:2036) is added -- a value-typed property
+     (Integer/Text/StateList/ ValueList) set to a plain value on an absent slot
+     is DebugPrinted and ignored (vb:2056).  Galen's Quest shrinks the player
+     with `SetProperty %Player% MaxBulk 90`, but the player has no MaxBulk by
+     default, so in the Runner the property is never added and carry stays
+     unlimited -- which is why the 729-bulk iron key remains takeable while
+     shrunk inside the miniature castle (where `cast grow on me` is blocked).
+     Mirror the no-op. */
   if (!has_prop && value_type
       && a5state_character_index (st, k1) >= 0
       && a5state_object_index (st, k1) < 0
@@ -1433,14 +1447,14 @@ act_set_property (a5_run_t *run, const char * /*kind*/,
   /* A key-typed property (ObjectKey/CharacterKey/LocationKey) set to a bare
      reference sentinel -- "ReferencedObject", "ReferencedCharacter1", ... or
      "Player" -- must be resolved to the currently-bound entity KEY, the way
-     the runner stores the resolved key (clsUserSession.SetProperties key branch) and
-     not the sentinel word.  LMK's `equip %object%` runs `SetProperty %Player%
-     EquippedWe ReferencedObject`; left raw, EquippedWe holds the literal
-     "ReferencedObject" and never equals the weapon key the combat
-     restrictions test (Knife / s_Sword / Nothing), so NO hit-or-miss subtask
-     fires and `kill squid` falls through to NotUnderstood.  A literal key or
-     "Nothing" is not a per-turn ref binding, so lookup returns NULL and the
-     value is kept verbatim. */
+     the Runner stores the resolved key (clsUserSession.SetProperties key
+     branch) and not the sentinel word.  LMK's `equip %object%` runs
+     `SetProperty %Player% EquippedWe ReferencedObject`; left raw, EquippedWe
+     holds the literal "ReferencedObject" and never equals the weapon key the
+     combat restrictions test (Knife / s_Sword / Nothing), so NO hit-or-miss
+     subtask fires and `kill squid` falls through to NotUnderstood.  A literal
+     key or "Nothing" is not a per-turn ref binding, so lookup returns NULL and
+     the value is kept verbatim. */
   {
     const char *kt = pd ? pd->type : nullptr;
     int is_key_prop = kt != nullptr
@@ -1464,13 +1478,14 @@ act_set_property (a5_run_t *run, const char * /*kind*/,
       if (mv != nullptr) val = mv;
     }
   a5state_set_prop (st, k1, tk[1].c_str (), val.c_str ());
-  /* The runner derives an object's location live from its DynamicLocation property, so
-     `SetProperty <obj> DynamicLocation Hidden` (Galen's Quest hides the meteor
-     once the fountain has swallowed it, via GiveMeteor) immediately relocates
-     it.  Scarier caches location in st->obj[], so mirror MoveObject's mapping
-     here or the object lingers stale (a phantom meteorite in the player's
-     hands).  Only DynamicLocation drives relocation; the keyed variants read
-     their companion key property (runtime override, else the static value). */
+  /* The Runner derives an object's location live from its DynamicLocation
+     property, so `SetProperty <obj> DynamicLocation Hidden` (Galen's Quest
+     hides the meteor once the fountain has swallowed it, via GiveMeteor)
+     immediately relocates it.  Scarier caches location in st->obj[], so mirror
+     MoveObject's mapping here or the object lingers stale (a phantom meteorite
+     in the player's hands).  Only DynamicLocation drives relocation; the keyed
+     variants read their companion key property (runtime override, else the
+     static value). */
   if (tk[1] == "DynamicLocation")
     {
       int oi = a5state_object_index (st, k1);
@@ -1551,8 +1566,8 @@ act_time (a5_run_t *run, const char * /*kind*/,
     }
   if (run->resp != nullptr)
     {
-      /* The runner flushes htblResponsesPass before the ticks so the command's own
-         message precedes any event output, then Clear()s it (keep nmut --
+      /* The Runner flushes htblResponsesPass before the ticks so the command's
+         own message precedes any event output, then Clear()s it (keep nmut --
          it is the "did the task produce output" history probe). */
       resp_flush (run, run->resp, out);
       run->resp->ents.clear ();
@@ -1605,7 +1620,7 @@ static void
 set_tasks_execute_look (a5_run_t *run, int depth, sb_t *out)
 {
   a5_state_t *st = run->st;
-  /* The runner's ExecuteTask(Look) is a full AttemptToExecuteTask(Look): its
+  /* The Runner's ExecuteTask(Look) is a full AttemptToExecuteTask(Look): its
      Specific overrides run before the view, then the room view
      (Look's AggregateOutput CompletionMessage), then Look's own
      <Actions>.  Routing through execute_task_with_overrides fires
@@ -1615,7 +1630,7 @@ set_tasks_execute_look (a5_run_t *run, int depth, sb_t *out)
 
      The per-move duplicate is real: PlayerMovement's `Beforeplay`
      override already ran ts_tasCheckTime, so its `Execute Look` ->
-     `Beforeplay1` emits the same "Date: ..." a second time.  The runner's
+     `Beforeplay1` emits the same "Date: ..." a second time.  The Runner's
      per-turn response dedup (htblResponses keyed by message text,
      clsUserSession.vb:783) collapses the two -- which run_general's
      movement response map now reproduces (the two Date lines share
@@ -1659,7 +1674,7 @@ void
 exec_task_t::find_plural_argument (void)
 {
   /* A bare `Group.<Property>` argument (e.g. `Objects1.StaticOrDynamic`)
-     is an OO reference that the runner expands to the group's member LIST and
+     is an OO reference that the Runner expands to the group's member LIST and
      runs the executed task once per member (ExecuteSubTasks iterating
      the reference's items).  Detect it and iterate; a plain argument
      leaves giter < 0 and runs the task exactly once, as before. */
@@ -1671,13 +1686,13 @@ exec_task_t::find_plural_argument (void)
      that lands on a COLLECTION -- `%Player%.Held.<marker>`,
      `%Player%.Location.Characters` -- not just the `Group.Property`
      form above.  a5expr renders such a chain as a "key1|key2|..." pipe
-     list, which is exactly the runner's reference carrying several
+     list, which is exactly the Runner's reference carrying several
      Items, so ExecuteSubTasks runs the task once per item.  Binding the
      whole pipe list to one reference instead ran the task ONCE with a
      list-valued reference: Quest Giver's `view cards` prints its three
      held quests as a single merged card ("Quest 12) A showman ...,
      Peacemaker needed and A wealthy man ...") with one ID stamp,
-     where the runner prints one card per quest.  Resolve here, against
+     where the Runner prints one card per quest.  Resolve here, against
      the parent's live references (run_one restores them per member). */
   if (giter < 0)
     for (size_t i = 0; i < args.size () && i < rnames.size (); i++)
@@ -1698,7 +1713,7 @@ exec_task_t::find_plural_argument (void)
 void
 exec_task_t::bind_arguments (void)
 {
-  /* The runner (clsUserSession.vb:2169-2298) builds a FRESH reference
+  /* The Runner (clsUserSession.vb:2169-2298) builds a FRESH reference
      array (ReferencesNew) for the sub-task and only swaps it in
      (`NewReferences = ReferencesNew`) AFTER every parameter has
      been resolved -- so each computed parameter's OO chain is
@@ -1715,7 +1730,7 @@ exec_task_t::bind_arguments (void)
   std::vector<std::pair<size_t, std::string> > deferred;
   for (size_t i = 0; i < args.size () && i < rnames.size (); i++)
     {
-      /* The runner's SetTasks handler (clsUserSession.vb:2188) passes a
+      /* The Runner's SetTasks handler (clsUserSession.vb:2188) passes a
          parameter that names the target task's own reference
          (`sParam = sRef`) STRAIGHT THROUGH -- the live
          clsNewReference object, items and sCommandReference
@@ -1727,7 +1742,7 @@ exec_task_t::bind_arguments (void)
          that by leaving the existing binding (key AND $text)
          untouched.  A computed argument (%ParentOf[..]%, a
          literal key, or an expanded group member) instead builds
-         the runner's UserDefinedRef, whose fresh items carry NO
+         the Runner's UserDefinedRef, whose fresh items carry NO
          sCommandReference -- bind an empty typed text. */
       if (arg_is_ref_passthrough (args[i], rnames[i]))
         continue;                   /* pass the ref through */
@@ -1743,7 +1758,7 @@ exec_task_t::bind_arguments (void)
 void
 exec_task_t::show_restriction_failure (void)
 {
-  /* The runner's ExecuteTask is a full AttemptToExecuteTask: a
+  /* The Runner's ExecuteTask is a full AttemptToExecuteTask: a
      restriction failure DISPLAYS the failing restriction's
      message (AttemptToExecuteSubTask, clsUserSession.vb:1246
      `sMessage = sRestrictionText` -> AddResponse bPass=False,
@@ -1767,7 +1782,7 @@ exec_task_t::show_restriction_failure (void)
             resp_add_text (run, fmsg, false);
           else if (run->exec_scope != nullptr)
             {
-              /* Buffer for the end-of-scope flush, where the runner's
+              /* Buffer for the end-of-scope flush, where the Runner's
                  pass-cancels-fail rule is applied (a pass for
                  the same objects can arrive before OR after
                  this fail); dedup by text (htblResponsesFail
@@ -1787,7 +1802,7 @@ exec_task_t::show_restriction_failure (void)
 /* One execution of the target task with the references bound from
    the current `args` (the group member substituted into args[giter]
    on each pass).  Returns via early-out on a Completed/Repeatable or
-   restriction gate -- the runner's AttemptToExecuteSubTask per item. */
+   restriction gate -- the Runner's AttemptToExecuteSubTask per item. */
 void
 exec_task_t::run_one (void)
 {
@@ -1805,7 +1820,7 @@ exec_task_t::run_one (void)
       show_restriction_failure ();
       return;
     }
-  /* The runner's ExecuteTask is a full AttemptToExecuteTask, so the
+  /* The Runner's ExecuteTask is a full AttemptToExecuteTask, so the
      executed task's own Specific overrides apply too -- e.g. the
      lazy take-from-others re-dispatch lets PutSomeDry (the "skull"
      override of TakeObjectsFromOthers) fire, moving Anno's
@@ -1824,13 +1839,13 @@ exec_task_t::run_members (ref_snap *parent_refs)
      A prior action in this same task may have already ended the
      game (e.g. I Summon Thee's win task runs `EndGame Win`
      BEFORE `Execute CheckEscap (Everything.StaticOrDynamic)`,
-     which tallies Objects Destroyed): the runner keeps iterating every
+     which tallies Objects Destroyed): the Runner keeps iterating every
      member of a sub-task regardless -- game-over is only checked
      back in the main loop.  So break only on a game-over NEWLY
      triggered by a member's own execution, not one inherited
      from before the loop, or the tally stops after member 0.
      Restore the parent bindings before each member so every
-     member's non-iterated args resolve against the parent (the runner
+     member's non-iterated args resolve against the parent (the Runner
      fixes them once in ReferencesNew and reuses across items). */
   bool was_over = st->game_over;
   std::string saved = args[giter];
@@ -1840,7 +1855,7 @@ exec_task_t::run_members (ref_snap *parent_refs)
       args[giter] = mk;
       /* Inside an event/walk/LocationTrigger-fired attempt, attach
          this member to the response entry its run reached (the
-         runner AddResponse keys every subtask completion with the
+         Runner's AddResponse keys every subtask completion with the
          iterated reference; a repeat of the same completion MERGES
          its item into the existing entry).  The attempt's final
          entry becomes the post-Display NewReferences leftover the
@@ -1883,7 +1898,8 @@ set_tasks_execute (a5_run_t *run, const std::vector<std::string> &tk,
     return;
   exec_depth_guard edg (run);
   std::string key = tk[1];
-  if (key == "Look")            /* built-in room view + the Look task's actions */
+  /* built-in room view + the Look task's actions */
+  if (key == "Look")
     {
       set_tasks_execute_look (run, depth, out);
       return;
@@ -1912,10 +1928,10 @@ set_tasks_execute (a5_run_t *run, const std::vector<std::string> &tk,
 
   int tti = a5state_task_index (st, key.c_str ());
 
-  /* The Completed/Repeatable gate is the runner's AttemptToExecuteTask entry
+  /* The Completed/Repeatable gate is the Runner's AttemptToExecuteTask entry
      test, evaluated ONCE per Execute -- so a non-repeatable task run
      over a PLURAL group reference still fires its actions for every
-     member (the runner's ExecuteSubTasks iterates the items inside one task
+     member (the Runner's ExecuteSubTasks iterates the items inside one task
      execution; Completed flips only afterwards).  Snapshot the flag
      at entry and gate on that, or a task that marks itself done on
      member 0 (execute_task_with_overrides) would skip members 1..n --
@@ -1925,7 +1941,7 @@ set_tasks_execute (a5_run_t *run, const std::vector<std::string> &tk,
      card and over-awarded coloured fragments. */
   x.tt_done_at_entry = (tti >= 0 && st->task_done[tti]);
 
-  /* The runner wraps each SetTasks Execute in `oExistingRefs = NewReferences`
+  /* The Runner wraps each SetTasks Execute in `oExistingRefs = NewReferences`
      ... `NewReferences = oExistingRefs` (clsUserSession.vb:2172/2310),
      so the sub-task's reference bindings are LOCAL to that one Execute
      and the parent's references are restored afterwards.  AlienDiver's
@@ -1952,7 +1968,7 @@ set_tasks_execute (a5_run_t *run, const std::vector<std::string> &tk,
   ref_snap_restore (st, parent_refs.get ());
 
   /* Mark done + fire completion controls once per AttemptToExecuteTask
-     (the runner flips task.Completed once), and only when the task actually
+     (the Runner flips task.Completed once), and only when the task actually
      ran -- a wholly-failing Execute leaves it uncompleted, as before. */
   if (x.ran_any)
     {
@@ -1996,10 +2012,10 @@ act_conversation (a5_run_t *run, const char * /*kind*/,
                   int /*depth*/, sb_t *out)
 {
   a5_state_t *st = run->st;
-  /* FileIO conversation-action parse: GREET/FAREWELL/ASK/TELL <key> [About|with
-     '<subject>'], SAY '<subject>' to <key>, ENTERWITH/LEAVEWITH <key>.  The
-     key (often ReferencedCharacter) and subject (often %text%) are resolved
-     here, then ExecuteConversation runs. */
+  /* FileIO conversation-action parse: GREET/FAREWELL/ASK/TELL <key>
+     [About|with '<subject>'], SAY '<subject>' to <key>, ENTERWITH/LEAVEWITH
+     <key>.  The key (often ReferencedCharacter) and subject (often %text%) are
+     resolved here, then ExecuteConversation runs. */
   if (tk.empty ())
     return;
   std::string verb = tk[0];
@@ -2032,7 +2048,8 @@ act_conversation (a5_run_t *run, const char * /*kind*/,
     {
       conv_type = A5_CONV_COMMAND;
       keytok = tk.back ();                                /* last = key */
-      for (size_t i = 1; i + 2 < tk.size (); i++)         /* before "to <key>" */
+      /* before "to <key>" */
+      for (size_t i = 1; i + 2 < tk.size (); i++)
         { if (i > 1) subjraw += " "; subjraw += tk[i]; }
     }
   else
@@ -2066,8 +2083,8 @@ act_location_group (a5_run_t *run, const char *kind,
     return;
   const std::string &what = tk[0];
   /* Resolve the source key through act_key so a `%Player%` / `%objectN%`
-     operand maps to its entity key (the runner's ReferenceControl expansion).  A
-     group key (EverywhereInGroup) is not an entity, so act_key returns it
+     operand maps to its entity key (the Runner's ReferenceControl expansion).
+     A group key (EverywhereInGroup) is not an entity, so act_key returns it
      verbatim -- harmless.  Without this `LocationOf %Player%` looked up a
      character literally named "%Player%" (none), so SixSilverBullets'
      `RemoveLocationFromGroup LocationOf %Player% FromGroup TimeTraps` removed
@@ -2096,8 +2113,8 @@ act_location_group (a5_run_t *run, const char *kind,
     }
   else if (what == "EverywhereInGroup")
     {
-      /* Live members (the runner arlMembers): the group-clear that follows each
-         Skybreak jump is `RemoveLocationFromGroup EverywhereInGroup G
+      /* Live members (the Runner arlMembers): the group-clear that follows
+         each Skybreak jump is `RemoveLocationFromGroup EverywhereInGroup G
          FromGroup G`, which must see the runtime-added members to empty the
          group -- a static read leaves them and the group accretes forever. */
       int n = a5state_group_count (st, k1);

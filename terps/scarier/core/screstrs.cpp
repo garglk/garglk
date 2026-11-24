@@ -51,12 +51,13 @@ enum { MAX_NESTING_DEPTH = 32 };
  *
  * Restrictions are the most evaluated thing in the engine -- the dispatcher
  * walks every task's on each typed line, and the library's pre-matchers walk
- * them again -- and each evaluation used to fetch the restriction's Type and
- * its two or three Vars from the property tree, five keys deep.  They belong
- * to the bundle and never change in play, so decode a task's restrictions
- * the first time any is asked for.  Like the object attributes cache this is
- * keyed by bundle, which the undo and temporary game copies share, and the
- * runner calls restr_forget_bundle() before destroying a bundle.
+ * them again -- and each evaluation would otherwise fetch the restriction's
+ * Type and its two or three Vars from the property tree, five keys deep.  They
+ * belong to the bundle and never change in play, so decode a task's
+ * restrictions the first time any is asked for.  Like the object attributes
+ * cache this is keyed by bundle, which the undo and temporary game copies
+ * share, and the `run_` code calls restr_forget_bundle() before destroying a
+ * bundle.
  *
  * A decoded restriction holds what the evaluation for its type reads: Var1
  * to Var3 for types 0, 3 and 4 (and Var4 for type 4), Var1 and Var2 for
@@ -105,7 +106,7 @@ struct restr_task_t
  *              buffer, set at the top of each evaluation.
  *
  * Nothing here is saved.  The per-game groups are the ones a new game must
- * drop: run_create() calls restr_cache_reset(), and the runner calls
+ * drop: run_create() calls restr_cache_reset(), and the `run_` code calls
  * restr_forget_bundle() for each bundle it destroys.
  */
 struct scr_restr_state_s
@@ -200,6 +201,74 @@ restr_selector_npc (scr_gameref_t game, scr_int var)
 
 
 /*
+ * restr_object_held_by_player()
+ *
+ * The "held by" test of restr_object_in_place() for the player.
+ *
+ * "Held by the player" is broader than it sounds.  The ADRIFT 4 Runner
+ * answers TRUE for an object the player is *wearing* as well as one
+ * being carried, and also for an object sitting inside a container that
+ * the player carries or wears -- one level of nesting, not a recursive
+ * search.  See the notes above restr_pass_task_object_location.
+ *
+ * The container's openness is NOT consulted, and that half was checked
+ * separately: probe `p39held`
+ * (test/adrift4/harness/make_39_heldprobe.py) run in the real run390.exe
+ * answers KEY IS HELD for a key inside a *closed* box the player
+ * carries, and only turns to NOT HELD when the box is dropped -- picking
+ * the closed box back up restores it.  All five states (loose, carried,
+ * open-carried-container, closed-carried-container,
+ * closed-container-on-floor) match Scarier exactly.  Verified 2026-08-02;
+ * this is what lets inverness's desk be unlocked with the old key still
+ * sealed inside its riddle box.
+ *
+ * Note that none of this applies to the NPC forms, nor to "worn by":
+ * those really are the single exact position test they look like.
+ *
+ * ...and it does not apply to the "any object" / "no object" quantified
+ * form either, which the Runner evaluates in a SEPARATE, hand-duplicated
+ * per-object switch (`quantified` here).  That copy dropped the worn
+ * case: at 00080871 in mdlSpreadTheLoad.Sub_20_3 the Var3 = 0 arm tests
+ * only `location == 0` (held) and the container arm `location == 246`
+ * with the parent held (0) or worn (156) -- there is no `location ==
+ * 156` test on the object itself, where the single-object path at
+ * 00080C9B plainly has one.  So a worn object counts as held when a
+ * restriction names it, but NOT when the restriction quantifies over all
+ * objects.
+ *
+ * Almost certainly a Runner slip rather than a design, but it is what
+ * shipped, and games depend on it: Cursed's second interlude gates the
+ * magical entrance on "no object is held by the player" while the player
+ * wears street clothes that the game refuses to let you remove.  Count
+ * the clothes and the veil can never be entered and the game is
+ * unwinnable from that point on.
+ */
+static scr_bool
+restr_object_held_by_player (scr_gameref_t game,
+                             scr_int object, scr_bool quantified)
+{
+  scr_int position, parent, parent_position;
+
+  position = gs_object_position (game, object);
+  if (position == OBJ_HELD_PLAYER)
+    return TRUE;
+  if (position == OBJ_WORN_PLAYER)
+    return !quantified;
+
+  if (position != OBJ_IN_OBJECT)
+    return FALSE;
+
+  parent = gs_object_parent (game, object);
+  if (parent < 0 || parent >= gs_object_count (game))
+    return FALSE;
+
+  parent_position = gs_object_position (game, parent);
+  return parent_position == OBJ_HELD_PLAYER
+         || parent_position == OBJ_WORN_PLAYER;
+}
+
+
+/*
  * restr_object_in_place()
  *
  * Is object in a certain place, state, or condition.
@@ -226,7 +295,7 @@ restr_object_in_place (scr_gameref_t game,
        * `position` is meaningful for a dynamic object: -1 is genuinely
        * "hidden", and >= 1 is the room, 1-based.  A static can still reach
        * here through the "referenced object" form, and then reads as hidden
-       * until something moves it -- which is what the Adrift 4 runner does
+       * until something moves it -- which is what the ADRIFT 4 Runner does
        * too.  See restr_pass_task_object_location below.
        */
       if (var3 == 0)
@@ -236,64 +305,8 @@ restr_object_in_place (scr_gameref_t game,
 
     case 1:
     case 7:                    /* Held by */
-      /*
-       * "Held by the player" is broader than it sounds.  The Adrift 4 runner
-       * answers TRUE for an object the player is *wearing* as well as one
-       * being carried, and also for an object sitting inside a container that
-       * the player carries or wears -- one level of nesting, not a recursive
-       * search.  See the notes above restr_pass_task_object_location below.
-       *
-       * The container's openness is NOT consulted, and that half was checked
-       * separately: probe `p39held` (test/adrift4/harness/make_39_heldprobe.py)
-       * run in the real run390.exe answers KEY IS HELD for a key inside a
-       * *closed* box the player carries, and only turns to NOT HELD when the
-       * box is dropped -- picking the closed box back up restores it.  All
-       * five states (loose, carried, open-carried-container, closed-carried-
-       * container, closed-container-on-floor) match Scarier exactly.
-       * Verified 2026-08-02; this is what lets inverness's desk be unlocked
-       * with the old key still sealed inside its riddle box.
-       *
-       * Note that none of this applies to the NPC forms, nor to "worn by":
-       * those really are the single exact position test they look like.
-       *
-       * ...and it does not apply to the "any object" / "no object" quantified
-       * form either, which the Runner evaluates in a SEPARATE, hand-duplicated
-       * per-object switch (`quantified` here).  That copy dropped the worn
-       * case: at 00080871 in mdlSpreadTheLoad.Sub_20_3 the Var3 = 0 arm tests
-       * only `location == 0` (held) and the container arm `location == 246`
-       * with the parent held (0) or worn (156) -- there is no `location == 156`
-       * test on the object itself, where the single-object path at 00080C9B
-       * plainly has one.  So a worn object counts as held when a restriction
-       * names it, but NOT when the restriction quantifies over all objects.
-       *
-       * Almost certainly a Runner slip rather than a design, but it is what
-       * shipped, and games depend on it: Cursed's second interlude gates the
-       * magical entrance on "no object is held by the player" while the player
-       * wears street clothes that the game refuses to let you remove.  Count
-       * the clothes and the veil can never be entered and the game is
-       * unwinnable from that point on.
-       */
       if (var3 == 0)            /* Player */
-        {
-          scr_int position, parent, parent_position;
-
-          position = gs_object_position (game, object);
-          if (position == OBJ_HELD_PLAYER)
-            return TRUE;
-          if (position == OBJ_WORN_PLAYER)
-            return !quantified;
-
-          if (position != OBJ_IN_OBJECT)
-            return FALSE;
-
-          parent = gs_object_parent (game, object);
-          if (parent < 0 || parent >= gs_object_count (game))
-            return FALSE;
-
-          parent_position = gs_object_position (game, parent);
-          return parent_position == OBJ_HELD_PLAYER
-                 || parent_position == OBJ_WORN_PLAYER;
-        }
+        return restr_object_held_by_player (game, object, quantified);
       npc = restr_selector_npc (game, var3);
 
       return gs_object_position (game, object) == OBJ_HELD_NPC
@@ -323,13 +336,13 @@ restr_object_in_place (scr_gameref_t game,
     /*
      * "Inside" and "on top of" both index a sublist -- containers for one,
      * surfaces for the other -- with Var3 - 1, and there is NO "nothing"
-     * option.  SCARE used to read Var3 = 0 as "is not inside anything" and
-     * return the negation of the position test; the guess was flagged with a
-     * `/ * Nothing? * /` comment, and it was wrong.
+     * option.  SCARE reads Var3 = 0 as "is not inside anything" and returns
+     * the negation of the position test; the guess is flagged with a
+     * `/ * Nothing? * /` comment, and it is wrong.
      *
-     * Probed 2026-08-01 against run400.exe, using a Topaz variant whose
-     * `hedges` (an all-rooms static, so it is in the start room) was flipped to
-     * a container with the dynamic `ring` starting inside it -- the runner
+     * Probed against run400.exe, using a Topaz variant whose
+     * `hedges` (an all-rooms static, so it is in the start room) was flipped
+     * to a container with the dynamic `ring` starting inside it -- the Runner
      * loads it and agrees, answering `look in bushes` with "The silver ring is
      * inside the hedges":
      *
@@ -353,7 +366,7 @@ restr_object_in_place (scr_gameref_t game,
      * the v4 corpus has it either: all 111 inside/on-top-of restrictions use
      * Var3 >= 1.
      *
-     * An index past the end of the sublist answers false in the runner without
+     * An index past the end of the sublist answers false in the Runner without
      * complaint (unlike Var1, which raises "Subscript out of range").
      * obj_nth_object() overruns to the last object instead of failing, so test
      * what came back rather than trusting it.  That can only reject an index
@@ -431,7 +444,7 @@ restr_pass_task_object_location (scr_gameref_t game,
    * object" always FAILS and "no object" always PASSES, whatever Var3 and the
    * world state are.
    *
-   * Verified 2026-08-01 against run400.exe itself (Wine/Rosetta), with twelve
+   * Verified against run400.exe itself (Wine/Rosetta), with twelve
    * hand-built single-restriction Topaz variants: the six Var2 < 6 probes all
    * agree, and the six negated ones show the Runner returning that constant.
    * We keep the meaningful reading; nothing in the v4 corpus authors a negated
@@ -457,7 +470,7 @@ restr_pass_task_object_location (scr_gameref_t game,
        * command binds the reference (task_match_object 458E6C), whichever
        * task it belongs to.  labyrinth task 119 `* put * sword * pedestal *`
        * passes in run400 because task 120's `* put * %object% * pedestal *`
-       * has bound the sword.  Scarier does not bind across tasks, so at 4.00
+       * has bound the sword.  Scarier does not bind across tasks, so at 4.0
        * the any-object loop stands in for that.
        */
       object = var_get_ref_object (vars);
@@ -467,17 +480,17 @@ restr_pass_task_object_location (scr_gameref_t game,
     }
   else if (var1 >= 3)
     /*
-     * Confirmed against run400.exe 2026-08-01: Var1 - 3 indexes the DYNAMIC
+     * Confirmed against run400.exe: Var1 - 3 indexes the DYNAMIC
      * objects only, 0-based, not the full object list.  Four probes on Topaz
      * (dynamics are object 5 `Topaz`, in room 4, and object 8 `ring`, hidden)
      * pin both halves down -- addressing Var1 = 3 as "in room 4" passes, which
      * a full-list reading could not do (object 3 is the static `sky`), and
      * Var1 = 4 as "in room 4" fails, which an off-by-one base could not do.
-     * Var1 = 5 and 6 make the runner raise "evaluate error - Subscript out of
+     * Var1 = 5 and 6 make the Runner raise "evaluate error - Subscript out of
      * range", so its array really is the two-element dynamic one.  SCARE is
      * softer there: obj_nth_object() runs off the end and hands back the last
      * object.  Silent and wrong, but harmless -- no shipped game can contain
-     * such an index, because loading it would crash the runner.
+     * such an index, because loading it would crash the Runner.
      */
     object = obj_dynamic_object (game, var1 - 3);
   else
@@ -485,14 +498,14 @@ restr_pass_task_object_location (scr_gameref_t game,
 
   /*
    * A static object can arrive here through the "referenced object" form, and
-   * unlike the any/no quantifier above the runner does NOT filter it out: it
-   * evaluates the condition on whatever %object% matched.  SCARE used to
-   * reject statics unconditionally at this point, which made "the referenced
-   * object is visible to the player" -- by far the most common way this form
-   * is authored, 25 of the 30 occurrences in the v4 corpus -- impossible to
+   * unlike the any/no quantifier above the Runner does NOT filter it out: it
+   * evaluates the condition on whatever %object% matched.  SCARE rejects
+   * statics unconditionally at this point, which makes "the referenced object
+   * is visible to the player" -- by far the most common way this form is
+   * authored, 25 of the 30 occurrences in the v4 corpus -- impossible to
    * satisfy by naming any piece of scenery.
    *
-   * Verified 2026-08-01 against run400.exe (Wine/Rosetta), with six
+   * Verified against run400.exe (Wine/Rosetta), with six
    * single-restriction Topaz variants whose task command is `probe %object%`
    * and whose referenced object is the static `sky`:
    *
@@ -508,7 +521,7 @@ restr_pass_task_object_location (scr_gameref_t game,
    * halves come out right for different reasons, and both are worth spelling
    * out:
    *
-   *  - "Visible to" is genuinely computed.  The runner splits static from
+   *  - "Visible to" is genuinely computed.  The Runner splits static from
    *    dynamic there (mdlSpreadTheLoad.Sub_20_7) and consults the authored
    *    per-room list; so does obj_indirectly_in_room() via obj_static_in_room.
    *    Note `sky` is a Where-type-3 (all rooms) static, hence PASS -- and note
@@ -516,13 +529,13 @@ restr_pass_task_object_location (scr_gameref_t game,
    *    is what proves the "in room" case is NOT consulting that same list.
    *
    *  - The other cases match only because both engines end up reading a
-   *    location field that statics never maintain.  The runner keeps a static's
-   *    whereabouts in the per-room array at [1C] but still reads the dynamic
-   *    location int at [1A] here, and that stays at its initial -1; SCARE
-   *    likewise leaves an unmoved static's `position` at OBJ_HIDDEN.  So both
-   *    answer "hidden", accidentally in agreement.  Body-part statics are the
-   *    one place the accident breaks down: SCARE gives them OBJ_PART_NPC, so
-   *    "is hidden" is FALSE where the runner would say TRUE.  Left alone --
+   *    location field that statics never maintain.  The Runner keeps a
+   *    static's whereabouts in the per-room array at [1C] but still reads the
+   *    dynamic location int at [1A] here, and that stays at its initial -1;
+   *    SCARE likewise leaves an unmoved static's `position` at OBJ_HIDDEN.  So
+   *    both answer "hidden", accidentally in agreement.  Body-part statics are
+   *    the one place the accident breaks down: SCARE gives them OBJ_PART_NPC,
+   *    so "is hidden" is FALSE where the Runner would say TRUE.  Left alone --
    *    it is the saner answer, and no corpus game asks.
    */
 
@@ -535,11 +548,11 @@ restr_pass_task_object_location (scr_gameref_t game,
         {
           /*
            * "Any object" / "No object" ranges over DYNAMIC objects only.  The
-           * Adrift 4 runner opens this loop with an explicit `if not
-           * Objects(i).Static then ... next i` filter, and it keeps no location
-           * field for statics at all -- their whereabouts live in an authored
-           * per-room list, while only dynamic objects get the location value
-           * whose -1 means "hidden".
+           * ADRIFT 4 Runner opens this loop with an explicit `if not
+           * Objects(i).Static then ... next i` filter, and it keeps no
+           * location field for statics at all -- their whereabouts live in an
+           * authored per-room list, while only dynamic objects get the
+           * location value whose -1 means "hidden".
            *
            * Without this filter SCARE reads a static's unused position field,
            * which sits at -1 (== OBJ_HIDDEN) until an event moves the object.
@@ -692,6 +705,106 @@ restr_pass_task_task_state (scr_gameref_t game, scr_int var1, scr_int var2)
 
 
 /*
+ * restr_char_player()
+ * restr_char_npc()
+ *
+ * The two halves of restr_pass_task_char(): var2 types 0 and 3 to 7 for the
+ * player, and for an already-decoded NPC.
+ */
+static scr_bool
+restr_char_player (scr_gameref_t game, scr_int var2, scr_int var3)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_int npc2 = -1, gender;
+
+  switch (var2)
+    {
+    case 0:                    /* In same room as */
+      if (var3 > 0)
+        npc2 = restr_selector_npc (game, var3);
+      if (var3 == 0)           /* Player */
+        return TRUE;
+      else if (npc2 < 0)
+        return FALSE;
+      else
+        return npc_in_room (game, npc2, gs_playerroom (game));
+
+    case 3:                    /* Not alone */
+      return npc_count_in_room (game, gs_playerroom (game)) > 1;
+
+    case 4:                    /* Standing on */
+      return gs_playerposition (game) == 0
+             && gs_playerparent (game) == obj_standable_object (game, var3 - 1);
+
+    case 5:                    /* Sitting on */
+      return gs_playerposition (game) == 1
+             && gs_playerparent (game) == obj_standable_object (game, var3 - 1);
+
+    case 6:                    /* Lying on */
+      return gs_playerposition (game) == 2
+             && gs_playerparent (game) == obj_lieable_object (game, var3 - 1);
+
+    case 7:                    /* Player gender */
+      gender = prop_get_global_integer (bundle, "PlayerGender");
+      return gender == var3;
+
+    default:
+      scr_fatal ("restr_pass_task_char: invalid type, %ld\n", var2);
+    }
+}
+
+static scr_bool
+restr_char_npc (scr_gameref_t game, scr_int npc1, scr_int var2, scr_int var3)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_vartype_t vt_key[3];
+  scr_int npc2 = -1, gender;
+
+  switch (var2)
+    {
+    case 0:                    /* In same room as */
+      if (var3 == 0)
+        return npc_in_room (game, npc1, gs_playerroom (game));
+      if (var3 > 0)
+        npc2 = restr_selector_npc (game, var3);
+      if (npc2 < 0)
+        return FALSE;
+      return npc_in_room (game, npc1, gs_npc_location (game, npc2) - 1);
+
+    case 3:                    /* Not alone */
+      return npc_count_in_room (game, gs_npc_location (game, npc1) - 1) > 1;
+
+    /*
+     * Cases 4-6 test the NPC's position but the *player's* parent object.
+     * This reproduces the original SCARE behavior; don't "correct" it
+     * into a divergence from the ADRIFT Runner without evidence.
+     */
+    case 4:                    /* Standing on */
+      return gs_npc_position (game, npc1) == 0
+             && gs_playerparent (game) == obj_standable_object (game, var3);
+
+    case 5:                    /* Sitting on */
+      return gs_npc_position (game, npc1) == 1
+             && gs_playerparent (game) == obj_standable_object (game, var3);
+
+    case 6:                    /* Lying on */
+      return gs_npc_position (game, npc1) == 2
+             && gs_playerparent (game) == obj_lieable_object (game, var3);
+
+    case 7:                    /* NPC gender */
+      vt_key[0].string = "NPCs";
+      vt_key[1].integer = npc1;
+      vt_key[2].string = "Gender";
+      gender = prop_get_integer (bundle, "I<-sis", vt_key);
+      return gender == var3;
+
+    default:
+      scr_fatal ("restr_pass_task_char: invalid type, %ld\n", var2);
+    }
+}
+
+
+/*
  * restr_pass_task_char()
  *
  * Evaluate restrictions relating to player and NPCs.
@@ -702,7 +815,7 @@ restr_pass_task_char (scr_gameref_t game,
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
   const scr_var_setref_t vars = gs_get_vars (game);
-  scr_int npc1, npc2;
+  scr_int npc1;
 
   if (restr.trace)
     {
@@ -720,7 +833,7 @@ restr_pass_task_char (scr_gameref_t game,
    *    result still 0, so the restriction FAILS whichever way round it is
    *    worded, and the task claims nothing.  run400 4811F0-481214 first sets
    *    the result for "must be" (var2 = 0) and leaves "must not be" false.
-   *    Studio (3.90, runner_transcripts/studio.txt T110): task 111's
+   *    Studio (3.9, runner_transcripts/studio.txt T110): task 111's
    *    "Player must be in same room as Player" / "What?" restriction fails
    *    without its message, so the earlier out-of-room task 74 sharing the
    *    pattern draws "You can't do that here!" and the 100th point is
@@ -734,11 +847,11 @@ restr_pass_task_char (scr_gameref_t game,
       && prop_get_taf_version (bundle) >= TAF_VERSION_390)
     {
       /*
-       * Deliberate deviation (2026-09-30): 3.9 answers "must be in the same
-       * room as the Player" the way 4.0 does, passing (a4c5edffa).  run390's
-       * failure made any 3.9 task carrying the Generator's default row
-       * unreachable -- Studio's 100th point among them -- with nothing
-       * said.  "must not be" still fails silently.
+       * Deliberate deviation: 3.9 answers "must be in the same
+       * room as the Player" the way 4.0 does, passing.  run390's failure made
+       * any 3.9 task carrying the Generator's default row unreachable --
+       * Studio's 100th point among them -- with nothing said.  "must not be"
+       * still fails silently.
        */
       if (var3 == 0)
         {
@@ -757,7 +870,7 @@ restr_pass_task_char (scr_gameref_t game,
     return !restr_pass_task_char (game, var1, 3, var3);
 
   /* Decode NPC number, -1 if none. */
-  npc1 = npc2 = -1;
+  npc1 = -1;
   if (var1 > 0)
     npc1 = restr_selector_npc (game, var1);
 
@@ -773,96 +886,8 @@ restr_pass_task_char (scr_gameref_t game,
 
   /* Player or NPC? */
   if (var1 == 0)
-    {
-      scr_int gender;
-
-      /* Player -- decode based on var2. */
-      switch (var2)
-        {
-        case 0:                /* In same room as */
-          if (var3 > 0)
-            npc2 = restr_selector_npc (game, var3);
-          if (var3 == 0)       /* Player */
-            return TRUE;
-          else if (npc2 < 0)
-            return FALSE;
-          else
-            return npc_in_room (game, npc2, gs_playerroom (game));
-
-        case 3:                /* Not alone */
-          return npc_count_in_room (game, gs_playerroom (game)) > 1;
-
-        case 4:                /* Standing on */
-          return gs_playerposition (game) == 0
-                 && gs_playerparent (game) == obj_standable_object (game,
-                                                                    var3 - 1);
-
-        case 5:                /* Sitting on */
-          return gs_playerposition (game) == 1
-                 && gs_playerparent (game) == obj_standable_object (game,
-                                                                    var3 - 1);
-
-        case 6:                /* Lying on */
-          return gs_playerposition (game) == 2
-                 && gs_playerparent (game) == obj_lieable_object (game,
-                                                                  var3 - 1);
-
-        case 7:                /* Player gender */
-          gender = prop_get_global_integer (bundle, "PlayerGender");
-          return gender == var3;
-
-        default:
-          scr_fatal ("restr_pass_task_char: invalid type, %ld\n", var2);
-        }
-    }
-  else
-    {
-      scr_vartype_t vt_key[3];
-      scr_int gender;
-
-      /* NPC -- decode based on var2. */
-      switch (var2)
-        {
-        case 0:                /* In same room as */
-          if (var3 == 0)
-            return npc_in_room (game, npc1, gs_playerroom (game));
-          if (var3 > 0)
-            npc2 = restr_selector_npc (game, var3);
-          if (npc2 < 0)
-            return FALSE;
-          return npc_in_room (game, npc1, gs_npc_location (game, npc2) - 1);
-
-        case 3:                /* Not alone */
-          return npc_count_in_room (game, gs_npc_location (game, npc1) - 1) > 1;
-
-        /*
-         * Cases 4-6 test the NPC's position but the *player's* parent object.
-         * This reproduces the original SCARE behavior; don't "correct" it
-         * into a divergence from the Adrift runner without evidence.
-         */
-        case 4:                /* Standing on */
-          return gs_npc_position (game, npc1) == 0
-                 && gs_playerparent (game) == obj_standable_object (game, var3);
-
-        case 5:                /* Sitting on */
-          return gs_npc_position (game, npc1) == 1
-                 && gs_playerparent (game) == obj_standable_object (game, var3);
-
-        case 6:                /* Lying on */
-          return gs_npc_position (game, npc1) == 2
-                 && gs_playerparent (game) == obj_lieable_object (game, var3);
-
-        case 7:                /* NPC gender */
-          vt_key[0].string = "NPCs";
-          vt_key[1].integer = npc1;
-          vt_key[2].string = "Gender";
-          gender = prop_get_integer (bundle, "I<-sis", vt_key);
-          return gender == var3;
-
-        default:
-          scr_fatal ("restr_pass_task_char: invalid type, %ld\n", var2);
-        }
-    }
+    return restr_char_player (game, var2, var3);
+  return restr_char_npc (game, npc1, var2, var3);
 }
 
 
@@ -1472,11 +1497,11 @@ static void restr_bexpr (void);
  *
  * Expression parsers.  Here we go again...
  *
- * "A" and "O" have EQUAL precedence and associate to the LEFT, so "#O#A#"
- * is "(1 OR 2) AND 3" and never "1 OR (2 AND 3)".  SCARE used to parse the
- * mask with C precedence -- an or-expression over and-expressions -- which
- * agrees whenever every A precedes every O, and differs the moment an O
- * comes before an A at the same bracket level.
+ * "A" and "O" have EQUAL precedence and associate to the LEFT, so "#O#A#" is
+ * "(1 OR 2) AND 3" and never "1 OR (2 AND 3)".  SCARE parses the mask with C
+ * precedence -- an or-expression over and-expressions -- which agrees whenever
+ * every A precedes every O, and differs the moment an O comes before an A at
+ * the same bracket level.
  *
  * Ground truth is run400.exe's own P-code, mdlSpreadTheLoad.Sub_20_57
  * ("evaluaterestrictions", 00055CAC..00055EB9), which recurses from the RIGHT:
@@ -1586,7 +1611,7 @@ restr_get_fail_message (scr_gameref_t game, scr_int task, scr_int restriction)
    * fails without its FailMessage in 3.9 and 4.0: run400 restriction_check
    * leaves the Sub at 480FA6 when MemVar_494208 = &HFF, before the append to
    * MemVar_4941B0 at 481D52-481D70, so the task claims nothing and the
-   * library answers.  villains_and_kings (3.90,
+   * library answers.  villains_and_kings (3.9,
    * runner_transcripts/villains_and_kings.txt turn `close window`): task
    * 13 `close * * window` stays silent and run390 prints "You close Cracked
    * Broken Window.", not the restriction's "already closed".
@@ -1616,7 +1641,7 @@ restr_get_fail_message (scr_gameref_t game, scr_int task, scr_int restriction)
    * Likewise "the Player must [not] be in the same room as the Player" and
    * "... as the referenced character" with none referenced: both leave the
    * Runner's character arm before the message copy (run390 4522CC/4522FD,
-   * run400 4811F0/48123D), see restr_pass_task_char().  Studio (3.90) T110.
+   * run400 4811F0/48123D), see restr_pass_task_char().  Studio (3.9) T110.
    */
   if (type == 3
       && prop_get_taf_version (bundle) >= TAF_VERSION_390)
@@ -1706,7 +1731,11 @@ restr_eval_task_restrictions (scr_gameref_t game,
   restr_eval_start (game, task);
   restr_tokenize_start (pattern);
 
-  /* Try parsing the pattern, and catch errors. */
+  /*
+   * Try parsing the pattern, and catch errors.  scr_longjmp skips destructors,
+   * so no frame between here and the restr_* functions that jump may own a C++
+   * object with one: keep them static, with plain-data locals.
+   */
   if (scr_setjmp (restr.parse.error) == 0)
     {
       /* Parse the pattern, and ensure it ends at string end. */

@@ -75,5 +75,3 @@ rather than an exact-colour golden.
 - ROM anchors (Golden Baton): dispatcher `0x6be2`, line `0x6c06`, fill driver
   `0x6ca6`, fill BFS/plot-if-clear `0x6cdd`/`0x6d20`, end `0x6d79`.
 - Harness: `saga/test/zxvectortest.c`, `saga/test/zxextract.c`.
-- Method memory notes: `unquill-illustrator-renderer`,
-  `saga-apple2-groundtruth`, `saga-atari8-groundtruth`, `scott-howarth-vector-re`.

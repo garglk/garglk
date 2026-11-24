@@ -20,8 +20,8 @@
 
 /*
  * Prototypes for library/: the command handlers and the hooks the
- * runner's line passes and the engine call.  The library's own
- * umbrella is library/sclibrar.h.
+ * runner's line passes call.  The few the engine calls are in
+ * core/schooks.h.  The library's own umbrella is library/sclibrar.h.
  */
 
 #ifndef SCARIER_LIBRARY_API_H
@@ -29,38 +29,24 @@
 
 #include <string>
 #include <vector>
-#include "scprops.h"
+#include "core/scprops.h"
+#include "core/schooks.h"
 
-/* Library perspective enumeration and functions. */
-enum
-{ LIB_FIRST_PERSON = 0,
-  LIB_SECOND_PERSON = 1,
-  LIB_THIRD_PERSON = 2
-};
-
-/* Globals/Perspective as the Runner of this game's version reads it. */
-extern scr_int lib_get_perspective (scr_gameref_t game);
-extern scr_int lib_random_roomgroup_member (scr_gameref_t game,
-                                            scr_int roomgroup);
-extern const scr_char *lib_get_room_name (scr_gameref_t game, scr_int room);
-extern scr_bool lib_can_go (scr_gameref_t game, scr_int room,
-                            scr_int direction);
 /* Silence movement handlers, so they only report whether a move is possible. */
 extern void lib_set_movement_probe (scr_bool probe);
 /* The word the parser expects for a direction, for the map's click-to-walk. */
 extern const scr_char *lib_direction_name (scr_int direction);
-extern void lib_print_room_name (scr_gameref_t game, scr_int room);
-extern void lib_print_room_description (scr_gameref_t game, scr_int room);
-extern scr_bool lib_room_alt_darkens (scr_gameref_t game, scr_int room);
-extern std::string lib_definite_object_name (scr_prop_setref_t bundle,
-                                             scr_int object);
-extern void lib_print_object_np (scr_gameref_t game, scr_int object);
-/* An ALR could be matching the Runner's literal " is " in a listing. */
-extern scr_bool lib_alrs_see_list_verb (scr_gameref_t game,
-                                        scr_int container);
 extern void lib_print_npc_np (scr_gameref_t game, scr_int npc);
-/* "I'm afraid you are dead!", or its first-person form for a pre-4.0 game. */
-extern const scr_char *lib_get_death_message (scr_gameref_t game);
+/*
+ * Handlers that take their command-table row's argument; see
+ * scr_commands_t in runner/scrunner.h.
+ */
+extern scr_bool lib_cant_do_object (scr_gameref_t game, const scr_char *verb);
+extern scr_bool lib_cant_do_other (scr_gameref_t game, const scr_char *verb);
+extern scr_bool lib_print_message (scr_gameref_t game,
+                                   const scr_char *message);
+extern scr_bool lib_what_or_cant_do (scr_gameref_t game,
+                                     const scr_char *verb);
 extern scr_bool lib_cmd_go_north (scr_gameref_t game);
 extern scr_bool lib_cmd_go_east (scr_gameref_t game);
 extern scr_bool lib_cmd_go_south (scr_gameref_t game);
@@ -85,7 +71,6 @@ extern scr_bool lib_cmd_brief (scr_gameref_t game);
 extern scr_bool lib_cmd_notify_on_off (scr_gameref_t game);
 extern scr_bool lib_cmd_notify (scr_gameref_t game);
 extern scr_bool lib_cmd_time (scr_gameref_t game);
-extern scr_bool lib_cmd_date (scr_gameref_t game);
 extern scr_bool lib_cmd_quit (scr_gameref_t game);
 extern scr_bool lib_cmd_endgame (scr_gameref_t game);
 extern scr_bool lib_cmd_control_panel (scr_gameref_t game);
@@ -107,7 +92,8 @@ extern scr_bool lib_cmd_version (scr_gameref_t game);
 extern scr_bool lib_cmd_look (scr_gameref_t game);
 extern scr_bool lib_cmd_look_typed (scr_gameref_t game);
 extern scr_bool lib_cmd_print_room_exits (scr_gameref_t game);
-extern void lib_print_room_exits (scr_gameref_t game, scr_int room);
+extern scr_bool lib_print_message_with_exits (scr_gameref_t game,
+                                              const scr_char *message);
 extern scr_bool lib_cmd_wait (scr_gameref_t game);
 extern scr_bool lib_cmd_wait_number (scr_gameref_t game);
 extern scr_bool lib_cmd_examine_self (scr_gameref_t game);
@@ -164,7 +150,6 @@ extern scr_bool lib_cmd_kiss_npc (scr_gameref_t game);
 extern scr_bool lib_cmd_kiss_object (scr_gameref_t game);
 extern scr_bool lib_cmd_kiss_other (scr_gameref_t game);
 extern scr_bool lib_cmd_kiss_ended_400 (scr_gameref_t game);
-extern scr_bool lib_cmd_kill_other (scr_gameref_t game);
 extern scr_bool lib_cmd_eat_object (scr_gameref_t game);
 extern scr_bool lib_cmd_give_object_npc (scr_gameref_t game);
 extern scr_bool lib_cmd_inventory (scr_gameref_t game);
@@ -239,6 +224,9 @@ extern scr_bool lib_two_verb_line_pre400 (scr_gameref_t game,
 extern scr_bool lib_cmd_stand_scan_370 (scr_gameref_t game);
 extern scr_bool lib_cmd_lie_scan_370 (scr_gameref_t game);
 extern scr_bool lib_cmd_get_on_object (scr_gameref_t game);
+extern scr_bool lib_cmd_get_in_object (scr_gameref_t game);
+extern scr_bool lib_cmd_get_out_of_object (scr_gameref_t game);
+extern scr_bool lib_get_motion_line (const scr_char *line);
 extern scr_bool lib_cmd_get_off_object (scr_gameref_t game);
 extern scr_bool lib_cmd_get_off (scr_gameref_t game);
 extern scr_bool lib_cmd_get_down (scr_gameref_t game);
@@ -278,13 +266,10 @@ extern scr_bool lib_cmd_wear_what (scr_gameref_t game);
 extern scr_bool lib_cmd_profanity (scr_gameref_t game);
 extern scr_bool lib_cmd_profanity_390 (scr_gameref_t game);
 extern scr_bool lib_cmd_profanity_pre_400 (scr_gameref_t game);
-extern scr_bool lib_cmd_examine_all (scr_gameref_t game);
 extern scr_bool lib_cmd_examine_other (scr_gameref_t game);
 extern scr_bool lib_cmd_look_anywhere_pre_400 (scr_gameref_t game);
 extern scr_bool lib_cmd_examine_absent (scr_gameref_t game);
 extern scr_bool lib_cmd_locate_other (scr_gameref_t game);
-extern scr_bool lib_cmd_unix_like (scr_gameref_t game);
-extern scr_bool lib_cmd_dos_like (scr_gameref_t game);
 extern scr_bool lib_cmd_ask_object (scr_gameref_t game);
 extern scr_bool lib_cmd_ask_npc (scr_gameref_t game);
 extern scr_bool lib_cmd_ask_other (scr_gameref_t game);
@@ -293,9 +278,6 @@ extern scr_bool lib_cmd_talk_to_npc_about (scr_gameref_t game);
 extern scr_bool lib_cmd_talk_to_npc (scr_gameref_t game);
 extern scr_bool lib_cmd_talk_to_npc_pre_390 (scr_gameref_t game);
 extern scr_bool lib_cmd_just_a_direction (scr_gameref_t game);
-extern scr_bool lib_cmd_block_object (scr_gameref_t game);
-extern scr_bool lib_cmd_block_other (scr_gameref_t game);
-extern scr_bool lib_cmd_block_what (scr_gameref_t game);
 extern scr_bool lib_cmd_break_object (scr_gameref_t game);
 extern scr_bool lib_cmd_break_other (scr_gameref_t game);
 extern scr_bool lib_cmd_break_absent (scr_gameref_t game);
@@ -308,26 +290,10 @@ extern scr_bool lib_cmd_buy_object (scr_gameref_t game);
 extern scr_bool lib_cmd_buy_other (scr_gameref_t game);
 extern scr_bool lib_cmd_buy_absent (scr_gameref_t game);
 extern scr_bool lib_cmd_buy_what (scr_gameref_t game);
-extern scr_bool lib_cmd_clean_object (scr_gameref_t game);
-extern scr_bool lib_cmd_clean_other (scr_gameref_t game);
-extern scr_bool lib_cmd_clean_what (scr_gameref_t game);
-extern scr_bool lib_cmd_climb_object (scr_gameref_t game);
-extern scr_bool lib_cmd_climb_other (scr_gameref_t game);
-extern scr_bool lib_cmd_climb_what (scr_gameref_t game);
-extern scr_bool lib_cmd_cry (scr_gameref_t game);
-extern scr_bool lib_cmd_cut_object (scr_gameref_t game);
-extern scr_bool lib_cmd_cut_other (scr_gameref_t game);
-extern scr_bool lib_cmd_cut_what (scr_gameref_t game);
-extern scr_bool lib_cmd_drink_object (scr_gameref_t game);
-extern scr_bool lib_cmd_drink_other (scr_gameref_t game);
 extern scr_bool lib_cmd_drink_what (scr_gameref_t game);
 extern scr_bool lib_cmd_dance (scr_gameref_t game);
 extern scr_bool lib_cmd_eat_other (scr_gameref_t game);
-extern scr_bool lib_cmd_feed (scr_gameref_t game);
-extern scr_bool lib_cmd_fight (scr_gameref_t game);
 extern scr_bool lib_cmd_feel (scr_gameref_t game);
-extern scr_bool lib_cmd_clear_object (scr_gameref_t game);
-extern scr_bool lib_cmd_clear_other (scr_gameref_t game);
 extern scr_bool lib_cmd_fix_object (scr_gameref_t game);
 extern scr_bool lib_cmd_fix_other (scr_gameref_t game);
 extern scr_bool lib_cmd_fix_what (scr_gameref_t game);
@@ -338,23 +304,13 @@ extern scr_bool lib_cmd_hit_object (scr_gameref_t game);
 extern scr_bool lib_cmd_hit_other (scr_gameref_t game);
 extern scr_bool lib_cmd_hit_what (scr_gameref_t game);
 extern scr_bool lib_cmd_hum (scr_gameref_t game);
-extern scr_bool lib_cmd_jump (scr_gameref_t game);
 extern scr_bool lib_cmd_kick_object (scr_gameref_t game);
 extern scr_bool lib_cmd_kick_other (scr_gameref_t game);
 extern scr_bool lib_cmd_kick_what (scr_gameref_t game);
-extern scr_bool lib_cmd_light_object (scr_gameref_t game);
-extern scr_bool lib_cmd_light_other (scr_gameref_t game);
-extern scr_bool lib_cmd_light_what (scr_gameref_t game);
-extern scr_bool lib_cmd_lift_object (scr_gameref_t game);
-extern scr_bool lib_cmd_lift_other (scr_gameref_t game);
-extern scr_bool lib_cmd_lift_what (scr_gameref_t game);
 extern scr_bool lib_cmd_listen (scr_gameref_t game);
 extern scr_bool lib_cmd_mend_object (scr_gameref_t game);
 extern scr_bool lib_cmd_mend_other (scr_gameref_t game);
 extern scr_bool lib_cmd_mend_what (scr_gameref_t game);
-extern scr_bool lib_cmd_move_object (scr_gameref_t game);
-extern scr_bool lib_cmd_move_other (scr_gameref_t game);
-extern scr_bool lib_cmd_move_what (scr_gameref_t game);
 extern scr_bool lib_cmd_please (scr_gameref_t game);
 extern scr_bool lib_cmd_press_object (scr_gameref_t game);
 extern scr_bool lib_cmd_press_other (scr_gameref_t game);
@@ -362,16 +318,12 @@ extern scr_bool lib_cmd_press_what (scr_gameref_t game);
 extern scr_bool lib_cmd_pull_object (scr_gameref_t game);
 extern scr_bool lib_cmd_pull_other (scr_gameref_t game);
 extern scr_bool lib_cmd_pull_what (scr_gameref_t game);
-extern scr_bool lib_cmd_punch (scr_gameref_t game);
 extern scr_bool lib_cmd_push_object (scr_gameref_t game);
 extern scr_bool lib_cmd_push_other (scr_gameref_t game);
 extern scr_bool lib_cmd_push_what (scr_gameref_t game);
 extern scr_bool lib_cmd_repair_object (scr_gameref_t game);
 extern scr_bool lib_cmd_repair_other (scr_gameref_t game);
 extern scr_bool lib_cmd_repair_what (scr_gameref_t game);
-extern scr_bool lib_cmd_rub_object (scr_gameref_t game);
-extern scr_bool lib_cmd_rub_other (scr_gameref_t game);
-extern scr_bool lib_cmd_rub_what (scr_gameref_t game);
 extern scr_bool lib_cmd_run (scr_gameref_t game);
 extern scr_bool lib_cmd_say (scr_gameref_t game);
 extern scr_bool lib_cmd_sell_object (scr_gameref_t game);
@@ -380,34 +332,16 @@ extern scr_bool lib_cmd_sell_what (scr_gameref_t game);
 extern scr_bool lib_cmd_shake_object (scr_gameref_t game);
 extern scr_bool lib_cmd_shake_other (scr_gameref_t game);
 extern scr_bool lib_cmd_shake_what (scr_gameref_t game);
-extern scr_bool lib_cmd_shout (scr_gameref_t game);
 extern scr_bool lib_cmd_sing (scr_gameref_t game);
-extern scr_bool lib_cmd_sleep (scr_gameref_t game);
 extern scr_bool lib_cmd_smell_object (scr_gameref_t game);
 extern scr_bool lib_cmd_smell_other (scr_gameref_t game);
-extern scr_bool lib_cmd_stop_object (scr_gameref_t game);
-extern scr_bool lib_cmd_stop_other (scr_gameref_t game);
-extern scr_bool lib_cmd_stop_what (scr_gameref_t game);
-extern scr_bool lib_cmd_suck_object (scr_gameref_t game);
-extern scr_bool lib_cmd_suck_other (scr_gameref_t game);
-extern scr_bool lib_cmd_suck_what (scr_gameref_t game);
 extern scr_bool lib_cmd_talk (scr_gameref_t game);
 extern scr_bool lib_cmd_speak_pre390 (scr_gameref_t game);
 extern scr_bool lib_with_arm_390_applies (scr_gameref_t game);
 extern scr_bool lib_with_arm_390 (scr_gameref_t game);
-extern scr_bool lib_cmd_thank (scr_gameref_t game);
-extern scr_bool lib_cmd_touch_object (scr_gameref_t game);
-extern scr_bool lib_cmd_touch_other (scr_gameref_t game);
-extern scr_bool lib_cmd_touch_what (scr_gameref_t game);
 extern scr_bool lib_cmd_turn_object (scr_gameref_t game);
 extern scr_bool lib_cmd_turn_other (scr_gameref_t game);
 extern scr_bool lib_cmd_turn_what (scr_gameref_t game);
-extern scr_bool lib_cmd_unblock_object (scr_gameref_t game);
-extern scr_bool lib_cmd_unblock_other (scr_gameref_t game);
-extern scr_bool lib_cmd_unblock_what (scr_gameref_t game);
-extern scr_bool lib_cmd_wash_object (scr_gameref_t game);
-extern scr_bool lib_cmd_wash_other (scr_gameref_t game);
-extern scr_bool lib_cmd_wash_what (scr_gameref_t game);
 extern scr_bool lib_cmd_whistle (scr_gameref_t game);
 extern scr_bool lib_cmd_interrogation (scr_gameref_t game);
 extern scr_bool lib_cmd_xyzzy (scr_gameref_t game);
@@ -428,7 +362,7 @@ extern scr_bool lib_put_clauses_400 (scr_gameref_t game,
 extern scr_bool lib_cmd_verb_npc (scr_gameref_t game);
 extern void lib_debug_trace (scr_bool flag);
 
-/* Library hooks called from the runner's line passes (runner/). */
+/* Library hooks called from the `run_` code's line passes (runner/). */
 extern void lib_verb_object_note_line_top (scr_gameref_t game);
 extern void lib_co_note_line_top (scr_gameref_t game);
 extern void lib_co_400_reset (void);
@@ -490,7 +424,8 @@ extern void lib_battle_who_note_unanswered (void);
 extern void lib_battle_400_claim_line (void);
 extern scr_bool lib_battle_400_line_claimed (void);
 extern scr_bool lib_battle_which_pending (void);
-extern std::string lib_battle_who_continuation (const scr_char *command,
+extern std::string lib_battle_who_continuation (scr_gameref_t game,
+                                                const scr_char *command,
                                                 scr_bool status);
 extern scr_bool lib_question_with_rule (scr_gameref_t game,
                                         const scr_char *line);

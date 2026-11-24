@@ -1,9 +1,40 @@
-//
-//  randomness.c
-//  Spatterlight
-//
-//  Created by Administrator on 2026-02-07.
-//
+/*
+ *  randomness.c
+ *
+ *  Copyright (c) 1999-2023, Andrew Plotkin
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *  THE SOFTWARE.
+ *
+ *  The random number code of Glulxe's osdepend.c, without its Glk types and
+ *  memory functions, so that other terps can use it. Glulxe keeps its own copy;
+ *  autorestore depends on the get/set_detstate format of both.
+ *  terps/scarier/common_utils has a byte-identical copy: after an edit, copy
+ *  this file there and run `make -f Makefile.headless vendorcheck` in scarier.
+ *
+ *  Which native generator a build gets:
+ *    __APPLE__                      arc4random (Spatterlight)
+ *    OS_UNIX + UNIX_RAND_ARC4       arc4random
+ *    OS_UNIX + UNIX_RAND_GETRANDOM  xoshiro128**, seeded from getrandom()
+ *    OS_WINDOWS with Visual C++     rand_s
+ *    anything else                  xoshiro128**, seeded from the clock
+ *  Non-zero seeds always use xoshiro128**.
+ */
 
 #include "randomness.h"
 
@@ -12,8 +43,7 @@
  http://eblong.com/zarf/glulx/index.html
  */
 
-/* time() and NULL for the clock-seeded paths below; glk.h, once included
- here for glui32, is where some platforms got them from. */
+/* time() and NULL for the clock-seeded paths below */
 #include <stddef.h>
 #include <stdint.h>
 #include <time.h>
@@ -74,7 +104,7 @@ static void xo_seed_random_4(uint32_t seed0, uint32_t seed1, uint32_t seed2, uin
 #define RAND_SET_SEED() (0)
 #define RAND_GET() (arc4random())
 
-#elif UNIX_RAND_GETRANDOM
+#elif defined(UNIX_RAND_GETRANDOM)
 
 /* Use xoshiro128** as the native RNG, seeded from getrandom(). */
 #include <sys/random.h>
@@ -113,7 +143,7 @@ static void rand_set_seed(void)
 #define RAND_SET_SEED() (0)
 #define RAND_GET() (arc4random())
 
-#endif /* OS_MAC */
+#endif /* __APPLE__ */
 
 #ifdef OS_WINDOWS
 
@@ -154,10 +184,6 @@ static uint32_t msc_random()
 
 /* If no native RNG is defined above, use the xoshiro128** implementation. */
 #ifndef RAND_SET_SEED
-/* This fallback is the only path that reaches time(); on the platforms that
-   take it (MinGW/MSVC among them) nothing above has declared it. */
-#include <stddef.h>
-#include <time.h>
 #define RAND_SET_SEED() (xo_seed_random(time(NULL)))
 #define RAND_GET() (xo_random())
 #endif /* RAND_SET_SEED */
@@ -208,7 +234,7 @@ void erkyrath_random_get_detstate(int *usenative, uint32_t **arr, int *count)
 void erkyrath_random_set_detstate(int usenative, uint32_t *arr, int count)
 {
     rand_use_native = usenative;
-    if (count == 4) {
+    if (arr != NULL && count == 4) {
         xo_seed_random_4(arr[0], arr[1], arr[2], arr[3]);
     }
 }

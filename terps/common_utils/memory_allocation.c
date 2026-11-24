@@ -1,39 +1,50 @@
-//
-//  memory_allocation.c
-//  Spatterlight
-//
-//  Created by Administrator on 2025-12-20.
-//
+/*
+ *  memory_allocation.c
+ *  Shares code with ScottFree, by Alan Cox, Chris Spiegel and Petter Sjölund.
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version.
+ *
+ *  Allocators that call Fatal() rather than return NULL.
+ */
 
 #include <stdlib.h>
 #include <string.h>
 
+#include "fatal.h"
+
 #include "memory_allocation.h"
 
-__attribute__((noreturn)) void Fatal(const char *x);
+/* malloc(0) may legitimately return NULL, and realloc(p, 0) may free p */
+static size_t NonZero(size_t size)
+{
+    return size ? size : 1;
+}
 
 void *MemAlloc(size_t size)
 {
-    void *t = (void *)malloc(size);
+    void *t = malloc(NonZero(size));
     if (t == NULL)
         Fatal("Out of memory");
-    return (t);
+    return t;
 }
 
 void *MemCalloc(size_t size)
 {
-    void *t = (void *)calloc(1, size);
+    void *t = calloc(1, NonZero(size));
     if (t == NULL)
         Fatal("Out of memory");
-    return (t);
+    return t;
 }
 
 void *MemRealloc(void *ptr, size_t size)
 {
-    void *t = (void *)realloc(ptr, size);
+    void *t = realloc(ptr, NonZero(size));
     if (t == NULL)
         Fatal("Out of memory");
-    return (t);
+    return t;
 }
 
 char *MemStrndup(const char *string, size_t len)

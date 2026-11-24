@@ -1,17 +1,23 @@
-//
-//  companion_search.c
-//  Spatterlight
-//
-//  Finds the other disk (or disk side) of a multi-disk game.
-//  Originally part of Plus (companionfile.c), created by Petter Sjölund
-//  on 2022-10-10.
-//
+/*
+ *  companion_search.c
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version.
+ *
+ *  Finds the other disk (or disk side) of a multi-disk game.
+ *  Originally part of Plus (companionfile.c), created by Petter Sjölund
+ *  on 2022-10-10.
+ */
 
 #include <ctype.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "common_file_utils.h"
 #include "debugprint.h"
+#include "memory_allocation.h"
 
 #include "companion_search.h"
 
@@ -25,35 +31,63 @@ static inline int is_path_separator(char c)
     return (c == '/' || c == '\\');
 }
 
+static char lower(char c)
+{
+    return (char)tolower((unsigned char)c);
+}
+
+/* Compares text to word, which must be in lower case, ignoring the case of text */
+static int matches_word(const char *text, const char *word)
+{
+    for (; *word != '\0'; text++, word++) {
+        if (lower(*text) != *word)
+            return 0;
+    }
+    return 1;
+}
+
+/* The start of the file name, after any folders */
+static char *file_name_of(char *path)
+{
+    char *name = path;
+    for (char *p = path; *p != '\0'; p++) {
+        if (is_path_separator(*p))
+            name = p + 1;
+    }
+    return name;
+}
+
 int CompanionStripEnclosed(char *buffer, size_t namelen, char open, char close, int strip_space)
 {
     if (!buffer || namelen < MIN_FILENAME_LENGTH) {
         return 0;
     }
 
-    // Find file extension (everything after the last period)
-    char *extension = strrchr(buffer, '.');
+    char *name = file_name_of(buffer);
+
+    /* Find file extension (everything after the last period) */
+    char *extension = strrchr(name, '.');
     if (!extension) {
         return 0;
     }
 
-    // Find last closing character before extension
-    char *close_pos = strrchr(buffer, close);
+    /* Find last closing character before extension */
+    char *close_pos = strrchr(name, close);
     if (!close_pos || close_pos >= extension) {
         return 0;
     }
 
-    // Find matching opening character
-    char *open_pos = strrchr(buffer, open);
+    /* Find matching opening character */
+    char *open_pos = strrchr(name, open);
     if (!open_pos || open_pos >= close_pos) {
         return 0;
     }
 
-    if (strip_space && open_pos > buffer && *(open_pos - 1) == ' ') {
+    if (strip_space && open_pos > name && *(open_pos - 1) == ' ') {
         open_pos--;
     }
 
-    // Remove the enclosed section, keeping the rest including the terminating zero
+    /* Remove the enclosed section, keeping the rest including the terminating zero */
     memmove(open_pos, close_pos + 1, strlen(close_pos + 1) + 1);
     return 1;
 }
@@ -62,13 +96,20 @@ int CompanionInsertBeforeExtension(char *buffer, size_t bufsize, size_t namelen,
 {
     size_t markerlen = strlen(marker);
 
-    // Find the period before file extension
-    size_t ppos = namelen - 1;
-    while (buffer[ppos] != '.' && ppos > 0) {
+    /* Find the period before the file extension, within the file name */
+    size_t ppos = namelen;
+    while (ppos > 0 && buffer[ppos - 1] != '.') {
         ppos--;
+        if (is_path_separator(buffer[ppos]))
+            return 0;
     }
+    if (ppos == 0) {
+        return 0;
+    }
+    ppos--;
 
-    if (ppos < 1) {
+    /* A period that starts the file name does not begin an extension */
+    if (ppos == 0 || is_path_separator(buffer[ppos - 1])) {
         return 0;
     }
 
@@ -76,11 +117,8 @@ int CompanionInsertBeforeExtension(char *buffer, size_t bufsize, size_t namelen,
         return 0;
     }
 
-    // Shift extension, including the terminating zero, to make room for marker
-    for (size_t i = namelen; i >= ppos; i--) {
-        buffer[i + markerlen] = buffer[i];
-    }
-
+    /* Shift extension, including the terminating zero, to make room for marker */
+    memmove(buffer + ppos + markerlen, buffer + ppos, namelen - ppos + 1);
     memcpy(buffer + ppos, marker, markerlen);
     return 1;
 }
@@ -89,17 +127,17 @@ uint8_t *CompanionBracketFallback(char *buffer, size_t bufsize, size_t namelen, 
 {
     (void)index;
     switch (type) {
-        case TYPE_B:
-            // "fileB[tag].dsk" -> "fileB.dsk"
+        case COMPANION_TYPE_B:
+            /* "fileB[tag].dsk" -> "fileB.dsk" */
             if (CompanionStripEnclosed(buffer, namelen, '[', ']', 0)) {
                 debug_print("looking for companion file (with removed text in brackets): \"%s\"\n", buffer);
                 return read(buffer, size, user);
             }
             break;
-        case TYPE_A:
-            // "fileA.dsk" -> "fileA[cr CSS].dsk"
-            if (CompanionInsertBeforeExtension(buffer, bufsize, namelen, "[cr CSS]")) {
-                debug_print("looking for companion file (with added [cr CSS]): \"%s\"\n", buffer);
+        case COMPANION_TYPE_A:
+            /* "fileA.dsk" -> "fileA[cr CSS].dsk" */
+            if (CompanionInsertBeforeExtension(buffer, bufsize, namelen, COMPANION_CRACK_TAG)) {
+                debug_print("looking for companion file (with added tag): \"%s\"\n", buffer);
                 return read(buffer, size, user);
             }
             break;
@@ -114,7 +152,7 @@ uint8_t *CompanionBracketFallback(char *buffer, size_t bufsize, size_t namelen, 
    that tells them apart */
 static char match_case(char replacement, char original)
 {
-    return isupper((unsigned char)original) ? toupper((unsigned char)replacement) : tolower((unsigned char)replacement);
+    return (char)(isupper((unsigned char)original) ? toupper((unsigned char)replacement) : tolower((unsigned char)replacement));
 }
 
 static void replace_word(char *position, const char *word)
@@ -137,32 +175,34 @@ static uint8_t *LookForCompanionFilename(const char *gamefile, int index,
                                          const CompanionSearch *search,
                                          size_t *filesize)
 {
-    char buffer[stringlen + FILENAME_BUFFER_EXTRA];
+    size_t bufsize = stringlen + FILENAME_BUFFER_EXTRA;
+    char *buffer = MemAlloc(bufsize);
     CompanionReader read = search->read ? search->read : default_reader;
     uint8_t *result = NULL;
 
     memcpy(buffer, gamefile, stringlen + 1);
 
     switch (type) {
-        case TYPE_A:
+        case COMPANION_TYPE_A:
             replace_word(buffer + index, "a");
             break;
-        case TYPE_B:
+        case COMPANION_TYPE_B:
             replace_word(buffer + index, "b");
             break;
-        case TYPE_1:
+        case COMPANION_TYPE_1:
             buffer[index] = '1';
             break;
-        case TYPE_2:
+        case COMPANION_TYPE_2:
             buffer[index] = '2';
             break;
-        case TYPE_ONE:
+        case COMPANION_TYPE_ONE:
             replace_word(buffer + index, "one");
             break;
-        case TYPE_TWO:
+        case COMPANION_TYPE_TWO:
             replace_word(buffer + index, "two");
             break;
-        case TYPE_NONE:
+        case COMPANION_TYPE_NONE:
+            free(buffer);
             return NULL;
     }
 
@@ -170,88 +210,70 @@ static uint8_t *LookForCompanionFilename(const char *gamefile, int index,
     result = read(buffer, filesize, search->user);
 
     if (!result && search->fallback) {
-        result = search->fallback(buffer, sizeof(buffer), stringlen, index, type,
+        result = search->fallback(buffer, bufsize, stringlen, index, type,
                                   read, search->user, filesize);
     }
 
+    free(buffer);
     return result;
 }
 
 /**
- * Checks if the position in filename matches a companion file pattern
- * Patterns: "side", "disk", or (optionally) a single digit/letter before
- * the extension
+ * Checks if the position in filename, which holds the lower case character c,
+ * ends a companion file pattern. Patterns: "side", "disk", or (optionally) a
+ * single digit/letter before the extension
  */
 static int is_companion_name(const char *filename, int i, char c, int match_char_before_extension)
 {
-    if (i <= MIN_COMPANION_KEYWORD_LENGTH) {
+    if (i < MIN_COMPANION_KEYWORD_LENGTH) {
         return 0;
     }
 
-    char c_minus1 = tolower(filename[i - 1]);
-    char c_minus2 = tolower(filename[i - 2]);
-    char c_minus3 = tolower(filename[i - 3]);
-
-    // Check for "side" pattern
-    if (c == 'e' && c_minus1 == 'd' && c_minus2 == 'i' && c_minus3 == 's') {
+    const char *keyword = filename + i - MIN_COMPANION_KEYWORD_LENGTH;
+    if (matches_word(keyword, "side") || matches_word(keyword, "disk")) {
         return 1;
     }
 
-    // Check for "disk" pattern
-    if (c == 'k' && c_minus1 == 's' && c_minus2 == 'i' && c_minus3 == 'd') {
-        return 1;
-    }
-
-    // Check for single digit/letter before extension
-    if (match_char_before_extension && c == '.' &&
-        (c_minus1 == '1' || c_minus1 == '2' ||
-         c_minus1 == 'a' || c_minus1 == 'b')) {
-        return 1;
+    if (match_char_before_extension && c == '.') {
+        char before = lower(filename[i - 1]);
+        return before == '1' || before == '2' || before == 'a' || before == 'b';
     }
 
     return 0;
 }
 
 /**
- * Determines the companion file type based on the current character
- * This maps the current disk identifier to what we should look for
+ * Maps the disk identifier at filename[index] to the companion to look for
  */
-static CompanionNameType determine_type(const char *filename, size_t length,
-                                        int i, char character)
+static CompanionNameType determine_type(const char *filename, size_t length, int index)
 {
-    switch (character) {
+    switch (lower(filename[index])) {
         case 'a':
-            return TYPE_B;  // If we have 'a', look for 'B'
+            return COMPANION_TYPE_B;
 
         case 'b':
-            return TYPE_A;  // If we have 'b', look for 'A'
+            return COMPANION_TYPE_A;
 
         case 't':
-            // Check for "two" -> look for "one"
-            if (length > (size_t)(i + 4) &&
-                tolower(filename[i + 3]) == 'w' &&
-                tolower(filename[i + 4]) == 'o') {
-                return TYPE_ONE;
+            if (length > (size_t)index + 2 && matches_word(filename + index, "two")) {
+                return COMPANION_TYPE_ONE;
             }
             break;
 
         case 'o':
-            // Check for "one" -> look for "two"
-            if (length > (size_t)(i + 4) &&
-                tolower(filename[i + 3]) == 'n' &&
-                tolower(filename[i + 4]) == 'e') {
-                return TYPE_TWO;
+            if (length > (size_t)index + 2 && matches_word(filename + index, "one")) {
+                return COMPANION_TYPE_TWO;
             }
             break;
 
         case '2':
-            return TYPE_1;  // If we have '2', look for '1'
+            return COMPANION_TYPE_1;
 
         case '1':
-            return TYPE_2;  // If we have '1', look for '2'
+            return COMPANION_TYPE_2;
     }
 
-    return TYPE_NONE;
+    return COMPANION_TYPE_NONE;
 }
 
 /**
@@ -278,49 +300,34 @@ uint8_t *FindCompanionFile(const char *gamefile, const CompanionSearch *search, 
         return NULL;
     }
 
-    uint8_t *result = NULL;
-
-    // Scan backwards through filename from the end
-    // Stop at path separator (we only care about the filename, not the path)
+    /* Scan backwards through the file name from the end, stopping at a path
+       separator: the folders do not count */
     for (int i = (int)gamefilelen - 1; i >= 0 && !is_path_separator(gamefile[i]); i--) {
-        char c = tolower(gamefile[i]);
+        char c = lower(gamefile[i]);
 
-        // Check if this position matches a companion file pattern
-        if (is_companion_name(gamefile, i, c, search->match_char_before_extension) && gamefilelen > (size_t)(i + 2)) {
-            // A single character before the extension, or "side" or "disk"
-            // followed by a separator (space, underscore, or period)
-            int before_extension = (c == '.');
-            if (!before_extension) {
-                c = gamefile[i + 1];
+        if (!is_companion_name(gamefile, i, c, search->match_char_before_extension) ||
+            gamefilelen <= (size_t)i + 2) {
+            continue;
+        }
+
+        /* A single character before the extension, or "side" or "disk"
+           followed by a separator and the identifier */
+        int index;
+        if (c == '.') {
+            index = i - 1;
+        } else {
+            char separator = gamefile[i + 1];
+            if (separator != ' ' && separator != '_' && separator != '.') {
+                continue;
             }
+            index = i + 2;
+        }
 
-            // Only proceed if separator is valid
-            if (c == ' ' || c == '_' || c == '.') {
-                // Extract the disk identifier character
-                char disk_char;
-                int adjusted_index;
-
-                if (before_extension) {
-                    // Pattern: "file1.dsk" or "filea.dsk"
-                    disk_char = tolower(gamefile[i - 1]);
-                    adjusted_index = i - 3;
-                } else {
-                    // Pattern: "side 1.dsk" or "disk_2.dsk"
-                    disk_char = tolower(gamefile[i + 2]);
-                    adjusted_index = i;
-                }
-
-                // Determine what type of companion to look for
-                CompanionNameType type = determine_type(gamefile, gamefilelen,
-                                                        adjusted_index, disk_char);
-
-                if (type != TYPE_NONE) {
-                    result = LookForCompanionFilename(gamefile, adjusted_index + 2,
-                                                      type, gamefilelen, search, size);
-                    if (result) {
-                        return result;
-                    }
-                }
+        CompanionNameType type = determine_type(gamefile, gamefilelen, index);
+        if (type != COMPANION_TYPE_NONE) {
+            uint8_t *result = LookForCompanionFilename(gamefile, index, type, gamefilelen, search, size);
+            if (result) {
+                return result;
             }
         }
     }

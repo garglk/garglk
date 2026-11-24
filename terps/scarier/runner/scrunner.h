@@ -22,14 +22,17 @@
 #define SCRUNNER_H
 
 /*
- * Internal header of the runner, shared by scrunner.cpp, scrun_split.cpp,
+ * Internal header of runner/, shared by scrunner.cpp, scrun_split.cpp,
  * scrun_respell.cpp, scrun_match.cpp, scrun_match_run.cpp,
- * scrun_match_refusal.cpp, scrun_tables.cpp, scrun_dispatch.cpp,
- * scrun_input.cpp, and by the dump tools in tools/ (scrun_census.cpp,
- * scdump.cpp).  Nothing here is part of the interface the rest of Scarier
- * uses; that stays in core/scrunner_api.h.
+ * scrun_match_refusal.cpp, scrun_tables.cpp, scrun_priority.cpp,
+ * scrun_rows.cpp, scrun_therest.cpp, scrun_dispatch.cpp, scrun_input.cpp,
+ * scrun_session.cpp, scrun_lifecycle.cpp, scrun_load_draws.cpp, and by the
+ * dump tools in tools/ (scrun_census.cpp, scdump.cpp).  Nothing here is part
+ * of the interface the rest of Scarier uses; that is
+ * runner/scrunner_api.h.
  */
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -43,7 +46,7 @@ static const scr_char SPECIAL_PATTERN = '#';
 static const scr_char WILDCARD_PATTERN = '*';
 
 
-/* State shared across the runner files, each defined in the file named. */
+/* State shared across the `run_` files, each defined in the file named. */
 
 #ifdef SCARIER_DUMP_TOOLS
 /* tools/scrun_census.cpp */
@@ -59,6 +62,7 @@ extern scr_bool run_probe_strict;
 extern scr_bool run_strict_tasks_requested (const scr_char *string);
 #endif
 /* scrun_match.cpp */
+extern void run_match_forget_game (const void *game);
 extern scr_bool run_rerun_skips_tasks;
 extern scr_bool run_rerun_exact_spaces;
 extern scr_bool run_put_class_only;
@@ -67,7 +71,12 @@ extern scr_bool run_matcher_second_pass;
 /* scrun_match_refusal.cpp */
 extern scr_bool run_repeat_assist;
 
-/* scrun_tables.cpp */
+/* scrunner.cpp: the startup prompt being read for, and the one to resume at */
+enum { RUN_STARTUP_NAME = 1, RUN_STARTUP_GENDER = 2 };
+extern scr_int run_startup_stage;
+extern scr_int run_startup_resume;
+
+/* scrun_priority.cpp */
 extern scr_bool run_priority_deferred;
 extern scr_bool run_priority_refused;
 extern scr_bool run_put_clause_loop_active;
@@ -169,12 +178,64 @@ extern std::string run_undo_text;
 
 
 
-/* Structure used to associate a pattern with a handler function. */
+/*
+ * Structure used to associate a pattern with a handler function.
+ *
+ * A row names one handler.  The plain kind takes the game alone:
+ *
+ *     {"inventory", lib_cmd_inventory}
+ *
+ * The other kind also takes the row's ARG, so a family of replies that
+ * differ in one word needs no forwarding function per verb.  Its row leaves
+ * HANDLER null:
+ *
+ *     {"block %object% *", nullptr, lib_cant_do_object, "block"}
+ *
+ * Either form may end with RUN_ROW_* flags.  The constructors are constexpr
+ * so the tables stay constant-initialized; they are there, rather than
+ * plain aggregate rows, so that a two-field row does not warn about the
+ * fields it leaves out.  Call a row through run_command_handle(), never
+ * through HANDLER directly.
+ */
+
+/* What the runner needs to know about a row beyond its handler. */
+enum
+{
+  /* A SCARE word no Runner answers; stands aside when a task names it. */
+  RUN_ROW_SCARE_ONLY = 1,
+  /* A 3.9 attack row that waits for run390's with-arm. */
+  RUN_ROW_WITH_DEFERRED = 2,
+  /* A named put-in, put-on or drop: run_is_put_command(). */
+  RUN_ROW_PUT = 4
+};
+
 typedef struct scr_commands_s
 {
   const scr_char *const command;
   scr_bool (*const handler) (scr_gameref_t game);
+  scr_bool (*const handler_arg) (scr_gameref_t game, const scr_char *arg);
+  const scr_char *const arg;
+  const scr_uint flags;
+
+  constexpr scr_commands_s (const scr_char *command_,
+                            scr_bool (*handler_) (scr_gameref_t),
+                            scr_uint flags_ = 0)
+    : command (command_), handler (handler_), handler_arg (nullptr),
+      arg (nullptr), flags (flags_) {}
+  constexpr scr_commands_s (const scr_char *command_, std::nullptr_t,
+                            scr_bool (*handler_arg_) (scr_gameref_t,
+                                                      const scr_char *),
+                            const scr_char *arg_, scr_uint flags_ = 0)
+    : command (command_), handler (nullptr), handler_arg (handler_arg_),
+      arg (arg_), flags (flags_) {}
 } scr_commands_t;
+
+static inline scr_bool
+run_command_handle (const scr_commands_t *command, scr_gameref_t game)
+{
+  return command->handler ? command->handler (game)
+                          : command->handler_arg (game, command->arg);
+}
 
 typedef scr_commands_t *scr_commandsref_t;
 
@@ -242,16 +303,21 @@ enum run_refusal_pass_t
 };
 
 
-/* Functions shared across the runner files, each defined in the file named. */
+/* Functions shared across the `run_` files, each defined in the file named. */
+
+/* scrun_load_draws.cpp */
+extern void run_runner_load_draws (scr_gameref_t game);
 
 /* scrun_split.cpp */
 extern scr_bool run_counts_line_elements (scr_gameref_t game);
-extern scr_int run_find_split_pre400 (scr_int version, const scr_char *line,
-                                      scr_int *tail, scr_bool comma_splits);
+extern scr_int run_find_split_pre400 (scr_gameref_t game, scr_int version,
+                                      const scr_char *line, scr_int *tail,
+                                      scr_bool comma_splits,
+                                      scr_bool period_splits);
 extern std::string run_empty_then_head_390 (const scr_char *line);
 extern scr_int run_find_split_400 (scr_gameref_t game, const scr_char *line,
-                                   scr_int *sep_length);
-extern scr_int run_get_version (const scr_prop_setref_t bundle);
+                                   scr_int *sep_length,
+                                   scr_bool period_splits);
 extern void run_squeeze_spaces (const scr_char *string, scr_char *buffer);
 extern scr_int run_instr (const scr_char *line, const scr_char *word);
 
@@ -316,7 +382,18 @@ extern void run_takes_second_pass_370 (scr_gameref_t game,
                                        size_t task_mark);
 
 /* scrun_tables.cpp */
+extern scr_commands_t MOVE_COMMANDS_4[];
+extern scr_commands_t MOVE_COMMANDS_8[];
+extern scr_commands_t PRIORITY_COMMANDS[];
+extern scr_commands_t STANDARD_COMMANDS[];
+extern scr_commands_t STANDARD_TAKE_FROM_COMMANDS[];
+extern scr_commands_t STANDARD_PUT_COMMANDS[];
+extern scr_commands_t STANDARD_ABOVE_REFUSAL_COMMANDS[];
+extern scr_commands_t STANDARD_FALLBACK_COMMANDS[];
+extern scr_commands_t STANDARD_ENDED_FALLBACK_COMMANDS[];
 extern scr_commands_t EXAMINE_ABOVE_REFUSAL_390_COMMANDS[];
+
+/* scrun_priority.cpp */
 extern scr_bool run_priority_commands (scr_gameref_t game,
                                        const scr_char *string);
 extern scr_bool run_is_put_command (scr_gameref_t game,
@@ -328,6 +405,8 @@ extern scr_bool run_is_inventory_command (scr_gameref_t game,
                                           const scr_char *string);
 extern scr_bool run_repeat_survivor_400 (scr_gameref_t game,
                                          const scr_char *string);
+
+/* scrun_rows.cpp */
 extern scr_bool run_try_command_table (scr_commandsref_t command,
                                        scr_gameref_t game,
                                        const scr_char *string);
@@ -339,6 +418,8 @@ extern scr_bool
 run_standard_give_npc_commands (scr_gameref_t game, const scr_char *string);
 extern scr_bool
 run_standard_fallback_commands (scr_gameref_t game, const scr_char *string);
+
+/* scrun_therest.cpp */
 extern scr_bool run_therest_arm_at (scr_int version, const scr_char *word);
 extern scr_bool run_therest_pre400 (scr_gameref_t game, const scr_char *string);
 extern scr_bool run_therest_absent_370 (scr_gameref_t game,
@@ -354,12 +435,17 @@ extern scr_bool run_all_commands (scr_gameref_t game, const scr_char *string);
 extern void run_finish_goto_walk (void);
 extern void run_cancel_goto_walk (void);
 
+/* scrun_lifecycle.cpp */
+extern void run_lifecycle_forget_bundle (scr_prop_setref_t bundle);
+extern void run_lifecycle_reset_input (void);
+
 /* scrun_input.cpp */
 extern scr_char run_line_element[LINE_BUFFER_SIZE];
 extern scr_bool run_separator_task_line (scr_gameref_t game,
                                          const scr_char *line);
 extern scr_bool run_comma_splits_pre390 (scr_gameref_t game,
                                          const scr_char *line);
+extern scr_bool run_period_splits (scr_gameref_t game, const scr_char *line);
 extern scr_char *run_element_filtered (scr_gameref_t game);
 extern scr_bool run_player_input (scr_gameref_t game);
 

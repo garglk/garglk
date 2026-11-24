@@ -19,9 +19,9 @@
  */
 
 /*
- * Module notes:
- *
- * o Implement smarter selective module tracing.
+ * scutils.cpp: tracing, error and fatal reporting, memory and string
+ * helpers, and the random number generators (platform, congruential and
+ * the Runner's VB Rnd).
  */
 
 #include <assert.h>
@@ -99,7 +99,7 @@ scr_fatal (const scr_char *format, ...)
   fprintf (stderr, "scarier: internal error: %s", message);
 
   /*
-   * Throw rather than abort().  The public entry points in scinterf.cpp catch
+   * Throw rather than abort().  The public entry points in scapi.cpp catch
    * this at the host boundary and return a clean failure, so a corrupt or
    * pathological game does not take down the whole application.  From an
    * unwrapped path it still terminates the process, as abort() did.
@@ -179,9 +179,9 @@ scr_free (void *pointer)
  * scr_strdup()
  *
  * Copy a std::string into a freshly scr_malloc'ed C string, so callers that
- * expect to scr_free() the result keep working unchanged.  The boundary between
- * std::string internals and the engine's char* contract.  The C string form
- * is the engine's strdup(): a copy to scr_free(), never NULL.
+ * expect to scr_free() the result keep working unchanged.  The boundary
+ * between std::string internals and the engine's char* contract.  The C string
+ * form is the engine's strdup(): a copy to scr_free(), never NULL.
  */
 scr_char *
 scr_strdup (const std::string &string)
@@ -275,8 +275,8 @@ scr_strcasecmp (const scr_char *s1, const scr_char *s2)
  * platform handler uses a native seed (0 -> erkyrath picks its own), while the
  * congruential ("portable, predictable") handler defaults to the fixed seed 1.
  * Keeping the two function bodies distinct also preserves the function-pointer
- * identity that scr_is_congruential_random() relies on.  The low bit is dropped
- * to map the unsigned 32-bit value to a positive signed result.
+ * identity that scr_is_congruential_random() relies on.  The low bit is
+ * dropped to map the unsigned 32-bit value to a positive signed result.
  */
 static scr_int
 scr_platform_rand (scr_uint new_seed)
@@ -377,9 +377,9 @@ scr_congruential_rand (scr_uint new_seed)
        * constant is 2147483647, so for every seed below 127774 the state after
        * a single step lands in [2^31, 2^32) -- the top bit is pinned to 1, and
        * scr_randomint()'s multiply-shift then maps that to the TOP HALF of
-       * whatever range it is given, whatever the seed.  Before this warm-up the
-       * first draw of a session was therefore constant: rand(0,1) returned 1
-       * for all of seeds 1..127773, rand(1,6) never returned 1-3, and so on.
+       * whatever range it is given, whatever the seed.  Before this warm-up
+       * the first draw of a session was therefore constant: rand(0,1) returned
+       * 1 for all of seeds 1..127773, rand(1,6) never returned 1-3, and so on.
        * Games whose very first roll is a coin flip had that flip decided for
        * them -- Scandal.taf's opening sea-battle turn could never come up "the
        * Croatoan fires", where run400 fires about half the time.  One step is
@@ -649,7 +649,7 @@ scr_vb_rnd (void)
 {
   /*
    * The next Single from the 3.9/3.8 codec's LCG (taf_runtime_rnd), traced
-   * like the game-stream draws; the runner-compatible loader's source for
+   * like the game-stream draws; the Runner-compatible loader's source for
    * what run390 draws before it seeds with Timer.
    */
   const double value = taf_runtime_rnd ();

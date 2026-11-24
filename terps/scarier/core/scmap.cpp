@@ -22,11 +22,11 @@
  * of the algorithm and why we are porting it rather than laying rooms out our
  * own way.
  *
- * Rooms are numbered from 1 here, as they are in the runner, because the exit
+ * Rooms are numbered from 1 here, as they are in the Runner, because the exit
  * table stores a destination as "room number + 1, or 0 for no exit" and the
  * layout compares raw destination numbers against grid contents.  Renumbering
  * would mean re-deriving every one of those comparisons, including the ones
- * the runner gets subtly wrong.  Room 0 is unused; sc_room() converts to and
+ * the Runner gets subtly wrong.  Room 0 is unused; sc_room() converts to and
  * from SCARE's zero-based numbering at the edges.
  */
 
@@ -41,14 +41,14 @@
 #include "sctypes.h"
 #include "scutils.h"
 #include "scprops.h"
+#include "scrooms.h"
 #include "scprintf.h"
 #include "scgamest_api.h"
-#include "sclibrar_api.h"
 #include "scmap.h"
 
 
 /*
- * What check_grid() reports about a cell.  In the runner these are the byte
+ * What check_grid() reports about a cell.  In the Runner these are the byte
  * literals 255, 254, 253 and 252, which its P-code sign-extends to I2 -- hence
  * the tests "grid > -1" for "a room is here" and "grid < 0" for "usable".  We
  * spell the negative values out.
@@ -59,13 +59,13 @@
 #define GRID_VLINK    (-4)      /* 252: a north/south connector runs through  */
 
 
-/* The runner's grid is 1000x1000 and it starts you in the middle. */
+/* The Runner's grid is 1000x1000 and it starts you in the middle. */
 #define GRID_HOME     500
 #define GRID_LIMIT    1000
 #define MAX_SHIFTS    1000
 
 
-/* Why the layout gave up (the runner's mapfail byte). */
+/* Why the layout gave up (the Runner's mapfail byte). */
 #define FAIL_OFF_GRID 1
 #define FAIL_STUCK    2
 #define FAIL_SHIFTS   3
@@ -102,7 +102,7 @@ static int scmap_last_fail = 0;
  * sm_opp()
  *
  * The opposite direction (Form29.opp).  Note that Up, Down, In and Out -- and
- * anything out of range -- come back as North: the runner's opp() only assigns
+ * anything out of range -- come back as North: the Runner's opp() only assigns
  * its return value in the eight compass cases, and Visual Basic leaves an
  * unassigned Integer at 0.  The layout never asks about those directions, so
  * the quirk is harmless; it is reproduced rather than fixed so that the code
@@ -131,13 +131,13 @@ sm_opp (int dir)
  *
  * What is in cell (x,y)?  A room number, or one of the GRID_* markers.
  *
- * The runner keeps no grid array: it answers this by scanning every room's
+ * The Runner keeps no grid array: it answers this by scanning every room's
  * coordinates, every time, which is why the whole layout is O(n^3)-ish.  We
  * scan too, because the answer is not merely "which room is here" -- a cell
  * with no room in it still counts as occupied when a connector runs through
  * it, and that is derived from the rooms on either side.
  *
- * Two asymmetries below are the runner's, not typos: the horizontal scan gives
+ * Two asymmetries below are the Runner's, not typos: the horizontal scan gives
  * up after the first room it finds to the left in this row (Exit For), while
  * the vertical scan keeps looking; and neither requires the two rooms to be
  * adjacent, so a connector paints every cell it spans.
@@ -158,7 +158,7 @@ sm_check_grid (const sm_layout_t *L, int x, int y)
           if (L->rooms[j].x > x && L->rooms[j].y == y
               && L->rooms[j].exits[DIR_W] == i)
             return GRID_HLINK;
-        break;                  /* the runner's Exit For */
+        break;                  /* the Runner's Exit For */
       }
 
   for (i = 1; i <= L->n; i++)
@@ -183,14 +183,15 @@ sm_check_grid (const sm_layout_t *L, int x, int y)
  * Moving a room one cell (Form29.shuffle).  A room never moves alone: every
  * room that has to keep its alignment with it -- the one it is about to land
  * on, and the ones beside it whose connector would otherwise stop being
- * straight -- is dragged along, recursively.  The room *behind* it is not: that
- * connector simply gets longer, and check_grid() paints the extra cells.  So a
- * shuffle is a rigid translation of one alignment-connected lump of the map.
+ * straight -- is dragged along, recursively.  The room *behind* it is not:
+ * that connector simply gets longer, and check_grid() paints the extra cells.
+ * So a shuffle is a rigid translation of one alignment-connected lump of the
+ * map.
  *
  * sh() is the entry point, and the only place a layout can fail: it counts the
  * shoves, and gives up after a thousand of them or if a room would leave the
  * grid.  sm_note_extent() grows the extent of the seen rooms to take in a
- * room; the note in sm_shuffle() says when the runner calls it.
+ * room; the note in sm_shuffle() says when the Runner calls it.
  */
 static void
 sm_clear_sb (sm_layout_t *L)
@@ -225,7 +226,7 @@ sm_shuffle (sm_layout_t *L, int rno, int dir)
   int d;
 
   /*
-   * The runner's shuffle knows only the four cardinals; asked to move a room
+   * The Runner's shuffle knows only the four cardinals; asked to move a room
    * diagonally (see sm_realign's default case) it leaves it where it is.
    */
   if (dir >= DIR_N && dir <= DIR_W)
@@ -276,13 +277,13 @@ sm_shuffle (sm_layout_t *L, int rno, int dir)
         }
 
       /*
-       * The runner updates the extent here, inside the neighbour loop, so a
+       * The Runner updates the extent here, inside the neighbour loop, so a
        * room shuffled with no qualifying neighbour never re-extends it.  Kept
        * as-is: sm_note_extent() is the only thing that grows the extent --
        * from here, and from sm_set_grid() when a room is first placed -- and
        * sm_tidy_up() only shrinks maxx/maxy as it deletes lanes.  Nothing
        * re-derives it, so the extent tidy_up scans and the origin the nodes
-       * are measured from are the runner's, gaps and all.
+       * are measured from are the Runner's, gaps and all.
        */
       sm_note_extent (L, rno);
 
@@ -327,15 +328,15 @@ sm_sh (sm_layout_t *L, int rno, int *x, int *y, int dir)
  * sm_try_inc_y()
  *
  * "Keep shoving `rno` until it sits correctly relative to the already-placed
- * `xrno`."  `match` = 1 wants rno strictly to one side (the primary axis of the
- * exit); `match` = 0 wants the coordinate equal (lining up the other axis).
- * When no free cell is available they will step onto a cell holding one of
- * rno's own neighbours, and failing that they declare the map too complex.
+ * `xrno`."  `match` = 1 wants rno strictly to one side (the primary axis of
+ * the exit); `match` = 0 wants the coordinate equal (lining up the other
+ * axis). When no free cell is available they will step onto a cell holding one
+ * of rno's own neighbours, and failing that they declare the map too complex.
  *
  * The `- 1` in the neighbour tests is an off-by-one in the original: grid
  * cells hold room numbers, and it compares them against a destination that is
  * already a room number.  It is systematic across all four routines, so it is
- * the runner's bug rather than a misreading, and it only misfires on a rarely
+ * the Runner's bug rather than a misreading, and it only misfires on a rarely
  * taken fallback path.  Reproduced.
  */
 
@@ -446,7 +447,7 @@ sm_try_inc_y (sm_layout_t *L, int rno, int *x, int *y, int xrno, int match)
  * sm_clear_lane()
  *
  * Place a room, then place everything reachable from it (Form29.set_grid).
- * This is the whole layout.  The runner's procedure is one loop over the
+ * This is the whole layout.  The Runner's procedure is one loop over the
  * exits; its three arms are the helpers: a neighbour not yet on the grid
  * (sm_place_neighbour), one that is there but out of line (sm_realign), and
  * the second repair pass over the cells between the two (sm_clear_lane).
@@ -466,7 +467,7 @@ sm_place_neighbour (sm_layout_t *L, int rno, int *px, int *py,
        * the neighbour, step *ourselves* one cell in the opposite
        * direction and hand it the cell we just vacated -- which, now
        * that we have moved, lies exactly where it should relative to
-       * us.  (nx,ny is reused to hold our old cell, as in the runner:
+       * us.  (nx,ny is reused to hold our old cell, as in the Runner:
        * sh() moves px,py out from under us.)
        */
       nx = *px;
@@ -491,7 +492,7 @@ sm_realign (sm_layout_t *L, int rno, int *px, int *py,
     case DIR_N:
       /*
        * No "else match = 0" here, nor in the South case: that is what
-       * makes `match` stale.  The runner is like this.
+       * makes `match` stale.  The Runner is like this.
        */
       if (L->rooms[dest].x == r->x)
         {
@@ -569,7 +570,7 @@ sm_realign (sm_layout_t *L, int rno, int *px, int *py,
        * taken goes through sm_place_neighbour(), which calls sh() with a
        * diagonal direction, which shuffle() does not understand -- so the
        * shove is a no-op and the neighbour is placed on top of us.  That is
-       * what the runner does; two rooms in one cell is a real ADRIFT 4 map
+       * what the Runner does; two rooms in one cell is a real ADRIFT 4 map
        * bug, and check_grid() then reports whichever has the lower number.
        */
       break;
@@ -641,7 +642,7 @@ sm_set_grid (sm_layout_t *L, int rno, int *px, int *py)
   sm_room_t *r = &L->rooms[rno];
   int d;
   /*
-   * `match` is scoped to the procedure in the runner, not to the loop below,
+   * `match` is scoped to the procedure in the Runner, not to the loop below,
    * and two of the four cases never reset it -- so it can carry a stale value
    * from the previous direction, and the second repair pass runs or does not
    * run accordingly.  Faithful ports have to reproduce the staleness, so this
@@ -824,7 +825,7 @@ sm_global_bool (scr_gameref_t game, const scr_char *prop)
  *
  * An exit's raw destination ("room number + 1", 0 for none) and whether the
  * author put a movement restriction on it.  A restricted exit is drawn dotted;
- * the runner instead painted it in the background colour when the restriction
+ * the Runner instead painted it in the background colour when the restriction
  * was unmet, which made it vanish -- but our renderer already omits an exit
  * the player cannot currently use, via the view's exit_dest callback, so a
  * dotted line is what is left to say "there is a way here, conditionally".
@@ -1041,7 +1042,7 @@ sm_view_seen (void *ctx, const char *lockey)
  * line's copy of the same name is (runner/scrunner.cpp run_update_status).  A
  * room's Short is raw author text, and authors do put tags in it: warlord.taf
  * names its rooms "<d1>Ravine<d2>" and A Spot of Bother "<d1>Hallway<d2>",
- * markers the runner's rich-text control simply drops on display.  Handing
+ * markers the Runner's rich-text control simply drops on display.  Handing
  * the raw string to the renderer would paint those tags into the boxes, and
  * would also leave the map disagreeing with the status line about what the
  * room is called.
@@ -1087,17 +1088,18 @@ sm_view_name (void *ctx, const char *lockey)
  *
  * Where the exit in `dir` currently leads, restrictions applied.  Everything
  * the renderer knows about live connectivity -- the stub arrows for exits into
- * the unknown, and the click-to-walk routing -- comes through here, so a locked
- * door is simply not an exit until it is unlocked, exactly as in the runner.
+ * the unknown, and the click-to-walk routing -- comes through here, so a
+ * locked door is simply not an exit until it is unlocked, exactly as in the
+ * Runner.
  */
 static const char *
 sm_view_exit_dest (void *ctx, const char *lockey, int dir)
 {
   /*
    * Room keys are numbers, so the answer has to be spelled into a buffer we
-   * own.  Hand out a rotating set of them rather than one: callers do only ever
-   * use the result before asking again, but a single buffer would make that a
-   * requirement, and a silent one.
+   * own.  Hand out a rotating set of them rather than one: callers do only
+   * ever use the result before asking again, but a single buffer would make
+   * that a requirement, and a silent one.
    */
   static char bufs[8][16];
   static int next = 0;
@@ -1277,7 +1279,7 @@ sm_layout_build (scr_gameref_t game, const map_view_t *view, int n,
     }
 
   /*
-   * Standing in a room the author hid from the map, the runner drew no map at
+   * Standing in a room the author hid from the map, the Runner drew no map at
    * all (Form29.drawmap bails before laying anything out).  Not a failure --
    * the map returns as soon as the player steps out of the room.
    */
@@ -1353,7 +1355,7 @@ sm_map_nodes (map_t *m, const sm_layout_t *L, std::vector<int> &node_of)
     return FALSE;
 
   /*
-   * One grid cell becomes a room box plus the gap beside it: the runner spaces
+   * One grid cell becomes a room box plus the gap beside it: the Runner spaces
    * its boxes 1.5 box-widths apart, and we keep that proportion.
    */
   ip = 0;
@@ -1416,7 +1418,7 @@ sm_map_nodes (map_t *m, const sm_layout_t *L, std::vector<int> &node_of)
  * are laid out but draw_graphics skipped them, so they neither claim a
  * direction nor lose a connector to one.
  *
- * A direction is claimed only for a connector we actually draw.  The runner
+ * A direction is claimed only for a connector we actually draw.  The Runner
  * also ran dolink for exits into rooms it had not placed -- one hidden from
  * the map, or one no route reaches -- inventing a cell for the far end and
  * trailing a stub off towards it, and that stub claimed the direction like

@@ -1,9 +1,16 @@
-//
-//  scott_defines.h
-//  Part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  Created by Petter Sjölund on 2022-01-10.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  scott_defines.h
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2022-01-10.
+ */
 
 #ifndef scott_defines_h
 #define scott_defines_h
@@ -265,9 +272,9 @@ typedef struct {
 
     int start_of_tiles;
     int start_of_image_data;
-    int image_address_offset; /* This is the difference between the value given by
-                               the image data lookup table and a usable file
-                               offset */
+    /* The difference between the value given by the image data lookup table
+       and a usable file offset */
+    int image_address_offset;
     int number_of_pictures;
     palette_type palette;
     int picture_format_version;

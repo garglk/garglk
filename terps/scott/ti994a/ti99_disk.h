@@ -1,10 +1,17 @@
-//
-//  ti99_disk.h
-//  scott
-//
-//  Reads TI-99/4A disk images: the directory, the sectors of a file,
-//  and the object files written by the TI Editor/Assembler.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  ti99_disk.h
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Reads TI-99/4A disk images: the directory, the sectors of a file,
+ *  and the object files written by the TI Editor/Assembler.
+ */
 
 #ifndef ti99_disk_h
 #define ti99_disk_h
