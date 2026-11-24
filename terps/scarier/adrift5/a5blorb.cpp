@@ -269,7 +269,8 @@ a5_pane_caption (const char *span, const char *span_end,
   if (gt == nullptr)
     return 0;
 
-  /* <Text href="#ref-24"/> -- the caption lives in the element with that id. */
+  /* <Text href="#ref-24"/> -- the caption lives in the element with that id.
+     */
   href = a5_scan (el, (size_t) (gt - el), "href=\"#");
   if (href == nullptr)
     return a5_elem_text (el, span_end, text, text_len);
@@ -332,7 +333,8 @@ a5blorb_layout_pane_open (const uint8_t *xml, uint32_t length,
         continue;
 
       /* Panes do not nest, so the element body runs to the next mention of the
-         tag -- its own close tag, or the next pane if the file is truncated. */
+         tag -- its own close tag, or the next pane if the file is truncated.
+         */
       span_end = a5_scan (at, (size_t) (doc_end - at), PANE_TAG);
       if (span_end == nullptr)
         span_end = doc_end;

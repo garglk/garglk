@@ -1,15 +1,20 @@
-//
-//  layouttext.c
-//  Part of TaylorMade, ScottFree and Plus,
-//  interpreters of related text adventure formats.
-//
-//  Created by Petter Sjölund on 2022-01-11.
-//
+/*
+ *  layouttext.c
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version.
+ *
+ *  Word wrapping for a text grid, shared by TaylorMade, ScottFree and Plus.
+ *  Created by Petter Sjölund on 2022-01-11.
+ */
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "glk.h"
+#include "common_utils.h"
 #include "memory_allocation.h"
 
 #include "layouttext.h"
@@ -20,6 +25,28 @@
 static int IsLineBreak(char c)
 {
     return c == '\n' || c == '\r';
+}
+
+/* Where to break a line longer than width: returns the characters to keep on
+   this line, and in *skip how many to step over to the start of the next. At
+   the last space that leaves at most width characters on this line, or in the
+   middle of a word with no such space. */
+static size_t FindBreak(const char *line, size_t width, size_t *skip)
+{
+    size_t brk = width;
+    while (brk > 0 && line[brk] != ' ')
+        brk--;
+    size_t next = brk;
+    while (brk > 0 && line[brk - 1] == ' ')
+        brk--;
+    if (brk == 0) {
+        *skip = width;
+        return width;
+    }
+    while (line[next] == ' ')
+        next++;
+    *skip = next;
+    return brk;
 }
 
 char *LineBreakText(const char *source, int columns, int *rows)
@@ -56,22 +83,8 @@ char *LineBreakText(const char *source, int columns, int *rows)
             linelen--;
 
         while (linelen > width) {
-            /* Break at the last space that leaves at most width characters
-               on this line, or in the middle of a word with no such space */
-            size_t brk = width;
-            while (brk > 0 && line[brk] != ' ')
-                brk--;
-            size_t skip = brk;
-            if (brk == 0) {
-                brk = skip = width;
-            } else {
-                while (brk > 0 && line[brk - 1] == ' ')
-                    brk--;
-                while (line[skip] == ' ')
-                    skip++;
-                if (brk == 0)
-                    brk = skip = width;
-            }
+            size_t skip;
+            size_t brk = FindBreak(line, width, &skip);
             memcpy(result + out, line, brk);
             out += brk;
             result[out++] = '\n';
@@ -85,6 +98,7 @@ char *LineBreakText(const char *source, int columns, int *rows)
         line = next;
     }
 
+    assert(out <= 2 * len);
     while (out > 0 && (result[out - 1] == '\n' || result[out - 1] == ' '))
         out--;
     result[out] = '\0';
@@ -112,8 +126,7 @@ int ShowTextInTopWindow(winid_t top, winid_t bottom, const char *text,
 
     int resized = 0;
     if (bottomheight >= MIN_BOTTOM_ROWS || height >= wanted) {
-        glk_window_set_arrangement(glk_window_get_parent(top),
-            winmethod_Above | winmethod_Fixed, wanted, top);
+        SetFixedWindowHeight(top, wanted);
         resized = 1;
     }
 

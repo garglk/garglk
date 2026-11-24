@@ -1,12 +1,19 @@
-//
-//  extracommands.h
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Created by Petter Sjölund on 2022-06-28.
-//
+/*
+ *  extracommands.h
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-06-28.
+ */
 
 #ifndef extracommands_h
 #define extracommands_h
+
+#include "definitions.h"
 
 typedef enum {
     COM_IT = 1,
@@ -34,6 +41,13 @@ typedef enum {
     RESULT_NOT_UNDERSTOOD
 } ExtraCommandResult;
 
+extern DictWord ExtraWords[];
+
+/* Carry out one of the interpreter's own commands, which are not in the game's
+   database: AGAIN, UNDO, RESTART, TRANSCRIPT and the RAM saves. command and
+   nextcommand are word numbers from ExtraWords, nextcommand being the word
+   after it, or 0. RESULT_NOT_UNDERSTOOD leaves the input to the normal parser,
+   so the game's own verbs can use the same words. */
 ExtraCommandResult PerformExtraCommand(int command, int nextcommand);
 
 #endif /* extracommands_h */

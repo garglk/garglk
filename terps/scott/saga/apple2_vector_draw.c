@@ -1,25 +1,32 @@
-//
-//  apple2_vector_draw.c
-//  scott
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  3 of the License, or (at your option) any later version.
+ */
 
-//  Code to draw Apple 2 vector images in certain Scott Adams games.
-//
-//  Variants of this particular images format was used in many
-//  Apple 2 games at the time. It was created by Penguin Software
-//  (later Polarware) and marketed under names such as The Graphics
-//  Magician and the Picture Painter tool.
-//
-//  The main purpose of this code is to stay pixel perfect with the
-//  original code, so it closely follows the disassembly.
-//  Parts are based on ScummVM's Comprehend engine.
-//
-//  The disassembly at
-//  https://6502disassembly.com/a2-graphics-magician/PICDRAWH_1984.html
-//  has been very helpful, but does not completely match this code.
-//  Presumably it is based on a later version.
-//
-//  Created by Petter Sjölund on 2025-12-29.
-//
+/*
+ *  apple2_vector_draw.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format */
+
+/*  Code to draw Apple 2 vector images in certain Scott Adams games.
+
+    Variants of this particular image format were used in many
+    Apple 2 games at the time. It was created by Penguin Software
+    (later Polarware) and marketed under names such as The Graphics
+    Magician and the Picture Painter tool.
+
+    The main purpose of this code is to stay pixel perfect with the
+    original code, so it closely follows the disassembly.
+    Parts are based on ScummVM's Comprehend engine.
+
+    The disassembly at
+    https://6502disassembly.com/a2-graphics-magician/PICDRAWH_1984.html
+    has been very helpful, but does not completely match this code.
+    Presumably it is based on a later version.
+
+    Created by Petter Sjölund on 2025-12-29.
+    */
 
 #include <string.h>
 #include <stdlib.h>
@@ -41,10 +48,10 @@
 #define RIGHT_EXPAND_MASK 0x40
 #define APPLE2_WHITE 0xff
 
-// The ROM dispatcher (DRAW_OPCODE @ $8E30) selects on `byte & 0xe0`: a 3-bit
-// opcode in the top bits, with the low nibble as the parameter and bit 4
-// ignored. So only the even values below ever occur; doImageOp folds bit 4 out
-// before switching. (The odd values are not real opcodes.)
+/* The ROM dispatcher (DRAW_OPCODE @ $8E30) selects on `byte & 0xe0`: a 3-bit
+   opcode in the top bits, with the low nibble as the parameter and bit 4
+   ignored. So only the even values below ever occur; doImageOp folds bit 4 out
+   before switching. (The odd values are not real opcodes.) */
 enum Opcode {
     A2_OP_END = 0,
     A2_OP_SET_PEN_COLOR = 2,
@@ -68,9 +75,9 @@ typedef enum {
 } Brush;
 
 typedef struct {
-    gm_vector_ctx gv;   // shared cursor/colour + line-drawing state
-    Brush BRUSH;        // current shape type
-    uint8_t FILL_COLOR; // current fill
+    gm_vector_ctx gv;   /* shared cursor/colour + line-drawing state */
+    Brush BRUSH;        /* current shape type */
+    uint8_t FILL_COLOR; /* current fill */
 } a2_vector_ctx;
 
 typedef struct {
@@ -98,7 +105,7 @@ typedef struct {
 
 static uint8_t pattern_data[120];
 
-/* Sub-indexes for 108 patterns. Each entry is two adjacent  bytes, holding
+/* Sub-indexes for 108 patterns. Each entry is two adjacent bytes, holding
  the sub-indices into the color pattern data table for even and odd rows.
  Values are in the range [0,29].
 
@@ -153,20 +160,21 @@ static VectorOpList write_ops = VECTOR_OPLIST(byte_to_write);
 #define APPLE2_VECTOR_BYTES_PER_TICK 50
 
 
-// set_color / set_draw_position now live in common_sagadraw/gm_vector.c.
+/* gm_set_color / gm_set_draw_position live in common_sagadraw/gm_vector.c. */
 
 static inline bool is_valid_screen_offset(uint16_t offset) {
     return offset <= GM_MAX_SCREEN_ADDR;
 }
 
-// MARK: SLOW DRAW
+/* MARK: SLOW DRAW */
 
 static void write_to_screenmem(uint16_t offset, uint8_t value, bool fill) {
     if (!is_valid_screen_offset(offset))
         return;
     if (fill) {
-        // For now we assume that we only fill the background as the first instruction
-        // and that it always is white (0xff) (and only when drawing room images)
+        /* This assumes that we only fill the background as the first
+           instruction and that it always is white (0xff) (and only when
+           drawing room images) */
         memset(screenmem, APPLE2_WHITE, A2_SCREEN_MEM_SIZE);
         memset(slow_vector_screenmem, APPLE2_WHITE, A2_SCREEN_MEM_SIZE);
     } else {
@@ -178,13 +186,13 @@ static void write_to_screenmem(uint16_t offset, uint8_t value, bool fill) {
     op->fill_bg = fill;
 }
 
-// Write hook handed to the shared gm_vector line primitives.
+/* Write hook handed to the shared gm_vector line primitives. */
 static void scott_gm_write(uint16_t offset, uint8_t value, void *user) {
     (void)user;
     write_to_screenmem(offset, value, false);
 }
 
-// MARK: FLOOD FILL
+/* MARK: FLOOD FILL */
 
 /* Read the screen byte at the given column on the current scanline row.
    Sets ctx->screen_offset and ctx->existing_byte.
@@ -263,81 +271,46 @@ static bool scan_up_to_border(a2_fill_ctx *ctx)
     return true;
 }
 
-/* Compute the right edge of the fill mask for the current scanline.
-   Rotates the existing screen byte to determine
-   how many pixels on the right side of the seed column are already filled.
-   Sets ctx->fill_mask and returns the right edge pixel count. */
-static uint8_t compute_right_edge(a2_fill_ctx *ctx)
+/* Find the run of set bits around the seed pixel within the seed column's
+   byte. Sets ctx->fill_mask to that run and returns, via left_edge and
+   right_edge, how many of the byte's visible pixels lie outside it on each
+   side.
+
+   The original 6502 code does this with a sequence of rotates through carry;
+   this gives the same results whenever the seed pixel is white, which is all
+   the caller ever passes in. */
+static void compute_seed_span(a2_fill_ctx *ctx, uint8_t *left_edge, uint8_t *right_edge)
 {
-    /* Simulate rotating left with carry (7 - ctx->pixel_offset) times */
-    uint16_t rotate_word = ctx->existing_byte << (7 - ctx->pixel_offset);
-    ctx->fill_mask = (rotate_word & 0xff) | (rotate_word >> 9);
+    uint8_t lo = ctx->pixel_offset;
+    uint8_t hi = ctx->pixel_offset;
 
-    /* If the rotation left some leading set bits, ensure fill_mask is extended appropriately */
-    uint8_t loop_byte = (rotate_word & 0x100) != 0;
-    int8_t remaining_bits;
-    for (remaining_bits = 6 - ctx->pixel_offset;
-         remaining_bits > 0 && loop_byte != 0; remaining_bits--) {
-        uint8_t carry = loop_byte << 7;
-        loop_byte = ctx->fill_mask & 1;
-        ctx->fill_mask = (ctx->fill_mask >> 1) | carry;
-    }
+    while (lo > 0 && (ctx->existing_byte & (1 << (lo - 1))))
+        lo--;
+    while (hi < COL_BITS - 1 && (ctx->existing_byte & (1 << (hi + 1))))
+        hi++;
 
-    /* Align the byte and remember the shift used */
-    ctx->fill_mask >>= remaining_bits;
-    return remaining_bits;
-}
-
-/* Compute the left edge of the fill mask for the current scanline.
-   Continues transforming ctx->fill_mask (set by compute_right_edge)
-   to determine how many pixels on the left are already filled.
- Sets ctx->fill_mask and returns the left edge pixel count. */
-static uint8_t compute_left_edge(a2_fill_ctx *ctx)
-{
-    /* Simulate rotating right with carry, (pixel_offset + 1) times */
-    uint16_t rotate_word = (ctx->fill_mask << 8) >> (ctx->pixel_offset + 1);
-    ctx->fill_mask = (rotate_word >> 8) | (rotate_word << 1);
-
-    /* If pixel_offset > 0, ensure fill_mask is extended appropriately */
-    uint8_t loop_byte = 1;
-    int8_t remaining_bits;
-    for (remaining_bits = ctx->pixel_offset;
-         remaining_bits > 0 && loop_byte != 0; remaining_bits--) {
-        loop_byte = ctx->fill_mask >> 7;
-        ctx->fill_mask = (ctx->fill_mask << 1) | 1;
-    }
-
-    /* Align the byte and remember the shift used */
-    ctx->fill_mask <<= remaining_bits;
-    return remaining_bits;
+    *left_edge = lo;
+    *right_edge = COL_BITS - 1 - hi;
+    ctx->fill_mask = (0x7f >> (COL_BITS - 1 - hi)) & (0xff << lo);
 }
 
 /*  Expand right from the seed point.
 
-    For each column to the right, rotate the screen byte right with carry
-    to find the boundary between set and unset low bits. The rotation count
-    determines the right edge, and the remaining upper bits determine
-    whether to keep expanding further right. */
+    In each column to the right, fill the run of set pixels starting at the
+    column's leftmost pixel (bit 0). The pixels after the run give the right
+    edge, and expansion continues only if the run covers the whole column. */
 static uint8_t fill_span_right(a2_fill_ctx *ctx, uint8_t right_edge, bool has_more) {
     while (has_more && ctx->column + 1 < APPLE2_SCREEN_COLS) {
         ctx->column++;
         if (!read_screen_byte(ctx, ctx->column)) break;
 
-        /* Rotate right with carry to find the first zero bit from the LSB.
-           Carry chain feeds 1-bits back in from the top as long as the LSB
-           keeps producing 1s. */
-        ctx->fill_mask = ctx->existing_byte;
-        bool carry = false;
-        bool lsb_set = true;
-        int remaining;
-        for (remaining = 8; remaining > 0 && lsb_set; remaining--) {
-            lsb_set = ctx->fill_mask & 1;
-            ctx->fill_mask = (ctx->fill_mask >> 1) | (carry << 7);
-            carry = lsb_set;
-        }
-        ctx->fill_mask >>= (remaining + 1);
-        has_more = (ctx->fill_mask & RIGHT_EXPAND_MASK) != 0;
-        right_edge = remaining;
+        uint8_t run = 0;
+        while (run < COL_BITS && (ctx->existing_byte & (1 << run)))
+            run++;
+
+        ctx->fill_mask = (1 << run) - 1;
+        right_edge = COL_BITS - run;
+        has_more = (run == COL_BITS);
 
         paint_column_pattern(ctx);
     }
@@ -345,31 +318,37 @@ static uint8_t fill_span_right(a2_fill_ctx *ctx, uint8_t right_edge, bool has_mo
 }
 
 /* Expand left from the seed point.
- 
-   Scans the screen byte at the column to the left, rotating bits left
-   to find the first zero bit from the MSB. If found, has_more is cleared
-   (stopping leftward expansion). */
+
+   In each column to the left, fill the run of set pixels ending at the
+   column's rightmost pixel (bit 6). If the run stops short of bit 0, the
+   pixels before it give the left edge and expansion stops.
+
+   Note the asymmetry with fill_span_right: that one returns 7 - run, the
+   number of unfilled pixels, while this returns 6 - run, the bit index of
+   the first clear pixel, one less than the unfilled count. This is the
+   ROM's doing, not ours. In FLOOD_FILL ($9188 in the SAGA build) both loops store the X register
+   when they hit a clear bit, but the rightward loop ($928f) counts X down
+   from 8 and the leftward loop ($92e9) from 7, after one extra ROL that
+   discards the palette bit. compute_seed_span, by contrast, stores an
+   unfilled count on both sides, as the ROM does for the seed column
+   ($920b and $9231). advance_seed_to_midpoint consumes the two edges with
+   the ROM's own 8-bit arithmetic, so the off-by-one is part of what makes
+   the midpoints land where the original's did. Keep all three in step. */
 static uint8_t fill_span_left(a2_fill_ctx *ctx, uint8_t left_edge, bool has_more) {
     while (has_more && ctx->column > 0) {
         ctx->column--;
         if (!read_screen_byte(ctx, ctx->column)) break;
 
-        /* Rotate left through the byte to find the first zero from the MSB */
-        ctx->fill_mask = ctx->existing_byte << 1;
-        bool carry = false;
-        bool msb_set = true;
-        int remaining;
-        for (remaining = COL_BITS - 1; remaining >= 0 && msb_set; remaining--) {
-            msb_set = ctx->fill_mask & 0x80;
-            ctx->fill_mask = (ctx->fill_mask << 1) | carry;
-            carry = msb_set;
-            if (!msb_set) {
-                ctx->fill_mask <<= remaining;
-                has_more = false;
-                left_edge = remaining;
-            }
+        uint8_t run = 0;
+        while (run < COL_BITS && (ctx->existing_byte & (0x40 >> run)))
+            run++;
+
+        ctx->fill_mask = (0x7f << (COL_BITS - run)) & 0x7f;
+        if (run < COL_BITS) {
+            left_edge = COL_BITS - 1 - run;
+            has_more = false;
         }
-        ctx->fill_mask = (ctx->fill_mask << 1) | msb_set;
+
         paint_column_pattern(ctx);
     }
     return left_edge;
@@ -378,8 +357,8 @@ static uint8_t fill_span_left(a2_fill_ctx *ctx, uint8_t left_edge, bool has_more
 /* Re-seed at the horizontal midpoint of the span just filled, so the next
    scanline drops from its centre (this is what gives the fill its better
    handling of concave shapes). The span runs from ctx->column (the leftmost
-   painted column) to rightmost_column, with left_edge_pixels / right_edge_pixels
-   left unfilled at the two ends.
+   painted column) to rightmost_column, with left_edge_pixels /
+   right_edge_pixels left unfilled at the two ends.
 
    The arithmetic is deliberately 8-bit to match the original 6502 routine,
    including the explicit borrow when right_edge_pixels exceeds the running
@@ -414,8 +393,10 @@ static void advance_seed_to_midpoint(a2_fill_ctx *ctx,
  Algorithm description, from the manual:
   1) Scan directly up from the selected point until a border is found.
   2) Move down one line, filling to the left and right borders.
-  3) Average the left and right borders to find the midpoint, and move down one line from there.
-  4) Check to see if the point moved down to is a border. If not, go back to step 2.
+  3) Average the left and right borders to find the midpoint, and move down one
+     line from there.
+  4) Check to see if the point moved down to is a border. If not, go back to
+     step 2.
 
   The midpoint adjustment provides better handling of concave shapes.
  */
@@ -427,18 +408,16 @@ static void apple2_flood_fill(uint16_t x, uint8_t y, uint8_t color)
     ctx.fill_color = color;
     ctx.scanline = y;
 
-    /* Configure pattern colors */
     ctx.pattern_even = pattern_subindex(ctx.fill_color, 0);
     ctx.pattern_odd  = pattern_subindex(ctx.fill_color, 1);
 
-    /* Get col/pixel for this X position */
     x_to_column_and_pixel(&ctx, x);
 
     if (y == 0) {
         /* 6502 quirk: when the seed is already on row 0, FLOOD_FILL skips the
          * scan-up entirely (`goto FoundTop`) with the A register still holding
-         * MODULO_AND_DIVIDE's result — the X remainder, i.e. pixel_offset. So a
-         * row-0 seed begins filling at scanline = pixel_offset, leaving rows
+         * MODULO_AND_DIVIDE's result — the X remainder, i.e. pixel_offset. So
+         * a row-0 seed begins filling at scanline = pixel_offset, leaving rows
          * 0..pixel_offset-1 untouched. (This differs from a seed started below
          * row 0 that scans all the way up to a white row 0, which does fill
          * from row 0.) */
@@ -458,8 +437,7 @@ static void apple2_flood_fill(uint16_t x, uint8_t y, uint8_t color)
         select_pattern_for_scanline(&ctx);
 
         /* Work out fill mask and edge pixels for this scanline */
-        right_edge_pixels = compute_right_edge(&ctx);
-        left_edge_pixels = compute_left_edge(&ctx);
+        compute_seed_span(&ctx, &left_edge_pixels, &right_edge_pixels);
 
         bool has_more_left = (ctx.fill_mask & 1) != 0;
         bool has_more_right = (ctx.fill_mask & RIGHT_EXPAND_MASK) != 0;
@@ -483,9 +461,9 @@ static void apple2_flood_fill(uint16_t x, uint8_t y, uint8_t color)
     }
 }
 
-// MARK: Main draw routine
+/* MARK: Main draw routine */
 
-// Number of argument bytes that follow each (even) opcode
+/* Number of argument bytes that follow each (even) opcode */
 static const uint8_t opcode_arguments[16] = {
     [A2_OP_SET_FILL_COLOR] = 1,
     [A2_OP_MOVE_TO] = 2,
@@ -506,49 +484,50 @@ static bool doImageOp(const uint8_t **outptr, const uint8_t *end, a2_vector_ctx 
        `byte & 0xe0` — a 3-bit selector in which bit 4 (0x10) is ignored. So an
        odd top-nibble aliases to the even opcode below it (e.g. 0x5x is
        SET_SHAPE, not a distinct "text outline" op that swallows an argument
-       byte). Fold bit 4 out to match, which keeps the opcode stream in sync. */
+       byte). Fold bit 4 out to match, which keeps the opcode stream in
+       sync. */
     opcode = (opcode & 0xe0) >> 4;
 
-    // A truncated final op ends the image
+    /* A truncated final op ends the image */
     if (ptr + opcode_arguments[opcode] > end) {
         *outptr = end;
         return true;
     }
 
-    // After folding bit 4 out above, `opcode` is always even, so only these
-    // eight cases are reachable — exactly the ROM dispatcher's branches.
+    /* After folding bit 4 out above, `opcode` is always even, so only these
+       eight cases are reachable — exactly the ROM dispatcher's branches. */
     switch (opcode) {
-        case A2_OP_END: // 0
+        case A2_OP_END: /* 0 */
             *outptr = ptr;
             return true;
 
-        case A2_OP_SET_PEN_COLOR: // 2
+        case A2_OP_SET_PEN_COLOR: /* 2 */
             gm_set_color(param, &ctx->gv);
             break;
 
-        case A2_OP_SET_SHAPE: // 4
+        case A2_OP_SET_SHAPE: /* 4 */
             ctx->BRUSH = (Brush)param;
             break;
 
-        case A2_OP_SET_FILL_COLOR: // 6
+        case A2_OP_SET_FILL_COLOR: /* 6 */
             a = *ptr++;
             ctx->FILL_COLOR = a;
             break;
 
-        case A2_OP_MOVE_TO: // 8
+        case A2_OP_MOVE_TO: /* 8 */
             a = *ptr++ + (param & 1 ? 256 : 0);
             b = *ptr++;
             gm_set_draw_position(a, b, &ctx->gv);
             break;
 
-        case A2_OP_DRAW_LINE: // 10
+        case A2_OP_DRAW_LINE: /* 10 */
             a = *ptr++ + (param & 1 ? 256 : 0);
             b = *ptr++;
 
             gm_draw_line(a, b, &ctx->gv);
             break;
 
-        case A2_OP_DRAW_SHAPE: // 12
+        case A2_OP_DRAW_SHAPE: /* 12 */
             a = *ptr++ + (param & 1 ? 256 : 0);
             b = *ptr++;
             gm_draw_brush(a, b, ctx->BRUSH,
@@ -557,7 +536,7 @@ static bool doImageOp(const uint8_t **outptr, const uint8_t *end, a2_vector_ctx 
                           &ctx->gv);
             break;
 
-        case A2_OP_PAINT: // 14
+        case A2_OP_PAINT: /* 14 */
             a = *ptr++ + (param & 1 ? 256 : 0);
             b = *ptr++;
             apple2_flood_fill(a, b, ctx->FILL_COLOR);
@@ -569,8 +548,8 @@ static bool doImageOp(const uint8_t **outptr, const uint8_t *end, a2_vector_ctx 
 }
 
 static void white_background(void) {
-    // Draw a white background with a black line to the left, to match
-    // the artifact renderer: an all-0xff line is black at dot 0 only.
+    /* Draw a white background with a black line to the left, to match
+       the artifact renderer: an all-0xff line is black at dot 0 only. */
     SetColor(0, 0);
     SetColor(1, 0xffffff);
     RectFill(0, 0, 1, ImageHeight, 0);
@@ -587,12 +566,12 @@ static VectorStepResult write_pixel(const void *op, size_t current_op_index) {
     DrawSingleApple2ImageByte(slow_vector_screenmem, towrite->offset);
     if (current_op_index + 1 < write_ops.total) {
         const byte_to_write *next_byte = VectorOpAt(&write_ops, current_op_index + 1);
-        // Extend the chunk only across physically adjacent bytes, whose Apple II
-        // artifact colours depend on each other — stopping between them would
-        // flash a transient wrong colour at the seam. (A previous version also
-        // extended across any two ops sharing a value, which made large
-        // same-pattern fills snap in within a single tick instead of revealing
-        // gradually like the rest of the picture.)
+        /* Extend the chunk only across physically adjacent bytes, whose Apple
+           II artifact colours depend on each other — stopping between them
+           would flash a transient wrong colour at the seam. Ops that merely
+           share a value are not extended across, or large same-pattern fills
+           would snap in within a single tick instead of revealing gradually
+           like the rest of the picture. */
         if (next_byte->offset >= towrite->offset - 1 && next_byte->offset <= towrite->offset + 1) {
             return VECTOR_STEP_EXTEND;
         }

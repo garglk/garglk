@@ -42,8 +42,8 @@
 
 int a5restr_trace = 0;
 
-/* CBool-ish (Global.SafeBool): "true"/"false" by name, else a numeric string is
-   true iff non-zero; anything else is false. */
+/* CBool-ish (Global.SafeBool): "true"/"false" by name, else a numeric string
+   is true iff non-zero; anything else is false. */
 static int
 safe_bool (const char *s)
 {
@@ -66,19 +66,23 @@ safe_bool (const char *s)
 #define ANYDIRECTION  "AnyDirection"
 #define THEFLOOR      "TheFloor"
 
-/* ---------------------------------------------------------- one restriction */
+/* --------------------------------------------------------- one restriction */
 
 typedef struct {
-  const char *type;   /* Object / Location / Character / Variable / Task / ...  */
-  char *buf;          /* owned tokenised copy of the spec; key1/op/key2 alias it */
-  const char *raw;    /* the original (un-tokenised) spec text -- stable DOM     */
+  /* Object / Location / Character / Variable / Task / ... */
+  const char *type;
+  /* owned tokenised copy of the spec; key1/op/key2 alias it */
+  char *buf;
+  /* the original (un-tokenised) spec text -- stable DOM */
+  const char *raw;
   const char *key1;
   int must_not;
   const char *op;
   const char *key2;   /* may be "" */
 } a5_restr_t;
 
-/* Split "key1 Must|MustNot Op key2..." in place.  buf is owned by the restr. */
+/* Split "key1 Must|MustNot Op key2..." in place.  buf is owned by the restr.
+   */
 static void
 parse_spec (a5_restr_t *r, const char *spec)
 {
@@ -115,7 +119,8 @@ parse_spec (a5_restr_t *r, const char *spec)
   r->key2 = p;
 }
 
-/* The type element of a <Restriction> is its first child named a known type. */
+/* The type element of a <Restriction> is its first child named a known type.
+   */
 static const a5_xml_node_t *
 restr_type_node (const a5_xml_node_t *restriction)
 {
@@ -134,7 +139,7 @@ restr_type_node (const a5_xml_node_t *restriction)
   return nullptr;
 }
 
-/* ------------------------------------------------------------- value helpers */
+/* ----------------------------------------------------------- value helpers */
 
 static const char *
 resolve_key (a5_state_t *st, const char *k)
@@ -144,14 +149,14 @@ resolve_key (a5_state_t *st, const char *k)
     return a5state_player_key (st);
   /* A per-turn binding (ReferencedObject2, ReferencedDirection, ...) wins. */
   bound = a5state_lookup_ref (st, k);
-  /* The runner's GetReference("ReferencedObjects") carries NO ReferenceMatch condition
-     (clsUserSession.vb:3990): it answers from the first Object-type reference
-     in the command whatever its slot, so a restriction keyed "ReferencedObjects"
-     also resolves when the command captured a singular %object% (LostLabyrinth's
-     "sheath sword" PutObjInSc: `ReferencedObjects Must BeObject Sword`).  Same
-     for ReferencedCharacters (vb:4019).  Resolved at lookup (not bound at
-     capture) so failed match attempts earlier in the turn can't leak a stale
-     alias into a later task's restrictions. */
+  /* The Runner's GetReference("ReferencedObjects") carries NO ReferenceMatch
+     condition (clsUserSession.vb:3990): it answers from the first Object-type
+     reference in the command whatever its slot, so a restriction keyed
+     "ReferencedObjects" also resolves when the command captured a singular
+     %object% (LostLabyrinth's "sheath sword" PutObjInSc: `ReferencedObjects
+     Must BeObject Sword`).  Same for ReferencedCharacters (vb:4019).  Resolved
+     at lookup (not bound at capture) so failed match attempts earlier in the
+     turn can't leak a stale alias into a later task's restrictions. */
   if (bound == nullptr && streq (k, "ReferencedObjects"))
     bound = a5state_lookup_ref (st, "ReferencedObject");
   if (bound == nullptr && streq (k, "ReferencedCharacters"))
@@ -160,10 +165,11 @@ resolve_key (a5_state_t *st, const char *k)
     {
       /* A piped multi-object binding (ReferencedObjects = "k1|k2|...", set by
          resolve_plural so the text engine can render the whole set) resolves,
-         for restriction purposes, to its FIRST item -- mirroring the runner's
+         for restriction purposes, to its FIRST item -- mirroring the Runner's
          GetReference("ReferencedObjects"), which returns Items(0).  Per-item
-         narrowing already happened in RefineMatchingPossibilitesUsingRestrictions;
-         the final PassRestrictions only ever checks the first item. */
+         narrowing already happened in
+         RefineMatchingPossibilitesUsingRestrictions; the final
+         PassRestrictions only ever checks the first item. */
       const char *bar = strchr (bound, '|');
       if (bar != nullptr)
         {
@@ -184,7 +190,8 @@ resolve_key (a5_state_t *st, const char *k)
   return k;
 }
 
-/* A string that is a plain (optionally signed) integer literal, no other bytes. */
+/* A string that is a plain (optionally signed) integer literal, no other
+   bytes. */
 static int
 is_clean_int (const char *s)
 {
@@ -198,14 +205,15 @@ is_clean_int (const char *s)
 
 /* Evaluate key2 as a number: a variable key's value, a `RAND(min,max)`
    expression, else an integer literal.  An expression RHS is wrapped in single
-   quotes in the model (the runner's clsRestriction summary quotes it; the stored
-   StringValue is the bare expression), and the runner's PassSingleRestriction evaluates
-   it via EvaluateExpression -> clsVariable.SetToExpression, which calls
-   Global.Random(min,max) for a RAND() token (clsUserSession.vb:4486).  So
-   SixSilverBullets' TimeTrapsT `Roller Must BeEqualTo 'RAND(1,16)'` draws one
-   random per evaluation -- a draw Scarier previously skipped (strtol of the
-   quoted string yields 0, so the chime never fired and the RAND stream desynced
-   from the runner, mistiming the sniper/bomb events). */
+   quotes in the model (the Runner's clsRestriction summary quotes it; the
+   stored StringValue is the bare expression), and the Runner's
+   PassSingleRestriction evaluates it via EvaluateExpression ->
+   clsVariable.SetToExpression, which calls Global.Random(min,max) for a RAND()
+   token (clsUserSession.vb:4486).  So SixSilverBullets' TimeTrapsT `Roller
+   Must BeEqualTo 'RAND(1,16)'` draws one random per evaluation -- a draw that
+   must not be skipped (strtol of the quoted string would yield 0, so the chime
+   never fires and the RAND stream desyncs from the Runner, mistiming the
+   sniper/bomb events). */
 static long
 num_value (a5_state_t *st, const char *k)
 {
@@ -222,12 +230,13 @@ num_value (a5_state_t *st, const char *k)
   if (s != nullptr && strncmp (s, "RAND", 4) == 0)
     return a5rand_between_args (s + 4);
   /* A bare numeric restriction value is an integer LITERAL, never a variable
-     key: the runner's FileIO.LoadRestrictions stores `IntValue = CInt(sElements(3))`
-     when `sElements.Length = 4 AndAlso IsNumeric(sElements(3))`, and only takes
-     the "key to a variable" branch for a NON-numeric token.  LostCoastlines has
-     a Text variable literally keyed "511", so a variable-key lookup on the RHS
-     of `Encounter Must BeEqualTo 511` wrongly read that (0-valued) variable and
-     made every `Encounter == <n>` where a variable happens to be keyed <n> pass
+     key: the Runner's FileIO.LoadRestrictions stores `IntValue =
+     CInt(sElements(3))` when `sElements.Length = 4 AndAlso
+     IsNumeric(sElements(3))`, and only takes the "key to a variable" branch
+     for a NON-numeric token.  LostCoastlines has a Text variable literally
+     keyed "511", so a variable-key lookup on the RHS of `Encounter Must
+     BeEqualTo 511` wrongly read that (0-valued) variable and made every
+     `Encounter == <n>` where a variable happens to be keyed <n> pass
      spuriously.  Test for the integer form before the variable lookup. */
   if (is_clean_int (s))
     return strtol (s, nullptr, 10);
@@ -236,14 +245,15 @@ num_value (a5_state_t *st, const char *k)
     return st->var_num[vi];
   /* Not a RAND literal and not a bare variable key: the value may be an
      expression carrying %references% and/or arithmetic (e.g. Tingalan's
-     `'%randbetween1and9%'` or `'%randbetween1and9%+%randbetween1and2%'`).  The runner
-     resolves the RHS via EvaluateExpression (substitute %vars%, reduce); strtol
-     alone left a leading `%` as 0, so an *unmet* survival restriction such as
-     Dysentaryk's `Poopcounte Must BeGreaterThanOrEqualTo '%randbetween1and9%'`
-     fired as 0>=0 -- inflicting a spurious `Wounds += 12` mortal wound.  When the
-     value contains a %reference%, evaluate it through the same expression engine
-     the action side uses (a5text_eval_expression) and read back the number.  The
-     `%`-only trigger keeps every non-reference RHS byte-identical to before. */
+     `'%randbetween1and9%'` or `'%randbetween1and9%+%randbetween1and2%'`).  The
+     Runner resolves the RHS via EvaluateExpression (substitute %vars%,
+     reduce); strtol alone left a leading `%` as 0, so an *unmet* survival
+     restriction such as Dysentaryk's `Poopcounte Must BeGreaterThanOrEqualTo
+     '%randbetween1and9%'` fired as 0>=0 -- inflicting a spurious `Wounds +=
+     12` mortal wound.  When the value contains a %reference%, evaluate it
+     through the same expression engine the action side uses
+     (a5text_eval_expression) and read back the number.  The `%`-only trigger
+     keeps every non-reference RHS byte-identical to before. */
   if (s != nullptr && strchr (s, '%') != nullptr)
     {
       char *ev = a5text_eval_expression (st, s);
@@ -256,8 +266,8 @@ num_value (a5_state_t *st, const char *k)
 
 /* clsCharacter.IsHoldingObject (clsCharacter.vb:895): an object counts as held
    by `charkey` (or ANYCHARACTER) when it is directly HeldByCharacter, OR is
-   inside/on an object that is (recursively) held.  So the silver key inside the
-   carried jewelry box is "held" and unlocks the door. */
+   inside/on an object that is (recursively) held.  So the silver key inside
+   the carried jewelry box is "held" and unlocks the door. */
 static int
 is_holding_object (a5_state_t *st, int oi, const char *charkey)
 {
@@ -312,7 +322,7 @@ object_is_in_or_on (a5_state_t *st, int oi, const char *k2, a5_owhere_t want)
   return 0;
 }
 
-/* ------------------------------------------------------ object sub-evaluator */
+/* ---------------------------------------------------- object sub-evaluator */
 
 /* The ANYOBJECT / NOOBJECT quantifier shared by pass_object's whole-table
    scans: true for ANYOBJECT when some object satisfies `pred`, for NOOBJECT
@@ -366,7 +376,7 @@ pass_object (a5_state_t *st, a5_restr_t *r)
                           && (streq (k2, ANYCHARACTER)
                               || streq (st->obj[i].key, k2)); });
       if (oi < 0) return 0;
-      /* BeHeldByCharacter recurses through held containers (the runner's
+      /* BeHeldByCharacter recurses through held containers (the Runner's
          IsHoldingObject); BeWornByCharacter is a direct check. */
       if (want == A5_OWHERE_HELD_BY)
         return is_holding_object (st, oi, k2);
@@ -417,7 +427,7 @@ pass_object (a5_state_t *st, a5_restr_t *r)
       int i;
       if (oi < 0) return 0;
       /* Consult the runtime override layer so SetProperty (e.g. OpenStatus) is
-         reflected; fall back to the model's static value.  Mirror the runner's
+         reflected; fall back to the model's static value.  Mirror the Runner's
          BeInState (clsUserSession.vb:4253): only a StateList property whose
          AppendToProperty is empty counts -- an appended pseudo-state property
          (e.g. LockStatus, which appends "Locked" onto OpenStatus) is skipped,
@@ -467,8 +477,8 @@ pass_object (a5_state_t *st, a5_restr_t *r)
     return streq (k1, k2);
   if (streq (r->op, "BeVisibleToCharacter"))
     {
-      /* The runner's CanSeeObject (clsCharacter.vb:772) compares BoundVisible keys, so
-         an object inside a closed opaque container is not visible.
+      /* The Runner's CanSeeObject (clsCharacter.vb:772) compares BoundVisible
+         keys, so an object inside a closed opaque container is not visible.
          clsUserSession.vb:4338: ANYOBJECT = the observer sees at least one
          object, NOOBJECT = the observer sees none. */
       int ci = a5state_character_index (st, k2);
@@ -491,7 +501,7 @@ pass_object (a5_state_t *st, a5_restr_t *r)
   return 1;                   /* unknown operator: don't suppress text */
 }
 
-/* --------------------------------------------------- location sub-evaluator */
+/* -------------------------------------------------- location sub-evaluator */
 
 static int
 pass_location (a5_state_t *st, a5_restr_t *r)
@@ -508,18 +518,20 @@ pass_location (a5_state_t *st, a5_restr_t *r)
     return streq (loc, r->key2);
   if (streq (r->op, "BeInGroup"))
     /* Effective membership = runtime override (AddLocationToGroup /
-       RemoveLocationFromGroup, e.g. Tingalan's Search tasks stamping the current
-       location into SearchedLo, or Jacaranda's dusk/dawn DarkLocations toggles)
-       layered over the static <Member> list -- exactly what a5state_object_in_group
-       computes and what the object BeInGroup handler already uses.  The old
-       static-only scan here missed every runtime AddLocationToGroup, so e.g.
-       `Location MustNot BeInGroup SearchedLo` never blocked a re-search. */
+       RemoveLocationFromGroup, e.g. Tingalan's Search tasks stamping the
+       current location into SearchedLo, or Jacaranda's dusk/dawn DarkLocations
+       toggles) layered over the static <Member> list -- exactly what
+       a5state_object_in_group computes and what the object BeInGroup handler
+       already uses.  A static-only scan would miss every runtime
+       AddLocationToGroup, so e.g.  `Location MustNot BeInGroup SearchedLo`
+       would never block a re-search. */
     return loc != nullptr && a5state_object_in_group (st, r->key2, loc);
   if (streq (r->op, "HaveProperty"))
     {
-      /* Through the state accessor so SetProperty overrides AND group-inherited
-         location properties (clsItem.htblInheritedProperties, e.g. The Salvage's
-         "Planet Tiles" group carrying daz7LocationIs1) both count. */
+      /* Through the state accessor so SetProperty overrides AND
+         group-inherited location properties (clsItem.htblInheritedProperties,
+         e.g. The Salvage's "Planet Tiles" group carrying daz7LocationIs1) both
+         count. */
       if (loc == nullptr || a5model_location (st->adv, loc) == nullptr) return 0;
       return a5state_entity_has_prop (st, loc, r->key2);
     }
@@ -527,13 +539,14 @@ pass_location (a5_state_t *st, a5_restr_t *r)
     return 1;
   if (streq (r->op, "HaveBeenSeenByCharacter"))
     {
-      /* clsLocation.SeenBy(char) == Character.HasSeenLocation(loc).  In the runner that
-         flag is set in exactly one place -- clsUserSession.vb:222, for the
-         PLAYER only, on every player move -- so an NPC observer has NEVER seen
-         any location and the restriction is always False for it.  (AoS gates the
-         Flour Store `Up` exit on `cl_Mission1 HaveBeenSeenByCharacter Finnjart`,
-         which stays blocked until the game explicitly advances it.)  Mirror that:
-         the player consults the seen set; any other character is unseen. */
+      /* clsLocation.SeenBy(char) == Character.HasSeenLocation(loc).  In the
+         Runner that flag is set in exactly one place -- clsUserSession.vb:222,
+         for the PLAYER only, on every player move -- so an NPC observer has
+         NEVER seen any location and the restriction is always False for it.
+         (AoS gates the Flour Store `Up` exit on `cl_Mission1
+         HaveBeenSeenByCharacter Finnjart`, which stays blocked until the game
+         explicitly advances it.)  Mirror that:  the player consults the seen
+         set; any other character is unseen. */
       const char *ch = resolve_key (st, r->key2);
       int li;
       if (ch != nullptr && ch[0] != '\0' && !streq (ch, a5state_player_key (st)))
@@ -546,7 +559,7 @@ pass_location (a5_state_t *st, a5_restr_t *r)
 
 /* ------------------------------------------------------------ exit lookup */
 
-/* Per-turn route memo, the Adrift 5 runner's clsCharacter.dictHasRouteCache /
+/* Per-turn route memo, the Runner's clsCharacter.dictHasRouteCache /
    dictRouteErrors: each character's route-restriction evaluation for a
    (location, direction) is performed at most once per turn, and every later
    check that turn reuses the verdict even if an action has since changed the
@@ -586,8 +599,8 @@ a5restr_route_cache_free (a5_state_t *st)
 /* The session ledger behind clsDirection.bEverBeenBlocked: every failed route
    evaluation records its (location, direction) here, whoever asked -- a
    movement attempt, a HaveRouteInDirection restriction, %Exits%, or the map
-   painting itself, exactly the callers of the runner's HasRouteInDirection.
-   Unlike the route memo it is never cleared: the runner's flag stays set for
+   painting itself, exactly the callers of the Runner's HasRouteInDirection.
+   Unlike the route memo it is never cleared: the Runner's flag stays set for
    the rest of the session (and, like it, is not saved). */
 typedef std::set<std::string> a5_blocked_ledger_t;
 
@@ -663,7 +676,7 @@ a5restr_exit_in_direction (a5_state_t *st, const char *charkey,
       mr = a5xml_child (c, "Restrictions");
       if (mr != nullptr && !a5restr_pass (st, mr))
         {                               /* route blocked by its restriction */
-          /* Capture the blocking message unconditionally (the runner stores
+          /* Capture the blocking message unconditionally (the Runner stores
              sErrorMessage in dictRouteErrors on every miss), so a same-turn
              re-check that DOES want it replays it without re-evaluating. */
           bl = a5restr_fail_message (st, mr);
@@ -687,7 +700,7 @@ a5restr_exit_in_direction (a5_state_t *st, const char *charkey,
   return result;
 }
 
-/* -------------------------------------------------- character sub-evaluator */
+/* ------------------------------------------------- character sub-evaluator */
 
 /* The OTHER characters sharing `ci`'s resolved room, capped at 2 (enough to
    distinguish alone / exactly-one / crowd).  Compares resolved
@@ -720,8 +733,9 @@ chars_sharing_room (a5_state_t *st, int ci, const char **other)
   return count;
 }
 
-/* AloneWithChar (clsCharacter.AloneWithChar): the single other character in the
-   same location as `charkey`, or NULL if there are zero or more than one. */
+/* AloneWithChar (clsCharacter.AloneWithChar): the single other character in
+   the same location as `charkey`, or NULL if there are zero or more than one.
+   */
 static const char *
 alone_with_char (a5_state_t *st, const char *charkey)
 {
@@ -730,7 +744,8 @@ alone_with_char (a5_state_t *st, const char *charkey)
   return (chars_sharing_room (st, ci, &other) == 1) ? other : nullptr;
 }
 
-/* Does character `charkey` hold (where==HELD_BY) or wear (WORN_BY) any object? */
+/* Does character `charkey` hold (where==HELD_BY) or wear (WORN_BY) any object?
+   */
 static int
 char_holds_any (a5_state_t *st, const char *charkey, a5_owhere_t where)
 {
@@ -745,8 +760,8 @@ char_holds_any (a5_state_t *st, const char *charkey, a5_owhere_t where)
    objects nested inside containers/on supporters the character (transitively)
    holds -- InObject/OnObject recurse on the parent, HeldByCharacter terminates
    (clsCharacter.vb:895).  WornByCharacter does NOT count as held, so the
-   recursion stops (returns 0) at a worn parent.  bDirectly disables the recursion
-   (the directly-held-only check). */
+   recursion stops (returns 0) at a worn parent.  bDirectly disables the
+   recursion (the directly-held-only check). */
 static int
 char_holds_object (a5_state_t *st, const char *charkey, const char *objkey,
                    int directly)
@@ -821,10 +836,10 @@ char_restr_t::be_at_location () const
      ANYCHARACTER = true when ANY character's Location.LocationKey equals
      k2 (DieFeuerfaust's look-through-flap segment is gated on
      `AnyCharacter Must BeAtLocation ChieftainS` after the chieftain and
-     his wife are bulk-moved into the main chamber; this case previously
-     fell through to the ci<0 NULL compare and always failed).  Both
-     branches compare the runner's *resolved* LocationKey -- the root room through
-     an on/in-object carrier (clsCharacter.vb:1773) -- not the raw
+     his wife are bulk-moved into the main chamber; without this case it
+     falls through to the ci<0 NULL compare and always fails).  Both
+     branches compare the Runner's *resolved* LocationKey -- the root room
+     through an on/in-object carrier (clsCharacter.vb:1773) -- not the raw
      char_loc, which is NULL for a character seated on furniture. */
   if (streq (k1, ANYCHARACTER))
     {
@@ -852,7 +867,7 @@ char_restr_t::be_of_gender () const
      the generated GenTask1 that would ask via %PopUpChoice% is a System
      task WITHOUT RunImmediately, and nothing ever dispatches one of those
      (clsUserSession.vb:213 auto-runs only the RunImmediately ones), so the
-     Unknown default is what the runner plays with too. */
+     Unknown default is what the Runner plays with too. */
   const char *g = a5state_entity_prop (st, k1, "Gender");
   return g != nullptr && strcasecmp (g, k2) == 0;
 }
@@ -987,12 +1002,13 @@ char_restr_t::be_character () const
 {
   /* clsRestriction.CharacterEnum.BeCharacter (clsUserSession.vb:4579): the
      subject character k1 is a specific character (ANYCHARACTER = any) -- an
-     identity test on the resolved keys (mirrors the object `BeObject`).  Without
-     this case the operator fell through to the best-effort `return 1`, so e.g.
-     RunBronwynn's `ExamineCha1` ("Examine Me", `ReferencedCharacter Must
-     BeCharacter Player`) wrongly fired for any examined character (x horse ->
-     Fleetwind), showing its description where the runner's higher-priority
-     ExamineCharacter fails the HaveSeen check with "You see no such thing." */
+     identity test on the resolved keys (mirrors the object `BeObject`).
+     Without this case the operator fell through to the best-effort `return 1`,
+     so e.g.  RunBronwynn's `ExamineCha1` ("Examine Me", `ReferencedCharacter
+     Must BeCharacter Player`) wrongly fired for any examined character (x
+     horse -> Fleetwind), showing its description where the Runner's
+     higher-priority ExamineCharacter fails the HaveSeen check with "You see no
+     such thing." */
   if (streq (k1, ANYCHARACTER))
     return 1;
   return streq (k1, k2);
@@ -1001,15 +1017,16 @@ char_restr_t::be_character () const
 int
 char_restr_t::be_visible_to_character () const
 {
-  /* clsRestriction.CharacterEnum.BeVisibleToCharacter (clsUserSession.vb:4700):
-     true when the subject character k1 (ANYCHARACTER = any) can be seen by the
-     observer k2 -- clsCharacter.CanSeeCharacter -> IsVisibleTo: the two share a
-     BoundVisible location and the subject is not Hidden.  Reduce to "the subject
-     is at the observer's location" (a5state_character_at_location resolves an
-     on/in-object subject through its carrier and treats Hidden as not-present).
-     Without this case the operator fell through to the best-effort `return 1`,
-     so e.g. Grandpa's `vnl_JustTalk` ("talk" near Molly) wrongly fired when
-     Molly was elsewhere, swallowing the turn. */
+  /* clsRestriction.CharacterEnum.BeVisibleToCharacter
+     (clsUserSession.vb:4700):  true when the subject character k1
+     (ANYCHARACTER = any) can be seen by the observer k2 --
+     clsCharacter.CanSeeCharacter -> IsVisibleTo: the two share a BoundVisible
+     location and the subject is not Hidden.  Reduce to "the subject is at the
+     observer's location" (a5state_character_at_location resolves an
+     on/in-object subject through its carrier and treats Hidden as
+     not-present).  Without this case the operator fell through to the
+     best-effort `return 1`, so e.g. Grandpa's `vnl_JustTalk` ("talk" near
+     Molly) wrongly fired when Molly was elsewhere, swallowing the turn. */
   const char *obs_loc;
   if (streq (k2, ANYCHARACTER))
     {
@@ -1062,7 +1079,7 @@ char_restr_t::have_property () const
   /* clsCharacter.HasProperty (clsItem.vb:386) consults the *merged*
      property table, so a property added at runtime via SetProperty
      (e.g. `SetProperty Susan Known <Selected>`, clsUserSession.vb:2042)
-     must count -- not just the static model props.  The runner's
+     must count -- not just the static model props.  The Runner's
      SetPropertyValue(Boolean) removes a SelectionOnly property when set
      to <Unselected>, so an override carrying that sentinel reads as
      absent (mirroring the display-name "Selected" check at a5text.cpp). */
@@ -1090,9 +1107,9 @@ char_restr_t::be_in_group () const
 {
   /* clsUserSession.vb:4779: ANYCHARACTER -> any character among the
      group's LIVE members (runtime Add/RemoveCharacterToGroup counts);
-     else membership of k1 itself.  Previously unhandled, so the check
-     fell through to the pass-everything default and a MustNot BeInGroup
-     restriction could never fail. */
+     else membership of k1 itself.  Without this, the check
+     falls through to the pass-everything default and a MustNot BeInGroup
+     restriction can never fail. */
   if (streq (k1, ANYCHARACTER))
     {
       for (int s = 0; s < st->adv->n_characters; s++)
@@ -1112,7 +1129,8 @@ char_restr_t::have_route_in_direction () const
   const a5_xml_node_t *blocked = nullptr;
   const char *exit;
   if (dir == nullptr)
-    dir = k2;             /* already canonical (e.g. bound ReferencedDirection) */
+    /* already canonical (e.g. bound ReferencedDirection) */
+    dir = k2;
   /* sRouteError: clear, then capture the blocked exit's own message (if the
      exit exists but is restriction-gated) so the deciding fail message
      override below can prefer it over the generic "no route" text. */
@@ -1121,7 +1139,7 @@ char_restr_t::have_route_in_direction () const
     {
       /* clsUserSession.vb:4608: AnyDirection loops every DirectionsEnum
          value through HasRouteInDirection -- true when at least one
-         direction has an open route (enum order, matching the runner's
+         direction has an open route (enum order, matching the Runner's
          short-circuit). */
       static const char *const kEnumDirs[12] = {
         "North", "East", "South", "West", "Up", "Down",
@@ -1134,7 +1152,7 @@ char_restr_t::have_route_in_direction () const
           if (a5restr_exit_in_direction (st, k1, cl, kEnumDirs[d], &b) != nullptr)
             return 1;
           if (b != nullptr)
-            blocked = b;    /* the runner keeps the LAST specific error */
+            blocked = b;    /* the Runner keeps the LAST specific error */
         }
       if (blocked != nullptr)
         st->route_error = blocked;
@@ -1190,12 +1208,12 @@ char_restr_t::be_on_or_in_object () const
     : streq (r->op, "BeLyingOnObject")    ? "Lying" : nullptr;
   int want_in = streq (r->op, "BeInsideObject");
   const char *pos = (ci >= 0 && st->char_position) ? st->char_position[ci] : nullptr;
-  /* Subject ANYCHARACTER: the runner's clsUserSession CharacterOnObject/InObject
-     AnyCharacter case counts the object's ChildrenCharacters (vb:4930/
-     4952) -- true when ANY character is on/in the (specific) object.  Head
-     Case's examine template gates %ListCharactersOnAndIn[%object%]% on
-     "AnyCharacter Must BeInsideObject ReferencedObject" (the Mysterious
-     Voice sitting inside the black van). */
+  /* Subject ANYCHARACTER: the Runner's clsUserSession
+     CharacterOnObject/InObject AnyCharacter case counts the object's
+     ChildrenCharacters (vb:4930/ 4952) -- true when ANY character is on/in the
+     (specific) object.  Head Case's examine template gates
+     %ListCharactersOnAndIn[%object%]% on "AnyCharacter Must BeInsideObject
+     ReferencedObject" (the Mysterious Voice sitting inside the black van). */
   if (streq (k1, ANYCHARACTER))
     {
       if (streq (k2, ANYOBJECT))
@@ -1281,14 +1299,14 @@ char_restr_t::have_seen_character () const
 int
 char_restr_t::have_seen_object () const
 {
-  /* key1 is the observer, key2 the target object.  The runner funnels this and the
-     object-subject HaveBeenSeenByCharacter to the same per-character
+  /* key1 is the observer, key2 the target object.  The Runner funnels this and
+     the object-subject HaveBeenSeenByCharacter to the same per-character
      clsCharacter.HasSeenObject table (clsUserSession.vb:4677 / :4341), so
      mirror the object-side handler exactly: the player consults the tracked
      seen set; a non-player observer falls back to "seen" (best-effort).
      Without this case the operator fell through to `return 1`, so Thy
-     Dunjohnman's gated exits (`%Player% Must HaveSeenObject Platform` /
-     Coins) were open from turn one (the runner keeps them shut). */
+     Dunjohnman's gated exits (`%Player% Must HaveSeenObject Platform` / Coins)
+     were open from turn one (the Runner keeps them shut). */
   int o2 = a5state_object_index (st, k2);
   if (o2 < 0)
     return 0;
@@ -1301,14 +1319,14 @@ int
 char_restr_t::have_seen_location () const
 {
   /* key1 is the observer (typically Player), key2 the target location.
-     the runner sets clsCharacter.HasSeenLocation only for the Player
+     the Runner sets clsCharacter.HasSeenLocation only for the Player
      (clsUserSession.vb:222, on every player move), so a non-player observer
      has never seen any location -- mirror the location-subject
      HaveBeenSeenByCharacter handler.  Without this case the operator fell
      through to the best-effort `return 1`, so RunBronwynn's Caught121
      (`Player Must HaveSeenLocation BridgetSLi`) fired the moment the player
      reached the cathedral-square street -- BEFORE ever entering Bridget's
-     house -- ending the game prematurely (the runner plays on). */
+     house -- ending the game prematurely (the Runner plays on). */
   int li = a5state_location_index (st, k2);
   if (li < 0)
     return 0;
@@ -1408,12 +1426,13 @@ pass_character (a5_state_t *st, a5_restr_t *r)
   return 1;                   /* other character ops: best-effort pass */
 }
 
-/* --------------------------------------------------- variable sub-evaluator */
+/* -------------------------------------------------- variable sub-evaluator */
 
 /* A restriction's comparison value as a string (FileIO.LoadRestrictions +
    EvaluateExpression): a quoted literal is de-quoted then expression-evaluated
    (so `"" the ""` -> `" the "` -> ` the `); a bare token naming a variable
-   yields that variable's value; otherwise the token is expression-evaluated. */
+   yields that variable's value; otherwise the token is expression-evaluated.
+   */
 static char *
 restr_text_value (a5_state_t *st, const char *key2)
 {
@@ -1484,7 +1503,7 @@ pass_variable (a5_state_t *st, a5_restr_t *r)
       if (cur == nullptr) cur = a5state_lookup_ref (st, "ReferencedText");
       if (cur == nullptr)
         {
-          /* The runner reads the turn-global Adventure.sReferencedText slot
+          /* The Runner reads the turn-global Adventure.sReferencedText slot
              (clsUserSession.vb:4474), filled by every command-matched
              candidate's %text% capture during the scan and defaulted to the
              raw input after it (see a5_state_t.scan_text).  A task with no
@@ -1524,14 +1543,15 @@ pass_variable (a5_state_t *st, a5_restr_t *r)
   if (streq (v->type, "Text"))
     {
       const char *cur = st->var_text[vi] ? st->var_text[vi] : "";
-      /* The RHS is an expression, not a raw token: the runner compares against
+      /* The RHS is an expression, not a raw token: the Runner compares against
          EvaluateExpression(value).  A string-literal value like `"'greater'"`
-         reduces to `greater` (the SetVariable side already stores it unquoted via
-         a5text_process), and a %reference% is substituted.  restr_text_value does
-         exactly that reduction (same helper the ReferencedText path uses); using
-         the raw r->key2 here left the quotes/`%` in place, so e.g. Tingalan's
-         `Kindofhung1 BeContain "'greater'"` compared `greater` against the literal
-         `"'greater'"` and never matched -- the greater-thirst wound never landed. */
+         reduces to `greater` (the SetVariable side already stores it unquoted
+         via a5text_process), and a %reference% is substituted.
+         restr_text_value does exactly that reduction (same helper the
+         ReferencedText path uses); using the raw r->key2 here left the
+         quotes/`%` in place, so e.g. Tingalan's `Kindofhung1 BeContain
+         "'greater'"` compared `greater` against the literal `"'greater'"` and
+         never matched -- the greater-thirst wound never landed. */
       char *rhs = restr_text_value (st, r->key2);
       int res = str_compare_op (r->op, cur, rhs);
       free (rhs);
@@ -1545,7 +1565,7 @@ pass_variable (a5_state_t *st, a5_restr_t *r)
     }
 }
 
-/* --------------------------------------------------- property sub-evaluator */
+/* -------------------------------------------------- property sub-evaluator */
 
 static int
 is_op_numeric_inequality (const char *op)
@@ -1557,7 +1577,7 @@ is_op_numeric_inequality (const char *op)
 }
 
 /* The six clsTask.VariableEnum member names (clsTask.vb:612), which are the
-   only tokens the runner will read as a property restriction's operator. */
+   only tokens the Runner will read as a property restriction's operator. */
 static int
 is_variable_enum_op (const char *op)
 {
@@ -1568,17 +1588,18 @@ is_variable_enum_op (const char *op)
 
 /*
  * Port of clsUserSession.PassSingleRestriction's Property case (clsUserSession
- * .vb:5060).  The spec is "<propKey> <itemRef> Must|MustNot <Op> <value>" -- it
- * carries an extra item token that parse_spec (built for the one-key Object/
- * Character layout) cannot represent, so re-tokenise the raw text here.
+ * .vb:5060).  The spec is "<propKey> <itemRef> Must|MustNot <Op> <value>" --
+ * it carries an extra item token that parse_spec (built for the one-key
+ * Object/ Character layout) cannot represent, so re-tokenise the raw text
+ * here.
  *
  * An item lacking the property fails the test (bItemContainsProperty=False).
  * EqualTo compares the (override-aware) property value against the resolved
  * value as a string -- covering StaticOrDynamic / OpenStatus / state lists /
- * integer flags / object-key properties.  The numeric inequality operators are
- * evaluated only when the value is a plain integer; an expression value
- * (%Player%-relative weight/bulk sums) is not yet computed, so the restriction
- * passes (the lenient default, matching the previous always-pass stub).
+ * integer flags / object-key properties.  The numeric inequality operators
+ * compare plain integers, or a %Player%-relative arithmetic RHS (weight/bulk
+ * sums) through the expression engine; any other non-integer RHS passes (the
+ * lenient default).
  */
 /* Cut the next space-delimited token out of *pp in place, terminating it and
    leaving *pp just past it; the token is empty at the end of the string. */
@@ -1600,19 +1621,20 @@ pass_property (a5_state_t *st, a5_restr_t *r)
 {
   const char *raw = r->raw ? r->raw : "";
   char *buf = strdup (raw);
-  char *p = buf, *propkey, *item, *musttok, *op, *opstart, *value;
+  char *p = buf, *propkey, *item, *musttok, *opstart, *value;
+  const char *op;
   int must_not, rr;
   const char *itemkey, *pv;
 
   propkey = next_token (&p);
   item = next_token (&p);
   musttok = next_token (&p);
-  op = next_token (&p);
-  opstart = op;
+  opstart = next_token (&p);
+  op = opstart;
   while (*p == ' ') p++;
   value = p;
 
-  /* The comparison operator is optional: the runner tests element 3 against
+  /* The comparison operator is optional: the Runner tests element 3 against
      the VariableEnum names and, when it is none of them, defaults the operator
      to EqualTo and starts the value THERE instead (FileIO.vb:593).  ADRIFT
      serialised property restrictions that way before 5.0.20 -- Jacaranda Jim's
@@ -1626,7 +1648,7 @@ pass_property (a5_state_t *st, a5_restr_t *r)
       size_t at = (size_t) (opstart - buf);
       memcpy (opstart, raw + at, strlen (raw) - at + 1);  /* undo tokenising */
       value = opstart;
-      op = (char *) "EqualTo";
+      op = "EqualTo";
     }
 
   must_not = (strcmp (musttok, "MustNot") == 0);
@@ -1656,9 +1678,9 @@ pass_property (a5_state_t *st, a5_restr_t *r)
       pv = a5state_entity_prop (st, itemkey, propkey);
       if (pv == nullptr && strcmp (propkey, "StaticOrDynamic") == 0)
         pv = "Static";          /* the StaticOrDynamic default for an object */
-      /* The runner's test is bItemContainsProperty (clsItem.HasProperty), THEN
-         a value compare: a property the item carries with no value at all -- an
-         un-filled Text property -- reads as "", it does not make the item
+      /* The Runner's test is bItemContainsProperty (clsItem.HasProperty), THEN
+         a value compare: a property the item carries with no value at all --
+         an un-filled Text property -- reads as "", it does not make the item
          property-less.  Only an item genuinely lacking the property fails. */
       if (pv == nullptr && a5state_entity_has_prop (st, itemkey, propkey))
         pv = "";
@@ -1674,9 +1696,8 @@ pass_property (a5_state_t *st, a5_restr_t *r)
            MaxBulk %Player% Must GreaterThanOrEqualTo
                                  %Player%.Held.Size.Sum+%objects%.Size.Sum
          Evaluate such an RHS through the OO expression engine (which handles
-         .Held/.Size.Sum aggregation) and compare numerically -- previously this
-         branch fell through to the lenient always-pass stub, so Scarier never
-         enforced the bulk/weight limits the Adrift 5 runner does.  A bare non-integer
+         .Held/.Size.Sum aggregation) and compare numerically, so the
+         bulk/weight limits are enforced as in the Runner.  A bare non-integer
          RHS with no reference (e.g. a state word like "Open" in an oddly
          authored `OpenStatus Obj Must LessThan Open`) is not arithmetic, so it
          keeps the lenient pass in the final else. */
@@ -1702,12 +1723,12 @@ pass_property (a5_state_t *st, a5_restr_t *r)
   return must_not ? !rr : rr;
 }
 
-/* ------------------------------------------------------- item sub-evaluator */
+/* ------------------------------------------------------ item sub-evaluator */
 
 /* The Item restriction type (clsUserSession.vb:4972): key1 -- typically the
    ReferencedItem binding of an %item% command token -- is resolved against
    objects, then characters, then locations; a key found in none of them fails
-   outright.  Only the operators the runner ties to that three-way lookup are
+   outright.  Only the operators the Runner ties to that three-way lookup are
    mirrored; anything else keeps the best-effort pass. */
 static int
 pass_item (a5_state_t *st, a5_restr_t *r)
@@ -1784,10 +1805,10 @@ pass_single (a5_state_t *st, a5_restr_t *r)
     {
       /* clsUserSession.vb:5161: r = (sKey1 == ReferencedDirection).
          The element text is "<Must|MustNot> Be<Dir>" (FileIO.vb:611-615:
-         eMust=token0, sKey1=token1 with the leading "Be" trimmed).  parse_spec's
-         generic key1/op split mishandles this, so re-tokenise r->raw here and
-         return directly (the trailing must_not negation below would double-flip
-         since parse_spec couldn't see the "MustNot"). */
+         eMust=token0, sKey1=token1 with the leading "Be" trimmed).
+         parse_spec's generic key1/op split mishandles this, so re-tokenise
+         r->raw here and return directly (the trailing must_not negation below
+         would double-flip since parse_spec couldn't see the "MustNot"). */
       char tok0[32] = "", tok1[32] = "";
       const char *raw = r->raw ? r->raw : "";
       const char *want, *cur;
@@ -1805,7 +1826,7 @@ pass_single (a5_state_t *st, a5_restr_t *r)
       return result;
     }
   else
-    result = 1;               /* Item: Phase 3-4 */
+    result = 1;               /* unknown type: lenient pass */
 
   if (r->must_not)
     result = !result;
@@ -1827,7 +1848,7 @@ static int count_hashes (const char *s)
   return n;
 }
 
-/* Normalise "A#O" -> "(...A#)O..." so AND binds before OR (as the Adrift 5 runner). */
+/* Normalise "A#O" -> "(...A#)O..." so AND binds before OR (as the Runner). */
 static char *
 normalise_block (const char *in)
 {
@@ -1865,7 +1886,7 @@ normalise_block (const char *in)
  * AND short-circuits false, OR short-circuits true; *idx advances over every
  * '#' actually consumed (including short-circuited ones).
  *
- * `last_fail` mirrors the Adrift 5 runner's sRestrictionText side effect: every single
+ * `last_fail` mirrors the Runner's sRestrictionText side effect: every single
  * restriction actually evaluated clears it on a pass and sets it to its own
  * index on a fail, so after the (short-circuiting) walk it names the failing
  * restriction on the deciding path -- the one whose Message the Runner shows.
@@ -1908,7 +1929,7 @@ eval_block (a5_state_t *st, a5_restr_t *rs, const a5_xml_node_t **nodes, int n,
       op = norm[1];
       if (op != '\0' && op != 'A' && op != 'O')
         {
-          /* The Adrift 5 runner's inner "Case Else": a '#' followed by neither an
+          /* The Runner's inner "Case Else": a '#' followed by neither an
              operator nor end-of-block (e.g. the spurious leading '#' of a
              malformed "##A#").  EvaluateRestrictionBlock takes Case Else and
              falls off the end -> default False, WITHOUT calling
@@ -1916,23 +1937,24 @@ eval_block (a5_state_t *st, a5_restr_t *rs, const a5_xml_node_t **nodes, int n,
              sRestrictionText (here *last_fail) is left untouched -- preserving
              any carried value (the basis for Anno's reference-free OpeningHid
              failing *with* the previous command's leftover message). */
-          (*idx)++;             /* The runner still runs iRestNum += 1 */
+          (*idx)++;             /* The Runner still runs iRestNum += 1 */
           free (norm);
           return 0;
         }
       {
         /* Out of range means the block has more '#' terms than the task has
            restrictions, i.e. a malformed game file; treat it as a pass so a
-           broken block cannot lock a task out.  The runner has no equivalent
+           broken block cannot lock a task out.  The Runner has no equivalent
            branch -- RestrictionArrayList.Item returns Nothing on a range error
            and restx.Copy then throws, which GetGeneralTask swallows into
            "I didn't understand that command".  Note idx is *our own local*,
-           passed down through this recursion, whereas the runner's iRestNum is a
-           session field: a HaveRouteInDirection restriction re-enters restriction
-           evaluation and used to leave the outer walk on the wrong index (fixed
-           in ADRIFT 5.0.36 by saving/restoring it; see
-           test/BugHuntOnMenelaus_walkthrough.txt).  We are immune by
-           construction, so this branch is unreachable for well-formed games. */
+           passed down through this recursion, whereas the Runner's iRestNum is
+           a session field: a HaveRouteInDirection restriction re-enters
+           restriction evaluation and used to leave the outer walk on the wrong
+           index (fixed in ADRIFT 5.0.36 by saving/restoring it; see
+           test/adrift5/goldens/BugHuntOnMenelaus_walkthrough.txt).  We are
+           immune by construction, so this branch is unreachable for
+           well-formed games. */
         int my = (*idx)++;
         first = (my < n) ? pass_single (st, &rs[my]) : 1;
         if (my < n)
@@ -1943,10 +1965,10 @@ eval_block (a5_state_t *st, a5_restr_t *rs, const a5_xml_node_t **nodes, int n,
   else
     {
       free (norm);
-      /* The Adrift 5 runner's EvaluateRestrictionBlock hits "Case Else" (a block that
+      /* The Runner's EvaluateRestrictionBlock hits "Case Else" (a block that
          starts with neither '(' nor '#') and falls off the end with no Return,
-         so the Boolean function yields its default False -- a malformed bracket
-         sequence FAILS, it does not pass. */
+         so the Boolean function yields its default False -- a malformed
+         bracket sequence FAILS, it does not pass. */
       return 0;
     }
 
@@ -1964,10 +1986,10 @@ eval_block (a5_state_t *st, a5_restr_t *rs, const a5_xml_node_t **nodes, int n,
     }
   else
     /* The character after the leading term is neither 'A' nor 'O' (e.g. the
-       extra '#' in the malformed "##A#").  The Adrift 5 runner's inner Select Case
+       extra '#' in the malformed "##A#").  The Runner's inner Select Case
        takes "Case Else" and falls off the end -> default False.  Some games
-       (Anno 1700's OpeningClo2) ship such sequences expecting the task to FAIL,
-       so the engine moves on to the general task. */
+       (Anno 1700's OpeningClo2) ship such sequences expecting the task to
+       FAIL, so the engine moves on to the general task. */
     result = 0;
 
   free (norm);
@@ -1977,9 +1999,10 @@ eval_block (a5_state_t *st, a5_restr_t *rs, const a5_xml_node_t **nodes, int n,
 /*
  * Shared core for a5restr_pass / a5restr_fail_message: parse the restriction
  * specs, build the (square-bracket-expanded) BracketSequence and evaluate it.
- * Returns the boolean result; when `fail_node_out` is non-NULL it is set to the
- * <Restriction> on the deciding failing path (the Adrift 5 runner's sRestrictionText
- * source) -- NULL if the block passes or no single restriction failed.
+ * Returns the boolean result; when `fail_node_out` is non-NULL it is set to
+ * the <Restriction> on the deciding failing path (the Runner's
+ * sRestrictionText source) -- NULL if the block passes or no single
+ * restriction failed.
  */
 static int
 eval_restrictions (a5_state_t *st, const a5_xml_node_t *restrictions,
@@ -1989,7 +2012,8 @@ eval_restrictions (a5_state_t *st, const a5_xml_node_t *restrictions,
   const a5_xml_node_t **nodes;
   const a5_xml_node_t *c;
   const char *bracket;
-  int n, i, idx = 0, result, last_fail = -2;   /* -2 = no restriction evaluated */
+  /* -2 = no restriction evaluated */
+  int n, i, idx = 0, result, last_fail = -2;
   char *normbrackets = nullptr;
 
   if (fail_node_out != nullptr)
@@ -2033,8 +2057,8 @@ eval_restrictions (a5_state_t *st, const a5_xml_node_t *restrictions,
 
   /*
    * Expand the square-bracket grouping ADRIFT uses: '[' -> "((", ']' -> "))"
-   * (FileIO.vb:640).  This is not a stray-bracket cleanup -- the doubling is what
-   * keeps sequences such as "#A#A#A#A[#A#A#A#A#)O#)A#A#" balanced.
+   * (FileIO.vb:640).  This is not a stray-bracket cleanup -- the doubling is
+   * what keeps sequences such as "#A#A#A#A[#A#A#A#A#)O#)A#A#" balanced.
    */
   {
     char *b = (char *) malloc (strlen (bracket) * 2 + 1);
@@ -2051,14 +2075,15 @@ eval_restrictions (a5_state_t *st, const a5_xml_node_t *restrictions,
     free (b);
   }
 
-  /* The Adrift 5 runner's sRestrictionText side effect (clsUserSession.vb:5176/5181):
+  /* The Runner's sRestrictionText side effect (clsUserSession.vb:5176/5181):
      every PassSingleRestriction on the deciding path clears it on a pass and
      sets it to the restriction's Message on a fail; a call that evaluates *no*
      single restriction (malformed bracket -> last_fail still -2) leaves it
-     untouched, so the carried value from a previous command survives.  Persists
-     across commands -- never reset per turn. */
+     untouched, so the carried value from a previous command survives.
+     Persists across commands -- never reset per turn. */
   if (last_fail == -1)
-    st->restriction_text = nullptr;                 /* deciding restriction passed */
+    /* deciding restriction passed */
+    st->restriction_text = nullptr;
   else if (last_fail >= 0 && last_fail < n)
     st->restriction_text = a5xml_child (nodes[last_fail], "Message");
 
@@ -2136,16 +2161,18 @@ restr_find (const a5_xml_node_t *restrictions, int limit, F match)
 }
 
 /* Does a `<ref_alias> Must Exist` restriction (e.g. "ReferencedObject2") fall
- * *within* the task's evaluated BracketSequence?  ADRIFT evaluates only the first
- * M restrictions, where M is the number of '#' placeholders in the bracket (the
- * restrictions list may be longer than the bracket -- a truncated/malformed bracket
- * simply leaves the trailing restrictions unevaluated, exactly as eval_block does).
- * Used to decide whether an unmatched reference is genuinely *required*: if its
- * Must Exist is never evaluated, the task does not actually need it, so a sibling
- * reference's out-of-scope ambiguity ("You can't see any oil!") surfaces instead of
- * this reference's no-reference fallback ("Sorry, I'm not sure which object...").
- * Mirrors the pour task (`#A#A#`, object2's Exist truncated -> cantsee) vs the blow
- * / hang tasks (object2's Exist inside the bracket -> no-reference message). */
+ * *within* the task's evaluated BracketSequence?  ADRIFT evaluates only the
+ * first M restrictions, where M is the number of '#' placeholders in the
+ * bracket (the restrictions list may be longer than the bracket -- a
+ * truncated/malformed bracket simply leaves the trailing restrictions
+ * unevaluated, exactly as eval_block does).  Used to decide whether an
+ * unmatched reference is genuinely *required*: if its Must Exist is never
+ * evaluated, the task does not actually need it, so a sibling reference's
+ * out-of-scope ambiguity ("You can't see any oil!") surfaces instead of this
+ * reference's no-reference fallback ("Sorry, I'm not sure which object...").
+ * Mirrors the pour task (`#A#A#`, object2's Exist truncated -> cantsee) vs the
+ * blow / hang tasks (object2's Exist inside the bracket -> no-reference
+ * message). */
 int
 a5restr_exist_evaluated (const a5_xml_node_t *restrictions, const char *ref_alias)
 {
@@ -2184,13 +2211,14 @@ a5restr_has_exist (const a5_xml_node_t *restrictions, char type)
                      }) != nullptr;
 }
 
-/* The <Message> node of the first Object restriction "<ReferencedObject...> Must
- * Exist" in the task.  The Adrift 5 runner surfaces this as the ambiguity indicator when
- * a %objects% NOUN matches more than one object (e.g. `get fish` -> two fish ->
- * "Sorry, I'm not sure which object you are trying to take."): the multi-match is
- * inherently ambiguous, so the task's own reference-existence message is shown as
- * a prefix ahead of the specific failure.  Returns NULL if the task has no such
- * restriction. */
+/* The <Message> node of the first Object restriction "<ReferencedObject...>
+   Must
+ * Exist" in the task.  The Runner surfaces this as the ambiguity indicator
+ * when a %objects% NOUN matches more than one object (e.g. `get fish` -> two
+ * fish -> "Sorry, I'm not sure which object you are trying to take."): the
+ * multi-match is inherently ambiguous, so the task's own reference-existence
+ * message is shown as a prefix ahead of the specific failure.  Returns NULL if
+ * the task has no such restriction. */
 const a5_xml_node_t *
 a5restr_exist_message (const a5_xml_node_t *restrictions)
 {

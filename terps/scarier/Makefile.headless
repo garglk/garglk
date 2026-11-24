@@ -43,14 +43,14 @@ A5_RAND_OBJ := test/adrift5/harness/a5_randomness.o
 
 # All interpreter sources, plus the os-layer stubs the battle harness needs
 # (headless/, SCARE's test-suite stub layer; never part of a shipping build).
-# The ADRIFT 4 engine is core/; mapdraw.cpp is the engine-neutral map
+# The ADRIFT 4 engine is core/; map/ is the engine-neutral map
 # model/rasteriser core/scmap.cpp draws into.  The command library and the
 # runner live in library/ and runner/; tools/ is the SCARIER_DUMP_TOOLS
 # instrumentation (scdump.cpp, scrun_census.cpp), which is all under that
 # guard and so compiles to empty objects in the plain and san sets -- only
 # the dump set below defines the macro.
 SRC  := $(wildcard core/sc*.cpp) $(wildcard library/*.cpp) $(wildcard runner/*.cpp) \
-        $(wildcard tools/*.cpp) mapdraw.cpp
+        $(wildcard tools/*.cpp) $(wildcard map/*.cpp)
 STUBS   := headless/sxstubs.cpp
 HARNESS := test/adrift4/harness/battle_test.cpp
 
@@ -125,21 +125,25 @@ QUIT_BIN     := test/adrift4/harness/quit_test_hl
 EXPR_HARNESS := test/adrift4/harness/expr_test.cpp
 EXPR_BIN     := test/adrift4/harness/expr_test_hl
 
+# The style census reports, per game, the Glk style assignment the Glk
+# frontend makes before its windows open (glk/os_glk_styles.cpp, which calls
+# no Glk and so links here with the engine alone).
+STYLES_SRC     := glk/os_glk_styles.cpp
+STYLES_HARNESS := test/adrift4/styles/styles_census.cpp
+STYLES_BIN     := test/adrift4/styles/styles_census
+
 # ADRIFT 5 (Phases 0-1): container + de-obfuscation + zlib inflate -> XML, then
 # an in-situ XML DOM parser -> typed object model.  Self-contained at the
 # "container edge" -- links no interpreter sources.
 A5_SRC  := $(A5DIR)/a5blorb.cpp $(A5DIR)/a5deobf.cpp
 A5_MODEL_SRC := $(A5DIR)/a5blorb.cpp $(A5DIR)/a5deobf.cpp $(A5DIR)/a5xml.cpp $(A5DIR)/a5model.cpp \
                 $(A5DIR)/a5parse.cpp
-A5_TEXT_SRC := $(A5DIR)/a5blorb.cpp $(A5DIR)/a5deobf.cpp $(A5DIR)/a5xml.cpp $(A5DIR)/a5model.cpp \
-               $(A5DIR)/a5state.cpp $(A5DIR)/a5restr.cpp $(A5DIR)/a5expr.cpp $(A5DIR)/a5sexpr.cpp $(A5DIR)/text/a5text.cpp $(A5DIR)/a5parse.cpp \
-               $(A5DIR)/text/a5text_func.cpp $(A5DIR)/text/a5text_name.cpp $(A5DIR)/text/a5text_render.cpp $(A5DIR)/text/a5text_view.cpp \
-               $(A5DIR)/a5sb.cpp $(A5DIR)/a5rand.cpp
-A5_RUN_SRC := $(A5DIR)/a5blorb.cpp $(A5DIR)/a5deobf.cpp $(A5DIR)/a5xml.cpp $(A5DIR)/a5model.cpp \
-              $(A5DIR)/a5state.cpp $(A5DIR)/a5restr.cpp $(A5DIR)/a5expr.cpp $(A5DIR)/a5sexpr.cpp $(A5DIR)/text/a5text.cpp $(A5DIR)/a5parse.cpp \
-               $(A5DIR)/text/a5text_func.cpp $(A5DIR)/text/a5text_name.cpp $(A5DIR)/text/a5text_render.cpp $(A5DIR)/text/a5text_view.cpp \
-              $(A5DIR)/a5rand.cpp $(A5DIR)/a5sb.cpp $(A5DIR)/run/a5run_ref.cpp $(A5DIR)/run/a5run_events.cpp \
-              $(A5DIR)/run/a5run_action.cpp $(A5DIR)/run/a5run_act.cpp $(A5DIR)/run/a5run_sort.cpp $(A5DIR)/run/a5run_conv.cpp $(A5DIR)/run/a5run_resp.cpp $(A5DIR)/run/a5run_words.cpp $(A5DIR)/run/a5run_save.cpp $(A5DIR)/run/a5run.cpp
+# The later stages take whole directories, so a new TU joins them without an
+# edit here: the engine is every adrift5/*.cpp except a5map.cpp (the map
+# harnesses add it), then text/ for the text stage and run/ for the runner.
+A5_ENGINE_SRC := $(filter-out $(A5DIR)/a5map.cpp,$(wildcard $(A5DIR)/*.cpp))
+A5_TEXT_SRC := $(A5_ENGINE_SRC) $(wildcard $(A5DIR)/text/*.cpp)
+A5_RUN_SRC := $(A5_TEXT_SRC) $(wildcard $(A5DIR)/run/*.cpp)
 A5_RUN_OBJ := $(call objs,$(A5_RUN_SRC))
 A5DUMP_HARNESS := test/adrift5/harness/a5dump.cpp
 A5DUMP_BIN     := test/adrift5/harness/a5dump
@@ -175,7 +179,7 @@ A5DUP_BIN       := test/adrift5/harness/a5_exprdup_test
 # so it runs everywhere.  Both are v3.9, which needs no donor .taf for the
 # password trailer.  The goldens encode the Runner's answers: capacities are
 # volumes the contents spend, and both refusal strings are load-bearing (see
-# test/adrift4/notes/RUNNER_TESTS_TODO.md, 2026-08-03).
+# test/adrift4/notes/RUNNER_TESTS.md, 2026-08-03).
 CAP_BIN    := test/adrift4/harness/capacity_test_hl
 
 # The binaries the v4 walkthrough and projectile-combat scripts replay.
@@ -191,7 +195,7 @@ CAP_TAF    := test/adrift4/harness/capacity_matrix.taf test/adrift4/harness/capa
 # synthetic 3.9 games differing only in Perspective, since the refusals take
 # their leading word from it -- and since pre-4.0 has no third person, the
 # Perspective 2 build must read exactly like the Perspective 1 one, down to the
-# inventory line the script types.  See test/adrift4/notes/RUNNER_TESTS_TODO.md section 5.
+# inventory line the script types.  See test/adrift4/notes/RUNNER_TESTS.md section 5.
 WHERE_TAF  := test/adrift4/harness/where_refusal.taf \
               test/adrift4/harness/where_refusal_1p.taf \
               test/adrift4/harness/where_refusal_3p.taf
@@ -204,7 +208,7 @@ WHERE_PROBES := where_refusal where_refusal_1p where_refusal_3p
 # sound_400.taf in Spatterlight to hear them.
 SOUND_TAF  := test/adrift4/harness/sound_400.taf
 
-.PHONY: test quick suitebins unittest test-fd sanitize taf clean capacitytest capacitybless wheretest wherebless soundtest soundbless scmap a5dump a5model a5text a5run a5map a5parsetest a5runtest a5walkthroughs a5walkthroughs-golden a5probetafs a5maptest a5distest a5walktest a5objtest a5savetest a5duptest a5sexprtest v4walkthroughs scprojregress gamescheck gamesfetch vendorcheck
+.PHONY: test quick suitebins check-layers unittest test-fd sanitize taf clean styles stylestest stylesbless capacitytest capacitybless wheretest wherebless soundtest soundbless scmap a5dump a5model a5text a5run a5map a5parsetest a5runtest a5walkthroughs a5walkthroughs-golden a5probetafs a5maptest a5distest a5walktest a5objtest a5savetest a5duptest a5sexprtest v4walkthroughs scprojregress gamescheck gamesfetch vendorcheck
 # ADRIFT 5 game files live in an untracked (gitignored) folder under test/ so the
 # harnesses can find them by a stable in-repo path; the games themselves are
 # copyrighted and not committed.  Override A5_GAMES_DIR / A5_BULLETS to relocate.
@@ -230,13 +234,13 @@ V4_GAMES_DIR ?= test/adrift4/games
 # which share nothing but read-only inputs, run side by side
 # (test/run_stages.sh), each stage's output printed whole and in the order
 # below as it finishes.  The run fails if any stage does.
-SUITE_STAGES := unittest vendorcheck capacitytest wheretest soundtest gamescheck a5runtest \
+SUITE_STAGES := check-layers unittest vendorcheck capacitytest wheretest soundtest stylestest gamescheck a5runtest \
                 v4walkthroughs a5maptest scprojregress a5walkthroughs-golden
 
 UNIT_BINS := $(BIN) $(PREC_BIN) $(BADP_BIN) $(CORRUPT_BIN) $(QUIT_BIN) $(EXPR_BIN) $(A5PARSE_BIN) \
              $(A5SEXPR_BIN) $(A5DIS_BIN) $(A5WALK_BIN) $(A5OBJ_BIN) $(A5SAVE_BIN) $(A5DUP_BIN)
 SUITE_BINS := $(UNIT_BINS) $(TAF) $(PREC_TAF) $(BADP_TAF) $(CAP_BIN) $(CAP_TAF) $(WHERE_TAF) $(SOUND_TAF) \
-              $(A5RUN_BIN) $(A5MAP_BIN) $(SCPROJ_BIN) \
+              $(A5RUN_BIN) $(A5MAP_BIN) $(SCPROJ_BIN) $(STYLES_BIN) \
               $(if $(wildcard $(V4_GAMES_DIR)),$(SCARE_BIN))
 
 test:
@@ -252,6 +256,11 @@ quick:
 	@sh test/run_stages.sh "$(MAKE) -f Makefile.headless" $(QUICK_STAGES)
 
 suitebins: $(SUITE_BINS)
+
+# The layering check: core/ may call upward, into library/ and runner/, only
+# through the hooks core/schooks.h declares.  See test/check_layers.sh.
+check-layers: $(call objs,$(wildcard core/sc*.cpp))
+	@sh test/check_layers.sh $(OBJDIR)/plain/core core/schooks.h
 
 # The self-contained unit harnesses (no game data).
 unittest: $(UNIT_BINS) $(TAF) $(PREC_TAF) $(BADP_TAF)
@@ -499,6 +508,27 @@ $(QUIT_BIN): $(ENG_OBJ) $(call objs,$(OS_STUBS) $(QUIT_HARNESS))
 $(EXPR_BIN): $(ENG_OBJ) $(call objs,$(OS_STUBS) $(EXPR_HARNESS))
 	$(CXX) $^ $(LDLIBS) -o $@
 
+styles: $(STYLES_BIN)
+$(STYLES_BIN): $(ENG_OBJ) $(call objs,$(OS_STUBS) $(STYLES_SRC) $(A5_MODEL_SRC) $(STYLES_HARNESS))
+	$(CXX) $^ $(LDLIBS) -o $@
+
+# The style census and assignment of the fixtures in test/adrift4/styles/
+# (made by make_styles_tafs.py there).  Regenerate with:
+#   make -f Makefile.headless stylesbless
+STYLES_TAFS := $(sort $(wildcard test/adrift4/styles/styles_*.taf))
+stylestest: $(STYLES_BIN)
+	@./$(STYLES_BIN) $(STYLES_TAFS) > /tmp/styles_census.got; \
+	if diff -u test/adrift4/styles/census_expected.txt /tmp/styles_census.got \
+	    > /tmp/styles_census.diff 2>&1; then \
+	  echo "styles census: PASS"; \
+	else \
+	  echo "styles census: FAIL"; cat /tmp/styles_census.diff; exit 1; \
+	fi
+
+stylesbless: $(STYLES_BIN)
+	@./$(STYLES_BIN) $(STYLES_TAFS) > test/adrift4/styles/census_expected.txt; \
+	echo "blessed test/adrift4/styles/census_expected.txt"
+
 # Build the ADRIFT 5 XML dumper.  Run it by hand on a game:
 #   make -f Makefile.headless a5dump
 #   ./test/adrift5/harness/a5dump path/to/game.blorb > game.xml
@@ -535,7 +565,7 @@ $(A5_RAND_OBJ): $(COMMON)/randomness.c $(COMMON)/randomness.h
 #   make -f Makefile.headless a5map
 #   ./test/adrift5/harness/a5map_dump path/to/game.blorb [script.txt] -o map.ppm [-all]
 a5map: $(A5MAP_BIN)
-$(A5MAP_BIN): $(A5_RUN_OBJ) $(call objs,$(A5DIR)/a5map.cpp mapdraw.cpp $(A5MAP_HARNESS)) \
+$(A5MAP_BIN): $(A5_RUN_OBJ) $(call objs,$(A5DIR)/a5map.cpp $(wildcard map/*.cpp) $(A5MAP_HARNESS)) \
               $(A5_RAND_OBJ)
 	$(CXX) $^ $(LDLIBS) -o $@
 
@@ -711,7 +741,7 @@ $(BADP_TAF): test/adrift4/harness/make_badparent_taf.py
 
 clean:
 	rm -rf $(OBJDIR)
-	rm -f $(BIN) $(PREC_BIN) $(BADP_BIN) $(CORRUPT_BIN) $(QUIT_BIN) $(EXPR_BIN) $(A5DUMP_BIN) $(A5MODEL_BIN) $(A5TEXT_BIN) $(A5RUN_BIN) $(A5PARSE_BIN) $(A5SEXPR_BIN) $(A5DIS_BIN) $(A5WALK_BIN) $(A5OBJ_BIN) $(A5SAVE_BIN) $(A5DUP_BIN) $(A5MAP_BIN) $(SCMAP_BIN) $(A5_RAND_OBJ) $(CAP_BIN) $(SCARE_BIN) $(SCPROJ_BIN)
+	rm -f $(BIN) $(PREC_BIN) $(BADP_BIN) $(CORRUPT_BIN) $(QUIT_BIN) $(EXPR_BIN) $(A5DUMP_BIN) $(A5MODEL_BIN) $(A5TEXT_BIN) $(A5RUN_BIN) $(A5PARSE_BIN) $(A5SEXPR_BIN) $(A5DIS_BIN) $(A5WALK_BIN) $(A5OBJ_BIN) $(A5SAVE_BIN) $(A5DUP_BIN) $(A5MAP_BIN) $(SCMAP_BIN) $(A5_RAND_OBJ) $(CAP_BIN) $(SCARE_BIN) $(SCPROJ_BIN) $(STYLES_BIN)
 	rm -f $(BIN)_san $(PREC_BIN)_san $(BADP_BIN)_san $(CORRUPT_BIN)_san $(QUIT_BIN)_san $(EXPR_BIN)_san $(A5PARSE_BIN)_san $(A5SEXPR_BIN)_san $(A5DIS_BIN)_san $(A5WALK_BIN)_san $(A5OBJ_BIN)_san $(A5SAVE_BIN)_san $(A5DUP_BIN)_san $(CAP_BIN)_san $(SAN_RAND_OBJ)
 
 -include $(shell find $(OBJDIR) -name '*.d' 2>/dev/null)

@@ -26,13 +26,12 @@
  * run_task / run_general drivers with their completion-message rendering, and
  * the SetTasks-Execute response-scope flush.
  *
- * Split out of a5run.cpp, and since split further -- the subsystems this file
- * used to carry as well now sit beside it:
+ * The subsystems beside it:
  *
  *   a5run_act.cpp    ExecuteActions / ExecuteSingleAction: the core action set
  *                    (MoveObject/MoveCharacter, Set/Inc/Dec, SetProperty,
- *                    SetTasks Execute, conversation, EndGame) and the seen-state
- *                    bookkeeping
+ *                    SetTasks Execute, conversation, EndGame) and the
+ *                    seen-state bookkeeping
  *   a5run_resp.cpp   per-command response aggregation (htblResponsesPass/Fail:
  *                    dedup, %objects% merging, the deferred-message reference
  *                    snapshots, the final flush)
@@ -40,9 +39,10 @@
  *                    ExecuteConversation, ContainsWord, partner-gone teardown)
  *   a5run_sort.cpp   the .NET introsort that orders Specific override children
  *
- * The shared run struct, the response-collector types and every cross-file entry
- * point (run_task, run_general, run_action, update_seen, conv_contains_word, the
- * resp_* and exec_conversation calls) live in a5run_internal.h.
+ * The shared run struct, the response-collector types and every cross-file
+ * entry point (run_task, run_general, run_action, update_seen,
+ * conv_contains_word, the resp_* and exec_conversation calls) live in
+ * a5run_internal.h.
  */
 
 #include "a5run_internal.h"
@@ -68,7 +68,7 @@ dbg_task (void)
   return v;
 }
 
-/* Split a '|'-separated list, keeping empty fields (the shape of the runner's
+/* Split a '|'-separated list, keeping empty fields (the shape of the Runner's
    Items array for a pipe-list reference). */
 std::vector<std::string>
 split_pipe (const char *s)
@@ -86,11 +86,12 @@ split_pipe (const char *s)
 }
 
 /* Event/walk/LocationTrigger attempt bookkeeping: find the ev_resp_tbl entry
-   for completion node COMP with raw text TEXT, inserting one when there is none,
-   and make it the attempt's latest touched entry (the runner's AddResponse: a
-   repeat of the same completion MERGES into its existing response; the table's
-   final entry decides the post-Display NewReferences leftover -- see ev_tbl in
-   a5run_internal.h).  Returns true when the entry is new. */
+   for completion node COMP with raw text TEXT, inserting one when there is
+   none, and make it the attempt's latest touched entry (the Runner's
+   AddResponse: a repeat of the same completion MERGES into its existing
+   response; the table's final entry decides the post-Display NewReferences
+   leftover -- see ev_tbl in a5run_internal.h).  Returns true when the entry is
+   new. */
 static bool
 ev_tbl_touch (ev_resp_tbl *tb, const a5_xml_node_t *comp, const std::string &text)
 {
@@ -112,8 +113,8 @@ ev_tbl_touch (ev_resp_tbl *tb, const a5_xml_node_t *comp, const std::string &tex
 
 /* The object keys currently bound as this task-chain's %objects%/%object%
    reference -- the ReferencedObjects pipe list when present, else the singular
-   ReferencedObject1.  Used for the runner's pass-cancels-fail response rule (see
-   exec_pass_refs in a5run_internal.h). */
+   ReferencedObject1.  Used for the Runner's pass-cancels-fail response rule
+   (see exec_pass_refs in a5run_internal.h). */
 std::vector<std::string>
 current_obj_ref_keys (a5_state_t *st)
 {
@@ -134,19 +135,21 @@ current_obj_ref_keys (a5_state_t *st)
 static std::string render_look_string (a5_run_t *run);
 static void emit_completion (a5_run_t *run, const a5_xml_node_t *comp, sb_t *out);
 
-/* Render the room view as REAL output -- marking_display=1 so its <DisplayOnce>
-   segments retire -- restoring the previous marking flag afterwards.  The common
-   wrapper around render_look_string at every final-state Display site (and, via
-   a5run_look, the frontend's post-UNDO room redisplay).
+/* Render the room view as REAL output -- marking_display=1 so its
+   <DisplayOnce> segments retire -- restoring the previous marking flag
+   afterwards.  The common wrapper around render_look_string at every
+   final-state Display site (and, via a5run_look, the frontend's post-UNDO room
+   redisplay).
 
    Unlike the game-start/restore views (Display(ViewLocation) at vb:229/3142,
    whose ViewLocation getter evaluates OUTSIDE Display, bDisplaying=False), a
    look/movement room view is the stock Look task's AggregateOutput
    "%Player%.Location.Description", replaced INSIDE Display under
    bDisplaying=True -- so its %CharacterName% renders run clsCharacter.Name's
-   Introduced dance (definite-article upgrade + marking, clsCharacter.vb:331-334;
-   SampleConversation's second room shows "the old lady" after the conversation
-   introduced her).  Set intro_active for the render to match. */
+   Introduced dance (definite-article upgrade + marking,
+   clsCharacter.vb:331-334; SampleConversation's second room shows "the old
+   lady" after the conversation introduced her).  Set intro_active for the
+   render to match. */
 std::string
 render_look_marked (a5_run_t *run)
 {
@@ -161,9 +164,9 @@ render_look_marked (a5_run_t *run)
 /* ----------------------------------------- specific-override task dispatch */
 
 /* Map one command reference name ("objects", "object2", "character1", ...) to
-   its (general type, resolved entity key) using this turn's bindings.  The bare
-   "Referenced<Stem>" is reference 1; "Referenced<Stem>N" is the N-th, so a
-   2-specific override keys each Specific off its own reference. */
+   its (general type, resolved entity key) using this turn's bindings.  The
+   bare "Referenced<Stem>" is reference 1; "Referenced<Stem>N" is the N-th, so
+   a 2-specific override keys each Specific off its own reference. */
 static ref_info
 ref_info_for_name (a5_state_t *st, const std::string &name)
 {
@@ -184,12 +187,13 @@ ref_info_for_name (a5_state_t *st, const std::string &name)
   /* The plural %objects%/%characters% slot resolves through its OWN alias.
      When the command also carries a singular %object% (`hide %objects% in
      %object%`), bind_reference deliberately does NOT alias the plural onto
-     ReferencedObject (the runner's GetReference keys ReferencedObject to the "object1"
-     reference only, clsUserSession.vb:3990), so reading ReferencedObject here
-     would yield the singular container -- Dwarf's `hide axe in vegetation`
-     matched cl_HideObjInV1's [Sword, cl_Vegetation] specifics against
-     [vegetation, vegetation] and missed.  ReferencedObjects holds the current
-     item on both the per-item plural loop and the single-item direct path. */
+     ReferencedObject (the Runner's GetReference keys ReferencedObject to the
+     "object1" reference only, clsUserSession.vb:3990), so reading
+     ReferencedObject here would yield the singular container -- Dwarf's `hide
+     axe in vegetation` matched cl_HideObjInV1's [Sword, cl_Vegetation]
+     specifics against [vegetation, vegetation] and missed.  ReferencedObjects
+     holds the current item on both the per-item plural loop and the
+     single-item direct path. */
   if (base == "objects")
     ri.key = a5state_lookup_ref (st, "ReferencedObjects");
   else if (base == "characters")
@@ -262,8 +266,8 @@ command_refs (const a5_task_t *t)
    %character% %text%`).  Reorder the resolved refs into first-command order --
    a no-op when the first command matched -- so the 1:1 Specific matching in
    refs_match_specifics lines up.  When the matched command's reference names
-   are not a permutation of the first command's (the runner's GetAlternateRef falls
-   back to the unmapped index there), keep the matched order. */
+   are not a permutation of the first command's (the Runner's GetAlternateRef
+   falls back to the unmapped index there), keep the matched order. */
 static std::vector<ref_info>
 collect_refs_ordered (a5_state_t *st, const a5_match_t *m, const a5_task_t *t)
 {
@@ -305,10 +309,10 @@ char *
 eval_arg_to_key (a5_state_t *st, const std::string &arg)
 {
   std::string a = trim_ws (arg);
-  /* A bare entity key (no %...% at all, e.g. `vnl_Dial`) is already a key -- pass
-     it through verbatim.  It must NOT go through a5text_process, whose display
-     pipeline auto-capitalises the first letter ("vnl_Dial" -> "Vnl_Dial") and so
-     corrupts the case-sensitive object key. */
+  /* A bare entity key (no %...% at all, e.g. `vnl_Dial`) is already a key --
+     pass it through verbatim.  It must NOT go through a5text_process, whose
+     display pipeline auto-capitalises the first letter ("vnl_Dial" ->
+     "Vnl_Dial") and so corrupts the case-sensitive object key. */
   if (a.find ('%') == std::string::npos)
     return strdup (a.c_str ());
   if (a.size () >= 2 && a.front () == '%' && a.back () == '%'
@@ -325,8 +329,8 @@ eval_arg_to_key (a5_state_t *st, const std::string &arg)
           if (!k) k = a5state_lookup_ref (st, "ReferencedObject"); }
       else if (lname.rfind ("character", 0) == 0)
         { /* Indexed exactly like the object branch above: `%character2%` is
-             ReferencedCharacter2, NOT the bare ReferencedCharacter.  Beginner's
-             Cave's combat loop passes the DEFENDER on as
+             ReferencedCharacter2, NOT the bare ReferencedCharacter.
+             Beginner's Cave's combat loop passes the DEFENDER on as
              `Execute EnemyHits (%character2%)` from a task whose %character1%
              is the attacker, so collapsing the index bound the damage task to
              the attacking rat -- every enemy hit wounded the attacker and
@@ -337,16 +341,17 @@ eval_arg_to_key (a5_state_t *st, const std::string &arg)
           if (!k) k = a5state_lookup_ref (st, "ReferencedCharacter"); }
       if (k != nullptr) return strdup (k);
     }
-  /* A function/OO arg (e.g. %PropertyValue[%object1%,LockKey]%) evaluates to an
-     entity KEY -- run the substitution passes but NOT auto-capitalisation, which
-     would turn "s_SkeletonKe" into "S_SkeletonKe" and break the case-sensitive
-     lookup (same class of bug as the bare-key `vnl_Dial` case above). */
+  /* A function/OO arg (e.g. %PropertyValue[%object1%,LockKey]%) evaluates to
+     an entity KEY -- run the substitution passes but NOT auto-capitalisation,
+     which would turn "s_SkeletonKe" into "S_SkeletonKe" and break the
+     case-sensitive lookup (same class of bug as the bare-key `vnl_Dial` case
+     above). */
   return a5text_process_nocap (st, a.c_str ());
 }
 
 /* True when a SetTasks-Execute argument names the target task's own reference
    (`%objects%` for "objects", singular `%object%` normalising to "object1") --
-   the runner's pass-the-live-reference-through case (clsUserSession.vb:2188,
+   the Runner's pass-the-live-reference-through case (clsUserSession.vb:2188,
    `sParam = sRef`), which must leave the existing binding untouched. */
 bool
 arg_is_ref_passthrough (const std::string &arg, const std::string &rname)
@@ -360,17 +365,18 @@ arg_is_ref_passthrough (const std::string &arg, const std::string &rname)
 }
 
 /* A bare `Group.<Property>` SetTasks-Execute argument is an OO reference that
-   the Adrift 5 runner resolves (ReplaceOO -> ReplaceOOProperty, Global.vb:1597/930) to
+   the Runner resolves (ReplaceOO -> ReplaceOOProperty, Global.vb:1597/930) to
    the group's ordered member LIST filtered to members that carry <Property> --
-   e.g. `Objects1.StaticOrDynamic`, where the mandatory StateList property is on
-   every object, yields all 125 member keys.  The runner packs those keys as the Items of
-   a single reference so AttemptToExecuteTask -> ExecuteSubTasks runs the executed
-   General task once per member, binding its reference to each key in turn (this
-   is how the world-generation creation tasks value every object/secret/story).
+   e.g. `Objects1.StaticOrDynamic`, where the mandatory StateList property is
+   on every object, yields all 125 member keys.  The Runner packs those keys as
+   the Items of a single reference so AttemptToExecuteTask -> ExecuteSubTasks
+   runs the executed General task once per member, binding its reference to
+   each key in turn (this is how the world-generation creation tasks value
+   every object/secret/story).
 
-   Fill OUT with the member keys in arlMembers order and return true when ARG is
-   such a reference; return false (OUT untouched by the caller) otherwise so the
-   argument falls back to the ordinary single-key resolution. */
+   Fill OUT with the member keys in arlMembers order and return true when ARG
+   is such a reference; return false (OUT untouched by the caller) otherwise so
+   the argument falls back to the ordinary single-key resolution. */
 bool
 group_prop_member_keys (a5_state_t *st, const std::string &arg,
                         std::vector<std::string> &out)
@@ -396,12 +402,13 @@ group_prop_member_keys (a5_state_t *st, const std::string &arg,
 
   const a5_propdef_t *pd = a5model_propdef (adv, prop.c_str ());
   if (pd == nullptr) return false;
-  /* A mandatory property (the runner's clsProperty.Mandatory) is added to every
-     applicable item at load, so clsItem.HasProperty is always true for it --
-     StaticOrDynamic is the canonical case.  Otherwise keep the members that
-     HAVE the property (clsItem.HasProperty), presence not value -- a valueless
-     SelectionOnly marker (AlienDiver's `BlankCards.ObjectIsAC` = the available
-     blank cards) counts even though a5state_entity_prop returns NULL for it. */
+  /* A mandatory property (the Runner's clsProperty.Mandatory) is added to
+     every applicable item at load, so clsItem.HasProperty is always true for
+     it -- StaticOrDynamic is the canonical case.  Otherwise keep the members
+     that HAVE the property (clsItem.HasProperty), presence not value -- a
+     valueless SelectionOnly marker (AlienDiver's `BlankCards.ObjectIsAC` = the
+     available blank cards) counts even though a5state_entity_prop returns NULL
+     for it. */
   const char *mnd = pd->node ? a5xml_child_text (pd->node, "Mandatory") : nullptr;
   int mandatory = (mnd != nullptr && strcmp (mnd, "0") != 0);
 
@@ -413,9 +420,9 @@ group_prop_member_keys (a5_state_t *st, const std::string &arg,
       if (mandatory || a5state_entity_has_prop (st, mk, prop.c_str ()))
         out.push_back (mk);
     }
-  /* The runner still builds one (empty-keyed) Item for an empty resolution, so the
-     executed task runs once with an unbound reference (its BeInGroup restriction
-     then fails silently).  Preserve that single no-op run. */
+  /* The Runner still builds one (empty-keyed) Item for an empty resolution, so
+     the executed task runs once with an unbound reference (its BeInGroup
+     restriction then fails silently).  Preserve that single no-op run. */
   if (out.empty ())
     out.push_back ("");
   return true;
@@ -438,7 +445,8 @@ specific_key (a5_state_t *st, const char *key)
 }
 
 /* A Specific that constrains nothing (no Key elems, or a single empty Key) --
-   the runner's `Keys.Count = 0 OrElse (Keys.Count = 1 AndAlso Keys(0) = "")`. */
+   the Runner's `Keys.Count = 0 OrElse (Keys.Count = 1 AndAlso Keys(0) = "")`.
+   */
 static int
 spec_is_any (a5_state_t *st, const a5_specific_t *sp)
 {
@@ -447,8 +455,8 @@ spec_is_any (a5_state_t *st, const a5_specific_t *sp)
   return 0;
 }
 
-/* Match a resolved-specifics vector 1:1 against the references (one Specific per
-   reference, each non-empty key matching its reference's resolved key). */
+/* Match a resolved-specifics vector 1:1 against the references (one Specific
+   per reference, each non-empty key matching its reference's resolved key). */
 static int
 match_specifics_vec (a5_state_t *st, const std::vector<const a5_specific_t *> &specs,
                      const std::vector<ref_info> &refs)
@@ -458,16 +466,19 @@ match_specifics_vec (a5_state_t *st, const std::vector<const a5_specific_t *> &s
   for (size_t i = 0; i < specs.size (); i++)
     {
       const a5_specific_t *sp = specs[i];
-      int matched = (sp->n_keys == 0);            /* no Key elems = match any */
+      /* no Key elems = match any */
+      int matched = (sp->n_keys == 0);
       for (int k = 0; k < sp->n_keys; k++)
         {
           const char *want = specific_key (st, sp->keys[k]);
-          if (want == nullptr) { matched = 1; break; }       /* empty key = any */
-          /* The runner compares the Specific key to the reference's matched possibility
-             case-insensitively (RefsMatchSpecifics, clsUserSession.vb:634).  For a
-             Text specific (e.g. Grandpa's `say %text%` -> `vnl_SayKennedy`,
-             key "kennedy") the reference resolves to the typed text, so match it
-             case-insensitively; entity keys stay exact. */
+          /* empty key = any */
+          if (want == nullptr) { matched = 1; break; }
+          /* The Runner compares the Specific key to the reference's matched
+             possibility case-insensitively (RefsMatchSpecifics,
+             clsUserSession.vb:634).  For a Text specific (e.g. Grandpa's `say
+             %text%` -> `vnl_SayKennedy`, key "kennedy") the reference resolves
+             to the typed text, so match it case-insensitively; entity keys
+             stay exact. */
           if (refs[i].key != nullptr
               && (streq (want, refs[i].key)
                   || (refs[i].type == 't'
@@ -481,12 +492,13 @@ match_specifics_vec (a5_state_t *st, const std::vector<const a5_specific_t *> &s
 }
 
 /* RefsMatchSpecifics: the child's Specifics must line up 1:1 with the resolved
-   references.  A *nested* override may carry FEWER specifics than the references
-   (it only re-constrains some of them) -- the runner (clsUserSession.vb:1060-1071) then
-   expands the child against its parent: keep each parent specific that is itself
-   constrained, and fill the parent's "any" slots from the child's specifics in
-   order.  E.g. Jacaranda's `give tape to pirate`: Task49 (Object=tape) overrides
-   Task48 (Object=any, Character=pirate) -> effective specifics [tape, pirate]. */
+   references.  A *nested* override may carry FEWER specifics than the
+   references (it only re-constrains some of them) -- the Runner
+   (clsUserSession.vb:1060-1071) then expands the child against its parent:
+   keep each parent specific that is itself constrained, and fill the parent's
+   "any" slots from the child's specifics in order.  E.g. Jacaranda's `give
+   tape to pirate`: Task49 (Object=tape) overrides Task48 (Object=any,
+   Character=pirate) -> effective specifics [tape, pirate]. */
 static int
 refs_match_specifics (a5_state_t *st, const a5_task_t *child,
                       const a5_task_t *parent, const std::vector<ref_info> &refs)
@@ -543,23 +555,24 @@ child_all_any (a5_state_t *st, const a5_task_t *child)
   return 1;
 }
 
-/* Run the After-override children into `buf` in priority order (the runner's
-   AttemptToExecuteSubTask child scan): stop after the first that produces output
-   unless it is ContinueAlways -- the bContinue rule.  Two After overrides of the
-   same general+spec that both pass (Galen's Quest `put yellow gem in ceiling
-   receptacle` matches PutAYellow AND PutYellowG1, both +2) must not both fire --
-   only the higher-priority PutAYellow does, so the score tracks the runner (40,
-   not 42).
+/* Run the After-override children into `buf` in priority order (the Runner's
+   AttemptToExecuteSubTask child scan): stop after the first that produces
+   output unless it is ContinueAlways -- the bContinue rule.  Two After
+   overrides of the same general+spec that both pass (Galen's Quest `put yellow
+   gem in ceiling receptacle` matches PutAYellow AND PutYellowG1, both +2) must
+   not both fire -- only the higher-priority PutAYellow does, so the score
+   tracks the Runner (40, not 42).
 
    An After child is evaluated AFTER the parent's actions ran, so its
    restrictions see the post-action state.  With SHOW_FAILS a failure shows its
-   restriction message like any child fail (vb:1244; the parent's own output has
-   already been Displayed, so no cancel applies) and claims the scan.  Head
+   restriction message like any child fail (vb:1244; the parent's own output
+   has already been Displayed, so no cancel applies) and claims the scan.  Head
    Case's `open rear doors`: the AfterTextAndActions Daza8Task24 ("MustNot
    BeInState Open" -> "They are already open.") always fails against the
-   freshly-opened doors, and the runner prints "You open the van rear doors.
+   freshly-opened doors, and the Runner prints "You open the van rear doors.
    They are already open."  The look-deferred and defer-text branches of
-   execute_task_with_overrides run the children into a side buffer without it. */
+   execute_task_with_overrides run the children into a side buffer without it.
+   */
 static void
 run_after_children (a5_run_t *run, const std::vector<const a5_task_t *> &after,
                     sb_t *buf, int show_fails)
@@ -573,7 +586,8 @@ run_after_children (a5_run_t *run, const std::vector<const a5_task_t *> &after,
         run_task (run, child, 0, buf);
         int ai = a5state_task_index (st, child->key);
         if (ai >= 0) st->task_done[ai] = 1;   /* task.Completed = True */
-        ev_on_task_completed (run, child->key, buf);   /* fire its controls too */
+        /* fire its controls too */
+        ev_on_task_completed (run, child->key, buf);
         if ((sink_len (run, buf) > alen0 || run->task_raw_output)
             && !child->continue_lower) break;
       }
@@ -613,7 +627,8 @@ struct override_frame_t {
   a5_state_t *st;
 
   int parent_text, parent_actions;
-  int any_child_fail_output;    /* The runner's bAnyChildHasOutput (vb:1053/1141) */
+  /* The Runner's bAnyChildHasOutput (vb:1053/1141) */
+  int any_child_fail_output;
   std::vector<const a5_task_t *> after;
   size_t frame_len0;
 
@@ -635,7 +650,7 @@ struct override_frame_t {
   void execute ();
 };
 
-/* The parent's override children, in the order the runner scans them. */
+/* The parent's override children, in the order the Runner scans them. */
 std::vector<int>
 override_frame_t::children () const
 {
@@ -644,10 +659,10 @@ override_frame_t::children () const
      overrides TakeObjectFromLocation, which overrides TakeObjects.  Build the
      child list the way clsTask.Children does: the parent's Specific tasks in
      XML load order, completed non-repeatable ones filtered out (the property's
-     bIncludeCompleted=False gate -- the runner's vb:730 entry check never sees them),
-     then .NET-introsorted by Priority so equal-priority ties land exactly
-     where the runner's unstable sort puts them (net_introspective_sort,
-     a5run_sort.cpp). */
+     bIncludeCompleted=False gate -- the Runner's vb:730 entry check never sees
+     them), then .NET-introsorted by Priority so equal-priority ties land
+     exactly where the Runner's unstable sort puts them
+     (net_introspective_sort, a5run_sort.cpp). */
   std::vector<int> kids;
   if ((parent->n_commands > 0 || depth > 0) && depth < A5_MAX_ACTION_DEPTH)
     {
@@ -672,7 +687,7 @@ override_frame_t::children () const
 bool
 override_frame_t::child_failed (const a5_task_t *child, size_t len0)
 {
-  /* The runner's bPassingOnly abort: once an earlier sibling child has failed
+  /* The Runner's bPassingOnly abort: once an earlier sibling child has failed
      WITH output (bAnyChildHasOutput, set only in the fail branch,
      vb:1141), every later child is attempted with bPassingOnly=True.
      A refs-matching child that then FAILS its restrictions is silent
@@ -686,7 +701,7 @@ override_frame_t::child_failed (const a5_task_t *child, size_t len0)
      clock explanation: Task2932 (7480) fails with "I have already
      explained...", then Task2949 (7495) matches and fails silently,
      aborting the scan BEFORE the wearily catch-all Task2950 (7496,
-     +2 score) is reached -- the runner shows only Task2932's message. */
+     +2 score) is reached -- the Runner shows only Task2932's message. */
   if (any_child_fail_output)
     return true;
   /* A Specific task that matches the references but whose restrictions
@@ -717,7 +732,7 @@ override_frame_t::child_failed (const a5_task_t *child, size_t len0)
              ReplaceFunctions on any path, so it expands inside Display. */
           char *fmsg;
           { a5_intro_guard ig (st, 1); fmsg = a5text_describe (st, fm); }
-          /* The runner buffers this restriction text in htblResponsesFail and
+          /* The Runner buffers this restriction text in htblResponsesFail and
              flushes it after the passes; a later sibling override that
              PASSES with output for the same reference cancels it
              (clsUserSession.vb:804-834).  Buffer it in the command's
@@ -767,9 +782,10 @@ override_frame_t::child_passed (int cidx, const a5_task_t *child, size_t len0)
   size_t ovf0 = run->exec_scope != nullptr
                 ? run->exec_scope->ov_fails.size () : 0;
   execute_task_with_overrides (run, child, refs, depth + 1, out);
-  st->task_done[cidx] = 1;        /* clsUserSession.vb:1193 task.Completed = True */
+  /* clsUserSession.vb:1193 task.Completed = True */
+  st->task_done[cidx] = 1;
   /* A completing override child fires its own EventControls/WalkControls,
-     exactly like the parent (the runner's AttemptToExecuteSubTask -> recursive
+     exactly like the parent (the Runner's AttemptToExecuteSubTask -> recursive
      AttemptToExecuteTask runs the control loop for every task).  E.g. Stone
      of Wisdom's ring-knockout `s_AttackTheT` is a Specific override of
      AttackCharacterWithObject; only its completion fires StartTroll's
@@ -780,7 +796,7 @@ override_frame_t::child_passed (int cidx, const a5_task_t *child, size_t len0)
   else if (streq (ot, "BeforeTextOnly"))      parent_actions = 0;
   else if (streq (ot, "BeforeActionsOnly"))   parent_text = 0;
   /* BeforeTextAndActions: parent still runs both (child ran first).
-     the runner (clsUserSession.vb:1106/1111): parent ACTIONS run for
+     the Runner (clsUserSession.vb:1106/1111): parent ACTIONS run for
      BeforeActionsOnly|BeforeTextAndActions; parent TEXT is output for
      BeforeTextOnly|BeforeTextAndActions.  So BeforeActionsOnly keeps the
      parent's actions but suppresses its completion message (Grandpa's
@@ -790,14 +806,14 @@ override_frame_t::child_passed (int cidx, const a5_task_t *child, size_t len0)
   /* Stop only when this passing child produced output (and isn't
      ContinueAlways); otherwise fall through to the next matching child.
      A nested override that failed WITH a buffered message (ov_fails grew
-     during the recursion) counts as output too: the runner's bContinue rule sees
-     the htblResponsesFail entry, so the sibling scan stops and a later
+     during the recursion) counts as output too: the Runner's bContinue rule
+     sees the htblResponsesFail entry, so the sibling scan stops and a later
      sibling's own restriction fail is never shown.  Temperamentum `get
-     mirror`: TakeObjectFromLocation's GetALargeM buffers "You can't get
-     at the mirror while the little girl is standing there." -- without
-     this stop the scan fell through to TakeObjectsFromOthers, appending
-     its "The large mirror is not on or inside another object!".  Gated
-     on !hp_passing like the direct-fail claim above. */
+     mirror`: TakeObjectFromLocation's GetALargeM buffers "You can't get at the
+     mirror while the little girl is standing there." -- without this stop the
+     scan fell through to TakeObjectsFromOthers, appending its "The large
+     mirror is not on or inside another object!".  Gated on !hp_passing like
+     the direct-fail claim above. */
   int subtree_fail_output = run->exec_scope != nullptr
                             && run->exec_scope->ov_fails.size () > ovf0;
   if ((sink_len (run, out) > len0
@@ -810,17 +826,17 @@ override_frame_t::child_passed (int cidx, const a5_task_t *child, size_t len0)
 void
 override_frame_t::recheck_item_restrictions ()
 {
-  /* The runner's per-item AttemptToExecuteTask evaluates the task's restrictions at
-     EXECUTION time (ExecuteSubTasks leaf), so an earlier item's actions can
-     fail a later item of the same plural command -- Magnetic Moon's `put all
-     in box`: once the (worn-then-held) backpack has been moved inside the
-     box, the grapnel/cable/glue/camera nested in it are no longer
-     BeHeldByCharacter and the runner refuses them ("You are not carrying ...!",
-     items merged into one fail response).  Scarier's match phase refined the
-     item set against the PRE-command state, so re-check the parent's
-     restrictions here, on the plural per-item path only (cur_item set) --
-     the singular/movement paths keep their single match-time evaluation and
-     draw stream. */
+  /* The Runner's per-item AttemptToExecuteTask evaluates the task's
+     restrictions at EXECUTION time (ExecuteSubTasks leaf), so an earlier
+     item's actions can fail a later item of the same plural command --
+     Magnetic Moon's `put all in box`: once the (worn-then-held) backpack has
+     been moved inside the box, the grapnel/cable/glue/camera nested in it are
+     no longer BeHeldByCharacter and the Runner refuses them ("You are not
+     carrying ...!", items merged into one fail response).  Scarier's match
+     phase refined the item set against the PRE-command state, so re-check the
+     parent's restrictions here, on the plural per-item path only (cur_item
+     set) -- the singular/movement paths keep their single match-time
+     evaluation and draw stream. */
   if ((parent_text || parent_actions) && depth == 0 && run->resp != nullptr
       && !run->resp->cur_item.empty ()
       && !a5restr_pass (st, parent->restrictions))
@@ -877,10 +893,10 @@ override_frame_t::emit_deferred_look (const char *pinned_view)
     view = std::string (pinned_view);
   else
     view = render_look_marked (run);
-  /* The runner's response map holds ONE slot for the stock Look's raw template:
-     a second Execute Look in the same command (The Salvage's request
-     docking Looks at the docked pad, then on the bridge) re-renders that
-     slot rather than appending -- first slot's position, last text. */
+  /* The Runner's response map holds ONE slot for the stock Look's raw
+     template:  a second Execute Look in the same command (The Salvage's
+     request docking Looks at the docked pad, then on the bridge) re-renders
+     that slot rather than appending -- first slot's position, last text. */
   exec_resp_scope *sc = run->exec_scope;
   if (sc != nullptr && sc->look_off >= 0 && sc->look_sink == out
       && (size_t) sc->look_off + sc->look_len <= out->len)
@@ -914,15 +930,15 @@ override_frame_t::emit_deferred_text ()
   int self_ti = a5state_task_index (st, parent->key);
   if (self_ti >= 0) st->task_done[self_ti] = 1;
   const a5_xml_node_t *comp = a5xml_child (parent->node, "CompletionMessage");
-  /* The stock aggregate Look on the direct path: the runner's response map holds
-     ONE slot keyed on its raw template, rendered at final Display -- after
-     the LocationTrigger drain and event tick.  So (1) a command's SECOND
-     Execute Look contributes nothing (one view, first slot's position,
-     final state's text -- The Salvage's request docking Looks at the
-     docked pad, then again on the bridge), and (2) the view reflects
-     drain-time moves (McKinney relocating to the Airlock during `board
-     avadora`).  Emit a display-defer sentinel; a5run_flush_display_defers
-     renders the view into it at Display. */
+  /* The stock aggregate Look on the direct path: the Runner's response map
+     holds ONE slot keyed on its raw template, rendered at final Display --
+     after the LocationTrigger drain and event tick.  So (1) a command's SECOND
+     Execute Look contributes nothing (one view, first slot's position, final
+     state's text -- The Salvage's request docking Looks at the docked pad,
+     then again on the bridge), and (2) the view reflects drain-time moves
+     (McKinney relocating to the Airlock during `board avadora`).  Emit a
+     display-defer sentinel; a5run_flush_display_defers renders the view into
+     it at Display. */
   exec_resp_scope *sc = run->exec_scope;
   if (streq (parent->key, "Look") && parent->aggregate && sc != nullptr
       && run->display_defers != nullptr)
@@ -943,7 +959,7 @@ override_frame_t::emit_deferred_text ()
   else if (comp != nullptr)
     {
       /* defer_text is gated on parent->aggregate, so this render stands in
-         for the runner's Display-time expansion: bDisplaying. */
+         for the Runner's Display-time expansion: bDisplaying. */
       a5_intro_guard ig (st, 1);
       emit_completion (run, comp, out);
     }
@@ -955,8 +971,8 @@ void
 override_frame_t::record_pass_signature ()
 {
   /* This frame produced pass output on the direct path: record its POSITIONAL
-     reference signature (the runner keys every htblResponsesPass entry with the
-     subtask's NewReferences) for the exec_scope ov_fails cancel rule. */
+     reference signature (the Runner keys every htblResponsesPass entry with
+     the subtask's NewReferences) for the exec_scope ov_fails cancel rule. */
   if (run->resp == nullptr && run->exec_scope != nullptr
       && sink_len (run, out) > frame_len0)
     {
@@ -984,15 +1000,15 @@ override_frame_t::execute ()
       if (is_after)
         { after.push_back (child); continue; }
 
-      /* clsUserSession.AttemptToExecuteSubTask iterates EVERY matching child in
-         priority order (clsUserSession.vb:1056-1160), not just the first.  After
-         running a child it keeps going unless that child claims the turn -- the
-         bContinue rule (clsUserSession.vb:911-936): continue past a child that
-         produced no output (or whose Continue is ContinueAlways), stop after one
-         that did.  So Amazon's per-move travel-time override (Delay*, no output)
-         runs and then falls through to Beforeplay (the "You move <dir>." +
-         Date/Time override, with output), which then stops the scan.  Detect a
-         child's output by the growth of `out`. */
+      /* clsUserSession.AttemptToExecuteSubTask iterates EVERY matching child
+         in priority order (clsUserSession.vb:1056-1160), not just the first.
+         After running a child it keeps going unless that child claims the turn
+         -- the bContinue rule (clsUserSession.vb:911-936): continue past a
+         child that produced no output (or whose Continue is ContinueAlways),
+         stop after one that did.  So Amazon's per-move travel-time override
+         (Delay*, no output) runs and then falls through to Beforeplay (the
+         "You move <dir>." + Date/Time override, with output), which then stops
+         the scan.  Detect a child's output by the growth of `out`. */
       size_t len0 = sink_len (run, out);
 
       if (!a5restr_pass (st, child->restrictions))
@@ -1005,23 +1021,23 @@ override_frame_t::execute ()
         break;
     }
 
-  /* The Adrift 5 runner defers an AggregateOutput task's completion-message function
+  /* The Runner defers an AggregateOutput task's completion-message function
      replacement to final Display (clsUserSession.vb:1184/1210 replace eagerly
      only when NOT AggregateOutput).  So an aggregate parent's text reflects
-     state changed by its AfterTextAndActions / AfterActionsOnly children, which
-     run before Display.  Mirror that: when an aggregate parent with no actions
-     of its own has After-children, run the children first, then render the
-     parent text -- keeping the parent text ahead of the children's output.
+     state changed by its AfterTextAndActions / AfterActionsOnly children,
+     which run before Display.  Mirror that: when an aggregate parent with no
+     actions of its own has After-children, run the children first, then render
+     the parent text -- keeping the parent text ahead of the children's output.
      Stone of Wisdom's `x window` needs this: ExamineAnO (AfterTextAndActions)
-     increments Windowcoun, and ExamineObjects' %object%.Description segments are
-     gated on it, so the "movement"/"creatures" lines must reflect the post-
-     increment count on the same turn the runner shows them. */
+     increments Windowcoun, and ExamineObjects' %object%.Description segments
+     are gated on it, so the "movement"/"creatures" lines must reflect the
+     post- increment count on the same turn the Runner shows them. */
   int defer_text = run->resp == nullptr && parent_text && parent->aggregate
                    && parent->actions == nullptr && !after.empty ();
 
-  /* If the parent has After children that run actions on the direct path, defer
-     its room view (Execute Look) so it renders at the post-child state, mirroring
-     the runner's AggregateOutput Look deferral (see emit_look). */
+  /* If the parent has After children that run actions on the direct path,
+     defer its room view (Execute Look) so it renders at the post-child state,
+     mirroring the Runner's AggregateOutput Look deferral (see emit_look). */
   int prev_defer_look = run->defer_look;
   int prev_look_pending = run->look_pending;
   size_t prev_look_pos = run->look_pos;
@@ -1063,12 +1079,12 @@ override_frame_t::execute ()
 
 /*
  * Run PARENT honouring its Specific child overrides (clsTask Children +
- * SpecificOverrideType), recursively -- a faithful port of the runner's
+ * SpecificOverrideType), recursively -- a faithful port of the Runner's
  * AttemptToExecuteTask -> AttemptToExecuteSubTask -> AttemptToExecuteTask.  A
- * child whose Specifics match REFS and whose own restrictions pass runs in place
- * of (Override) or before/after the parent's text+actions, and is itself
- * resolved for nested overrides.  Reusable from both the command-matched parent
- * (run_general) and a SetTasks-Execute re-dispatch.
+ * child whose Specifics match REFS and whose own restrictions pass runs in
+ * place of (Override) or before/after the parent's text+actions, and is itself
+ * resolved for nested overrides.  Reusable from both the command-matched
+ * parent (run_general) and a SetTasks-Execute re-dispatch.
  */
 void
 execute_task_with_overrides (a5_run_t *run, const a5_task_t *parent,
@@ -1096,31 +1112,33 @@ run_general (a5_run_t *run, const a5_task_t *parent, const a5_match_t *m,
       if (strncmp (m->ref_name[i], "direction", 9) == 0) diridx = i;
     }
 
-  /* A command runs under a per-command response map (the Adrift 5 runner's
-     htblResponsesPass/Fail, cleared at the top of AttemptToExecuteTask and flushed
-     once at the end) in two cases.  (1) A genuine plural %objects% command
-     iterates its items one at a time (ExecuteSubTasks), aggregating completion /
-     fail messages.  (2) A *movement* command (a %direction% reference): its
-     `Beforeplay` override and its `Execute Look` -> `Beforeplay1` both run
-     `ts_tasCheckTime`, emitting the same "Date: ..." line, and the map dedups the
-     two into one (clsUserSession.vb:783).  Other single-reference commands stay
-     on the direct path -- they never produce a same-turn duplicate, and routing
-     conversation / multi-restriction output through the map's pass-then-fail
-     reorder would perturb their byte-exact ordering.  A SetTasks-Execute sub-task
-     shares whichever map is active (it does not flush). */
+  /* A command runs under a per-command response map (the Runner's
+     htblResponsesPass/Fail, cleared at the top of AttemptToExecuteTask and
+     flushed once at the end) in two cases.  (1) A genuine plural %objects%
+     command iterates its items one at a time (ExecuteSubTasks), aggregating
+     completion / fail messages.  (2) A *movement* command (a %direction%
+     reference): its `Beforeplay` override and its `Execute Look` ->
+     `Beforeplay1` both run `ts_tasCheckTime`, emitting the same "Date: ..."
+     line, and the map dedups the two into one (clsUserSession.vb:783).  Other
+     single-reference commands stay on the direct path -- they never produce a
+     same-turn duplicate, and routing conversation / multi-restriction output
+     through the map's pass-then-fail reorder would perturb their byte-exact
+     ordering.  A SetTasks-Execute sub-task shares whichever map is active (it
+     does not flush). */
   bool plural = (objidx >= 0 && st->n_ref_items > 1);
   bool movement = (diridx >= 0);
-  /* An "all" command whose %objects% resolved to items of which NONE pass shows
-     the general task's <FailOverride> ("You are not carrying anything."),
-     discarding the per-item override fail messages -- the runner's AttemptToExecuteTask
-     finalize (clsUserSession.vb:789: htblResponsesPass.Count=0 AndAlso
-     FailOverride<>"" AndAlso ContainsWord(sInput,"all") -> Display(FailOverride)).
-     This must fire even when "all" collapses to a SINGLE surviving item: a
-     genuine singular command (no "all") stays on the direct path and keeps its
-     object-specific fail message (`put food in bag` -> "makes a mess"), but `put
-     all in bag` with only the un-baggable food held must show the FailOverride,
-     not the food's "makes a mess" (AoS `put all in bag` after the pouch/whetstone
-     are already bagged).  Route it through the response map so the child fail
+  /* An "all" command whose %objects% resolved to items of which NONE pass
+     shows the general task's <FailOverride> ("You are not carrying
+     anything."), discarding the per-item override fail messages -- the
+     Runner's AttemptToExecuteTask finalize (clsUserSession.vb:789:
+     htblResponsesPass.Count=0 AndAlso FailOverride<>"" AndAlso
+     ContainsWord(sInput,"all") -> Display(FailOverride)).  This must fire even
+     when "all" collapses to a SINGLE surviving item: a genuine singular
+     command (no "all") stays on the direct path and keeps its object-specific
+     fail message (`put food in bag` -> "makes a mess"), but `put all in bag`
+     with only the un-baggable food held must show the FailOverride, not the
+     food's "makes a mess" (AoS `put all in bag` after the pouch/whetstone are
+     already bagged).  Route it through the response map so the child fail
      messages buffer and can be replaced by the FailOverride at flush. */
   bool all_failover = (objidx >= 0 && parent->fail_override != nullptr
                        && conv_contains_word (m->ref_text[objidx], "all"));
@@ -1129,7 +1147,7 @@ run_general (a5_run_t *run, const a5_task_t *parent, const a5_match_t *m,
   resp_map rm;
   if (use_map) run->resp = &rm;
 
-  /* Per-command response scope for SetTasks-Execute'd tasks (the runner's
+  /* Per-command response scope for SetTasks-Execute'd tasks (the Runner's
      htblResponsesPass/Fail, live for the whole AttemptToExecuteTask): buffers
      Execute'd-task restriction-fail messages and cancels the ones whose
      objects also produced a pass response, at the flush below. */
@@ -1138,12 +1156,13 @@ run_general (a5_run_t *run, const a5_task_t *parent, const a5_match_t *m,
   run->exec_scope = &escope;
 
   /* Deferred-completion sink for this command: an AggregateOutput completion's
-     random draw (a `<#..#>` expression or a `%var[rand]%` index) is held in the
-     run-level display_defers sink and drawn at end-of-turn Display
-     (a5run_flush_display_defers), after the command's task, the LocationTrigger
-     drain and the event tick -- matching the runner's Display-time ReplaceExpressions.
-     Only armed on the single-reference (resp==NULL) path; the plural/movement map
-     re-renders aggregate completions at its own flush. */
+     random draw (a `<#..#>` expression or a `%var[rand]%` index) is held in
+     the run-level display_defers sink and drawn at end-of-turn Display
+     (a5run_flush_display_defers), after the command's task, the
+     LocationTrigger drain and the event tick -- matching the Runner's
+     Display-time ReplaceExpressions.  Only armed on the single-reference
+     (resp==NULL) path; the plural/movement map re-renders aggregate
+     completions at its own flush. */
   std::vector<std::string> *prev_defers = run->comp_defers;
   run->comp_defers = use_map ? prev_defers : run->display_defers;
 
@@ -1174,9 +1193,10 @@ run_general (a5_run_t *run, const a5_task_t *parent, const a5_match_t *m,
     {
       run->resp = nullptr;
       /* No child override passed for an "all" command: replace the buffered
-         per-item fail messages with the general task's FailOverride (the runner's
-         htblResponsesPass.Count=0 branch).  vb:789 renders it with a literal
-         Display(task.FailOverride.ToString), hence under bDisplaying. */
+         per-item fail messages with the general task's FailOverride (the
+         Runner's htblResponsesPass.Count=0 branch).  vb:789 renders it with a
+         literal Display(task.FailOverride.ToString), hence under bDisplaying.
+         */
       if (all_failover)
         {
           bool any_pass = false;
@@ -1204,19 +1224,20 @@ run_general (a5_run_t *run, const a5_task_t *parent, const a5_match_t *m,
     }
   exec_scope_flush (run, &escope, out);
 
-  /* Deferred completion draws accumulated in run->display_defers are NOT flushed
-     here: the runner holds them to the final Display loop, after the LocationTrigger
-     drain and event tick.  a5run_flush_display_defers (called from finish_turn)
-     draws + splices them then. */
+  /* Deferred completion draws accumulated in run->display_defers are NOT
+     flushed here: the Runner holds them to the final Display loop, after the
+     LocationTrigger drain and event tick.  a5run_flush_display_defers (called
+     from finish_turn) draws + splices them then. */
   run->comp_defers = prev_defers;
 }
 
-/* End-of-turn Display flush (the runner's ReplaceALRs->ReplaceExpressions loop): draw
-   each deferred AggregateOutput-completion body in emit order (== the runner htblResponses
-   order) and splice the value into its `\004<idx>\004` sentinel slot in `out`.
-   A body tagged with a leading \001 is a raw `%var[rand()]%` token re-resolved
-   through the text pipeline (drawing its index); an untagged body is a frozen
-   `<#..#>` sexpr reduced by a5_eval_sexpr (drawing its OneOf/Rand). */
+/* End-of-turn Display flush (the Runner's ReplaceALRs->ReplaceExpressions
+   loop): draw each deferred AggregateOutput-completion body in emit order (==
+   the Runner htblResponses order) and splice the value into its
+   `\004<idx>\004` sentinel slot in `out`.  A body tagged with a leading \001
+   is a raw `%var[rand()]%` token re-resolved through the text pipeline
+   (drawing its index); an untagged body is a frozen `<#..#>` sexpr reduced by
+   a5_eval_sexpr (drawing its OneOf/Rand). */
 void
 a5run_flush_display_defers (a5_run_t *run, sb_t *out)
 {
@@ -1260,7 +1281,7 @@ a5run_draw_defer_entry (a5_run_t *run, size_t idx,
 /* Partial flush: draw + splice only the sink entries from index `from` on,
    leaving earlier entries (and their sentinels in `out`) pending.  An
    event/walk/LocationTrigger-fired task is its own AttemptToExecuteTask in the
-   runner (bChildTask=False), so ITS aggregate responses Display -- and draw --
+   Runner (bChildTask=False), so ITS aggregate responses Display -- and draw --
    at the end of that attempt (clsUserSession.vb:782,851-856), while the
    player command's own deferred draws stay held to the later command flush.
    attempt_event_task flushes its attempt's entries through here. */
@@ -1271,9 +1292,10 @@ a5run_flush_display_defers_from (a5_run_t *run, sb_t *out, size_t from)
   if (sink == nullptr || sink->size () <= from)
     return;
   void *prev_ed = run->st->expr_defer;
-  run->st->expr_defer = nullptr;                 /* no re-deferral during the draw */
+  /* no re-deferral during the draw */
+  run->st->expr_defer = nullptr;
 
-  /* Draw order.  The runner's Display expands ONE response at a time: its
+  /* Draw order.  The Runner's Display expands ONE response at a time: its
      ReplaceFunctions pass first (each `%var[rand]%` -- our \001 entries -- in
      that pass's own scan order), then ReplaceExpressions over the fully
      OO-substituted text, which reduces every `<#..#>` LEFT TO RIGHT -- so a
@@ -1284,8 +1306,9 @@ a5run_flush_display_defers_from (a5_run_t *run, sb_t *out, size_t from)
      expression scan).  Re-order ONLY the untagged sexpr entries among
      themselves by their sentinel's text position; \001 (function-pass) and
      \002 (room view) entries keep their push slots, which already mirror the
-     runner's per-response pass order. */
-  std::vector<size_t> slot_entry;             /* entry index drawn at each slot */
+     Runner's per-response pass order. */
+  /* entry index drawn at each slot */
+  std::vector<size_t> slot_entry;
   for (size_t k = from; k < sink->size (); k++)
     slot_entry.push_back (k);
   {
@@ -1336,7 +1359,7 @@ a5run_flush_display_defers_from (a5_run_t *run, sb_t *out, size_t from)
       if (at != nullptr)
         {
           size_t pos = (size_t) (at - out->p);
-          /* The runner reduces expressions INSIDE Display, so its
+          /* The Runner reduces expressions INSIDE Display, so its
              CapAfterFullStop pass still sees the drawn value; ours ran back at
              a5text_process time, before this splice.  Re-apply the cap for a
              value that lands at a sentence start (OS/PlugIn.Exe's card line
@@ -1358,9 +1381,9 @@ a5run_flush_display_defers_from (a5_run_t *run, sb_t *out, size_t from)
 
 /* Flush a SetTasks-Execute response scope: emit each buffered fail message
    (in order) unless every object it was evaluated against also produced a
-   pass response -- the runner's flush loop, clsUserSession.vb:804-849, where a fail
-   whose reference items all match a pass's is dropped and the survivors are
-   Display'd after the pass responses. */
+   pass response -- the Runner's flush loop, clsUserSession.vb:804-849, where a
+   fail whose reference items all match a pass's is dropped and the survivors
+   are Display'd after the pass responses. */
 void
 exec_scope_flush (a5_run_t * /* run */, exec_resp_scope *sc, sb_t *out)
 {
@@ -1368,14 +1391,15 @@ exec_scope_flush (a5_run_t * /* run */, exec_resp_scope *sc, sb_t *out)
     {
       bool cancelled;
       if (f.second.empty ())
-        /* No bound references: the runner's pass-cancels-fail loop (clsUserSession.vb:804)
-           leaves bAllMatch True against the first pass message, because its per-ref
-           check `For iRef = 0 To refsFail.Length-1` iterates 0 To -1 and never runs.
-           So a ref-less Execute'd-task fail is cancelled by the mere presence of ANY
-           pass response this command -- yet shown when there were none.  Tingalan's
+        /* No bound references: the Runner's pass-cancels-fail loop
+           (clsUserSession.vb:804) leaves bAllMatch True against the first pass
+           message, because its per-ref check `For iRef = 0 To
+           refsFail.Length-1` iterates 0 To -1 and never runs.  So a ref-less
+           Execute'd-task fail is cancelled by the mere presence of ANY pass
+           response this command -- yet shown when there were none.  Tingalan's
            Search task passes with "You find nothing here", which cancels the
-           Execute'd encounter's ref-less "...something follows..." restriction fail;
-           the runner stays silent where Scarier used to leak the extra paragraph. */
+           Execute'd encounter's ref-less "...something follows..." restriction
+           fail; the Runner stays silent, with no extra paragraph. */
         cancelled = !sc->pass_seen.empty ();
       else
         {
@@ -1388,12 +1412,13 @@ exec_scope_flush (a5_run_t * /* run */, exec_resp_scope *sc, sb_t *out)
     }
   sc->fails.clear ();
 
-  /* Specific-override fails buffered on the direct path: the runner's positional
-     cancel (clsUserSession.vb:812-834) -- the fail is dropped only when some
-     pass response's reference vector matches it position-for-position over the
-     fail's FULL length (a pass with fewer refs cannot cancel: refsPass.Length
-     <= iRef => bAllMatch False).  A ref-less fail keeps the bAllMatch-True
-     quirk: cancelled by the mere presence of any pass response. */
+  /* Specific-override fails buffered on the direct path: the Runner's
+     positional cancel (clsUserSession.vb:812-834) -- the fail is dropped only
+     when some pass response's reference vector matches it
+     position-for-position over the fail's FULL length (a pass with fewer refs
+     cannot cancel: refsPass.Length <= iRef => bAllMatch False).  A ref-less
+     fail keeps the bAllMatch-True quirk: cancelled by the mere presence of any
+     pass response. */
   for (auto &f : sc->ov_fails)
     {
       bool cancelled;
@@ -1418,44 +1443,47 @@ exec_scope_flush (a5_run_t * /* run */, exec_resp_scope *sc, sb_t *out)
   sc->ov_fails.clear ();
 }
 
-/* ------------------------------------------------------------- run one task */
+/* ------------------------------------------------------------ run one task */
 
-/* Append an already-rendered completion message `m` (ownership taken; freed here)
-   exactly as the runner Display() does: pSpace-join to the running output, then the
-   rendered text verbatim.  `m` is already-plain, so msg_has_output is the faithful
-   bHasOutput here: it keeps a whitespace-only message (e.g. a `<Text> </Text>`
-   completion), which then space-joins to the next response -- that is how the runner
-   renders the leading indent before a search-triggered encounter title (Tingalan's
-   Search " " completion -> Execute encounter). */
+/* Append an already-rendered completion message `m` (ownership taken; freed
+   here) exactly as the Runner Display() does: pSpace-join to the running
+   output, then the rendered text verbatim.  `m` is already-plain, so
+   msg_has_output is the faithful bHasOutput here: it keeps a whitespace-only
+   message (e.g. a `<Text> </Text>` completion), which then space-joins to the
+   next response -- that is how the Runner renders the leading indent before a
+   search-triggered encounter title (Tingalan's Search " " completion ->
+   Execute encounter). */
 static void
 emit_message_body (a5_run_t *run, char *m, int pre_alr_ink, sb_t *out,
                    const char *dedup_key)
 {
   if (msg_has_output (m))
     {
-      /* The runner keys htblResponsesPass on the still-marked-up message, so a
-         difference that lives inside a tag Display later strips still makes two
-         responses distinct; `m` is post-strip, so prefer the marked-up form. */
+      /* The Runner keys htblResponsesPass on the still-marked-up message, so a
+         difference that lives inside a tag Display later strips still makes
+         two responses distinct; `m` is post-strip, so prefer the marked-up
+         form. */
       const char *dk = dedup_key != nullptr ? dedup_key : m;
       /* Within an event-fired task chain, dedup identical completion messages
-         (the runner's htblResponsesPass, keyed by text): show the first, drop repeats.
-         Keeps the first occurrence's position -- which, for a message emitted
-         before a later <cls>, means it is wiped by that clear (Pathway's banner). */
+         (the Runner's htblResponsesPass, keyed by text): show the first, drop
+         repeats.  Keeps the first occurrence's position -- which, for a
+         message emitted before a later <cls>, means it is wiped by that clear
+         (Pathway's banner). */
       if (run->ev_seen != nullptr)
         {
           if (run->ev_seen->count (dk)) { free (m); return; }
           run->ev_seen->insert (dk);
         }
-      /* Per-command pass-response text dedup (the runner's htblResponsesPass keying):
-         a command that reaches the same completion text twice -- e.g. two
-         Execute'd tasks with identical messages (Euripides' `press on` runs
-         cl_ToCrawler11 AND cl_ToCrawler12, both the crawler journey) -- shows
-         it once, keeping the first occurrence's position. */
+      /* Per-command pass-response text dedup (the Runner's htblResponsesPass
+         keying):  a command that reaches the same completion text twice --
+         e.g. two Execute'd tasks with identical messages (Euripides' `press
+         on` runs cl_ToCrawler11 AND cl_ToCrawler12, both the crawler journey)
+         -- shows it once, keeping the first occurrence's position. */
       if (run->exec_scope != nullptr
           && !run->exec_scope->pass_seen.insert (dk).second)
         { free (m); return; }
       /* A pass response with output: record its bound object references for
-         the pass-cancels-fail rule (the runner keys every AddResponse with the
+         the pass-cancels-fail rule (the Runner keys every AddResponse with the
          subtask's reference keys and drops a fail whose refs all passed). */
       if (run->exec_scope != nullptr)
         for (auto &k : current_obj_ref_keys (run->st))
@@ -1466,10 +1494,10 @@ emit_message_body (a5_run_t *run, char *m, int pre_alr_ink, sb_t *out,
     {
       /* The message had real text until a game ALR blanked it (Tribute maps
          the auto-note "(from the enormous mirror)" to an empty TextOverride).
-         the runner stores the response pre-ALR and only blanks it inside Display(),
-         so its markup/newline skeleton still pSpace-joins the output and
-         leaves an empty paragraph slot.  Emit the whitespace remainder
-         verbatim to keep that slot. */
+         the Runner stores the response pre-ALR and only blanks it inside
+         Display(), so its markup/newline skeleton still pSpace-joins the
+         output and leaves an empty paragraph slot.  Emit the whitespace
+         remainder verbatim to keep that slot. */
       sb_pspace (out); sb_puts (out, m);
     }
   free (m);
@@ -1478,7 +1506,7 @@ emit_message_body (a5_run_t *run, char *m, int pre_alr_ink, sb_t *out,
 /* Render a completion message and emit it as one response: trailing whitespace
    (the newline the XML <Text> carries before </Text>) is trimmed so a "Before"
    message followed by a sub-task's output is not separated by a spurious blank
-   line -- the Adrift 5 runner trims each response the same way. */
+   line -- the Runner trims each response the same way. */
 static void
 emit_completion (a5_run_t *run, const a5_xml_node_t *comp, sb_t *out)
 {
@@ -1490,12 +1518,13 @@ emit_completion (a5_run_t *run, const a5_xml_node_t *comp, sb_t *out)
      thereafter). */
   if (run->immediate_emit)
     {
-      /* Startup RunImmediately path: render in two stages so the markup-bearing
-         form (`proc`, what the runner's Display sees) drives the output test, while the
-         plain form is emitted.  The runner's bHasOutput keeps a message when stripping
-         tags leaves any character -- so a title-music task's `<audio ...> ` keeps
-         its trailing space to join onto the title.  a5text_describe ==
-         eval_description -> process -> render_plain. */
+      /* Startup RunImmediately path: render in two stages so the
+         markup-bearing form (`proc`, what the Runner's Display sees) drives
+         the output test, while the plain form is emitted.  The Runner's
+         bHasOutput keeps a message when stripping tags leaves any character --
+         so a title-music task's `<audio ...> ` keeps its trailing space to
+         join onto the title.  a5text_describe == eval_description -> process
+         -> render_plain. */
       char *raw, *proc, *plain;
       {
         a5_mark_guard mg (run->st, 1);
@@ -1520,7 +1549,7 @@ emit_completion (a5_run_t *run, const a5_xml_node_t *comp, sb_t *out)
     run->task_raw_output = 1;
   /* Event/walk/LocationTrigger attempt (non-aggregate path -- the aggregate
      one keys on the raw branch text up in run_task): a completion whose RAW
-     template is non-blank (the runner's AddResponse bHasOutput -- a
+     template is non-blank (the Runner's AddResponse bHasOutput -- a
      whitespace-only "\n\n" counts) inserts or merges a response-table entry
      keyed by its CompletionMessage node.  The table's final entry decides the
      attempt's post-Display NewReferences leftover (see ev_tbl,
@@ -1531,16 +1560,17 @@ emit_completion (a5_run_t *run, const a5_xml_node_t *comp, sb_t *out)
   free (marked);
 }
 
-/* Render the room view for the runner's "Execute Look" (on movement / "look").  The
-   stock Look task's CompletionMessage is "%Player%.Location.Description" (== the
-   room view) followed by an optional restriction-gated darkness override -- a
-   StartDescriptionWithThis description that, when the player is in a
-   DarkLocations-group location with no LightSources object in scope, replaces
-   the whole view with the game's "It is too dark..." line (clsDescription.ToString;
-   the override lives in the Look task data, not the engine).  We render the room
-   view exactly as before (a5text_view_location -- not back through the text
-   pipeline, which would perturb whitespace in the common no-override case), then
-   apply any further passing descriptions just as ToString would. */
+/* Render the room view for the Runner's "Execute Look" (on movement / "look").
+   The stock Look task's CompletionMessage is "%Player%.Location.Description"
+   (== the room view) followed by an optional restriction-gated darkness
+   override -- a StartDescriptionWithThis description that, when the player is
+   in a DarkLocations-group location with no LightSources object in scope,
+   replaces the whole view with the game's "It is too dark..." line
+   (clsDescription.ToString; the override lives in the Look task data, not the
+   engine).  We render the room view exactly as before (a5text_view_location --
+   not back through the text pipeline, which would perturb whitespace in the
+   common no-override case), then apply any further passing descriptions just
+   as ToString would. */
 static std::string
 render_look_string (a5_run_t *run)
 {
@@ -1552,12 +1582,12 @@ render_look_string (a5_run_t *run)
   std::string result = view ? view : "";
   /* The room view IS the CompletionMessage's default (Me(0) ==
      "%Player%.Location.Description").  A StartAfterDefaultDescription segment
-     rebuilds from this default (the runner clsDescription.ToString / eval_desc_into),
-     discarding any StartDescriptionWithThis override that fired before it -- so
-     Magor's fire-lit main chamber/library keep the room view even though the
-     Look task's restricted "It is too dark..." override passes (its restrictions
-     do pass; the following "Remember ... LUMINO" StartAfterDefault segment resets
-     the buffer to default+hint). */
+     rebuilds from this default (the Runner's clsDescription.ToString /
+     eval_desc_into), discarding any StartDescriptionWithThis override that
+     fired before it -- so Magor's fire-lit main chamber/library keep the room
+     view even though the Look task's restricted "It is too dark..." override
+     passes (its restrictions do pass; the following "Remember ... LUMINO"
+     StartAfterDefault segment resets the buffer to default+hint). */
   std::string default_view = result;
   free (view);
 
@@ -1578,8 +1608,8 @@ render_look_string (a5_run_t *run)
              eval_desc_into / clsDescription.ToString: "If Not sd.DisplayOnce
              OrElse Not sd.Displayed").  Without this the Look aggregate's
              first-time hints -- e.g. Book of Jax's "(Don't forget ... use the
-             LUMINO spell.)" -- reappeared on every room view where the runner shows them
-             once. */
+             LUMINO spell.)" -- reappeared on every room view where the Runner
+             shows them once. */
           once = a5xml_bool (a5xml_child_text (c, "DisplayOnce"));
           if (once && a5state_disp_once_seen (st, c))
             continue;
@@ -1599,12 +1629,14 @@ render_look_string (a5_run_t *run)
           if (streq (when, "StartDescriptionWithThis"))
             result = plain;
           else if (streq (when, "StartAfterDefaultDescription"))
-            {                                   /* rebuild from the default view */
+            {
+              /* rebuild from the default view */
               result = default_view;
               if (!result.empty ()) result += "  ";
               result += plain;
             }
-          else                                  /* AppendToPreviousDescription */
+          /* AppendToPreviousDescription */
+          else
             { if (!result.empty ()) result += "  "; result += plain; }
           free (plain);
         }
@@ -1615,9 +1647,10 @@ render_look_string (a5_run_t *run)
 void
 emit_look (a5_run_t *run, sb_t *out)
 {
-  /* Defer the room view until the command's After children have run (the runner's
-     AggregateOutput Look render at final Display).  Record the insertion offset;
-     execute_task_with_overrides renders and splices it once at final state. */
+  /* Defer the room view until the command's After children have run (the
+     Runner's AggregateOutput Look render at final Display).  Record the
+     insertion offset; execute_task_with_overrides renders and splices it once
+     at final state. */
   if (run->defer_look && run->resp == nullptr)
     {
       if (!run->look_pending)
@@ -1627,17 +1660,19 @@ emit_look (a5_run_t *run, sb_t *out)
 
   if (run->resp != nullptr)
     {
-      /* Defer the room view to flush (final command state): the runner's stock Look
-         CompletionMessage is AggregateOutput, so its render is deferred to
-         Display.  Recording a look entry (rather than rendering now) lets a
-         command whose After children move things have the view reflect them. */
+      /* Defer the room view to flush (final command state): the Runner's stock
+         Look CompletionMessage is AggregateOutput, so its render is deferred
+         to Display.  Recording a look entry (rather than rendering now) lets a
+         command whose After children move things have the view reflect them.
+         */
       resp_entry e;
       e.is_pass = true; e.is_look = true;
       e.item = run->resp->cur_item;
       resp_insert (run->resp, e, -1);
       return;
     }
-  /* Real output: retire any <DisplayOnce> completion segments this view shows. */
+  /* Real output: retire any <DisplayOnce> completion segments this view shows.
+     */
   std::string result = render_look_marked (run);
   sb_pspace (out);
   sb_puts (out, result.c_str ());
@@ -1655,7 +1690,7 @@ run_task_look (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out,
 {
   a5_state_t *st = run->st;
 
-  /* The runner executes the stock Look like any Before + AggregateOutput task
+  /* The Runner executes the stock Look like any Before + AggregateOutput task
      (clsUserSession.vb:1164-1207): the message is test-rendered BEFORE and
      AFTER its actions (bTestingOutput=True; each render re-draws any
      <# OneOf #>/RAND in the room view), and when the two renders differ (a
@@ -1663,11 +1698,11 @@ run_task_look (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out,
      render.  Only when they agree does the raw aggregate message survive to
      be re-rendered once more at final Display -- which is the defer_look /
      is_look deferral emit_look implements.  Doing both test renders here
-     keeps the xoshiro draw stream aligned with the runner for random room views
-     (LostLabyrinth's riding OneOf: 2 draws, first one shown); for the usual
-     static view the two renders draw nothing and agree, so this is
-     draw- and output-neutral. */
-  /* The probes run inside Display in the runner (bDisplaying=True AND
+     keeps the xoshiro draw stream aligned with the Runner for random room
+     views (LostLabyrinth's riding OneOf: 2 draws, first one shown); for the
+     usual static view the two renders draw nothing and agree, so this is draw-
+     and output-neutral. */
+  /* The probes run inside Display in the Runner (bDisplaying=True AND
      bTestingOutput=True, vb:1177-1203), so they DO run clsCharacter.Name's
      Introduced dance and record PronounKeys entries -- which is why, with a
      character in view, the second probe pronoun-replaces the name recorded
@@ -1731,11 +1766,11 @@ run_task_look (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out,
         {
           /* A NON-aggregate stock Look (this game's library version --
              e.g. Murder Most Foul) renders its response text at task
-             time in the runner (AddResponse keys the rendered text), so the view
-             must NOT be deferred to the flush: a LocationTrigger System
-             task that fires after the move (the corridor's +2 servant
-             scene) would otherwise leak its score into the view's SCORE
-             header, which the runner renders pre-award. */
+             time in the Runner (AddResponse keys the rendered text), so the
+             view must NOT be deferred to the flush: a LocationTrigger System
+             task that fires after the move (the corridor's +2 servant scene)
+             would otherwise leak its score into the view's SCORE header, which
+             the Runner renders pre-award. */
           std::string v = render_look_marked (run);
           resp_add_text (run, v.c_str (), true, resp_pos);
         }
@@ -1749,10 +1784,10 @@ run_task_look (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out,
     }
   else if (!run->defer_look)
     {
-      /* The per-command response dedup applies to the room view too: the runner
-         keys the Look task's raw AggregateOutput template, so a command
-         that Executes Look twice shows one view (Euripides `press on`).
-         Real output: retire any <DisplayOnce> completion segments. */
+      /* The per-command response dedup applies to the room view too: the
+         Runner keys the Look task's raw AggregateOutput template, so a command
+         that Executes Look twice shows one view (Euripides `press on`).  Real
+         output: retire any <DisplayOnce> completion segments. */
       std::string v = render_look_marked (run);
       if (run->exec_scope == nullptr
           || run->exec_scope->pass_seen.insert (v).second)
@@ -1763,8 +1798,8 @@ run_task_look (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out,
               && (size_t) sc->look_off + sc->look_len <= out->len)
             {
               /* Second aggregate view this command, DIFFERENT text (the
-                 player moved between the Executes): the runner's response map has
-                 ONE slot for the Look template, so the later render
+                 player moved between the Executes): the Runner's response map
+                 has ONE slot for the Look template, so the later render
                  replaces the earlier view in place (first slot's position,
                  last text). */
               sb_splice (out, (size_t) sc->look_off, sc->look_len,
@@ -1787,7 +1822,7 @@ run_task_look (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out,
       /* Direct-path deferral (the outer task's Execute Look splice) of a
          NON-aggregate Look: pin the view rendered NOW, at Execute Look
          time, so later actions/system tasks can't retro-date the SCORE
-         header (the runner renders the non-aggregate response eagerly). */
+         header (the Runner renders the non-aggregate response eagerly). */
       std::string v = render_look_marked (run);
       free (run->look_pinned);
       run->look_pinned = strdup (v.c_str ());
@@ -1834,14 +1869,14 @@ struct run_task_ctx
 
   /* Immediate-Display splice point: where this task's output begins in `out`,
      recorded BEFORE the Before message is emitted.  An action Display that the
-     runner sends straight to sOutputText (vb:1748) precedes the buffered
+     Runner sends straight to sOutputText (vb:1748) precedes the buffered
      response, i.e. lands here.  (imm frame set around the action loop,
      flat paths only.) */
   long imm0 = 0;
 };
 
 /* Phase 1: the Before completion message, rendered ahead of the actions.
-   On the map path a "Before" message follows the Adrift 5 runner's
+   On the map path a "Before" message follows the Runner's
    sBeforeActionsMessage logic (clsUserSession.vb:1176-1205): it claims its
    slot in the response order now, is rendered once before the actions, and
    after the actions is either pinned to that pre-action text (if the actions
@@ -1866,7 +1901,7 @@ run_task_before_message (run_task_ctx &c)
     {
       c.resp_pre = render_comp_test_ex (st, comp, &c.resp_pre_marked);
       c.resp_pos = (int) run->resp->ents.size ();
-      /* The runner renders task.CompletionMessage.ToString with bTestingOutput
+      /* The Runner renders task.CompletionMessage.ToString with bTestingOutput
          False BEFORE the actions (clsUserSession.vb:1167), retiring any
          <DisplayOnce> segment even though the response text itself is
          pinned/re-rendered later.  Mirror the marking for a non-aggregate
@@ -1885,24 +1920,25 @@ run_task_before_message (run_task_ctx &c)
     }
   else if (!comp_bears_function (comp) || run->defer_look)
     {
-      /* The runner (FileIO.vb:1618 defaults a missing <MessageBeforeOrAfter> to
-         Before) renders a Before completion message up to THREE times
+      /* The Runner (FileIO.vb:1618 defaults a missing <MessageBeforeOrAfter>
+         to Before) renders a Before completion message up to THREE times
          (clsUserSession.vb:1176-1205): a pre-action snapshot
          `sBeforeActionsMessage`, a post-action compare, and a finalize
-         `sMessage = ReplaceExpressions(ReplaceFunctions(sMessage))`.  A message
-         bearing a text-changing function (`RAND(..)`, `<#OneOf#>`) draws on
-         each render, so the runner draws 3× and shows the finalize when the first two
-         renders agree, or draws 2× and pins the first when they differ.
-         Scarier's flat resp==NULL buffer emitted once -- desyncing the xoshiro
-         stream on e.g. Tingalan's `read book of ancient lore`, whose
-         CompletionMessage is `This book contains %booksoflore[RAND(1,25)]%`
-         (the runner drew RAND(1,25) 3× and showed array index 3; Scarier drew once and
-         showed index 1, diverging every downstream encounter roll).  A static
-         completion (no `%function%`) renders identically every time and draws
-         nothing, so the two extra renders are inert for the corpus's plain
-         messages -- this fast path keeps them byte-stable.  (defer_look also
-         stays here: the interleaved path below buffers action output, which
-         would break look_pos indexing into `out`.) */
+         `sMessage = ReplaceExpressions(ReplaceFunctions(sMessage))`.  A
+         message bearing a text-changing function (`RAND(..)`, `<#OneOf#>`)
+         draws on each render, so the Runner draws 3 times and shows the
+         finalize when the first two renders agree, or draws 2 times and pins
+         the first when they differ.  Scarier's flat resp==NULL buffer emitted
+         once -- desyncing the xoshiro stream on e.g. Tingalan's `read book of
+         ancient lore`, whose CompletionMessage is `This book contains
+         %booksoflore[RAND(1,25)]%` (the Runner drew RAND(1,25) 3 times and
+         showed array index 3; Scarier drew once and showed index 1, diverging
+         every downstream encounter roll).  A static completion (no
+         `%function%`) renders identically every time and draws nothing, so the
+         two extra renders are inert for the corpus's plain messages -- this
+         fast path keeps them byte-stable.  (defer_look also stays here: the
+         interleaved path below buffers action output, which would break
+         look_pos indexing into `out`.) */
       char *m1 = nullptr, *m2 = nullptr;
       char *e1 = render_comp_test_ex (st, comp, &m1);
       char *e2 = render_comp_test_ex (st, comp, &m2);
@@ -1910,9 +1946,9 @@ run_task_before_message (run_task_ctx &c)
       free (m2);
       if (e1 != nullptr && e2 != nullptr && renders_differ)
         {
-          /* First two renders differ: the runner pins the pre-action snapshot and the
-             finalize replace is a no-op on the already-plain text (no 3rd
-             draw). */
+          /* First two renders differ: the Runner pins the pre-action snapshot
+             and the finalize replace is a no-op on the already-plain text (no
+             3rd draw). */
           free (e2);
           emit_message_body (run, e1, 0, out, m1);
           free (m1);
@@ -1923,11 +1959,12 @@ run_task_before_message (run_task_ctx &c)
           free (e2);
           free (m1);
           /* Finalize.  For a non-aggregate task this is vb:1185/1204's
-             eager replace, the one completion render the runner makes with
+             eager replace, the one completion render the Runner makes with
              bDisplaying clear; an aggregate task skips that line entirely
              and its raw template expands inside Display instead. */
           a5_intro_guard ig (st, t->aggregate);
-          emit_completion (run, comp, out);   /* finalize: 3rd render + display */
+          /* finalize: 3rd render + display */
+          emit_completion (run, comp, out);
         }
     }
   else
@@ -1936,16 +1973,16 @@ run_task_before_message (run_task_ctx &c)
          Task999 magpie miss: message = <# Either(...) #>, actions =
          Execute Task998 = Variable206 RAND(1,100)).  Evaluating the
          compare/finalize before the actions (as above) would put the
-         Either draws before the roll, while the runner's real order is render1 ->
-         actions -> render2 (-> finalize) -- that misordering desynced the
+         Either draws before the roll, while the Runner's real order is render1
+         -> actions -> render2 (-> finalize) -- that misordering desynced the
          whole xoshiro stream from the magpie chase onward.  Interleave:
          freeze the template and take the pre-action snapshot now, run the
          actions into a side buffer (run_task_actions; the message still
-         precedes their output, vb:1189 iResponsePosition), compare after
-         them (run_task_before_finalize).
+         precedes their output, vb:1189 iResponsePosition), compare after them
+         (run_task_before_finalize).
 
          The template is frozen via eval_description ONCE, exactly like
-         the runner's `sMessage = task.CompletionMessage.ToString` (segment
+         the Runner's `sMessage = task.CompletionMessage.ToString` (segment
          selection + DisplayOnce retirement happen HERE, vb:1167 -- real
          render, not bTestingOutput): the pre/post/finalize renders rework
          that string with the function/expression pass only.  Re-selecting
@@ -1969,13 +2006,13 @@ run_task_before_message (run_task_ctx &c)
 
 /* Phase 2: the action list, with an `Execute Look` that is not the last
    action deferred and spliced back in at the final state.
-   The runner's stock Look is an AggregateOutput task, so its room view is
+   The Runner's stock Look is an AggregateOutput task, so its room view is
    deferred to the command's final Display -- a later action in THIS task's
    list that moves an object out of the room is reflected in the view even
    though the view is positioned ahead of that action's output.  FoF's `give
    pail to baker` runs Task317 (Baker Bakes Bread), whose action list does
    `Execute Look` and THEN `Execute Task2572` (Farrier Takes Pail, hiding the
-   pail); The runner shows the bakery WITHOUT the pail followed by the
+   pail); the Runner shows the bakery WITHOUT the pail followed by the
    farrier's "picks up the pail" line.  When an `Execute Look` is not the last
    action here, defer it (its slot is recorded at look_pos) and splice the
    final-state view back in after the remaining actions have run.  The
@@ -2038,9 +2075,9 @@ run_task_actions (run_task_ctx &c)
             view = lpin;                       /* pinned pre-action render */
           else
             view = render_look_marked (run);   /* final-state room view */
-          /* Splice the view at its recorded slot: head | view | tail, where tail
-             (the output the remaining actions produced) already carries its own
-             leading pSpace separator. */
+          /* Splice the view at its recorded slot: head | view | tail, where
+             tail (the output the remaining actions produced) already carries
+             its own leading pSpace separator. */
           std::string tail (out->p + lpos, out->len - lpos);
           out->len = lpos;
           if (out->p) out->p[lpos] = '\0';
@@ -2067,8 +2104,8 @@ run_task_before_finalize (run_task_ctx &c)
     {
       /* Post-action compare + finalize (clsUserSession.vb:1200-1205), on the
          FROZEN template: pin the pre-action snapshot when the renders differ
-         (the runner displays the test render; no third draw), else render once more
-         for display (the finalize draw, real marking). */
+         (the Runner displays the test render; no third draw), else render once
+         more for display (the finalize draw, real marking). */
       char *post_marked = nullptr;
       char *post;
       {
@@ -2076,10 +2113,10 @@ run_task_before_finalize (run_task_ctx &c)
         a5_intro_guard ig (st, 1);        /* vb:1199's probe */
         post = a5text_process_frozen (st, c.flat_raw, nullptr, &post_marked);
       }
-      /* Compare the MARKED renders: that is the string the runner holds in
+      /* Compare the MARKED renders: that is the string the Runner holds in
          sMessage (clsUserSession.vb:1200), so a change confined to markup --
          Beginner's Cave's `<# "<" & rand(0,1000000) & ">" #>` cache-buster --
-         counts, and the runner then pins the pre-action text instead of
+         counts, and the Runner then pins the pre-action text instead of
          drawing a third time. */
       int changed = (c.flat_pre_marked != nullptr && post_marked != nullptr
                      && strcmp (c.flat_pre_marked, post_marked) != 0);
@@ -2149,7 +2186,7 @@ run_task_after_message (run_task_ctx &c)
   else if (run->comp_defers != nullptr && t->aggregate
            && run->in_ev_attempt && run->ev_tbl != nullptr)
     {
-      /* Event/walk/LocationTrigger attempt: the runner adds this After
+      /* Event/walk/LocationTrigger attempt: the Runner adds this After
          completion per subtask pass via CompletionMessage.ToString -- the
          restriction-gated branch is selected EAGERLY (at this item's
          state, retiring DisplayOnce), and the resulting RAW branch text
@@ -2158,7 +2195,7 @@ run_task_after_message (run_task_ctx &c)
          raw from the same completion node is its own response (Quest
          Giver's daylight task landing on 5 mid-iteration).  Functions in a
          NEW entry render with the `<#..#>` draw deferred to the attempt's
-         Display flush, mirroring the runner's aggregate expansion. */
+         Display flush, mirroring the Runner's aggregate expansion. */
       char *raw;
       {
         a5_mark_guard mg (st, 1);
@@ -2168,7 +2205,7 @@ run_task_after_message (run_task_ctx &c)
       free (raw);
       if (!rawtext.empty ())
         {
-          run->task_raw_output = 1;      /* the runner's bHasOutput */
+          run->task_raw_output = 1;      /* the Runner's bHasOutput */
           if (ev_tbl_touch (run->ev_tbl, comp, rawtext))
             {
               size_t sink0 = run->comp_defers->size ();
@@ -2196,9 +2233,9 @@ run_task_after_message (run_task_ctx &c)
       /* AggregateOutput completion on the eager command path: render the
          static skeleton now (so its position and pSpace separators match),
          but hold any random `<#..#>` draw to the end-of-command flush --
-         the runner's AggregateOutput responses run ReplaceExpressions at Display,
-         after the following actions' draws.  If the message renders empty
-         (or is deduped away), roll back any recorded expressions so no
+         the Runner's AggregateOutput responses run ReplaceExpressions at
+         Display, after the following actions' draws.  If the message renders
+         empty (or is deduped away), roll back any recorded expressions so no
          orphan draw fires at flush. */
       size_t sink0 = run->comp_defers->size ();
       size_t out0 = out->len;
@@ -2232,10 +2269,11 @@ run_task (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out)
   c.out = out;
   /* v5's FileIO.Load defaults a missing <MessageBeforeOrAfter> to Before (the
      class default After is overridden at load time, FileIO.vb:1618), so the
-     completion message is evaluated and emitted *before* the actions run.  This
-     is what makes TakeObjectsFromOthersLazy's "(from %objects%.Parent.Name)"
-     render "(from the Table)" (parent still the source) ahead of the
-     SetTasks-Execute sub-task's "You take ... from the Table." line. */
+     completion message is evaluated and emitted *before* the actions run.
+     This is what makes TakeObjectsFromOthersLazy's "(from
+     %objects%.Parent.Name)" render "(from the Table)" (parent still the
+     source) ahead of the SetTasks-Execute sub-task's "You take ... from the
+     Table." line. */
   const char *when = a5xml_child_text (t->node, "MessageBeforeOrAfter");
   c.before = !streq (when, "After");
   c.comp = a5xml_child (t->node, "CompletionMessage");
@@ -2254,11 +2292,12 @@ run_task (a5_run_t *run, const a5_task_t *t, int depth, sb_t *out)
 
   run_task_before_message (c);
 
-  /* clsUserSession.vb:1193 sets `task.Completed = True` *before* ExecuteActions
-     (vb:1194), so an action that runs or gates on this task's own completion sees
-     it complete -- e.g. Anno's Translatin runs `SetTasks Execute SettingOff`, and
-     SettingOff requires `Translatin Must BeComplete`.  (Callers also mark it after
-     run_task; this earlier mark is the one the runner relies on.) */
+  /* clsUserSession.vb:1193 sets `task.Completed = True` *before*
+     ExecuteActions (vb:1194), so an action that runs or gates on this task's
+     own completion sees it complete -- e.g. Anno's Translatin runs `SetTasks
+     Execute SettingOff`, and SettingOff requires `Translatin Must BeComplete`.
+     (Callers also mark it after run_task; this earlier mark is the one the
+     Runner relies on.) */
   if (c.self_ti >= 0)
     c.st->task_done[c.self_ti] = 1;
 

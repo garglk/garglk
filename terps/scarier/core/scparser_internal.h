@@ -22,9 +22,8 @@
 #define SCPARSER_INTERNAL_H
 
 /*
- * Internal header of the pattern parser: what scparser.cpp and the four
- * files split out of it share.  They were one translation unit, so much here
- * is shared state rather than interface.
+ * Internal header of the pattern parser: what scparser.cpp and the four files
+ * listed below share.  Much here is shared state rather than interface.
  *
  *   scparser.cpp          uip_match() and its cache of compiled patterns,
  *                         tracing, string cleansing
@@ -186,7 +185,7 @@ typedef struct
  *
  *   trace      the interface's parser trace flag (uip_debug_trace()), set
  *              before any game exists and kept across them.
- *   options    set by the runner through the uip_set_*() calls around a
+ *   options    set by the `run_` code through the uip_set_*() calls around a
  *              pass or a match, in pairs; read by the matchers.  Never
  *              saved.
  *   tokenizer  one pattern string being tokenized, between

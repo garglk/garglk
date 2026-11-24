@@ -22,7 +22,7 @@
  * Line re-spelling ahead of the standard library: the goto and battle
  * classifiers, verb hoisting and the 4.0 two-verb pass.
  *
- * Split out of scrunner.cpp; see scrunner.h for what the runner files
+ * See scrunner.h for what the `run_` files
  * share.
  */
 
@@ -46,16 +46,16 @@
  * run_hoist_verb_line()
  *
  * Every Runner matches its library verb ANYWHERE in the line, and Scarier
- * anchors most of it.  Every handler the input routine calls enters on c(<word>) --
- * the whole word, wherever it sits -- so a nonsense head changes nothing:
- * run400 answers `blorp take` "Take what?", `blorp take coin` "You take the
- * coin.", `blorp eat` "I don't understand what you are trying to eat.",
- * `blorp sit` "You sit down on the ground." and so on for twenty-nine of the
- * thirty-four verbs the probe types, though `blorp` is in no vocabulary.
- * (`search`, `wave` and `throw` are "I don't understand." because no arm
- * holds those words outside dobattle; `give` is the shape that shows the two
- * halves are separate, printing the "(to Nobody)" echo and then "Give
- * what?".)  Measured 2026-09-20 on p4REW with make_rewriteprobe.py, run400x
+ * anchors most of it.  Every handler the input routine calls enters on
+ * c(<word>) -- the whole word, wherever it sits -- so a nonsense head changes
+ * nothing: run400 answers `blorp take` "Take what?", `blorp take coin` "You
+ * take the coin.", `blorp eat` "I don't understand what you are trying to
+ * eat.", `blorp sit` "You sit down on the ground." and so on for twenty-nine
+ * of the thirty-four verbs the probe types, though `blorp` is in no
+ * vocabulary.  (`search`, `wave` and `throw` are "I don't understand." because
+ * no arm holds those words outside dobattle; `give` is the shape that shows
+ * the two halves are separate, printing the "(to Nobody)" echo and then "Give
+ * what?".)  Measured on p4REW with make_rewriteprobe.py, run400x
  * runner_probes/rew.run400.casc.txt.
  *
  * Scarier's table is anchored at the head, so the port is a rewrite rather
@@ -109,8 +109,18 @@ static const scr_char *const HOIST_VERBS_400_PUTDROP[] = {
   "put", "drop", nullptr
 };
 
+/*
+ * get_outer's first act is `If c("empty") Then line = Replace(line,
+ * "empty ", "get all from ")` (458073), so the Runner's "empty" is a verb
+ * anywhere too.  It is left out here on purpose: an object whose Prefix is
+ * "an empty" puts that word in the middle of every line that names it in
+ * full, and hoisting it made goldilocks' `x empty milkbottle`, `read it`
+ * and `wear it` the take-from rows' "I don't understand where you want to
+ * get things from.".  Deliberate deviation, logged with get_outer_400():
+ * "empty" is a take-from verb at the head of the line only.
+ */
 static const scr_char *const HOIST_VERBS_400_TAKE[] = {
-  "empty", "get", "take", "pick", nullptr
+  "get", "take", "pick", nullptr
 };
 
 static const scr_char *const HOIST_VERBS_400_WEAR[] = {
@@ -121,18 +131,22 @@ static const scr_char *const HOIST_VERBS_400_REMOVE[] = {
   "remove", "take off", nullptr
 };
 
-/* openclose 476468, whereis 4684E4, gotoplace 464E90 and characters
-   480674: handlers a two-verb line leaves to passes of their own
-   (lib_openclose_anywhere(), lib_whereis_anywhere(), run_goto_line_class())
-   or whose place in the order is not measured. */
+/*
+ * run400's openclose 476468, whereis 4684E4, gotoplace 464E90 and characters
+ * 480674: handlers a two-verb line leaves to passes of their own
+ * (lib_openclose_anywhere(), lib_whereis_anywhere(), run_goto_line_class())
+ * or whose place in the order is not measured.
+ */
 static const scr_char *const HOIST_VERBS_400_OTHER[] = {
   "open", "close", "lock", "unlock",
   "where", "find", "locate", "goto", "go to", "go",
   "speak to", "pick up", nullptr
 };
 
-/* give 48A985 and the character handler's give 48022F: both only ever fill
-   an EMPTY buffer, so give ranks below every other handler on the line. */
+/*
+ * give 48A985 and the character handler's give 48022F: both only ever fill
+ * an EMPTY buffer, so give ranks below every other handler on the line.
+ */
 static const scr_char *const HOIST_VERBS_400_GIVE[] = {
   "give", nullptr
 };
@@ -141,8 +155,10 @@ static const scr_char *const HOIST_VERBS_400_EXAMINE[] = {
   "examine", "look at", "look in", "read", "look", nullptr
 };
 
-/* therest 489F4C, in its own cascade order: the LAST arm a line names is
-   the one that speaks. */
+/*
+ * therest 489F4C, in its own cascade order: the LAST arm a line names is
+ * the one that speaks.
+ */
 static const scr_char *const HOIST_VERBS_400_THEREST[] = {
   "eat", "drink", "ask", "talk to", "talk", "say", "clean", "run", "stop",
   "wash", "cut", "kill", "move", "lift", "light", "suck", "feel", "touch",
@@ -171,7 +187,7 @@ static const scr_char *const *const HOIST_TABLES_400[] = {
  * and one other verb, the other verb's handler answers first and gotoplace
  * then either stays out (the handler claimed), adds its message with no
  * break, or walks.  Measured on p37ORD..p4ORD with make_orderprobe.py
- * (run370x..run400x runner_probes/ord.run*.goto.*, 2026-09-21):
+ * (run370x..run400x runner_probes/ord.run*.goto.*):
  *   x/examine goto cave        "Nothing special." (4.0 "You see no such
  *                              thing."), no goto: examines claims
  *   take goto cave             "Take what?Unknown place." (3.7 walks)
@@ -215,7 +231,7 @@ run_goto_line_class (scr_gameref_t game, const scr_char *line)
     "wear", "remove", "where", "find", "locate", nullptr
   };
   static const scr_char *const OPEN[] = { "open", "close", nullptr };
-  const scr_int version = run_get_version (gs_get_bundle (game));
+  const scr_int version = prop_get_taf_version (gs_get_bundle (game));
   scr_int found = RUN_GOTO_NONE, groups = 0;
 
   if (!line || strchr (line, ',') || strchr (line, '.')
@@ -294,7 +310,7 @@ scr_bool
 run_goto_strip_head (scr_gameref_t game, const scr_char *line,
                      std::string &rest)
 {
-  const scr_int version = run_get_version (gs_get_bundle (game));
+  const scr_int version = prop_get_taf_version (gs_get_bundle (game));
   std::vector<std::string> heads = { "goto", "go to" };
   scr_vartype_t vt_key[3], vt_rvalue;
 
@@ -337,7 +353,7 @@ run_goto_after (scr_gameref_t game, const scr_char *typed, scr_int goto_class,
                 scr_bool status)
 {
   const scr_filterref_t filter = gs_get_filter (game);
-  const scr_int version = run_get_version (gs_get_bundle (game));
+  const scr_int version = prop_get_taf_version (gs_get_bundle (game));
   const scr_bool named = lib_goto_line_names_object (game, typed);
   scr_bool moved = FALSE, claimed = FALSE;
   scr_int object;
@@ -364,7 +380,7 @@ run_goto_after (scr_gameref_t game, const scr_char *typed, scr_int goto_class,
     default:
       break;
     }
-  if (claimed || game->pending_endgame != 0)
+  if (claimed || game->turn.pending_endgame != 0)
     return status;
 
   std::string earlier = pf_cut_tail (filter, mark);
@@ -373,17 +389,17 @@ run_goto_after (scr_gameref_t game, const scr_char *typed, scr_int goto_class,
   while (!earlier.empty () && earlier[earlier.size () - 1] == '\n')
     earlier.erase (earlier.size () - 1);
 
-  const scr_bool first_admin = game->is_admin;
+  const scr_bool first_admin = game->turn.is_admin;
   run_dispatch_input = typed;
-  game->is_admin = FALSE;
-  if (lib_cmd_go_place (game) && game->is_admin)
+  game->turn.is_admin = FALSE;
+  if (lib_cmd_go_place (game) && game->turn.is_admin)
     return TRUE;
 
   const std::string said = pf_cut_tail (filter, mark);
   pf_buffer_string (filter, earlier.c_str ());
   pf_buffer_string (filter, said.c_str ());
   if (goto_class != RUN_GOTO_BELOW && !earlier.empty ())
-    game->is_admin = first_admin;
+    game->turn.is_admin = first_admin;
   return status || !earlier.empty () || !said.empty ();
 }
 
@@ -396,9 +412,9 @@ run_goto_after (scr_gameref_t game, const scr_char *typed, scr_int goto_class,
  * claims nothing.  What decides a line holding one of its verbs AND another
  * handler's word is what it does to the message buffer: once var_90 -- the
  * first of attack, fight, kill, kick, chop, cut, hit, shoot, stab and throw
- * that the line holds as a whole word -- is set, it ASSIGNS "" to the
- * buffer (run390 44CBFD, run400 47EAEF) before its target loop.  Measured
- * 2026-09-21 on p39BORD/p4BORD (make_battleorderprobe.py), run390x
+ * that the line holds as a whole word -- is set, it ASSIGNS "" to the buffer
+ * (run390 44CBFD, run400 47EAEF) before its target loop.  Measured on
+ * p39BORD/p4BORD (make_battleorderprobe.py), run390x
  * runner_probes/bord.run390.batt.txt / runner_probes/bord.run390.batt2.txt and
  * run400x runner_probes/bord.run400.batt.txt /
  * runner_probes/bord.run400.batt2.txt:
@@ -459,7 +475,7 @@ static const struct
 scr_int
 run_battle_line_class (scr_gameref_t game, const scr_char *line)
 {
-  const scr_int version = run_get_version (gs_get_bundle (game));
+  const scr_int version = prop_get_taf_version (gs_get_bundle (game));
   scr_int index, kinds = 0;
 
   if (!line || !lib_battle_line_verb (game, line))
@@ -476,8 +492,10 @@ run_battle_line_class (scr_gameref_t game, const scr_char *line)
           && strncmp (word, "look", 4) != 0 && strcmp (word, "read") != 0
           && run_c_word_pre400 (version, line, word) != 0)
         {
-          /* No examine, but still not the %character% rows' line: `hit
-             bob x coin` is a blow. */
+          /*
+           * No examine, but still not the %character% rows' line: `hit
+           * bob x coin` is a blow.
+           */
           kinds |= RUN_BATTLE_PLAIN;
           continue;
         }
@@ -543,7 +561,7 @@ std::string
 run_battle_respell (scr_gameref_t game, const scr_char *line, scr_int kind,
                     const scr_char *head)
 {
-  const scr_int version = run_get_version (gs_get_bundle (game));
+  const scr_int version = prop_get_taf_version (gs_get_bundle (game));
   std::string rest = run_battle_cut_word (version, line,
                                           lib_battle_line_verb (game, line));
   const scr_char *word = run_battle_kind_word (version, rest.c_str (), kind);
@@ -576,7 +594,7 @@ run_battle_line (scr_gameref_t game, const scr_char *typed, scr_int kinds)
 {
   const scr_filterref_t filter = gs_get_filter (game);
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  const scr_int version = run_get_version (bundle);
+  const scr_int version = prop_get_taf_version (bundle);
   const size_t mark = pf_buffer_length (filter);
   const scr_int npc = lib_battle_line_npc (game, typed);
   const scr_char *const name = npc >= 0
@@ -595,7 +613,7 @@ run_battle_line (scr_gameref_t game, const scr_char *typed, scr_int kinds)
       return FALSE;
     }
   answer = pf_cut_tail (filter, mark);
-  admin = game->is_admin;
+  admin = game->turn.is_admin;
 
   /* wears and removes act above dobattle, and it wipes what they said. */
   if (kinds & RUN_BATTLE_WEAR)
@@ -622,8 +640,10 @@ run_battle_line (scr_gameref_t game, const scr_char *typed, scr_int kinds)
       if (!said.empty ())
         answer = said;
     }
-  /* openclose's " can't open " and " can't see " wait for an empty
-     buffer (4756EA, 475952); its other answers are assignments. */
+  /*
+   * openclose's " can't open " and " can't see " wait for an empty
+   * buffer (4756EA, 475952); its other answers are assignments.
+   */
   if (kinds & RUN_BATTLE_OPEN)
     {
       const scr_char *const word = run_battle_kind_word (version, typed,
@@ -649,9 +669,11 @@ run_battle_line (scr_gameref_t game, const scr_char *typed, scr_int kinds)
       said = run_battle_answer (game, "score");
       if (!said.empty ())
         answer = said;
-      /* score is not a turn, blow or no blow (run390 45F6B5, run400
-         48A6AE). */
-      admin = game->is_admin;
+      /*
+       * score is not a turn, blow or no blow (run390 45F6B5, run400
+       * 48A6AE).
+       */
+      admin = game->turn.is_admin;
     }
   if (kinds & RUN_BATTLE_WHERE)
     {
@@ -703,7 +725,7 @@ run_battle_line (scr_gameref_t game, const scr_char *typed, scr_int kinds)
     }
 
   pf_buffer_string (filter, answer.c_str ());
-  game->is_admin = admin;
+  game->turn.is_admin = admin;
   return TRUE;
 }
 
@@ -719,7 +741,7 @@ static const scr_char *const HOIST_VERBS_BATTLE_400[] = {
  * drops (438659 / 430475) `drop` / `put down` / `leave`, wears (432D5C /
  * 42C533) `wear` / `put on`, removes (42FD4C / 4295FF) `remove` / `take
  * off`, and examines (43C69D / 434E2A) `x` / `examine` / `look at` / `ex` /
- * `exam` / `read`, with `look in` added at 3.80 and NO bare `look` at
+ * `exam` / `read`, with `look in` added at 3.8 and NO bare `look` at
  * either.  Everything else pre-4.0 already matches its word anywhere
  * (run_therest_pre400(), run_therest_absent_370(), lib_sitstand_anywhere()),
  * which is why `blorp drink`, `blorp push` and `blorp sit` already agree.
@@ -807,23 +829,25 @@ run_hoist_longest_400 (const scr_char *word)
   return best;
 }
 
-/* The verb this word begins, or NULL: the one the line would be re-spelled
-   around.  4.0 hoists every library verb, the older Runners only the five
-   handlers that anchor. */
+/*
+ * The verb this word begins, or NULL: the one the line would be re-spelled
+ * around.  4.0 hoists every library verb, the older Runners only the five
+ * handlers that anchor.
+ */
 static const scr_char *
 run_hoist_verb_at (scr_gameref_t game, const scr_char *word)
 {
-  const scr_int version = run_get_version (gs_get_bundle (game));
+  const scr_int version = prop_get_taf_version (gs_get_bundle (game));
   const scr_char *best;
 
   if (version < TAF_VERSION_400)
     {
       best = run_hoist_longest (HOIST_VERBS_PRE400, word);
-      /* takes() wants `pick` with no "from" in the line (43D788). */
+      /* takes() wants `pick` with no "from" in the line (run380 43D788). */
       if (best && strcmp (best, "pick") == 0
           && run_c_word_pre400 (version, run_hoist_line, "from") >= 0)
         best = nullptr;
-      /* examines() has no "look in" before 3.80 (434E2A). */
+      /* examines() has no "look in" before 3.8 (434E2A). */
       if (best && version < TAF_VERSION_380 && strcmp (best, "look in") == 0)
         best = nullptr;
       return best;
@@ -884,7 +908,7 @@ run_hoist_any_verb_at (scr_gameref_t game, const scr_char *word)
  * coin, but nothing happens.", `kick hit coin` and `hit kick coin` both the
  * hit.
  *
- * Measured 2026-09-21 on p4REW (make_twoverbprobe.py, run400x
+ * Measured on p4REW (make_twoverbprobe.py, run400x
  * runner_probes/rew.run400.verb.txt) and on p4TWO
  * (runner_probes/two.run400.verb3.txt); the cells that carry the rule, coin
  * loose unless said otherwise:
@@ -934,9 +958,11 @@ enum
   RUN_400_GIVE = 1 << 7
 };
 
-/* Precedence, highest first: the call order above, with wears and removes
-   dropped below examines because neither can claim, and give last of all
-   because it never writes over anything. */
+/*
+ * Precedence, highest first: the call order above, with wears and removes
+ * dropped below examines because neither can claim, and give last of all
+ * because it never writes over anything.
+ */
 static const scr_int RUN_400_ORDER[] = {
   RUN_400_PUTDROP, RUN_400_TAKE, RUN_400_EXAMINE,
   RUN_400_WEAR, RUN_400_REMOVE, RUN_400_THEREST, RUN_400_GIVE
@@ -1065,7 +1091,7 @@ scr_bool
 run_two_verb_line_400 (scr_gameref_t game, const scr_char *line,
                        std::string &hoisted)
 {
-  const scr_int version = run_get_version (gs_get_bundle (game));
+  const scr_int version = prop_get_taf_version (gs_get_bundle (game));
   std::vector<const scr_char *> spans;
   const scr_char *scan, *winner_at = nullptr, *winner_word = nullptr;
   scr_int winner_rank = -1, seen = 0, index;
@@ -1084,8 +1110,10 @@ run_two_verb_line_400 (scr_gameref_t game, const scr_char *line,
           scan++;
           continue;
         }
-      /* A list arm walks co() over the whole line, so there a mid-line x
-         is only a word to step over: `take x all` is the take. */
+      /*
+       * A list arm walks co() over the whole line, so there a mid-line x
+       * is only a word to step over: `take x all` is the take.
+       */
       groups = run_two_verb_groups_400 (game, scan, list || scan == line,
                                         &length);
       if (!groups)
@@ -1093,8 +1121,10 @@ run_two_verb_line_400 (scr_gameref_t game, const scr_char *line,
           scan++;
           continue;
         }
-      /* openclose, whereis, gotoplace, characters and dobattle answer from
-         passes of their own or are not measured, so nothing is re-spelled. */
+      /*
+       * openclose, whereis, gotoplace, characters and dobattle answer from
+       * passes of their own or are not measured, so nothing is re-spelled.
+       */
       if (groups & RUN_400_OTHER)
         return FALSE;
       spans.push_back (scan);
@@ -1111,7 +1141,7 @@ run_two_verb_line_400 (scr_gameref_t game, const scr_char *line,
    * coin and the box.", `drop x all` "You drop the hat and the coin.", and
    * `x take coin and hat` with the hat held "You take the coin. You are
    * already carrying the hat.".  p4ORD make_orderprobe.py (run400x
-   * runner_probes/ord.run400.rest.txt, 2026-09-21).  A put, and a line holding
+   * runner_probes/ord.run400.rest.txt).  A put, and a line holding
    * both, are not measured.
    */
   if (list)
@@ -1174,10 +1204,12 @@ run_two_verb_line_400 (scr_gameref_t game, const scr_char *line,
       if (!(seen & group))
         continue;
 
-      /* The span that carries the winning handler: the first of them, or
-         for therest the one standing last in its cascade.  Its length is
-         that handler's OWN spelling and not the span's -- get_outer reads
-         only the `take` out of removes' `take off`. */
+      /*
+       * The span that carries the winning handler: the first of them, or
+       * for therest the one standing last in its cascade.  Its length is
+       * that handler's OWN spelling and not the span's -- get_outer reads
+       * only the `take` out of removes' `take off`.
+       */
       for (span = spans.begin (); span != spans.end (); span++)
         {
           const scr_char *const word
@@ -1228,7 +1260,7 @@ run_hoist_verb_line (scr_gameref_t game, const scr_char *string,
     return FALSE;
 
   /*
-   * Deliberate deviation (2026-09-30): a verb word inside an object's or a
+   * Deliberate deviation: a verb word inside an object's or a
    * character's longer name is no verb.  Every rewrite below must stand on
    * the masked line too (lib_mask_long_names()), so `x ice pick`, `get
    * cough drop` and `open drop box` keep their one verb.
@@ -1246,7 +1278,7 @@ run_hoist_verb_line (scr_gameref_t game, const scr_char *string,
   {
     std::string decided;
 
-    if (run_get_version (gs_get_bundle (game)) < TAF_VERSION_400
+    if (prop_get_taf_version (gs_get_bundle (game)) < TAF_VERSION_400
         && lib_two_verb_line_pre400 (game, string, &decided))
       {
         std::string unused;
@@ -1262,9 +1294,11 @@ run_hoist_verb_line (scr_gameref_t game, const scr_char *string,
       }
   }
 
-  /* At 4.0 the same is true of a different call order, and there too the
-     head being a verb is no reason to leave the line alone: `x get coin` is
-     get_outer's answer.  See run_two_verb_line_400(). */
+  /*
+   * At 4.0 the same is true of a different call order, and there too the
+   * head being a verb is no reason to leave the line alone: `x get coin` is
+   * get_outer's answer.  See run_two_verb_line_400().
+   */
   if (run_two_verb_line_400 (game, string, hoisted))
     {
       std::string unused;
@@ -1304,19 +1338,21 @@ run_hoist_verb_line (scr_gameref_t game, const scr_char *string,
        * and `push examine coin` is the coin's description at 3.7, 3.8 and
        * 3.9 alike.  p3xREW make_twoverbprobe.py cells 31, 35 and 39
        * (runner_probes/rew.run370.verb.rtf, runner_probes/rew.run380.verb.rtf,
-       * runner_probes/rew.run390.verb.txt, 2026-09-21).
+       * runner_probes/rew.run390.verb.txt).
        */
       if (scan == string
-          && !(run_get_version (gs_get_bundle (game)) < TAF_VERSION_400
+          && !(prop_get_taf_version (gs_get_bundle (game)) < TAF_VERSION_400
                && !run_hoist_verb_at (game, scan)
-               && run_therest_arm_at (run_get_version (gs_get_bundle (game)),
-                                      scan)))
+               && run_therest_arm_at
+                    (prop_get_taf_version (gs_get_bundle (game)), scan)))
         return FALSE;
       if (scan == string)
         {
-          /* The arm word plays no part in the handler's own c() walk, so
-             it goes with the head rather than into the object clause:
-             3.9's drops row wants `drop coin`, not `drop push coin`. */
+          /*
+           * The arm word plays no part in the handler's own c() walk, so
+           * it goes with the head rather than into the object clause:
+           * 3.9's drops row wants `drop coin`, not `drop push coin`.
+           */
           body = scan + strlen (verb);
           body += strspn (body, " ");
           continue;

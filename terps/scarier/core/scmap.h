@@ -21,7 +21,7 @@
  * The ADRIFT 4 map (run400.exe: Form29).
  *
  * A .taf holds no coordinates -- ADRIFT 4 rooms know only which room lies in
- * each of their twelve directions -- so the runner works the layout out for
+ * each of their twelve directions -- so the Runner works the layout out for
  * itself every time it draws the map, and so must we.  scmap_build() is a port
  * of its algorithm (Form29.calc_grid and friends), which is a good deal less
  * principled than "graph layout" suggests:
@@ -41,13 +41,13 @@
  *     "Cannot draw map - too complex."  Real ADRIFT 4 games do hit this.
  *
  * It follows that the map is only as good as the exit graph is planar-ish, and
- * that it changes shape as you explore.  Both were true in the runner as well;
+ * that it changes shape as you explore.  Both were true in the Runner as well;
  * this is a faithful port, bugs included (see the comments in scmap.cpp), on
  * the grounds that a map that matches the one ADRIFT 4 authors designed
  * against is worth more than a prettier one that does not.
  *
- * The result is handed to mapdraw.h, which draws it exactly as it draws an
- * ADRIFT 5 map.  (The ADRIFT 4 runner's own map, built out of Visual Basic
+ * The result is handed to map/mapdraw.h, which draws it exactly as it draws an
+ * ADRIFT 5 map.  (The ADRIFT 4 Runner's own map, built out of Visual Basic
  * Label and Line controls, looked quite different; we do not reproduce that.)
  */
 
@@ -55,7 +55,7 @@
 #define SCMAP_H
 
 #include "sctypes.h"
-#include "../mapdraw.h"
+#include "../map/mapdraw.h"
 
 /* Fill in the view callbacks over SCARE's game state. */
 extern void scmap_view (scr_gameref_t game, map_view_t *view);
@@ -70,11 +70,11 @@ extern int scmap_available (scr_gameref_t game);
 
 /*
  * Lay the game's rooms out and build a map of them.  Room keys are the decimal
- * SCARE room number.  Returns NULL if there is nothing to draw: the game has no
- * map (see scmap_available), or the layout gave up (see scmap_failed), or the
- * player is standing in a room the author hid from the map -- in which case the
- * ADRIFT 4 runner drew nothing at all either, and the map comes back by itself
- * as soon as you step out of that room.
+ * SCARE room number.  Returns NULL if there is nothing to draw: the game has
+ * no map (see scmap_available), or the layout gave up (see scmap_failed), or
+ * the player is standing in a room the author hid from the map -- in which
+ * case the ADRIFT 4 Runner drew nothing at all either, and the map comes back
+ * by itself as soon as you step out of that room.
  *
  * `view` supplies which rooms count as seen -- the layout needs to know, since
  * it only expands outwards through rooms the player has been to, and it must

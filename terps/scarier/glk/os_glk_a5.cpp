@@ -26,6 +26,8 @@
 
 #include "os_glk_internal.h"
 
+#include <vector>
+
 /*---------------------------------------------------------------------*/
 /*  ADRIFT 5 Glk driver                                                */
 /*                                                                     */
@@ -50,10 +52,11 @@ gsc_a5_put_string (const char *string)
 
   if (string == nullptr)
     return;
-  if (string[0] != '\0' && gsc_main_window
-      && glk_stream_get_current () == glk_window_get_stream (gsc_main_window))
-    gsc_main_window_empty = FALSE;
-  if (!gsc_unicode_enabled)
+  if (string[0] != '\0' && gsc_io.main_window
+      && glk_stream_get_current ()
+         == glk_window_get_stream (gsc_io.main_window))
+    gsc_io.main_window_empty = FALSE;
+  if (!gsc_options.unicode_enabled)
     {
       glk_put_string ((char *) string);
       return;
@@ -154,13 +157,13 @@ gsc_unput_tail (const char *s)
   glui32 got;
 
   if (length == 0 || length >= sizeof ubuf / sizeof *ubuf
-      || gsc_main_window == nullptr)
+      || gsc_io.main_window == nullptr)
     return FALSE;
   for (index_ = 0; index_ < length; index_++)
     ubuf[index_] = (glui32) (unsigned char) s[index_];
   ubuf[length] = 0;
   saved = glk_stream_get_current ();
-  glk_set_window (gsc_main_window);
+  glk_set_window (gsc_io.main_window);
   got = garglk_unput_string_count_uni (ubuf);
   glk_stream_set_current (saved);
   return got == length;
@@ -172,7 +175,7 @@ gsc_unput_tail (const char *s)
  *
  * True when a turn text carries no visible output -- nothing but positional
  * A5_SOUND_MARK / A5_WAIT_MARK spans and whitespace (a sound-only commit's
- * spans keep the text non-empty where it used to render to "").  True for ""
+ * spans keep the text non-empty although it renders to "").  True for ""
  * itself, so a caller can use this as its whole output-less test.
  */
 static int
@@ -267,7 +270,7 @@ gsc_a5_await_line (event_t *event, char *buf, int bufsize,
                 event_t cancel;
 
                 cancel.val1 = 0;
-                glk_cancel_line_event (gsc_main_window, &cancel);
+                glk_cancel_line_event (gsc_io.main_window, &cancel);
                 /* Take the now-dangling "> " prompt back off the window --
                    the cancel already removed any typed text (echo is off in
                    real-time mode), so the prompt is the tail and the tick's
@@ -292,17 +295,17 @@ gsc_a5_await_line (event_t *event, char *buf, int bufsize,
                 gsc_autosave ();
 #endif
                 if (ubuf != nullptr)
-                  glk_request_line_event_uni (gsc_main_window, ubuf, ucap,
+                  glk_request_line_event_uni (gsc_io.main_window, ubuf, ucap,
                                               cancel.val1);
                 else
-                  glk_request_line_event (gsc_main_window, buf,
+                  glk_request_line_event (gsc_io.main_window, buf,
                                           (glui32) (bufsize - 1), cancel.val1);
               }
             }
           break;
 
         case evtype_LineInput:
-          if (event->win == gsc_main_window)
+          if (event->win == gsc_io.main_window)
             {
 #if defined(GLK_MODULE_GARGLK_FILE_RESOURCES) || defined(SPATTERLIGHT)
               /* A completed command line ends a turn (see gsc_event_wait_2). */
@@ -310,9 +313,9 @@ gsc_a5_await_line (event_t *event, char *buf, int bufsize,
 #endif
 #ifdef GSC_HAVE_TITLE_WINDOW
               /* The player's first input dismisses any title/cover window. */
-              if (!gsc_seen_input)
+              if (!gsc_title.seen_input)
                 {
-                  gsc_seen_input = TRUE;
+                  gsc_title.seen_input = TRUE;
                   gsc_close_title_graphic ();
                 }
 #endif
@@ -338,7 +341,7 @@ gsc_a5_read_line_raw (char *buf, int bufsize)
      lines are the raw UTF-8 bytes "glk inputlog on" wrote, so they round-trip
      through the byte stream unchanged.  On end of file, close the stream and
      fall through to a normal line request. */
-  if (gsc_readlog_stream)
+  if (gsc_io.readlog_stream)
     {
       glui32 chars = gsc_readlog_line (buf, (glui32) bufsize);
 
@@ -372,7 +375,7 @@ gsc_a5_read_line_raw (char *buf, int bufsize)
 #ifdef GLK_MODULE_LINE_ECHO
   if (glk_gestalt (gestalt_LineInputEcho, 0))
     {
-      glk_set_echo_line_event (gsc_main_window, 0);
+      glk_set_echo_line_event (gsc_io.main_window, 0);
       gsc_a5_manual_echo = TRUE;
     }
 #endif
@@ -381,15 +384,14 @@ gsc_a5_read_line_raw (char *buf, int bufsize)
      Glk's or the manual one below. */
   gsc_colour_echo (TRUE);
 
-  if (gsc_unicode_enabled)
+  if (gsc_options.unicode_enabled)
     {
       const glui32 cap = 256;
-      glui32 *unicode = (glui32 *) gsc_malloc (cap * sizeof (*unicode));
+      std::vector<glui32> unicode (cap);
       glui32 i;
 
-      memset (unicode, 0, cap * sizeof (*unicode));
-      glk_request_line_event_uni (gsc_main_window, unicode, cap, 0);
-      done = gsc_a5_await_line (&event, nullptr, 0, unicode, cap);
+      glk_request_line_event_uni (gsc_io.main_window, unicode.data (), cap, 0);
+      done = gsc_a5_await_line (&event, nullptr, 0, unicode.data (), cap);
 
       if (done)
         for (i = 0; i < event.val1; i++)
@@ -417,11 +419,10 @@ gsc_a5_read_line_raw (char *buf, int bufsize)
                 buf[n++] = (char) (0x80 | (c & 0x3f));
               }
           }
-      free (unicode);
     }
   else
     {
-      glk_request_line_event (gsc_main_window, buf, bufsize - 1, 0);
+      glk_request_line_event (gsc_io.main_window, buf, bufsize - 1, 0);
       done = gsc_a5_await_line (&event, buf, bufsize, nullptr, 0);
       n = done ? (int) event.val1 : 0;
     }
@@ -439,7 +440,7 @@ gsc_a5_read_line_raw (char *buf, int bufsize)
  * gsc_a5_read_line()
  *
  * A line of input for one turn.  While a map-click walk is in progress it
- * comes from the walk rather than the keyboard: the runner submits each step
+ * comes from the walk rather than the keyboard: the Runner submits each step
  * as an ordinary direction command and re-walks at the end of every turn
  * (clsUserSession:863), so a click on a distant room walks there a room per
  * turn.  A click arriving while we wait cancels the pending line request and
@@ -450,7 +451,7 @@ gsc_a5_read_line (char *buf, int bufsize)
 {
   for (;;)
     {
-      if (gsc_a5_walk_to[0] != '\0')
+      if (gsc_walk.a5_to[0] != '\0')
         {
           if (gsc_a5_walk_next (gsc_a5_run, buf, bufsize))
             {
@@ -459,13 +460,13 @@ gsc_a5_read_line (char *buf, int bufsize)
                  which took the prompt's input colour off again; and where
                  the library echoed that cancelled line, the prompt's line
                  has ended too, so the step gets a prompt of its own. */
-              if (gsc_a5_walk_clicked)
+              if (gsc_walk.a5_clicked)
                 {
                   if (gsc_a5_manual_echo)
                     gsc_colour_echo (TRUE);
                   else
                     gsc_a5_put_prompt ("");
-                  gsc_a5_walk_clicked = FALSE;
+                  gsc_walk.a5_clicked = FALSE;
                 }
               gsc_echo_input (gsc_a5_put_string, buf, TRUE);
               return (int) strlen (buf);
@@ -473,7 +474,7 @@ gsc_a5_read_line (char *buf, int bufsize)
           gsc_a5_walk_stop ();          /* arrived, blocked, or no route */
         }
 
-      gsc_a5_walk_clicked = FALSE;
+      gsc_walk.a5_clicked = FALSE;
       {
         int n;
 
@@ -482,7 +483,7 @@ gsc_a5_read_line (char *buf, int bufsize)
         gsc_a5_line_walkable = FALSE;
 
         /* A click cancelled the request: loop round and walk instead. */
-        if (gsc_a5_walk_clicked)
+        if (gsc_walk.a5_clicked)
           continue;
         return n;
       }
@@ -530,24 +531,24 @@ static int
 gsc_a5_popup_replayed (std::string *answer, int *resumed)
 {
   *resumed = FALSE;
-  if (gsc_a5_popup_replay == GSC_A5_POPUP_ELSEWHERE)
+  if (gsc_replay.a5_popup_replay == GSC_A5_POPUP_ELSEWHERE)
     return FALSE;
-  if (gsc_a5_replay_answers.empty ())
+  if (gsc_replay.a5_replay_answers.empty ())
     {
-      gsc_a5_popup_replay = GSC_A5_POPUP_ELSEWHERE;
+      gsc_replay.a5_popup_replay = GSC_A5_POPUP_ELSEWHERE;
       *resumed = TRUE;
       return FALSE;
     }
-  *answer = gsc_a5_replay_answers.front ();
-  gsc_a5_replay_answers.erase (gsc_a5_replay_answers.begin ());
-  gsc_a5_popup_answers.push_back (*answer);
+  *answer = gsc_replay.a5_replay_answers.front ();
+  gsc_replay.a5_replay_answers.erase (gsc_replay.a5_replay_answers.begin ());
+  gsc_replay.a5_popup_answers.push_back (*answer);
   return TRUE;
 }
 
 static void
 gsc_a5_popup_answered (const std::string &answer)
 {
-  gsc_a5_popup_answers.push_back (answer);
+  gsc_replay.a5_popup_answers.push_back (answer);
 }
 
 /* Save the game at the question just printed. */
@@ -584,7 +585,7 @@ gsc_a5_popup_input (void * /*ctx*/, const char *prompt, const char *dflt)
   /* No window to ask in, or a silent boot (the autorestore below replays the
      intro only to reach the saved state, whose name the player already
      chose): take the default without troubling anyone. */
-  if (gsc_main_window == nullptr || gsc_a5_popup_silent)
+  if (gsc_io.main_window == nullptr || gsc_replay.a5_popup_silent)
     return nullptr;
 
   /* An answer is recorded as "=" and the text typed, the default as "". */
@@ -626,7 +627,7 @@ gsc_a5_popup_input (void * /*ctx*/, const char *prompt, const char *dflt)
          a command, and does not belong in the input log.  Any action asked for
          waits for the turn loop (gsc_a5_meta_perform), which is where the run
          may be replaced; quitting needs no such care. */
-      if (gsc_commands_enabled && gsc_command_escape (input))
+      if (gsc_options.commands_enabled && gsc_command_escape (input))
         {
           if (gsc_meta_pending == GSC_META_QUIT)
             glk_exit ();
@@ -645,9 +646,9 @@ gsc_a5_popup_input (void * /*ctx*/, const char *prompt, const char *dflt)
  * gsc_a5_match_command()
  *
  * Case-insensitively test whether the player input (after trimming surrounding
- * whitespace) equals the given word.  Both sides are folded, so the word can be
- * a mixed-case one taken from the game (a %PopUpChoice% option) as well as one
- * of the port's own lower-case meta-commands.
+ * whitespace) equals the given word.  Both sides are folded, so the word can
+ * be a mixed-case one taken from the game (a %PopUpChoice% option) as well as
+ * one of the port's own lower-case meta-commands.
  */
 static int
 gsc_a5_match_command (const char *input, const char *command)
@@ -673,13 +674,13 @@ gsc_a5_match_command (const char *input, const char *command)
  * Answer the %PopUpChoice[prompt, choice1, choice2]% text function -- ADRIFT's
  * two-way prompts, in practice the gender question a game asks before play
  * (Beagle2's System <RunImmediately> Autorun, "Are you Male or Female?", whose
- * answer a SetGender task turns into the Player's Gender property).  The Runner
- * puts up a modal Yes/No MsgBox where Yes yields the first choice and No the
- * second (Global.vb:2278); Glk has no dialog, so ask in the story window.
- * Since the choices carry the meaning and the buttons don't, name both in the
- * prompt and accept either the choice itself or its yes/no button.  Returns
- * non-zero for the first choice, 0 for the second, or negative to leave the
- * token unevaluated (see a5text.h a5_popup_choice_cb).
+ * answer a SetGender task turns into the Player's Gender property).  The
+ * Runner puts up a modal Yes/No MsgBox where Yes yields the first choice and
+ * No the second (Global.vb:2278); Glk has no dialog, so ask in the story
+ * window.  Since the choices carry the meaning and the buttons don't, name both
+ * in the prompt and accept either the choice itself or its yes/no button.
+ * Returns non-zero for the first choice, 0 for the second, or negative to
+ * leave the token unevaluated (see a5text.h a5_popup_choice_cb).
  */
 static int
 gsc_a5_popup_choice (void * /*ctx*/, const char *prompt,
@@ -692,7 +693,7 @@ gsc_a5_popup_choice (void * /*ctx*/, const char *prompt,
   /* No window to ask in, or a silent boot (the autorestore below replays the
      opening only to reach the saved state, whose answer the player already
      gave): leave the question unasked, as an unattended Runner does. */
-  if (gsc_main_window == nullptr || gsc_a5_popup_silent)
+  if (gsc_io.main_window == nullptr || gsc_replay.a5_popup_silent)
     return -1;
 
   /* Recorded as "1" for the first choice and "0" for the second. */
@@ -701,8 +702,7 @@ gsc_a5_popup_choice (void * /*ctx*/, const char *prompt,
 
   gsc_a5_popup_status ();
 
-  /* This runs inside the engine (mid text-render), so a TimeBased tick must
-     not re-enter it: hold real-time mode off for the duration. */
+  /* Hold real-time mode off, as in gsc_a5_popup_input(). */
   saved_real_time = gsc_a5_real_time;
   gsc_a5_real_time = FALSE;
 
@@ -728,8 +728,9 @@ gsc_a5_popup_choice (void * /*ctx*/, const char *prompt,
       n = gsc_a5_read_line_raw (input, sizeof input);
 
       /* "glk ..." is answered here as it is at a naming prompt, and for the
-         same reason; see gsc_a5_popup_input.  The loop re-asks the question. */
-      if (gsc_commands_enabled && gsc_command_escape (input))
+         same reason; see gsc_a5_popup_input.  The loop re-asks the question.
+        */
+      if (gsc_options.commands_enabled && gsc_command_escape (input))
         {
           if (gsc_meta_pending == GSC_META_QUIT)
             glk_exit ();
@@ -776,7 +777,7 @@ gsc_a5_popup_choice (void * /*ctx*/, const char *prompt,
 static int
 gsc_a5_command_escape (char *input)
 {
-  if (gsc_commands_enabled)
+  if (gsc_options.commands_enabled)
     {
       char *command;
 
@@ -802,10 +803,10 @@ gsc_a5_command_escape (char *input)
 
   /* Log this line to any active input log.  Glk commands are never logged,
      matching os_read_line. */
-  if (gsc_inputlog_stream)
+  if (gsc_io.inputlog_stream)
     {
-      glk_put_string_stream (gsc_inputlog_stream, input);
-      glk_put_char_stream (gsc_inputlog_stream, '\n');
+      glk_put_string_stream (gsc_io.inputlog_stream, input);
+      glk_put_char_stream (gsc_io.inputlog_stream, '\n');
     }
 
   return FALSE;
@@ -814,13 +815,14 @@ gsc_a5_command_escape (char *input)
 /*
  * gsc_a5_save()
  *
- * Serialise the a5 runtime state (a5run_save -> the Adrift 5 runner <Game> XML), then
- * zlib-deflate it to the Glk-prompted save file.  The zlib framing (RFC 1950,
- * no header/obfuscation) matches the Adrift 5 runner's FileIO.SaveState; a5run_save
- * emits the Runner's UTF-8 BOM + <?xml?> declaration and, crucially, no trailing
- * newline after </Game> (a trailing byte makes the Runner's XmlReader scan into the
- * inflate zero-padding and reject the save as "illegal hex value 0x00").  The file
- * is thus interoperable with the ADRIFT 5 Runner.
+ * Serialise the a5 runtime state (a5run_save -> the ADRIFT 5 Runner <Game>
+ * XML), then zlib-deflate it to the Glk-prompted save file.  The zlib framing
+ * (RFC 1950, no header/obfuscation) matches the ADRIFT 5 Runner's
+ * FileIO.SaveState; a5run_save emits the Runner's UTF-8 BOM + <?xml?>
+ * declaration and, crucially, no trailing newline after </Game> (a trailing
+ * byte makes the Runner's XmlReader scan into the inflate zero-padding and
+ * reject the save as "illegal hex value 0x00").  The file is thus
+ * interoperable with the ADRIFT 5 Runner.
  */
 static void
 gsc_a5_save (a5_run_t *run)
@@ -875,17 +877,17 @@ gsc_a5_save (a5_run_t *run)
 /*
  * gsc_a5_restore()
  *
- * Read a Glk-prompted save file and apply it to the run.  Sniffs the framing: a
- * zlib stream (0x78 header -- ADRIFT 5 Runner, or Scarier's own
- * new saves) is inflated first; a raw '<' (a pre-interop uncompressed Scarier
- * <SaveState> file) is handed to a5run_restore as-is.  Returns TRUE on success.
+ * Read a Glk-prompted save file and apply it to the run.  Sniffs the framing:
+ * a zlib stream (0x78 header -- ADRIFT 5 Runner, or Scarier's own new saves)
+ * is inflated first; a raw '<' (a pre-interop uncompressed Scarier <SaveState>
+ * file) is handed to a5run_restore as-is.  Returns TRUE on success.
  */
 static int
 gsc_a5_restore (a5_run_t *run)
 {
   frefid_t fileref;
   strid_t stream;
-  char *buffer;
+  std::vector<char> buffer;
   glui32 capacity, total;
   int ok;
 
@@ -900,16 +902,17 @@ gsc_a5_restore (a5_run_t *run)
     return FALSE;
 
   capacity = 65536;
-  buffer = (char *) gsc_malloc (capacity);
+  buffer.resize (capacity);
   total = 0;
   for (;;)
     {
-      glui32 got = glk_get_buffer_stream (stream, buffer + total, capacity - total);
+      glui32 got = glk_get_buffer_stream (stream, buffer.data () + total,
+                                          capacity - total);
       total += got;
       if (total < capacity)
         break;
       capacity *= 2;
-      buffer = (char *) gsc_realloc (buffer, capacity);
+      buffer.resize (capacity);
     }
   glk_stream_close (stream, nullptr);
 
@@ -920,8 +923,9 @@ gsc_a5_restore (a5_run_t *run)
           || (unsigned char) buffer[1] == 0xda))
     {
       uint32_t xlen = 0;
-      uint8_t *xml = a5_inflate ((const uint8_t *) buffer, total, &xlen);
-      free (buffer);
+      const uint8_t *bytes
+        = reinterpret_cast<const uint8_t *> (buffer.data ());
+      uint8_t *xml = a5_inflate (bytes, total, &xlen);
       if (!xml)
         return FALSE;
       ok = a5run_restore (run, (const char *) xml, xlen);
@@ -929,8 +933,7 @@ gsc_a5_restore (a5_run_t *run)
       return ok;
     }
 
-  ok = a5run_restore (run, buffer, total);
-  free (buffer);
+  ok = a5run_restore (run, buffer.data (), total);
   return ok;
 }
 
@@ -945,41 +948,30 @@ gsc_a5_restore (a5_run_t *run)
 /*  of their own (gsc_a5_resolve_media).                               */
 /*---------------------------------------------------------------------*/
 
-int gsc_a5_graphics_ok = FALSE;
-int gsc_a5_sound_ok = FALSE;
-/* Whether the game is a Blorb registered as the resource map. */
-static int gsc_a5_have_blorb = FALSE;
-
-/* One Glk sound channel per ADRIFT audio channel.  The Runner has exactly 8
-   (clsSound.vb: Channels(7), numbered 1..8 in the <audio> tag; anything out of
-   that range is a no-op); slot 0 here is simply never used. */
-schanid_t gsc_a5_channels[GSC_A5_MAX_CHANNELS];
-/* The resource playing on each channel, so a repeated play of the same sound
-   leaves it alone rather than restarting it (see gsc_a5_show_media).  It is
-   cleared when the sound finishes (see gsc_a5_sound_finished). */
-glui32 gsc_a5_chan_sound[GSC_A5_MAX_CHANNELS];
+/* What the library offers and what is playing; see os_glk_internal.h. */
+gsc_a5_media_t gsc_a5_media;
 
 /*
  * gsc_a5_stop_all_sounds()
  *
  * Silence every active ADRIFT sound channel.  Used when a game restarts: a
  * previous playthrough may have started looping music/effects (play_ext with a
- * 0xffffffff repeat count), and the fresh run only ever (re)starts the channels
- * it explicitly plays, so without this the old loop keeps sounding on any
- * channel the new intro does not touch.
+ * 0xffffffff repeat count), and the fresh run only ever (re)starts the
+ * channels it explicitly plays, so without this the old loop keeps sounding on
+ * any channel the new intro does not touch.
  */
 static void
 gsc_a5_stop_all_sounds (void)
 {
   int ch;
 
-  if (!gsc_a5_sound_ok)
+  if (!gsc_a5_media.sound_ok)
     return;
   for (ch = 0; ch < GSC_A5_MAX_CHANNELS; ch++)
     {
-      if (gsc_a5_channels[ch] != nullptr)
-        glk_schannel_stop (gsc_a5_channels[ch]);
-      gsc_a5_chan_sound[ch] = 0;
+      if (gsc_a5_media.channels[ch] != nullptr)
+        glk_schannel_stop (gsc_a5_media.channels[ch]);
+      gsc_a5_media.chan_sound[ch] = 0;
     }
 }
 
@@ -1018,9 +1010,9 @@ gsc_a5_resolve_media (void * /* ctx */, const char *src, int is_image,
 {
   glui32 id;
 
-  if (mapped > 0 && gsc_a5_have_blorb)
+  if (mapped > 0 && gsc_a5_media.have_blorb)
     return mapped;
-  if (is_image ? !gsc_a5_graphics_ok : !gsc_a5_sound_ok)
+  if (is_image ? !gsc_a5_media.graphics_ok : !gsc_a5_media.sound_ok)
     return mapped;
   id = gsc_load_external_resource (src, !is_image);
   return id != 0 ? (int) id : mapped;
@@ -1032,15 +1024,16 @@ gsc_a5_init_resources (void)
 {
   strid_t stream;
 
-  gsc_a5_graphics_ok = glk_gestalt (gestalt_Graphics, 0) != 0;
-  gsc_a5_sound_ok = glk_gestalt (gestalt_Sound, 0) != 0;
-  gsc_a5_have_blorb = FALSE;
+  gsc_a5_media.graphics_ok = glk_gestalt (gestalt_Graphics, 0) != 0;
+  gsc_a5_media.sound_ok = glk_gestalt (gestalt_Sound, 0) != 0;
+  gsc_a5_media.have_blorb = FALSE;
 #ifdef SPATTERLIGHT
   /* Media files beside the game are usable with or without a Blorb, so
      losing the resource map below leaves graphics and sound on here. */
   a5run_set_media_resolver (gsc_a5_resolve_media, nullptr);
 #endif
-  if ((!gsc_a5_graphics_ok && !gsc_a5_sound_ok) || gsc_game_path[0] == '\0')
+  if ((!gsc_a5_media.graphics_ok && !gsc_a5_media.sound_ok)
+      || gsc_game_path[0] == '\0')
     return;
 
   stream = gsc_open_game_path (gsc_game_path, GSC_A5_BLORB_STREAM_ROCK);
@@ -1049,7 +1042,7 @@ gsc_a5_init_resources (void)
       /* The file is unreachable by path (a host that cannot reopen it, or a
          game that has moved since startup): no resource map, so no media. */
 #ifndef SPATTERLIGHT
-      gsc_a5_graphics_ok = gsc_a5_sound_ok = FALSE;
+      gsc_a5_media.graphics_ok = gsc_a5_media.sound_ok = FALSE;
 #endif
       return;
     }
@@ -1058,11 +1051,11 @@ gsc_a5_init_resources (void)
       /* Not a Blorb (e.g. a raw .taf with no resources): no media. */
       glk_stream_close (stream, nullptr);
 #ifndef SPATTERLIGHT
-      gsc_a5_graphics_ok = gsc_a5_sound_ok = FALSE;
+      gsc_a5_media.graphics_ok = gsc_a5_media.sound_ok = FALSE;
 #endif
       return;
     }
-  gsc_a5_have_blorb = TRUE;
+  gsc_a5_media.have_blorb = TRUE;
 }
 
 #ifdef SPATTERLIGHT
@@ -1085,9 +1078,9 @@ gsc_a5_rebind_resources (void)
 {
   strid_t stream, next;
 
-  if (!gsc_a5_have_blorb)
+  if (!gsc_a5_media.have_blorb)
     return;
-  gsc_a5_have_blorb = FALSE;
+  gsc_a5_media.have_blorb = FALSE;
   if (giblorb_unset_resource_map () != giblorb_err_None)
     return;
 
@@ -1107,7 +1100,7 @@ gsc_a5_rebind_resources (void)
       glk_stream_close (stream, nullptr);
       return;
     }
-  gsc_a5_have_blorb = TRUE;
+  gsc_a5_media.have_blorb = TRUE;
 }
 #endif
 
@@ -1175,7 +1168,7 @@ gsc_a5_present_intro (a5_run_t *run)
 {
   char *text;
 
-  gsc_a5_waitkey_count = 0;
+  gsc_replay.a5_waitkey_count = 0;
   text = a5run_intro (run);
   gsc_a5_display (text);
   free (text);
@@ -1214,10 +1207,10 @@ gsc_a5_restart_run (a5_run_t *&run)
      to a single room, which a scale chosen for a whole map would show far too
      close in. */
   gsc_map_hide ();
-  gsc_map_zoom = 0;
+  gsc_map_pane.zoom = 0;
 
-  glk_window_clear (gsc_main_window);
-  gsc_main_window_empty = TRUE;
+  glk_window_clear (gsc_io.main_window);
+  gsc_io.main_window_empty = TRUE;
   gsc_a5_present_intro (run);
   gsc_map_auto_reveal ();
 }
@@ -1273,6 +1266,7 @@ gsc_a5_meta_perform (a5_run_t *&run)
 static void
 gsc_a5_main_setup (a5_run_t *&run, int autorestore)
 {
+  gsc_styles_census_a5 (gsc_a5_adv);
   gsc_hint_window_styles ();
 
   /* An autorestore adopts the archived windows further down instead: opening
@@ -1307,11 +1301,12 @@ gsc_a5_main_setup (a5_run_t *&run, int autorestore)
   gsc_a5_init_resources ();
 
   /* The "Adventure Upgrade" bracket-correction question (pre-5.0.26 file with
-     AND-then-OR restriction sequences): rather than interrupt the player with a
-     dialog, resolve it silently.  The default is NO (matching an unattended
+     AND-then-OR restriction sequences): rather than interrupt the player with
+     a dialog, resolve it silently.  The default is NO (matching an unattended
      ADRIFT 5 Runner -- the sequence is read verbatim); a hard-wired per-game
-     allow-list forces YES for the few games that need the correction to play or
-     score correctly (a5model_upgrade_forced_yes, keyed on the Babel IFID). */
+     allow-list forces YES for the few games that need the correction to play
+     or score correctly (a5model_upgrade_forced_yes, keyed on the Babel IFID).
+    */
   if (a5model_upgrade_pending (gsc_a5_adv))
     {
       a5model_upgrade_answer (gsc_a5_adv, a5model_upgrade_forced_yes (gsc_a5_adv));
@@ -1327,10 +1322,10 @@ gsc_a5_main_setup (a5_run_t *&run, int autorestore)
   gsc_a5_start_real_time (run);
 
   /* The map is authored data on the adventure, so it outlives restarts. */
-  if (gsc_map == nullptr)
+  if (gsc_map_pane.map == nullptr)
     {
-      gsc_map = a5map_load (gsc_a5_adv);
-      gsc_map_taken = a5map_command_taken (gsc_a5_adv);
+      gsc_map_pane.map = a5map_load (gsc_a5_adv);
+      gsc_map_pane.taken = a5map_command_taken (gsc_a5_adv);
     }
 }
 
@@ -1340,7 +1335,7 @@ gsc_a5_main_setup (a5_run_t *&run, int autorestore)
  *
  * Bring the new run to its first prompt: play the opening, or -- on a
  * Spatterlight autorestore -- put the saved state in its place.  Does not
- * return for an adventure the runner refuses outright.
+ * return for an adventure the `a5run` code refuses outright.
  */
 static void
 gsc_a5_main_opening (a5_run_t *&run, int autorestore)
@@ -1361,29 +1356,29 @@ gsc_a5_main_opening (a5_run_t *&run, int autorestore)
          for real.  It stops at the question already on screen. */
       gsc_autorestore_replace_state (gsc_a5_apply_all);
       gsc_a5_rebind_resources ();
-      glk_set_window (gsc_main_window);
+      glk_set_window (gsc_io.main_window);
       glk_set_style (style_Normal);
       gsc_a5_start_real_time (run);
-      gsc_a5_popup_context = GSC_A5_POPUP_BOOT;
+      gsc_replay.a5_popup_context = GSC_A5_POPUP_BOOT;
       gsc_a5_present_intro (run);
-      gsc_a5_popup_context = GSC_A5_POPUP_ELSEWHERE;
-      gsc_a5_popup_replay = GSC_A5_POPUP_ELSEWHERE;
+      gsc_replay.a5_popup_context = GSC_A5_POPUP_ELSEWHERE;
+      gsc_replay.a5_popup_replay = GSC_A5_POPUP_ELSEWHERE;
       gsc_map_auto_reveal ();
     }
   else if (autorestore)
     {
       char *text;
 
-      gsc_a5_popup_silent = TRUE;
+      gsc_replay.a5_popup_silent = TRUE;
       text = a5run_intro (run);
-      gsc_a5_popup_silent = FALSE;
+      gsc_replay.a5_popup_silent = FALSE;
       free (text);
       /* The silent boot above already consumed the game's intro, so a bad
          autosave restarts in a fresh process rather than continue from a
          polluted state. */
       gsc_autorestore_replace_state (gsc_a5_apply_all);
       gsc_a5_rebind_resources ();
-      glk_set_window (gsc_main_window);
+      glk_set_window (gsc_io.main_window);
       glk_set_style (style_Normal);
       /* Re-arm or cancel the real-time timer per the current preferences
          (the library's late pass re-armed whatever interval was archived);
@@ -1402,10 +1397,10 @@ gsc_a5_main_opening (a5_run_t *&run, int autorestore)
   /* Only this first opening can be closed at one of its questions and come
      back: a relaunch reaches it again by starting the game, which is not
      where a RESTART's opening starts from. */
-  gsc_a5_popup_answers.clear ();
-  gsc_a5_popup_context = GSC_A5_POPUP_BOOT;
+  gsc_replay.a5_popup_answers.clear ();
+  gsc_replay.a5_popup_context = GSC_A5_POPUP_BOOT;
   gsc_a5_present_intro (run);
-  gsc_a5_popup_context = GSC_A5_POPUP_ELSEWHERE;
+  gsc_replay.a5_popup_context = GSC_A5_POPUP_ELSEWHERE;
   /* After the intro, so the title page is not sharing the screen with a map.
      An autorestore takes the archived pane instead, whatever it was. */
   gsc_map_auto_reveal ();
@@ -1413,13 +1408,13 @@ gsc_a5_main_opening (a5_run_t *&run, int autorestore)
     }
 #endif
 
-  /* An adventure the runner refuses outright -- today, one with no locations at
-     all -- stops here rather than dropping the player into a world with no
-     room to stand in.  The real Runner shows its window and the game title,
-     then an "ADRIFT Error" dialog carrying this same text, which is why the
-     check comes after the intro (a5model_load_error).  Scarier has no dialog,
-     so the story window stands in for it, as it does for the Adventure-Upgrade
-     question. */
+  /* An adventure the `a5run` code refuses outright -- today, one with no
+     locations at all -- stops here rather than dropping the player into a
+     world with no room to stand in.  The real Runner shows its window and the
+     game title, then an "ADRIFT Error" dialog carrying this same text, which
+     is why the check comes after the intro (a5model_load_error).  Scarier has
+     no dialog, so the story window stands in for it, as it does for the
+     Adventure-Upgrade question. */
   {
     const char *load_err = a5model_load_error (gsc_a5_adv);
     if (load_err != nullptr)
@@ -1524,38 +1519,34 @@ gsc_a5_next_command (char *input, int size)
 #ifdef SPATTERLIGHT
   if (gsc_autorestored)
     {
-      /* The restored transcript already ends with the old prompt; skip
-         printing another and just take input. */
+      /* Skip the prompt; see gsc_read_command(). */
       gsc_autorestored = FALSE;
       gsc_a5_note_turn_start ();
     }
   else
     {
       gsc_a5_put_prompt ("\n");
-      /* Autosave at every top-level prompt: after the prompt is printed
-         (so the GUI snapshot ends with it) but before input is
-         requested (so the archived windows carry no pending request and
-         a restore re-enters cleanly right here). */
+      /* Autosave at every top-level prompt; see gsc_read_command(). */
       gsc_autosave ();
     }
 #else
   gsc_a5_put_prompt ("\n");
 #endif
-  if (gsc_a5_popup_replay == GSC_A5_POPUP_TURN
-      && !gsc_a5_replay_command.empty ()
-      && gsc_a5_replay_command.size () < (size_t) size)
+  if (gsc_replay.a5_popup_replay == GSC_A5_POPUP_TURN
+      && !gsc_replay.a5_replay_command.empty ()
+      && gsc_replay.a5_replay_command.size () < (size_t) size)
     {
       /* Resuming at a question this command's turn asked: the command
          is in the restored transcript, and is run again rather than
          read. */
-      memcpy (input, gsc_a5_replay_command.c_str (),
-              gsc_a5_replay_command.size () + 1);
-      gsc_a5_replay_command.clear ();
+      memcpy (input, gsc_replay.a5_replay_command.c_str (),
+              gsc_replay.a5_replay_command.size () + 1);
+      gsc_replay.a5_replay_command.clear ();
       return TRUE;
     }
 
-  gsc_a5_popup_replay = GSC_A5_POPUP_ELSEWHERE;
-  gsc_a5_waitkey_skip = 0;
+  gsc_replay.a5_popup_replay = GSC_A5_POPUP_ELSEWHERE;
+  gsc_replay.a5_waitkey_skip = 0;
   return gsc_a5_read_line (input, size) != 0;
 }
 
@@ -1592,10 +1583,10 @@ gsc_a5_host_command (a5_run_t *&run, char *input)
       return GSC_A5_COMMAND_HANDLED;
     }
 
-  /* MAP toggles the map pane.  The runner's map is host chrome rather than
+  /* MAP toggles the map pane.  The Runner's map is host chrome rather than
      a game command, so authors are free to use MAP themselves; when they
      do, theirs wins and the pane is reached with "glk map". */
-  if (gsc_map != nullptr && !gsc_map_taken
+  if (gsc_map_pane.map != nullptr && !gsc_map_pane.taken
       && gsc_a5_match_command (input, "map"))
     {
       gsc_map_toggle ();
@@ -1638,16 +1629,16 @@ gsc_a5_play_turn (a5_run_t *&run, const char *input)
      which increments the turn counter on entry). */
   a5run_snapshot (run);
 
-  gsc_a5_popup_command = input;
-  gsc_a5_popup_answers.clear ();
-  gsc_a5_popup_context = GSC_A5_POPUP_TURN;
-  gsc_a5_waitkey_count = 0;
+  gsc_replay.a5_popup_command = input;
+  gsc_replay.a5_popup_answers.clear ();
+  gsc_replay.a5_popup_context = GSC_A5_POPUP_TURN;
+  gsc_replay.a5_waitkey_count = 0;
   text = a5run_input (run, input);
-  gsc_a5_popup_replay = GSC_A5_POPUP_ELSEWHERE;
+  gsc_replay.a5_popup_replay = GSC_A5_POPUP_ELSEWHERE;
   /* Still the turn's while its text is paged out: a <waitkey> pause in
      it is saved as a question is (gsc_a5_autosave_waitkey). */
   gsc_a5_display (text);
-  gsc_a5_popup_context = GSC_A5_POPUP_ELSEWHERE;
+  gsc_replay.a5_popup_context = GSC_A5_POPUP_ELSEWHERE;
   free (text);
   gsc_a5_show_media (run);
   gsc_a5_status (run);
@@ -1671,8 +1662,8 @@ gsc_a5_main_shutdown (a5_run_t *&run)
     a5run_free (dead);
   }
   gsc_a5_map_names_clear ();
-  map_free (gsc_map);
-  gsc_map = nullptr;
+  map_free (gsc_map_pane.map);
+  gsc_map_pane.map = nullptr;
   gsc_map_screen_drop ();
 }
 

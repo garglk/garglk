@@ -36,8 +36,8 @@
 /*
  * Module notes:
  *
- * o Implements task return FALSE on no output, a slight extension of
- *   current jAsea behavior.
+ * o A task that runs but prints nothing returns FALSE from
+ *   task_run_task(), the same as one that did not run.
  */
 
 #include <assert.h>
@@ -56,15 +56,15 @@
 #include "scexpr.h"
 #include "scprintf.h"
 #include "scgamest_api.h"
-#include "sclibrar_api.h"
+#include "schooks.h"
 #include "scresour.h"
-#include "scrunner_api.h"
 #include "scevents.h"
 #include "sctasks.h"
 #include "screstrs.h"
 #include "scnpcs.h"
 #include "scbattle.h"
 #include "scobjcts.h"
+#include "scrooms.h"
 #include "scdump.h"
 #include "scgamest.h"
 

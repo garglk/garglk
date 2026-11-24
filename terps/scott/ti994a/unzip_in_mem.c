@@ -1,24 +1,36 @@
-//
-//  unzip_in_mem.c
-//  scott
-//
-//  Created by Administrator on 2026-02-18.
-//
-//  Extracts one file from a zip archive held in memory. It is used for
-//  the Return to Pirate's Isle cartridge images, and reads no more of
-//  the format than they need: files that are stored or deflated, in an
-//  archive without the Zip64 extensions.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  unzip_in_mem.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2026-02-18.
+ *
+ *  Extracts one file from a zip archive held in memory. It is used for
+ *  the Return to Pirate's Isle cartridge images, and reads no more of
+ *  the format than they need: files that are stored or deflated, in an
+ *  archive without the Zip64 extensions.
+ */
 
 #include <stdlib.h>
 #include <string.h>
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#else
 #include <strings.h>
+#endif
 /* Makes z_stream.next_in a pointer to const */
 #define ZLIB_CONST
 #include <zlib.h>
 
 #include "memory_allocation.h"
-#include "read_le16.h"
+#include "byteorder.h"
 #include "unzip_in_mem.h"
 
 /* The record at the end of the archive that says where the directory is */

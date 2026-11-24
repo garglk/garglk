@@ -24,8 +24,9 @@
 /*
  * Internal header of the library, shared by all the topic files
  * sclibrar_*.cpp.  Nothing here is part of the interface the rest of Scarier
- * uses; that stays in core/sclibrar_api.h.  What the eleven core topic files
- * share only among themselves is in sclibrar_internal.h.
+ * uses; that is library/sclibrar_api.h.  What the eleven core topic files
+ * share only among themselves is in sclibrar_internal.h, and the take, put and
+ * disambiguation families each have their own sclibrar_*_internal.h.
  */
 
 /*
@@ -89,19 +90,17 @@ extern std::string lib_battle_who_pending;
 
 /* Functions shared across the library files, each defined where named. */
 
-/* sclibrar_print.cpp */
-extern scr_bool lib_use_room_alt (scr_gameref_t game, scr_int room,
-                                  scr_int alt);
-extern scr_bool lib_room_is_dark (scr_gameref_t game, scr_int room);
-extern scr_int lib_find_starting_alt (scr_gameref_t game, scr_int room);
-extern void lib_print_room_name_lower (scr_gameref_t game, scr_int room);
+/* sclibrar_names.cpp */
 extern scr_bool lib_compare_article_binary (const scr_char *string,
                                             const scr_char *word,
                                             scr_int length);
 extern void lib_print_object (scr_gameref_t game, scr_int object);
 extern void lib_print_object_raw (scr_gameref_t game, scr_int object);
-extern scr_bool lib_is_version_400 (scr_gameref_t game);
-extern scr_bool lib_is_version_390 (scr_gameref_t game);
+
+/* sclibrar_alrs.cpp */
+extern scr_bool lib_alrs_see_gap (scr_gameref_t game);
+
+/* sclibrar_print.cpp */
 extern void lib_set_admin (scr_gameref_t game);
 extern scr_bool lib_matcher_requires_seen (scr_gameref_t game);
 extern const scr_char * lib_select_response (scr_gameref_t game,
@@ -130,8 +129,6 @@ extern void lib_print_response_npc (scr_gameref_t game,
                                     const scr_char *first_person,
                                     const scr_char *third_person,
                                     scr_int npc, const scr_char *suffix);
-extern scr_bool lib_print_message (scr_gameref_t game,
-                                   const scr_char *message);
 extern scr_bool lib_print_response_message (scr_gameref_t game,
                                             const scr_char *second_person,
                                             const scr_char *first_person,
@@ -165,6 +162,7 @@ extern scr_bool lib_npc_text_is_default (const scr_char *description);
 extern scr_bool lib_inroomdesc_is_absent (const scr_char *inroomdesc);
 
 /* sclibrar_room.cpp */
+extern void lib_print_room_name_lower (scr_gameref_t game, scr_int room);
 extern const scr_char *const * lib_compass_names (scr_gameref_t game);
 extern scr_bool lib_room_exit_available (scr_gameref_t game, scr_int room,
                                          scr_int direction);
@@ -173,6 +171,9 @@ extern scr_bool lib_room_exit_destination (scr_gameref_t game,
                                            scr_int *destination);
 extern void lib_describe_player_room (scr_gameref_t game,
                                       scr_bool force_verbose);
+
+/* sclibrar_locate.cpp */
+extern scr_bool lib_npc_not_seen_yet (scr_gameref_t game, scr_int npc);
 
 /* sclibrar_go.cpp */
 extern std::string lib_command_slot_370 (scr_prop_setref_t bundle,
@@ -215,7 +216,7 @@ extern scr_bool lib_examine_tail (scr_gameref_t game, scr_int object,
                                   scr_bool is_described);
 extern scr_int lib_examine_crowded_390 (scr_gameref_t game);
 
-/* sclibrar_take_multiple.cpp */
+/* sclibrar_take_pre400.cpp */
 extern scr_bool lib_co_pre400 (scr_gameref_t game, const scr_char *line,
                                scr_int object, scr_int mode);
 
@@ -244,7 +245,7 @@ extern const scr_char * lib_ask_format_subject (scr_gameref_t game);
 /* sclibrar_refuse.cpp */
 extern scr_bool lib_what (scr_gameref_t game, const scr_char *verb);
 
-/* sclibrar_verbobj.cpp */
+/* sclibrar_resolve_400.cpp */
 extern scr_int lib_verb_object_name_score (scr_gameref_t game, scr_int object,
                                            const scr_char *input);
 extern scr_int

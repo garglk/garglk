@@ -1,21 +1,26 @@
-//
-//  dumpactions.c
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Debug dumps of a loaded database. Everything here prints through
-//  debug_print(), which compiles to nothing unless DEBUG is defined.
-//
+/*
+ *  dumpactions.c
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *
+ *  Debug dumps of a loaded database. Everything here prints through
+ *  debug_print(), which prints only if DEBUG_PRINT is set.
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2026-10-12.
+ */
 
 #include <stdint.h>
-#include <stdio.h>
 
 #include "common.h"
 #include "dumpactions.h"
 #include "opcodes.h"
+#include "parseinput.h"
 
-/* Names of the conditions for DumpActions(). debug_print() compiles to
-   nothing unless DEBUG is defined. */
-#ifdef DEBUG
+/* Names of the conditions for DumpActions() */
 static const char * const ConditionList[NUM_CONDITIONS] = {
     [COND_CARRIED] = "CARRIED",
     [COND_HERE] = "HERE",
@@ -48,7 +53,6 @@ static const char *ConditionName(int condition)
         return "UNKNOWN";
     return ConditionList[condition];
 }
-#endif
 
 /* Prints the first dictionary word whose group matches the given index.
    Falls back to printing the raw numeric index if no match is found. */
@@ -73,7 +77,7 @@ static void PrintCondition(uint8_t condition, uint16_t argument, int *negate, in
         debug_print(" %d", argument);
     } else if (condition == COND_CONTROL) {
         if (argument == 1) {
-            debug_print(" OR(31) %d ", argument); // Arg 1 == OR
+            debug_print(" OR(31) %d ", argument); /* Arg 1 == OR */
             * or = 1;
         } else if (argument == 3 || argument == 4) {
             debug_print(" NOT(31) %d ", argument);

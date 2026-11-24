@@ -33,9 +33,9 @@
    Dreamspun's dream pearl is literally named "%dreamtext[%dreamRNG%]%", so
    every pearl announces a different dream -- must render expanded wherever the
    name is used, not just where the author wrote the reference out by hand.
-   The runner gets this for free: ReplaceFunctions loops the whole substitution
-   block to a fixpoint (Global.vb:2441), so a name pasted into a message text is
-   rescanned on the next round.  Scarier's replace_functions is a single
+   The Runner gets this for free: ReplaceFunctions loops the whole substitution
+   block to a fixpoint (Global.vb:2441), so a name pasted into a message text
+   is rescanned on the next round.  Scarier's replace_functions is a single
    left-to-right pass and never revisits what it emitted, so expand the name
    parts here instead.  Guarded against a name that references itself. */
 static const char *
@@ -87,10 +87,10 @@ a5text_object_name (const a5_state_t *st, const a5_object_t *o, a5_article_t art
     sb_puts (&sb, "the ");
   else if (art == A5_ART_INDEFINITE)
     {
-      /* The runner clsObject.FullName: Indefinite -> sArticle2 = sArticle & " ",
-         i.e. the space is appended even when the article is empty, so an
-         empty-article object renders with a leading space (e.g. the worn
-         "your clothes" -> " your clothes" in an inventory list). */
+      /* The Runner's clsObject.FullName: Indefinite -> sArticle2 = sArticle &
+         " ", i.e. the space is appended even when the article is empty, so an
+         empty-article object renders with a leading space (e.g. the worn "your
+         clothes" -> " your clothes" in an inventory list). */
       if (article != nullptr && article[0] != '\0')
         sb_puts (&sb, article);
       sb_putc (&sb, ' ');
@@ -110,10 +110,11 @@ a5text_object_name (const a5_state_t *st, const a5_object_t *o, a5_article_t art
 
 /* A character's perspective (FirstPerson=1 / SecondPerson=2 / ThirdPerson=3).
    Keyed on whether `c` is the CURRENT player, not its static Type: after a
-   ToSwitchWith/BECOME the new player is still typed NonPlayer, yet must narrate
-   in the player's perspective ("you pick up ...", not "Lance-Corporal Davey pick
-   up ...").  For every game without BECOME this is identical to the old type
-   test -- the sole Type=Player character is exactly the current player. */
+   ToSwitchWith/BECOME the new player is still typed NonPlayer, yet must
+   narrate in the player's perspective ("you pick up ...", not "Lance-Corporal
+   Davey pick up ...").  For every game without BECOME this is identical to the
+   old type test -- the sole Type=Player character is exactly the current
+   player. */
 int
 char_perspective (const a5_state_t *st, const a5_character_t *c)
 {
@@ -142,7 +143,7 @@ char_perspective (const a5_state_t *st, const a5_character_t *c)
       if (ci_eq (orig->perspective, "SecondPerson")) return 2;
       if (ci_eq (orig->perspective, "ThirdPerson"))  return 3;
     }
-  /* No stored <Perspective>: the runner's loader records ThirdPerson for files
+  /* No stored <Perspective>: the Runner's loader records ThirdPerson for files
      >= 5.00002 and forces SecondPerson for older ones (FileIO.vb:1776-7). */
   if (st->adv->version != nullptr
       && strtod (st->adv->version, nullptr) < 5.00002)
@@ -200,8 +201,8 @@ possessive (char *nm)
  * non-pronoun branch: a "Known"-and-selected character (or one with no
  * descriptor) shows its ProperName; otherwise its Descriptor(Article) --
  * "a young woman" (Indefinite) / "the young woman" (Definite).  The "Known"
- * property may be set at runtime (SetProperty Susan Known <Selected>), so check
- * the override layer too.
+ * property may be set at runtime (SetProperty Susan Known <Selected>), so
+ * check the override layer too.
  */
 char *
 character_display_name (a5_state_t *st, const a5_character_t *c, int definite,
@@ -227,12 +228,12 @@ character_display_name (a5_state_t *st, const a5_character_t *c, int definite,
   /* clsCharacter.Name: a character renders by ProperName once its "Known"
      SelectionOnly property is set, otherwise by its descriptor.  Use the same
      merged, Unselected-aware test the rest of the engine uses
-     (a5state_entity_has_prop) instead of a substring match on the value: a bare
-     strstr (known, "Selected") also matches the "Unselected" token and would
-     wrongly treat an unselected character as known, leaking its name.  Fall
-     back to the proper name when there is no descriptor to render -- this also
-     guarantees the descriptor branch below only runs with n_descriptors > 0,
-     so c->descriptors[0] is never a NULL dereference. */
+     (a5state_entity_has_prop) instead of a substring match on the value: a
+     bare strstr (known, "Selected") also matches the "Unselected" token and
+     would wrongly treat an unselected character as known, leaking its name.
+     Fall back to the proper name when there is no descriptor to render -- this
+     also guarantees the descriptor branch below only runs with n_descriptors >
+     0, so c->descriptors[0] is never a NULL dereference. */
   int known_set = c != nullptr && a5state_entity_has_prop (st, c->key, "Known");
   int use_proper = known_set || c == nullptr || c->n_descriptors == 0;
   if (use_proper)
@@ -244,10 +245,10 @@ character_display_name (a5_state_t *st, const a5_character_t *c, int definite,
 }
 
 /*
- * The displayed name of a character with a pronoun, mirroring clsCharacter.Name:
- * first/second person always render as a pronoun (I/you/...); third person
- * renders the proper/descriptor name (we don't pronoun-replace NPCs without
- * mention tracking, which is the safe default).
+ * The displayed name of a character with a pronoun, mirroring
+ * clsCharacter.Name:  first/second person always render as a pronoun
+ * (I/you/...); third person renders the proper/descriptor name (we don't
+ * pronoun-replace NPCs without mention tracking, which is the safe default).
  */
 char *
 character_name (a5_state_t *st, const a5_character_t *c, a5_pronoun_t pr,
@@ -267,8 +268,8 @@ character_name (a5_state_t *st, const a5_character_t *c, a5_pronoun_t pr,
      Landlord]% ignores you." -> "He ignores you.", DieFeuerfaust's
      conversation fallback), and a requested Objective upgrades to Reflective
      when the previous mention was Subjective (vb:352).  Only the
-     %CharacterName% function path consults (the runner's other Name() call sites pass
-     bAllowPronouns:=False or don't run under bDisplaying). */
+     %CharacterName% function path consults (the Runner's other Name() call
+     sites pass bAllowPronouns:=False or don't run under bDisplaying). */
   if (consult_ledger && c != nullptr)
     for (int i = st->n_pron - 1; i >= 0; i--)
       if (st->pron_key[i] != nullptr && streq (st->pron_key[i], c->key))
@@ -311,12 +312,13 @@ a5text_character_subjective (a5_state_t *st, const a5_character_t *c)
 }
 
 /* Global.vb:1286-1319, the character branch of ReplaceOOProperty's "Name":
-   parse the (args) into clsCharacter.Name's Pronoun / Article / bForcePronoun /
-   bExplicitArticle, then run clsCharacter.vb:323's own logic.  Two things
-   differ from the OBJECT `.Name` the rest of a5expr shares: the default article
-   is DEFINITE ("opposite default from objects" -- so `%character%.Name` on an
-   introduced NPC is "the black rat"), and the args can name a PRONOUN, with a
-   bare "None" meaning "never pronoun-replace" rather than "no article". */
+   parse the (args) into clsCharacter.Name's Pronoun / Article / bForcePronoun
+   / bExplicitArticle, then run clsCharacter.vb:323's own logic.  Two things
+   differ from the OBJECT `.Name` the rest of a5expr shares: the default
+   article is DEFINITE ("opposite default from objects" -- so
+   `%character%.Name` on an introduced NPC is "the black rat"), and the args
+   can name a PRONOUN, with a bare "None" meaning "never pronoun-replace"
+   rather than "no article". */
 char *
 a5text_character_oo_name (a5_state_t *st, const a5_character_t *c,
                           const char *args)
@@ -324,7 +326,8 @@ a5text_character_oo_name (a5_state_t *st, const a5_character_t *c,
   std::string a = args != nullptr ? args : "";
   for (char &ch : a) ch = (char) tolower ((unsigned char) ch);
   auto has = [&](const char *n) { return a.find (n) != std::string::npos; };
-  /* ContainsWord: whole-word, so "indefinite" does not answer for "definite". */
+  /* ContainsWord: whole-word, so "indefinite" does not answer for "definite".
+     */
   auto word = [&](const char *n) {
     size_t nl = strlen (n), p = 0;
     while ((p = a.find (n, p)) != std::string::npos)
@@ -343,8 +346,9 @@ a5text_character_oo_name (a5_state_t *st, const a5_character_t *c,
 
   if (has ("none"))
     {
-      /* "None" is ambiguous between the article and the pronoun; the runner
-         disambiguates on the other words present, defaulting to the pronoun. */
+      /* "None" is ambiguous between the article and the pronoun; the Runner
+         disambiguates on the other words present, defaulting to the pronoun.
+         */
       if (has ("definite"))                       /* covers "indefinite" too */
         pronoun_none = 1;
       else if (has ("force") || has ("objective") || has ("possessive")
@@ -409,7 +413,8 @@ a5text_char_proper_name (a5_state_t *st, const char *charkey)
      not "The double enters") and no marking. */
   char *nm = character_display_name (st, ci >= 0 ? &st->adv->characters[ci] : nullptr, 0,
                                      /*displaying*/ 0);
-  /* ToProper(.Name, bForceRestLower:=False): upper-case the first char only. */
+  /* ToProper(.Name, bForceRestLower:=False): upper-case the first char only.
+     */
   if (nm[0])
     nm[0] = (char) toupper ((unsigned char) nm[0]);
   return nm;
@@ -424,7 +429,7 @@ a5text_character_known_name (a5_state_t *st, const a5_character_t *c, int defini
 /* Map a command-reference word -- object, object1..object5, objects,
    character(1..5), characters, location(1..5), item(1..5), any case -- to the
    a5state_lookup_ref slot it binds ("ReferencedObject", "ReferencedObject2",
-   ...).  Index 1 and no index share the unsuffixed slot.  The runner's
+   ...).  Index 1 and no index share the unsuffixed slot.  The Runner's
    asymmetry is preserved: "objects" has its own ReferencedObjects slot while
    "characters" reads ReferencedCharacter.  Returns 0 for any other word. */
 int
@@ -478,8 +483,9 @@ is_obj_char_ref (const char *name)
  * Map a bare %reference% name (the token between the percents, already without
  * them) to the resolved entity key(s) for a property expression %name%.Chain.
  * Returns a malloc'd "key" / "key1|key2" string, or NULL if `name` is not an
- * OO-addressable reference or entity key.  Mirrors the %Player%/%objectN%/%objects%
- * -> key substitution the Adrift 5 runner does before ReplaceOO (Global.vb:1752+).
+ * OO-addressable reference or entity key.  Mirrors the
+ * %Player%/%objectN%/%objects% -> key substitution the Runner does before
+ * ReplaceOO (Global.vb:1752+).
  */
 char *
 oo_firstkey (a5_state_t *st, const char *name)
@@ -489,10 +495,10 @@ oo_firstkey (a5_state_t *st, const char *name)
     return strdup (a5state_player_key (st));
   /* The singular %object%/%object1% (resp. %character%/%character1%) token
      resolves to nothing when the slot was filled by a *plural* %objects%/
-     %characters% reference -- the runner's GetReference requires ReferenceMatch="object1"
-     (clsUserSession.vb:3990), so a %objects% command never sets %object%.  The
-     plural %objects% / index forms %object2%.. and override matching are
-     unaffected (they read the still-bound key). */
+     %characters% reference -- the Runner's GetReference requires
+     ReferenceMatch="object1" (clsUserSession.vb:3990), so a %objects% command
+     never sets %object%.  The plural %objects% / index forms %object2%.. and
+     override matching are unaffected (they read the still-bound key). */
   if ((ci_eq (name, "object") || ci_eq (name, "object1")) && st->ref_object1_plural)
     return nullptr;
   if ((ci_eq (name, "character") || ci_eq (name, "character1"))

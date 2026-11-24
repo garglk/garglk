@@ -1,11 +1,18 @@
-//
-//  templea_loadscreen_data.h
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Temple of Terror Side A (the graphics version) draws the same Alkatraz
-//  loading screen as Side B, but its load path doesn't decrypt the loader, so
-//  its window descriptors are bundled here. See DecodeAlkatrazLoadingScreen().
-//
+/*
+ *  templea_loadscreen_data.h
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2026-06-04.
+ *
+ *  Temple of Terror Side A (the graphics version) draws the same Alkatraz
+ *  loading screen as Side B, but its load path doesn't decrypt the loader, so
+ *  its window descriptors are bundled here. See DecodeAlkatrazLoadingScreen().
+ */
 
 #ifndef templea_loadscreen_data_h
 #define templea_loadscreen_data_h

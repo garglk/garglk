@@ -38,7 +38,7 @@
 /* strcasecmp() where the toolchain lacks <strings.h>. */
 #include "../common_utils/sc_garglk.h"
 
-/* ------------------------------------------------------------------ helpers */
+/* ----------------------------------------------------------------- helpers */
 
 /* Parse an ADRIFT serialised boolean (FileIO.GetBool): only "TRUE"/"1"/"-1"/
    "VRAI" (case-insensitively) are true; everything else is false. */
@@ -72,7 +72,8 @@ a5_load_each (const a5_xml_node_t *node, const char *tag, T **arr, int *out_n,
       fill (&(*arr)[i++], c);
 }
 
-/* Collect the text of every direct child named `tag` into a new const char*[]. */
+/* Collect the text of every direct child named `tag` into a new const char*[].
+   */
 static const char **
 a5_collect_text (const a5_xml_node_t *node, const char *tag, int *out_n)
 {
@@ -121,7 +122,7 @@ a5_prop_find (const a5_prop_t *props, int n, const char *key)
   return nullptr;
 }
 
-/* ----------------------------------------------------------- per-type loads */
+/* ---------------------------------------------------------- per-type loads */
 
 static void
 a5_load_objects (a5_adventure_t *a)
@@ -150,11 +151,12 @@ a5_load_locations (a5_adventure_t *a)
                 });
 }
 
-static void a5_load_walks (a5_character_t *ch);   /* defined below the helpers */
+/* defined below the helpers */
+static void a5_load_walks (a5_character_t *ch);
 
-/* Parse one of a character's <Topic> children (clsTopic / FileIO topic load).  The
-   first direct <Description> child is the reply; <Restrictions>/<Actions> are
-   the topic-level gating block and action list. */
+/* Parse one of a character's <Topic> children (clsTopic / FileIO topic load).
+   The first direct <Description> child is the reply; <Restrictions>/<Actions>
+   are the topic-level gating block and action list. */
 static void
 a5_parse_topic (a5_topic_t *t, const a5_xml_node_t *c)
 {
@@ -222,9 +224,10 @@ a5_parse_task (a5_task_t *t, const a5_xml_node_t *c)
   t->run_immediately = a5xml_bool (a5xml_child_text (c, "RunImmediately"));
   t->location_trigger = a5xml_child_text (c, "LocationTrigger");
   t->commands = a5_collect_text (c, "Command", &t->n_commands);
-  /* Apply clsUserSession.CorrectCommand to every command (the runner does this once
-     at game-start init).  The collected pointers alias the XML tree; replace
-     each with an owned, bracket-corrected copy (freed in a5model_free). */
+  /* Apply clsUserSession.CorrectCommand to every command (the Runner does this
+     once at game-start init).  The collected pointers alias the XML tree;
+     replace each with an owned, bracket-corrected copy (freed in
+     a5model_free). */
   for (k = 0; k < t->n_commands; k++)
     ((char **) t->commands)[k] = a5_correct_command (t->commands[k]);
   /* clsTask.Repeatable via FileIO.GetBool (FileIO.vb:1604) -- accepts
@@ -289,8 +292,9 @@ a5_load_variables (a5_adventure_t *a)
 
 /* Parse "1" or "1 To 5" (a FromTo range) into [*from, *to].  The scan stops at
    the next digit OR a '-' so a negative upper bound ("0 To -5") is picked up.
-   Known limitation: this means a dash used as a *separator* ("5 - 10") stops on
-   the '-' and strtol("- 10") returns 0, so the upper bound reads as 0 instead of
+   Known limitation: this means a dash used as a *separator* ("5 - 10") stops
+   on the '-' and strtol("- 10") returns 0, so the upper bound reads as 0
+   instead of
    10.  The stock ADRIFT serialisation is always "N To M" (dashes only ever
    prefix a negative number), so no shipped game hits this; left as-is. */
 static void
@@ -427,7 +431,7 @@ a5_parse_sw_what (const char *s)
 static void
 a5_parse_step (a5_walkstep_t *st, const a5_xml_node_t *c)
 {
-  char *t = (char *) (c->text ? c->text : "");
+  char *t = const_cast<char *> (c->text ? c->text : "");
   char *sp = strchr (t, ' ');
   a5_parse_range (sp ? sp + 1 : nullptr, &st->ft_from, &st->ft_to);
   if (sp != nullptr) *sp = '\0';
@@ -493,9 +497,13 @@ a5_parse_subevent (a5_subevent_t *se, const a5_xml_node_t *c)
   const char *when = a5xml_child_text (c, "When");
   const char *what_elem = a5xml_child_text (c, "What");
   const char *only = a5xml_child_text (c, "OnlyApplyAt");
+  const char *measure = a5xml_child_text (c, "Measure");
   a5_xml_node_t *act = a5xml_child (c, "Action");
   a5_parse_range (when, &se->ft_from, &se->ft_to);
   se->when = a5_parse_se_when (a5_last_token (when));
+  /* FileIO.vb:1732 EnumParseSubEventMeasure: absent or anything but
+     "Seconds" is Turns. */
+  se->seconds = measure != nullptr && strcmp (measure, "Seconds") == 0;
   if (act != nullptr)
     {
       char wbuf[32];
@@ -512,18 +520,20 @@ a5_parse_subevent (a5_subevent_t *se, const a5_xml_node_t *c)
     se->key = only;
 }
 
-/* Decode the parsed-enum / range fields of one <Event> (clsEvent FileIO load). */
+/* Decode the parsed-enum / range fields of one <Event> (clsEvent FileIO load).
+   */
 static void
 a5_parse_event_body (a5_event_t *e, const a5_xml_node_t *c)
 {
   const char *ws = a5xml_child_text (c, "WhenStart");
 
-  /* WhenStartEnum: Immediately=1, BetweenXandYTurns=2, AfterATask=3.  The Adrift 5 runner
-     loads this with [Enum].Parse, which also accepts the *numeric* serialisation
-     (some games write "<WhenStart>0</WhenStart>" -- e.g. Axe of Kolt's "Xixon On
-     Path" event).  A value of 0 (or any non-1/2/3) matches no case in the
-     game-start init Select, so the event stays NotYetStarted and is armed only by
-     its Start control -- it must NOT be treated as Immediately. */
+  /* WhenStartEnum: Immediately=1, BetweenXandYTurns=2, AfterATask=3.  The
+     Runner loads this with [Enum].Parse, which also accepts the *numeric*
+     serialisation (some games write "<WhenStart>0</WhenStart>" -- e.g. Axe of
+     Kolt's "Xixon On Path" event).  A value of 0 (or any non-1/2/3) matches no
+     case in the game-start init Select, so the event stays NotYetStarted and
+     is armed only by its Start control -- it must NOT be treated as
+     Immediately. */
   e->when_start = 1;                                  /* Immediately default */
   if (ws != nullptr && strcmp (ws, "BetweenXandYTurns") == 0) e->when_start = 2;
   else if (ws != nullptr && strcmp (ws, "AfterATask") == 0)   e->when_start = 3;
@@ -566,17 +576,18 @@ a5_load_groups (a5_adventure_t *a)
                 });
 }
 
-/* Object-group property inheritance (clsItemWithProperties.htblProperties layers
-   htblInheritedProperties from each property-group the item belongs to,
+/* Object-group property inheritance (clsItemWithProperties.htblProperties
+   layers htblInheritedProperties from each property-group the item belongs to,
    clsItem.vb:272-345).  We fold each Objects-type group's <Property> list into
    its member objects' static props at load time, so every object-property
-   accessor (obj_prop/obj_has_prop, a5restr HaveProperty, a5text) sees them with
-   no call-site changes.  The Adrift 5 runner's precedence: an inherited group property
-   overrides the object's own value when both are present, else it is appended;
-   groups iterate in load order so the last property-group wins on value.
+   accessor (obj_prop/obj_has_prop, a5restr HaveProperty, a5text) sees them
+   with no call-site changes.  The Runner's precedence: an inherited group
+   property overrides the object's own value when both are present, else it is
+   appended; groups iterate in load order so the last property-group wins on
+   value.
 
-   Scope note: inheritance is resolved once, at load.  Runtime add/remove from a
-   group does not re-trigger it (the Adrift 5 runner recomputes via ResetInherited);
+   Scope note: inheritance is resolved once, at load.  Runtime add/remove from
+   a group does not re-trigger it (the Runner recomputes via ResetInherited);
    not exercised by the current corpus. */
 static void
 a5_apply_group_properties (a5_adventure_t *a)
@@ -611,7 +622,8 @@ a5_apply_group_properties (a5_adventure_t *a)
                   if (grown == nullptr)
                     continue;
                   o->props = grown;
-                  o->props[o->n_props] = g->props[pi];  /* shallow: shares doc strings */
+                  /* shallow: shares doc strings */
+                  o->props[o->n_props] = g->props[pi];
                   o->n_props++;
                 }
             }
@@ -775,7 +787,7 @@ a5_path_basename (const char *path)
   return base;
 }
 
-/* ------------------------------------------------------------------- public */
+/* ------------------------------------------------------------------ public */
 
 int
 a5model_resource_for_file (const a5_adventure_t *a, const char *src)
@@ -1141,21 +1153,22 @@ a5model_from_doc (a5_xml_doc_t *doc)
   /* <TaskExecution>: HighestPriorityTask vs HighestPriorityPassingTask.  Under
      the latter (the "v4 logic" mode) a task that matches the command but fails
      its restrictions with output does not claim the turn -- the scan keeps
-     looking for a lower-priority passing task, and the recorded fail message is
-     shown only if none is found.
+     looking for a lower-priority passing task, and the recorded fail message
+     is shown only if none is found.
 
      The <TaskExecution> element and the HighestPriorityTask default arrived in
      ADRIFT 5.0.22; games saved before that (and re-serialising without the
      element) predate the setting and ran with the v4-compatible
      HighestPriorityPassingTask behaviour in Campbell's Runner.  FrankenDrift
-     hardcodes HighestPriorityTask for element-less files regardless of version,
-     which makes genuinely pre-5.0.22 games (e.g. Return to Camelot, v5.000020,
-     whose central "unlock chain" puzzle only fires as a lower-priority passing
-     task after the stock library "cannot be unlocked" fallback) unwinnable.  So
-     when the element is absent, fall back on the file version: below 5.000022 =>
-     HighestPriorityPassingTask, at/after => HighestPriorityTask.  (This is the
-     one point where Scarier deliberately diverges from FrankenDrift, which lacks
-     the version gate -- see A5_WALKTHROUGH_FINDINGS.md.) */
+     hardcodes HighestPriorityTask for element-less files regardless of
+     version, which makes genuinely pre-5.0.22 games (e.g. Return to Camelot,
+     v5.000020, whose central "unlock chain" puzzle only fires as a
+     lower-priority passing task after the stock library "cannot be unlocked"
+     fallback) unwinnable.  So when the element is absent, fall back on the
+     file version: below 5.000022 => HighestPriorityPassingTask, at/after =>
+     HighestPriorityTask.  (This is the one point where Scarier deliberately
+     diverges from FrankenDrift, which lacks the version gate -- see
+     test/adrift5/notes/A5_WALKTHROUGH_FINDINGS.md.) */
   {
     const char *te = a5xml_child_text (root, "TaskExecution");
     if (te != nullptr)
@@ -1168,8 +1181,9 @@ a5model_from_doc (a5_xml_doc_t *doc)
   }
   /* <Direction*>: per-direction synonym specs for non-English games (the
      localization subsystem, FileIO.vb:1254-1265 overriding clsAdventure's
-     English sDirectionsRE defaults).  Stored in DirectionsEnum order; an absent
-     or empty field keeps the English default (a5parse_set_directions). */
+     English sDirectionsRE defaults).  Stored in DirectionsEnum order; an
+     absent or empty field keeps the English default (a5parse_set_directions).
+     */
   {
     static const char *const kFields[12] = {
       "DirectionNorth", "DirectionEast", "DirectionSouth", "DirectionWest",
@@ -1209,8 +1223,9 @@ a5model_from_doc (a5_xml_doc_t *doc)
  * header; in a blorb, an iFiction metadata chunk), which the obfuscation never
  * touches, so a literal case-insensitive scan for "<ifid>...</ifid>" over the
  * whole file finds it uniformly across .taf and .blorb layouts (Treaty of
- * Babel adrift.c get_story_file_IFID).  The deflated game payload is binary and
- * will not contain the ASCII tag by chance.  Returns an owned copy or NULL.
+ * Babel adrift.c get_story_file_IFID).  The deflated game payload is binary
+ * and will not contain the ASCII tag by chance.  Returns an owned copy or
+ * NULL.
  */
 static char *
 a5_scan_tag (const uint8_t *buf, uint32_t len, const char *open)
@@ -1286,7 +1301,7 @@ a5_scan_release (const uint8_t *buf, uint32_t len)
 /* 5.0.20+ .taf/.blorb payloads insert a Babel <ifindex> metadata block
    right after the 4-byte hex size field at offset 12: a size of "0000"
    means an empty (absent) block, but a non-empty block is only detectable
-   by the literal "<ifindex" tag at offset 16 (the Adrift 5 runner FileIO.vb:800,
+   by the literal "<ifindex" tag at offset 16 (the Runner's FileIO.vb:800,
    sSize = "0000" OrElse sCheck = "<ifindex"). Skip exactly that many bytes
    before the obfuscated/deflated game payload starts.
    Sets *header and *obfuscated for the payload. */
@@ -1316,7 +1331,7 @@ a5_payload_layout (const uint8_t *file_buf, uint32_t file_len,
 
   if (from_blorb)
     {
-      /* A BLORB Exec chunk takes its own runner path (FileIO.vb:751), where
+      /* A BLORB Exec chunk takes its own Runner path (FileIO.vb:751), where
          the layout picks only the header offset and obfuscation is decided
          by the Blorb metadata instead:
 
@@ -1414,8 +1429,8 @@ a5model_load_buffer (uint8_t *file_buf, uint32_t file_len)
   region_len = payload_len - header - 14;
 
   /* Read the Babel IFID from the still-plaintext buffer before deobfuscation
-     scrambles the payload region (the <ifindex> block lies outside it, but scan
-     first to be safe across layouts). */
+     scrambles the payload region (the <ifindex> block lies outside it, but
+     scan first to be safe across layouts). */
   ifid = a5_scan_ifid (file_buf, file_len);
   release = a5_scan_release (file_buf, file_len);
 
@@ -1442,7 +1457,7 @@ a5model_load_buffer (uint8_t *file_buf, uint32_t file_len)
 
   a5_dump_xml (xml, xml_len);
 
-  doc = a5xml_parse ((char *) xml, xml_len);
+  doc = a5xml_parse (reinterpret_cast<char *> (xml), xml_len);
   if (doc == nullptr)
     {
       free (xml);
@@ -1500,10 +1515,10 @@ a5model_load (const char *path)
 
 /*
  * Walk the whole document for <Restrictions> blocks carrying a
- * <BracketSequence>, calling fn on each such BracketSequence node.  The runner's
- * BuildRestrictions loads every restriction block (tasks, events, walks,
- * topics...) through the same code path, so the ask/correct pass must see them
- * all, not just the task blocks.
+ * <BracketSequence>, calling fn on each such BracketSequence node.  The
+ * Runner's BuildRestrictions loads every restriction block (tasks, events,
+ * walks, topics...) through the same code path, so the ask/correct pass must
+ * see them all, not just the task blocks.
  */
 static void
 upgrade_walk (const a5_xml_node_t *n,
@@ -1537,7 +1552,7 @@ a5model_upgrade_pending (const a5_adventure_t *a)
     return 0;
   if (!a->upgrade_scanned)
     {
-      /* The runner asks at the first BuildRestrictions whose sequence contains
+      /* The Runner asks at the first BuildRestrictions whose sequence contains
          "#A#O#", only for files saved before the 5.0.26 logic correction
          (FileIO.vb:634: dFileVersion < 5.000026). */
       double fv = (a->version != nullptr) ? strtod (a->version, nullptr) : 0.0;
@@ -1565,11 +1580,11 @@ a5model_upgrade_question (void)
 }
 
 /*
- * the runner FileIO.vb:1157 CorrectBracketSequence: longest run first, rewrite every
- * "#A#O#O#..." into "#A(#O#O#...)".  VB String.Replace replaces ALL
- * occurrences per call and iCorrectedTasks counts the calls (one per While
- * pass), not the occurrences.  Returns a heap copy when anything changed,
- * else NULL.
+ * the Runner's FileIO.vb:1157 CorrectBracketSequence: longest run first,
+ * rewrite every "#A#O#O#..." into "#A(#O#O#...)".  VB String.Replace replaces
+ * ALL occurrences per call and iCorrectedTasks counts the calls (one per While
+ * pass), not the occurrences.  Returns a heap copy when anything changed, else
+ * NULL.
  */
 static char *
 correct_bracket_sequence (const char *s, int *count)
@@ -1641,7 +1656,7 @@ a5model_upgrade_answer (a5_adventure_t *a, int yes)
 
 /*
  * The "Adventure Upgrade" question defaults to NO (matching an unattended
- * the Adrift 5 runner: the pre-5.0.26 BracketSequence is read verbatim), so an
+ * the Runner: the pre-5.0.26 BracketSequence is read verbatim), so an
  * interactive host that suppresses the dialog can just leave the file
  * uncorrected.  A short hard-wired allow-list forces YES for the handful of
  * games whose intended (post-5.0.26) logic genuinely needs the correction to
@@ -1652,8 +1667,10 @@ int
 a5model_upgrade_forced_yes (const a5_adventure_t *a)
 {
   static const char *const ifids[] = {
-    "ADRIFT-500-38B2-7938-479E-9893-D365BC92FFBF",  /* The House (Po. Prune), Ectocomp 2011 */
-    "ADRIFT-500-ACE0-ED0B-46A9-8371-6310F781344A",  /* Head Case (Intro_compVB1) */
+    /* The House (Po. Prune), Ectocomp 2011 */
+    "ADRIFT-500-38B2-7938-479E-9893-D365BC92FFBF",
+    /* Head Case (Intro_compVB1) */
+    "ADRIFT-500-ACE0-ED0B-46A9-8371-6310F781344A",
   };
   size_t i;
   if (a == nullptr)
@@ -1742,7 +1759,8 @@ a5model_free (a5_adventure_t *a)
       free (a->characters[i].props);
       for (w = 0; w < a->characters[i].n_topics; w++)
         if (a->characters[i].topics[w].is_command)
-          free ((void *) a->characters[i].topics[w].keywords);  /* owned (a5_correct_command) */
+          /* owned (a5_correct_command) */
+          free ((void *) a->characters[i].topics[w].keywords);
       free (a->characters[i].topics);
       for (w = 0; w < a->characters[i].n_walks; w++)
         {
@@ -1756,7 +1774,8 @@ a5model_free (a5_adventure_t *a)
     {
       int s;
       for (s = 0; s < a->tasks[i].n_commands; s++)
-        free ((void *) a->tasks[i].commands[s]);  /* owned (a5_correct_command) */
+        /* owned (a5_correct_command) */
+        free ((void *) a->tasks[i].commands[s]);
       free ((void *) a->tasks[i].commands);
       for (s = 0; s < a->tasks[i].n_specifics; s++)
         free ((void *) a->tasks[i].specifics[s].keys);
@@ -1838,7 +1857,7 @@ a5model_propdef (const a5_adventure_t *a, const char *key)
   return nullptr;
 }
 
-/* ------------------------------------------------------------- exit lookups */
+/* ------------------------------------------------------------ exit lookups */
 
 const a5_xml_node_t *
 a5model_movement (const a5_location_t *loc, const a5_xml_node_t *after,

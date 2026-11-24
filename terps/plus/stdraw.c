@@ -1,21 +1,25 @@
-//
-//  stdraw.c
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//  Routines to draw Atari ST graphics
-//
-//  Created by Petter Sjölund on 2022-01-30.
-//
+/*
+ *  stdraw.c
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *
+ *  Routines to draw Atari ST graphics
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-01-30.
+ */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "animations.h"
 #include "common.h"
-#include "definitions.h"
-#include "glk.h"
+#include "minmax.h"
 #include "graphics.h"
-#include "read_le16.h"
+#include "byteorder.h"
 #include "stdraw.h"
 
 /* The most pixel runs we record for one cycling colour in one image */
@@ -211,10 +215,10 @@ static void DrawSTNibble(uint8_t byte, uint8_t mask, int xpos, int ypos, Pixel *
 
 static void DrawPattern(uint8_t pattern, Pixel **pixels)
 {
-    // mask and LastMask alternate between 0x0f and 0xf0
+    /* mask and LastMask alternate between 0x0f and 0xf0 */
     uint8_t mask = LastMask ^ 0xff;
 
-    // CurAddr: screen memory where we're currently writing
+    /* CurAddr: screen memory where we're currently writing */
     int y1 = CurAddr / ST_BYTES_PER_LINE;
     int x1 = 2 * (CurAddr % ST_BYTES_PER_LINE) + 6 * (CurAddr & 1);
 
@@ -226,17 +230,16 @@ static void DrawPattern(uint8_t pattern, Pixel **pixels)
         CurAddr += 1 + 6 * (CurAddr & 1);
     }
 
-    // LineNibblesLeft = nibbles remaining to draw this line
+    /* LineNibblesLeft = nibbles remaining to draw this line */
 
     LineNibblesLeft--;
     if (LineNibblesLeft != 0)
         return;
 
-    // Reached end of line
-    // NxtLine: start address of next line
-    NxtLineStart += ST_BYTES_PER_LINE; // move down one line
+    /* Reached end of line. NxtLineStart: start address of next line */
+    NxtLineStart += ST_BYTES_PER_LINE; /* move down one line */
     CurAddr = NxtLineStart;
-    // InitialMask: mask at start of line
+    /* InitialMask: mask at start of line */
     mask = InitialMask;
     LastMask = mask ^ 0xff;
     LineNibblesLeft = NibblesWide;
@@ -323,8 +326,8 @@ int DrawSTImageFromData(uint8_t *imgdata, size_t total_size)
 
     NibblesWide = *ptr++;
 
-    /* Make sure to clear the last image and any color cycling for all Claymorgue room images */
-    /* The small ones have to be special-cased */
+    /* Make sure to clear the last image and any colour cycling for all
+       Claymorgue room images. The small ones have to be special-cased. */
     if (NibblesWide > ST_FULL_WIDTH_NIBBLES || (CurrentGame == CLAYMORGUE && LastImgType == IMG_ROOM && IsInList(LastImgIndex, claymorgue_small_rooms, ARRAY_SIZE(claymorgue_small_rooms)))) {
         ClearGraphicsWindow();
         FreeAnimCols();
@@ -375,8 +378,6 @@ int DrawSTImageFromData(uint8_t *imgdata, size_t total_size)
         GeneratePatternLookup();
 
     CurAddr = ImgAddrOffs;
-
-    // CurAddr == screen memory where we're currently writing
 
     InitialMask = 0xf0;
     LastMask = 0x0f;

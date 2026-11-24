@@ -1,9 +1,14 @@
-//
-//  decompressz80_internal.h
-//
-//  What the source files of the decompressz80 library share with each other.
-//  Not for the interpreters: they include decompressz80.h.
-//
+/*
+ *  decompressz80_internal.h
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version.
+ *
+ *  What the source files of the decompressz80 library share with each other.
+ *  Not for the interpreters: they include decompressz80.h.
+ */
 
 #ifndef decompressz80_internal_h
 #define decompressz80_internal_h

@@ -31,15 +31,17 @@
  * The Runners' Int(score * (100 / MaxScore)) (run390 43F22E), as the VB6
  * runtime evaluates it: on the x87 with a 64-bit mantissa, each of the
  * divide and the multiply rounded to nearest-even.  IEEE doubles disagree:
- * 161 out of 161 is 100% on run390 (matt) where doubles give 99.99999999999999,
- * and 149/149 is 99% where doubles give exactly 100.  Measured with
- * make_39_endprobe.py --max/--score on run390x (2026-09-24): 97/97 99%,
- * 21/35 59%, 149/149 99% -- none of them what exact arithmetic says either.
- * AArch64 has no 80-bit long double, so the two roundings are done here in
- * integers.  max_score is positive.
+ * 161 out of 161 is 100% on run390 (matt) where doubles give
+ * 99.99999999999999, and 149/149 is 99% where doubles give exactly 100.
+ * Measured with make_39_endprobe.py --max/--score on run390x: 97/97 99%, 21/35
+ * 59%, 149/149 99% -- none of them what exact arithmetic says either.  AArch64
+ * has no 80-bit long double, so the two roundings are done here in integers.
+ * max_score is positive.
  */
-/* clang-cl has the type but links against the MSVC runtime, which has no
-   128-bit division helper (__udivti3), so it takes the other branch too. */
+/*
+ * clang-cl has the type but links against the MSVC runtime, which has no
+ * 128-bit division helper (__udivti3), so it takes the other branch too.
+ */
 #if defined(__SIZEOF_INT128__) && !defined(_MSC_VER)
 static scr_int
 task_percent_x87 (scr_int score, scr_int max_score)
@@ -301,8 +303,8 @@ task_percent_x87 (scr_int score, scr_int max_score)
  * literal trailing space in "You finished ".  The percentage divides in
  * x87 floating point and truncates with Int() (see task_percent_x87()), so 3
  * out of 8 is 37%, not 38 -- the
- * `score` command's integer (score * 100) / MaxScore agrees here but is not the
- * same expression, so keep this one as written.
+ * `score` command's integer (score * 100) / MaxScore agrees here but is not
+ * the same expression, so keep this one as written.
  *
  * Measured live, MaxScore 8 and score 3, in run400 (arena config SC in
  * make_arena_probe.py, plus SC0 for MaxScore 0) and in run390
@@ -318,10 +320,10 @@ task_percent_x87 (scr_int score, scr_int max_score)
  *                    blank line; run390 prints the summary anyway, at 100%
  *
  * A UTF-16LE census puts every string of the summary in all four Runners
- * (run370/380/390/400), so this is not gated on 4.0, and 3.7 and 3.8 have since
- * been driven live too: run370 finishing castle.taf and run380 finishing
- * microwaveman.taf print these lines exactly as below.  See
- * test/adrift4/notes/RUNNER_TESTS_TODO.md section 4.
+ * (run370/380/390/400), so this is not gated on 4.0, and 3.7 and 3.8 have
+ * since been driven live too: run370 finishing castle.taf and run380 finishing
+ * microwaveman.taf print these lines exactly as below.  See the standing
+ * divergence table in test/adrift4/notes/RUNNER_TESTS.md.
  *
  * A death, whether from an EndGame action or from the Battle System, is the
  * shared run400 General.Sub_22_70 (Proc_21_62, 452384) -- endmessage calls it
@@ -366,10 +368,10 @@ task_print_end_game_summary (scr_gameref_t game, scr_bool is_win,
       percent = 100;
     }
   else
-    percent = task_percent_x87 (game->score, max_score);
+    percent = task_percent_x87 (game->world.score, max_score);
 
   pf_buffer_string (filter, "You scored ");
-  snprintf (buffer, sizeof (buffer), "%ld", game->score);
+  snprintf (buffer, sizeof (buffer), "%ld", game->world.score);
   pf_buffer_string (filter, buffer);
   pf_buffer_string (filter, " out of the maximum ");
   snprintf (buffer, sizeof (buffer), "%ld", max_score);
@@ -384,12 +386,13 @@ task_print_end_game_summary (scr_gameref_t game, scr_bool is_win,
   /* Only the win branch weighs the score against the maximum. */
   if (is_win)
     {
-      if (game->score == max_score)
+      if (game->world.score == max_score)
         pf_buffer_string (filter, "Well done - you scored maximum points!\n");
       else
         {
           pf_buffer_string (filter, "You finished ");
-          snprintf (buffer, sizeof (buffer), "%ld", max_score - game->score);
+          snprintf (buffer, sizeof (buffer), "%ld",
+                    max_score - game->world.score);
           pf_buffer_string (filter, buffer);
           pf_buffer_string (filter, " points short.\n");
         }
@@ -471,7 +474,8 @@ task_print_end_keyprompt (scr_gameref_t game)
  * Measured live: chicago.taf task 23 is "end game (win)" followed by "+10
  * points", and run390 finishes on 75 where printing at the action gives 65.
  * The corpus has 42 tasks in 32 games that put an EndGame action somewhere
- * other than last.  See test/adrift4/notes/RUNNER_TESTS_TODO.md section 4.
+ * other than last.  See the standing divergence table in
+ * test/adrift4/notes/RUNNER_TESTS.md.
  */
 void
 task_print_end_game_message (scr_gameref_t game)
@@ -481,11 +485,11 @@ task_print_end_game_message (scr_gameref_t game)
   scr_bool is_pre_400;
   scr_int var1;
 
-  if (game->pending_endgame == 0)
+  if (game->turn.pending_endgame == 0)
     return;
 
-  var1 = game->pending_endgame - 1;
-  game->pending_endgame = 0;
+  var1 = game->turn.pending_endgame - 1;
+  game->turn.pending_endgame = 0;
 
   /*
    * Every message below is concatenated onto the turn's accumulated text with
@@ -522,15 +526,16 @@ task_print_end_game_message (scr_gameref_t game)
          *
          * Whether WinText lands on a line of its own therefore depends on what
          * the turn's accumulated text already ends with, and that is where the
-         * versions part company.  4.0 terminates a task's text block, so run400
-         * finishing ptbad.taf prints "...a few more minutes of your time." and
-         * then "You Win! Yay!" underneath -- and that task's CompleteText ends
-         * at the full stop, with no trailing <br> of its own (taftool.py unpack
-         * of ptbad.taf), so the break is the Runner's.  Pre-4.0 does not, so
-         * run380 finishing microwaveman.taf runs the two together as "You win
-         * the game.You have destroyed Coffee Man...", and run390 finishing
-         * ECOD3.taf, whose task text ends "<br><br>", leaves *two* blank lines
-         * before the summary rather than one.  All three measured live.
+         * versions part company.  4.0 terminates a task's text block, so
+         * run400 finishing ptbad.taf prints "...a few more minutes of your
+         * time." and then "You Win! Yay!" underneath -- and that task's
+         * CompleteText ends at the full stop, with no trailing <br> of its own
+         * (taftool.py unpack of ptbad.taf), so the break is the Runner's.
+         * Pre-4.0 does not, so run380 finishing microwaveman.taf runs the two
+         * together as "You win the game.You have destroyed Coffee Man...", and
+         * run390 finishing ECOD3.taf, whose task text ends "<br><br>", leaves
+         * *two* blank lines before the summary rather than one.  All three
+         * measured live.
          *
          * So for a pre-4.0 game take our own section terminator back, and in
          * every version add one after.
@@ -544,8 +549,8 @@ task_print_end_game_message (scr_gameref_t game)
          * version range: run400 finishing TheAmulet.taf and run370 finishing
          * castle.taf both print the winning task's own CompleteText and then
          * go straight to the score summary, with the location panel switched
-         * to "Congratulations!".  See test/adrift4/notes/RUNNER_TESTS_TODO.md
-         * section 4.
+         * to "Congratulations!".  See the standing divergence table in
+         * test/adrift4/notes/RUNNER_TESTS.md.
          */
         if (is_pre_400)
           {
@@ -562,13 +567,12 @@ task_print_end_game_message (scr_gameref_t game)
              * authored spaces (the COMPLETE/WINTEXT dumps end "area." and
              * start "Rich").
              *
-             * 3.7 and 3.8 have no pspace sub at all and join inline, with
-             * ONE space: run380 tasks() builds the win branch as
-             * `out = out & " " & WinText` (44E33C).  The butt-join this
-             * comment used to claim is what a whitespace-normalised note of
-             * the microwaveman measurement looked like -- the .rtf itself
-             * has "You shoot Coffee Man with your gun.  You win the game.
-             * You have destroyed Coffee Man...", one space between the
+             * 3.7 and 3.8 have no pspace sub at all and join inline, with ONE
+             * space: run380 tasks() builds the win branch as `out = out & " "
+             * & WinText` (44E33C).  A whitespace-normalised note of the
+             * microwaveman measurement looks like a butt-join, but the .rtf
+             * itself has "You shoot Coffee Man with your gun.  You win the
+             * game.  You have destroyed Coffee Man...", one space between the
              * winning task's CompleteText and the WinText
              * (runner_transcripts/microwave_man.rtf).
              *
@@ -584,9 +588,10 @@ task_print_end_game_message (scr_gameref_t game)
              * task's own separator adds the two spaces it would have put in
              * front of a CompleteText (task 23 is `- win`, with none), and
              * this space makes the third.  We do not flush that empty
-             * task's separator -- see the "Turn sectioning" lead in
-             * test/adrift4/notes/WINE-TRANSCRIPTS-TODO.md -- so Scarier prints
-             * one space where the Runner prints three, which no compare sees.
+             * task's separator (see "Below 3.90 the WinText joins with ONE
+             * space" in test/adrift4/notes/WINE-TRANSCRIPTS.md), so
+             * Scarier prints one space where the Runner prints three, which
+             * no compare sees.
              */
             if (prop_get_taf_version (bundle) >= TAF_VERSION_390)
               pf_buffer_pspace (filter);
@@ -640,8 +645,8 @@ task_print_end_game_message (scr_gameref_t game)
       /*
        * "Just stop": the Runner prints nothing at all -- no message, no
        * summary, and not even the end-of-session prompt.  endmessage's var_88
-       * = 4 branch (45E11F) disables the Adventure menu and falls straight to
-       * the flush.
+       * = 4 branch (run400 45E11F) disables the Adventure menu and falls
+       * straight to the flush.
        */
       break;
 
@@ -667,7 +672,7 @@ task_run_end_game_action (scr_gameref_t game, scr_int var1)
   if (var1 < 0 || var1 > 3)
     scr_fatal ("task_run_end_game_action: invalid type, %ld\n", var1);
 
-  game->pending_endgame = var1 + 1;
+  game->turn.pending_endgame = var1 + 1;
 
   /* Stop the game, and note that it's not resumeable. */
   game->is_running = FALSE;
@@ -682,7 +687,7 @@ task_run_end_game_action (scr_gameref_t game, scr_int var1)
    * an End-Game action only sets the gameover byte, so a task whose only
    * output would be the ending falls through to the library like any other
    * silent task, and the ending is composed after that.  Measured 2026-08-29
-   * on relojero.taf (4.00), runner_transcripts/relojero.txt: task 5
+   * on relojero.taf (4.0), runner_transcripts/relojero.txt: task 5
    * `arreglar *fenix` has no text and one End-Game (win) action, and run400
    * answers "Disculpa pero no te entiendo." (the game's DontUnderstand) and
    * THEN the WinText.  Returning TRUE for a win or a loss here hid that

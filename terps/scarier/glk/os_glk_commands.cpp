@@ -121,7 +121,7 @@ gsc_command_logging (const char *argument, const char *name,
         return;
 
       if (is_transcript)
-        glk_window_set_echo_stream (gsc_main_window, *stream);
+        glk_window_set_echo_stream (gsc_io.main_window, *stream);
 
       gsc_normal_string (label);
       gsc_normal_string (" is now on.\n");
@@ -140,7 +140,7 @@ gsc_command_logging (const char *argument, const char *name,
       *stream = nullptr;
 
       if (is_transcript)
-        glk_window_set_echo_stream (gsc_main_window, nullptr);
+        glk_window_set_echo_stream (gsc_io.main_window, nullptr);
 
       gsc_normal_string (label);
       gsc_normal_string (" is now off.\n");
@@ -173,7 +173,7 @@ static void
 gsc_command_script (const char *argument)
 {
   gsc_command_logging (argument, "script", "Glk transcript",
-                       &gsc_transcript_stream,
+                       &gsc_io.transcript_stream,
                        fileusage_Transcript | fileusage_TextMode,
                        filemode_WriteAppend, FALSE, TRUE);
 }
@@ -182,7 +182,7 @@ static void
 gsc_command_inputlog (const char *argument)
 {
   gsc_command_logging (argument, "inputlog", "Glk input logging",
-                       &gsc_inputlog_stream,
+                       &gsc_io.inputlog_stream,
                        fileusage_InputRecord | fileusage_BinaryMode,
                        filemode_WriteAppend, FALSE, FALSE);
 }
@@ -191,7 +191,7 @@ static void
 gsc_command_readlog (const char *argument)
 {
   gsc_command_logging (argument, "readlog", "Glk read log",
-                       &gsc_readlog_stream,
+                       &gsc_io.readlog_stream,
                        fileusage_InputRecord | fileusage_BinaryMode,
                        filemode_Read, TRUE, FALSE);
 }
@@ -277,7 +277,7 @@ gsc_command_toggle (const char *argument, const char *name,
 static void
 gsc_set_abbreviations (scr_bool state)
 {
-  gsc_abbreviations_enabled = state;
+  gsc_options.abbreviations_enabled = state;
 }
 
 static void
@@ -285,7 +285,7 @@ gsc_command_abbreviations (const char *argument)
 {
   gsc_command_toggle (argument, "abbreviations",
                       "Glk abbreviation expansions are",
-                      gsc_abbreviations_enabled, gsc_set_abbreviations,
+                      gsc_options.abbreviations_enabled, gsc_set_abbreviations,
                       ".\n", ".\n", FALSE);
 }
 
@@ -524,11 +524,11 @@ gsc_command_patches (const char *argument)
  * gsc_command_verbose()
  *
  * Turn the game's verbose room descriptions on and off.  This mirrors the
- * ADRIFT Runner's Verbose user-interface option: when on, the game always gives
- * long descriptions of locations, even ones already visited.  Handling it as a
- * Glk port command (rather than as a game command) means it works even when a
- * game defines its own "verbose" task that would otherwise shadow it.  The
- * plain "verbose" and "brief" game commands continue to work as before.
+ * ADRIFT Runner's Verbose user-interface option: when on, the game always
+ * gives long descriptions of locations, even ones already visited.  Handling
+ * it as a Glk port command (rather than as a game command) means it works even
+ * when a game defines its own "verbose" task that would otherwise shadow it.
+ * The plain "verbose" and "brief" game commands continue to work as before.
  */
 static void
 gsc_set_verbose (scr_bool state)
@@ -628,9 +628,9 @@ gsc_command_statusline (const char *argument)
  * gsc_set_colour()
  * gsc_command_colour()
  *
- * Turn Adrift colours on and off.
+ * Turn ADRIFT colours on and off.
  *
- * Adrift games are written for a Runner that paints its output pane in a
+ * ADRIFT games are written for a Runner that paints its output pane in a
  * palette of its own rather than in the interpreter's theme -- black behind,
  * green replies, red typed text for ADRIFT 4 (the Runner's defaults, and the
  * only place they live: nothing in the .taf carries a colour), the author's
@@ -661,13 +661,13 @@ gsc_colour_set_normal_hints (scr_bool on)
   if (on)
     {
       glk_stylehint_set (wintype_TextBuffer, style_Normal,
-                         stylehint_TextColor, (glsi32) gsc_colour_output);
+                         stylehint_TextColor, (glsi32) gsc_colour.output);
       glk_stylehint_set (wintype_TextBuffer, style_Normal,
-                         stylehint_BackColor, (glsi32) gsc_colour_background);
+                         stylehint_BackColor, (glsi32) gsc_colour.background);
       glk_stylehint_set (wintype_TextGrid, style_Normal,
-                         stylehint_TextColor, (glsi32) gsc_colour_output);
+                         stylehint_TextColor, (glsi32) gsc_colour.output);
       glk_stylehint_set (wintype_TextGrid, style_Normal,
-                         stylehint_BackColor, (glsi32) gsc_colour_background);
+                         stylehint_BackColor, (glsi32) gsc_colour.background);
     }
   else
     {
@@ -698,10 +698,10 @@ gsc_colour_set_normal_hints (scr_bool on)
 static void
 gsc_colour_rebuild_windows (void)
 {
-  int was_map = gsc_map_shown;
+  int was_map = gsc_map_pane.shown;
   int was_side = gsc_a5_side_window != nullptr;
 #ifdef GSC_HAVE_TITLE_WINDOW
-  int was_title = gsc_graphics_window != nullptr;
+  int was_title = gsc_title.window != nullptr;
 #endif
   winid_t root;
 
@@ -709,22 +709,22 @@ gsc_colour_rebuild_windows (void)
   if (root)
     glk_window_close (root, nullptr);
 
-  gsc_main_window = nullptr;
-  gsc_status_window = nullptr;
-  gsc_map_window = nullptr;
+  gsc_io.main_window = nullptr;
+  gsc_io.status_window = nullptr;
+  gsc_map_pane.window = nullptr;
   gsc_a5_side_window = nullptr;
 #ifdef GSC_HAVE_TITLE_WINDOW
-  gsc_graphics_window = nullptr;
+  gsc_title.window = nullptr;
 #endif
-  gsc_map_shown = FALSE;
+  gsc_map_pane.shown = FALSE;
   gsc_map_screen_drop ();
 
   gsc_open_main_window ();
   gsc_open_status_window ();
 
 #ifdef GSC_HAVE_TITLE_WINDOW
-  if (was_title && gsc_title_image != 0)
-    gsc_show_title_graphic (gsc_title_image);
+  if (was_title && gsc_title.image != 0)
+    gsc_show_title_graphic (gsc_title.image);
 #endif
   if (was_side)
     gsc_a5_open_side_window ();
@@ -782,19 +782,19 @@ gsc_set_colour (scr_bool state)
 {
   scr_bool rebuild;
 
-  gsc_colour_enabled = state;
+  gsc_colour.enabled = state;
   gsc_colour_set_normal_hints (state);
-  gsc_normal_measure_state = -1;
+  gsc_colour.normal_measure_state = -1;
 
   /* -c pre-applies hints before the first open; do not destroy that tree. */
-  rebuild = gsc_main_window != nullptr
-            && !(gsc_colour_hints_preapplied && state);
-  gsc_colour_hints_preapplied = FALSE;
+  rebuild = gsc_io.main_window != nullptr
+            && !(gsc_colour.hints_preapplied && state);
+  gsc_colour.hints_preapplied = FALSE;
 
   if (rebuild)
     gsc_colour_rebuild_windows ();
 
-  gsc_colour_repaint (gsc_main_window, state);
+  gsc_colour_repaint (gsc_io.main_window, state);
 
   /* An ADRIFT 5 game may keep a second pane of its own (Alien Diver's
      "Status"), and it is as much the game's window as the story one: it has to
@@ -816,10 +816,10 @@ gsc_set_colour (scr_bool state)
      since a grid clear re-seeds the window's attributes.  The redraw below is
      what actually repaints the bar either way, a grid window keeping the
      pixels it was last given. */
-  if (gsc_status_window)
+  if (gsc_io.status_window)
     {
       if (!state)
-        garglk_set_zcolors_stream (glk_window_get_stream (gsc_status_window),
+        garglk_set_zcolors_stream (glk_window_get_stream (gsc_io.status_window),
                                    zcolor_Default, zcolor_Default);
       gsc_status_notify ();
     }
@@ -832,7 +832,7 @@ gsc_set_colour (scr_bool state)
   gsc_map_redraw ();
 
   gsc_main_at_line_start = TRUE;
-  gsc_main_window_empty = TRUE;
+  gsc_io.main_window_empty = TRUE;
 }
 #endif
 
@@ -843,15 +843,15 @@ gsc_set_colour (scr_bool state)
  * colours, once the story and status windows exist and the ADRIFT 5 loader (if
  * any) has replaced the palette globals with the adventure's own four colours
  * -- both true by the time either main() calls this.  Not called on an
- * autorestore: a restored session brings its own colour state back with it, and
- * neither a switch on the command line nor a guess about the game has any
+ * autorestore: a restored session brings its own colour state back with it,
+ * and neither a switch on the command line nor a guess about the game has any
  * business overriding what the player left the game in.
  */
 void
 gsc_colour_startup_apply (void)
 {
 #ifdef GSC_HAVE_ZCOLORS
-  if (gsc_colour_startup)
+  if (gsc_colour.startup)
     gsc_set_colour (TRUE);
 #endif
 }
@@ -869,10 +869,10 @@ void
 gsc_colour_startup_prepare (void)
 {
 #ifdef GSC_HAVE_ZCOLORS
-  if (gsc_colour_startup)
+  if (gsc_colour.startup)
     {
       gsc_colour_set_normal_hints (TRUE);
-      gsc_colour_hints_preapplied = TRUE;
+      gsc_colour.hints_preapplied = TRUE;
     }
 #endif
 }
@@ -882,13 +882,13 @@ gsc_command_colour (const char *argument)
 {
 #ifdef GSC_HAVE_ZCOLORS
   /* A bare "glk colour" turns colours on rather than asking after them, so
-     it is no use as a poll; "status" reports without acting, as it does for the
-     logging commands, and is what the summary asks with. */
+     it is no use as a poll; "status" reports without acting, as it does for
+     the logging commands, and is what the summary asks with. */
   const scr_bool poll = scr_strcasecmp (argument, "status") == 0;
 
   gsc_command_toggle (poll ? "" : argument, "colour",
                       "Glk ADRIFT colours are",
-                      gsc_colour_enabled, gsc_set_colour,
+                      gsc_colour.enabled, gsc_set_colour,
                       "; text is drawn in the game's own colours, on the"
                       " black background it was written for.\n",
                       "; text follows the interpreter's own theme.\n", !poll);
@@ -918,13 +918,13 @@ gsc_command_colour (const char *argument)
  * and so work wherever a line of input is read.
  *
  * The handlers record what was asked and nothing more; the action itself is
- * carried out by the loop that read the line (gsc_meta_perform for scare,
+ * carried out by the loop that read the line (gsc_meta_perform for ADRIFT 4,
  * gsc_a5_meta_perform for the a5 loop).  It cannot happen here: all four end
- * a turn abruptly -- scare's throw out of the interpreter's main loop, the a5
- * loop's wholesale replacement of the run -- and here we are still inside the
- * command dispatcher, which has the input line to free, and possibly inside
- * the engine itself, midway through rendering the text that asked the
- * question.
+ * a turn abruptly -- the ADRIFT 4 engine's throw out of the interpreter's main
+ * loop, the a5 loop's wholesale replacement of the run -- and here we are
+ * still inside the command dispatcher, which has the input line to free, and
+ * possibly inside the engine itself, midway through rendering the text that
+ * asked the question.
  */
 
 /* The action a handler below asked for, awaiting a safe moment to happen. */
@@ -932,9 +932,9 @@ gsc_meta_t gsc_meta_pending = GSC_META_NONE;
 
 /*
  * Something to say about an action once it has happened.  Held rather than
- * printed because a successful scare restore, undo-from-memo, or restart
- * never returns to the caller that asked for it; whichever of gsc_meta_report()
- * and the next prompt comes first prints it.
+ * printed because a successful ADRIFT 4 restore, undo-from-memo, or restart
+ * never returns to the caller that asked for it; whichever of
+ * gsc_meta_report() and the next prompt comes first prints it.
  */
 static const char *gsc_meta_message = nullptr;
 
@@ -1003,7 +1003,7 @@ gsc_undo_refusal (scr_int turns)
 /*
  * gsc_meta_perform()
  *
- * Carry out a pending meta-command on the scare engine, called from
+ * Carry out a pending meta-command on the ADRIFT 4 engine, called from
  * os_read_line once the line that asked for it has been dealt with.  Each of
  * the four does exactly what the game's own command of that name does,
  * confirmation and all -- the point of these is to reach the action, not to
@@ -1131,14 +1131,14 @@ gsc_command_commands (const char *argument)
 
   else if (scr_strcasecmp (argument, "off") == 0)
     {
-      gsc_commands_enabled = FALSE;
+      gsc_options.commands_enabled = FALSE;
       gsc_normal_string ("Glk commands are now off.\n");
     }
 
   else if (strlen (argument) == 0)
     {
       gsc_normal_string ("Glk commands are ");
-      gsc_normal_string (gsc_commands_enabled ? "on" : "off");
+      gsc_normal_string (gsc_options.commands_enabled ? "on" : "off");
       gsc_normal_string (".\n");
     }
 
@@ -1214,7 +1214,7 @@ gsc_a5_hint_text (a5_state_t *st, const a5_xml_node_t *wrapper)
 /*
  * gsc_a5_display_hints()
  *
- * The ADRIFT 5 hints display.  The runner keeps clsHint out of the parser
+ * The ADRIFT 5 hints display.  The Runner keeps clsHint out of the parser
  * altogether and puts it behind a Hints window on the menu bar, so there is no
  * game command to collide with; here it hangs off "glk hints" instead, which
  * also leaves the ~40% of ADRIFT 5 games that implement a HINT task of their
@@ -1680,7 +1680,7 @@ static gsc_command_t GSC_COMMAND_TABLE[] = {
  * gsc_command_in_scope()
  *
  * Return TRUE if a Glk command table entry applies to the engine driving the
- * current game: everything for ADRIFT <=4 (scare), only the entries flagged
+ * current game: everything for ADRIFT <=4, only the entries flagged
  * GSC_CMD_A5 for ADRIFT 5 (the a5 loop).
  */
 static int
@@ -1743,8 +1743,8 @@ gsc_command_lookup (const char *command, int *matches)
  * gsc_command_usage()
  *
  * Print the one-line synopsis of the arguments a Glk command accepts, for
- * example "Glk map can be on, off, top, right, or zoom [in | out | auto]."  Both
- * a command handed an argument it doesn't understand and the foot of that
+ * example "Glk map can be on, off, top, right, or zoom [in | out | auto]."
+ * Both a command handed an argument it doesn't understand and the foot of that
  * command's "glk help" entry print this, so the two can never disagree.
  */
 void
@@ -1794,8 +1794,8 @@ gsc_command_summary (const char *argument)
    * Call handlers that have status to report with an empty argument,
    * prompting each to print its current setting.  The logging commands,
    * the colour mode and verbose act rather than report on an empty argument,
-   * so those (GSC_CMD_STATUS) are polled with an explicit "status" instead.  The
-   * commands that only ever act (GSC_CMD_ACTION) are not called at all:
+   * so those (GSC_CMD_STATUS) are polled with an explicit "status" instead.
+   * The commands that only ever act (GSC_CMD_ACTION) are not called at all:
    * asking after the settings must not display the help, or quit the game.
    */
   for (entry = GSC_COMMAND_TABLE; entry->command; entry++)
@@ -1824,18 +1824,13 @@ gsc_command_help_print (const char *help)
   standout = FALSE;
   while (*help)
     {
-      size_t length;
-      char *span;
+      const size_t length = strcspn (help, "`");
+      const std::string span (help, length);
 
-      length = strcspn (help, "`");
-      span = (char *) gsc_malloc (length + 1);
-      memcpy (span, help, length);
-      span[length] = '\0';
       if (standout)
-        gsc_standout_string (span);
+        gsc_standout_string (span.c_str ());
       else
-        gsc_normal_string (span);
-      free (span);
+        gsc_normal_string (span.c_str ());
 
       help += length;
       if (*help == '`')
@@ -1940,6 +1935,7 @@ int
 gsc_command_escape (const char *string)
 {
   int posn;
+  std::string copy;
   char *string_copy, *command, *argument;
   assert (string);
 
@@ -1952,10 +1948,8 @@ gsc_command_escape (const char *string)
     return FALSE;
 
   /* Take a copy of the string, without any leading space or introducer. */
-  string_copy = (decltype(string_copy)) gsc_malloc (strlen (string + posn) + 1
-                                                    - strlen ("glk"));
-  strncpy (string_copy, string + posn + strlen ("glk"),
-           strlen (string + posn) + 1 - strlen ("glk"));
+  copy = string + posn + strlen ("glk");
+  string_copy = &copy[0];
 
   /*
    * Find the subcommand; the first word in the string copy.  Find its end,
@@ -2003,7 +1997,6 @@ gsc_command_escape (const char *string)
               && matched->handler != gsc_command_help)
             {
               gsc_command_help (matched->command);
-              free (string_copy);
               return TRUE;
             }
 
@@ -2036,6 +2029,5 @@ gsc_command_escape (const char *string)
     }
 
   /* The string contained a Glk command; return TRUE. */
-  free (string_copy);
   return TRUE;
 }

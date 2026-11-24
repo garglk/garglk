@@ -20,8 +20,6 @@
 
 /*
  * Wield, kiss, buy, break, smell, sell and eat.
- *
- * See sclibrar.h for what the library files share.
  */
 
 #include "sclibrar.h"
@@ -49,7 +47,7 @@
  * With no object passing, the line gets "I don't understand what you are
  * wanting to wield!" -- an ordinary turn.
  *
- * Measured 2026-09-14 on Villains_And_Kings under run390
+ * Measured on Villains_And_Kings under run390
  * (runner_probes/villains_and_kings.run390.wield.txt): the sword is Prefix
  * "Kinda Sharp", Short "Sword", Alias "blade".  `wield Sword`, `wield kinda
  * sharp sword`, `wield zzz`, `wield rack` (Short "Rack", empty alias) and a
@@ -75,11 +73,10 @@ lib_wield_names_object (scr_gameref_t game, scr_int object,
   wield_at = at == std::string::npos ? 0 : (scr_int) at + 1;
 
   /*
-   * Deliberate deviation (2026-09-30): the names are lower-cased like the
-   * line, and every Alias counts.  The Runner's test finds a Short or first
-   * Alias as authored in the lower-cased line, so a weapon called
-   * "Excalibur" or "Sword" could never be wielded, and neither could one
-   * named by its second Alias (bec2def78).
+   * Deliberate deviation: the names are lower-cased like the line, and every
+   * Alias counts.  The Runner's test finds a Short or first Alias as authored
+   * in the lower-cased line, so a weapon called "Excalibur" or "Sword" could
+   * never be wielded, and neither could one named by its second Alias.
    */
   auto lowered = [] (const scr_char *name) -> std::string
     {
@@ -447,7 +444,7 @@ lib_cmd_buy_absent (scr_gameref_t game)
  * the plain "<You> might need the rock." (p*WITHPFX,
  * harness/make_withprefixprobe.py; runner_probes/withpfx.run370.pfx4.rtf /
  * runner_probes/withpfx.run380.ws.rtf / runner_probes/withpfx.run390.ws.txt /
- * runner_probes/withpfx.run400.ws.txt, 2026-09-20).  Below 3.90 the arm ends
+ * runner_probes/withpfx.run400.ws.txt).  Below 3.9 the arm ends
  * in an exclamation mark, with or without an instrument: run370/run380 answer
  * a bare `break rock` "You might need the rock!" where run390/run400 use a
  * full stop (harness/make_withprefixprobe.py;
@@ -518,7 +515,7 @@ lib_cmd_break_absent (scr_gameref_t game)
 /*
  * lib_cmd_turn_absent()
  *
- * The `turn` arm of the same therest() clause.  hcw (4.00,
+ * The `turn` arm of the same therest() clause.  hcw (4.0,
  * runner_probes/hcw.run400.txt turn 81) types `turn on intercom` at the park
  * gates with the limousine's intercom seen but elsewhere and gets "You can't
  * see the intercom." -- not turn_other's "You can't turn that.", which run400
@@ -536,7 +533,7 @@ lib_cmd_turn_absent (scr_gameref_t game)
  * The same therest() clause for verbs whose own rows take no %object% the
  * clause could read back: the candidates are every object the typed line
  * names anywhere, scored as Proc_21_58_463640 scores them, not just what a
- * pattern bound.  Measured on warlord (4.00,
+ * pattern bound.  Measured on warlord (4.0,
  * runner_probes/warlord.run400.txt, xoshiro seed 33):
  *
  *     push barrel           the barrel rolled away    You can't see the barrel.
@@ -565,7 +562,7 @@ lib_cmd_verb_absent_400 (scr_gameref_t game)
   GS_FOR_EACH_OBJECT (game, object)
     {
       if (lib_verb_object_name_score (game, object, input) > 0)
-        game->object_references[object] = TRUE;
+        game->refs.objects[object] = TRUE;
     }
   return lib_cant_see_absent_object (game, ".\n", TRUE);
 }
@@ -658,7 +655,7 @@ lib_cmd_eat_object (scr_gameref_t game)
    * an edible one gets the held test, whose refusal ends in "!" (run400
    * 4888AF/488921/488993, run390 45D52E, run380 443D8B, run370 43D332).
    * p4WTIE `eat red stone`, the stone on the floor: "You can't eat the red
-   * stone." (run400 runner_probes/wtie.run400.it1.txt, 2026-09-21).
+   * stone." (run400 runner_probes/wtie.run400.it1.txt).
    */
   vt_key[0].string = "Objects";
   vt_key[1].integer = object;

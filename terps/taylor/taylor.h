@@ -1,9 +1,14 @@
-//
-//  taylor.h
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Created by Petter Sjölund on 2022-04-05.
-//
+/*
+ *  taylor.h
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-04-05.
+ */
 
 #ifndef taylor_h
 #define taylor_h
@@ -74,7 +79,7 @@
 #define ACTION_DONE_BIT 0x40
 #define ACTION_OP_MASK  0x3F
 
-/* Terminator byte that marks the end of a status or command action table. */
+/* Terminator byte that marks the end of a status or event table. */
 #define ACTION_TABLE_END 0x7F
 
 /* Word code used as a wildcard in event-table verb/noun entries — matches

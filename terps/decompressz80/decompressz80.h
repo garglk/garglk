@@ -1,20 +1,25 @@
-//
-//  decompressz80.h
-//
-//  A small library for getting at ZX Spectrum games, shared by the ScottFree
-//  (scott), TaylorMade (taylor), Level 9 and UnQuill interpreters:
-//
-//    z80snap.c   reads .z80 snapshots
-//    tapetzx.c   gets the data blocks out of .tzx and .tap tapes
-//    alkatraz.c  undoes the Alkatraz copy protection
-//    zxscreen.c  the layout and colours of the screen memory
-//
-//  Nothing here prints anything: a NULL or a 0 is all there is to say that a
-//  file was not what it was taken for. Build the library with
-//  -DDECOMPRESSZ80_VERBOSE to have the reason written to stderr.
-//
-//  Created by Petter Sjölund on 2022-01-24.
-//
+/*
+ *  decompressz80.h
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version.
+ *
+ *  A small library for getting at ZX Spectrum games, shared by the ScottFree
+ *  (scott), TaylorMade (taylor), Level 9 and UnQuill interpreters:
+ *
+ *    z80snap.c   reads .z80 snapshots
+ *    tapetzx.c   gets the data blocks out of .tzx and .tap tapes
+ *    alkatraz.c  undoes the Alkatraz copy protection
+ *    zxscreen.c  the layout and colours of the screen memory
+ *
+ *  Nothing here prints anything: a NULL or a 0 is all there is to say that a
+ *  file was not what it was taken for. Build the library with
+ *  -DDECOMPRESSZ80_VERBOSE to have the reason written to stderr.
+ *
+ *  Created by Petter Sjölund on 2022-01-24.
+ */
 
 #ifndef decompressz80_h
 #define decompressz80_h

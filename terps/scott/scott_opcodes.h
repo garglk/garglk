@@ -1,10 +1,17 @@
-//
-//  scott_opcodes.h
-//  Part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  Condition and action opcodes of the Scott Adams action tables,
-//  and their TI-99/4A bytecode counterparts.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  scott_opcodes.h
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Condition and action opcodes of the Scott Adams action tables,
+ *  and their TI-99/4A bytecode counterparts.
+ */
 
 #ifndef scott_opcodes_h
 #define scott_opcodes_h

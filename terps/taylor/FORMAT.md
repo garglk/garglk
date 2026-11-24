@@ -64,6 +64,7 @@ The document describes the games and their original engines. Where it describes 
 - [Appendix A. The BBC Micro source](#appendix-a-the-bbc-micro-source)
 - [Appendix B. Comparison with the Quill](#appendix-b-comparison-with-the-quill)
   - [B.1 Blizzard Pass in both systems](#b1-blizzard-pass-in-both-systems)
+- [Appendix C. Earlier games on the same engine](#appendix-c-earlier-games-on-the-same-engine)
 
 ---
 
@@ -850,7 +851,7 @@ The source confirms the following:
 
 ## Appendix B. Comparison with the Quill
 
-The original engine comes from a Quill-like system written by Roger Taylor and James Byrne of Ashminster Computing. They first wrote it to port a Quill game, *Hampstead*, to the BBC Micro in 1984, a year before Gilsoft's own BBC Micro Quill. Adventure International UK licensed it for its version of Questprobe 3 and improved it for each game after that (according to IFWiki). The data fits: the engine works like the Quill, but none of its tables can be read as Quill data.
+The original engine comes from a Quill-like system written by Roger Taylor and James Byrne of Ashminster Computing. They first wrote it to port a Quill game, [*Hampstead*](#appendix-c-earlier-games-on-the-same-engine), to the BBC Micro in 1984, a year before Gilsoft's own BBC Micro Quill. Adventure International UK licensed it for its version of Questprobe 3 and improved it for each game after that (according to IFWiki). The data fits: the engine works like the Quill, but none of its tables can be read as Quill data.
 
 The Quill side below is the Spectrum Quill, serial C, the last and largest of Gilsoft's releases (https://www.ifwiki.org/The_Quill lists them all). The earlier serial A has fewer opcodes, and the other machines' versions differ in their details.
 
@@ -909,3 +910,15 @@ The two versions' tables were compared by mapping rooms (90 of 111 matched, from
 * **Status tables.** C64: starts with `AT 0 → SET 5, ANYKEY, GOTO 78, DESC` and keeps a counter in flag 5. Spectrum: starts with `NOTZERO 14, PRESENT 70 → DESTROY, MESSPRINT`, and uses `AT 0 → RESTORE, GOTO 68`.
 
 The two versions implement the same puzzles, with the same deaths and the same messages. They are not renumbered copies of one another. Numbers, order, conditions and actions all differ, and the Spectrum uses engine features that the Quill lacks. That rules out a mechanical conversion of the tables. The tables look like a re-implementation by hand, and the matched room, object and message texts suggest that the author worked from the same game design and text. The exact method is not recoverable from the files.
+
+## Appendix C. Earlier games on the same engine
+
+This interpreter does not support these Ashminster games. It has no BBC Micro loader, and the dictionary check in `gameload.c` fails on the Spectrum releases. The images were read statically and never run.
+
+| | BBC *Hampstead* | BBC *Terrormolinos* | Spectrum *Terrormolinos* | *Dodgy Geezers* (both) |
+|---|---|---|---|---|
+| Table entry | `FE verb noun nconds nacts`, `FF` any word, `FD` end | The same without `FE` | Bit-7 layout ([§10.1](#101-table-layout)), each status entry headed `7E 7E` | Bit-7 layout |
+| Dictionary | Plain, 0 ends | Plain | Plain, 0 ends | XOR `42`, `XXXX FF` ends |
+| Text | Backwards, with tokens | Literals and tokens from `80`, `1F` ends | The same as the BBC | XOR `4A`, tokens only |
+
+Spectrum *Terrormolinos* pictures are vector: a bitstream of plots and lines, then flood-fill seeds and run-length attributes. Spectrum *Dodgy Geezers* pictures are run-length bitmaps of 192×128 pixels, followed by attributes.

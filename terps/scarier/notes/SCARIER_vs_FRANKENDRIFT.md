@@ -17,7 +17,8 @@ and a difference is a Scarier bug unless listed under
 "FrankenDrift" here means upstream `awlck/frankendrift` at `bfd29fc` (the
 0.9.0 development line, July 2026), built as a headless console front end on
 .NET 9 with the local patches listed under
-[How this was measured](#how-this-was-measured). Figures are from 2026-10-12.
+[How this was measured](#how-this-was-measured). The conformance figures and
+sizes are from 2026-11-02, and the timing of the 30 walkthroughs from 2026-10-12.
 
 ## In short
 
@@ -26,9 +27,9 @@ and a difference is a Scarier bug unless listed under
 | Role | Open-source port of the official Runner | Independent C++ reimplementation, checked against FrankenDrift |
 | Versions played | ADRIFT 5 only (3.9 and 4.0 files are refused) | ADRIFT 5, in a binary that also plays 3.7–4.0 |
 | Language | VB.NET engine, C# front ends, .NET 8 | C-like C++11 |
-| Size | about 25,400 lines of engine, plus about 4,400 of front ends and glue | about 31,400 lines in `adrift5/`, plus 2,700 of Glk seam |
+| Size | about 25,400 lines of engine, plus about 4,400 of front ends and glue | about 32,200 lines in `adrift5/`, plus 2,700 of Glk seam |
 | Front ends | Eto.Forms GUI for Windows, macOS and Linux; Glk runners for Gargoyle and WinGlk | Any Glk library; Spatterlight is the main host |
-| Corpus rows that match FrankenDrift byte for byte | (reference) | 186 of 205, 199 of 205 counting RNG-stream noise |
+| Corpus rows that match FrankenDrift byte for byte | (reference) | 188 of 207, 201 of 207 counting RNG-stream noise |
 | Time for 30 corpus walkthroughs (9,507 commands) | 295 s | 13 s |
 | Undo | One turn, as in the Runner | Multi-level |
 | Maintained | Yes (315 commits, last 2026-07-30) | Yes |
@@ -73,8 +74,8 @@ caveats there before quoting them.
   A 250-command route through *Anno 1700* takes 0.13 s against 5.2 s. The
   figures are one run each on one machine, over the first 30 corpus rows that
   have both a game file and a script.
-- The full ADRIFT 5 replay of 205 rows, each compared with FrankenDrift in two
-  RNG modes and put through a save/restore self-check, took 26 s here, but
+- The full ADRIFT 5 replay of 207 rows, each compared with FrankenDrift in two
+  RNG modes and put through a save/restore self-check, took 22 s here, but
   only because FrankenDrift's transcripts are cached by content hash. Uncached,
   the FrankenDrift side dominates.
 - The engine was profiled in July 2026: a first-word prefilter in front of
@@ -118,8 +119,8 @@ caveats there before quoting them.
 
 ### It is held in place by a larger test net
 
-- 205 walkthrough rows, 181 committed goldens (strict-diffed with no .NET
-  needed), and 23 synthetic probe rows over 19 hand-written games, most from
+- 207 walkthrough rows, 181 committed goldens (strict-diffed with no .NET
+  needed), and 27 synthetic probe rows over 23 hand-written games, most from
   the adrift-5-rs conformance suite and the eight `Samples/*.taf` regression
   scripts from the ADRIFT 5 distribution. Every row also passes a mid-script
   save/restore round trip that must be byte-identical.
@@ -158,9 +159,12 @@ caveats there before quoting them.
 - `<window>` side windows, such as the status panel in *Alien Diver*, and the
   map window, are real, separate system windows that can be moved around and
   resized freely.
-- Text styling is more complete. Bold, italic, underline, centre, right, colour
-  (`<c>`, `<font colour=…>`), images, audio and named windows are carried to
-  the host. A `<font>` tag's face and size are read for nothing but its colour.
+- Text styling is more complete. Scarier carries bold, italic, underline,
+  centre, right, colour (`<c>`, `<font colour=…>`), images, audio and named
+  windows to the host. A `<font>` tag's size, and whether its face is monospaced,
+  are mapped onto Glk styles chosen from a census of the game's text, so a named
+  typeface is lost and the number of different looks is limited by the styles
+  Glk has.
 
 ### Portability and runtime
 
@@ -241,14 +245,14 @@ continued gives a transcript identical to an uninterrupted one.
 
 | | Rows |
 |---|---|
-| In the MAP | 205 |
-| Byte-identical to FrankenDrift in both modes (MATCH) | 186 |
+| In the MAP | 207 |
+| Byte-identical to FrankenDrift in both modes (MATCH) | 188 |
 | Differ at their recorded budget (DIVERGE) | 17 |
 | No script in this checkout (adult games kept local-only) | 2 |
 | Over budget (FAIL) | 0 |
-| Zero hunks under the xoshiro stream | 199 |
+| Zero hunks under the xoshiro stream | 201 |
 
-The 205 rows are 176 game files (111 Blorb, 65 bare `.taf`, including alternate
+The 207 rows include 176 game files (111 Blorb, 65 bare `.taf`, including alternate
 builds and releases of some games, Danish ones among them). The Samples and
 probe rows use game files of their own.
 
@@ -268,11 +272,11 @@ probe rows use game files of their own.
 | I Summon Thee | 5\|0 | RNG noise |
 | ProbeTaskActions | 1\|0 | RNG noise |
 | Alien Diver v1.3 | 0\|26 | an alternate build; 14 times an extra "Sorry, I'm not sure which object you are trying to #." and 12 times `"Playable Card"` with quotes, from a `SetProperty` of a quoted string onto a property the v1.3 object does not carry yet, which Scarier stores raw as the Runner's add-branch does |
-| Tempus Fugit | 0\|1 | one stray blank line near line 538; cosmetic, undiagnosed |
 | OS | 0\|1 | the aggregate-message gap above |
 | ProbePopups | 4\|4 | an unevaluated `%PopUpChoice[…]%` token: FrankenDrift's tokenizer re-serialises it without the spaces after commas, Scarier keeps the source spacing; cosmetic |
 | ProbeUndoAfterEnd | 0\|4 | FrankenDrift's bug, not Scarier's |
 | ProbeVariables | 1\|1 | `%Version%` only |
+| ProbeTimedEvents | 0\|1 | a `Seconds` sub-event's text, which FrankenDrift never prints: its headless front end ticks `TimeBasedStuff` once per input line and does not drive the sub-event timer, so this hunk compares nothing |
 
 For *Beginner's Cave* (about 136 hunks, since every turn of substance is a
 Tunnels & Trolls combat round) and *Alien Diver* (vanilla FrankenDrift drops
@@ -302,11 +306,19 @@ under the xoshiro stream.
   execution, each evaluation consuming draws. Scarier replays that dance for
   `Look`, and other task messages have not been audited.
 - Two more things the net does not cover: the four adult games that are
-  deliberately not wired, and the three probe sources that came without a
-  command script (`rich_text`, `text_set_variable`, `timed_events`).
+  deliberately not wired, and the two probe sources that came without a
+  command script and still have none (`rich_text`, `text_set_variable`).
 - Real-time events fire from a Glk timer at the prompt in the app, like the
   Runner's timer, but the headless replay ticks them once per turn, so the
-  wall-clock path is not part of the comparison.
+  wall-clock path is not part of the comparison. `Seconds` sub-events on a
+  turn-based event, which Scarier now runs off that clock, cannot be compared,
+  because FrankenDrift's headless front end does not fire them: only a Scarier
+  golden covers them.
+- FrankenDrift prints no line break after a time tick's text, because
+  `TimeBasedStuff` commits with `Display("", True)` where a command's turn adds
+  `vbCrLf & vbCrLf`. `a5run_dump` reproduces that shape through
+  `a5run_turn_is_open` so the transcripts compare. The Glk player does not: it
+  keeps the blank line before the next prompt.
 
 ### Further reading
 

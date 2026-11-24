@@ -1,12 +1,19 @@
-//
-//  decompress_text.c
-//  part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  Implements the text decompression scheme used by Robin of Sherwood
-//  and Seas of Blood.
-//
-//  Created by Petter Sjölund on 2022-01-10.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  decompress_text.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Implements the text decompression scheme used by Robin of Sherwood
+ *  and Seas of Blood.
+ *
+ *  Created by Petter Sjölund on 2022-01-10.
+ */
 
 #include <ctype.h>
 #include <string.h>
@@ -62,7 +69,8 @@ char *DecompressText(uint8_t *source, int stringindex)
             int c = alphabet[(fortybits >> j) & 0x1f];
 
             if (c == 0x01) {
-                /* Capitalize sentinel: emit a space now, capitalize next letter */
+                /* Capitalize sentinel: emit a space now, capitalize next
+                   letter */
                 capitalize = 1;
                 c = ' ';
             } else if (c >= 'a' && capitalize) {
@@ -87,7 +95,8 @@ char *DecompressText(uint8_t *source, int stringindex)
                     decompressed[idx++] = ' ';
             }
 
-            /* Buffer full without hitting a terminator — force NUL and return */
+            /* Buffer full without hitting a terminator — force NUL and
+               return */
             if (idx >= DECOMPRESS_BUF_SIZE - 1) {
                 decompressed[idx] = '\0';
                 char *result = MemAlloc(idx + 1);

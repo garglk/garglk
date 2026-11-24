@@ -79,7 +79,7 @@ typedef struct scr_objectstate_s
    * Ordinary takes from a room, drops, and task moves of uncontained
    * objects leave it untouched, so a stale value silently adds the object's
    * weight to whichever container shares its Parent number for the whole
-   * game (measured live in run400 2026-08-22: goldilocks' package, object
+   * game (measured live in run400: goldilocks' package, object
    * 0, weighs 19 more than its contents because the worn-from-the-start
    * watch and dress and the never-placed broken bottle all carry Parent 0
    * -- and the bottle keeps doing so through a take and a drop, while
@@ -87,10 +87,10 @@ typedef struct scr_objectstate_s
    * Runner writes &HFF, which we do not reproduce because it could falsely
    * match object 255 in a large game.
    *
-   * Since 2026-10-17 the weigh routine no longer reads this field (the
-   * phantom weight is a deliberate deviation, see obj_weigh()); it is kept
-   * for the possession predicates gs_runner_possessed() / gs_runner_worn(),
-   * which walk it through closed containers.
+   * Scarier does not reproduce that phantom weight (a deliberate deviation,
+   * see obj_weigh()), so obj_weigh() ignores this field.  It is read by the
+   * possession predicates gs_runner_possessed() / gs_runner_worn(), which
+   * walk it through closed containers.
    */
   scr_int runner_parent;
   scr_int openness;
@@ -253,33 +253,155 @@ typedef struct scr_resource_s
 } scr_resource_t;
 
 /*
- * Overall game state structure.  Arrays are malloc'ed for the appropriate
- * number of each of the above state structures.
+ * What `it`, `him`, `her` and `them` stand for: an object or NPC index, or
+ * -1 for nothing yet.
+ *
+ *   Undo:     copied by gs_copy(), so an undo brings back the pronouns of
+ *             the turn it returns to.
+ *   .tas:     not saved; a restored game takes the loaded game's, which
+ *             are the initial ones.
+ *   Session:  the "pronouns" and "undo_pronouns" records
+ *             (run_session_state()).
  */
-typedef struct scr_game_s
+typedef struct
 {
-  scr_uint magic;
+  scr_int it_object;
+  scr_int it_form;          /* UIP_IT_INDEFINITE, _DEFINITE or _BARE */
+  scr_int him_npc;
+  scr_int her_npc;
+  scr_int it_npc;
+  scr_int last_npc;
+} scr_pronouns_t;
 
-  /* References to assorted helper subsystems. */
-  scr_var_setref_t vars;
-  scr_prop_setref_t bundle;
-  scr_filterref_t filter;
-  scr_memo_setref_t memento;
-  scr_debuggerref_t debugger;
+/*
+ * What the current command refers to, one flag per object or NPC.  Objects
+ * the command is to act on are flagged in objects; objects requested but
+ * deemed not actionable are flagged in multiple; NPCs it names are flagged
+ * in npcs.  The parser and the library's multiple-object verbs fill these in
+ * and the task and restriction code reads them back.
+ *
+ * Undo: copied whole by gs_copy.  .tas: not saved.  Session: not saved --
+ * the flags describe one command, and none is in flight at a save point.
+ */
+typedef struct
+{
+  std::vector<scr_bool> objects;   /* sized object_count */
+  std::vector<scr_bool> multiple;  /* sized object_count */
+  std::vector<scr_bool> npcs;      /* sized npc_count */
+} scr_references_t;
 
-  /* Undo information, also used by the debugger. */
-  struct scr_game_s *temporary;
-  struct scr_game_s *undo;
-  scr_bool undo_available;
+/*
+ * Turn control: what the library and the task code tell the main loop about
+ * the command in hand, and what the loop keeps between one command and the
+ * next.
+ *
+ * Undo: copied whole by gs_copy.  .tas: not saved.  Session: only
+ * has_notified (the "notified" record); a save point falls between
+ * commands, where the rest is at rest.
+ */
+typedef struct
+{
+  scr_int waitcounter;    /* turns still to run for a "wait" */
+  scr_bool has_notified;  /* a score change was announced this turn */
+  scr_bool is_admin;      /* the command is not to count as a turn */
 
   /*
-   * Basic game state -- rooms, objects, and so on.  The state arrays are
-   * std::vector: they free themselves when the game is delete'd, so a throw
-   * partway through gs_create (a prop_* scr_fatal) leaks none of the
-   * already-allocated arrays.  The *_count fields remain the iteration source
-   * of truth (matching every existing loop, the serializer, and the asserts);
-   * the vectors are sized to match.
+   * TRUE once the library's movement command has moved the player on this
+   * input line; gates the 4.0 player-side walk meet (npc_tick_npcs).
    */
+  scr_bool player_moved_by_command;
+
+  /* "again", and the main loop's requests to restart or restore. */
+  scr_bool do_again;
+  scr_int redo_sequence;
+  scr_bool do_restart;
+  scr_bool do_restore;
+
+  /*
+   * The ending an EndGame task action has armed, held until the end of the
+   * turn: 0 for none, otherwise the action's Var1 plus one (so 1 = win,
+   * 2 = lose, 3 = dead, 4 = "just stop").  The Runner keeps the same thing in
+   * a byte of its own, but numbers it differently -- its EndGame handler maps
+   * Var1 0,1,2,3 to 1,3,2,4 (0008D66E) and its endmessage switches on that --
+   * so the two are not interchangeable.  Set inside the turn and consumed by
+   * task_print_end_game_message(); never live across a command, so it is not
+   * part of the saved stream.
+   */
+  scr_int pending_endgame;
+} scr_turn_t;
+
+/*
+ * Resource management data, in two halves.  The requests are what the game
+ * has asked for and belong to the game's state; the rest is what the host
+ * is showing and playing right now, which no undo or restore changes.
+ *
+ * Undo: gs_copy copies the requests (requested_sound, requested_graphic,
+ * stop_sound) and leaves the rest alone.  .tas: not saved.  Session: not
+ * saved.
+ */
+typedef struct
+{
+  scr_resource_t requested_sound;
+  scr_resource_t requested_graphic;
+  scr_bool stop_sound;
+
+  scr_bool sound_active;
+  scr_resource_t playing_sound;
+  scr_resource_t displayed_graphic;
+} scr_media_t;
+
+/*
+ * ADRIFT-style carried-load running totals.  The real Runner keeps the
+ * player's carried weight and size as running totals, updated incrementally
+ * on each take/drop; a take of an object already possessed indirectly
+ * (inside or on something carried or worn) adjusts nothing, so there is no
+ * container double-count.  It recomputes them only when loading state.
+ * These mirror that: maintained incrementally during play, recomputed at
+ * game create and restore.
+ *
+ * Undo: gs_copy copies weight, size, ready and phantom_held verbatim, and
+ * leaves suspend alone.  .tas: the live weight and size are written, as the
+ * Runner writes them, and recomputed on load (3.9 keeps the saved weight);
+ * the rest is not saved.  Session: not saved.
+ */
+typedef struct
+{
+  scr_int weight;
+  scr_int size;
+  scr_bool ready;  /* gates the incremental tracker off during game setup */
+
+  /*
+   * When TRUE, position changes bypass the incremental tracker.  The task
+   * and event object movers set this while they move: the Runner's task
+   * mover does its own total accounting (Proc_19_10), and its event mover
+   * does none at all.  Transient -- never saved, only set across a call.
+   */
+  scr_bool suspend;
+
+  /*
+   * The 3.9/4.0 Runner's phantom object: its object array is dimensioned
+   * 0 To count and loaded 0..count-1, so slot [count] stays zeroed -- and
+   * a zero position reads as "held by the player".  TRUE while that slot
+   * is still held; see task_move_phantom_object().
+   */
+  scr_bool phantom_held;
+} scr_carried_t;
+
+/*
+ * The world: basic game state -- rooms, objects, and so on -- with the
+ * player, the turn count and the score.
+ *
+ * Undo: copied whole by gs_copy.  .tas: saved; this is what a saved game is.
+ * Session: not saved, the session record rides on a .tas of its own.
+ *
+ * The state arrays are std::vector: they free themselves when the game is
+ * delete'd, so a throw partway through gs_create (a prop_* scr_fatal) leaks
+ * none of the already-allocated arrays.  The *_count fields remain the
+ * iteration source of truth (matching every existing loop, the serializer,
+ * and the asserts); the vectors are sized to match.
+ */
+typedef struct
+{
   scr_int room_count;
   std::vector<scr_roomstate_t> rooms;
   scr_int object_count;
@@ -307,9 +429,62 @@ typedef struct scr_game_s
 
   scr_int turns;
   scr_int score;
+} scr_world_t;
+
+/*
+ * The player's settings: what the metacommands and the host's preferences
+ * set, as opposed to what the game does.
+ *
+ *   Undo:     not copied by gs_copy() -- an undo or a restore leaves the
+ *             settings as the player has them -- with the one exception of
+ *             WAITTURNS, which gs_copy() does carry, so an undo takes back
+ *             a `wait N` too.
+ *   .tas:     not saved.
+ *   Session:  VERBOSE, NOTIFY_SCORE_CHANGE and WAITTURNS are the "settings"
+ *             record (run_session_state()); the other two are the host's
+ *             to set again.
+ */
+typedef struct
+{
   scr_bool bold_room_names;
   scr_bool verbose;
   scr_bool notify_score_change;
+
+  /* Player's setting for waitturns; overrides the game's. */
+  scr_int waitturns;
+
+  /*
+   * When TRUE, the capacity checks recompute the carried load from currently
+   * held objects each time (legacy SCARE behaviour); when FALSE (default)
+   * they consult the running totals in scr_game_t, matching the real Runner.
+   * Toggled with the "capacity" metacommand.
+   */
+  scr_bool capacity_recompute;
+} scr_settings_t;
+
+/*
+ * Overall game state structure.  Arrays are malloc'ed for the appropriate
+ * number of each of the above state structures.
+ */
+typedef struct scr_game_s
+{
+  scr_uint magic;
+
+  /* References to assorted helper subsystems. */
+  scr_var_setref_t vars;
+  scr_prop_setref_t bundle;
+  scr_filterref_t filter;
+  scr_memo_setref_t memento;
+  scr_debuggerref_t debugger;
+
+  /* Undo information, also used by the debugger. */
+  struct scr_game_s *temporary;
+  struct scr_game_s *undo;
+  scr_bool undo_available;
+
+  scr_world_t world;
+  scr_settings_t settings;
+  scr_int room_name_headings;  /* 0 unknown, 1 print, 2 the game has its own */
   /*
    * Owning game-status strings, freed at scope exit.
    * scr_owned_string preserves the engine's char* contract exactly -- .get()
@@ -325,95 +500,17 @@ typedef struct scr_game_s
   scr_owned_string author;
   scr_owned_string hint_text;
 
-  /* Resource management data. */
-  scr_resource_t requested_sound;
-  scr_resource_t requested_graphic;
-  scr_bool stop_sound;
-  scr_bool sound_active;
-
-  scr_resource_t playing_sound;
-  scr_resource_t displayed_graphic;
+  scr_media_t media;
 
   /* Game running and game completed flags. */
   scr_bool is_running;
   scr_bool has_completed;
 
-  /*
-   * The ending an EndGame task action has armed, held until the end of the
-   * turn: 0 for none, otherwise the action's Var1 plus one (so 1 = win,
-   * 2 = lose, 3 = dead, 4 = "just stop").  The Runner keeps the same thing in
-   * a byte of its own, but numbers it differently -- its EndGame handler maps
-   * Var1 0,1,2,3 to 1,3,2,4 (0008D66E) and its endmessage switches on that --
-   * so the two are not interchangeable.  Set inside the turn and consumed by
-   * task_print_end_game_message(); never live across a command, so it is not
-   * part of the saved stream.
-   */
-  scr_int pending_endgame;
+  scr_carried_t carried;
 
-  /* Player's setting for waitturns; overrides the game's. */
-  scr_int waitturns;
-
-  /*
-   * ADRIFT-style carried-load running totals.  The real Runner keeps the
-   * player's carried weight and size as running totals, updated incrementally
-   * on each take/drop; a take of an object already possessed indirectly
-   * (inside or on something carried or worn) adjusts nothing, so there is no
-   * container double-count.  It recomputes them only when loading state.
-   * These mirror that: maintained incrementally during play, recomputed at
-   * game create/copy/restore.  Derived state -- not part of the saved stream
-   * (the Runner stores live totals in the save but recomputes on load).
-   * carried_ready gates the incremental tracker off during game setup.
-   */
-  scr_int carried_weight;
-  scr_int carried_size;
-  scr_bool carried_ready;
-
-  /*
-   * When TRUE, position changes bypass the incremental tracker.  The task
-   * and event object movers set this while they move: the Runner's task
-   * mover does its own total accounting (Proc_19_10), and its event mover
-   * does none at all.  Transient -- never saved, only set across a call.
-   */
-  scr_bool carried_suspend;
-
-  /*
-   * When TRUE, the capacity checks recompute the carried load from currently
-   * held objects each time (legacy SCARE behaviour); when FALSE (default)
-   * they consult the running totals above, matching the real Runner.  Toggled
-   * with the "capacity" metacommand.
-   */
-  scr_bool capacity_recompute;
-
-  /*
-   * The 3.9/4.0 Runner's phantom object: its object array is dimensioned
-   * 0 To count and loaded 0..count-1, so slot [count] stays zeroed -- and
-   * a zero position reads as "held by the player".  TRUE while that slot
-   * is still held; see task_move_phantom_object().
-   */
-  scr_bool runner_phantom_held;
-
-  /* Miscellaneous library and main loop conveniences. */
-  scr_int waitcounter;
-  scr_bool has_notified;
-  scr_bool is_admin;
-  /*
-   * TRUE once the library's movement command has moved the player on this
-   * input line; gates the 4.0 player-side walk meet (npc_tick_npcs).
-   */
-  scr_bool player_moved_by_command;
-  scr_bool do_again;
-  scr_int redo_sequence;
-  scr_bool do_restart;
-  scr_bool do_restore;
-  std::vector<scr_bool> object_references;
-  std::vector<scr_bool> multiple_references;
-  std::vector<scr_bool> npc_references;
-  scr_int it_object;
-  scr_int it_form;          /* UIP_IT_INDEFINITE, _DEFINITE or _BARE */
-  scr_int him_npc;
-  scr_int her_npc;
-  scr_int it_npc;
-  scr_int last_npc;
+  scr_turn_t turn;
+  scr_references_t refs;
+  scr_pronouns_t pronouns;
 } scr_game_t;
 
 #endif

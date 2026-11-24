@@ -6,11 +6,14 @@
  *	Copyright:
  *	    This software is placed under the GNU license.
  *
- *	Statement:
+ *	Statement (from the original ScottFree, and about that program only):
  *	    Everything in this program has been deduced or obtained solely
  *	from published material. No game interpreter code has been
  *	disassembled, only published BASIC sources (PC-SIG, and Byte Dec
  *	1980) have been used.
+ *
+ *	Later additions, such as the ROM-exact picture renderers, follow
+ *	disassemblies of the original interpreters.
  */
 
 /*
@@ -28,11 +31,11 @@
 
 #include "debugprint.h"
 #include "memory_allocation.h"
-#include "read_le16.h"
+#include "byteorder.h"
 #include "common_utils.h"
 #include "scott_defines.h"
 
-// clang-format off
+/* clang-format off */
 
 #define LIGHT_SOURCE 9         /* Always 9 how odd */
 #define CARRIED      255       /* Carried */
@@ -40,7 +43,7 @@
 #define DARKBIT      15
 #define LIGHTOUTBIT  16        /* Light gone out */
 
-// clang-format on
+/* clang-format on */
 
 /* Number of exit directions per room (N/S/E/W/U/D) */
 #define NUM_EXITS 6
@@ -105,7 +108,7 @@ typedef struct {
     uint8_t Image;
 } Item;
 
-// clang-format off
+/* clang-format off */
 
 #define YOUARE                 0x1     /* You are not I am */
 #define SCOTTLIGHT             0x2     /* Authentic Scott Adams light messages */
@@ -122,7 +125,7 @@ typedef struct {
 #define PC_STYLE            0x1000     /* Display in style used on IBM PC (MS-DOS) */
 #define FLICKER_ON          0x2000     /* Flicker room description like some original games */
 
-// clang-format on
+/* clang-format on */
 
 #define MAX_GAMEFILE_SIZE 250000
 

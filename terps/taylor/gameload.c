@@ -1,12 +1,17 @@
-//
-//  gameload.c
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Created by Petter Sjölund on 2022-04-05.
-//
-//  Loading the game file, identifying which game it is, and locating the
-//  data tables (dictionary, tokens, messages, rooms, actions, ...) inside it.
-//
+/*
+ *  gameload.c
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-04-05.
+ *
+ *  Loading the game file, identifying which game it is, and locating the
+ *  data tables (dictionary, tokens, messages, rooms, actions, ...) inside it.
+ */
 
 #include <errno.h>
 #include <stdio.h>
@@ -78,7 +83,7 @@ size_t FindVerbTable(void)
    byte patterns. Falls back to the Game struct's recorded offset. */
 static size_t FindFlags(void)
 {
-    /* Questprobe */
+    /* Questprobe 3 */
     size_t pos = FindCode("\xE7\x97\x51\x95\x5B\x7E\x5D\x7E\x76\x93", 0, 10);
     if (pos != NOT_FOUND)
         return pos + 11;
@@ -133,7 +138,7 @@ static size_t SearchTokens(const char *signature)
     do {
         pos = FindCode("\x47\xB7\x28\x0B\x2B\x23\xCB\x7E", pos + 1, 8);
         if (pos == NOT_FOUND) {
-            /* Questprobe */
+            /* Questprobe 3 */
             pos = FindCode("\x58\x58\x58\x58\xFF", 0, 5);
             if (pos != NOT_FOUND)
                 return pos + 6;

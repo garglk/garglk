@@ -1,4 +1,11 @@
 /*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
  *  scott_meta.c
  *  Part of ScottFree, an interpreter for adventures in Scott Adams format
  *
@@ -111,7 +118,7 @@ static int ReadSavedGame(strid_t file, SavedState *s)
     s->CurrentLoc = Loc;
     s->LightTime = LightTime;
 
-    /* Backward compatibility */
+    /* DarkFlag is saved as a bit in BitFlags */
     if (DarkFlag)
         s->BitFlags |= (uint64_t)1 << DARKBIT;
 
@@ -320,8 +327,7 @@ int PerformExtraCommand(int extra_stop_time)
     case EXCEPT:
         /* A bare EXCEPT/BUT (not following ALL) is meaningless: drop the
            command chain and fall through to the "not handled" path so the
-           caller prints "I don't understand". Without this break it fell into
-           FLICKER and silently switched the flicker option on. */
+           caller prints "I don't understand". */
         FreeCommands();
         break;
     case FLICKER:

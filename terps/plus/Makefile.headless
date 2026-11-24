@@ -38,7 +38,7 @@ COMMON_INC := -I$(PROBE_DIR) -I. -I$(CHEAPGLK_DIR) -I$(COMMON_DIR) -I$(SAGADRAW_
 DEPFLAGS   := -MMD -MP
 SANFLAGS   :=
 BASEFLAGS  := -O0 -g -Wall -Wno-unknown-pragmas $(SANFLAGS) \
-              $(COMMON_INC) $(DEPFLAGS) -include stddef.h -DSPATTERLIGHT
+              $(COMMON_INC) $(DEPFLAGS) -DSPATTERLIGHT
 CFLAGS     := $(BASEFLAGS) -include image_glk.h
 
 SRCS := $(wildcard *.c) test/image_probe.c \
@@ -137,10 +137,17 @@ check-asan:
 	ASAN_OPTIONS=detect_leaks=0 $(MAKE) -f Makefile.headless $(ASAN) \
 	    imagecheck companioncheck trunccheck scriptcheck synthcheck containercheck
 
+# Every header compiles on its own, and twice in a row.
+check-headers:
+	@set -e; for h in $(wildcard *.h); do \
+	    printf '#include "%s"\n#include "%s"\n' $$h $$h | \
+	    $(CC) -fsyntax-only -x c -Wall -Werror $(COMMON_INC) -DSPATTERLIGHT -; done
+	@echo "plus headers compile standalone"
+
 clean:
 	rm -rf $(OBJDIR) $(TEXT_OBJDIR) headless_asan_obj headless_asan_text_obj \
 	    plus_image_probe plus_hl plus_image_probe_asan plus_hl_asan
 
-.PHONY: clean imagecheck companioncheck scriptcheck synthcheck trunccheck containercheck check-asan
+.PHONY: clean check-headers imagecheck companioncheck scriptcheck synthcheck trunccheck containercheck check-asan
 
 -include $(OBJS:.o=.d) $(TEXT_OBJS:.o=.d)

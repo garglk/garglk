@@ -1,27 +1,35 @@
-//
-//  rtpi_graphics.c
-//  scott
-//
-//  Created by Administrator on 2026-02-12.
-//
-//  Loader and graphics decoder for "Return to Pirate's Isle" (RTPI),
-//  a Scott Adams adventure originally released for the TI-99/4A.
-//
-//  The game data is distributed as a zip archive containing ROM files
-//  ("c.bin" for CPU ROM, "g.bin" for GROM graphics data, or the five
-//  split MAME GROM files "phm3189g3.bin" through "phm3189g7.bin").
-//
-//  Graphics use the TI-99/4A's VDP (Video Display Processor) tile
-//  system: 256 screen positions arranged as 32 columns × 12 rows of
-//  8×8-pixel tiles. Image data is stored in GROM as a bytecode stream
-//  of 8 opcodes (0–7) that manipulate a 52-tile font with rotations
-//  and bitwise compositing (OR/AND/XOR), followed by RLE-compressed
-//  colour data. Colours use the TMS9918A's attribute format: one byte
-//  per pixel row, upper nibble = foreground, lower nibble = background.
-//
-//  If the game data contains a standard Scott Adams header, I have not been
-//  able to find it. Instead, all offsets and counts are hardcoded in DetectRTPI().
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  rtpi_graphics.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2026-02-12.
+ *
+ *  Loader and graphics decoder for "Return to Pirate's Isle" (RTPI),
+ *  a Scott Adams adventure originally released for the TI-99/4A.
+ *
+ *  The game data is distributed as a zip archive containing ROM files
+ *  ("c.bin" for CPU ROM, "g.bin" for GROM graphics data, or the five
+ *  split MAME GROM files "phm3189g3.bin" through "phm3189g7.bin").
+ *
+ *  Graphics use the TI-99/4A's VDP (Video Display Processor) tile
+ *  system: 256 screen positions arranged as 32 columns × 12 rows of
+ *  8×8-pixel tiles. Image data is stored in GROM as a bytecode stream
+ *  of 8 opcodes (0–7) that manipulate a 52-tile font with rotations
+ *  and bitwise compositing (OR/AND/XOR), followed by RLE-compressed
+ *  colour data. Colours use the TMS9918A's attribute format: one byte
+ *  per pixel row, upper nibble = foreground, lower nibble = background.
+ *
+ *  If the game data contains a standard Scott Adams header, I have not been
+ *  able to find it. Instead, all offsets and counts are hardcoded in
+ *  DetectRTPI().
+ */
 
 #include <string.h>
 #include <stdlib.h>
@@ -171,7 +179,7 @@ static int get_tile_and_rotate(uint8_t *tile, int tile_index, int rotation) {
         return 0;
     }
     memcpy(tile, rtpi_tile_font[tile_index], 8);
-    // Index 0 with rotation 1 means a black tile
+    /* Index 0 with rotation 1 means a black tile */
     if (tile_index == 0 && rotation == 1) {
         memset(tile, 0xff, 8);
     } else {
@@ -333,14 +341,14 @@ static void RTPISubOpcode(RTPIDecoder *d) {
     }
 
     switch(d->repeats) {
-        case 0: //  0. Write 8 raw bytes to screen memory directly from GROM
+        case 0: /* 0. Write 8 raw bytes to screen memory directly from GROM */
             if (d->gptr + 8 > d->gend || d->dst + 8 > vdp_pixels + RTPI_IMAGE_SIZE)
                 break;
             for (int i = 0; i < 8; i++) {
                 *d->dst++ = *d->gptr++;
             }
             break;
-        case 1: //  1-4. OR tile_index with next (repeats) tiles, then blit and clear
+        case 1: /* 1-4. OR tile_index with next (repeats) tiles, then blit and clear */
         case 2:
         case 3:
         case 4:
@@ -357,7 +365,7 @@ static void RTPISubOpcode(RTPIDecoder *d) {
             d->dst = blit_tile(d->dst, d->tile);
             memset(d->tile, 0, 8);
             break;
-        case 6: //  6. Clear, AND tile_index with next tile, blit and clear
+        case 6: /* 6. Clear, AND tile_index with next tile, blit and clear */
             if (!get_next_byte(&d->gptr, d->gend, &d->tile_index, &d->rotation))
                 break;
             if (!get_tile_and_rotate(d->tile, d->tile_index, d->rotation))
@@ -367,25 +375,25 @@ static void RTPISubOpcode(RTPIDecoder *d) {
             d->dst = blit_tile(d->dst, d->tile);
             memset(d->tile, 0, 8);
             break;
-        case 9: //  9. AND tile with tile_index
+        case 9: /* 9. AND tile with tile_index */
             for (int i = 0; i < 8; i++) {
                 d->tile[i] &= d->worktile[i];
             }
             break;
-        case 10: // 10. OR tile with tile_index
+        case 10: /* 10. OR tile with tile_index */
             for (int i = 0; i < 8; i++) {
                 d->tile[i] |= d->worktile[i];
             }
             break;
-        case 11: // 11. XOR tile with tile_index
+        case 11: /* 11. XOR tile with tile_index */
             for (int i = 0; i < 8; i++) {
                 d->tile[i] ^= d->worktile[i];
             }
             break;
-        case 13: // 13. Copy screen tile at screen_index to tile
+        case 13: /* 13. Copy screen tile at screen_index to tile */
             copy_tile_from_vdp(d->tile, d->screen_index);
             break;
-        case 15: // 15. Blit tile and copy tile_index to tile
+        case 15: /* 15. Blit tile and copy tile_index to tile */
             d->dst = blit_tile(d->dst, d->tile);
             if (!get_tile_and_rotate(d->tile, d->tile_index, 0))
                 memset(d->tile, 0, 8);
@@ -520,27 +528,6 @@ int DrawFuzzyRTPIImage(USImage *image) {
     return DrawRTPIImageWithOptionalFuzz(image, 1);
 }
 
-/* TI-99/4a colour information from MAME:
-
- Color            Y      R-Y     B-Y     R       G       B       R   G   B
- 0 Transparent
- 1 Black         0.00    0.47    0.47    0.00    0.00    0.00      0   0   0
- 2 Medium green  0.53    0.07    0.20    0.13    0.79    0.26     33 200  66
- 3 Light green   0.67    0.17    0.27    0.37    0.86    0.47     94 220 120
- 4 Dark blue     0.40    0.40    1.00    0.33    0.33    0.93     84  85 237
- 5 Light blue    0.53    0.43    0.93    0.49    0.46    0.99    125 118 252
- 6 Dark red      0.47    0.83    0.30    0.83    0.32    0.30    212  82  77
- 7 Cyan          0.73    0.00    0.70    0.26    0.92    0.96     66 235 245
- 8 Medium red    0.53    0.93    0.27    0.99    0.33    0.33    252  85  84
- 9 Light red     0.67    0.93    0.27    1.13(!) 0.47    0.47    255 121 120
- A Dark yellow   0.73    0.57    0.07    0.83    0.76    0.33    212 193  84
- B Light yellow  0.80    0.57    0.17    0.90    0.81    0.50    230 206 128
- C Dark green    0.47    0.13    0.23    0.13    0.69    0.23     33 176  59
- D Magenta       0.53    0.73    0.67    0.79    0.36    0.73    201  91 186
- E Gray          0.80    0.47    0.47    0.80    0.80    0.80    204 204 204
- F White         1.00    0.47    0.47    1.00    1.00    1.00    255 255 255
- */
-
 /* Set up the 16-entry palette to match the TMS9918A VDP's fixed
    colour table. RGB values are based on the MAME emulator's
    analysis of the TMS9918A's composite video output, and then
@@ -654,50 +641,6 @@ static USImage *finalize_img_make_new(USImage *image, uint16_t offset, uint16_t 
 
 #define LAST_IMAGE_SIZE 0x72
 
-/* Reference: image-to-room mapping in the original GROM data.
-
-   Image for room 0 (.) has offset 0x8000 (darkness)
-   Image for room 1 (bottom bunk) has offset 0x8047
-   Image for room 2 (ship's cabin) has offset 0x831f
-   Image for room 3 (*I'm on a dock) has offset 0x854c
-   Image for room 4 (*I'm on deck) has offset 0x87d7
-   Image for room 5 (beach by a small hill) has offset 0x8953
-   Image for room 6 (*I'm on ledge 8 feet below hill summit) has offset 0x8ab2
-   Image for room 7 (*I'm on top of a small hill) has offset 0x8d10
-   Image for room 8 (cavern) has offset 0x0000 (no image)
-   Image for room 9 (tool shed) has offset 0x0000 (no image)
-   Image for room 10 (*Sorry, to explore Pirate's Isle you'll need Adventure #2) has offset 0x8e84
-   Image for room 11 (sea) has offset 0x8fcf
-   Image for room 12 (*I'm undersea) has offset 0x90c8
-   Image for room 13 (smugglers hold inside ship) has offset 0x92fe
-   Image for room 14 (hall) has offset 0x0000 (no image)
-   Image for room 15 (*I'm on a rocky beach by sea) has offset 0x9426
-   Image for room 16 (top bunk) has offset 0x9619
-   Image for room 17 (*I'm on the engine) has offset 0x9773
-   Image for room 18 (*I'm in an engine room) has offset 0xa0fa
-   Image for room 19 (*I'm on catwalk on outside of ship by porthole) has offset 0xa378
-   Image for room 20 (narrow crawlway) has offset 0xa468
-   Image for room 21 (ship's hold) has offset 0xa54e
-   Image for room 22 (*I'm on beam under dock) has offset 0x8fcf
-   Image for room 23 (sunken ship) has offset 0xa5ca
-   Image for room 24 (Never Never Land) has offset 0xa86a
-   Image for room 25 () has offset 0xab0f // Title screen / Texas Instruments logo
-   Image for room 26 () has offset 0xadc2 // Congrats, victory screen
-   Image for room 27 () has offset 0xc39a // Smuggler's hold from below
-   Image for room 28 () has offset 0xc47c // Boat's deck at night with island in the distance
-   Image for room 29 () has offset 0xc588 // Sea at night
-   Image for room 30 () has offset 0xc610 // High beam (to be drawn over Underside of Dock)
-   Image for room 31 () has offset 0xc676 // Low beam (to be drawn over I'm on beam under dock)
-   Image for room 32 () has offset 0xc6dc // Boat to the west at night (to be drawn over 29)
-   Image for room object 63 (Sunken Ship) has offset 0xc775
-   Image for room object 26 (Dock to the East) has offset 0xc8f7
-   Image for room object 28 (Boat to the WEST) has offset 0xc9f1
-   Image for room object 36 (Rocky beach) has offset 0xcaa2
-   Image for room object 27 (Underside of Dock) has offset 0xcb04
-   Image for room object 7  (Sleeping Pirate) has offset 0xcca6
-   Image for room object 52 (Pirate at helm) has offset 0xcd08
-*/
-
 /* Build a linked list of USImage structs from the GROM data. Room
    images come first (24 rooms + 9 extra scenes), followed by 7 item
    overlay images. Image sizes are generally computed from the gap
@@ -759,7 +702,8 @@ static void LoadRTPIGraphics(uint16_t *room_image_offsets, uint16_t item_image_o
     }
 
     /* Item overlay images. Each entry in item_image_offsets[][] is a pair:
-       [0] = index of room image the item overlays, [1] = GROM offset of image data.
+       [0] = index of room image the item overlays, [1] = GROM offset of image
+           data.
        Size is computed from the gap to the next item image, except for the
        last one which has a hardcoded size (LAST_IMAGE_SIZE). */
     for (int i = 0; i < NUM_RTPI_ITEM_IMAGES; i++) {
@@ -779,8 +723,6 @@ static void LoadRTPIGraphics(uint16_t *room_image_offsets, uint16_t item_image_o
         image = finalize_img_make_new(image, offset, size, grom);
     }
 
-    /* The loop always leaves one empty trailing USImage node.
-       Unlink and free it so the list ends cleanly. */
     if (image->imagedata == NULL)
         FreeTrailingEmptyImage(image);
 }
@@ -887,8 +829,6 @@ static int LoadRTPIGraphicsFromDSK(const uint8_t *dsk, size_t size, const ti99_d
         image = AppendImage(image);
     }
 
-    /* The loop always leaves one empty trailing USImage node.
-       Unlink and free it so the list ends cleanly. */
     if (image->imagedata == NULL)
         FreeTrailingEmptyImage(image);
 
@@ -1001,7 +941,7 @@ static GameIDType LoadRTPI(uint8_t *data, size_t length, GameInfo info)
     uint8_t *ptr;
     uint8_t *endptr = data + length;
 
-// MARK: dictionary
+/* MARK: dictionary */
 
     ptr = data + info.start_of_dictionary;
     if (ptr >= endptr)
@@ -1009,7 +949,7 @@ static GameIDType LoadRTPI(uint8_t *data, size_t length, GameInfo info)
 
     ReadRTPIDictionary(&info, ptr, endptr);
 
-// MARK: rooms
+/* MARK: rooms */
 
     ptr = data + info.start_of_room_descriptions;
     if (ptr >= endptr)
@@ -1017,14 +957,14 @@ static GameIDType LoadRTPI(uint8_t *data, size_t length, GameInfo info)
 
     ptr = ParseRooms(ptr, endptr, GameHeader.NumRooms);
 
-// MARK: messages
+/* MARK: messages */
 
     if (ptr >= endptr)
         return FreeGameResources();
 
     ptr = ParseMessages(ptr, endptr, GameHeader.NumMessages);
 
-// MARK: items
+/* MARK: items */
 
     if (ptr >= endptr)
         return FreeGameResources();
@@ -1032,7 +972,7 @@ static GameIDType LoadRTPI(uint8_t *data, size_t length, GameInfo info)
 
     ptr = ParseItems(ptr, endptr, GameHeader.NumItems, 1);
 
-// MARK: actions
+/* MARK: actions */
 
     ptr += 0x90;
 
@@ -1048,7 +988,7 @@ static GameIDType LoadRTPI(uint8_t *data, size_t length, GameInfo info)
     if (ptr >= endptr)
         return FreeGameResources();
 
-// MARK: room connections
+/* MARK: room connections */
 
     ParseRoomConnections(ptr, endptr, GameHeader.NumRooms, 1);
 
@@ -1124,48 +1064,31 @@ static uint8_t *CutOutGromHeaders(uint8_t *grom) {
    separately via LoadRTPIGraphics, so the image-related fields
    are all zero. */
 static const GameInfo rtpi_info = {
-    "Return to Pirate's Isle",
-    RETURN_TO_PIRATES_ISLE,
-    US_VARIANT,               // type
-    ENGLISH,                  // subtype
-    FOUR_LETTER_UNCOMPRESSED, // dictionary type
+    .Title = "Return to Pirate's Isle",
+    .gameID = RETURN_TO_PIRATES_ISLE,
+    .type = US_VARIANT,
+    .subtype = ENGLISH,
+    .dictionary = FOUR_LETTER_UNCOMPRESSED,
 
-    71,  // Number of items
-    277, // Number of actions
-    104, // Number of words
-    26,  // Number of rooms
-    10,  // Max carried items
-    4,   // Word length
-    89,  // Number of messages
+    .number_of_items = 71,
+    .number_of_actions = 277,
+    .number_of_words = 104,
+    .number_of_rooms = 26,
+    .max_carried = 10,
+    .word_length = 4,
+    .number_of_messages = 89,
 
-    103, // number_of_verbs
-    105, // number_of_nouns
+    .number_of_verbs = 103,
+    .number_of_nouns = 105,
 
-    0,   // no header
-    NO_HEADER,  // no header style
-
-    0,   // no room images
-    0,   // no item flags
-    0,   // no item images
-
-    0x4F6C, // actions
-    UNCOMPRESSED,
-    0x3d98,  // dictionary
-    0x41B1,  // start_of_room_descriptions
-    0x60fE,  // start_of_room_connections
-    0x438D,  // start_of_messages
-    FOLLOWS, // start_of_item_descriptions
-    FOLLOWS, // start_of_item_locations
-
-    0, // start_of_system_messages
-    0, // start of directions
-
-    0, // start_of_tiles
-    0, // start_of_image_data
-    0, // image_address_offset
-    0, // number_of_pictures
-    0, // palette
-    0, // picture_format_version
+    .start_of_actions = 0x4F6C,
+    .actions_style = UNCOMPRESSED,
+    .start_of_dictionary = 0x3d98,
+    .start_of_room_descriptions = 0x41B1,
+    .start_of_room_connections = 0x60fE,
+    .start_of_messages = 0x438D,
+    .start_of_item_descriptions = FOLLOWS,
+    .start_of_item_locations = FOLLOWS,
 };
 
 /* Replace embedded NULs with newlines so a multi-line blob can be
@@ -1277,7 +1200,6 @@ static uint8_t *load_rtpi_disk_payload(uint8_t *data, size_t datalength) {
             replace_nuls_with_newlines(title_screen, RTPI_TITLE_TEXT_LENGTH);
     }
 
-    /* Extract the 52-tile font (8 bytes per tile). */
     if (TI99LoadObject(data, datalength, files, DSK_TILE_FONT_FILE, &obj)) {
         uint8_t *flat_tiles = TI99CopyObjectBytes(&obj, DSK_TILE_FONT_ADDRESS, NUM_RTPI_TILES * 8);
         TI99FreeObject(&obj);
@@ -1315,17 +1237,17 @@ GameIDType DetectRTPI(uint8_t *data, size_t datalength) {
        See https://unbox.ifarchive.org/?url=/if-archive/scott-adams/games/scottfree/AdamsGames.zip
      */
     int raw_header[RTPI_RAW_HEADER_SIZE] = {
-        4,       // Word length
-        104,     // Number of words
-        277,     // Number of actions
-        71,      // Number of items
-        89,      // Number of messages
-        24,      // Number of rooms
-        10,      // Max carried
-        1,       // Starting location
-        13,      // Number of treasures
-        1,       // Light time
-        13 << 8, // Treasure room
+        4,       /* Word length */
+        104,     /* Number of words */
+        277,     /* Number of actions */
+        71,      /* Number of items */
+        89,      /* Number of messages */
+        24,      /* Number of rooms */
+        10,      /* Max carried */
+        1,       /* Starting location */
+        13,      /* Number of treasures */
+        1,       /* Light time */
+        13 << 8, /* Treasure room */
     };
 
     Header hdr;

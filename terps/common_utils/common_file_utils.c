@@ -1,9 +1,13 @@
-//
-//  common_file_utils.c
-//  Spatterlight
-//
-//  Created by Administrator on 2025-12-20.
-//
+/*
+ *  common_file_utils.c
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version.
+ *
+ *  Reading whole files.
+ */
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -14,33 +18,30 @@
 
 size_t GetFileLength(FILE *in)
 {
-    if (fseek(in, 0, SEEK_END) == -1) {
-        return 0;
-    }
-    long length = ftell(in);
-    if (length == -1) {
-        return 0;
-    }
+    long length = -1;
+    if (fseek(in, 0, SEEK_END) == 0)
+        length = ftell(in);
     fseek(in, 0, SEEK_SET);
-    return (size_t)length;
+    return length > 0 ? (size_t)length : 0;
 }
 
 uint8_t *ReadFileIfExists(const char *name, size_t *size)
 {
-    FILE *fptr = fopen(name, "r");
+    *size = 0;
+
+    FILE *fptr = fopen(name, "rb");
 
     if (fptr == NULL)
         return NULL;
 
-    *size = GetFileLength(fptr);
-    if (*size == 0) {
+    size_t length = GetFileLength(fptr);
+    if (length == 0) {
         fclose(fptr);
         return NULL;
     }
 
-    uint8_t *result = MemAlloc(*size);
-    fseek(fptr, 0, SEEK_SET);
-    size_t bytesread = fread(result, 1, *size, fptr);
+    uint8_t *result = MemAlloc(length);
+    size_t bytesread = fread(result, 1, length, fptr);
 
     fclose(fptr);
 
@@ -49,5 +50,6 @@ uint8_t *ReadFileIfExists(const char *name, size_t *size)
         return NULL;
     }
 
+    *size = bytesread;
     return result;
 }

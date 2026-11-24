@@ -19,9 +19,9 @@
  */
 
 /*
- * Line splitting helpers and the version gate shared by the runner.
+ * Line splitting helpers and the version gate shared by the `run_` files.
  *
- * Split out of scrunner.cpp; see scrunner.h for what the runner files
+ * See scrunner.h for what the `run_` files
  * share.
  */
 
@@ -82,11 +82,17 @@ run_counts_line_elements (scr_gameref_t game)
  * that starts the text or follows a space decides; it is a word if it runs
  * to the end or is followed by a space or "," -- or "." from 3.9.
  *
- * Measured 2026-09-19 on p38ASK / p39ASK (harness/make_38_askprobe.py,
+ * Deliberate deviation: the cut is made at the word c() found, not at the
+ * first substring, so `x athens then look` is "x athens" and "look" rather
+ * than "x a", "s" and "look".  The Runner's test for whether to cut is
+ * unchanged; only where it cuts differs, and only on a line that holds
+ * "then" inside an earlier word.
+ *
+ * Measured on p38ASK / p39ASK (harness/make_38_askprobe.py,
  * make_39_askprobe.py; run380x runner_probes/ask.run380.split.rtf,
  * run390x runner_probes/ask.run390.split.txt).
  */
-static scr_bool
+static scr_int
 run_then_in_line_pre400 (const scr_char *line, scr_int length,
                          scr_bool period_ends)
 {
@@ -100,20 +106,27 @@ run_then_in_line_pre400 (const scr_char *line, scr_int length,
         {
           const scr_int after = posn + 4;
 
-          return after == length || line[after] == ' ' || line[after] == ','
-                 || (period_ends && line[after] == '.');
+          return (after == length || line[after] == ' ' || line[after] == ','
+                  || (period_ends && line[after] == '.')) ? posn : -1;
         }
     }
-  return FALSE;
+  return -1;
 }
+
+static scr_int run_period_cut (scr_gameref_t game, const scr_char *line,
+                               scr_int limit);
 
 /*
  * Return the length of the head of LINE, with *TAIL the offset its tail
- * starts at, or -1 when the line holds no cut.
+ * starts at, or -1 when the line holds no cut.  COMMA_SPLITS and
+ * PERIOD_SPLITS are the two deviations, see run_comma_splits_pre390() and
+ * run_period_splits(); each is layered under the Runner's own cuts and can
+ * only shorten the head they leave.
  */
 scr_int
-run_find_split_pre400 (scr_int version, const scr_char *line, scr_int *tail,
-                       scr_bool comma_splits)
+run_find_split_pre400 (scr_gameref_t game, scr_int version,
+                       const scr_char *line, scr_int *tail,
+                       scr_bool comma_splits, scr_bool period_splits)
 {
   const scr_char *found;
   scr_int head = (scr_int) strlen (line), cut = -1, sep_length = 0;
@@ -141,13 +154,31 @@ run_find_split_pre400 (scr_int version, const scr_char *line, scr_int *tail,
         }
     }
 
-  if (run_then_in_line_pre400 (line, head, version >= TAF_VERSION_390))
+  /*
+   * Deliberate deviation: any period left in the head cuts -- for 3.7/3.8
+   * that is every period, for 3.9 the bare ones its ". " pass skipped.
+   */
+  if (period_splits)
     {
-      for (found = line; strncmp (found, "then", 4) != 0; found++)
-        ;
-      cut = found - line;
-      sep_length = 4;
+      const scr_int period = run_period_cut (game, line, head);
+
+      if (period >= 0)
+        {
+          head = cut = period;
+          sep_length = 1;
+        }
     }
+
+  {
+    const scr_int then = run_then_in_line_pre400 (line, head,
+                                                  version >= TAF_VERSION_390);
+
+    if (then >= 0)
+      {
+        cut = then;
+        sep_length = 4;
+      }
+  }
 
   if (cut < 0)
     return -1;
@@ -235,7 +266,7 @@ run_empty_then_head_390 (const scr_char *line)
  * probe's alias "Widget" does NOT suppress the typed "widget", even though
  * the object resolver matches it.
  *
- * Measured 2026-09-08 on the hand-built p4AND probe (make_400_andprobe.py;
+ * Measured on the hand-built p4AND probe (make_400_andprobe.py;
  * transcripts runner_probes/and.run400.txt and
  * runner_probes/and.run400.b.txt, 41 cells).  `x coin and hat and zzz` cuts
  * at the SECOND " and " (the first is suppressed by "hat"); `drop coin and
@@ -303,6 +334,135 @@ run_split_word_names_object (scr_gameref_t game, const scr_char *word)
 }
 
 /*
+ * run_period_cut()
+ *
+ * The full-stop deviation shared by every version; see run_period_splits().
+ * Return the offset of the first period in the first LIMIT characters of
+ * LINE that is a cut, or -1.  Position 0 is never one, so "." alone stays
+ * a parser complaint, and a period whose next word (punctuation off) names
+ * an object is not one either -- the same test run400 applies to its own
+ * separators, run_split_word_names_object(), so `x mr. smith` and
+ * `x dr.who` stay whole at every version.  A trailing period has an empty
+ * next word and always cuts, which keeps "n." typed by a walkthrough
+ * working as it always has.
+ */
+static scr_int
+run_period_cut (scr_gameref_t game, const scr_char *line, scr_int limit)
+{
+  scr_int posn;
+
+  for (posn = 1; posn < limit && line[posn] != NUL; posn++)
+    {
+      const scr_char *tail;
+      scr_char word[LINE_BUFFER_SIZE];
+      size_t extent;
+
+      if (line[posn] != '.')
+        continue;
+
+      tail = line + posn + 1;
+      tail += strspn (tail, " ");
+      extent = strcspn (tail, " ,.");
+      if (tail + extent > line + limit)
+        extent = (tail < line + limit) ? (line + limit) - tail : 0;
+      if (extent >= sizeof (word))
+        extent = sizeof (word) - 1;
+      memcpy (word, tail, extent);
+      word[extent] = NUL;
+
+      if (!run_split_word_names_object (game, word))
+        return posn;
+    }
+  return -1;
+}
+
+/*
+ * Find the word that follows the LENGTH-character word at TAIL, with any
+ * trailing comma off.  Return where it starts, with *EXTENT its length (0
+ * when that word was the last of the head, which ends at END).
+ */
+static const scr_char *
+run_split_next_word (const scr_char *tail, size_t length,
+                     const scr_char *end, size_t *extent)
+{
+  const scr_char *next = tail + length;
+
+  next += strspn (next, " ");
+  *extent = next < end ? strcspn (next, " ,") : 0;
+  if (next + *extent > end)
+    *extent = end - next;
+  return next;
+}
+
+/*
+ * Deliberate deviation: an article does not stop the word after it from
+ * naming an object.  The Runner's test takes the tail's first word only,
+ * so `take lamp and the keys` is cut at " and " ("the" names nothing in
+ * advent350b) and "the keys" runs as a command of its own, which no game
+ * understands; vanilla SCARE took both.  When the LENGTH-character word at
+ * TAIL is "the", "a" or "an", ask the Runner's test of the next word
+ * instead; the library's own clause loops then read the article as the
+ * noise word it is (lib_verb_object_name_score ignores extra words).
+ * Measured as cut on run400 only by the general rule (and.run400.txt has
+ * no `and the` cell); logged in WINE-TRANSCRIPTS.md.
+ */
+static scr_bool
+run_split_article_names_object (scr_gameref_t game, const scr_char *tail,
+                                size_t length, const scr_char *end)
+{
+  const scr_char *next;
+  size_t extent;
+
+  if (!((length == 3 && strncmp (tail, "the", 3) == 0)
+        || (length == 2 && strncmp (tail, "an", 2) == 0)
+        || (length == 1 && tail[0] == 'a')))
+    return FALSE;
+
+  next = run_split_next_word (tail, length, end, &extent);
+  if (extent == 0)
+    return FALSE;
+  return run_split_word_names_object (game,
+                                      std::string (next, extent).c_str ());
+}
+
+/*
+ * The deviation half of the suppression test; see run_find_split_400().
+ * WORD is the tail's first word as the Runner reads it, TAIL where it
+ * starts and END where the current head ends.
+ */
+static scr_bool
+run_split_list_word_names_object (scr_gameref_t game, const scr_char *word,
+                                  const scr_char *tail, const scr_char *end,
+                                  scr_bool after_comma)
+{
+  const size_t length = strlen (word);
+
+  if (length > 1 && word[length - 1] == ',')
+    {
+      const std::string bare (word, length - 1);
+
+      if (run_split_word_names_object (game, bare.c_str ()))
+        return TRUE;
+    }
+  if (after_comma && strcmp (word, "and") == 0)
+    {
+      const scr_char *next;
+      size_t extent;
+
+      next = run_split_next_word (tail, length, end, &extent);
+      if (extent > 0)
+        {
+          const std::string after (next, extent);
+
+          if (run_split_word_names_object (game, after.c_str ()))
+            return TRUE;
+          return run_split_article_names_object (game, next, extent, end);
+        }
+    }
+  return run_split_article_names_object (game, tail, length, end);
+}
+
+/*
  * Return the offset of the effective cut in LINE, with *SEP_LENGTH the
  * length of the separator there, or -1 when the line holds no cut.  The
  * four kinds are tried in the Runner's PASS order, not by position:
@@ -316,11 +476,12 @@ run_split_word_names_object (scr_gameref_t game, const scr_char *word)
  * `x coin and box, x hat` is "x coin and box" then "x hat", the comma cut
  * first and the " and " then suppressed by "box"; the earliest-position
  * order Scarier used cut at " and " because "box," carries the comma and
- * names nothing.
+ * names nothing.  PERIOD_SPLITS adds the bare-period deviation as a fifth
+ * pass under those four; see run_period_splits().
  */
 scr_int
 run_find_split_400 (scr_gameref_t game, const scr_char *line,
-                    scr_int *sep_length)
+                    scr_int *sep_length, scr_bool period_splits)
 {
   static const scr_char *const SEPARATORS[] = {",", ". ", " and ", " then "};
 
@@ -368,44 +529,45 @@ run_find_split_400 (scr_gameref_t game, const scr_char *line,
 
           if (run_split_word_names_object (game, word))
             continue;
+          /*
+           * Deliberate deviation: the Runner's word keeps its punctuation,
+           * so "lamp," names nothing and `get keys and lamp, food` was cut
+           * into "get keys" and "lamp, food"; and an Oxford "and" after a
+           * comma (`drop keys, lamp, and food`) is no object either.  Ask
+           * again with the trailing comma off, and of the word after a
+           * comma's "and".  The library reads the comma list as "and"; see
+           * run_comma_list_respell_400().
+           */
+          if (run_split_list_word_names_object (game, word, tail,
+                                                line + limit,
+                                                separator[0] == ','))
+            continue;
 
           best = posn;
           *sep_length = (scr_int) length;
           break;
         }
     }
-  if (best >= 0)
-    return best;
 
   /*
-   * A period at the very end of the line is not one of the Runner's four
-   * separators -- it has no space after it -- but cutting there costs
-   * nothing (the tail is empty) and keeps "n." typed by a walkthrough
-   * working exactly as it always has.
+   * Deliberate deviation: a bare period left in the head cuts too, under
+   * the same object-name test the Runner's passes use.  This also covers
+   * a period at the very end of the line, which is not one of the
+   * Runner's four separators (no space follows it) but costs nothing to
+   * cut, so "n." typed by a walkthrough works as it always has.
    */
-  {
-    const size_t length = strlen (line);
+  if (period_splits)
+    {
+      const scr_int limit = (best < 0) ? (scr_int) strlen (line) : best;
+      const scr_int period = run_period_cut (game, line, limit);
 
-    if (length > 1 && line[length - 1] == '.')
-      {
-        *sep_length = 1;
-        return (scr_int) length - 1;
-      }
-  }
-  return -1;
-}
-
-
-/*
- * run_get_version()
- *
- * Return the game's TAF version from the bundle's top-level "Version"
- * property -- a TAF_VERSION_* value, set once at parse time.
- */
-scr_int
-run_get_version (const scr_prop_setref_t bundle)
-{
-  return prop_get_taf_version (bundle);
+      if (period >= 0)
+        {
+          best = period;
+          *sep_length = 1;
+        }
+    }
+  return best;
 }
 
 

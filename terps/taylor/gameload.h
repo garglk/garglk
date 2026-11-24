@@ -1,9 +1,14 @@
-//
-//  gameload.h
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Created by Petter Sjölund on 2022-04-05.
-//
+/*
+ *  gameload.h
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-04-05.
+ */
 
 #ifndef gameload_h
 #define gameload_h

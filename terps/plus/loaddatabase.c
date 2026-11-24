@@ -1,9 +1,15 @@
-//
-//  loaddatabase.c
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Created by Petter Sjölund on 2022-06-04.
-//
+/*
+ *  loaddatabase.c
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *  Shares code with ScottFree, by Alan Cox, Chris Spiegel and Petter Sjölund
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-06-04.
+ */
 
 #include <ctype.h>
 #include <stdio.h>
@@ -11,13 +17,13 @@
 #include <string.h>
 
 #include "common.h"
-#include "common_utils.h"
 #include "gameinfo.h"
 #include "graphics.h"
-#include "read_le16.h"
+#include "byteorder.h"
 #include "dumpactions.h"
 #include "loaddatabase.h"
 #include "opcodes.h"
+#include "parseinput.h"
 #include "apple2detect.h"
 
 Synonym *Substitutions;
@@ -561,7 +567,7 @@ static void SetCountersFromHeader(void)
     DeadRoom = GameHeader.NumRooms;
     TreasureRoomCounter = GameHeader.TreasureRoom;
     CarryLimit = GameHeader.MaxCarry;
-    SetBit(GRAPHICSBIT); // Graphics on
+    SetBit(GRAPHICSBIT); /* Graphics on */
 }
 
 /* Allocates the item, room and object image tables for GameHeader, zeroed

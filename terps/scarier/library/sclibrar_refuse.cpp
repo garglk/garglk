@@ -20,24 +20,10 @@
 /*
  * Stock refusals: nothing happens, can't do, don't think, and the
  * "<verb> what?" family.
- *
- * See sclibrar.h for what the library files share and sclibrar_internal.h
- * for what the core files share.
  */
 
 #include "sclibrar.h"
 #include "sclibrar_internal.h"
-
-/*
- * lib_cmd_kill_other()
- *
- * Uninteresting kill message when no weaponry is involved.
- */
-scr_bool
-lib_cmd_kill_other (scr_gameref_t game)
-{
-  return lib_print_message (game, "Now that isn't very nice.\n");
-}
 
 
 /*
@@ -49,13 +35,12 @@ lib_cmd_kill_other (scr_gameref_t game)
  * 45EB9C) and run370 has no shake arm (run380 444A4E), so those lines,
  * bare or not, go to the catch-all.  Their fix arm is `c("fix") Or
  * c("repair") Or c("mend")` with one message, "I don't think you can fix
- * that." (run370 43E850, run380 44535C); 3.9 gives each verb its own.
- * p37/p38NPCAMB (harness/make_3738_npcambprobe.py), run370x
- * runner_probes/npcamb.run370.bareverb.rtf, run380x
- * runner_probes/npcamb.run380.bareverb.rtf, 2026-09-19.
+ * that." (run380 44535C); 3.9 gives each verb its own.  p37/p38NPCAMB
+ * (harness/make_3738_npcambprobe.py), run370x/run380x
+ * runner_probes/npcamb.run3[78]0.bareverb.rtf.
  *
  * Deliberate deviation: Scarier gives touch and shake their 3.9 arms at
- * every version, and rub its 4.0 one (see lib_cmd_rub_object()), so the
+ * every version, and rub its 4.0 one (see its row in scrun_tables.cpp), so the
  * player learns the verb was understood.
  */
 static scr_bool
@@ -183,38 +168,35 @@ lib_nothing_happens_other (scr_gameref_t game,
 /*
  * lib_hit_arm_pre390()
  *
- * The pre-4.0 characters() attack arm (run380 440260-4404DD, run370
- * 4383CD-438661), and why `attack dave` is DontUnderstand at 3.7/3.8
- * while `hit dave` is "Dave avoids your feeble attempts." (run370x
- * runner_probes/attackarm.run370.rtf, run380x
- * runner_probes/attackarm.run380.rtf, 2026-09-20).
+ * The pre-4.0 characters() attack arm (run380 440260), and why `attack
+ * dave` is DontUnderstand at 3.7/3.8 while `hit dave` is "Dave avoids your
+ * feeble attempts." (run370x/run380x runner_probes/attackarm.run3[78]0.rtf).
  *
- * generaltasks' turn tail (run380 443160, run370 43C4xx) runs characters()
- * only when therest left a message, else prints DontUnderstand and ticks
- * nothing.  The arm itself enters for a line holding c("hit"), c("kill"),
- * c("kick"), c("punch") or c("attack") -- 3.8 adds "and no task ran" -- but
- * ONLY when the message is empty or ends ", but nothing happens.", which is
- * what therest's hit (444598), push (44492A), pull (44499F), press (4449D9)
- * and kick (444B65) arms leave.  therest has no "attack" arm at all, so a
- * bare `attack dave` reaches the tail with an empty message: DontUnderstand,
- * no tick, and c("attack") in the arm is dead unless another of those verbs
- * carries it -- `push attack dave`, `attack dave push` and `pull attack dave`
- * are all "Dave avoids your feeble attempts." on both Runners, and `push
- * attack cora` with Cora next door is "Cora is not here!".  kill and punch
- * keep therest's own "Now that isn't very nice." / "Who do you think you
- * are, Mike Tyson?" because those do not end ", but nothing happens.".
+ * generaltasks' turn tail (run380 443160) runs characters() only when
+ * therest left a message, else prints DontUnderstand and ticks nothing.
+ * The arm itself enters for a line holding c("hit"), c("kill"), c("kick"),
+ * c("punch") or c("attack") -- 3.8 adds "and no task ran" -- but ONLY when
+ * the message is empty or ends ", but nothing happens.", which is what
+ * therest's hit, push, pull, press and kick arms leave.  therest has no
+ * "attack" arm at all, so a bare `attack dave` reaches the tail with an
+ * empty message: DontUnderstand, no tick, and c("attack") in the arm is
+ * dead unless another of those verbs carries it -- `push attack dave`,
+ * `attack dave push` and `pull attack dave` are all "Dave avoids your
+ * feeble attempts." on both Runners, and `push attack cora` with Cora next
+ * door is "Cora is not here!".  kill and punch keep therest's own "Now that
+ * isn't very nice." / "Who do you think you are, Mike Tyson?" because
+ * those do not end ", but nothing happens.".
  *
  * The arm walks the characters in index order and takes the first the line
  * names (c(Name) Or c(Alias(0)), no seen test).  Not in the room: "<Name>
- * is not here!" (4404D9; 43865D).  In the room, no c("with"): "<Name>
- * avoids <your> feeble attempts.".  With c("with"): a loop over every
- * object the line names (3.8 co(), 3.7 c(Short) Or c(Alias(0))) whose Short
- * or first Alias sits after the "with" -- a BINARY InStr of the raw name
- * against the lower-cased line, so a capitalised Short never passes --
- * writing, and the LAST match wins: not held "<You> don't have <the X>!"
- * (44047B; 4385FF), Weapon "<You> swing at <Name> with <the X>, but you
- * miss." (4403CF; 438557), else "I don't think <the X> would be a very
- * affective weapon!" (440424; 4385A8).  No match leaves therest's
+ * is not here!".  In the room, no c("with"): "<Name> avoids <your> feeble
+ * attempts.".  With c("with"): a loop over every object the line names
+ * (3.8 co(), 3.7 c(Short) Or c(Alias(0))) whose Short or first Alias sits
+ * after the "with" -- a BINARY InStr of the raw name against the
+ * lower-cased line, so a capitalised Short never passes -- writing, and the
+ * LAST match wins: not held "<You> don't have <the X>!", Weapon "<You>
+ * swing at <Name> with <the X>, but you miss.", else "I don't think <the X>
+ * would be a very affective weapon!".  No match leaves therest's
  * nothing-happens line standing.  3.9 is lib_attack_absent_npc().
  *
  * Returns TRUE having printed; FALSE leaves the caller's own line.
@@ -446,11 +428,10 @@ lib_cmd_shake_other (scr_gameref_t game)
  *
  * Central handler for a range of can't-do messages.  Yet more uninterest-
  * ing responses.  particle follows the object name: run400's therest turn
- * arm (489255-489367) composes " can't turn " & <that|name> & " off" when
- * the line holds the whole word "off", else " on" for "on", else nothing
- * (the_pk_girl runner_probes/thepkgirl.run400.site.txt turn 362: `turn on
- * transmitter` -> "You can't turn that on.").  run370/380/390 have the one
- * plain arm.
+ * arm composes " can't turn " & <that|name> & " off" when the line holds
+ * the whole word "off", else " on" for "on", else nothing (the_pk_girl
+ * runner_probes/thepkgirl.run400.site.txt turn 362: `turn on transmitter`
+ * -> "You can't turn that on.").  run370/380/390 have the one plain arm.
  */
 static scr_bool
 lib_cant_do_common (scr_gameref_t game, const scr_char *verb,
@@ -497,7 +478,7 @@ lib_cant_do_common (scr_gameref_t game, const scr_char *verb,
   return TRUE;
 }
 
-static scr_bool
+scr_bool
 lib_cant_do_object (scr_gameref_t game, const scr_char *verb)
 {
   return lib_cant_do_common (game, verb, TRUE, "");
@@ -531,134 +512,21 @@ lib_turn_particle (scr_gameref_t game)
  * Assorted can't-do messages.
  */
 scr_bool
-lib_cmd_block_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "block");
-}
-
-scr_bool
-lib_cmd_climb_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "climb");
-}
-
-scr_bool
-lib_cmd_clean_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "clean");
-}
-
-scr_bool
-lib_cmd_cut_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "cut");
-}
-
-scr_bool
-lib_cmd_drink_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "drink");
-}
-
-scr_bool
-lib_cmd_light_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "light");
-}
-
-scr_bool
-lib_cmd_lift_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "lift");
-}
-
-scr_bool
-lib_cmd_move_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "move");
-}
-
-/*
- * The rub arm is run400's alone: no "rub" sits in run370, run380 or run390
- * (string census, decompiles), so below 4.0 `rub coin` that no task takes
- * is the object catch-all's "I don't understand what you want me to do with
- * the coin." and `rub,coin` (no whole word "coin") "I don't understand."
- * (p37TASK/p38TASK, runner_probes/task.run370.comma.rtf,
- * runner_probes/task.run380.comma.rtf; p39TASK
- * runner_probes/task.run390.comma.txt, 2026-09-19).  Deliberate deviation:
- * Scarier has the rub arm at every version.
- */
-scr_bool
-lib_cmd_rub_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "rub");
-}
-
-scr_bool
-lib_cmd_stop_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "stop");
-}
-
-scr_bool
-lib_cmd_suck_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "suck");
-}
-
-scr_bool
-lib_cmd_touch_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "touch");
-}
-
-scr_bool
 lib_cmd_turn_object (scr_gameref_t game)
 {
   return lib_cant_do_common (game, "turn", TRUE, lib_turn_particle (game));
-}
-
-scr_bool
-lib_cmd_unblock_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "unblock");
-}
-
-scr_bool
-lib_cmd_wash_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "wash");
-}
-
-scr_bool
-lib_cmd_block_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "block");
-}
-
-scr_bool
-lib_cmd_climb_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "climb");
-}
-
-scr_bool
-lib_cmd_clean_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "clean");
 }
 
 /*
  * lib_open_close_resolved_400()
  *
  * run400's openclose resolves its object with Proc_21_58_463640 over the
- * whole typed line (open 4756AB, close 4759D5), not with the name the parser
- * bound: a unique present-and-seen winner is opened or closed even when the
- * line also names an absent object in full.  xfiles T62 `open phone book`,
- * the phone book left in the motel room and the cell phone (alias "Phone")
- * held, answers "Your Cell Phone is already open!" (runner_transcripts/
- * xfiles.txt).  TRUE when the line was taken, with *status the handler's
- * return.
+ * whole typed line, not with the name the parser bound: a unique
+ * present-and-seen winner is opened or closed even when the line also names
+ * an absent object in full.  xfiles T62 `open phone book`, the phone book
+ * left in the motel room and the cell phone (alias "Phone") held, answers
+ * "Your Cell Phone is already open!" (runner_transcripts/xfiles.txt).  TRUE
+ * when the line was taken, with *status the handler's return.
  */
 static scr_bool
 lib_open_close_resolved_400 (scr_gameref_t game,
@@ -676,9 +544,31 @@ lib_open_close_resolved_400 (scr_gameref_t game,
     return FALSE;
 
   gs_clear_object_references (game);
-  game->object_references[object] = TRUE;
+  game->refs.objects[object] = TRUE;
   *status = handler (game);
   return TRUE;
+}
+
+/*
+ * lib_bare_verb_asks()
+ *
+ * A bare `open`, `close`, `lock` or `unlock` names nothing, yet every Runner
+ * refuses it with "You can't open that." (see lib_cmd_open_other()).
+ * Deliberate deviation (WINE-TRANSCRIPTS.md): Scarier asks "<Verb> what?",
+ * as SCARE did, unless an ALR restyles the refusal.
+ */
+static scr_bool
+lib_bare_verb_asks (scr_gameref_t game, const scr_char *verb,
+                    const scr_char *question_verb)
+{
+  const scr_char *input = run_get_dispatch_input ();
+
+  if (!input || scr_strcasecmp (input, verb) != 0)
+    return FALSE;
+  const std::string refusal = std::string ("can't ") + verb + " that";
+  if (pf_alr_mentions (gs_get_bundle (game), refusal.c_str ()))
+    return FALSE;
+  return lib_what (game, question_verb);
 }
 
 scr_bool
@@ -686,6 +576,8 @@ lib_cmd_close_other (scr_gameref_t game)
 {
   scr_bool status;
 
+  if (lib_bare_verb_asks (game, "close", "Close"))
+    return TRUE;
   if (lib_open_close_resolved_400 (game, lib_cmd_close_object, &status))
     return status;
   return lib_cant_do_other (game, "close");
@@ -743,12 +635,12 @@ lib_cmd_close_absent (scr_gameref_t game)
  * for an open: every version composes the same flat refusal its `close` twin
  * does.  Measured, not argued, on the examine-refusal probes:
  *
- *   run390, p39EXAM.taf (3.90), runner_probes/exam.run390.txt /
+ *   run390, p39EXAM.taf (3.9), runner_probes/exam.run390.txt /
  *     runner_probes/exam.run390.held.txt --
  *     bare `open`, `open door` (a noun no object bears) and `open statue`
  *     (an object seen in another room, absent from this one) all answer
  *     "You can't open that."
- *   run400, p4EXAM.taf (4.00), runner_probes/exam.run400.txt -- bare
+ *   run400, p4EXAM.taf (4.0), runner_probes/exam.run400.txt -- bare
  *     `open` and `open door` answer "You can't open that." too.  (4.0's
  *     `open statue` answers "You can't see the statue." instead, but that
  *     is the 4.0 absent-object resolver speaking one layer up, not this
@@ -764,6 +656,8 @@ lib_cmd_open_other (scr_gameref_t game)
 {
   scr_bool status;
 
+  if (lib_bare_verb_asks (game, "open", "Open"))
+    return TRUE;
   if (lib_open_close_resolved_400 (game, lib_cmd_open_object, &status))
     return status;
   return lib_cant_do_other (game, "open");
@@ -812,6 +706,8 @@ lib_cmd_lock_other (scr_gameref_t game)
   scr_bool handled;
   scr_bool status;
 
+  if (lib_bare_verb_asks (game, "lock", "Lock"))
+    return TRUE;
   if (lib_lock_absent_object_400 (game) >= 0)
     return lib_lock_backend (game, &LIB_LOCK_VERB, FALSE);
   status = lib_cant_do_with_400 (game, "lock", "", &handled);
@@ -828,6 +724,8 @@ lib_cmd_unlock_other (scr_gameref_t game)
   scr_bool handled;
   scr_bool status;
 
+  if (lib_bare_verb_asks (game, "unlock", "Unlock"))
+    return TRUE;
   if (lib_lock_absent_object_400 (game) >= 0)
     return lib_lock_backend (game, &LIB_UNLOCK_VERB, FALSE);
   status = lib_cant_do_with_400 (game, "unlock", "", &handled);
@@ -893,75 +791,9 @@ lib_cmd_lie_other (scr_gameref_t game)
 }
 
 scr_bool
-lib_cmd_cut_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "cut");
-}
-
-scr_bool
-lib_cmd_drink_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "drink");
-}
-
-scr_bool
-lib_cmd_lift_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "lift");
-}
-
-scr_bool
-lib_cmd_light_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "light");
-}
-
-scr_bool
-lib_cmd_move_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "move");
-}
-
-scr_bool
-lib_cmd_stop_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "stop");
-}
-
-scr_bool
-lib_cmd_rub_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "rub");
-}
-
-scr_bool
-lib_cmd_suck_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "suck");
-}
-
-scr_bool
 lib_cmd_turn_other (scr_gameref_t game)
 {
   return lib_cant_do_common (game, "turn", FALSE, lib_turn_particle (game));
-}
-
-scr_bool
-lib_cmd_touch_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "touch");
-}
-
-scr_bool
-lib_cmd_unblock_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "unblock");
-}
-
-scr_bool
-lib_cmd_wash_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "wash");
 }
 
 
@@ -982,9 +814,9 @@ lib_dont_think_common (scr_gameref_t game,
   scr_bool is_ambiguous;
 
   /*
-   * 4.0's fix, repair and mend arms (489BE7, 489C35, 489C83) end in
-   * var_9C: "I don't think you can fix the rope with the knife."
-   * (p4WITHQ2.taf, runner_probes/withq2.run400.txt).
+   * 4.0's fix, repair and mend arms (therest 489BE7) end in the " with <the
+   * X>" suffix of lib_with_clause_400(): "I don't think you can fix the rope
+   * with the knife." (p4WITHQ2.taf, runner_probes/withq2.run400.txt).
    */
   switch (lib_with_clause_400 (game, &object, &instrument))
     {
@@ -1048,29 +880,6 @@ lib_dont_think_other (scr_gameref_t game, const scr_char *verb)
  *
  * Assorted don't-think messages.
  */
-/*
- * therest's clear arm (run400 4896AC, run390 45E2AF, run380 444AC3, run370
- * 43DFB7) answers any line holding the word "clear" that the exact-line
- * clear/cls/clr command did not take: "You can't clear the rope." / "...
- * the rope with the knife." (p4WITHQ2, runner_probes/withq2.run400.txt and
- * runner_probes/withq2.run400.clear.txt), and "You can't clear that." for a
- * word naming nothing, a turn at every version
- * (runner_probes/admin.run380.rtf, runner_probes/admin.run370.rtf,
- * runner_probes/admin.run390.clear.txt,
- * runner_probes/withq2.run400.clear.txt).
- */
-scr_bool
-lib_cmd_clear_object (scr_gameref_t game)
-{
-  return lib_cant_do_object (game, "clear");
-}
-
-scr_bool
-lib_cmd_clear_other (scr_gameref_t game)
-{
-  return lib_cant_do_other (game, "clear");
-}
-
 scr_bool
 lib_cmd_fix_object (scr_gameref_t game)
 {
@@ -1111,7 +920,7 @@ lib_cmd_repair_other (scr_gameref_t game)
 /*
  * lib_what()
  *
- * Central handler for doing something, but unsure to what.
+ * Central handler for a verb with no object: asks "<Verb> what?".
  */
 scr_bool
 lib_what (scr_gameref_t game, const scr_char *verb)
@@ -1125,57 +934,54 @@ lib_what (scr_gameref_t game, const scr_char *verb)
    * lib_question_with_rule()).
    *
    * 3.9 is broader: EVERY "<Verb> what?" answer leaves the line in
-   * MemVar_4681D0, which generaltasks (4601A5) puts in front of the next
-   * line nothing else answers -- checkverb's arms (42A504: push, pull, kick,
-   * hit, turn, climb, break, lock, smash ...) and the handlers' own rows
-   * alike: `drop` / `coin` drops the coin, `take` / `coin` picks it up,
-   * `wear` / `red hat` puts it on, `remove` / `red hat` takes it off,
-   * `examine` or `x` / `stone` examines it, `give` / `coin` asks "Give the
-   * coin to who?".  The prefix lives one line: `push` / `look` / `stone` is
-   * the catch-all (4606A4 clears a prefix the answered line left alone).
-   * The splitter's next element is such a line too: `push, stone` is "Push
-   * what?" then "You push the stone.".  p39TASK, run390x
-   * runner_probes/task.run390.pfx.txt (harness/make_prefixprobe.py),
-   * runner_probes/task.run390.comma.txt (harness/make_3738_taskprobe.py),
-   * 2026-09-19.
+   * MemVar_4681D0, which generaltasks puts in front of the next line nothing
+   * else answers -- checkverb's arms (push, pull, kick, hit, turn, climb,
+   * break, lock, smash ...) and the handlers' own rows alike: `drop` / `coin`
+   * drops the coin, `take` / `coin` picks it up, `wear` / `red hat` puts it
+   * on, `remove` / `red hat` takes it off, `examine` or `x` / `stone`
+   * examines it, `give` / `coin` asks "Give the coin to who?".  The prefix
+   * lives one line: `push` / `look` / `stone` is the catch-all (generaltasks
+   * clears a prefix the answered line left alone).  The splitter's next
+   * element is such a line too: `push, stone` is "Push what?" then "You push
+   * the stone.".  p39TASK, run390x runner_probes/task.run390.pfx.txt
+   * (harness/make_prefixprobe.py), runner_probes/task.run390.comma.txt
+   * (harness/make_3738_taskprobe.py).
    *
    * What checkverb compares is the line as typed, but what it stores is
-   * the line as generaltasks holds it by then -- after the bare-give
-   * completion at 45FAB9.  So `give` prints "(to Nobody)" and "Give what?"
-   * and stores "give to nobody"; `coin` then reruns "give to nobody coin",
-   * which has its "to" and is not completed again: no second echo, and
-   * the give handler asks "Give the coin to who?"
-   * (runner_probes/task.run390.pfx.txt T44-45).
+   * the line as generaltasks holds it by then -- after its bare-give
+   * completion.  So `give` prints "(to Nobody)" and "Give what?" and stores
+   * "give to nobody"; `coin` then reruns "give to nobody coin", which has
+   * its "to" and is not completed again: no second echo, and the give
+   * handler asks "Give the coin to who?" (runner_probes/task.run390.pfx.txt
+   * T44-45).
    */
   if (input && lib_is_version_390 (game))
     {
       const scr_char *typed = run_get_line_input ();
 
       /*
-       * The four 3.9 object handlers store the line AS TYPED, not only a
-       * line that is the bare verb: takes 455890/455897, drops 445F0B/
-       * 445F12, wears 43D27F/43D286 and removes 439FBF/439FC6 all end with
+       * The four 3.9 object handlers store the line AS TYPED, not only a line
+       * that is the bare verb: takes, drops, wears and removes all end with
        * `If msg = "" Then msg = "<Verb> what?" : MemVar_4681D0 = the line`.
-       * checkverb's own arms (42A4F4) keep the bare-verb test, which is why
-       * `push zzz` stores nothing while `wear zzz` does.  Measured p39WHAT
-       * (run390x runner_probes/what.run390.txt, harness/make_39_whatprobe.py,
-       * 2026-09-20): `wear zzz` / `hat` puts the hat on, `remove zzz` / `hat`
-       * takes it off, `drop zzz` / `hat` drops it, `take zzz` / `hat` picks it
-       * up, and `wear zzz` / `wield zzz` answers "Wear what?" a second time
-       * before `hat` wears it.  The prefix still lives exactly one line:
-       * `drop zzz` / `look` / `hat` is the catch-all.
+       * checkverb's own arms keep the bare-verb test, which is why `push
+       * zzz` stores nothing while `wear zzz` does.  Measured p39WHAT (run390x
+       * runner_probes/what.run390.txt, harness/make_39_whatprobe.py): `wear
+       * zzz` / `hat` puts the hat on, `remove zzz` / `hat` takes it off,
+       * `drop zzz` / `hat` drops it, `take zzz` / `hat` picks it up, and
+       * `wear zzz` / `wield zzz` answers "Wear what?" a second time before
+       * `hat` wears it.  The prefix still lives exactly one line: `drop zzz`
+       * / `look` / `hat` is the catch-all.
        *
-       * therest's give arm is a fifth: its "Give what?" at 45D70B is
-       * followed at 45D712 by the same unconditional `MemVar_4681D0 =
-       * MemVar_468118`, with no bare-verb test above it.  What it stores is
-       * the line the bare-give completion has already finished, so `blorp
-       * give` stores "blorp give to nobody" and the next line runs on from
-       * there: it has its "to", is not completed again, and prints no second
-       * "(to Nobody)".  That is the whole of run390's `blorp give` /
-       * `blorp put` pair -- "Give what?" twice, the second time with no
-       * echo -- and `put` names no route of its own
-       * (runner_probes/rew.run390.casc.txt, harness/make_rewriteprobe.py,
-       * 2026-09-20; the only "Give what?" in the run390
+       * therest's give arm is a fifth: its "Give what?" is followed by the
+       * same unconditional `MemVar_4681D0 = MemVar_468118`, with no bare-verb
+       * test above it.  What it stores is the line the bare-give completion
+       * has already finished, so `blorp give` stores "blorp give to nobody"
+       * and the next line runs on from there: it has its "to", is not
+       * completed again, and prints no second "(to Nobody)".  That is the
+       * whole of run390's `blorp give` / `blorp put` pair -- "Give what?"
+       * twice, the second time with no echo -- and `put` names no route of
+       * its own (runner_probes/rew.run390.casc.txt,
+       * harness/make_rewriteprobe.py; the only "Give what?" in the run390
        * P-code is 45D70B).
        */
       if (strcmp (verb, "Take") == 0 || strcmp (verb, "Drop") == 0
@@ -1185,17 +991,29 @@ lib_what (scr_gameref_t game, const scr_char *verb)
       else if (typed && scr_strcasecmp (typed, verb) == 0)
         lib_battle_who_pending = input;
     }
-  else if (input && scr_strcasecmp (input, verb) == 0
-           && strcmp (verb, "Drop") != 0 && strcmp (verb, "Take") != 0
-           && strcmp (verb, "Drink") != 0)
-    lib_question_prefix_from_line (game);
+  else if (input && scr_strcasecmp (input, verb) == 0)
+    {
+      /*
+       * Deliberate deviation (WINE-TRANSCRIPTS.md): 4.0's bare drop, take
+       * and drink, and every bare verb below 3.9, store nothing, so `take`
+       * / `coin` is the object catch-all though the game has just asked
+       * "Take what?".  Scarier keeps the bare verb as 3.9 does; the prefix
+       * still only completes a line nothing else answers.
+       */
+      if (lib_is_version_400 (game)
+          && strcmp (verb, "Drop") != 0 && strcmp (verb, "Take") != 0
+          && strcmp (verb, "Drink") != 0)
+        lib_question_prefix_from_line (game);
+      else
+        lib_battle_who_store (input);
+    }
 
   /*
    * 3.7's takes() and drops() answer the line here when no namesake of the
    * typed term keeps its Prefix word, and the answer stands: the Runner's
    * `take very gem` over gems Prefixed "a very red" and "a very blue" is
    * "Take what?", not co()'s question (p37TAKEQ,
-   * runner_probes/takeq.run370.rtf, 2026-09-20).  When the matcher never bound
+   * runner_probes/takeq.run370.rtf).  When the matcher never bound
    * %object% at all -- the adjective is not a Prefix word, so nothing matched
    * -- this is the only site that sees the line, so the end-of-turn co()
    * prompt is blocked from here as well as from
@@ -1231,10 +1049,24 @@ lib_what_or_other (scr_gameref_t game, const scr_char *verb,
   return lib_what (game, verb);
 }
 
+/*
+ * lib_what_or_cant_do()
+ *
+ * lib_what_or_other() for the verbs whose catch-all is the plain can't-do
+ * reply, as a command-table row's handler.  The row's argument is the verb
+ * in lower case, as lib_cant_do_other() prints it; "<Verb> what?" wants it
+ * capitalised.
+ */
 scr_bool
-lib_cmd_block_what (scr_gameref_t game)
+lib_what_or_cant_do (scr_gameref_t game, const scr_char *verb)
 {
-  return lib_what_or_other (game, "Block", lib_cmd_block_other);
+  std::string asked (verb);
+
+  if (lib_bare_verb_pre390 (game))
+    return lib_cant_do_other (game, verb);
+
+  asked[0] = scr_toupper (asked[0]);
+  return lib_what (game, asked.c_str ());
 }
 
 scr_bool
@@ -1262,32 +1094,14 @@ lib_cmd_buy_what (scr_gameref_t game)
 }
 
 scr_bool
-lib_cmd_clean_what (scr_gameref_t game)
-{
-  return lib_what_or_other (game, "Clean", lib_cmd_clean_other);
-}
-
-scr_bool
-lib_cmd_climb_what (scr_gameref_t game)
-{
-  return lib_what_or_other (game, "Climb", lib_cmd_climb_other);
-}
-
-scr_bool
-lib_cmd_cut_what (scr_gameref_t game)
-{
-  return lib_what_or_other (game, "Cut", lib_cmd_cut_other);
-}
-
-scr_bool
 lib_cmd_drink_what (scr_gameref_t game)
 {
   /*
    * Below 4.0 therest's drink arm is a plain `If c("drink") Then msg = Ary(0)
-   * & " can't drink " & name & "."` (run390 45D64F, run380 443EA9, run370
-   * 43D398) with no checkverb, so a bare `drink` is "You can't drink that."
-   * and leaves no prefix (`drink` / `stone` is the catch-all).  p39TASK
-   * run390x runner_probes/task.run390.pfx.txt, 2026-09-19.
+   * & " can't drink " & name & "."` (run370 43D398 ... run390 45D64F) with
+   * no checkverb, so a bare `drink` is "You can't drink that." and leaves
+   * no prefix (`drink` / `stone` is the catch-all).  p39TASK run390x
+   * runner_probes/task.run390.pfx.txt.
    */
   if (!lib_is_version_400 (game))
     return lib_cant_do_other (game, "drink");
@@ -1303,8 +1117,7 @@ lib_cmd_fix_what (scr_gameref_t game)
 /*
  * run370 and run380 have no checkverb, and no "Hit what?" literal: a bare
  * `hit` is therest's hit arm with no object, "You hit, but nothing
- * happens." (run370x runner_probes/npcamb.run370.kill.rtf, run380x
- * runner_probes/npcamb.run380.kill.rtf).
+ * happens." (run370x/run380x runner_probes/npcamb.run3[78]0.kill.rtf).
  */
 scr_bool
 lib_cmd_hit_what (scr_gameref_t game)
@@ -1321,27 +1134,9 @@ lib_cmd_kick_what (scr_gameref_t game)
 }
 
 scr_bool
-lib_cmd_light_what (scr_gameref_t game)
-{
-  return lib_what_or_other (game, "Light", lib_cmd_light_other);
-}
-
-scr_bool
-lib_cmd_lift_what (scr_gameref_t game)
-{
-  return lib_what_or_other (game, "Lift", lib_cmd_lift_other);
-}
-
-scr_bool
 lib_cmd_mend_what (scr_gameref_t game)
 {
   return lib_what_or_other (game, "Mend", lib_cmd_mend_other);
-}
-
-scr_bool
-lib_cmd_move_what (scr_gameref_t game)
-{
-  return lib_what_or_other (game, "Move", lib_cmd_move_other);
 }
 
 scr_bool
@@ -1381,52 +1176,9 @@ lib_cmd_shake_what (scr_gameref_t game)
 }
 
 scr_bool
-lib_cmd_rub_what (scr_gameref_t game)
-{
-  /*
-   * No Runner below 4.0 has a rub arm, so a bare `rub` is left for the
-   * catch-all -- and at 3.9 for the pending "<Verb> what?" prefix:
-   * `repair` / `rub` is "I don't think you can repair that." (run390x
-   * runner_probes/npcamb.run390.bareverb.txt T23-24).  Deliberate deviation:
-   * Scarier answers it as the other bare verbs of each version.
-   */
-  return lib_what_or_other (game, "Rub", lib_cmd_rub_other);
-}
-
-scr_bool
-lib_cmd_stop_what (scr_gameref_t game)
-{
-  return lib_what_or_other (game, "Stop", lib_cmd_stop_other);
-}
-
-scr_bool
-lib_cmd_suck_what (scr_gameref_t game)
-{
-  return lib_what_or_other (game, "Suck", lib_cmd_suck_other);
-}
-
-scr_bool
-lib_cmd_touch_what (scr_gameref_t game)
-{
-  return lib_what_or_other (game, "Touch", lib_cmd_touch_other);
-}
-
-scr_bool
 lib_cmd_turn_what (scr_gameref_t game)
 {
   return lib_what_or_other (game, "Turn", lib_cmd_turn_other);
-}
-
-scr_bool
-lib_cmd_unblock_what (scr_gameref_t game)
-{
-  return lib_what_or_other (game, "Unblock", lib_cmd_unblock_other);
-}
-
-scr_bool
-lib_cmd_wash_what (scr_gameref_t game)
-{
-  return lib_what_or_other (game, "Wash", lib_cmd_wash_other);
 }
 
 /*
@@ -1434,15 +1186,16 @@ lib_cmd_wash_what (scr_gameref_t game)
  * line holds the whole word "put" or "drop") names each piece with
  * name_object (Proc_19_41_46E5D8), which resolves it against the objects
  * PRESENT (463640 mode 2) and, when that finds nothing and no task pattern
- * pre-matches the line (453C50), speaks at 46E165-46E18B: "Drop what?" if
- * the line holds the whole word "drop", else "It is not clear which object
- * you are referring to."  Pre-4.0 Runners have no such literal; their
- * `put <absent> in X` stays the flat can't-do tail.  Measured on humbug
- * (runner_probes/humbug.run400.b.txt 3407 `Put powder in chute`, powder never
- * taken, the D chute present; 3538 `Put powder in machine`; 3903 `Put sapphire
- * in chute`).  A present container with an unknown first noun gets this too
- * (p4PUT `put zzz in box`, runner_probes/put.run400.txt); an unknown or absent
- * CONTAINER is answered earlier, by lib_cmd_put_container_400().
+ * pre-matches the line (453C50), speaks: "Drop what?" if the line holds the
+ * whole word "drop", else "It is not clear which object you are referring
+ * to."  Pre-4.0 Runners have no such literal; their `put <absent> in X`
+ * stays the flat can't-do tail.  Measured on humbug
+ * (runner_probes/humbug.run400.b.txt 3407 `Put powder in chute`, powder
+ * never taken, the D chute present; 3538 `Put powder in machine`; 3903 `Put
+ * sapphire in chute`).  A present container with an unknown first noun gets
+ * this too (p4PUT `put zzz in box`, runner_probes/put.run400.txt); an
+ * unknown or absent CONTAINER is answered earlier, by
+ * lib_cmd_put_container_400().
  */
 scr_bool
 lib_cmd_unclear_object (scr_gameref_t game)
@@ -1464,7 +1217,7 @@ lib_cmd_unclear_object (scr_gameref_t game)
  * table).  So `drop cash` with the penny (alias "cash") shut in a dresser
  * two rooms away answers "You don't have a penny!" rather than "Drop what?",
  * which run380 keeps (@438FE6) for a line naming nothing at all.  Measured
- * on Crime_Adventure.taf (3.80) in run380, 2026-09-04.  Returns the first
+ * on Crime_Adventure.taf (3.8) in run380.  Returns the first
  * object the line names below 3.9, else -1.
  */
 static scr_int
@@ -1483,7 +1236,7 @@ lib_first_named_object_pre_390 (scr_gameref_t game)
 
   GS_FOR_EACH_OBJECT (game, object)
     {
-      if (game->object_references[object])
+      if (game->refs.objects[object])
         return object;
     }
   return -1;
@@ -1539,7 +1292,7 @@ lib_seen_named_object_400 (scr_gameref_t game, const scr_char *input)
  * The pre-3.9 half of lib_cmd_drop_what(), run above the out-of-room task
  * refusal rather than below it.  run380's drops() sets its "You don't have"
  * message and only then calls tasks(), whose " can't do that here." is
- * written only into an empty message.  Measured on cave.taf (3.80) under
+ * written only into an empty message.  Measured on cave.taf (3.8) under
  * run380: `drop robot` up the tree, with task 83 `drop robot` confined to
  * room 17 and the toy robot never held, is "You don't have a toy robot!"
  * (runner_probes/cave.run380.rtf turn 114), where Scarier said "You can't do
@@ -1577,8 +1330,10 @@ lib_cmd_drop_what (scr_gameref_t game)
   if (lib_cmd_drop_absent_pre390 (game))
     return TRUE;
 
-  /* name_object stayed silent for a drop that named nothing with a task
-     pre-matching (see lib_drop_named_400()); the catch-all answers. */
+  /*
+   * name_object stayed silent for a drop that named nothing with a task
+   * pre-matching (see lib_drop_named_400()); the catch-all answers.
+   */
   if (lib_is_version_400 (game) && run_priority_put_was_unnamed ())
     return FALSE;
 
@@ -1630,14 +1385,14 @@ lib_cmd_put_unclear (scr_gameref_t game)
 
   /*
    * A put line with no preposition never reaches the refusal at all: the
-   * put-where branch 46DC34 sits ABOVE 46E165 in name_object, and it takes
+   * put-where branch sits ABOVE the refusal in name_object, and it takes
    * every line holding the whole word "put" with neither " in " nor " on "
    * and no "down".  So an unresolvable noun there is "Where do you want to
    * put that?", not this refusal -- which is the 46DD19 arm the branch's
    * own comment already names, reached here for the first time.  Measured
    * on p4REW: run400 answers `blorp put` "Where do you want to put that?"
-   * (runner_probes/rew.run400.casc.txt), and put_drop_list enters on the whole
-   * word, so `put blorp` walks the same path.  Left to
+   * (runner_probes/rew.run400.casc.txt), and put_drop_list enters on the
+   * whole word, so `put blorp` walks the same path.  Left to
    * lib_cmd_put_where_400(), further down the standard table.
    */
   if (lib_is_put_where_line_400 (game))
@@ -1651,7 +1406,7 @@ lib_cmd_put_unclear (scr_gameref_t game)
    * T263): `put thyme in kettle` with task 368 `put thyme in kettle` failing
    * its not-holding restriction is "I don't understand what you want me to do
    * with the large cast iron kettle.", the same as T264 `put web in kettle`;
-   * "thyme" names an unseen object and used to reach the refusal here.
+   * "thyme" names an unseen object, which must not reach the refusal here.
    */
   if (run_priority_put_was_unnamed ())
     return FALSE;
@@ -1668,7 +1423,7 @@ lib_cmd_put_unclear (scr_gameref_t game)
     {
       GS_FOR_EACH_OBJECT (game, index_)
         {
-          if (game->object_references[index_]
+          if (game->refs.objects[index_]
               && obj_indirectly_in_room (game, index_, gs_playerroom (game)))
             return FALSE;
         }
@@ -1692,7 +1447,7 @@ lib_cmd_put_unclear (scr_gameref_t game)
     {
       GS_FOR_EACH_OBJECT (game, index_)
         {
-          if (game->object_references[index_]
+          if (game->refs.objects[index_]
               && gs_object_seen (game, index_)
               && !obj_indirectly_in_room (game, index_, gs_playerroom (game)))
             return FALSE;
@@ -1729,10 +1484,10 @@ lib_take_scored_400 (scr_gameref_t game)
  * lib_take_names_dynamic_400()
  *
  * Does the whole-word noun scorer name a present, non-static object on
- * STRING?  get_piece names its piece with 463640 in mode 1 (473011), whose
- * candidates must be dynamic (global_24 = 0, 4631B9/4631FE).  A line naming
- * only statics -- Pilfers' `get off bed`, Glum Fiddle's `get in barrel` --
- * keeps the flow below, where the tasks and the get-off handler answer it.
+ * STRING?  get_piece names its piece with 463640 in mode 1, whose
+ * candidates must be dynamic (global_24 = 0).  A line naming only statics
+ * -- Pilfers' `get off bed`, Glum Fiddle's `get in barrel` -- keeps the
+ * flow below, where the tasks and the get-off handler answer it.
  */
 scr_bool
 lib_take_names_dynamic_400 (scr_gameref_t game, const scr_char *string)
@@ -1746,6 +1501,8 @@ lib_take_names_dynamic_400 (scr_gameref_t game, const scr_char *string)
 scr_bool
 lib_cmd_get_what (scr_gameref_t game)
 {
+  if (lib_take_declines_get_motion (game))
+    return FALSE;
   if (lib_take_scored_400 (game))
     return TRUE;
   return lib_what (game, "Take");
@@ -1762,10 +1519,9 @@ lib_cmd_give_what (scr_gameref_t game)
 
   /*
    * run370/run380 have no "Give what?": therest's give arm names what it
-   * found, and with nothing that is "that" (run380 443EF1, run370 43D495),
-   * so a bare `give` is "(to Nobody) You don't have that."  run370x
-   * runner_probes/npcamb.run370.bareverb.rtf, run380x
-   * runner_probes/npcamb.run380.bareverb.rtf.
+   * found, and with nothing that is "that" (run380 443EF1), so a bare
+   * `give` is "(to Nobody) You don't have that."  run370x/run380x
+   * runner_probes/npcamb.run3[78]0.bareverb.rtf.
    */
   if (lib_bare_verb_pre390 (game))
     {
@@ -1805,9 +1561,9 @@ lib_cmd_remove_what (scr_gameref_t game)
    * 4.0 seen-absent unique winner: "You are not wearing the uniform!"
    * (definite form).  Measured escape_to_new_york turn 155 `remove uniform`
    * (Ticket run400 xoshiro trace 2026-09-12); remove calls
-   * Proc_21_58_463640(obnum, 3, 0) at 4620EB, "not wearing" at 4621DC/
-   * 46241A, and "Remove what?" 462477 only when that message came back
-   * empty.  Unseen, or a tie, stays "Remove what?".
+   * Proc_21_58_463640(obnum, 3, 0), then its "not wearing" arms, and
+   * "Remove what?" only when that message came back empty.  Unseen, or a
+   * tie, stays "Remove what?".
    */
   if (lib_is_version_400 (game) && input)
     {
@@ -1830,12 +1586,14 @@ lib_cmd_remove_what (scr_gameref_t game)
 scr_bool
 lib_cmd_wear_what (scr_gameref_t game)
 {
-  /* Pre-3.9 wears() refuses a match anywhere in the world as not held (run380
-   * 4331D4-433218); see lib_absent_named_object_pre_390(). */
+  /* Pre-3.9 wears() refuses a match anywhere in the world as not held
+   * (run380); see lib_absent_named_object_pre_390(). */
   const scr_int object = lib_absent_named_object_pre_390 (game);
 
-  /* From 3.80 the put branch answered above wears(); see
-     lib_wear_is_put_line_380(). */
+  /*
+   * From 3.8 the put branch answered above wears(); see
+   * lib_wear_is_put_line_380().
+   */
   if (lib_wear_is_put_line_380 (game))
     return FALSE;
 

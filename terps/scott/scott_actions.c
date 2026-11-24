@@ -1,4 +1,11 @@
 /*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
  *  scott_actions.c
  *  Part of ScottFree, an interpreter for adventures in Scott Adams format
  *
@@ -491,8 +498,8 @@ typedef struct {
        which exceeds the NUM_CONDITIONS params the condition phase can push.
        Sized for the reader and zeroed, so an action whose opcodes consume
        more params than its conditions supplied reads a defined 0 (item/room 0)
-       rather than running off the end of the array into the stack and using the
-       garbage as an Items[] index. */
+       rather than running off the end of the array into the stack and using
+       the garbage as an Items[] index. */
     int param[NUM_OPCODES * 2];
     int pptr;
     int continuation;
@@ -505,7 +512,8 @@ static int NextParam(LineState *line)
 }
 
 /* Test the conditions of line ct, collecting its parameters.
-   Conditions are encoded as (value * 20 + condition_code). Condition
+   Conditions are encoded as (value * CONDITION_MULTIPLIER +
+   condition_code). Condition
    code 0 stores a parameter for later use by action opcodes.
    Returns 0 as soon as a condition fails. */
 static int CheckConditions(int ct, LineState *line)
@@ -883,15 +891,15 @@ static ExplicitResultType RunActionTable(int vb, int no, int *found_match)
 
         ct++;
 
-        // clang-format off
-        /* Previously this did not check ct against
-         * GameHeader.NumActions and would read past the end of
+        /* clang-format off */
+        /* Without this check of ct against
+         * GameHeader.NumActions, this would read past the end of
          * Actions.  I don't know what should happen on the last
          * action, but doing nothing is better than reading one
          * past the end.
          * --Chris
          */
-        // clang-format on
+        /* clang-format on */
 
         if (ct <= GameHeader.NumActions && Actions[ct].Vocab != 0)
             doagain = 0;
@@ -965,11 +973,7 @@ static void TakeOrDrop(int vb, int no, int dark)
         item = CurrentCommand->item;
         /* The ALL chain is built when the line is parsed, so an action
            that ran earlier in the chain may have moved this item since.
-           Skip just this node and let the chain go on to the next one.
-           (The old loop advanced CurrentCommand without re-reading
-           item, so its test could never change: a single moved item
-           fast-forwarded to LASTALL and silently discarded the whole
-           rest of the ALL chain.) */
+           Skip just this node and let the chain go on to the next one. */
         if (Items[item].Location != TakeOrDropSource(vb))
             return;
     }
@@ -983,7 +987,7 @@ static void TakeOrDrop(int vb, int no, int dark)
 /* Main action dispatch: process player input (verb/noun pair) or
  implicit actions (vb=0).
 
- Handles movement (GO + direction), game-specific examine actions,
+ Handles movement (GO + direction), close-ups on EXAMINE,
  the action table scan, and built-in TAKE/DROP with auto-matching.
 
  For TI-99/4A games, delegates to the TI-specific action handler. */

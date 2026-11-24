@@ -72,6 +72,8 @@ extern void pf_new_sentence (scr_filterref_t filter);
 extern void pf_mute (scr_filterref_t filter);
 extern void pf_clear_mute (scr_filterref_t filter);
 extern void pf_buffer_tag (scr_filterref_t filter, scr_int tag);
+extern void pf_dissect_markup (const scr_char *string,
+                               const scr_markup_sink_t *sink);
 extern void pf_strip_tags (scr_char *string);
 extern void pf_strip_tags_for_hints (scr_char *string);
 extern scr_char *pf_filter (const scr_char *string,

@@ -36,26 +36,27 @@
 
 #include "../../sessrec.h"
 
-/* ============================================================ save / restore */
+/* ============================================================ save / restore
+   */
 
 /* Save/restore (clsState / FileIO.SaveState|LoadState).
  *
  * The on-disk save is ADRIFT 5 Runner-compatible: a `<Game>` document keyed by
  * entity <Key> (FileIO.SaveState / LoadState schema; see ADRIFT4_vs_ADRIFT5.md
  * section 8).  An ADRIFT 5 Runner save restores into
- * Scarier, and a Scarier save loads in the Adrift 5 runner.
+ * Scarier, and a Scarier save loads in the Runner.
  *
  * To keep Scarier<->Scarier round-trips (undo snapshots, deterministic
- * replay) lossless -- the Adrift 5 runner's schema omits the RNG state and the full
+ * replay) lossless -- the Runner's schema omits the RNG state and the full
  * event/walk internals -- every Scarier save also carries a <ScarierExt> child
- * of <Game> holding the complete native snapshot (the old <SaveState> body).
- * The Adrift 5 runner's reader queries only the tags it knows via SelectNodes("/Game/
+ * of <Game> holding the complete native snapshot (a <SaveState> body).  The
+ * Runner's reader queries only the tags it knows via SelectNodes("/Game/
  * <tag>") and silently ignores <ScarierExt>, so the extension is invisible to
- * it.  On restore we prefer <ScarierExt> when present (lossless); a foreign save
- * without it is read from the Adrift 5 runner fields (RNG then re-seeds to 1234).
+ * it.  On restore we prefer <ScarierExt> when present (lossless); a foreign
+ * save without it is read from the Runner fields (RNG then re-seeds to 1234).
  *
- * A pre-existing raw (uncompressed) `<SaveState>` file -- the format Scarier
- * wrote before this change -- still restores through the legacy body path. */
+ * An older raw (uncompressed) `<SaveState>` file still restores through the
+ * legacy body path. */
 
 static void
 xml_esc (sb_t *b, const char *s)
@@ -96,7 +97,8 @@ sb_elem (sb_t *b, const char *tag, const char *val)
   if (val != nullptr && tl + 10 <= 96)
     {
       char buf[192];
-      size_t n = 0, guard = sizeof buf - (tl + 4);  /* keep room for "</tag>\n" */
+      /* keep room for "</tag>\n" */
+      size_t n = 0, guard = sizeof buf - (tl + 4);
       const char *p;
       buf[n++] = '<';
       memcpy (buf + n, tag, tl); n += tl;
@@ -186,7 +188,8 @@ collect_dom_nodes (const a5_xml_node_t *n,
 /* Build (once) the run's cached pre-order DOM node list + node->index map from
    adv->doc, and reuse it thereafter.  adv->doc is immutable after load, so the
    walk and map are computed on first use and shared by every subsequent
-   save/restore, instead of re-walking the whole DOM on each per-turn snapshot. */
+   save/restore, instead of re-walking the whole DOM on each per-turn snapshot.
+   */
 static void
 ensure_dom_cache (a5_run_t *run)
 {
@@ -200,8 +203,9 @@ ensure_dom_cache (a5_run_t *run)
     (*run->dom_index)[(const void *) (*run->dom_nodes)[k]] = (int) k;
 }
 
-/* Resolve a holder/location key to the model's own stable string pointer (so it
-   survives the save buffer being freed).  Keys are globally unique in ADRIFT. */
+/* Resolve a holder/location key to the model's own stable string pointer (so
+   it survives the save buffer being freed).  Keys are globally unique in
+   ADRIFT. */
 static const char *
 intern_key (const a5_adventure_t *adv, const char *key)
 {
@@ -223,11 +227,11 @@ intern_key (const a5_adventure_t *adv, const char *key)
 /* ---------------------------------------------------------- Scarier body ----
    The full-fidelity native snapshot: RNG, every entity's runtime fields, event
    and walk internals, the sparse seen/override/displayed/look sets.  Emitted
-   verbatim inside <ScarierExt> (and historically as the bare <SaveState> root);
-   read back by restore_scarier_body.  Entity arrays are positional (model
-   order); the sparse sets are keyed.  This is what makes undo and Scarier<->
-   Scarier restore byte-for-byte deterministic despite the Adrift 5 runner's lossier
-   schema. */
+   verbatim inside <ScarierExt> (and historically as the bare <SaveState>
+   root); read back by restore_scarier_body.  Entity arrays are positional
+   (model order); the sparse sets are keyed.  This is what makes undo and
+   Scarier<-> Scarier restore byte-for-byte deterministic despite the Runner's
+   lossier schema. */
 namespace {
 
 /* One writing of the snapshot: the buffer and the run it describes, with a
@@ -427,9 +431,9 @@ scarier_save_t::marks ()
   cached_flags (a5_run_t::SEC_TASK_DONE, "TaskDone", st->task_done,
                 adv->tasks, adv->n_tasks);
 
-  /* Tasks that have already scored (clsTask.Scored), sparse by key.  This lives
-     in <ScarierExt> because our own restore walks only ScarierExt: the full
-     <Task><Scored> in the runner body is read solely for foreign saves
+  /* Tasks that have already scored (clsTask.Scored), sparse by key.  This
+     lives in <ScarierExt> because our own restore walks only ScarierExt: the
+     full <Task><Scored> in the Runner body is read solely for foreign saves
      (restore_fd_game).  Without it a repeatable scoring task re-awards its
      points once after restore (inflating the score). */
   cached_flags (a5_run_t::SEC_TASK_SCORED, "TaskScored", st->task_scored,
@@ -462,10 +466,10 @@ scarier_save_t::seen_chars ()
   int i;
 
   /* Per-character seen sets for any OTHER viewpoint a BECOME game has switched
-     away from (the active player's set is the top-level ObjSeen/CharSeen/LocSeen
-     above).  Mirrors the runner's per-character clsCharacterState.lSeenKeys so a saved
-     BugHunt restores each marine's own sightings.  Empty for a lone-"Player"
-     game. */
+     away from (the active player's set is the top-level
+     ObjSeen/CharSeen/LocSeen above).  Mirrors the Runner's per-character
+     clsCharacterState.lSeenKeys so a saved BugHunt restores each marine's own
+     sightings.  Empty for a lone-"Player" game. */
   for (i = 0; i < adv->n_characters; i++)
     {
       char *os = st->seen_stash_obj  ? st->seen_stash_obj[i]  : nullptr;
@@ -504,6 +508,8 @@ scarier_save_t::events ()
       sb_elem (b, "Trigger", e.triggering_task.c_str ());
       for (s = 0; s < e.se_ft.size (); s++)
         sb_elem_l (b, "SeFt", e.se_ft[s]);
+      for (s = 0; s < e.se_timer.size (); s++)
+        sb_elem_l (b, "SeTimer", e.se_timer[s]);
       sb_puts (b, "</Event>\n");
     }
 }
@@ -591,17 +597,20 @@ save_scarier_body (sb_t *b, a5_run_t *run)
   save.looks ();
 }
 
-/* ----------------------------------------------------- the Adrift 5 runner <Game> ---
-   The interop schema.  Maps a5_state_t onto the Adrift 5 runner's clsGameState fields,
+/* ----------------------------------------------------- the Runner <Game> ---
+   The interop schema.  Maps a5_state_t onto the Runner's clsGameState fields,
    keyed by entity <Key>, with the where-fields written as their .ToString enum
-   names.  The writers below are the mapping; the design doc that derived it,
-   TODO_a5_frankendrift_save_compat.md, was pruned in ab6bc4af.  For its
-   field-by-field derivation from the runner's source, run
-   `git show ab6bc4af^:terps/scarier/TODO_a5_frankendrift_save_compat.md`. */
+   names.  The writers below are the mapping.  Lossy in the Runner's fields,
+   and carried only in <ScarierExt>: <Displayed> (at most a cosmetic re-show),
+   and the RNG, which the Runner does not persist.  Lossy either way: per-task
+   Scored (Scarier has no such flag), OnCharacter placement (no Scarier
+   producer; read as at-location), and array-valued variables (only Value_0
+   round-trips; no corpus game uses arrays). */
 
-/* Split a5_objloc_t onto the runner's two where-enums + LocationKey (SaveState @83).
-   *dyn / *stat are NULL when at their default (Hidden / NoRooms, so the runner omits
-   them); *lkey is "" when no key applies. */
+/* Split a5_objloc_t onto the Runner's two where-enums + LocationKey (SaveState
+   @83).
+   *dyn / *stat are NULL when at their default (Hidden / NoRooms, so the Runner
+   omits them); *lkey is "" when no key applies. */
 static void
 fd_object_location (const a5_objloc_t *l, const char **dyn, const char **stat,
                     const char **lkey)
@@ -672,7 +681,7 @@ fd_status_name (int status, int is_walk)
 
 /* Emit <Property> children for an entity: its base (model) properties with the
    runtime-effective value, plus any override that added a property not in the
-   base list.  The Adrift 5 runner's RestoreState *removes* any current property absent
+   base list.  The Runner's RestoreState *removes* any current property absent
    from the state, so a partial list would strip the entity -- we emit the full
    effective set to be faithful. */
 static void
@@ -708,9 +717,10 @@ fd_write_props (sb_t *b, a5_state_t *st, const char *entkey,
 }
 
 /* Candidate member key space for a group by its type.  Runtime membership
-   (AddObjectToGroup / AddLocationToGroup / AddCharacterToGroup) layers into the
-   same override store keyed by the member's own key, so save/restore reconcile
-   the effective membership against the whole matching entity space. */
+   (AddObjectToGroup / AddLocationToGroup / AddCharacterToGroup) layers into
+   the same override store keyed by the member's own key, so save/restore
+   reconcile the effective membership against the whole matching entity space.
+   */
 static int
 group_candidate_count (const a5_adventure_t *adv, const a5_group_t *g)
 {
@@ -738,9 +748,9 @@ save_fd_entities (sb_t *b, a5_run_t *run)
   const char *player = a5state_player_key (st);
   int i, w;
 
-  /* Locations: property overrides only (base props are static; The runner recomputes
-     inherited ones).  Emit a <Location> only when it has a runtime override so
-     the runner does not strip its (unlisted) actual properties. */
+  /* Locations: property overrides only (base props are static; the Runner
+     recomputes inherited ones).  Emit a <Location> only when it has a runtime
+     override so the Runner does not strip its (unlisted) actual properties. */
   for (i = 0; i < adv->n_locations; i++)
     {
       int has_ov = 0, j;
@@ -774,7 +784,7 @@ save_fd_entities (sb_t *b, a5_run_t *run)
       sb_puts (b, "</Object>\n");
     }
 
-  /* Tasks (Completed / Scored), emitted for every task, matching the runner's
+  /* Tasks (Completed / Scored), emitted for every task, matching the Runner's
      writer. */
   for (i = 0; i < adv->n_tasks; i++)
     {
@@ -789,11 +799,11 @@ save_fd_entities (sb_t *b, a5_run_t *run)
   for (i = 0; i < adv->n_events && i < (int) run->events->size (); i++)
     {
       a5_event_rt &e = (*run->events)[i];
-      /* Scarier's last_se_index is -1 for "no sub-event has run"; The Adrift 5 runner
+      /* Scarier's last_se_index is -1 for "no sub-event has run"; the Runner
          has no such sentinel and would do SubEvents(-1) (its only guard is
          Length > index, which -1 passes) -> IndexOutOfRange.  Emit a value >=
-         the sub-event count so the runner's guard fails and it leaves LastSubEvent as
-         Nothing, matching the -1 meaning. */
+         the sub-event count so the Runner's guard fails and it leaves
+         LastSubEvent as Nothing, matching the -1 meaning. */
       long sei = e.last_se_index < 0 ? adv->events[i].n_subevents
                                      : e.last_se_index;
       sb_puts (b, "<Event>\n");
@@ -821,7 +831,7 @@ save_fd_entities (sb_t *b, a5_run_t *run)
           where = "AtLocation";
           lkey = st->char_loc[i];
         }
-      /* else: Hidden -- the runner omits ExistWhere/LocationKey. */
+      /* else: Hidden -- the Runner omits ExistWhere/LocationKey. */
 
       sb_puts (b, "<Character>\n");
       sb_elem (b, "Key", key);
@@ -845,7 +855,8 @@ save_fd_entities (sb_t *b, a5_run_t *run)
         }
 
       /* Seen keys: Scarier tracks only the player's, so emit them under the
-         player character (the runner stores per-character; NPC seen-sets are untracked). */
+         player character (the Runner stores per-character; NPC seen-sets are
+         untracked). */
       if (streq (key, player))
         {
           sb_flagged_keys (b, "Seen", st->obj_seen,
@@ -886,21 +897,21 @@ save_fd_game (sb_t *b, a5_run_t *run, int lean)
   int i;
 
   /* In "lean" mode -- the per-turn undo snapshot (a5run_snapshot) -- skip the
-     FrankenDrift-interop per-entity body.  Our own restore reads ALL state back
-     from <ScarierExt> (restore_scarier_body) and consumes only the <Group>
-     order list emitted below (restore_group_order); nothing in that body
-     (Location/Object/Task/Event/Character/Variable) is read on the undo path.
-     Its cost is dominated by fd_write_props writing every property of every
-     entity every turn -- the single biggest per-turn hotspot (~59% of the
-     Fortress-of-Fear walkthrough in profiling).  The body exists purely so a
-     foreign ADRIFT Runner / FrankenDrift can load a Scarier *file* save; the
-     undo stack is never written to disk, so lean snapshots restore byte-for-byte
-     identically without it. */
+     FrankenDrift-interop per-entity body.  Our own restore reads ALL state
+     back from <ScarierExt> (restore_scarier_body) and consumes only the
+     <Group> order list emitted below (restore_group_order); nothing in that
+     body (Location/Object/Task/Event/Character/Variable) is read on the undo
+     path.  Its cost is dominated by fd_write_props writing every property of
+     every entity every turn -- the single biggest per-turn hotspot (~59% of
+     the Fortress-of-Fear walkthrough in profiling).  The body exists purely so
+     a foreign ADRIFT Runner / FrankenDrift can load a Scarier *file* save; the
+     undo stack is never written to disk, so lean snapshots restore
+     byte-for-byte identically without it. */
   if (!lean)
     save_fd_entities (b, run);
 
   /* Groups: live runtime membership for every group type, in arlMembers
-     INSERTION order -- the runner's clsGameState writer does `For Each sMember
+     INSERTION order -- the Runner's clsGameState writer does `For Each sMember
      In grp.arlMembers`, and that order is load-bearing: RandomKey picks a
      member BY INDEX from the live list, so a save that reorders members (e.g.
      into model-candidate order) changes which world a random
@@ -955,10 +966,11 @@ save_fd_game (sb_t *b, a5_run_t *run, int lean)
   sb_elem_l (b, "Turns", st->turns);
 }
 
-/* Serialise the runtime to a <Game> blob.  `lean` drops the FrankenDrift-interop
-   per-entity body (save_fd_game keeps only the <Group> order list restore needs)
-   -- used by the per-turn undo snapshot, which never leaves the process.  A full
-   (lean=0) blob is what a5run_save hands the frontend for on-disk file saves. */
+/* Serialise the runtime to a <Game> blob.  `lean` drops the
+   FrankenDrift-interop per-entity body (save_fd_game keeps only the <Group>
+   order list restore needs) -- used by the per-turn undo snapshot, which never
+   leaves the process.  A full (lean=0) blob is what a5run_save hands the
+   frontend for on-disk file saves. */
 static char *
 a5run_save_blob (a5_run_t *run, size_t *out_len, int lean)
 {
@@ -981,7 +993,7 @@ a5run_save_blob (a5_run_t *run, size_t *out_len, int lean)
   sb_puts (&b, "\xEF\xBB\xBF<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
   sb_puts (&b, "<Game>\n");
   save_fd_game (&b, run, lean);
-  /* Scarier-private, full-fidelity snapshot; The Adrift 5 runner's LoadState ignores
+  /* Scarier-private, full-fidelity snapshot; the Runner's LoadState ignores
      any <Game> child it does not query, so <ScarierExt> is invisible to it. */
   sb_puts (&b, "<ScarierExt>\n");
   save_scarier_body (&b, run);
@@ -1015,7 +1027,7 @@ node_long (const a5_xml_node_t *n)
 }
 
 /* Zero/clear the accumulating + sparse state before applying a save (shared by
-   both the native and the Adrift 5 runner readers). */
+   both the native and the Runner readers). */
 static void
 restore_reset (a5_run_t *run)
 {
@@ -1336,7 +1348,7 @@ scarier_restore_t::event (const a5_xml_node_t *n)
       a5_event_rt &e = (*run->events)[ev_i];
       const a5_xml_node_t *c;
       const char *trg = a5xml_child_text (n, "Trigger");
-      int s = 0;
+      int s = 0, t = 0;
       e.status       = (int)  child_long (n, "Status");
       e.length_value =        child_long (n, "Length");
       e.length_set   = 1;                /* the save holds Length.Value */
@@ -1347,9 +1359,15 @@ scarier_restore_t::event (const a5_xml_node_t *n)
       e.next_command = (int)  child_long (n, "NextCommand");
       e.when_start   = (int)  child_long (n, "WhenStart");
       e.triggering_task = trg ? trg : "";
+      /* A save from before the sub-event timers has no SeTimer: unarmed. */
+      std::fill (e.se_timer.begin (), e.se_timer.end (), -1);
       for (c = n->first_child; c != nullptr; c = c->next)
-        if (streq (c->name, "SeFt") && s < (int) e.se_ft.size ())
-          e.se_ft[s++] = node_long (c);
+        {
+          if (streq (c->name, "SeFt") && s < (int) e.se_ft.size ())
+            e.se_ft[s++] = node_long (c);
+          else if (streq (c->name, "SeTimer") && t < (int) e.se_timer.size ())
+            e.se_timer[t++] = node_long (c);
+        }
       ev_i++;
     }
 }
@@ -1399,19 +1417,21 @@ restore_scarier_body (a5_run_t *run, const a5_xml_node_t *container)
   for (n = container->first_child; n != nullptr; n = n->next)
     restore.apply (n);
 
-  /* PropOv restored the @InGroup overrides but not the ordered arlMembers list;
-     rebuild it so RandomKey / EverywhereInGroup enumerate runtime membership. */
+  /* PropOv restored the @InGroup overrides but not the ordered arlMembers
+     list; rebuild it so RandomKey / EverywhereInGroup enumerate runtime
+     membership. */
   a5state_rebuild_live_groups (run->st);
 
   a5rand_set_state (restore.native, restore.rng);
 }
 
-/* ------------------------------------------------ the Adrift 5 runner <Game> reader ---
+/* ---- the Runner <Game> reader
    Applied only to a foreign save (an ADRIFT 5 Runner file with no
    <ScarierExt>).  Keyed lookups, tolerant of missing/extra entities; the RNG
-   re-seeds to 1234 (the runner saves carry none), so a game that draws randomness right
-   after such a restore diverges from the session that wrote the save.  Accepted:
-   only foreign saves are affected, and Scarier's own carry <ScarierExt>. */
+   re-seeds to 1234 (the Runner saves carry none), so a game that draws
+   randomness right after such a restore diverges from the session that wrote
+   the save.  Accepted:  only foreign saves are affected, and Scarier's own
+   carry <ScarierExt>. */
 
 static a5_owhere_t
 fd_decode_object_where (const char *dyn, const char *stat, int *is_static)
@@ -1723,11 +1743,12 @@ restore_fd_game (a5_run_t *run, const a5_xml_node_t *root)
       else if (streq (nm, "Group"))
         restore_fd_group (run, n);
     }
-  /* No RNG in an ADRIFT 5 Runner save: the run keeps its current (fresh: 1234) seed. */
+  /* No RNG in an ADRIFT 5 Runner save: the run keeps its current (fresh: 1234)
+     seed. */
 }
 
 /* Rebuild each group's live arlMembers list in the save's <Group>/<Member>
-   document order (the runner: `arlMembers.Clear()` then Add per saved member,
+   document order (the Runner: `arlMembers.Clear()` then Add per saved member,
    clsState.vb RestoreState / FileIO.vb LoadGameState).  Runs after the
    membership SET has been restored (PropOv overrides for our own saves, the
    candidate-space reconcile for foreign Runner saves): both of those leave the
@@ -1803,8 +1824,8 @@ a5run_restore (a5_run_t *run, const char *data, size_t len)
 /* ------------------------------------------------------------------- undo */
 
 /* Turns of undo kept (undo_stack, oldest first).  Matches the v4 engine's
-   MEMO_UNDO_TABLE_SIZE.  Snapshots are raw a5run_save XML, so the worst case in
-   the corpus (Tingalan, ~400K a snapshot) holds about 6MB. */
+   MEMO_UNDO_TABLE_SIZE.  Snapshots are raw a5run_save XML, so the worst case
+   in the corpus (Tingalan, ~400K a snapshot) holds about 6MB. */
 enum { A5_UNDO_DEPTH = 16 };
 
 /* Push a snapshot + its turn text, dropping the oldest entry at depth. */
@@ -1839,8 +1860,8 @@ a5run_snapshot (a5_run_t *run)
   free (blob);
 }
 
-/* Discard all undo points without restoring (e.g. after a RESTORE from file, so
-   UNDO does not silently jump back across the restore boundary). */
+/* Discard all undo points without restoring (e.g. after a RESTORE from file,
+   so UNDO does not silently jump back across the restore boundary). */
 void
 a5run_undo_forget (a5_run_t *run)
 {
@@ -1865,7 +1886,7 @@ amb_forget (a5_run_t *run)
 /* Restore the newest snapshot (undo the last turn).  Returns 1 on success, 0
    when no undo point remains or the restore failed.  Each snapshot is consumed
    on a successful undo, so repeated UNDO walks back up to A5_UNDO_DEPTH turns
-   before reporting "no undo available" (deeper than the Adrift 5 runner's
+   before reporting "no undo available" (deeper than the Runner's
    one-deep model -- a deliberate superset; the two diverge only on consecutive
    UNDOs, which no golden walkthrough issues).  Cross-turn parser transients
    that predate the restored turn (a pending disambiguation, a remembered verb,
@@ -1878,7 +1899,8 @@ a5run_undo (a5_run_t *run)
   if (run == nullptr || run->undo_stack.empty ())
     return 0;
   /* a5run_restore copies its input before mutating state, but detach the
-     snapshot first so we never read through storage the restore might touch. */
+     snapshot first so we never read through storage the restore might touch.
+     */
   std::string blob = std::move (run->undo_stack.back ());
   run->undo_stack.pop_back ();
   std::string turn_text = std::move (run->undo_turn_text.back ());
@@ -1886,7 +1908,7 @@ a5run_undo (a5_run_t *run)
   ok = a5run_restore (run, blob.data (), blob.size ());
   if (!ok)
     return 0;
-  /* The runner's Undo() restores the session's sTurnOutput along with the
+  /* The Runner's Undo() restores the session's sTurnOutput along with the
      state; the post-game guard replays it after "Undone.". */
   run->last_turn_text = std::move (turn_text);
   amb_forget (run);

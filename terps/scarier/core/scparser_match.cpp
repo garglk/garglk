@@ -20,7 +20,7 @@
 
 /*
  * Matching an input line to a pattern tree: the per-node matchers and the
- * state they walk, the matching options the runner sets, the Runner's "*"
+ * state they walk, the matching options the `run_` code sets, the Runner's "*"
  * wildcard matchers, and uip_match_pattern().  See scparser_internal.h.
  */
 
@@ -90,11 +90,11 @@ uip_get_game (void)
  * DontUnderstand (runner_probes/professor.run400.mail2.txt T24).  %reference%
  * patterns are unmeasured and left alone.
  *
- * Deliberate deviation (2026-09-30): on a line no task matches strictly
+ * Deliberate deviation: on a line no task matches strictly
  * (uip_set_lenient_tasks()) the rebuilt line is compared case-free.  The
  * pre-match hits case-free and the dispatch then missed byte for byte, so
  * `take golden idol` for a "Golden Idol" with a `get *idol*` task was
- * swallowed as DontUnderstand, neither taken nor answered (5489f80fe).
+ * swallowed as DontUnderstand, neither taken nor answered.
  */
 void
 uip_set_binary_input (scr_bool binary)
@@ -191,7 +191,7 @@ uip_wildcard_prepare (std::string &pat, std::string &line,
  * first '*' must be the line's prefix (457BD0).  run390's checkwild (4346A8)
  * never cuts the line, so this is 4.0 only.
  *
- * Measured on The Town of Azra (4.00): task 27 "buy *** *rawhide armor*"
+ * Measured on The Town of Azra (4.0): task 27 "buy *** *rawhide armor*"
  * misses `buy rawhide armor` -- the lone " " piece eats the space inside
  * "rawhide armor", and "rawhide armor" is then not found -- so run400 answers
  * "I don't think that is for sale." (runner_transcripts/the_town_of_azra.txt
@@ -418,14 +418,14 @@ uip_match_word (scr_ptnoderef_t node)
  * variables, and the Runners substitute its value into the task command
  * before they test it -- see run_substitute_variable_references().  What is
  * left for the tree is a command those arms hand back (one mixing a
- * variable with an %object% at 4.00, say, or a group like COBL's
+ * variable with an %object% at 4.0, say, or a group like COBL's
  * "[throw/drop] [%theobject%/%object%] ..."), and there the marker has to
  * answer the same way it would there: var_get_command_number() is the whole
  * rule, so the value is the NUMERIC one even for a string variable, a
  * capitalised variable Name is unreachable, and "%t_<name>%" and a marker
  * naming nothing match nothing at all.  Measured on p39VARREF/p4VARREF
  * (make_varrefprobe.py, runner_probes/varref.run390.txt,
- * runner_probes/varref.run400.txt, 2026-09-20).
+ * runner_probes/varref.run400.txt).
  */
 static scr_bool
 uip_match_variable (scr_ptnoderef_t node)
@@ -511,11 +511,10 @@ uip_match_whitespace (scr_bool hard)
    * matches nothing at all.  "Sommeril" has a task whose commands are "get
    * placemat " (trailing space), "take placemat", "get placemat page" and
    * three more; run400 answers `take placemat` with the task and `get
-   * placemat` with the library's "Take what?", the placemat being unlisted
-   * and so unreferenceable (measured 2026-09-05,
-   * runner_probes/sommeril.run400.placemat.txt).  Without this the
-   * end-of-string rule below matched the stray space and the task claimed
-   * both.
+   * placemat` with the library's "Take what?", the placemat being unlisted and
+   * so unreferenceable (measured, runner_probes/sommeril.run400.placemat.txt).
+   * Without this the end-of-string rule below matched the stray space and the
+   * task claimed both.
    *
    * Only after a word: a trailing space after a [] or {} group is ignored,
    * and the corpus is emphatic about it -- "Woof"'s "[chase/hunt]
@@ -600,7 +599,7 @@ uip_match_group_double_whitespace (void)
     return uip_match_whitespace (FALSE);
 
   /*
-   * Deliberate deviation (2026-09-30): on a line no task matches the
+   * Deliberate deviation: on a line no task matches the
    * Runner's way (uip_set_lenient_tasks()), a doubled space after an
    * included {} option is an ordinary word boundary.  An author's
    * accidental `zap {the}  {standard} washing machine` otherwise answers
@@ -724,8 +723,8 @@ uip_match_optional (scr_ptnoderef_t node)
 
   /*
    * Look ahead to see if we can match to nothing, and still have the main
-   * pattern match.  If we can, we'll go with this.  It's a "minimal munch"-ish
-   * strategy, but seems to be what Adrift does in this situation.
+   * pattern match.  If we can, we'll go with this.  This "minimal munch"-ish
+   * strategy is SCARE's reading of the Runner, not measured here.
    */
   list.type = NODE_LIST;
   list.left_child = node->right_sibling;
@@ -896,8 +895,8 @@ uip_match_text (scr_ptnoderef_t node)
                           uip.match.posn - start_posn);
 
       /*
-       * Adrift seems to save referenced text as all-lowercase; we need to do
-       * the same.
+       * Referenced text is all lower case, because every Runner lower-cases
+       * the whole typed line before it parses (see run_player_input()).
        */
       scr_lowercase (&string[0]);
       var_set_ref_text (vars, string.c_str ());

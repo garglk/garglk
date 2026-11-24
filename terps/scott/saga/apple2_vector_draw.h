@@ -1,9 +1,16 @@
-//
-//  apple2_vector_draw.h
-//  scott
-//
-//  Created by Administrator on 2025-12-29.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  3 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  apple2_vector_draw.h
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2025-12-29.
+ */
 
 #ifndef apple2_vector_draw_h
 #define apple2_vector_draw_h

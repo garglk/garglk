@@ -39,11 +39,11 @@
 
 static int a5rand_seeded = 0;
 
-/* urand()'s no-repeat pools (the runner clsVariable.NoRepeatRandom /
+/* urand()'s no-repeat pools (the Runner's clsVariable.NoRepeatRandom /
    Adventure.dictRandValues): one shuffled value list per "min-max" range,
    consumed without repeats and rebuilt when exhausted.  Adventure-lifetime in
-   the runner (not part of the save state, survives undo/restore in-session), so a
-   plain static map cleared on a5rand_seed (== new game) mirrors it. */
+   the Runner (not part of the save state, survives undo/restore in-session),
+   so a plain static map cleared on a5rand_seed (== new game) mirrors it. */
 static std::map<std::string, std::vector<long> > a5rand_pools;
 
 void
@@ -61,9 +61,10 @@ a5rand_between (long lo, long hi)
 {
   unsigned long span;
   long t;
-  if (hi == lo)            /* a fixed value draws no RNG (mirrors a from==to
-                              FromTo, and keeps the RAND() task sequence stable
-                              regardless of how many fixed-length events tick) */
+  /* a fixed value draws no RNG (mirrors a from==to FromTo, and keeps the
+     RAND() task sequence stable regardless of how many fixed-length events
+     tick) */
+  if (hi == lo)
     return lo;
   if (!a5rand_seeded)
     {
@@ -76,7 +77,8 @@ a5rand_between (long lo, long hi)
      (UB) for a range approaching the full long range from a corrupt game file.
      hi >= lo here, so the unsigned difference is the exact magnitude. */
   span = (unsigned long) hi - (unsigned long) lo;
-  if (span == ~0UL)               /* full domain: the +1 below would wrap to 0 */
+  /* full domain: the +1 below would wrap to 0 */
+  if (span == ~0UL)
     return lo + (long) erkyrath_random ();
   span += 1UL;
   {
@@ -119,18 +121,19 @@ enum { A5RAND_POOL_LIMIT = 65536 };
 long
 a5rand_norepeat (long lo, long hi)
 {
-  /* The runner clsVariable.NoRepeatRandom, verbatim: the pool for "lo-hi" is (re)built
-     empty->full by inserting each value at Random(count) -- a Fisher-Yates-like
-     shuffle whose draws MUST hit the shared stream in the same order -- then one
-     random element is picked and removed.  (Bounds are NOT swapped: the runner builds
-     `For i = iMin To iMax`, which is empty when min > max and then picks from
-     an empty list; no shipped game does that.) */
+  /* The Runner's clsVariable.NoRepeatRandom, verbatim: the pool for "lo-hi" is
+     (re)built empty->full by inserting each value at Random(count) -- a
+     Fisher-Yates-like shuffle whose draws MUST hit the shared stream in the
+     same order -- then one random element is picked and removed.  (Bounds are
+     NOT swapped: the Runner builds `For i = iMin To iMax`, which is empty when
+     min > max and then picks from an empty list; no shipped game does that.)
+     */
   char keybuf[48];
   /* A pool is one long per value and built with O(n^2) inserts, so a huge
      range (urand(1,100000000) in a corrupt or hostile game) would stall and
      exhaust memory; draw such a range with plain Random() instead.  The
-     pool loop stops at hi rather than incrementing past it, which would overflow
-     when hi == LONG_MAX. */
+     pool loop stops at hi rather than incrementing past it, which would
+     overflow when hi == LONG_MAX. */
   if (hi > lo && (unsigned long) hi - (unsigned long) lo >= A5RAND_POOL_LIMIT)
     return a5rand_between (lo, hi);
   snprintf (keybuf, sizeof keybuf, "%ld-%ld", lo, hi);

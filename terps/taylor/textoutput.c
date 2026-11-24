@@ -1,12 +1,17 @@
-//
-//  textoutput.c
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Created by Petter Sjölund on 2022-04-05.
-//
-//  Output buffering (smart spacing, punctuation and capitalization) and
-//  decoding of the token-compressed text tables.
-//
+/*
+ *  textoutput.c
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-04-05.
+ *
+ *  Output buffering (smart spacing, punctuation and capitalization) and
+ *  decoding of the token-compressed text tables.
+ */
 
 #include <ctype.h>
 #include <stdarg.h>
@@ -20,15 +25,15 @@
 
 #include "textoutput.h"
 
-char LastChar = 0;       /* Buffered output character (for punctuation lookahead) */
+char LastChar = 0;       /* Buffered character, for punctuation lookahead */
 static int Upper = 0;    /* Capitalize the next alphabetic character */
 int PendSpace = 0;       /* A space is pending before the next character */
 int FirstAfterInput = 0; /* First output character after player input */
 
 strid_t room_description_stream = NULL;
 
-/* Write formatted text to the room description stream (used by the
-   graphics system to capture room text for layout purposes). */
+/* Write formatted text to the room description stream, which collects the
+   top window's text until FlushRoomDescription lays it out. */
 void WriteToRoomDescriptionStream(const char *fmt, ...)
 {
     if (room_description_stream == NULL)
@@ -99,9 +104,8 @@ void OutChar(char c)
         }
         PendSpace = 0;
     } else {
-        /* Non-period: flush any accumulated periods now (unless the next
-           char is itself terminal punctuation, in which case the periods
-           are part of an abbreviation and stay associated with it). */
+        /* Non-period: flush any accumulated periods now, unless the next
+           char is itself terminal punctuation, which replaces them. */
         if (periods && !JustWrotePeriod && c != ',' && c != '?' && c != '!') {
             /* Normalize a double-period to a single period; three or more
                periods (an ellipsis) print verbatim. */
@@ -157,7 +161,7 @@ void OutChar(char c)
         OutWrite(' ');
         PendSpace = 0;
     }
-    /* Buffer this character; the next call will flush it. Newlines reset
+    /* Buffer this character; the next call will flush it. Newlines arm
        capitalization (both base and QP3-specific). */
     LastChar = c;
     if (LastChar == '\n' || LastChar == '\r') {
@@ -166,11 +170,14 @@ void OutChar(char c)
     }
 }
 
+/* Replace the buffered character that OutChar has not flushed yet; 0 drops
+   it. */
 void OutReplace(char c)
 {
     LastChar = c;
 }
 
+/* Cancel the space waiting to be written before the next character. */
 void OutKillSpace(void)
 {
     PendSpace = 0;
@@ -232,7 +239,8 @@ static void Q3PrintChar(uint8_t c)
     if (FirstAfterInput)
         Q3Upper = 1;
 
-    /* If a capital is pending and this is a lowercase letter, uppercase it. */
+    /* If a capital is pending, uppercase this character. Everything from 'a'
+       up counts as a lowercase letter. */
     if (Q3Upper && c >= 'a') {
         c -= 'a' - 'A';
     }
@@ -275,8 +283,8 @@ static void PrintToken(unsigned char n)
 }
 
 /* Print the nth text entry from a QP3 text table. Entries are delimited
-   by QP3_ENTRY_DELIM (0x1f), with QP3_TABLE_END (0x18) marking end-of-table. Bytes >=
-   QP3_TOKEN_BASE (0x7B) are tokens. */
+   by QP3_ENTRY_DELIM, with QP3_TABLE_END marking end-of-table. Bytes >=
+   QP3_TOKEN_BASE are tokens. */
 static void Q3PrintText(unsigned char *stream, int text_index)
 {
     /* Skip phase: walk past `text_index` entries by jumping to the next
@@ -302,8 +310,9 @@ static void Q3PrintText(unsigned char *stream, int text_index)
     } while (*stream++ != QP3_ENTRY_DELIM);
 }
 
-/* Print the nth text entry (version 1+). Entries are delimited by MSG_END
-   (0x7e) or MSG_END_SPACE (0x5E, trailing space). Each byte is a token index. */
+/* Print the nth text entry, for all but REBEL_PLANET_TYPE and QP3. Entries are
+   delimited by MSG_END or MSG_END_SPACE (trailing space). Each byte is a token
+   index. */
 static void PrintText1(unsigned char *stream, int text_index)
 {
     /* Skip phase: walk past `text_index` entries. Each entry is a run of
@@ -328,16 +337,11 @@ static void PrintText1(unsigned char *stream, int text_index)
     }
 }
 
-/*
- *	Version 0 is different
- */
-
 static int InventoryLower = 0;
 
-/* Print the nth text entry (version 0 / Rebel Planet). End markers
-   MSG_END_SPACE (0x5e) and MSG_END (0x7e) are embedded within the token stream rather
-   than between token indices, so we must fully expand each token to find
-   them. */
+/* Print the nth text entry (REBEL_PLANET_TYPE). End markers MSG_END_SPACE and
+   MSG_END are embedded within the token stream rather than between token
+   indices, so we must fully expand each token to find them. */
 static void PrintTextRebelPlanet(unsigned char *stream, int text_index)
 {
     if (stream > EndOfData)
@@ -396,7 +400,7 @@ static void PrintText(unsigned char *stream, int text_index)
     }
 }
 
-/* Print message number m from the primary message table. */
+/* Print a message from the primary message table. */
 void Message(unsigned char message_index)
 {
     unsigned char *stream = FileImage + MessageBase;
@@ -405,16 +409,16 @@ void Message(unsigned char message_index)
        Pass handles its own spacing so we skip it there. */
     if (CurrentGame != BLIZZARD_PASS)
         OutChar(' ');
-    /* Rebel Planet's message 156 is the "You are carrying" header — the
-       inventory list that follows should be lowercased. Reset the flag
-       on any other message so a stray 156 doesn't leak into later output. */
-    if (BaseGame == REBEL_PLANET && message_index == 156)
+    /* The inventory list after Rebel Planet's "You are carrying" header should
+       be lowercased. Reset the flag on any other message so it doesn't leak
+       into later output. */
+    if (BaseGame == REBEL_PLANET && message_index == REBEL_MSG_YOU_ARE_CARRYING)
         InventoryLower = 1;
     else
         InventoryLower = 0;
 }
 
-/* Print message number m from the secondary message table. */
+/* Print a message from the secondary message table. */
 void Message2(unsigned int message_index)
 {
     unsigned char *stream = FileImage + Message2Base;
@@ -452,6 +456,9 @@ void PrintObject(unsigned char object_index)
         return;
     }
     unsigned char *stream = FileImage + ObjectBase;
+    /* Questprobe 3's table has no text for object 0. Starting one byte early,
+       on the end marker of the table before, makes object 0 print nothing and
+       object n the entry n - 1. */
     if (Version == QUESTPROBE3_TYPE)
         stream--;
     PrintText(stream, object_index);
@@ -467,7 +474,7 @@ void PrintRoom(unsigned char room_index)
 {
     unsigned char *stream = FileImage + RoomBase;
     /* Blizzard Pass allows switching between graphics and short room descriptions,
-       or text-only and long descriptions. We always use the long ones.*/
+       or text-only and long descriptions. We always use the long ones. */
     if (CurrentGame == BLIZZARD_PASS && room_index < BLIZZARD_LONG_ROOMS)
         stream = FileImage + BLIZZARD_LONG_ROOM_TEXT + FileBaselineOffset;
     PrintText(stream, room_index);

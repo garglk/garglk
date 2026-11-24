@@ -123,21 +123,21 @@ gsc_expand_abbreviations (char *buffer, int size)
  * Take the next line of an input log being read back ("glk readlog on") into
  * buffer, and return its length, newline included.  At the end of the log,
  * close the stream and return 0, so that the caller falls through to a normal
- * line request.  Only for use while gsc_readlog_stream is open.
+ * line request.  Only for use while gsc_io.readlog_stream is open.
  */
 glui32
 gsc_readlog_line (char *buffer, glui32 length)
 {
   glui32 chars;
-  assert (gsc_readlog_stream);
+  assert (gsc_io.readlog_stream);
 
   memset (buffer, 0, length);
-  chars = glk_get_line_stream (gsc_readlog_stream, buffer, length);
+  chars = glk_get_line_stream (gsc_io.readlog_stream, buffer, length);
   if (chars > 0)
     return chars;
 
-  glk_stream_close (gsc_readlog_stream, nullptr);
-  gsc_readlog_stream = nullptr;
+  glk_stream_close (gsc_io.readlog_stream, nullptr);
+  gsc_io.readlog_stream = nullptr;
   return 0;
 }
 
@@ -157,7 +157,7 @@ os_read_line (scr_char *buffer, scr_int length)
 #ifdef SPATTERLIGHT
   /* A turn run again to reach a pause never gets as far as a prompt, unless
      the pause did not come round this time; either way that is over. */
-  gsc_sc_silent = FALSE;
+  gsc_replay.sc_silent = FALSE;
 #endif
   status = gsc_read_command (buffer, length);
 #ifdef SPATTERLIGHT
@@ -167,11 +167,21 @@ os_read_line (scr_char *buffer, scr_int length)
   return status;
 }
 
+/*
+ * gsc_prompt_prelude()
+ *
+ * Everything said before a line is read: a pending help hint, normal style,
+ * the status line, any meta-command report, the map, then the prompt and
+ * autosave.  Returns TRUE when an autorestore that stopped at a <waitkey>
+ * pause supplies the command itself, in buffer.
+ */
 static scr_bool
-gsc_read_command (scr_char *buffer, scr_int length)
+gsc_prompt_prelude (scr_char *buffer, scr_int length)
 {
-  scr_int characters;
-  assert (buffer && length > 0);
+#ifndef SPATTERLIGHT
+  (void) buffer;
+  (void) length;
+#endif
 
   /* If a help request is pending, provide a user hint. */
   gsc_output_provide_help_hint ();
@@ -189,7 +199,8 @@ gsc_read_command (scr_char *buffer, scr_int length)
 
   /* The map follows the game: the ADRIFT 4 layout is centred on the room you
      are in and grows as you explore, so it is redrawn at every prompt -- and a
-     restart, which reaches the front end no other way, is caught here first. */
+     restart, which reaches the front end no other way, is caught here first.
+    */
   gsc_map_notice_restart ();
   gsc_map_redraw ();
 
@@ -205,7 +216,7 @@ gsc_read_command (scr_char *buffer, scr_int length)
          (gsc_sc_autosave_waitkey). */
       if (gsc_sc_take_replay_command (buffer, length))
         {
-          gsc_sc_silent = TRUE;
+          gsc_replay.sc_silent = TRUE;
           return TRUE;
         }
     }
@@ -222,6 +233,20 @@ gsc_read_command (scr_char *buffer, scr_int length)
   gsc_put_prompt (">");
 #endif
 
+  return FALSE;
+}
+
+
+/*
+ * gsc_take_supplied_line()
+ *
+ * Fill buffer from a source other than the keyboard: a map or `go <place>`
+ * walk, a scripted line, or the input log being read.  Returns TRUE, with
+ * the line echoed, when one did.
+ */
+static scr_bool
+gsc_take_supplied_line (scr_char *buffer, scr_int length)
+{
   /* A walk set going by a click on the map supplies the next direction itself,
      in place of reading one from the player, and so does a `go <place>`
      walk.  Echo it so the transcript reads as though it had been typed.
@@ -237,7 +262,7 @@ gsc_read_command (scr_char *buffer, scr_int length)
    * If we have an input log to read from, use that until it is exhausted.
    * On end of file, the stream is closed and input resumes from line requests.
    */
-  if (gsc_readlog_stream)
+  if (gsc_io.readlog_stream)
     {
       if (gsc_readlog_line (buffer, (glui32) length) > 0)
         {
@@ -248,21 +273,26 @@ gsc_read_command (scr_char *buffer, scr_int length)
         }
     }
 
-  /*
-   * No input log being read, or we just hit the end of file on one.  Revert
-   * to normal line input; start by getting a new line from Glk.
-   */
-  characters = gsc_read_line (buffer, length - 1);
-  assert (characters <= length);
-  buffer[characters] = '\0';
+  return FALSE;
+}
 
+
+/*
+ * gsc_take_clicked_walk_step()
+ *
+ * After a typed read: if a map click cancelled it to start a walk, put the
+ * walk's first step in buffer and return TRUE.
+ */
+static scr_bool
+gsc_take_clicked_walk_step (scr_char *buffer, scr_int length)
+{
   /* A click on the map cancelled the request to start a walk.  Its first
      step takes the place of the line; where the library echoed the cancelled
      line, the prompt's line has ended, and the step gets a prompt of its
      own. */
-  if (gsc_sc_walk_clicked)
+  if (gsc_walk.sc_clicked)
     {
-      gsc_sc_walk_clicked = FALSE;
+      gsc_walk.sc_clicked = FALSE;
       if (gsc_sc_walk_next (buffer, length))
         {
           if (!gsc_line_echo_manual)
@@ -273,11 +303,25 @@ gsc_read_command (scr_char *buffer, scr_int length)
       gsc_colour_echo (FALSE);
     }
 
+  return FALSE;
+}
+
+
+/*
+ * gsc_filter_typed_line()
+ *
+ * Quote-escape, abbreviation expansion and Glk local commands on a typed
+ * line.  Returns FALSE when the line was a local command and the
+ * interpreter should not see it.
+ */
+static scr_bool
+gsc_filter_typed_line (scr_char *buffer, scr_int length)
+{
   /*
    * If neither abbreviations nor local commands are enabled, use the data
    * read above without further massaging.
    */
-  if (gsc_abbreviations_enabled || gsc_commands_enabled)
+  if (gsc_options.abbreviations_enabled || gsc_options.commands_enabled)
     {
       char *command;
 
@@ -295,7 +339,7 @@ gsc_read_command (scr_char *buffer, scr_int length)
       else
         {
           /* Check for, and expand, and abbreviated commands. */
-          if (gsc_abbreviations_enabled)
+          if (gsc_options.abbreviations_enabled)
             gsc_expand_abbreviations (buffer, length);
 
           /*
@@ -303,7 +347,7 @@ gsc_read_command (scr_char *buffer, scr_int length)
            * suppress the interpreter's use of this input for Glk commands by
            * returning FALSE.
            */
-          if (gsc_commands_enabled)
+          if (gsc_options.commands_enabled)
             {
               int posn;
 
@@ -315,17 +359,17 @@ gsc_read_command (scr_char *buffer, scr_int length)
                   gsc_output_silence_help_hints ();
 
                   /* UNDO / RESTORE / RESTART / QUIT happen here rather than in
-                     the handler: the dispatcher above has since freed the line,
-                     and all four may unwind out of the interpreter without
-                     coming back.  A successful one never returns; the rest fall
-                     through to another prompt.
+                     the handler: the dispatcher above has since freed the
+                     line, and all four may unwind out of the interpreter
+                     without coming back.  A successful one never returns; the
+                     rest fall through to another prompt.
 
                      Empty the line first.  It is the interpreter's own input
                      buffer, kept across calls so that "get lamp. go north"
                      runs as two commands, and an unwind skips the point where
-                     the next read would have cleared it -- leaving the restored
-                     or restarted game to parse "glk restart" as its first
-                     command. */
+                     the next read would have cleared it -- leaving the
+                     restored or restarted game to parse "glk restart" as its
+                     first command. */
                   memset (buffer, 0, length);
                   gsc_meta_perform ();
                   return FALSE;
@@ -335,7 +379,7 @@ gsc_read_command (scr_char *buffer, scr_int length)
                  runner -- unless the game has a MAP command of its own, in
                  which case the game's wins and the pane is reached with
                  "glk map". */
-              if (!gsc_map_taken
+              if (!gsc_map_pane.taken
                   && scr_strcasecmp (buffer + posn, "map") == 0)
                 {
                   gsc_map_toggle ();
@@ -346,15 +390,43 @@ gsc_read_command (scr_char *buffer, scr_int length)
         }
     }
 
+  return TRUE;
+}
+
+
+static scr_bool
+gsc_read_command (scr_char *buffer, scr_int length)
+{
+  scr_int characters;
+  assert (buffer && length > 0);
+
+  if (gsc_prompt_prelude (buffer, length))
+    return TRUE;
+  if (gsc_take_supplied_line (buffer, length))
+    return TRUE;
+
+  /*
+   * No input log being read, or we just hit the end of file on one.  Revert
+   * to normal line input; start by getting a new line from Glk.
+   */
+  characters = gsc_read_line (buffer, length - 1);
+  assert (characters <= length);
+  buffer[characters] = '\0';
+
+  if (gsc_take_clicked_walk_step (buffer, length))
+    return TRUE;
+  if (!gsc_filter_typed_line (buffer, length))
+    return FALSE;
+
   /*
    * If there is an input log active, log this input string to it.  Note that
    * by logging here we get any abbreviation expansions but we won't log glk
    * special commands, nor any input read from a current open input log.
    */
-  if (gsc_inputlog_stream)
+  if (gsc_io.inputlog_stream)
     {
-      glk_put_string_stream (gsc_inputlog_stream, buffer);
-      glk_put_char_stream (gsc_inputlog_stream, '\n');
+      glk_put_string_stream (gsc_io.inputlog_stream, buffer);
+      glk_put_char_stream (gsc_io.inputlog_stream, '\n');
     }
 
   return TRUE;
@@ -405,12 +477,12 @@ gsc_get_choice_key (const char *choices)
 
       /* Wait for a standard key, ignoring Glk special keys. */
 #ifdef SPATTERLIGHT
-      gsc_sc_silent = FALSE;
+      gsc_replay.sc_silent = FALSE;
       gsc_sc_note_mid_turn_input ();
 #endif
       do
         {
-          glk_request_char_event (gsc_main_window);
+          glk_request_char_event (gsc_io.main_window);
           gsc_event_wait (evtype_CharInput, &event);
         }
       while (event.val1 > UCHAR_MAX);
@@ -437,7 +509,7 @@ os_confirm (scr_int type)
    * input log, allow everything no matter what, on the assumption that the
    * user knows what they are doing.
    */
-  if (gsc_readlog_stream
+  if (gsc_io.readlog_stream
       || type == SCR_CONF_SAVE || type == SCR_CONF_VIEW_HINTS)
     return TRUE;
 

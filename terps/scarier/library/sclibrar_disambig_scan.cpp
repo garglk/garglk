@@ -74,12 +74,11 @@
  *
  * (@4432AA with the Short when the player typed it, @443303 with the Alias
  * otherwise).  Everything the turn DID still stands: mikes.taf cmd 27 `take
- * truck keys`, with the carried mustang keys and the truck keys both
- * aliased "keys", answers "Which keys.  The mustang keys or the truck
- * keys?" -- and the truck keys are taken, because `drive truck bob` works
- * 30 commands later (run380 under Wine, runner_probes/life_of_mike.run380.rtf
- * and the 2026-09-04 re-drive; an earlier note that the keys were NOT taken
- * was wrong).  The next command is not eaten as an answer -- `east` after the
+ * truck keys`, with the carried mustang keys and the truck keys both aliased
+ * "keys", answers "Which keys.  The mustang keys or the truck keys?" -- and
+ * the truck keys are taken, because `drive truck bob` works 30 commands later
+ * (run380 under Wine, runner_probes/life_of_mike.run380.rtf and the 2026-09-04
+ * re-drive).  The next command is not eaten as an answer -- `east` after the
  * prompt simply moves east.  4.0 narrows differently (the up-front word score
  * of Proc_21_58_463640, see lib_absent_seen_object()) and never raises this
  * prompt from the dispatcher, so the port stops at 3.9.
@@ -138,12 +137,14 @@ lib_co_term_shadowed (scr_gameref_t game, const scr_char *line,
   const scr_prop_setref_t bundle = gs_get_bundle (game);
   const size_t term_length = term ? strlen (term) : 0;
   std::string rest;
-  scr_bool shadowed = FALSE;
+  scr_bool shadowed = FALSE, object_present, present;
   scr_int other;
 
   if (!line || term_length == 0 || !lib_co_contains (line, term))
     return FALSE;
 
+  object_present = obj_indirectly_in_room (game, object, gs_playerroom (game))
+                   || obj_indirectly_held_by_player (game, object);
   rest = line;
   GS_FOR_EACH_OBJECT (game, other)
     {
@@ -154,15 +155,39 @@ lib_co_term_shadowed (scr_gameref_t game, const scr_char *line,
         continue;
       /*
        * An object never seen and not here is nothing the player can mean,
-       * so its longer name hides nobody's: Scene of the Crime (4.00) `drop
+       * so its longer name hides nobody's: Scene of the Crime (4.0) `drop
        * tiny card` with "a small card" in hand and "a tiny card" (alias
        * "tiny card") not yet in play drops the small card (run400x
-       * runner_probes/sotc.run400.drop.txt, 2026-10-09), where the shadow
+       * runner_probes/sotc.run400.drop.txt), where the shadow
        * left the line to "I am not holding the small card.".
+       *
+       * At 4.0 an object SEEN but not here hides nothing PRESENT either:
+       * the resolver's first pass (463640 mode 0, lib_resolve_admit_mode0())
+       * scores present objects only, so an absent namesake is no candidate
+       * and can neither tie nor outrank a present one.  House, the Lounge
+       * furniture chopped: with the rocking chair (66, Short "rocking
+       * chair", alias "chair") gone and the "ex chair" (Short "chair") in
+       * the room, run400 answers `get rocking chair` "You take the ex
+       * chair." and `x rocking chair` "A pile of wood that used to be a
+       * chair." (runner_probes/house.run400.exfurniture_nouns.txt), and
+       * `get tea chest`/`x tea chest` the same for the ex chest; the shadow
+       * left them to "Take what?" and "You can't see the rocking chair from
+       * here!".  (`get lounge table` never needed this: the lounge table is
+       * Short "table" with the Prefix "a lounge".)  With the scored object
+       * absent as well the shadow stands, so that House's `open bathroom
+       * door` from a room with no door still names the door ("You can't
+       * see the bathroom door.") where run400 lets the front door and the
+       * street sign's "door" tie it down to "You can't open that." -- the
+       * deviation above, kept on purpose (WINE-TRANSCRIPTS.md, "A name
+       * inside a longer name").  Below 4.0 the pre-4.0 co() counts present
+       * objects too, but that case is unmeasured and the shadow is left as
+       * it was.
        */
-      if (!gs_object_seen (game, other)
-          && !obj_indirectly_in_room (game, other, gs_playerroom (game))
-          && !obj_indirectly_held_by_player (game, other))
+      present = obj_indirectly_in_room (game, other, gs_playerroom (game))
+                || obj_indirectly_held_by_player (game, other);
+      if (!present
+          && ((lib_is_version_400 (game) && object_present)
+              || !gs_object_seen (game, other)))
         continue;
       alias_count = lib_alias_prepare (bundle, vt_key, "Objects", other);
       for (alias = -1; alias < alias_count; alias++)
@@ -203,11 +228,10 @@ lib_co_term_shadowed (scr_gameref_t game, const scr_char *line,
  * lib_references_are_namesakes()
  *
  * TRUE when two or more objects are referenced and all share one Short.
- * Deliberate deviation (2026-09-30): the pre-4.0 loops that act on every
- * referenced object (open/close at 3.7-3.9, wear/remove at 3.7) are for a
- * line naming several things; a crowd of namesakes is asked about instead,
- * so `open door` with a red and a blue door no longer opens both, nor
- * `wear hat` put on both hats (83c4a19c0, 2e4d7ba0e).
+ * Deliberate deviation: the pre-4.0 loops that act on every referenced object
+ * (open/close at 3.7-3.9, wear/remove at 3.7) are for a line naming several
+ * things; a crowd of namesakes is asked about instead, so `open door` with a
+ * red and a blue door does not open both, nor `wear hat` put on both hats.
  */
 scr_bool
 lib_references_are_namesakes (scr_gameref_t game)
@@ -220,7 +244,7 @@ lib_references_are_namesakes (scr_gameref_t game)
     {
       const scr_char *shortname;
 
-      if (!game->object_references[index_])
+      if (!game->refs.objects[index_])
         continue;
       shortname = prop_get_indexed_string (bundle, "Objects", index_, "Short");
       if (!shortname)
@@ -319,7 +343,7 @@ lib_cache_long_names (scr_gameref_t game)
 /*
  * lib_mask_long_names()
  *
- * Deliberate deviation (2026-09-30).  A copy of LINE, the same length, with
+ * Deliberate deviation.  A copy of LINE, the same length, with
  * every whole-word occurrence of an object's Short or Alias, or a
  * character's Name or Alias, that runs to two words or more overwritten by
  * LIB_NAME_MASK.  The Runner ports that look for a verb anywhere on the line
@@ -376,17 +400,17 @@ lib_co_lastword (const scr_char *string)
  * lib_co_names_prefix()
  *
  * Whether the typed line names the object's Prefix, when a term has several
- * present namesakes.  The Runners' co() matches one Prefix word: 3.90 and
- * 4.00 take the last word of the whole Prefix; 3.70 and 3.80 drop its
+ * present namesakes.  The Runners' co() matches one Prefix word: 3.9 and
+ * 4.0 take the last word of the whole Prefix; 3.7 and 3.8 drop its
  * FIRST word first, so a Prefix of one word
  * -- "a", "the", or a bare adjective like "big" -- distinguishes nothing at
  * all, and a "big red" tells nothing apart from a "small red".
  *
  * Measured on p*TAKEP and p*TAKEQ (runner_probes/takep.run*.* and
- * runner_probes/takeq.run*.*, 2026-09-20), everything loose in one lit
+ * runner_probes/takeq.run*.*), everything loose in one lit
  * room:
  *
- *                               3.70 / 3.80        3.90            4.00
+ *                               3.7 / 3.8         3.9             4.0
  *   "big" gem, "small" gem
  *     take gem                  no             no              no
  *     take big gem              no             the big gem     the big gem
@@ -401,23 +425,23 @@ lib_co_lastword (const scr_char *string)
  *   "big red" pin, "small red" pin
  *     take big pin              no             no              the big pin
  *
- * ("no" is the version's own refusal: "Take what?" at 3.70, "Which pin.
- * Old red pin or new red pin?" at 3.80/3.90, and at 4.00 either that
+ * ("no" is the version's own refusal: "Take what?" at 3.7, "Which pin.
+ * Old red pin or new red pin?" at 3.8/3.9, and at 4.0 either that
  * question or "It is not clear which pin you are referring to." from
  * drops.)  `take red gem` answering while `take very gem` does not is what
  * makes it the LAST word of what is left and not the second; `take big
- * pin` failing at 3.90 as well is what makes 3.90's word the last of the
- * WHOLE Prefix and not the first-dropped one.  4.00 is the word score
+ * pin` failing at 3.9 as well is what makes 3.9's word the last of the
+ * WHOLE Prefix and not the first-dropped one.  4.0 is the word score
  * instead (lib_verb_object_name_score()), which counts every Prefix word.
  *
  * Deliberate deviation: Scarier asks instead whether the line names some
  * word of the Prefix other than an article, and no word that only another
  * object of the same Short has in its Prefix, and no other object of that
  * Short passes the same test.  So `take big gem` picks the big gem at
- * 3.70/3.80, and `take old pin` and `take old red pin` the old red pin
+ * 3.7/3.8, and `take old pin` and `take old red pin` the old red pin
  * everywhere, where the Runners refuse, ask "Which pin?" or take both; and
- * `take red pin` asks "Which pin?" everywhere, where 3.70/3.80 take both
- * and 3.90 the old pin.
+ * `take red pin` asks "Which pin?" everywhere, where 3.7/3.8 take both
+ * and 3.9 the old pin.
  */
 static scr_bool
 lib_co_is_article (const std::string &word)
@@ -452,8 +476,10 @@ lib_co_prefix_words (scr_gameref_t game, scr_int object)
   return words;
 }
 
-/* TRUE if the line names a Prefix word that only another object of the same
-   Short has: `take old pin` rules out the new red pin. */
+/*
+ * TRUE if the line names a Prefix word that only another object of the same
+ * Short has: `take old pin` rules out the new red pin.
+ */
 scr_bool
 lib_co_prefix_excluded (scr_gameref_t game, const scr_char *line,
                         scr_int object)
@@ -587,7 +613,7 @@ lib_co_object_answers_to (scr_gameref_t game, scr_int object,
 
 /*
  * TRUE if the object counts as a namesake candidate: present (obhere) and,
- * from 3.90, also seen -- run390 co() @43B2FB and the list loop @43B4AE both
+ * from 3.9, also seen -- run390 co() @43B2FB and the list loop @43B4AE both
  * test the object's seen byte (field 44) beside obhere; run380 co() has no
  * such test.
  */
@@ -619,7 +645,7 @@ lib_object_held_pre380 (scr_gameref_t game, scr_int object)
  * same-Short namesakes are only the commonest crowd.  3.7's handlers never
  * call co(), so what makes a 3.7 crowd is the SHORT alone: two objects
  * answering to one word through an Alias are not namesakes to it, and each
- * simply acts.  p37OPENA (runner_probes/opena.run370.rtf, 2026-09-20) is that
+ * simply acts.  p37OPENA (runner_probes/opena.run370.rtf) is that
  * side: a gem and a rock aliased "gem", both Prefixed "a", and `take gem` is
  * "You pick up the rock." with BOTH in the inventory afterwards -- while two
  * objects both Short "orb" and both Prefixed "a" are "Take what?" (p37TAKEP,
@@ -638,8 +664,10 @@ lib_namesake_crowded_pre380 (scr_gameref_t game, const scr_char *line,
   if (scr_strempty (shortname) || !line || !lib_co_contains (line, shortname)
       || lib_co_term_shadowed (game, line, object, shortname))
     return FALSE;
-  /* takes() acts on nothing on a "from" line (43648C), so its take-from
-     lines are no crowd. */
+  /*
+   * takes() acts on nothing on a "from" line (run370 43648C), so its take-from
+   * lines are no crowd.
+   */
   if (!want_held && lib_co_contains (line, "from"))
     return FALSE;
 
@@ -658,8 +686,10 @@ lib_namesake_crowded_pre380 (scr_gameref_t game, const scr_char *line,
   return present > 1;
 }
 
-/* TRUE if the object's Short or any Alias is a whole word run of the line,
-   which is how 3.7's takes()/drops() loop names an object. */
+/*
+ * TRUE if the object's Short or any Alias is a whole word run of the line,
+ * which is how 3.7's takes()/drops() loop names an object.
+ */
 scr_bool
 lib_names_object_370 (scr_gameref_t game, const scr_char *line,
                       scr_int object)
@@ -683,11 +713,13 @@ lib_names_object_370 (scr_gameref_t game, const scr_char *line,
   return FALSE;
 }
 
-/* TRUE if every Short and Alias of the object that the line names sits
-   inside a longer name another object answers to -- "key" in `take key
-   ring`.  Deliberate deviation: the Runner counts the key into the crowd
-   and answers "Take what?"; Scarier leaves it out.  See
-   lib_co_term_shadowed(). */
+/*
+ * TRUE if every Short and Alias of the object that the line names sits
+ * inside a longer name another object answers to -- "key" in `take key
+ * ring`.  Deliberate deviation: the Runner counts the key into the crowd
+ * and answers "Take what?"; Scarier leaves it out.  See
+ * lib_co_term_shadowed().
+ */
 scr_bool
 lib_names_only_shadowed_370 (scr_gameref_t game, const scr_char *line,
                              scr_int object)
@@ -845,6 +877,36 @@ lib_co_effective_mode (scr_gameref_t game, const scr_char *term,
 }
 
 /*
+ * The line an ask/tell/talk command's object scan looks at: everything
+ * before its first " about " or " for ", where the topic starts.  Any other
+ * line is returned whole.
+ */
+static std::string
+lib_co_scan_without_topic (const scr_char *command)
+{
+  static const scr_char *const VERBS[] = {"ask ", "tell ", "talk ", nullptr};
+  static const scr_char *const MARKS[] = {" about ", " for ", nullptr};
+  const scr_char *const *verb;
+
+  for (verb = VERBS; *verb; verb++)
+    {
+      if (scr_strncasecmp (command, *verb, strlen (*verb)) == 0)
+        break;
+    }
+  if (!*verb)
+    return command;
+
+  std::string lowered (command);
+  for (char &c : lowered)
+    c = scr_tolower (c);
+  size_t cut = std::string::npos;
+  for (const scr_char *const *mark = MARKS; *mark; mark++)
+    cut = std::min (cut, lowered.find (*mark));
+  return cut == std::string::npos ? std::string (command)
+                                  : std::string (command, cut);
+}
+
+/*
  * Reproduce the scan.  Returns TRUE when the Runner would prompt, with
  * *prompt_term the last flagged object's term, *list_term the term the list
  * was built from (the first ambiguous object's), and *present that first
@@ -864,6 +926,16 @@ lib_runner_co_scan (scr_gameref_t game, const scr_char *command,
   if (!command)
     return FALSE;
   room = gs_playerroom (game);
+
+  /*
+   * Deliberate deviation: the Runner scans the whole line, so in Troll.taf
+   * (3.9) `ask sid about cup` with two cups present is "Which cup?" and Sid
+   * is never asked.  A conversation topic is a keyword for the game's
+   * Topics, not an object reference, so on an ask/tell/talk line the scan
+   * stops at " about " (or " for ").
+   */
+  const std::string topicless = lib_co_scan_without_topic (command);
+  command = topicless.c_str ();
 
   /*
    * Deliberate deviation: the Runner counts every present namesake, so with
@@ -970,7 +1042,7 @@ lib_co_ambiguity_prompt (scr_gameref_t game, const scr_char *command)
    * `wear hat`, `drop hat`, `x hat` with two hats -- never asks; each of
    * them answers its own way (lib_disambiguate_object_common).  p37TASK,
    * runner_probes/task.run370.pname.rtf /
-   * runner_probes/task.run370.pname2.rtf, 2026-09-19.
+   * runner_probes/task.run370.pname2.rtf.
    */
   if (prop_get_taf_version (gs_get_bundle (game)) < TAF_VERSION_380
       && disambig.line.prompt_370_blocked)
@@ -980,11 +1052,10 @@ lib_co_ambiguity_prompt (scr_gameref_t game, const scr_char *command)
 
   /*
    * The whole turn's output goes; only the prompt is shown.  The bare-give
-   * completion's "(to Nobody)" is not part of it: the Runner prints that
-   * echo as it rewrites the line (run390 45FAB9 -> 47B568), so `give hat`
-   * with two hats is "(to Nobody)" and then "Which hat.  The red hat or
-   * the blue hat?" (p39TASK, run390x runner_probes/task.run390.pclear.txt,
-   * 2026-09-19).
+   * completion's "(to Nobody)" is not part of it: the Runner prints that echo
+   * as it rewrites the line (run390 45FAB9 -> 47B568), so `give hat` with two
+   * hats is "(to Nobody)" and then "Which hat.  The red hat or the blue hat?"
+   * (p39TASK, run390x runner_probes/task.run390.pclear.txt).
    */
   {
     const std::string echo (pf_leading_reference (filter));
@@ -1030,7 +1101,7 @@ lib_co_ambiguity_prompt (scr_gameref_t game, const scr_char *command)
    * per turn, the term is the last flagged).  A line something answers
    * drops the question (`close box` / `look`).  3.7/3.8 store nothing
    * (run380 4432AA, run370 43C997).  See lib_battle_who_continuation().
-   * p39TASK run390x runner_probes/task.run390.pfx.txt, 2026-09-19.
+   * p39TASK run390x runner_probes/task.run390.pfx.txt.
    */
   if (prop_get_taf_version (gs_get_bundle (game)) >= TAF_VERSION_390)
     lib_battle_who_store (std::string (prompt_term) + "|" + command);

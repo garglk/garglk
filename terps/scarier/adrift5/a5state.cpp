@@ -19,7 +19,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  *
- * ADRIFT 5 support for Scarier -- runtime state (Phase 2).  See a5state.h.
+ * ADRIFT 5 support for Scarier -- runtime state.  See a5state.h.
  */
 
 #include <stdio.h>
@@ -146,7 +146,7 @@ ov_find_prefixed (const a5_state_t *st, const char *entkey, const char *prefix,
   if (ix == nullptr)
     {
       ix = new a5_ov_index;
-      const_cast<a5_state_t *> (st)->ov_index = ix;
+      st->ov_index = ix;
     }
   if (ix->indexed != st->n_ov)
     ix->sync (st);
@@ -222,10 +222,11 @@ compute_objloc (const a5_object_t *o, a5_objloc_t *loc)
     }
 
   /* A holder key may be stored as the literal variable "%Player%" rather than
-     the resolved player key (the Adrift 5 runner resolves it to Adventure.Player.Key
+     the resolved player key (the Runner resolves it to Adventure.Player.Key
      in every accessor, e.g. clsObjectLocation.Key getter, clsObject.vb:1058).
-     The engine uses "Player" as the player key throughout, so normalise here —
-     otherwise e.g. a backpack with WornByWho=%Player% is dropped from ListWorn. */
+     The engine uses "Player" as the player key throughout, so normalise here
+     -- otherwise e.g. a backpack with WornByWho=%Player% is dropped from
+     ListWorn. */
   if (streq (loc->key, "%Player%"))
     loc->key = "Player";
   else if (loc->is_static && obj_has_prop (o, "StaticLocation"))
@@ -247,13 +248,14 @@ compute_objloc (const a5_object_t *o, a5_objloc_t *loc)
 }
 
 /* Static CharOnWho/CharInsideWho may be the variable "%Player%" rather than a
-   concrete character key; the Adrift runner resolves it to Adventure.Player.Key
-   in every accessor (clsCharacterLocation.Key).  Resolve it once at load so the
-   carrier chain (a5state_character_location_key / _visible_at_location) finds it
-   -- otherwise an On-Character follower with CharOnWho=%Player% (Symphonica's
-   "Barry Leitch is following you.") never resolves to the player's room and is
-   dropped from every location listing.  st->player_key is already decoded when
-   this runs (do NOT hardcode "Player": some games rename the player). */
+   concrete character key; the Runner resolves it to Adventure.Player.Key
+   in every accessor (clsCharacterLocation.Key).  Resolve it once at load so
+   the carrier chain (a5state_character_location_key / _visible_at_location)
+   finds it -- otherwise an On-Character follower with CharOnWho=%Player%
+   (Symphonica's "Barry Leitch is following you.") never resolves to the
+   player's room and is dropped from every location listing.  st->player_key is
+   already decoded when this runs (do NOT hardcode "Player": some games rename
+   the player). */
 static const char *
 resolve_carrier (const a5_state_t *st, const char *k)
 {
@@ -266,10 +268,11 @@ state_decode_player (a5_state_t *st, const a5_adventure_t *adv)
 {
   int i;
 
-  /* The current player: the character whose Type is "Player" (clsAdventure.Player
-     getter).  Its key is the literal "Player" in every corpus game, but decode it
-     dynamically so a game that renames the player character still works, and so a
-     later ToSwitchWith (BECOME) can retarget it. */
+  /* The current player: the character whose Type is "Player"
+     (clsAdventure.Player getter).  Its key is the literal "Player" in every
+     corpus game, but decode it dynamically so a game that renames the player
+     character still works, and so a later ToSwitchWith (BECOME) can retarget
+     it. */
   st->player_key = "Player";
   for (i = 0; i < adv->n_characters; i++)
     if (streq (adv->characters[i].type, "Player"))
@@ -327,7 +330,7 @@ state_rehome_player (a5_state_t *st, const a5_adventure_t *adv)
   /* A player who STARTS on/in furniture (JACD's Timmy lying on Bed1:
      CharacterLocation "On Object") has char_loc NULL here; the runtime
      ToStandingOn/ToSittingOn path keeps char_loc synced to the
-     furniture's room (the runner derives clsCharacterLocation.LocationKey from
+     furniture's room (the Runner derives clsCharacterLocation.LocationKey from
      the object), so establish the same invariant at load. */
   if (pi >= 0 && st->char_loc[pi] == nullptr
       && st->char_onobj[pi] != nullptr)
@@ -425,7 +428,7 @@ state_init_variables (a5_state_t *st, const a5_adventure_t *adv)
     state_init_variable (st, adv, i);
 }
 
-/* ------------------------------------------------------------------- public */
+/* ------------------------------------------------------------------ public */
 
 a5_state_t *
 a5state_new (const a5_adventure_t *adv)
@@ -456,8 +459,8 @@ a5state_new (const a5_adventure_t *adv)
   if (adv->n_locations > 0)
     {
       st->loc_seen = (char *) calloc ((size_t) adv->n_locations, 1);
-      /* Nothing is seen yet, not even the room the player starts in: the runner
-         marks that one only after the <RunImmediately> tasks have run
+      /* Nothing is seen yet, not even the room the player starts in: the
+         Runner marks that one only after the <RunImmediately> tasks have run
          (clsUserSession.vb:371), so a game that starts by moving the player
          elsewhere -- Alien Diver picks its opening ocean square at random --
          leaves the authored start room unseen for good.  a5run_intro does the
@@ -482,9 +485,10 @@ a5state_new (const a5_adventure_t *adv)
       st->task_scored = (char *) calloc ((size_t) adv->n_tasks, 1);
     }
 
-  /* Seed the live group-membership list (the runner clsGroup.arlMembers) from each
-     group's static <Member>s, in model order, so runtime Add/Remove*ToGroup
-     layers on top of it and RandomKey/EverywhereInGroup enumerate correctly. */
+  /* Seed the live group-membership list (the Runner's clsGroup.arlMembers)
+     from each group's static <Member>s, in model order, so runtime
+     Add/Remove*ToGroup layers on top of it and RandomKey/EverywhereInGroup
+     enumerate correctly. */
   for (i = 0; i < adv->n_groups; i++)
     {
       int m;
@@ -499,7 +503,7 @@ a5state_new (const a5_adventure_t *adv)
   if (adv->n_characters > 0)
     st->char_prevpar = (const char **) calloc ((size_t) adv->n_characters,
                                                sizeof *st->char_prevpar);
-  a5state_stamp_prev (st);   /* the runner's init-time PrepareForNextTurn */
+  a5state_stamp_prev (st);   /* the Runner's init-time PrepareForNextTurn */
 
   return st;
 }
@@ -607,7 +611,7 @@ a5state_in_group_or_location (const a5_state_t *st, const char *charkey,
   return group_has_static_member (st->adv, key, cloc);
 }
 
-/* -------------------------------------------------------- SetLook look stack */
+/* ------------------------------------------------------ SetLook look stack */
 
 void
 a5state_push_look (a5_state_t *st, const char *loc_key, const char *text,
@@ -685,7 +689,7 @@ a5state_disp_once_unmark (a5_state_t *st, const void *node)
       }
 }
 
-/* ------------------------------------------------------- reference bindings */
+/* ------------------------------------------------------ reference bindings */
 
 void
 a5state_clear_refs (a5_state_t *st)
@@ -729,7 +733,7 @@ a5state_lookup_ref (const a5_state_t *st, const char *name)
   return nullptr;
 }
 
-/* ------------------------------------------------------- property overrides */
+/* ------------------------------------------------------ property overrides */
 
 const char *
 a5state_entity_prop (const a5_state_t *st, const char *entkey, const char *propkey)
@@ -820,7 +824,8 @@ a5state_object_in_group (const a5_state_t *st, const char *grpkey,
   return group_has_static_member (st->adv, grpkey, objkey);
 }
 
-/* --- Live group membership (the runner clsGroup.arlMembers): ordered + distinct. --- */
+/* ---- Live group membership (the Runner's clsGroup.arlMembers): ordered +
+   distinct. */
 
 /* Stamp st's membership list as changed.  The stamps come from one counter
    shared by every state, so two lists carrying the same stamp are the same
@@ -842,7 +847,8 @@ gm_find (const a5_state_t *st, const char *grpkey, const char *key)
   return -1;
 }
 
-/* Distinct append (the runner: `If Not arlMembers.Contains(k) Then arlMembers.Add(k)`). */
+/* Distinct append (the Runner: `If Not arlMembers.Contains(k) Then
+   arlMembers.Add(k)`). */
 void
 a5state_group_add_member (a5_state_t *st, const char *grpkey, const char *key)
 {
@@ -856,7 +862,8 @@ a5state_group_add_member (a5_state_t *st, const char *grpkey, const char *key)
   gm_touch (st);
 }
 
-/* Remove (the runner: `If Contains Then Remove`), preserving the order of the rest. */
+/* Remove (the Runner: `If Contains Then Remove`), preserving the order of the
+   rest. */
 void
 a5state_group_remove_member (a5_state_t *st, const char *grpkey, const char *key)
 {
@@ -904,22 +911,24 @@ a5state_set_object_in_group (a5_state_t *st, const char *grpkey,
     return;
   group_prop_key (key, sizeof key, grpkey);
   a5state_set_prop (st, objkey, key, present ? "1" : "0");
-  /* Keep the live insertion-ordered member list (the runner arlMembers) in sync so
-     RandomKey / EverywhereInGroup see runtime add/remove in the right order. */
+  /* Keep the live insertion-ordered member list (the Runner arlMembers) in
+     sync so RandomKey / EverywhereInGroup see runtime add/remove in the right
+     order. */
   if (present)
     a5state_group_add_member (st, grpkey, objkey);
   else
     a5state_group_remove_member (st, grpkey, objkey);
 }
 
-/* Rebuild the live insertion-ordered group-membership list (gm / the runner arlMembers)
-   from the restored effective membership.  Our save serialises runtime group
-   membership only as the @InGroup:<grp> property overrides (PropOv); the ordered
-   arlMembers list that RandomKey / EverywhereInGroup enumerate is NOT stored, so
-   after a restore it must be reconstructed or those actions see stale (static-
-   only) membership.  Seed each group's still-effective static members in model
-   order, then append runtime-added members in the order their override was
-   created (st->ov append order approximates the runner's arlMembers insertion order). */
+/* Rebuild the live insertion-ordered group-membership list (gm / the Runner
+   arlMembers) from the restored effective membership.  Our save serialises
+   runtime group membership only as the @InGroup:<grp> property overrides
+   (PropOv); the ordered arlMembers list that RandomKey / EverywhereInGroup
+   enumerate is NOT stored, so after a restore it must be reconstructed or
+   those actions see stale (static- only) membership.  Seed each group's
+   still-effective static members in model order, then append runtime-added
+   members in the order their override was created (st->ov append order
+   approximates the Runner's arlMembers insertion order). */
 void
 a5state_rebuild_live_groups (a5_state_t *st)
 {
@@ -945,12 +954,13 @@ a5state_rebuild_live_groups (a5_state_t *st)
     }
 }
 
-/* A location's inherited group property (clsItem.htblInheritedProperties layered
-   from each Locations-type group it belongs to, clsLocation.GetProperty): scan
-   every Locations group whose (runtime-or-static) membership includes `lockey`
-   and return the last match for `propkey` (the runner's later property-group wins).
-   Used for the dynamic ShortLocationDescription darkness property, which the
-   day/night events add to every outdoor location's group at night. */
+/* A location's inherited group property (clsItem.htblInheritedProperties
+   layered from each Locations-type group it belongs to,
+   clsLocation.GetProperty): scan every Locations group whose
+   (runtime-or-static) membership includes `lockey` and return the last match
+   for `propkey` (the Runner's later property-group wins).  Used for the
+   dynamic ShortLocationDescription darkness property, which the day/night
+   events add to every outdoor location's group at night. */
 const a5_prop_t *
 a5state_location_group_prop (const a5_state_t *st, const char *lockey,
                              const char *propkey)
@@ -1149,8 +1159,8 @@ obj_first_location_key (const a5_state_t *st, int oi, int depth)
 
 /* A character's EFFECTIVE location key: char_loc when set, else resolved
    through the on/in-object carrier (a char whose model start is "On Object"
-   -- GFS's Grandpa on his rocking chair -- has char_loc NULL; The runner derives
-   clsCharacterLocation.LocationKey from the furniture). */
+   -- GFS's Grandpa on his rocking chair -- has char_loc NULL; the Runner
+   derives clsCharacterLocation.LocationKey from the furniture). */
 static const char *
 char_location_key_depth (const a5_state_t *st, int ci, int depth)
 {
@@ -1165,8 +1175,8 @@ char_location_key_depth (const a5_state_t *st, int ci, int depth)
       if (k != nullptr)
         return k;
     }
-  /* A character riding another character (ExistWhere On/InCharacter -- Edith on
-     the Player) inherits the carrier's effective room; the runner derives
+  /* A character riding another character (ExistWhere On/InCharacter -- Edith
+     on the Player) inherits the carrier's effective room; the Runner derives
      clsCharacterLocation.LocationKey from the carrier.  Recurse with a depth
      guard against a cyclic On-Character placement. */
   if (st->char_onchar != nullptr && st->char_onchar[ci] != nullptr)
@@ -1183,11 +1193,12 @@ a5state_character_location_key (const a5_state_t *st, int ci)
 
 /* Does container object `parent` *hide* its In-Object contents from view?
    Mirrors clsObject.BoundVisible's InObject branch (clsObject.vb:804): the
-   contents are visible when the container is `Not Openable OrElse IsOpen OrElse
-   IsTransparent`, so it hides only when it is openable AND closed AND opaque.
-   Openable = HasProperty("Openable"); IsOpen = the OpenStatus property is absent
-   or "Open"; IsTransparent is always False in the runner (clsObject.vb:308).  Consults
-   the runtime override layer first (so a SetProperty OpenStatus is reflected). */
+   contents are visible when the container is `Not Openable OrElse IsOpen
+   OrElse IsTransparent`, so it hides only when it is openable AND closed AND
+   opaque.  Openable = HasProperty("Openable"); IsOpen = the OpenStatus
+   property is absent or "Open"; IsTransparent is always False in the Runner
+   (clsObject.vb:308).  Consults the runtime override layer first (so a
+   SetProperty OpenStatus is reflected). */
 static int
 obj_hides_contents (const a5_state_t *st, int parent)
 {
@@ -1206,14 +1217,16 @@ obj_hides_contents (const a5_state_t *st, int parent)
   if (os == nullptr || streq (os, "Open"))
     return 0;
 
-  return 1;                     /* openable, closed, opaque => hides contents */
+  /* openable, closed, opaque => hides contents */
+  return 1;
 }
 
 /* Recursive ExistsAtLocation, with a depth guard against cyclic placements.
-   When `visible` is set this mirrors clsObject.BoundVisible / IsVisibleAtLocation
-   instead of the raw ExistsAtLocation: an object inside a *closed opaque*
-   openable container resolves to the container's own key (not the room), so it
-   is not visible at any location.  ExistsAtLocation (visible=0) ignores that. */
+   When `visible` is set this mirrors clsObject.BoundVisible /
+   IsVisibleAtLocation instead of the raw ExistsAtLocation: an object inside a
+   *closed opaque* openable container resolves to the container's own key (not
+   the room), so it is not visible at any location.  ExistsAtLocation
+   (visible=0) ignores that. */
 static int
 exists_at (const a5_state_t *st, int oi, const char *lockey, int directly,
            int visible, int depth)
@@ -1265,10 +1278,11 @@ exists_at (const a5_state_t *st, int oi, const char *lockey, int directly,
         if (ci < 0)
           return 0;
         /* Resolve through the carrier chain, not char_loc alone: a character
-           seated On/Inside furniture has char_loc[ci] == NULL and its effective
-           room comes from the furniture (a5state_character_location_key).  Held
-           and worn objects must inherit that same effective room, or they drop
-           out of scope / room listings while their holder is plainly present. */
+           seated On/Inside furniture has char_loc[ci] == NULL and its
+           effective room comes from the furniture
+           (a5state_character_location_key).  Held and worn objects must
+           inherit that same effective room, or they drop out of scope / room
+           listings while their holder is plainly present. */
         return streq (a5state_character_location_key (st, ci), lockey);
       }
     }
@@ -1284,10 +1298,10 @@ a5state_object_at_location (const a5_state_t *st, int oi, const char *lockey,
 
 /* Is `lockey` one of object `oi`'s location ROOTS (clsObject.LocationRoots,
    clsObject.vb:460)?  Differs from ExistsAtLocation in the held/worn/part-of-
-   character branches: the runner only roots those at the carrier's location
-   when the character is strictly AtLocation -- a carrier seated On/In furniture
-   or riding another character contributes NO root, so %LocationOf[obj]% renders
-   empty for its cargo. */
+   character branches: the Runner only roots those at the carrier's location
+   when the character is strictly AtLocation -- a carrier seated On/In
+   furniture or riding another character contributes NO root, so
+   %LocationOf[obj]% renders empty for its cargo. */
 static int
 location_root_at (const a5_state_t *st, int oi, const char *lockey, int depth)
 {
@@ -1384,11 +1398,11 @@ char_visible_at_depth (const a5_state_t *st, int ci, const char *lockey,
   if (ci < 0 || lockey == nullptr || st->char_loc == nullptr
       || depth > A5_PLACEMENT_DEPTH_MAX)
     return 0;
-  /* On/In an object: the runner never consults the character's own location for
-     this -- clsCharacter.BoundVisible (clsCharacter.vb:711) hands straight off
-     to the CONTAINER's BoundVisible, so the room is derived live.  That has to
-     beat the char_loc short-circuit below, because char_loc is only a snapshot
-     taken when the character was put in the object (the sync in
+  /* On/In an object: the Runner never consults the character's own location
+     for this -- clsCharacter.BoundVisible (clsCharacter.vb:711) hands straight
+     off to the CONTAINER's BoundVisible, so the room is derived live.  That
+     has to beat the char_loc short-circuit below, because char_loc is only a
+     snapshot taken when the character was put in the object (the sync in
      ExecuteSingleAction, which mirrors clsCharacterLocation.LocationKey's
      sLastLocationKey stickiness) and goes stale the moment the container is
      carried elsewhere: Jabberwocky's Beast, sealed in the wine bottle in the
@@ -1408,7 +1422,8 @@ char_visible_at_depth (const a5_state_t *st, int ci, const char *lockey,
   if (st->char_loc[ci] != nullptr)
     return streq (st->char_loc[ci], lockey);
   /* "On Character"/"In Character": a rider inherits the carrier's BoundVisible
-     unconditionally (Edith on the Player is visible wherever the Player is). */
+     unconditionally (Edith on the Player is visible wherever the Player is).
+     */
   if (st->char_onchar != nullptr && st->char_onchar[ci] != nullptr)
     { int cc = a5state_character_index (st, st->char_onchar[ci]);
       return cc >= 0 && cc != ci

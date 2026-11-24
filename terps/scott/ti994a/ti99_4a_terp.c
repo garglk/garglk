@@ -1,3 +1,10 @@
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
 /* ti99_4a_terp.c — bytecode interpreter for TI-99/4A Scott Adams games.
  *
  * TI-99/4A adventures use a different bytecode encoding than the
@@ -50,8 +57,8 @@ static const int ti99_conditions[] = {
     COND_MOVED,
 };
 
-/* Bytecode bytes 1-182 are "print message N" (modulo the range split
-   handled by EXTENDED_MSG_*); 183+ are conditions or commands. */
+/* Bytecode bytes 0-182 are "print message N"; 183+ are conditions or
+   commands. */
 #define MAX_MESSAGE_OPCODE  182
 
 /* Maximum nesting depth for TRY blocks before we give up. */

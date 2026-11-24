@@ -21,10 +21,11 @@
  *
  * ADRIFT 5 support for Scarier -- Blorb / IFF container reader.
  *
- * A small, self-contained reader for the Blorb (IFF "FORM"/"IFRS") wrapper that
- * ADRIFT 5 games ship in.  Modelled on Bocfel's iff.cpp/blorb.cpp, but operating
- * on an in-memory byte buffer with no I/O abstraction, so it is trivial to link
- * and reuse from both the headless harness and the interpreter proper.
+ * A small, self-contained reader for the Blorb (IFF "FORM"/"IFRS") wrapper
+ * that ADRIFT 5 games ship in.  Modelled on Bocfel's iff.cpp/blorb.cpp, but
+ * operating on an in-memory byte buffer with no I/O abstraction, so it is
+ * trivial to link and reuse from both the headless harness and the interpreter
+ * proper.
  *
  * This file is deliberately kept at the "container edge": plain stdint types,
  * no dependency on the rest of the engine.

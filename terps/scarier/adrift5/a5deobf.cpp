@@ -32,7 +32,7 @@
 
 /*
  * The fixed 1024-byte XOR key used to obfuscate ADRIFT 5 payloads, copied
- * verbatim from the Adrift 5 runner's FileIO.ObfuscateByteArray (iRandomKey).
+ * verbatim from the Runner's FileIO.ObfuscateByteArray (iRandomKey).
  */
 static const uint8_t A5_KEY[1024] = {
   41, 236, 221, 117, 23, 189, 44, 187, 161, 96, 4, 147, 90, 91, 172, 159,

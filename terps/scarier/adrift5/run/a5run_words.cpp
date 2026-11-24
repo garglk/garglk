@@ -34,19 +34,20 @@
 
 #include "a5run_internal.h"
 
-/* Seed the known-words list exactly as clsUserSession.NotUnderstood does, lazily
-   (the first time an unmatched command needs the word-validity check).
+/* Seed the known-words list exactly as clsUserSession.NotUnderstood does,
+   lazily (the first time an unmatched command needs the word-validity check).
 
-   FAITHFUL QUIRK: the runner stores command verbs, object/character articles, prefixes,
-   names and descriptors in listKnownWords with their ORIGINAL case (only the
-   character ProperName is `.ToLower`-ed; vb:3489-3531), and the validity check
-   compares the *lowercased* input word case-sensitively (`List.Contains`).  So a
-   capitalised model word like the object name "Crystal" or prefix "Zykon" is NOT
-   a known word for the lowercase input "crystal"/"zykon" -- e.g. Revenge's
-   `insert crystal in bracket` reports `I did not understand the word "crystal".`
-   (the object is named "Crystal").  We preserve case here to reproduce it; the
-   lookup in not_understood lowercases the input word, mirroring the runner's lowercase
-   sInput vs mixed-case known words. */
+   FAITHFUL QUIRK: the Runner stores command verbs, object/character articles,
+   prefixes, names and descriptors in listKnownWords with their ORIGINAL case
+   (only the character ProperName is `.ToLower`-ed; vb:3489-3531), and the
+   validity check compares the *lowercased* input word case-sensitively
+   (`List.Contains`).  So a capitalised model word like the object name
+   "Crystal" or prefix "Zykon" is NOT a known word for the lowercase input
+   "crystal"/"zykon" -- e.g. Revenge's `insert crystal in bracket` reports `I
+   did not understand the word "crystal".` (the object is named "Crystal").  We
+   preserve case here to reproduce it; the lookup in not_understood lowercases
+   the input word, mirroring the Runner's lowercase sInput vs mixed-case known
+   words. */
 static void
 build_known_words (a5_run_t *run)
 {
@@ -70,7 +71,7 @@ build_known_words (a5_run_t *run)
             kw->insert (w);
         }
     }
-  /* Nouns: each object's article + prefix words + names.  The runner adds each
+  /* Nouns: each object's article + prefix words + names.  The Runner adds each
      arlNames entry WHOLE (vb:3531 `Add(sWord)` over the name list -- no word
      split), so a multi-word name like "quest 3" never makes the bare word "3"
      known; Quest Giver's night-rejected menu digit must fall to "I did not
@@ -84,7 +85,7 @@ build_known_words (a5_run_t *run)
         if (o->names[j] && o->names[j][0]) kw->insert (o->names[j]);
     }
   /* Characters: article + prefix words + descriptors (whole entries, like the
-     runner's arlDescriptors loop) + proper name (the one field the runner
+     Runner's arlDescriptors loop) + proper name (the one field the Runner
      lowercases, vb:3522). */
   for (i = 0; i < adv->n_characters; i++)
     {
@@ -113,8 +114,9 @@ build_known_words (a5_run_t *run)
 
 /* clsUserSession.SystemTasks: the built-in verbs handled outside the task
    engine, tried after task matching fails but before NotUnderstood.  Only the
-   one this corpus exercises is implemented -- "wait"/"z" prints "Time passes..."
-   and advances WaitTurns turns of TurnBasedStuff.  Returns 1 if handled. */
+   one this corpus exercises is implemented -- "wait"/"z" prints "Time
+   passes..."  and advances WaitTurns turns of TurnBasedStuff.  Returns 1 if
+   handled. */
 int
 system_command (a5_run_t *run, const std::string &in, sb_t *out)
 {
@@ -148,21 +150,21 @@ not_understood (a5_run_t *run, const std::string &in, sb_t *out)
         return;
       }
 
-  /* The user entered just a verb that matches a "verb %ref%" command: prompt for
-     the missing reference ("<Verb> what?/who?") and remember the verb so the next
-     input is re-tried as "<verb> <input>" (NotUnderstood, vb:3543-3581).  Only a
-     single-word input.
+  /* The user entered just a verb that matches a "verb %ref%" command: prompt
+     for the missing reference ("<Verb> what?/who?") and remember the verb so
+     the next input is re-tried as "<verb> <input>" (NotUnderstood,
+     vb:3543-3581).  Only a single-word input.
 
-     FAITHFUL QUIRK: the Adrift 5 runner tests the *normalised*
+     FAITHFUL QUIRK: the Runner tests the *normalised*
      command, where every bare singular reference has been suffixed with "1"
      (%object% -> %object1%, %character% -> %character1%, %direction% ->
      %direction1%; FileIO.vb:647).  The object/character branch checks for the
      substring "%object"/"%character" (no trailing %), which still matches
      %object1%/%character1%; but the direction branch checks for "%direction%"
-     WITH the trailing %, which no longer matches %direction1%.  So the "where?"
-     prompt is effectively dead code in the Runner -- a bare movement verb falls
-     through to the catch-all.  We reproduce that exactly by normalising the
-     command before the same three Contains checks. */
+     WITH the trailing %, which no longer matches %direction1%.  So the
+     "where?"  prompt is effectively dead code in the Runner -- a bare movement
+     verb falls through to the catch-all.  We reproduce that exactly by
+     normalising the command before the same three Contains checks. */
   if (in.find (' ') == std::string::npos)
     {
       for (size_t oi = 0; oi < run->order->size (); oi++)
@@ -171,7 +173,8 @@ not_understood (a5_run_t *run, const std::string &in, sb_t *out)
           if (!streq (t->type, "General") || t->n_commands == 0)
             continue;
           const char *cmd0 = t->commands[0];
-          /* arlCommands(0) must contain the verb and be a multi-word pattern. */
+          /* arlCommands(0) must contain the verb and be a multi-word pattern.
+             */
           if (strstr (cmd0, in.c_str ()) == nullptr || strchr (cmd0, ' ') == nullptr)
             continue;
           std::string norm = cmd0;          /* normalise bare singular refs */
@@ -192,7 +195,8 @@ not_understood (a5_run_t *run, const std::string &in, sb_t *out)
             q = "where?";             /* never true: %direction1%, see above */
           else
             continue;
-          /* Confirm a command pattern of this task actually matches verb+dummy. */
+          /* Confirm a command pattern of this task actually matches
+             verb+dummy. */
           int hit = 0;
           for (int ci = 0; ci < t->n_commands && !hit; ci++)
             { a5_match_t m;
@@ -215,20 +219,20 @@ not_understood (a5_run_t *run, const std::string &in, sb_t *out)
 
   /* The input names an object the player has seen and can see now, but no task
      accepted it: "I don't understand what you want to do with the X."
-     (NotUnderstood's seen-noun branch, vb:3584-3609).  First seen+visible match
-     wins, objects before characters (the runner's loop order).
+     (NotUnderstood's seen-noun branch, vb:3584-3609).  First seen+visible
+     match wins, objects before characters (the Runner's loop order).
 
-     FAITHFUL QUIRK: the runner matches the entity's sRegularExpressionString *unanchored*
-     against the whole input (`re.IsMatch(sInput)`, no `^...$`), so a noun
-     alternative need only appear as a SUBSTRING -- the runner's player descriptor "me"
-     matches inside "hel<me>t", so `put helmet ... ` reports "...do with Mike
-     Erlin.".  Since the regex's article/prefix groups are all optional, IsMatch
-     reduces to: does any noun alternative occur as a substring of the lowercased
-     input?  The noun set is the object's names, or the character's descriptors
-     plus its proper name when usable -- the proper name as a WHOLE string ("mike
-     erlin" must appear contiguously, unlike the word-split set used elsewhere),
-     so `say erlin ...` does NOT match the player and falls through to
-     NotUnderstood, matching the runner. */
+     FAITHFUL QUIRK: the Runner matches the entity's sRegularExpressionString
+     *unanchored* against the whole input (`re.IsMatch(sInput)`, no `^...$`),
+     so a noun alternative need only appear as a SUBSTRING -- the Runner's
+     player descriptor "me" matches inside "hel<me>t", so `put helmet ... `
+     reports "...do with Mike Erlin.".  Since the regex's article/prefix groups
+     are all optional, IsMatch reduces to: does any noun alternative occur as a
+     substring of the lowercased input?  The noun set is the object's names, or
+     the character's descriptors plus its proper name when usable -- the proper
+     name as a WHOLE string ("mike erlin" must appear contiguously, unlike the
+     word-split set used elsewhere), so `say erlin ...` does NOT match the
+     player and falls through to NotUnderstood, matching the Runner. */
   {
     a5_state_t *st = run->st;
     std::string lin = lower (in);
@@ -254,8 +258,8 @@ not_understood (a5_run_t *run, const std::string &in, sb_t *out)
         std::vector<std::string> nouns;
         for (int n = 0; n < o->n_names; n++)
           nouns.push_back (lower (o->names[n]));
-        /* The runner's `If arl.Count = 0 Then sRE &= "|"` fudge: a nameless object's
-           empty alternation matches anywhere -> always IsMatch. */
+        /* The Runner's `If arl.Count = 0 Then sRE &= "|"` fudge: a nameless
+           object's empty alternation matches anywhere -> always IsMatch. */
         int hit = (o->n_names == 0) ? 1 : noun_substr (nouns);
         if (hit)
           {
@@ -284,14 +288,14 @@ not_understood (a5_run_t *run, const std::string &in, sb_t *out)
       }
   }
 
-  /* All words known but nothing matched: Adventure.NotUnderstood (FileIO.vb:850
-     defaults a missing <NotUnderstood> to this string). */
+  /* All words known but nothing matched: Adventure.NotUnderstood
+     (FileIO.vb:850 defaults a missing <NotUnderstood> to this string). */
   sb_puts (out, "Sorry, I didn't understand that command.");
 }
 
-/* clsUserSession.ReplaceWord: replace whole-word occurrences of `find` in `text`
-   with `repl` (word boundaries are spaces / string ends; case-sensitive on the
-   already-lowercased input, exactly as the runner). */
+/* clsUserSession.ReplaceWord: replace whole-word occurrences of `find` in
+   `text` with `repl` (word boundaries are spaces / string ends; case-sensitive
+   on the already-lowercased input, exactly as the Runner). */
 static void
 replace_word (std::string &text, const std::string &find, const std::string &repl)
 {
@@ -317,10 +321,10 @@ replace_word (std::string &text, const std::string &find, const std::string &rep
  * words against in-scope (visible, then seen) objects' names and characters'
  * proper-name/descriptors; an unambiguous single match in a pronoun class sets
  * that class's stored display name.  Objects use the definite full name,
- * characters their (definite) known name.  "them" considers only plural objects;
- * characters split into him/her/it by Gender.  A >1 match is narrowed by a
- * prefix word appearing in the input (the runner's second pass); still-ambiguous classes
- * keep the previous value.
+ * characters their (definite) known name.  "them" considers only plural
+ * objects; characters split into him/her/it by Gender.  A >1 match is narrowed
+ * by a prefix word appearing in the input (the Runner's second pass);
+ * still-ambiguous classes keep the previous value.
  */
 static void
 grab_it (a5_run_t *run, const std::string &in)
@@ -392,11 +396,12 @@ grab_it (a5_run_t *run, const std::string &in)
           int matched = 0;
           if (c->name != nullptr && has_word (lower (c->name)))
             matched = 1;
-          /* The runner compares descriptors CASE-SENSITIVELY against the lowercased
-             input (GrabIt: `If sWord = sName` -- only ProperName gets a
-             .ToLower).  So a capitalised descriptor ("Talia") never matches
-             and the pronoun keeps its previous referent; lowercasing here
-             wrongly updated `her` to Talia Swayne where the runner keeps Sophia. */
+          /* The Runner compares descriptors CASE-SENSITIVELY against the
+             lowercased input (GrabIt: `If sWord = sName` -- only ProperName
+             gets a .ToLower).  So a capitalised descriptor ("Talia") never
+             matches and the pronoun keeps its previous referent; lowercasing
+             here wrongly updated `her` to Talia Swayne where the Runner keeps
+             Sophia. */
           for (int d = 0; !matched && d < c->n_descriptors; d++)
             if (has_word (c->descriptors[d]))
               matched = 1;
@@ -411,7 +416,8 @@ grab_it (a5_run_t *run, const std::string &in)
             add_uniq (it_keys, c->key);
         }
 
-      /* Resolve each class that is now unambiguous (or narrowable by prefix). */
+      /* Resolve each class that is now unambiguous (or narrowable by prefix).
+         */
       struct { std::string *out; std::vector<const char *> *keys; } cls[] = {
         { &new_it,   &it_keys },
         { &new_them, &them_keys },
@@ -428,7 +434,8 @@ grab_it (a5_run_t *run, const std::string &in)
             chosen = (*ks)[0];
           else if (ks->size () > 1)
             {
-              /* Second pass: keep candidates whose prefix word is in the input. */
+              /* Second pass: keep candidates whose prefix word is in the
+                 input. */
               const char *only = nullptr;
               int n = 0;
               for (auto *k : *ks)
@@ -462,7 +469,8 @@ grab_it (a5_run_t *run, const std::string &in)
   if (!new_him.empty ())  { free (st->s_him);  st->s_him = strdup (new_him.c_str ()); }
   if (!new_her.empty ())  { free (st->s_her);  st->s_her = strdup (new_her.c_str ()); }
 
-  /* Defaults so a later "it"/etc. with no referent prints the runner's placeholder. */
+  /* Defaults so a later "it"/etc. with no referent prints the Runner's
+     placeholder. */
   if (st->s_it[0]   == '\0') { free (st->s_it);   st->s_it   = strdup ("Absolutely Nothing"); }
   if (st->s_them[0] == '\0') { free (st->s_them); st->s_them = strdup ("Absolutely Nothing"); }
   if (st->s_him[0]  == '\0') { free (st->s_him);  st->s_him  = strdup ("No male"); }
@@ -470,8 +478,9 @@ grab_it (a5_run_t *run, const std::string &in)
 }
 
 /* Substitute "it"/"them"/"him"/"her" in the player's input with the last
-   referenced object/character name, emitting the runner's "(name)" echo line, then
-   recompute the referents for next turn (clsUserSession.EvaluateInput). */
+   referenced object/character name, emitting the Runner's "(name)" echo line,
+   then recompute the referents for next turn (clsUserSession.EvaluateInput).
+   */
 void
 resolve_pronouns (a5_run_t *run, std::string &in, sb_t *out)
 {
@@ -497,8 +506,8 @@ resolve_pronouns (a5_run_t *run, std::string &in, sb_t *out)
    loop, run right after GrabIt): for each synonym, for each of its <From>
    phrases, if every word of the phrase appears in the input (ContainsWord),
    replace the phrase with its <To> word (ReplaceWord).  Later synonyms see
-   earlier synonyms' replacements, exactly as the runner's single `sInput` threaded
-   through the loop. */
+   earlier synonyms' replacements, exactly as the Runner's single `sInput`
+   threaded through the loop. */
 void
 resolve_synonyms (a5_run_t *run, std::string &in)
 {

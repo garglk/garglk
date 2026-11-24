@@ -267,13 +267,13 @@ task_run_change_variable_action (scr_gameref_t game,
    * was buffered.
    *
    * Version 4.0 does no such thing.  Its filter passes happen at the end of a
-   * completing task and at the flush -- both of them after this action has
-   * run -- so text buffered before the change comes out holding the value the
-   * change set, not the one it replaced.  Measured under run400.exe in Wine on
-   * 2026-08-24 with harness/make_400_alrsrcprobe.py, whose "victor" task has
-   * CompleteText "CT n=%n% TXT %w%." and one action setting n = 9 over an
-   * initial 5: the Runner answers "CT n=9 TXT qqball."  Pre-4.0 keeps the
-   * checkpoint, which is not measured either way.
+   * completing task and at the flush -- both of them after this action has run
+   * -- so text buffered before the change comes out holding the value the
+   * change set, not the one it replaced.  Measured under run400.exe in Wine
+   * with harness/make_400_alrsrcprobe.py, whose "victor" task has CompleteText
+   * "CT n=%n% TXT %w%." and one action setting n = 9 over an initial 5: the
+   * Runner answers "CT n=9 TXT qqball."  Pre-4.0 keeps the checkpoint, which
+   * is not measured either way.
    */
   if (prop_get_taf_version (bundle) < TAF_VERSION_400)
     pf_checkpoint (filter, vars, bundle);
@@ -344,7 +344,7 @@ task_run_change_score_action (scr_gameref_t game, scr_int task, scr_int var1)
           if (tasks.trace)
             scr_trace ("Task: increased score by %ld\n", var1);
 
-          game->score += var1;
+          game->world.score += var1;
           gs_set_task_scored (game, task, TRUE);
         }
     }
@@ -354,7 +354,7 @@ task_run_change_score_action (scr_gameref_t game, scr_int task, scr_int var1)
       if (tasks.trace)
         scr_trace ("Task: decreased score by %ld\n", -(var1));
 
-      game->score += var1;
+      game->world.score += var1;
     }
 }
 
@@ -425,11 +425,11 @@ task_run_set_task_action (scr_gameref_t game, scr_int var1, scr_int var2)
  *
  * Battle System "Change battle attribute" task action (type 7).  var1 is the
  * ADRIFT attribute index, var2 the target character, var3 the value (a signed
- * delta, or an enum for attitude/speed).  Attitude (0) and Speed (0xB) apply to
- * NPCs only, with target 0 = the referenced character and target N>=1 = NPC
- * N-1.  The remaining attributes may also target the player: target 0 = player,
- * 1 = referenced character, N>=2 = NPC N-2.  An unresolved or out-of-range
- * target is silently ignored, as the Runner does.
+ * delta, or an enum for attitude/speed).  Attitude (0) and Speed (0xB) apply
+ * to NPCs only, with target 0 = the referenced character and target N>=1 = NPC
+ * N-1.  The remaining attributes may also target the player: target 0 =
+ * player, 1 = referenced character, N>=2 = NPC N-2.  An unresolved or
+ * out-of-range target is silently ignored, as the Runner does.
  */
 static void
 task_run_change_battle_action (scr_gameref_t game,

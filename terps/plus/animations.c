@@ -1,19 +1,20 @@
-//
-//  animations.c
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Created by Petter Sjölund on 2022-03-24.
-//
+/*
+ *  animations.c
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-03-24.
+ */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "common.h"
-#include "definitions.h"
-#include "glk.h"
 #include "graphics.h"
-#include "apple2draw.h"
 
 #include "animations.h"
 #include "stdraw.h"
@@ -42,19 +43,17 @@ static char *AnimationFilenames[MAX_ANIM_FRAMES];
    to mark the end of the sequence. */
 static int AnimationFrames[MAX_ANIM_FRAMES];
 
-/*
- The "fire cannon at Blob" animation in Fantastic Four is actually two
- animations sequences, one after another, which conflicts with our
- animation system, so we use a hack to stitch them together, basically
- adding the new frames to the end of the buffer rather than clearing it
- and starting over.
- */
+/* The "fire cannon at Blob" animation in Fantastic Four is actually two
+   animation sequences, one after another, which conflicts with our
+   animation system, so we use a hack to stitch them together, basically
+   adding the new frames to the end of the buffer rather than clearing it
+   and starting over. */
 
 static int PostCannonAnimationSeam = 0;  /* Set after frame 9 of the cannon animation */
 static int CannonAnimationPause = 0;    /* Triggers a 2-second pause between the two halves */
 
 /* The Atari ST Spider-Man "shooting web" animation uses a single picture
-   with colour cycling instead of the multiple frames of other version.
+   with colour cycling instead of the multiple frames of other versions.
    STWebAnimation suppresses extra frame draws; STWebAnimationFinished
    gates the colour-cycle wait. */
 int STWebAnimation = 0;
@@ -63,7 +62,7 @@ int STWebAnimationFinished = 1;
 /* Append a filename to the image pool. The filename is copied so the
    caller can free the original. A NULL sentinel is always written after
    the last entry. */
-void AddImageToBuffer(char *basename)
+static void AddImageToBuffer(char *basename)
 {
     if (ImgTail >= MAX_ANIM_FRAMES - 1)
         return;
@@ -78,7 +77,7 @@ void AddImageToBuffer(char *basename)
 
 /* Append a frame to the playback sequence. frameidx is an index into
    AnimationFilenames. A -1 sentinel follows the last entry. */
-void AddFrameToBuffer(int frameidx)
+static void AddFrameToBuffer(int frameidx)
 {
     if (FramesTail >= MAX_ANIM_FRAMES - 1)
         return;
@@ -132,7 +131,7 @@ void AddSpecialImage(int image)
 /* Request an animation timer rate. Avoids overriding a faster existing
    timer (e.g. colour cycling), and never stops the timer while colour
    cycling is active. */
-void SetAnimationTimer(glui32 milliseconds)
+static void SetAnimationTimer(glui32 milliseconds)
 {
     debug_print("SetAnimationTimer %d\n", milliseconds);
     AnimTimerRate = milliseconds;
@@ -238,7 +237,7 @@ void StopAnimation(void)
    The two-phase approach (set StopNext, then clean up on the next tick)
    ensures the final frame is visible for one timer interval before the
    room image is restored. Special cases:
-   - Fantastic 4 Cannon animation: inserts a 2-second pause between the two halves.
+   - Fantastic Four cannon animation: inserts a 2-second pause between the two halves.
    - ST web animation: waits for one colour-cycle completion, then stops.
    - Buckaroo Banzai room 29: draws a black screen instead of restoring the room.
    - Spider-Man room 5: redraws the web item overlay after the animation. */

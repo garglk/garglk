@@ -21,10 +21,6 @@
  * Carrying capacity, "count", and taking objects: the backend.  The command
  * forms that run it ("take all", "take X and Y", the multiple-object
  * handler) are in sclibrar_take_multiple.cpp.
- *
- * See sclibrar.h for what the library files share, sclibrar_internal.h for
- * what the core files share and sclibrar_take_internal.h for what the two
- * take files share.
  */
 
 #include "sclibrar_take_internal.h"
@@ -38,7 +34,7 @@
  * Worn objects are free.  Wearing something does not spend any of MaxCarried,
  * and neither does keeping it on -- measured with a MaxCarried 2 probe holding
  * a wearable and two others: run370 and run380 both accept all three, and
- * "count" reports the two held (pworn/qworn, 2026-08-23).  Taking anything off
+ * "count" reports the two held (pworn/qworn).  Taking anything off
  * therefore costs a slot again.
  *
  * Always computed afresh, and that is faithful: unlike 4.0's running size and
@@ -46,7 +42,7 @@
  * for its contents and wearing is not a charge at all, so neither of the two
  * shapes of 4.0 leak has anything to leak here -- confirmed against both
  * Runners with the drop-a-loaded-container and wear-then-drop sequences
- * (pleakc/pleakw and their 3.70 twins).  This is why "glk capacity" is a no-op
+ * (pleakc/pleakw and their 3.7 twins).  This is why "glk capacity" is a no-op
  * for a 3.7/3.8 game: there is no Runner arithmetic to escape.  It is a no-op
  * for a 3.9 game too, for the same reason by a different route -- run390 keeps
  * a running total but keeps it exactly; see obj_uses_running_load().
@@ -80,9 +76,9 @@ lib_carried_burden (scr_gameref_t game)
  * looks like from the outside -- see obj_uses_running_load() for the probe
  * that separates the two.  Its weight is another matter, because the total
  * starts out short of a held container's contents and stays short; see
- * obj_uses_running_weight().  Legacy mode also drops the Runner's stale parent rule
- * from obj_weigh(), so it is free of the phantom weight too; a 3.9 game gets
- * that for the same reason, having no running total to poison.
+ * obj_uses_running_weight().  Legacy mode also drops the Runner's stale parent
+ * rule from obj_weigh(), so it is free of the phantom weight too; a 3.9 game
+ * gets that for the same reason, having no running total to poison.
  */
 static scr_int
 lib_sum_carried (scr_gameref_t game,
@@ -104,7 +100,7 @@ lib_sum_carried (scr_gameref_t game,
 static scr_int
 lib_carried_size (scr_gameref_t game)
 {
-  if (obj_uses_running_load (game) && !game->capacity_recompute)
+  if (obj_uses_running_load (game) && !game->settings.capacity_recompute)
     return gs_carried_size (game);
 
   return lib_sum_carried (game, obj_get_size);
@@ -113,7 +109,7 @@ lib_carried_size (scr_gameref_t game)
 static scr_int
 lib_carried_weight (scr_gameref_t game)
 {
-  if (obj_uses_running_weight (game) && !game->capacity_recompute)
+  if (obj_uses_running_weight (game) && !game->settings.capacity_recompute)
     return gs_carried_weight (game);
 
   return lib_sum_carried (game, obj_get_weight);
@@ -137,7 +133,7 @@ lib_cmd_count (scr_gameref_t game)
    * Weight lines below: "You have 0 objects.  The most you can hold is 2."
    * There is no singular -- one object still reads "1 objects" -- and the
    * first person is "I have ... The most I can hold is ...".  Measured on
-   * run380 with the pcount/pcount1 probes, 2026-08-23.
+   * run380 with the pcount/pcount1 probes.
    */
   if (obj_uses_burden_model (game))
     {
@@ -166,7 +162,7 @@ lib_cmd_count (scr_gameref_t game)
    * Print the player limits and amounts used, in the Runner's own layout --
    * a tab stop after each label (two tabs for the shorter "Size:") and the
    * game's perspective for the pronouns: "Size:\t\tI have 0.  The most I
-   * can hold is 108." (run400, goldilocks/iachini transcripts 2026-08-22).
+   * can hold is 108." (run400, goldilocks/iachini transcripts).
    */
   pf_buffer_string (filter, "Size:\t\t");
   pf_buffer_string (filter,
@@ -239,7 +235,7 @@ lib_object_too_heavy (scr_gameref_t game, scr_int object)
  * heavy for you to carry." -- it names no object, and it never qualifies the
  * refusal.  run400 names the object and always qualifies it: "The lump is too
  * heavy for Player to carry at the moment."  Both were measured on the p39wt
- * probe (2026-08-23), one Runner each, against a brick that fits in empty
+ * probe, one Runner each, against a brick that fits in empty
  * hands and a lump that does not: each Runner gave its single shape for both,
  * so the "at the moment" is not the portability hedge SCARE took it for.
  * Neither Runner has a plural form -- there is no "are too heavy" string in
@@ -319,10 +315,10 @@ lib_object_too_large (scr_gameref_t game, scr_int object)
  *
  * 4.0's per-object take (run400 get_piece_inner 46302C) tests size first --
  * the object's own size (44) on top of the running total, "<Your> hands are
- * full." at 462ECD -- and only then weight, recursive over contents (447680),
- * "<The X> is too heavy..." at 462F62.  It tests both whatever holds the
- * object, a container the player carries included: the contents are already
- * in both running totals, so a take out of a carried bag counts them twice.
+ * full." -- and only then weight, recursive over contents, "<The X> is too
+ * heavy...".  It tests both whatever holds the object, a container the
+ * player carries included: the contents are already in both running totals,
+ * so a take out of a carried bag counts them twice.
  * wilkins `take times` at 99/90 on both axes answers "My hands are full."
  * (runner_transcripts/wilkins.txt line 84), businessasusual `take all` with
  * limits 9/9 and every object 9/9 takes one and refuses the next by size, and
@@ -357,11 +353,11 @@ lib_take_over_capacity (scr_gameref_t game, scr_int object, scr_bool *is_size)
  * lib_take_from_over_capacity_390()
  *
  * 3.9's take-from has its own capacity test, in insides() rather than takes().
- * It tests size first (4638C8) and weight second (4638DE).  The weight test
- * is waived when the container itself is held by the player (container
- * [22] = 0); the size test never is.  ALEXIS `get all from large stone table`
- * refuses the size-81 knife by size: "You can't take any more, as your hands
- * are full."  (runner_transcripts/alexis.txt:119.)
+ * It tests size first and weight second.  The weight test is waived when
+ * the container itself is held by the player (container [22] = 0); the size
+ * test never is.  ALEXIS `get all from large stone table` refuses the
+ * size-81 knife by size: "You can't take any more, as your hands are full."
+ * (runner_transcripts/alexis.txt:119.)
  */
 static scr_bool
 lib_take_from_over_capacity_390 (scr_gameref_t game, scr_int object,
@@ -386,13 +382,19 @@ lib_print_take_npc_refusal (scr_gameref_t game, scr_int npc)
 {
   /*
    * Reject this attempt.  The Runner names the NPC by its Prefix and first
-   * Alias here, not its Name: run400 47F750-47F7BC and run390 45969B-4596C6
-   * print "I don't think " & [Prefix & " "] & Alias(0) when the alias is
-   * set (the prefix only when it is too), and fall back to the Name when it
-   * is empty; run380 44057D and run370 4386EE always print Prefix & " " &
-   * Alias(0), empty or not.  House (4.00), Cathy alias "girl", no prefix:
-   * "I don't think girl would appreciate being handled."
-   * (runner_probes/house.run400.girl.txt, 2026-09-06).
+   * Alias here, not its Name: run390 and run400 (47F750) print "I don't
+   * think " & [Prefix & " "] & Alias(0) when the alias is set (the prefix
+   * only when it is too), and fall back to the Name when it is empty; run370
+   * and run380 (44057D) always print Prefix & " " & Alias(0), empty or not.
+   * House (4.0), Cathy alias "girl", no prefix: "I don't think girl would
+   * appreciate being handled."
+   * (runner_probes/house.run400.girl.txt).
+   *
+   * Deliberate deviation: with no alias, 3.7 and 3.8 print "I don't think
+   * would appreciate being handled." around two spaces (p37ORD `take give
+   * hat bob`, runner_probes/ord.run370.give.rtf; p38ASK `take dave`).  A
+   * text accident, not copied: the Name stands in, after the Prefix when
+   * there is one.
    */
   {
     const scr_filterref_t filter = gs_get_filter (game);
@@ -410,7 +412,16 @@ lib_print_take_npc_refusal (scr_gameref_t game, scr_int npc)
       alias = "";
 
     pf_buffer_string (filter, "I don't think ");
-    if (!is_390_plus)
+    if (!is_390_plus && alias[0] == NUL)
+      {
+        if (prefix[0] != NUL)
+          {
+            pf_buffer_string (filter, prefix);
+            pf_buffer_string (filter, " ");
+          }
+        lib_print_npc_np (game, npc);
+      }
+    else if (!is_390_plus)
       {
         pf_buffer_string (filter, prefix);
         pf_buffer_string (filter, " ");
@@ -436,24 +447,22 @@ lib_print_take_npc_refusal (scr_gameref_t game, scr_int npc)
  *
  * The present character an object take line also names, or -1.  The same
  * characters() pass as lib_examine_npc_overwrite_400() has a take arm
- * (run400 47F70B-47F7BC, run390 459658-4596C6, run380 44054B-44057D,
- * run370 4386BC-4386EE: whole-word take/get/pick up and the NPC in the room)
- * that ASSIGNS the refusal to the message buffer without testing it, so the
+ * (run400 47F70B: whole-word take/get/pick up and the NPC in the room) that
+ * ASSIGNS the refusal to the message buffer without testing it, so the
  * object's take answer is thrown away while the take itself stands.  All
- * four start the sentence with `MemVar = "I don't think "` -- run400 47F753,
- * run390 45966D, and the single-expression assignments at run380 44057D and
- * run370 4386EE -- so every version clobbers.  (An earlier reading of the
- * run390 listing, where the decompiler hangs the literal off the Prefix test
- * at 45969B and leaves the alias-free arm at 4596BB looking like an append,
- * said 3.9 appended and was not ported; the pushes at 45966A say otherwise
- * and so does the Runner.)
+ * four builds start the sentence with `MemVar = "I don't think "` (run370
+ * and run380 as single-expression assignments), so every version clobbers.
+ * (An earlier reading of the run390 listing, where the decompiler hangs the
+ * literal off the Prefix test and leaves the alias-free arm looking like an
+ * append, said 3.9 appended and was not ported; the pushes at 45966A say
+ * otherwise and so does the Runner.)
  *
  * The "no task ran" halves differ by VB precedence and are not modelled:
  * 3.9/4.0 gate all three verbs on it, 3.7 gates none, and 3.8 gates only
  * "pick up" (`c("take") Or c("get") Or c("pick up") And notask`).  Nothing
  * reaches here with a task already run for the line.
  *
- * Measured on ONNAFA (4.00): `get key of pure harry` with Red Harry (alias
+ * Measured on ONNAFA (4.0): `get key of pure harry` with Red Harry (alias
  * Harry) present answers only "I don't think Harry would appreciate being
  * handled." (runner_transcripts/onnafa.txt:1622), and the key is used later.
  * The pre-4.0 halves are p3xORD (make_orderprobe.py): `take hat bob`, `take
@@ -488,9 +497,8 @@ lib_take_npc_overwrite (scr_gameref_t game)
  * not carrying" halves -- that gate is exactly what 3.9 added.
  *
  * An object the character itself holds or wears is "<Name> refuses to give
- * you <the object>!" (4411AA); anything else is "<Name> is not carrying <the
- * object>!" (441227 for an object inside something else, 44128A for a loose
- * one).  3.7 has no such arm at all.
+ * you <the object>!"; anything else, inside something else or loose, is
+ * "<Name> is not carrying <the object>!".  3.7 has no such arm at all.
  *
  * Measured on p38ORD (runner_probes/ord.run380.chr.rtf): `take hat bob` and
  * `get hat bob` are "Bob is not carrying the hat!" while the hat is loose on
@@ -568,9 +576,8 @@ lib_cmd_take_npc (scr_gameref_t game)
   /*
    * 3.7/3.8: the last character the line names answers, here or not; see
    * lib_print_npc_not_here_pre390().  `take guard` with Ann and Bob here and
-   * Cora next door is "Cora is not here!" (run370x
-   * runner_probes/npcamb.run370.b.rtf, run380x
-   * runner_probes/npcamb.run380.rtf).
+   * Cora next door is "Cora is not here!" (run370x/run380x
+   * runner_probes/npcamb.{run370.b,run380}.rtf).
    */
   if (prop_get_taf_version (gs_get_bundle (game)) < TAF_VERSION_390)
     {
@@ -583,17 +590,21 @@ lib_cmd_take_npc (scr_gameref_t game)
 
           var_set_ref_character (gs_get_vars (game), npc);
           lib_print_take_npc_refusal (game, npc);
-          /* 3.8's take-from arm speaks below it; it names an object the
-             take resolver never saw, as `take nut bob` does for a nut shut
-             inside a CLOSED box (runner_probes/ord.run380.chr.rtf). */
+          /*
+           * 3.8's take-from arm speaks below it; it names an object the
+           * take resolver never saw, as `take nut bob` does for a nut shut
+           * inside a CLOSED box (runner_probes/ord.run380.chr.rtf).
+           */
           lib_take_from_npc_overwrite_380 (game, npc, mark);
         }
       return TRUE;
     }
 
-  /* Get the referenced npc, and if none, consider complete.  3.9 fills an
-     empty buffer, so the FIRST present character answers
-     (runner_probes/npcamb.run390.txt). */
+  /*
+   * Get the referenced npc, and if none, consider complete.  3.9 fills an
+   * empty buffer, so the FIRST present character answers
+   * (runner_probes/npcamb.run390.txt).
+   */
   npc = lib_disambiguate_npc_pick (game, "take", &is_ambiguous,
                                    NPC_PICK_FIRST);
   if (npc == -1)
@@ -610,18 +621,19 @@ lib_cmd_take_npc (scr_gameref_t game)
  * Common backend handler for taking objects.  Takes all objects currently
  * referenced in the game, trying game commands first, and then moving other
  * unhandled objects to the player inventory.
- *
- * Objects to action are flagged in object_references; objects requested but
- * deemed not actionable are flagged in multiple_references.
  */
 
-/* Set when the take command named exactly one object; cleared by the
-   backend.  Selects the single-take "already carrying" refusal wording. */
+/*
+ * Set when the take command named exactly one object; cleared by the
+ * backend.  Selects the single-take "already carrying" refusal wording.
+ */
 scr_bool lib_take_single_named = FALSE;
 scr_bool lib_take_refusal_claimed = FALSE;
-/* Set when a 4.0 take line was split on "and" into pieces the take
-   resolver named one by one; see lib_take_and_400().  Each piece gets the
-   single-take wording ("already carrying", "can't take X!"). */
+/*
+ * Set when a 4.0 take line was split on "and" into pieces the take
+ * resolver named one by one; see lib_take_and_400().  Each piece gets the
+ * single-take wording ("already carrying", "can't take X!").
+ */
 scr_bool lib_take_and_pieces_400 = FALSE;
 
 /*
@@ -629,17 +641,14 @@ scr_bool lib_take_and_pieces_400 = FALSE;
  *
  * A 4.0 take refusal does not claim its line.  The "can't take X!" path of
  * run400's per-piece take (Proc_19_23_473A34 @47329D) leaves by ExitProcI2
- * at @4733FC without setting the handler's result, so get_outer
- * (Proc_19_22_4582D8) does not GoTo loc_48B4E3 and generaltasks' task
- * dispatcher at 48A481 gets the line, its text joined onto the refusal with
- * the two-space separator.  The line it matches is the typed one with the
- * take verbs rewritten, "remove "/"pick "/"take " -> "get " (get_outer's
- * Replace chain, @458127-458176), never a rebuild from the resolved object.
- * Professor.taf with the Mailbox on-a Rope static, measured in run400 on
- * 2026-09-14 (runner_probes/professor.run400.mail2.txt,
- * runner_probes/professor.run400.profmail3.txt,
- * runner_probes/professor.run400.mail4.txt,
- * runner_probes/professor.run400.mail5.txt):
+ * without setting the handler's result, so get_outer (Proc_19_22_4582D8)
+ * does not GoTo 48B4E3 and generaltasks' task dispatcher gets the line, its
+ * text joined onto the refusal with the two-space separator.  The line it
+ * matches is the typed one with the take verbs rewritten,
+ * "remove "/"pick "/"take " -> "get " (get_outer's Replace chain), never a
+ * rebuild from the resolved object.  Professor.taf with the Mailbox on-a
+ * Rope static, measured in run400
+ * (runner_probes/professor.run400.{mail2,profmail3,mail4,mail5}.txt):
  *
  *   `take mailbox`, `take the mailbox` -> "You can't take the Mailbox on-a
  *     Rope!  The mailbox is already down." (task 8's
@@ -683,9 +692,9 @@ lib_take_refusal_redispatch_400 (scr_gameref_t game)
 
   /*
    * The dispatcher sees no referenced object: generaltasks cleared it at the
-   * top of the command (48A004) and the refusal path never binds one, so
-   * task 7's type-1 restriction on "the referenced object" fails silently
-   * and task 8 answers, where the library's resolved mailbox would have
+   * top of the command and the refusal path never binds one, so task 7's
+   * type-1 restriction on "the referenced object" fails silently and task 8
+   * answers, where the library's resolved mailbox would have
    * printed task 7's "The mailbox isn't down here right now."
    */
   const scr_var_setref_t vars = gs_get_vars (game);
@@ -702,15 +711,17 @@ lib_take_refusal_redispatch_400 (scr_gameref_t game)
   var_set_ref_character (vars, ref_character);
 }
 
-/* Set when a "take from <object>" command named exactly one object; cleared
-   by the backend.  Only that single-named form echoes the taken object's
-   raw prefix in pre-4.0 games (see the wording comment in the backend). */
+/*
+ * Set when a "take from <object>" command named exactly one object; cleared
+ * by the backend.  Only that single-named form echoes the taken object's
+ * raw prefix in pre-4.0 games (see the wording comment in the backend).
+ */
 scr_bool lib_take_from_single_named = FALSE;
 
 /*
  * lib_take_from_verb()
  *
- * "You take " is a 3.80 rewording.  run370 spells the from-container take
+ * "You take " is a 3.8 rewording.  run370 spells the from-container take
  * "You get ", and the census is unambiguous about it: the literal " take "
  * is in run380, run390 and run400 and in none of run370, while " get " is
  * in all four, and run370 carries "You can't get anything from that." where
@@ -719,9 +730,9 @@ scr_bool lib_take_from_single_named = FALSE;
  * Measured on the same turn of two probes, `get coin from box` with the box
  * held and the coin inside it: run370 answers "You get a coin from the box."
  * (p37DARK, runner_probes/dark.run370.putin.txt:27) and run380 "You take a
- * coin from the box." (p38DARK, runner_probes/dark.run380.putin.txt:27),
- * 2026-09-12.  The typed verb was "get" on both, so this is the handler's own
- * wording and not an echo of the input.
+ * coin from the box." (p38DARK, runner_probes/dark.run380.putin.txt:27).  The
+ * typed verb was "get" on both, so this is the handler's own wording and not
+ * an echo of the input.
  *
  * The bare-verb refusal in lib_take_from_unseen_refusal() prints the same
  * phrase from the same place in the Runner and moves with it; that half is
@@ -744,25 +755,24 @@ lib_take_from_verb (scr_gameref_t game)
  * lib_print_not_holding()
  *
  * The pre-3.9 hold gate on the container or surface an object is taken
- * from.  run380's takes() (loc_43E47B) rewrites a plain "take X" whose X sits
- * in or on a present object into "take X from <parent>", and its insides()
- * from-branch (loc_446CBB..446CFB) then insists that a DYNAMIC parent is held
- * (position 0) or worn (&H9C) by the player, else "<You> <are> not holding
- * <raw prefix> <short>." -- before the closed test, before any game task is
- * tried for "get X from Y".  A static parent only has to be in the room.
- * run370's insides() (43B118, "not holding" at 439D33/43AB5E) is the same;
- * run390 has no "not holding" on any take path and run400 none at all, so
- * from 3.90 on a contained object is taken wherever its parent is.
+ * from.  run380's takes() rewrites a plain "take X" whose X sits in or on a
+ * present object into "take X from <parent>", and its insides() from-branch
+ * (446CBB) then insists that a DYNAMIC parent is held (position 0) or worn
+ * (&H9C) by the player, else "<You> <are> not holding <raw prefix> <short>."
+ * -- before the closed test, before any game task is tried for "get X from
+ * Y".  A static parent only has to be in the room.  run370's insides() is
+ * the same; run390 has no "not holding" on any take path and run400 none at
+ * all, so from 3.9 on a contained object is taken wherever its parent is.
  *
- * Measured on jb2000.taf (James Bond - Happy Landings, 3.80) in run380,
- * 2026-09-04: `take key card` with the card inside a jacket lying in the
- * room answers "You are not holding a brown jacket.", and `take learner`
- * from a suitcase on the floor "You are not holding a brown suitcase.";
- * `take jacket` first, and the card comes out with "You take the cockpit
- * key card from the brown jacket."  The prefix is the author's, untensed
- * (var_41C(0) & " " & var_41C(4)), hence lib_print_object.  Held means
- * held directly: a container nested inside a carried one has position
- * &HF6, not 0, and is refused like any other.
+ * Measured on jb2000.taf (James Bond - Happy Landings, 3.8) in run380: `take
+ * key card` with the card inside a jacket lying in the room answers "You are
+ * not holding a brown jacket.", and `take learner` from a suitcase on the
+ * floor "You are not holding a brown suitcase."; `take jacket` first, and the
+ * card comes out with "You take the cockpit key card from the brown jacket."
+ * The prefix is the author's, untensed (the parent's Prefix & " " & Short),
+ * hence lib_print_object.  Held means held directly: a container nested
+ * inside a carried one has position &HF6, not 0, and is refused like any
+ * other.
  */
 scr_bool
 lib_take_container_unheld (scr_gameref_t game, scr_int container)
@@ -799,8 +809,7 @@ lib_print_not_holding (scr_gameref_t game, scr_int container,
  *
  * run390's insides() (463EEC) tests the player record's +16 byte -- the
  * object the player is on or in, &HFF when free -- against the container
- * being reached into, and prints the refusal unless it is one or the other
- * (loc_4631D0..4631E1):
+ * being reached into, and prints the refusal unless it is one or the other:
  *
  *     If player.on = &HFF Or player.on = container Then ok
  *     Else <You> & " can't reach " & the(container) & " from " &
@@ -810,16 +819,15 @@ lib_print_not_holding (scr_gameref_t game, scr_int container,
  * with the author's capitalisation kept: "You can't reach the dresser from
  * the Bed!"
  *
- * Measured 2026-09-05 on A_Morning_with_a_Headache.taf (3.90) in run390: the
+ * Measured on A_Morning_with_a_Headache.taf (3.9) in run390: the
  * game starts the player in bed, and `take alarm clock` -- the clock sits on
  * the dresser -- is refused exactly that way, as is `take suit` off the
  * chair.  The literal " can't reach " is in run370, run380 and run390's
  * constant pools and is ABSENT from run400's, so 4.0 dropped the rule
- * outright; the gate is < 4.00 rather than the usual 3.9 split.
+ * outright; the gate is < 4.0 rather than the usual 3.9 split.
  *
- * Two things here are inferred rather than measured, and are noted in
- * test/adrift4/notes/WINE-TRANSCRIPTS-TODO.md: whether a game task for the
- * same command would run first (nothing in that game claims `take alarm
+ * Two things here are inferred rather than measured: whether a game task for
+ * the same command would run first (nothing in that game claims `take alarm
  * clock`), and how this orders against 3.7/3.8's own "not holding" gate, which
  * is why it sits after lib_take_container_unheld() rather than before it.
  */
@@ -846,8 +854,10 @@ lib_print_cannot_reach (scr_gameref_t game, scr_int container)
   pf_buffer_string (filter, "!");
 }
 
-/* The unfiltered form of lib_drain_multiple_references_if(), whose doc
-   comment sits with the template in sclibrar_internal.h. */
+/*
+ * The unfiltered form of lib_drain_multiple_references_if(), whose doc
+ * comment sits with the template in sclibrar_internal.h.
+ */
 void
 lib_drain_multiple_references (scr_gameref_t game, scr_int object_count,
                                lib_list_t &list)
@@ -888,8 +898,7 @@ struct lib_take_t
    * Objects that would take the player over capacity, in the order they
    * were encountered.  The Runner's multi-take loop appends a separate
    * "<Name> is too heavy for me to carry at the moment."/" hands are full."
-   * sentence for every such object (run400 @0047C127/@0047C0F0), not just
-   * the first.
+   * sentence for every such object (run400 @0047C127), not just the first.
    */
   lib_list_t over_capacity, over_is_size;
   /*
@@ -913,6 +922,8 @@ struct lib_take_t
 
   scr_bool try_game_commands (void);
   scr_bool count_fits_390 (void);
+  scr_bool alr_wants_pick_up (void);
+  lib_print_item_t alr_already_got_printer (void);
   void print_taken (scr_int parent);
   void acquire (void);
   void report_over_capacity (void);
@@ -939,7 +950,7 @@ lib_take_t::try_game_commands (void)
     {
       scr_bool status;
 
-      if (!game->object_references[object])
+      if (!game->refs.objects[object])
         continue;
 
       /*
@@ -957,7 +968,7 @@ lib_take_t::try_game_commands (void)
 
           lib_print_not_holding (game, gs_object_parent (game, object), ".");
           for (index_ = 0; index_ < object_count; index_++)
-            game->object_references[index_] = FALSE;
+            game->refs.objects[index_] = FALSE;
           return FALSE;
         }
 
@@ -974,7 +985,7 @@ lib_take_t::try_game_commands (void)
 
           lib_print_cannot_reach (game, gs_object_parent (game, object));
           for (index_ = 0; index_ < object_count; index_++)
-            game->object_references[index_] = FALSE;
+            game->refs.objects[index_] = FALSE;
           return FALSE;
         }
 
@@ -989,7 +1000,7 @@ lib_take_t::try_game_commands (void)
           {
             over_capacity.push_back (object);
             over_is_size.push_back (is_size);
-            game->object_references[object] = FALSE;
+            game->refs.objects[object] = FALSE;
             continue;
           }
       }
@@ -1019,7 +1030,7 @@ lib_take_t::try_game_commands (void)
         }
       if (status)
         {
-          game->object_references[object] = FALSE;
+          game->refs.objects[object] = FALSE;
           has_printed = TRUE;
         }
     }
@@ -1028,10 +1039,10 @@ lib_take_t::try_game_commands (void)
 
 /*
  * 3.9's all/and take-from first counts the objects that would fit, adding
- * each fitting one to running size and weight totals (run390 463394-4634F4,
- * with no held-container waiver).  If none fits it answers "<Your> hands are
+ * each fitting one to running size and weight totals (run390 463394, with
+ * no held-container waiver).  If none fits it answers "<Your> hands are
  * full." when any failed on size, otherwise "That is too heavy.", and takes
- * nothing (4634F9-463545), returning FALSE.
+ * nothing, returning FALSE.
  */
 scr_bool
 lib_take_t::count_fits_390 (void)
@@ -1049,7 +1060,7 @@ lib_take_t::count_fits_390 (void)
       any_size = any_weight = FALSE;
       for (object = 0; object < object_count; object++)
         {
-          if (!game->object_references[object]
+          if (!game->refs.objects[object]
               || !(gs_object_position (game, object) == OBJ_IN_OBJECT
                    || gs_object_position (game, object) == OBJ_ON_OBJECT)
               || gs_object_parent (game, object) != associate)
@@ -1082,15 +1093,111 @@ lib_take_t::count_fits_390 (void)
                               "That is too heavy.",
                               "That is too heavy.");
           for (object = 0; object < object_count; object++)
-            game->object_references[object] = FALSE;
+            game->refs.objects[object] = FALSE;
           return FALSE;
         }
     }
   return TRUE;
 }
 
-/* Print the line for the objects in list, just taken from PARENT, or from
-   the room if PARENT is -1. */
+/*
+ * TRUE if the game has an ALR written against the pre-4.0 wording of the
+ * single take now being printed -- "I pick up the cuckoo clock." -- so the
+ * line should come out in that wording for the ALR to fire.  A game written
+ * under 3.9 and saved as 4.0 keeps ALRs the 4.0 Runner never matches again,
+ * since it says "I take" instead.  To Hell in a Hamper (4.0, but a Spring
+ * Comp 2003 entry) is the case: its "I pick up the X." ALRs append Hubert's
+ * retorts, and the "I pick up the Egyptian mummy." one rewrites the line, and
+ * run400 shows none of them (runner_transcripts/to_hell_in_a_hamper.txt:
+ * "I take the cuckoo clock.").  Scarier lets them fire (deviation policy).
+ * The other 4.0 games with "pick up" ALRs carry a matching "take" ALR as
+ * well, so the 4.0 wording reaches their rewrite either way.
+ */
+scr_bool
+lib_take_t::alr_wants_pick_up (void)
+{
+  if (list.size () != 1)
+    return FALSE;
+
+  std::string line = lib_select_response (game, "You pick up ", "I pick up ",
+                                          "%player% pick up ");
+  line += lib_definite_object_name (gs_get_bundle (game), list[0]);
+  line += '.';
+  return pf_alr_mentions (gs_get_bundle (game), line.c_str ());
+}
+
+/*
+ * The printer to word the held-object refusal "You've already got the note!"
+ * with, the pre-4.0 way, when the game has an ALR written against that
+ * wording and none against the 4.0 single-take one, "You are already
+ * carrying the note."; nullptr to keep the 4.0 wording.  The case is the
+ * Hamper one above, for the other half of a take.  Cursed (4.0) has some
+ * 105 "You've already got an axe!" -> "You are already holding the axe."
+ * ALRs, several of which also tidy a name ("barrel<3>"), and a dozen 4.0
+ * games (iachini, ONNAFA, Lair of the Vampire, dusk, ...) carry the stock
+ * "You've already got" -> "You already have".  run400 says "already
+ * carrying" to a single-named take, so none of them ever fire there
+ * (runner_transcripts/iachini.txt `get discs`, onnafa_full_patched.txt `get
+ * cake`).  Scarier lets them fire (deviation policy).
+ *
+ * An ALR either quotes the whole sentence or starts with the "'ve already
+ * got" prefix itself.  Cursed's quote the raw Prefix & " " & Short, the
+ * pre-3.9 printer's name ("an axe", run380 43E03E), so that one is tried
+ * after the 3.9 composed name; the prefix alone gets the composed name, as
+ * a 4.0 game's multi-take refusal does.  A game with any ALR over the 4.0
+ * sentence's "carrying" keeps the 4.0 wording: Bandera, El ascensor and
+ * Vardock Bates rewrite "already carrying" too, and Cursed's own "carrying
+ * the note." -> "carrying the note from Princess Tevona." was written for
+ * 4.0 (runner_transcripts/cursed.txt).
+ */
+lib_print_item_t
+lib_take_t::alr_already_got_printer (void)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  scr_vartype_t vt_key[3];
+
+  if (list.size () != 1)
+    return nullptr;
+
+  std::string carrying = lib_select_response (game, "You are already carrying ",
+                                              "I am already carrying ",
+                                              "%player% is already carrying ");
+  const size_t verb = carrying.find ("carrying");
+  if (pf_alr_mentions (bundle, carrying.substr (0, carrying.length () - 1)
+                                       .c_str ()))
+    return nullptr;
+  const std::string definite = lib_definite_object_name (bundle, list[0]);
+  carrying += definite + '.';
+  if (pf_alr_rewrites_span (bundle, carrying.c_str (), verb + 1,
+                            verb + strlen ("carrying")))
+    return nullptr;
+
+  const std::string got = lib_select_response (game, "You've already got ",
+                                               "I've already got ",
+                                               "%player%'ve already got ");
+  std::string raw;
+
+  vt_key[0].string = "Objects";
+  vt_key[1].integer = list[0];
+  vt_key[2].string = "Prefix";
+  raw = prop_get_string (bundle, "S<-sis", vt_key);
+  vt_key[2].string = "Short";
+  raw = raw + ' ' + prop_get_string (bundle, "S<-sis", vt_key);
+
+  if (pf_alr_mentions (bundle, (got + definite + '!').c_str ()))
+    return lib_print_object_np;
+  if (pf_alr_mentions (bundle, (got + raw + '!').c_str ()))
+    return lib_print_object_raw;
+  if (pf_alr_rewrites_span (bundle, (got + definite + '!').c_str (), 1,
+                            got.length () - 1))
+    return lib_print_object_np;
+  return nullptr;
+}
+
+/*
+ * Print the line for the objects in list, just taken from PARENT, or from
+ * the room if PARENT is -1.
+ */
 void
 lib_take_t::print_taken (scr_int parent)
 {
@@ -1098,13 +1205,13 @@ lib_take_t::print_taken (scr_int parent)
    * 4.0 builds the take line in front of whatever the turn has
    * printed so far: get_piece copies the buffer aside (run400
    * @0047359A), clears it, writes "You take ...." and then, if
-   * the copy was not empty, pspace()s and appends it back
-   * (@004736B6).  So a task claiming one of the objects prints
-   * after the library's line.  fullcircle `get all`, with a `get
-   * *branch*` task, answers "You take the helm and the locket.
-   * You take the branch."  (runner_probes/fullcircle.run400.txt
-   * line 356.)  run390 orders it the same way: The Will's `get
-   * all` at the Narrow Squeeze, where task 142 `* get * clover`
+   * the copy was not empty, pspace()s and appends it back.  So a
+   * task claiming one of the objects prints after the library's
+   * line.  fullcircle `get all`, with a `get *branch*` task,
+   * answers "You take the helm and the locket.  You take the
+   * branch."  (runner_probes/fullcircle.run400.txt line 356.)
+   * run390 orders it the same way: The Will's `get all` at the
+   * Narrow Squeeze, where task 142 `* get * clover`
    * claims the clover, answers "You take the rare stamp, ... and
    * the gold ring.  You take the jade clover." (run390x,
    * runner_transcripts/thewill.txt T197).
@@ -1116,55 +1223,48 @@ lib_take_t::print_taken (scr_int parent)
   else if (has_printed)
     pf_buffer_string (filter, total == 0 ? "\n" : "  ");
   /*
-   * 4.0 reworded the loose-in-the-room take; the from-container
-   * branch keeps the same verb in every version.  Measured live on
-   * a bare `take rock` / `get rock` / `take all`: run370 and
-   * run390 answer "You pick up the rock.", run400 "You take the
-   * rock."  (run380 shows the pre-4.0 half of the same handler
-   * through its "nothing to pick up here" refusal.)
+   * 4.0 reworded the loose-in-the-room take; the from-container branch keeps
+   * the same verb in every version.  Measured live on a bare `take rock` /
+   * `get rock` / `take all`: run370 and run390 answer "You pick up the rock.",
+   * run400 "You take the rock."  (run380 shows the pre-4.0 half of the same
+   * handler through its "nothing to pick up here" refusal.)
    *
-   * What 4.0 did change in the from-container branch is the
-   * *taken* object's prefix: pre-4.0 prints it raw, 4.0 normalizes
-   * it like everything else.  The container is normalized in both.
-   * Measured on the one game carried across three .taf versions by
-   * the generators (see lib_print_object_np above): `take gun` out
-   * of a "some"-prefixed container holding an "a"-prefixed pistol
-   * gives run380 "You take a small pistol from some aluminum
-   * clothes.", run390 "You take a small pistol from the aluminum
-   * clothes.", run400 "You take the small pistol from the aluminum
-   * clothes."  Only the pistol's own prefix moves at 4.0; the
-   * clothes move at 3.9, which is the "some" rule, not this one.
+   * What 4.0 did change in the from-container branch is the *taken* object's
+   * prefix: pre-4.0 prints it raw, 4.0 normalizes it like everything else.
+   * The container is normalized in both.  Measured on the one game carried
+   * across three .taf versions by the generators (see lib_print_object_np
+   * above): `take gun` out of a "some"-prefixed container holding an
+   * "a"-prefixed pistol gives run380 "You take a small pistol from some
+   * aluminum clothes.", run390 "You take a small pistol from the aluminum
+   * clothes.", run400 "You take the small pistol from the aluminum clothes."
+   * Only the pistol's own prefix moves at 4.0; the clothes move at 3.9, which
+   * is the "some" rule, not this one.
    *
-   * The raw pre-4.0 prefix belongs to the Runner's SINGLE-take
-   * handler only -- any take that named exactly one object,
-   * with or without an explicit "from" clause (the pistol probe
-   * above was a bare `take gun`).  The multi-take loop
-   * normalizes in every version: run390 on ALEXIS ("a"-prefixed
-   * diary) answers `take diary from table` with "You take a
-   * diary from the old oak table." but `take diary and cloak
-   * from table` with "You take the diary and the woven cloak
-   * from the old oak table." and `get all from table` with "You
-   * take the diary, the brass lantern, the woven cloak and the
-   * nice food from the old oak table."  (Measured live
-   * 2026-08-22.)
+   * The raw pre-4.0 prefix belongs to the Runner's SINGLE-take handler only --
+   * any take that named exactly one object, with or without an explicit "from"
+   * clause (the pistol probe above was a bare `take gun`).  The multi-take
+   * loop normalizes in every version: run390 on ALEXIS ("a"-prefixed diary)
+   * answers `take diary from table` with "You take a diary from the old oak
+   * table." but `take diary and cloak from table` with "You take the diary and
+   * the woven cloak from the old oak table." and `get all from table` with
+   * "You take the diary, the brass lantern, the woven cloak and the nice food
+   * from the old oak table."  (Measured live.)
    *
-   * That multi-take exception is a 3.9 change of its own: pre-3.9
-   * the multi-take loop prints raw too, so from 3.7 to 3.8 every
-   * from-container take is raw whatever it named.  Measured live
-   * under Wine 2026-08-24 on mikes.taf (3.80) in run380, whose
-   * dresser holds four objects with EMPTY prefixes (deobfuscated
-   * from the .taf, so this is not a guess): `take all from
-   * dresser` answers "You take a socks, a shirt, a underwear and
-   * a pair of pants from the dresser."  Empty is the case that
-   * separates the two printers -- raw defaults it to "a ", the
-   * normalizing one to "the " -- and the same replay pins both
-   * halves at once, since the container itself comes out "the
-   * dresser".  3.9 normalizes the same shape: the ALEXIS `get all
+   * That multi-take exception is a 3.9 change of its own: pre-3.9 the
+   * multi-take loop prints raw too, so from 3.7 to 3.8 every from-container
+   * take is raw whatever it named.  Measured live under Wine on mikes.taf
+   * (3.8) in run380, whose dresser holds four objects with EMPTY prefixes
+   * (deobfuscated from the .taf, so this is not a guess): `take all from
+   * dresser` answers "You take a socks, a shirt, a underwear and a pair of
+   * pants from the dresser."  Empty is the case that separates the two
+   * printers -- raw defaults it to "a ", the normalizing one to "the " -- and
+   * the same replay pins both halves at once, since the container itself comes
+   * out "the dresser".  3.9 normalizes the same shape: the ALEXIS `get all
    * from table` above.
    */
   if (parent == -1)
     pf_buffer_string (filter,
-                      lib_is_version_400 (game)
+                      lib_is_version_400 (game) && !alr_wants_pick_up ()
                       ? lib_select_response (game,
                                              "You take ",
                                              "I take ",
@@ -1180,7 +1280,7 @@ lib_take_t::print_taken (scr_int parent)
       /*
        * 3.9's all/and take-from punctuates its list by counting
        * down from the pre-pass count of objects that fit, not
-       * from the number actually taken (run390 463AAA-463B18):
+       * from the number actually taken (run390 463AAA):
        * ", " while more than one remains, " and " before the
        * last, " from <container>." on reaching zero, and nothing
        * after that.  The verb is printed only if anything fit.
@@ -1265,7 +1365,7 @@ lib_take_t::acquire (void)
       list.clear ();
       for (object = 0; object < object_count; object++)
         {
-          if (!game->object_references[object])
+          if (!game->refs.objects[object])
             continue;
 
           /*
@@ -1332,7 +1432,7 @@ lib_take_t::report_over_capacity (void)
   /*
    * 3.9's all/and take-from refuses nothing object by object.  After the loop
    * it appends one summary: the weight wording if any object failed on weight,
-   * otherwise the size one (run390 463BB5-463C2B).
+   * otherwise the size one (run390 463BB5).
    */
   if (from_390_multi && !over_capacity.empty ())
     {
@@ -1393,20 +1493,20 @@ lib_take_t::report_not_in_associate (void)
     /*
      * 4.0 drops a named object that is not in the container without a word:
      * run400 answers `get coin and stone from box` with just "You take the
-     * coin from the box." (p4TFROM, runner_probes/tfrom.run400.b.txt,
-     * 2026-09-10), and there is no such literal anywhere in run400.
+     * coin from the box." (p4TFROM, runner_probes/tfrom.run400.b.txt), and
+     * there is no such literal anywhere in run400.
      *
      * Pre-4.0 does report it, and composes the sentence a word at a time
-     * (run390 loc_4636D0-46378A: tense & Short & isare() & "not " & var_E0
-     * & " " & definite(container) & "!", where var_E0 is "inside" or "on").
+     * (run390 4636D0: tense & Short & isare() & "not " & where & " " &
+     * definite(container) & "!", where `where` is "inside" or "on").
      * No " is not in " literal exists in any of the four Runners, so the
      * wording here is "inside", not "in", and the sentence ends with an
      * exclamation mark: run390 answers `get stone from box` with "The stone
-     * is not inside the box!" (p39DARK, runner_probes/dark.run390.feed4.txt
-     * and runner_probes/dark.run390.feed5.txt, 2026-09-10).  It reports an
-     * object the player is already holding the same way -- the measured
-     * turn is `get coin from box` with the coin in hand and the box open
-     * and empty, "The coin is not inside the box!"
+     * is not inside the box!" (p39DARK,
+     * runner_probes/dark.run390.feed[45].txt).  It reports an object the
+     * player is already holding the same way -- the measured turn is `get
+     * coin from box` with the coin in hand and the box open and empty, "The
+     * coin is not inside the box!"
      * (runner_probes/dark.run390.feed5.txt) -- so there is no held-or-worn
      * exemption above.
      *
@@ -1468,8 +1568,8 @@ lib_take_t::report_npc_not_carrying (void)
      */
     for (object = 0; object < object_count; object++)
       {
-        game->multiple_references[object] |= game->object_references[object];
-        game->object_references[object] = FALSE;
+        game->refs.multiple[object] |= game->refs.objects[object];
+        game->refs.objects[object] = FALSE;
       }
 }
 
@@ -1479,18 +1579,18 @@ lib_take_t::report_held (void)
 {
   /*
    * 4.0's single-take piece tests possession with 44615C, which counts a
-   * WORN object as carried (position 0 or &H9C, run400 General 4460F4), so
-   * a single-named take of worn clothing gets the held object's task look-up
-   * and "You are already carrying <object>." -- not "already wearing".
-   * 3monkeys T65 `get sheet` with the sheet worn (run400x, 2026-09-19).
+   * WORN object as carried (position 0 or &H9C), so a single-named take of
+   * worn clothing gets the held object's task look-up and "You are already
+   * carrying <object>." -- not "already wearing".
+   * 3monkeys T65 `get sheet` with the sheet worn (run400x).  Scarier keeps
+   * the task look-up and changes the wording; see the deviation below.
    */
   /*
-   * A 4.0 line split on "and" resolves each piece through the same
-   * single-take handler (run400 4731A2 loops the pieces through
-   * Proc_19_23_473A34), so every piece gets the single wording: p4TKA `take
-   * hat and stone` with the hat worn is "You take the stone.  You are already
-   * carrying the hat." (runner_probes/tka.run400.txt cells 14/40/44,
-   * 2026-09-20).
+   * A 4.0 line split on "and" resolves each piece through the same single-take
+   * handler (run400 4731A2 loops the pieces through Proc_19_23_473A34), so
+   * every piece gets the single wording: p4TKA `take hat and stone` with the
+   * hat worn is "You take the stone.  You are already carrying the hat."
+   * (runner_probes/tka.run400.txt cells 14/40/44).
    */
   const scr_bool worn_is_held = lib_is_version_400 (game)
                                 && (lib_take_single_named
@@ -1507,15 +1607,15 @@ lib_take_t::report_held (void)
    * 4.0 gives the tasks their look at a held object too, and earlier than
    * the one ahead of " can't take " below: run400's take piece
    * Proc_19_39_46302C pre-matches "get <the object>" in the take-family
-   * mode (@462AED / @462B84) and dispatches it with the restriction-failure
-   * pass on (@462C5C, Proc_19_24_44CCE0(1, 1)) BEFORE either the
-   * " can't take " test at 462CA0 or the " already carrying " one at
-   * 462D01 -- and a claim exits the piece outright.  So a task restricted on
-   * already holding the object answers with its own fail message where the
-   * library would have said "You are already carrying the cone.".
+   * mode and dispatches it with the restriction-failure pass on
+   * (Proc_19_24_44CCE0(1, 1)) BEFORE either the " can't take " test or the
+   * " already carrying " one -- and a claim exits the piece outright.  So a
+   * task restricted on already holding the object answers with its own fail
+   * message where the library would have said "You are already carrying the
+   * cone.".
    *
    * Measured on IceCream.taf in run400 (runner_transcripts/icecream.txt, turn
-   * 1, 2026-09-07): `take cone`, with the cone already in hand at the start
+   * 1): `take cone`, with the cone already in hand at the start
    * of the game, is task 14's "  You already have an empty cone." -- the
    * FailMessage of its one restriction -- and not the library refusal.
    *
@@ -1552,26 +1652,59 @@ lib_take_t::report_held (void)
    *
    * 4.0 only: the pre-4.0 Runners have no "already carrying" wording at
    * all (no such literal in run370/run380/run390.bas; the only held-take
-   * refusal is "'ve already got <object>!" -- run370 436561, run380
-   * 43E03E, run390_3 454EC5).  Measured live 2026-08-31 on cave.taf
-   * run380: single-named `take parchment` while holding it answers
-   * "You've already got half of a parchment!".
+   * refusal is "'ve already got <object>!", run380 43E03E).  Measured live
+   * on cave.taf run380: single-named `take parchment` while holding it
+   * answers "You've already got half of a parchment!".
    */
-  if (lib_is_version_400 (game)
+  const lib_print_item_t already_got
+    = lib_is_version_400 (game) ? alr_already_got_printer () : nullptr;
+
+  if (lib_is_version_400 (game) && !already_got
       && ((lib_take_single_named && list.size () == 1)
           || (lib_take_and_pieces_400 && !list.empty ())))
     {
+      /*
+       * Deliberate deviation (2026-11-07): a WORN object on this path gets
+       * the "already wearing" wording the other versions and every other
+       * take path give it, not run400's "You are already carrying the
+       * hat." (p4TKA `take hat` with the hat worn, runner_probes/
+       * tka.run400.txt cells 14/40/44; goldilocks `take watch`), which is
+       * false: the inventory has just said "You are wearing a hat".  The
+       * worn object still had the tasks' look above, as run400 gives it.
+       * A game with an ALR over the 4.0 sentence keeps its wording so the
+       * rewrite still fires (Bandera, El ascensor, Vardock Bates, the
+       * French "Vous portez déjà" games, Plague Redux: SCR_DUMP_ALRS scan
+       * of the corpus, 2026-11-07).
+       */
+      const scr_bool wearing_worn
+        = !pf_alr_mentions (gs_get_bundle (game), "already carrying");
+
       /* One clause per piece on an "and" line (p4TKA cells 14/40/44). */
       for (const scr_int item : list)
         {
           lib_new_clause (game, has_printed);
-          pf_buffer_string (filter,
-                            lib_select_response (game,
-                                                 "You are already carrying ",
-                                                 "I am already carrying ",
-                                                 "%player% is already carrying "));
-          lib_print_object_np (game, item);
-          pf_buffer_character (filter, '.');
+          if (wearing_worn
+              && gs_object_position (game, item) == OBJ_WORN_PLAYER)
+            {
+              SCR_DEVIATION ("take_worn_wearing", nullptr);
+              pf_buffer_string (filter,
+                                lib_select_response (game,
+                                                     "You are already wearing ",
+                                                     "I am already wearing ",
+                                                     "%player% is already wearing "));
+              lib_print_object_np (game, item);
+              pf_buffer_character (filter, '!');
+            }
+          else
+            {
+              pf_buffer_string (filter,
+                                lib_select_response (game,
+                                                     "You are already carrying ",
+                                                     "I am already carrying ",
+                                                     "%player% is already carrying "));
+              lib_print_object_np (game, item);
+              pf_buffer_character (filter, '.');
+            }
           has_printed |= TRUE;
         }
     }
@@ -1583,7 +1716,8 @@ lib_take_t::report_held (void)
                                           "You've already got ",
                                           "I've already got ",
                                           "%player%'ve already got ",
-                                          lib_object_printer_390 (game));
+                                          already_got ? already_got
+                                          : lib_object_printer_390 (game));
 }
 
 /* Report the named objects the player is wearing. */
@@ -1596,27 +1730,27 @@ lib_take_t::report_worn (void)
 
   /*
    * No Runner contracts this one.  Every take path builds it as
-   * <pronoun> & " " & <are> & " already wearing " & <name> & "!" -- run400
-   * 47BE82, run390 454F31, run380 43E0A2 -- so "You're" was never right; the
-   * name is the plain Prefix & " " & Short concatenation below 3.9 and the
-   * definite printer from 3.9 on, as everywhere else on this path.
+   * <pronoun> & " " & <are> & " already wearing " & <name> & "!" (run400
+   * 47BE82), so "You're" was never right; the name is the plain Prefix & " "
+   * & Short concatenation below 3.9 and the definite printer from 3.9 on, as
+   * everywhere else on this path.
    *
    * 3.7 has no worn arm at all: its takes() tests position 0 (held,
-   * "'ve already got", 436561) and the room constant (the pick-up branch,
-   * 436585) and nothing else, so a worn object falls through to the same
-   * " can't see <raw> from here!" arm an absent one gets (436909/43696A).
+   * "'ve already got") and the room constant (the pick-up branch) and
+   * nothing else, so a worn object falls through to the same " can't see
+   * <raw> from here!" arm an absent one gets.
    *
    * p37TWO/p38TWO/p39TWO `take hat` with the hat worn (cell 7 of
-   * runner_probes/two.run370.verb3.rtf / runner_probes/two.run380.verb3.rtf /
-   * runner_probes/two.run390.verb3.txt, 2026-09-21): "You can't see a hat
-   * from here!" / "You are already wearing a hat!" / "You are already wearing
-   * the hat!".
+   * runner_probes/two.run3[789]0.verb3.*): "You can't see a hat from here!"
+   * / "You are already wearing a hat!" / "You are already wearing the hat!".
    */
   if (prop_get_taf_version (gs_get_bundle (game)) < TAF_VERSION_380
       && !list.empty ())
     {
-      /* The arm assigns the whole message per object, so the last one
-         speaks; the raw name is this handler's own concatenation. */
+      /*
+       * The arm assigns the whole message per object, so the last one
+       * speaks; the raw name is this handler's own concatenation.
+       */
       lib_new_clause (game, has_printed);
       lib_cant_see_named_pre_390 (game, list.back (), FALSE, " from here!");
       has_printed = TRUE;
@@ -1671,15 +1805,15 @@ lib_take_t::report_cannot_take (void)
    * Only the 4.0 single-take handler ends this with "!" (run400 @47329D
    * builds " can't take " + name + "!"); its multi-take processor
    * (run400 @47C172) and both of 3.9's (run390 @4551A6, @455533) end it
-   * with ".".  Measured 2026-08-29 in run390 on CAH.taf (cruel), `take it`
+   * with ".".  Measured in run390 on CAH.taf (cruel), `take it`
    * after `x jacket` -> "(a jacket)" / "You can't take the jacket.".
    */
   /*
    * 4.0 gives the tasks one more look at each object it is about to refuse:
    * run400's per-piece take handler (Proc_19_23_473A34) calls the task
-   * pre-matcher Proc_19_35_453C50 at @473241, directly ahead of the loop
-   * that builds " can't take " (@47329D), and a hit re-dispatches to the
-   * task dispatcher Proc_19_24_44CCE0, restriction-failure pass included.
+   * pre-matcher Proc_19_35_453C50 directly ahead of the loop that builds
+   * " can't take " (@47329D), and a hit re-dispatches to the task
+   * dispatcher Proc_19_24_44CCE0, restriction-failure pass included.
    * The match is by the resolved object's name, not by the typed words:
    * `take kelly` -- an alias, with no "poster" anywhere in the line -- still
    * runs "Get * poster", as do `take poster`, `pick up poster`, `take the
@@ -1727,9 +1861,11 @@ lib_take_t::report_cannot_take (void)
     }
   if (lib_is_version_400 (game) && lib_take_and_pieces_400)
     {
-      /* Each "and" piece is its own single-take refusal: p4TKA `take stone
-         and statue` -> "You take the stone.  You can't take the statue!"
-         (runner_probes/tka.run400.txt cells 17/20, 2026-09-20). */
+      /*
+       * Each "and" piece is its own single-take refusal: p4TKA `take stone
+       * and statue` -> "You take the stone.  You can't take the statue!"
+       * (runner_probes/tka.run400.txt cells 17/20).
+       */
       for (const scr_int item : list)
         {
           lib_list_t one;
@@ -1750,9 +1886,11 @@ lib_take_t::report_cannot_take (void)
                            "You can't take ",
                            "I can't take ",
                            "%player% can't take ",
-                           /* 3.7/3.8 name it by the raw Prefix: "You can't
-                              take a chair." (run380 43E697, run370 4369FF;
-                              run370x/run380x p3738sit3, 2026-09-19). */
+                           /*
+                            * 3.7/3.8 name it by the raw Prefix: "You can't
+                            * take a chair." (run380 43E697; run370x/run380x
+                            * p3738sit3).
+                            */
                            lib_object_printer_390 (game));
 }
 
@@ -1826,17 +1964,16 @@ lib_take_from_npc_backend (scr_gameref_t game, scr_int associate)
 /*
  * run370's insides() gate -- a deliberate deviation.
  *
- * run370's insides() is entered only by a line holding c("get") and
- * c("from"), or c("remove") and c("from") (43A745) -- run380's gate
- * (4468B3) admits take and pick as well.  So at 3.7 `take gem from box` is
- * no take-from at all but the catch-all's "I don't understand what you
- * want me to do with the box.", and a bare take's rewrite into "<line> from
- * <parent>" (4368C4) only lands in insides() when the line says get: with
- * a gem in an open box on the floor, `get gem` is "You are not holding a
- * box." while `take gem` and `pick up gem` are "Take what?", and a nut in a
- * held bag is "You get a nut from the bag." for `get nut` and "Take what?"
- * for `take nut` (p37TFSW, run370x runner_probes/tfsw.run370.sweep3.rtf,
- * 2026-09-19).
+ * run370's insides() is entered only by a line holding c("get") and c("from"),
+ * or c("remove") and c("from") (43A745) -- run380's gate (4468B3) admits take
+ * and pick as well.  So at 3.7 `take gem from box` is no take-from at all but
+ * the catch-all's "I don't understand what you want me to do with the box.",
+ * and a bare take's rewrite into "<line> from <parent>" (4368C4) only lands in
+ * insides() when the line says get: with a gem in an open box on the floor,
+ * `get gem` is "You are not holding a box." while `take gem` and `pick up gem`
+ * are "Take what?", and a nut in a held bag is "You get a nut from the bag."
+ * for `get nut` and "Take what?" for `take nut` (p37TFSW, run370x
+ * runner_probes/tfsw.run370.sweep3.rtf).
  *
  * Scarier gives 3.7 run380's gate instead, so `take gem from box`, `take
  * nut` from a held bag and `empty bag` work there as they do at 3.8, and

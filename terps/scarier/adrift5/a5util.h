@@ -21,11 +21,11 @@
  *
  * ADRIFT 5 support for Scarier -- tiny string helpers shared by every a5 file.
  *
- * These four were independently copy-pasted into most of the a5*.cpp files (five
- * copies of streq alone) before being collected here.  Deliberately free of any
- * engine dependency -- only <string.h>/<ctype.h>/<string> -- so that the
- * self-contained translation units (a5sexpr.cpp, which knows nothing of the
- * model) can include it as readily as the runner does.
+ * These four were independently copy-pasted into most of the a5*.cpp files
+ * (five copies of streq alone) before being collected here.  Deliberately free
+ * of any engine dependency -- only <string.h>/<ctype.h>/<string> -- so that
+ * the self-contained translation units (a5sexpr.cpp, which knows nothing of
+ * the model) can include it as readily as the Runner does.
  */
 
 #ifndef SCARIER_A5UTIL_H
@@ -45,7 +45,7 @@ streq (const char *a, const char *b)
   return a != nullptr && b != nullptr && strcmp (a, b) == 0;
 }
 
-/* LCase(): the Adrift 5 runner lowercases input, keys and match text alike. */
+/* LCase(): the Runner lowercases input, keys and match text alike. */
 static inline std::string
 lower (const std::string &s)
 {

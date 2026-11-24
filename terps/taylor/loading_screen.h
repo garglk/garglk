@@ -1,10 +1,17 @@
-//
-//  loading_screen.h
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Show a ZX Spectrum loading screen (SCREEN$) as a title image,
-//  extracted from a .z80 snapshot or a .tap / .tzx tape image.
-//
+/*
+ *  loading_screen.h
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2026-06-04.
+ *
+ *  Show a ZX Spectrum loading screen (SCREEN$) as a title image,
+ *  extracted from a .z80 snapshot or a .tap / .tzx tape image.
+ */
 
 #ifndef loading_screen_h
 #define loading_screen_h

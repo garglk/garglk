@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <set>
+#include <string>
 #include <vector>
 
 #include "scarier.h"
@@ -85,12 +87,12 @@ typedef scr_prop_node_t *scr_prop_noderef_t;
  * names are held in a dictionary to help save space.  To avoid excessive
  * malloc'ing of nodes, new nodes are preallocated in pools.
  *
- * The bookkeeping arrays are std::vector (P3 RAII); their *contents* stay
+ * The bookkeeping arrays are std::vector; their *contents* stay
  * raw -- the dictionary strings, node pool slabs, and orphans are owned
  * allocations freed by prop_destroy().  The node slabs themselves and the
  * per-node child lists are deliberately left as raw arrays: tree nodes are
  * referenced by address all over the tree, so the slabs must never move,
- * and the child list scan is the engine's hottest loop (see P4 notes).
+ * and the child list scan is the engine's hottest loop.
  */
 typedef struct scr_prop_set_s
 {
@@ -165,11 +167,12 @@ prop_ensure_capacity (void *array,
        * does not clear the bytes it grows into (only a fresh allocation is
        * zeroed), so clear from old_size -- not the rounded-up `current` -- to
        * cover the whole not-yet-live region [old_size, required).  In the
-       * common grow path [old_size, current) was already zeroed by the previous
-       * grow, so this is a harmless re-zero; but an array whose allocation was
-       * shrunk by prop_trim_capacity() and then grown again (the orphans array,
-       * which stays growable past prop_solidify() for runtime-mutable strings)
-       * would otherwise read indeterminate realloc tail bytes.
+       * common grow path [old_size, current) was already zeroed by the
+       * previous grow, so this is a harmless re-zero; but an array whose
+       * allocation was shrunk by prop_trim_capacity() and then grown again
+       * (the orphans array, which stays growable past prop_solidify() for
+       * runtime-mutable strings) would otherwise read indeterminate realloc
+       * tail bytes.
        */
       new_array
         = (decltype(new_array)) scr_realloc (array, required * element_size);
@@ -406,8 +409,7 @@ prop_find_child (scr_prop_noderef_t parent, scr_int type, scr_vartype_t name)
           /*
            * Look up a string name among the children.  This is the engine's
            * single hottest inner loop (tens of millions of iterations on a
-           * full walkthrough -- see the P4 profiling notes and the v4
-           * profiling memo).  String children carry no positional meaning
+           * full walkthrough).  String children carry no positional meaning
            * (this lookup is the only reader), so prop_add_child keeps them
            * in order of their names' hashes: a lookup hashes the key once,
            * binary searches the parent's hash array, and compares names
@@ -1156,8 +1158,8 @@ prop_create_empty (void)
   scr_prop_setref_t bundle;
 
   /*
-   * Create a new, empty set.  The set holds std::vector members (P3 RAII),
-   * so it is non-POD and must be new()'d -- value-init zeroes the POD fields
+   * Create a new, empty set.  The set holds std::vector members, so it
+   * is non-POD and must be new()'d -- value-init zeroes the POD fields
    * and default-constructs the vectors empty.
    */
   bundle = new scr_prop_set_s ();
@@ -1237,10 +1239,9 @@ prop_destroy (scr_prop_setref_t bundle)
     taf_destroy (bundle->taf);
 
   /*
-   * Free the bundle; its destructor releases the bookkeeping vectors.  (The
-   * old 0xaa poison is gone -- it would corrupt the vector members the
-   * destructor is about to free, the same reason the scr_filter_s struct
-   * moved to new/delete in P3.)
+   * Free the bundle; its destructor releases the bookkeeping vectors.  Do not
+   * poison the struct first: that would corrupt the vector members the
+   * destructor is about to free.
    */
   bundle->magic = 0;
   delete bundle;
@@ -1309,10 +1310,10 @@ prop_adopt (scr_prop_setref_t bundle, void *addr)
 /*
  * prop_get_taf()
  *
- * The TAF the properties were parsed from.  The bundle keeps it for the life of
- * the game (prop_destroy is what finally frees it), so a caller that wants the
- * authored strings as they were written -- rather than as the property tree
- * files them -- can read them back out of it.
+ * The TAF the properties were parsed from.  The bundle keeps it for the life
+ * of the game (prop_destroy is what finally frees it), so a caller that wants
+ * the authored strings as they were written -- rather than as the property
+ * tree files them -- can read them back out of it.
  */
 scr_tafref_t
 prop_get_taf (scr_prop_setref_t bundle)
@@ -1320,6 +1321,94 @@ prop_get_taf (scr_prop_setref_t bundle)
   assert (prop_is_valid (bundle));
 
   return bundle->taf;
+}
+
+
+/*
+ * prop_walk_strings()
+ *
+ * Visit every string leaf in the tree, in key order, with its path written as
+ * the keys joined by '/' ("Rooms/3/Long", "Header/StartupText").  A leaf does
+ * not record its own type, so a string is told by where it lives: every
+ * string the parser stores points into a TAF slab (one-line fields) or is an
+ * adopted orphan (multiline fields, and the strings fixups build).  Integers
+ * and booleans are small values that never land in either.  Empty strings
+ * are skipped, there being nothing in them to visit.
+ */
+namespace {
+
+struct prop_walk_t
+{
+  scr_prop_setref_t bundle;
+  std::set<const void *> orphans;
+  void (*visit) (const scr_char *, const scr_char *, void *);
+  void *opaque;
+  std::string path;
+
+  void node (scr_prop_noderef_t node);
+};
+
+} /* namespace */
+
+void
+prop_walk_t::node (scr_prop_noderef_t node)
+{
+  if (node == nullptr)
+    return;
+
+  if (node->child_list)
+    {
+      std::vector<scr_prop_noderef_t> children (
+          node->child_list, node->child_list + node->property.integer);
+      const size_t length = path.size ();
+      size_t index_;
+
+      /* String-keyed children are held in hash order; walk them by name. */
+      if (node->child_hashes)
+        qsort (children.data (), children.size (),
+               sizeof (children[0]), prop_compare_child_names);
+
+      for (index_ = 0; index_ < children.size (); index_++)
+        {
+          scr_prop_noderef_t child = children[index_];
+
+          if (child == nullptr)
+            continue;
+          if (!path.empty ())
+            path += '/';
+          if (node->child_hashes)
+            path += child->name.string;
+          else
+            path += std::to_string (child->name.integer);
+          prop_walk_t::node (child);
+          path.resize (length);
+        }
+    }
+  else
+    {
+      const scr_char *string = node->property.string;
+
+      if ((taf_debug_is_taf_string (bundle->taf, string)
+           || orphans.count (string) > 0)
+          && string[0] != NUL)
+        visit (path.c_str (), string, opaque);
+    }
+}
+
+void
+prop_walk_strings (scr_prop_setref_t bundle,
+                   void (*visit) (const scr_char *, const scr_char *, void *),
+                   void *opaque)
+{
+  prop_walk_t walk;
+
+  assert (prop_is_valid (bundle) && visit);
+
+  walk.bundle = bundle;
+  walk.orphans.insert (bundle->orphans.begin (), bundle->orphans.end ());
+  walk.visit = visit;
+  walk.opaque = opaque;
+  walk.node (bundle->root_node);
 }
 
 

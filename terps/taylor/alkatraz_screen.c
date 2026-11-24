@@ -1,12 +1,19 @@
-//
-//  alkatraz_screen.c
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  See alkatraz_screen.h. This mirrors the loader's SCADDS/STYLER routines:
-//  DECLI moves one pixel row (up/down), DECSI moves one character column
-//  (left/right), and COLOUR emits the attribute address for a cell whenever
-//  the draw crosses a character-row boundary.
-//
+/*
+ *  alkatraz_screen.c
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2026-06-04.
+ *
+ *  See alkatraz_screen.h. This mirrors the loader's SCADDS/STYLER routines:
+ *  DECLI moves one pixel row (up/down), DECSI moves one character column
+ *  (left/right), and COLOUR emits the attribute address for a cell whenever
+ *  the draw crosses a character-row boundary.
+ */
 
 #include "alkatraz_screen.h"
 
@@ -84,7 +91,7 @@ static void alk_emit_attr(uint16_t addr, int direction, uint16_t *out, int *nout
     }
 }
 
-/* Window descriptor layout (4 bytes each). */
+/* Window descriptor layout (4 bytes each), see alkatraz_screen.h. */
 #define DESC_BYTES        4
 #define DESC_SIM_SHIFT    5     /* byte[3] bits 5-7: (simultaneous count) - 1   */
 #define DESC_SIM_MASK     7
@@ -182,10 +189,7 @@ int AlkatrazScreenOrder(const uint8_t *descriptors, int nwin,
         if (next_win + group_count > nwin)     /* clamp a malformed last group */
             group_count = nwin - next_win;
 
-        /* Load the group's descriptors into draw-state slots. Each descriptor
-           is 4 bytes: [0..1] start address (LE), [2] bits 6-7 direction +
-           bits 0-5 width (chars), [3] bits 5-7 simultaneous-count + bits 0-4
-           height (chars, x8 = pixels). Directions: 0=right,1=left,2=up,3=down. */
+        /* Load the group's descriptors into draw-state slots. */
         AlkSlot slots[ALK_MAX_SIM];
         for (int i = 0; i < group_count; i++)
             alk_load_slot(&slots[i], descriptors + (next_win + i) * DESC_BYTES);

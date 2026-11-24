@@ -35,17 +35,17 @@ scr_task_state_t tasks;
  * "execute task" action, a battle task.
  *
  * The Runner's execute_task takes a mode argument, and it is the whole of the
- * difference between the two kinds of run.  With mode 1 the task's CompleteText
- * is joined onto the turn's one string after pspace() (run390 43F106-43F132,
- * run400 45A239-45A265); with any other mode the string is REPLACED by the
- * text (run390 43F15F, run400 45A27D-45A2AD, where the replacement reads
- * `msg = var_AC & CompleteText` with var_AC never assigned), and the caller
- * is the one that preserves whatever the turn had said -- run390's inventory
- * saves `out & "  "` before the call and puts it back afterwards (439B55).
- * Mode 1 is what Sub_20_22 passes (run400 45FA66, our run_task_run_by_index)
- * and what checkevent passes when it dispatches by command text (run390
- * 42D3F5, run380 43A762); the typed line's own matcher passes 0 and its
- * fallback pass 2 (run390 generaltasks 45F48B, 460584).
+ * difference between the two kinds of run.  With mode 1 the task's
+ * CompleteText is joined onto the turn's one string after pspace() (run390
+ * 43F106-43F132, run400 45A239-45A265); with any other mode the string is
+ * REPLACED by the text (run390 43F15F, run400 45A27D-45A2AD, where the
+ * replacement reads `msg = var_AC & CompleteText` with var_AC never assigned),
+ * and the caller is the one that preserves whatever the turn had said --
+ * run390's inventory saves `out & "  "` before the call and puts it back
+ * afterwards (439B55).  Mode 1 is what Sub_20_22 passes (run400 45FA66, our
+ * run_task_run_by_index) and what checkevent passes when it dispatches by
+ * command text (run390 42D3F5, run380 43A762); the typed line's own matcher
+ * passes 0 and its fallback pass 2 (run390 generaltasks 45F48B, 460584).
  *
  * The count is tasks.run.dispatch_depth.
  */
@@ -55,10 +55,10 @@ scr_task_state_t tasks;
  * task_pop_dispatched_run()
  * task_in_dispatched_run()
  *
- * Bracket a task run the engine asked for, so that task_run_task_unrestricted()
- * can tell it from the one the player's line matched; see the note above.
- * Nesting is why this is a count rather than a flag -- anything a dispatched
- * task runs was dispatched too.
+ * Bracket a task run the engine asked for, so that
+ * task_run_task_unrestricted() can tell it from the one the player's line
+ * matched; see the note above.  Nesting is why this is a count rather than a
+ * flag -- anything a dispatched task runs was dispatched too.
  */
 void
 task_push_dispatched_run (void)
@@ -89,11 +89,11 @@ task_in_dispatched_run (void)
  * left at -1 on "move to room" actions, the room sitting unused in Var3.  The
  * reference Runner (run400.exe) silently ignores such a move (its Select Case
  * has no matching/else branch), so the faithful default here is also a no-op
- * (verified against run400.exe).  In some games those unset moves are redundant
- * (X-Files, HYPER Battle System still win); in others they sit on the critical
- * path, leaving the game unwinnable (To Hell & Beyond traps the player in
- * the mansion).  With move assist on, an unset (-1) move whose Var3 names a
- * real room is honoured as "to room", letting such games be completed.
+ * (verified against run400.exe).  In some games those unset moves are
+ * redundant (X-Files, HYPER Battle System still win); in others they sit on
+ * the critical path, leaving the game unwinnable (To Hell & Beyond traps the
+ * player in the mansion).  With move assist on, an unset (-1) move whose Var3
+ * names a real room is honoured as "to room", letting such games be completed.
  * Strictly opt-in, as it deliberately diverges from the reference Runner.
  */
 void
@@ -436,8 +436,8 @@ task_can_run_task_directional (scr_gameref_t game,
   /*
    * Reusable structural-dump / NPC-trace instrumentation; see
    * tools/scdump.cpp.
-   * Compiled only into the headless walkthrough harness (-DSCARIER_DUMP_TOOLS);
-   * a normal Spatterlight build omits this entirely.
+   * Compiled only into the headless walkthrough harness
+   * (-DSCARIER_DUMP_TOOLS); a normal Spatterlight build omits this entirely.
    */
   scr_dump_structure_once (game);
 #endif
@@ -453,7 +453,7 @@ task_can_run_task_directional (scr_gameref_t game,
 /*
  * task_is_reverse_refused_390()
  *
- * TRUE for a 3.90 task whose reverse command run390 answers with the task's
+ * TRUE for a 3.9 task whose reverse command run390 answers with the task's
  * RepeatText rather than a reversal: reversible, but neither done nor
  * repeatable (checktask 44B4B2).  See run_spent_task_390() in
  * runner/scrun_match_refusal.cpp.
@@ -483,11 +483,11 @@ task_is_reverse_refused_390 (scr_gameref_t game, scr_int task)
  * in runner/scrun_match_refusal.cpp.
  *
  * Whether the task has already been run is deliberately NOT part of the test.
- * The Runner checks the room ahead of the task's state, and answers a task that
- * is both done and out of its rooms with the room refusal rather than "You have
- * already done that." (measured live -- probe task "theta").  The reverse
- * direction still asks task_state_allows_run(), which for a backwards run tests
- * only the reversibility flag.
+ * The Runner checks the room ahead of the task's state, and answers a task
+ * that is both done and out of its rooms with the room refusal rather than
+ * "You have already done that." (measured live -- probe task "theta").  The
+ * reverse direction still asks task_state_allows_run(), which for a backwards
+ * run tests only the reversibility flag.
  */
 scr_bool
 task_is_room_refused (scr_gameref_t game, scr_int task, scr_bool forwards)
@@ -530,9 +530,8 @@ scr_bool
 task_can_run_task (scr_gameref_t game, scr_int task)
 {
   /*
-   * Testing reversible tasks first may be a little more efficient if they
-   * aren't common in games.  There is, though, probably a little bit of
-   * redundant work going on here.
+   * A task runs if it can run in either direction.  The two tests repeat some
+   * work.
    */
   return task_can_run_task_directional (game, task, FALSE)
          || task_can_run_task_directional (game, task, TRUE);

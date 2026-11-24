@@ -257,12 +257,12 @@ res_handle_resource (scr_gameref_t game,
            */
           if (!strcmp (soundfile, "##"))
             {
-              game->stop_sound = TRUE;
-              res_clear_resource (&game->requested_sound);
+              game->media.stop_sound = TRUE;
+              res_clear_resource (&game->media.requested_sound);
             }
           else
             {
-              res_set_resource (&game->requested_sound,
+              res_set_resource (&game->media.requested_sound,
                                 soundfile, soundoffset, soundlen);
             }
         }
@@ -279,7 +279,7 @@ res_handle_resource (scr_gameref_t game,
                                "GraphicLen",
                                &graphicfile, &graphicoffset, &graphiclen))
         {
-          res_set_resource (&game->requested_graphic,
+          res_set_resource (&game->media.requested_graphic,
                             graphicfile, graphicoffset, graphiclen);
         }
     }
@@ -298,27 +298,27 @@ res_sync_resources (scr_gameref_t game)
   assert (gs_is_game_valid (game));
 
   /* Deal with any latched sound stop first. */
-  if (game->stop_sound)
+  if (game->media.stop_sound)
     {
-      if (game->sound_active)
+      if (game->media.sound_active)
         {
           if_update_sound ("", 0, 0, FALSE);
-          game->sound_active = FALSE;
+          game->media.sound_active = FALSE;
 
-          res_clear_resource (&game->playing_sound);
+          res_clear_resource (&game->media.playing_sound);
         }
-      game->stop_sound = FALSE;
+      game->media.stop_sound = FALSE;
     }
 
   /* Look for a change of sound, and pass to interface on change. */
-  if (!res_compare_resource (&game->playing_sound,
-                             &game->requested_sound))
+  if (!res_compare_resource (&game->media.playing_sound,
+                             &game->media.requested_sound))
     {
       const scr_char *name;
       scr_bool is_looping;
 
       /* If the sound name ends '##', this is a looping sound. */
-      name = game->requested_sound.name;
+      name = game->media.requested_sound.name;
       is_looping = strlen (name) >= 2
                    && !strcmp (name + strlen (name) - 2, "##");
 
@@ -327,20 +327,20 @@ res_sync_resources (scr_gameref_t game)
         clean_name.get ()[strlen (name) - 2] = NUL;
 
       if_update_sound (clean_name.get (),
-                       game->requested_sound.offset,
-                       game->requested_sound.length, is_looping);
-      game->playing_sound = game->requested_sound;
-      game->sound_active = TRUE;
+                       game->media.requested_sound.offset,
+                       game->media.requested_sound.length, is_looping);
+      game->media.playing_sound = game->media.requested_sound;
+      game->media.sound_active = TRUE;
     }
 
   /* Look for a change of graphic, and pass to interface on change. */
-  if (!res_compare_resource (&game->displayed_graphic,
-                             &game->requested_graphic))
+  if (!res_compare_resource (&game->media.displayed_graphic,
+                             &game->media.requested_graphic))
     {
-      if_update_graphic (game->requested_graphic.name,
-                         game->requested_graphic.offset,
-                         game->requested_graphic.length);
-      game->displayed_graphic = game->requested_graphic;
+      if_update_graphic (game->media.requested_graphic.name,
+                         game->media.requested_graphic.offset,
+                         game->media.requested_graphic.length);
+      game->media.displayed_graphic = game->media.requested_graphic;
     }
 }
 
@@ -357,9 +357,9 @@ res_cancel_resources (scr_gameref_t game)
   assert (gs_is_game_valid (game));
 
   /* Request that everything stops and clears. */
-  game->stop_sound = FALSE;
-  res_clear_resource (&game->requested_sound);
-  res_clear_resource (&game->requested_graphic);
+  game->media.stop_sound = FALSE;
+  res_clear_resource (&game->media.requested_sound);
+  res_clear_resource (&game->media.requested_graphic);
 
   /* Synchronize to have the above take effect. */
   res_sync_resources (game);
