@@ -28,7 +28,7 @@
 
 #include "a5text_internal.h"
 
-/* ----------------------------------------------------------- LOOK / location */
+/* --------------------------------------------------------- LOOK / location */
 
 /* Does object `oi` belong in the room view of `lockey`?  A dynamic object is
    listed unless it is ExplicitlyExclude, a static one only if it is
@@ -64,8 +64,8 @@ object_list_desc (a5_state_t *st, const a5_object_t *o, int is_static)
   return nullptr;
 }
 
-/* A present character's "is here" line: its CharHereDesc property rendered (with
-   the character as the text context), else the default "<Name> is here."
+/* A present character's "is here" line: its CharHereDesc property rendered
+   (with the character as the text context), else the default "<Name> is here."
    (clsLocation.ViewLocation: IsHereDesc / fallback).
 
    The render follows the AMBIENT marking_display like every other description
@@ -73,8 +73,8 @@ object_list_desc (a5_state_t *st, const a5_object_t *o, int is_static)
    UserSession.bTestingOutput`, and IsHereDesc is not special-cased.  Forcing
    the mark here made the stock Look's two test renders disagree whenever a
    present character had a DisplayOnce CharHereDesc: the pre-action probe
-   retired the first-visit segment, so the post-action probe fell through to the
-   next one.  The view still came out right (the response pins to the first
+   retired the first-visit segment, so the post-action probe fell through to
+   the next one.  The view still came out right (the response pins to the first
    probe), but the discarded second render expanded that segment's %functions%
    under bDisplaying and so marked the character Introduced a turn early --
    Anno 1700's Susan answered "say hello" as "(to the young woman)" instead of
@@ -134,7 +134,7 @@ ci_replace_all (const std::string &s, const std::string &from, const std::string
   return out;
 }
 
-/* Room name (bold), then the long description.  The runner embeds the raw
+/* Room name (bold), then the long description.  The Runner embeds the raw
    ShortDescription (still bearing its %functions%) inside "<b>...</b>" on the
    marked-up view (clsLocation.vb:188) and only its ONE Display-time
    ReplaceFunctions + ReplaceALRs + CapAfterFullStop runs over the whole sView;
@@ -142,10 +142,11 @@ ci_replace_all (const std::string &s, const std::string &from, const std::string
    line-start cap rule never fires on the name.  So process the name WITHOUT
    the per-piece cap (a5text_process_nocap keeps markup + resolves
    functions/OO/ALR), wrap it in the bold tags, and let the room-view
-   replace_alrs + auto_capitalise pass in view_loc_finish() adjudicate it as the runner does.
-   A genuinely lowercase generated name -- LostCoastlines' "cabal plain",
-   "flock sea" -- is thus left lowercase like the runner, while an already-capitalised
-   name (its case baked into the source) is unaffected. */
+   replace_alrs + auto_capitalise pass in view_loc_finish() adjudicate it as
+   the Runner does.  A genuinely lowercase generated name -- LostCoastlines'
+   "cabal plain", "flock sea" -- is thus left lowercase like the Runner, while
+   an already-capitalised name (its case baked into the source) is unaffected.
+   */
 static void
 view_loc_name (a5_state_t *st, const char *lockey, sb_t &sb)
 {
@@ -166,12 +167,12 @@ view_loc_body (a5_state_t *st, const char *lockey, sb_t &sb)
   int i, body_empty;
 
   /* Whether this render retires <DisplayOnce> segments follows the CALLER's
-     marking_display, mirroring the runner's ambient bTestingOutput: the Look dance's
-     two pre/post-action TEST renders (run_task, marking 0) must NOT retire a
-     first-visit segment -- the runner's bTestingOutput=True renders both as the
-     segment, they compare EQUAL, and the single Display render is what
-     retires it.  Forcing 1 here made the test renders unequal (e1 kept the
-     DisplayOnce text, e2 lost it), which pinned the view as plain text and
+     marking_display, mirroring the Runner's ambient bTestingOutput: the Look
+     dance's two pre/post-action TEST renders (run_task, marking 0) must NOT
+     retire a first-visit segment -- the Runner's bTestingOutput=True renders
+     both as the segment, they compare EQUAL, and the single Display render is
+     what retires it.  Forcing 1 here made the test renders unequal (e1 kept
+     the DisplayOnce text, e2 lost it), which pinned the view as plain text and
      let a movement task's own "%Player%.Location.Description" completion
      re-render the post-retire variant as a SECOND room view (Murder Most
      Foul's Slave Holdings / east-wing rooms).  Real-output call sites
@@ -180,16 +181,17 @@ view_loc_body (a5_state_t *st, const char *lockey, sb_t &sb)
   raw = location_long_desc (st, lockey);
   proc = a5text_process (st, raw);
   free (raw);
-  /* Special-listed objects directly here.  The runner's ViewLocation SELECTS them
-     via ObjectsInLocation(AllSpecialListedObjects), whose `ob.ListDescription
-     <> ""` test is a REAL Description render (clsLocation.vb:232) -- it
-     retires <DisplayOnce> segments -- and the append loop then renders the
-     property AGAIN.  Mirror the two-pass shape: scan every candidate first
-     (render + discard), then re-render the non-empty ones for output.  Lost
-     Children's rabbit needs this: its DisplayOnce lead-in "Several metres
-     ... you see " terminates the scan render, and the appended second render
-     rebuilds it as the StartAfterDefaultDescription default prefix + "a
-     large rabbit nibbling ...". */
+  /* Special-listed objects directly here.  The Runner's ViewLocation SELECTS
+     them via ObjectsInLocation(AllSpecialListedObjects), whose
+     `ob.ListDescription <> ""` test is a REAL Description render
+     (clsLocation.vb:232) -- it retires <DisplayOnce> segments -- and the
+     append loop then renders the property AGAIN.  Mirror the two-pass shape:
+     scan every candidate first (render + discard), then re-render the
+     non-empty ones for output.  Lost Children's rabbit needs this: its
+     DisplayOnce lead-in "Several metres ... you see " terminates the scan
+     render, and the appended second render rebuilds it as the
+     StartAfterDefaultDescription default prefix + "a large rabbit nibbling
+     ...". */
   {
     std::vector<int> specials;
     for (i = 0; i < st->adv->n_objects; i++)
@@ -212,7 +214,8 @@ view_loc_body (a5_state_t *st, const char *lockey, sb_t &sb)
           {
             char *p = process_inner (st, ld, 0);
             size_t plen = strlen (proc);
-            /* pSpace: two spaces unless the previous text ends with a newline. */
+            /* pSpace: two spaces unless the previous text ends with a
+               newline. */
             const char *sep = (plen == 0 || proc[plen - 1] == '\n') ? "" : "  ";
             size_t need = plen + 2 + strlen (p) + 1;
             char *joined = (char *) malloc (need);
@@ -224,10 +227,10 @@ view_loc_body (a5_state_t *st, const char *lockey, sb_t &sb)
         free (ld);
       }
   }
-  /* The runner's ViewLocation sView at the general-listed test = LongDescription +
-     special objects (the room NAME is NOT part of it): a v5 room whose body is
-     empty lists its general objects as "There is X here." instead of the
-     trailing "Also here is X." -- clsLocation.vb:132-139. */
+  /* The Runner's ViewLocation sView at the general-listed test =
+     LongDescription + special objects (the room NAME is NOT part of it): a v5
+     room whose body is empty lists its general objects as "There is X here."
+     instead of the trailing "Also here is X." -- clsLocation.vb:132-139. */
   body_empty = (proc[0] == '\0');
   sb_puts (&sb, proc);
   free (proc);
@@ -249,7 +252,8 @@ view_loc_objects (a5_state_t *st, const char *lockey, sb_t &sb, int body_empty)
       if (!object_listed_at (st, i, lockey))
         continue;
       ld = object_list_desc (st, o, is_static);
-      if (ld != nullptr && ld[0] != '\0') { free (ld); continue; } /* special-listed */
+      /* special-listed */
+      if (ld != nullptr && ld[0] != '\0') { free (ld); continue; }
       free (ld);
       nm = a5text_object_name (st, o, A5_ART_INDEFINITE);
       names.push_back (nm);
@@ -271,11 +275,11 @@ view_loc_objects (a5_state_t *st, const char *lockey, sb_t &sb, int body_empty)
     }
 }
 
-/* Event SetLook text (clsLocation.ViewLocation: "For Each e ... e.LookText()"):
-   walk the model's events in order; each RUNNING event contributes its own
-   most-recent look entry matching the player's location (clsEvent.LookText
-   answers only while Status = Running, so a finished or paused event's
-   SetLook text disappears from the room view). */
+/* Event SetLook text (clsLocation.ViewLocation: "For Each e ...
+   e.LookText()"):  walk the model's events in order; each RUNNING event
+   contributes its own most-recent look entry matching the player's location
+   (clsEvent.LookText answers only while Status = Running, so a finished or
+   paused event's SetLook text disappears from the room view). */
 static void
 view_loc_event_looks (a5_state_t *st, sb_t &sb)
 {
@@ -287,11 +291,12 @@ view_loc_event_looks (a5_state_t *st, sb_t &sb)
       const char *lt = a5state_event_look (st, st->adv->events[ei].key);
       if (lt != nullptr && lt[0] != '\0')
         {
-          /* pSpace(sView) (clsLocation.ViewLocation:144): always two spaces unless
-             the buffer ends in a newline -- NOT add_space's sentence-aware test, so
-             a description ending in a trailing space still gets the two (e.g.
-             SixSilverBullets' Hotel "...grim and gray. " + "  " before the
-             Purple Agent's "is here" line -> three spaces). */
+          /* pSpace(sView) (clsLocation.ViewLocation:144): always two spaces
+             unless the buffer ends in a newline -- NOT add_space's
+             sentence-aware test, so a description ending in a trailing space
+             still gets the two (e.g.  SixSilverBullets' Hotel "...grim and
+             gray. " + "  " before the Purple Agent's "is here" line -> three
+             spaces). */
           if (sb.len > 0 && sb.p[sb.len - 1] != '\n')
             sb_puts (&sb, "  ");
           sb_puts (&sb, lt);
@@ -302,7 +307,8 @@ view_loc_event_looks (a5_state_t *st, sb_t &sb)
 /* Present NPCs (clsLocation.ViewLocation character loop): each visible
    character contributes its CharHereDesc (or "<Name> is here."); identical
    descriptions are grouped, the name folded out via ##CHARNAME##, the verb
-   pluralised (" is "->" are ") for a shared description, and the names listed. */
+   pluralised (" is "->" are ") for a shared description, and the names listed.
+   */
 static void
 view_loc_characters (a5_state_t *st, const char *lockey, sb_t &sb)
 {
@@ -341,12 +347,12 @@ view_loc_characters (a5_state_t *st, const char *lockey, sb_t &sb)
     {
       const std::vector<std::string> &nm = groups[g].names;
       std::string d;
-      /* The runner substitutes the name back into the de-named form for EVERY group,
-         single characters included (vb:171 `sDesc.Replace("##CHARNAME##",
-         .List)`), so an authored lowercase name is case-normalised to the
-         character's Name -- LostLabyrinth's caged "white stallion" CharHereDesc
-         renders "White Stallion".  Only a shared description also pluralises
-         the verb. */
+      /* The Runner substitutes the name back into the de-named form for EVERY
+         group, single characters included (vb:171
+         `sDesc.Replace("##CHARNAME##", .List)`), so an authored lowercase name
+         is case-normalised to the character's Name -- LostLabyrinth's caged
+         "white stallion" CharHereDesc renders "White Stallion".  Only a shared
+         description also pluralises the verb. */
       d = groups[g].keyd;
       if (nm.size () > 1)
         d = ci_replace_all (d, " is ", " are ");
@@ -366,15 +372,16 @@ view_loc_exits (a5_state_t *st, const char *lockey, sb_t &sb)
 {
   if (st->adv->show_exits)
     {
-      /* The runner: Adventure.Player.ListExits(Me.Key) -- the player's routes FROM
-         THE VIEWED LOCATION (Me.Key), so a %DisplayLocation[other]% view
+      /* The Runner: Adventure.Player.ListExits(Me.Key) -- the player's routes
+         FROM THE VIEWED LOCATION (Me.Key), so a %DisplayLocation[other]% view
          (Head Case's spyhole) lists the other room's exits. */
       long n = 0;
       char *lst = a5expr_list_exits (st, a5state_player_key (st), lockey, &n);
-      /* clsLocation.ViewLocation calls pSpace(sView) *unconditionally* (vb:177)
-         before the iExitCount check, so a room with NO exits ends with two
-         dangling trailing spaces -- which a following same-turn event message
-         then joins onto with another pSpace, giving four spaces (the JJ police
+      /* clsLocation.ViewLocation calls pSpace(sView) *unconditionally*
+         (vb:177) before the iExitCount check, so a room with NO exits ends
+         with two dangling trailing spaces -- which a following same-turn event
+         message then joins onto with another pSpace, giving four spaces (the
+         JJ police
          cell "...out of the cell.    Alan appears..." case). */
       if (sb.len > 0 && sb.p[sb.len - 1] != '\n')   /* pSpace, vb:177 */
         sb_puts (&sb, "  ");
@@ -391,49 +398,52 @@ view_loc_exits (a5_state_t *st, const char *lockey, sb_t &sb)
 }
 
 /* Capitalise the assembled room view on its still-MARKED-UP buffer, exactly
-   as the runner's Display-time CapAfterFullStop runs over the whole (marked-up) turn
-   text.  This is where the room's NPC "is here" list (built here with lowercase
-   articles, e.g. "the cook and the kitchen maid are here.") gets its line-start
-   capital: the runner caps it because the newline before it is followed directly by the
-   letter, with no intervening tag.  Doing it here (rather than only at the
-   a5text_display_alr boundary, which sees PLAIN text and must suppress the
-   `^`/`\n` rules to avoid capitalising a letter the runner left alone behind a stripped
-   tag) keeps the room view correct for ALR games without the boundary needing
-   the tag-sensitive line-start rules.  Non-ALR games always matched with their
-   room views already upper-cased at line start, so this is a no-op for them. */
+   as the Runner's Display-time CapAfterFullStop runs over the whole
+   (marked-up) turn text.  This is where the room's NPC "is here" list (built
+   here with lowercase articles, e.g. "the cook and the kitchen maid are
+   here.") gets its line-start capital: the Runner caps it because the newline
+   before it is followed directly by the letter, with no intervening tag.
+   Doing it here (rather than only at the a5text_display_alr boundary, which
+   sees PLAIN text and must suppress the `^`/`\n` rules to avoid capitalising a
+   letter the Runner left alone behind a stripped tag) keeps the room view
+   correct for ALR games without the boundary needing the tag-sensitive
+   line-start rules.  Non-ALR games always matched with their room views
+   already upper-cased at line start, so this is a no-op for them. */
 static char *
 view_loc_finish (a5_state_t *st, sb_t &sb)
 {
   char *plain;
 
-  /* The runner's Display runs ReplaceALRs BEFORE CapAfterFullStop (Global.vb:527-539),
-     so a game TextOverride matches the still-lowercase NPC listing -- AoK's
-     Override12 blanks "the dwark is here." -- and only the survivors get their
-     line-start capital.  Run ALR round 1 on the uncapped marked-up buffer
-     here; the cap follows, and the runner's post-cap round 2 falls out of the
-     ordinary downstream ALR passes over the capped text. */
+  /* The Runner's Display runs ReplaceALRs BEFORE CapAfterFullStop
+     (Global.vb:527-539), so a game TextOverride matches the still-lowercase
+     NPC listing -- AoK's Override12 blanks "the dwark is here." -- and only
+     the survivors get their line-start capital.  Run ALR round 1 on the
+     uncapped marked-up buffer here; the cap follows, and the Runner's post-cap
+     round 2 falls out of the ordinary downstream ALR passes over the capped
+     text. */
   char *alrd = replace_alrs (st, sb.p ? sb.p : "", 0);
-  /* This ALR round is the runner's Display-time pass for the room view: its verdicts
-     are final.  Seal any surviving OldText site (an override whose passing
-     alternative was the identity text, e.g. XXR's camel-tether postfix while
-     the camels are untethered) so the end-of-turn boundary pass cannot
-     re-adjudicate it with post-task state -- the runner never revisits Display()ed
-     text.  finish_turn strips the sentinels. */
+  /* This ALR round is the Runner's Display-time pass for the room view: its
+     verdicts are final.  Seal any surviving OldText site (an override whose
+     passing alternative was the identity text, e.g. XXR's camel-tether postfix
+     while the camels are untethered) so the end-of-turn boundary pass cannot
+     re-adjudicate it with post-task state -- the Runner never revisits
+     Display()ed text.  finish_turn strips the sentinels. */
   alrd = seal_alr_sites (st, alrd);
   char *capped = auto_capitalise (alrd);
   free (alrd);
   plain = a5text_render_plain (capped);
-  /* A long description ending in a raw <br> leaves the runner's buffer
+  /* A long description ending in a raw <br> leaves the Runner's buffer
      non-vbLf, so the next message (a LocationTrigger task's completion
-     text, say) still space-joins -- AFP2's "You hop the railing...<br><br>". */
+     text, say) still space-joins -- AFP2's "You hop the railing...<br><br>".
+     */
   plain = ps_mark_trailing (capped, plain);
   free (capped);
   return plain;
 }
 
-/* Render a specific location's ViewLocation (clsLocation.ViewLocation).  lockey
-   NULL => the Player's current location (the common case; also the `%Player%`
-   look path).  Used directly for `%DisplayLocation[loc]%`. */
+/* Render a specific location's ViewLocation (clsLocation.ViewLocation).
+   lockey NULL => the Player's current location (the common case; also the
+   `%Player%` look path).  Used directly for `%DisplayLocation[loc]%`. */
 char *
 view_location_impl (a5_state_t *st, const char *lockey)
 {
@@ -454,7 +464,8 @@ view_location_impl (a5_state_t *st, const char *lockey)
 
   /* A v5 location view is prefixed with a blank line before the room name
      (clsLocation.ViewLocation: "If Adventure.dVersion >= 5 Then sView = vbCrLf
-     & sView"), so after a "> look" echo the room name has a paragraph break. */
+     & sView"), so after a "> look" echo the room name has a paragraph break.
+     */
   sb_putc (&sb, '\n');
 
   view_loc_name (st, lockey, sb);
@@ -466,11 +477,11 @@ view_location_impl (a5_state_t *st, const char *lockey)
   view_loc_exits (st, lockey, sb);
 
   /* Empty-view fallback (clsLocation.ViewLocation vb:185: `If sView = "" Then
-     sView = "Nothing special."`).  The runner's sView at this point is only the BODY
-     (long description + listed objects + event look text + NPC lines + exits);
-     the bold room name is prepended after the check.  Scarier builds the name
-     into the same buffer up-front, so compare against the post-header mark
-     (canyoustandup's "Beginning" start room: no description at all). */
+     sView = "Nothing special."`).  The Runner's sView at this point is only
+     the BODY (long description + listed objects + event look text + NPC lines
+     + exits); the bold room name is prepended after the check.  Scarier builds
+     the name into the same buffer up-front, so compare against the post-header
+     mark (canyoustandup's "Beginning" start room: no description at all). */
   if (sb.len == body_start)
     sb_puts (&sb, "Nothing special.");
 

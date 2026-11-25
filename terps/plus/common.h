@@ -1,9 +1,14 @@
-//
-//  common.h
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Created by Petter Sjölund on 2022-06-04.
-//
+/*
+ *  common.h
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-06-04.
+ */
 
 #ifndef common_h
 #define common_h
@@ -18,10 +23,6 @@
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
-void Output(const char *string);
-void OpenGraphicsWindow(void);
-void CloseGraphicsWindow(void);
-void Updates(event_t ev);
 /* Lets the compiler check the arguments of a printf-style function: the
    format string is argument fmt, the variable arguments start at first. */
 #ifdef __GNUC__
@@ -30,39 +31,30 @@ void Updates(event_t ev);
 #define PLUS_PRINTF(fmt, first)
 #endif
 
-/* A printf-style function that prints somewhere */
-typedef void (*PrintFunction)(const char *fmt, ...);
-
+void Output(const char *string);
+void OpenGraphicsWindow(void);
+void CloseGraphicsWindow(void);
+void Updates(event_t ev);
 void Display(winid_t w, const char *fmt, ...) PLUS_PRINTF(2, 3);
 
+/* The 64 flags of BitFlags. An index out of range is reported and ignored. */
 void SetBit(int bit);
 void ResetBit(int bit);
 int IsSet(int bit);
 int IsDark(void);
 
-int CompareUpToHashSign(const char *word1, const char *word2);
 int GetDictWord(int group);
-int YesOrNo(void);
 void OpenTopWindow(void);
 void Look(int transcript);
 Room *PlayerRoom(void);
 void SystemMessage(SysMessageType message);
-void AnyKey(int timeout, int message);
 void SetTimer(glui32 milliseconds);
 
 extern glui32 TimerRate;
-extern glui32 AnimTimerRate;
 
 extern const char *sys[];
 
-extern Synonym *Substitutions;
 extern int16_t Counters[];
-
-extern DictWord *Verbs;
-extern DictWord *Nouns;
-extern DictWord *Adverbs;
-extern DictWord *Prepositions;
-extern DictWord ExtraWords[];
 
 extern ObjectImage *ObjectImages;
 extern char **Messages;
@@ -81,26 +73,17 @@ extern Header GameHeader;
 extern Item *Items;
 extern Room *Rooms;
 
-extern int ProtagonistString;
 extern int lastwasnewline;
 extern int should_restart;
 
 extern SystemType CurrentSys;
 extern const GameInfo *Game;
 
-extern ImgType LastImgType;
-extern int LastImgIndex;
-
 extern strid_t Transcript;
-
-extern int LastVerb, LastNoun, LastPrep, LastPartp, LastNoun2, LastAdverb;
-extern int CurrentVerb, CurrentNoun, CurrentPrep, CurrentPartp, CurrentNoun2, CurrentAdverb;
 
 extern int showing_inventory;
 
 extern uint8_t *mem;
 extern size_t memlen;
-
-extern imgrec *Images;
 
 #endif /* common_h */

@@ -193,8 +193,8 @@ parse_fixup_v390_v380_task_alt (const scr_char *task_key,
  * alt that overrides everything.  This matches the alt array that the ADRIFT
  * Generator itself writes when it converts a 3.9 game to 4.0, and matches the
  * 3.9 Runner, which prints the AddDesc *instead of* the LastDesc rather than
- * as well as it (verified live -- see test/adrift4/notes/RUNNER_TESTS_TODO.md
- * section 3a).
+ * as well as it (verified live -- see "Scarier's own V390 parse fixups" in
+ * test/adrift4/notes/RUNNER_TESTS.md).
  */
 static void
 parse_fixup_v390_v380_room_alts (void)
@@ -263,8 +263,10 @@ parse_write_restrmask (void)
       scr_int index_;
       size_t restrmask_size = parse_checked_multiply (restriction_count, 2);
 
-      /* "#" then "A#" per additional restriction: 2 * count bytes with the
-         terminator, which is exactly restrmask_size. */
+      /*
+       * "#" then "A#" per additional restriction: 2 * count bytes with the
+       * terminator, which is exactly restrmask_size.
+       */
       size_t used = 1;
 
       restrmask = (decltype(restrmask)) scr_malloc (restrmask_size);
@@ -304,8 +306,8 @@ parse_write_restrmask (void)
  *
  * Note that gen400's own 3.9 -> 4.0 conversion agrees on 6->8 and 7->11 but
  * turns 5 into 11 as well -- a cascade of un-chained `If`s that rewrites 5 to
- * 7 and then that 7 to 11.  It is the Generator that is wrong; see
- * test/adrift4/notes/RUNNER_TESTS_TODO.md section 3(a).
+ * 7 and then that 7 to 11.  It is the Generator that is wrong; see "Scarier's
+ * own V390 parse fixups" in test/adrift4/notes/RUNNER_TESTS.md.
  */
 static void
 parse_fixup_v390_battle_attribute (void)
@@ -441,7 +443,7 @@ enum { V380_TASK_MOVEMENTS = 6 };
  * 3^4 = 81, which silently exceeds most games' carrying limits, so it cannot
  * be handed to the version 4.0 model as it stands.
  *
- * ADRIFT Generator 3.90 converts the class -- diffing our parse of
+ * ADRIFT Generator 3.9 converts the class -- diffing our parse of
  * marooned.taf against a gen390 conversion of the same file gives its exact
  * table:
  *
@@ -450,7 +452,7 @@ enum { V380_TASK_MOVEMENTS = 6 };
  *   2 very heavy -> 24
  *
  * That table is directionally right and wrong by one step, and the genuine
- * run380.exe says why (measured 2026-08-03 with patched probe files, in the
+ * run380.exe says why (measured with patched probe files, in the
  * Wine Runner harness).  Version 3.8 has no size axis and no weight axis:
  * it has ONE pooled burden, whose per-class costs are 1/3/7/3/7, and the
  * player's capacity is exactly #MaxCarried.  A 4.0 packed base^digit value
@@ -552,14 +554,13 @@ parse_fixup_v380_movement (scr_int mvar1, scr_int mvar2, scr_int mvar3,
   if (mvar1 == 1)
     {
       /*
-       * The 3.8 Runner's executor (run380 tasks() 44D1D4) loads movement
-       * Var2 minus one and moves the player only behind "If Var2 > 1" --
-       * meant to exclude the none/hidden entries, but it also excludes
-       * room 1, so a 3.8 task can never move the PLAYER to the game's
-       * first room; the object branch has no such guard.  Measured live
-       * 2026-08-31 on cave.taf run380: "climb down" at the halfway room
-       * (raw Var2 = 2) prints its CompleteText and leaves the player in
-       * place.  So raw 2 converts to no action at all.
+       * The 3.8 Runner's executor (run380 tasks() 44D1D4) loads movement Var2
+       * minus one and moves the player only behind "If Var2 > 1" -- meant to
+       * exclude the none/hidden entries, but it also excludes room 1, so a 3.8
+       * task can never move the PLAYER to the game's first room; the object
+       * branch has no such guard.  Measured live on cave.taf run380: "climb
+       * down" at the halfway room (raw Var2 = 2) prints its CompleteText and
+       * leaves the player in place.  So raw 2 converts to no action at all.
        *
        * Version 3.7 is NOT affected: its player-move encoding sits one
        * higher (the first room is raw Var2 = 3, which its identical
@@ -569,7 +570,7 @@ parse_fixup_v380_movement (scr_int mvar1, scr_int mvar2, scr_int mvar3,
        * executor around typed actions and the bug went away again.  By
        * the time the 3.7 conversion reaches this function its values are
        * already in 3.8 form, so the exclusion must not apply to it --
-       * alices_restaurant (arlo.taf, 3.70) moves the player to its first
+       * alices_restaurant (arlo.taf, 3.7) moves the player to its first
        * room, In Front of the Church, by task.
        */
       if (mvar3 == 0 && mvar2 >= (is_v370 ? 2 : 3))
@@ -1183,7 +1184,7 @@ parse_fixup_v380_meet_object (void)
  * (22 - 3 = 19, its treasure room), and arlo.taf tips its garbage into Var2 13
  * with thirty-seven (13 - 3 = 10, its fifteen foot cliff).
  *
- * The list was then measured directly, by handing the genuine 3.70 Runner a
+ * The list was then measured directly, by handing the genuine 3.7 Runner a
  * castle.taf whose task moves two objects from a distant room to each Var2 in
  * turn: 0 removed them from play, 1 put them into the player's inventory, 2
  * dropped them where the player stood, and 3+n placed them in room n.  Nothing
@@ -1215,8 +1216,10 @@ parse_fixup_v370_movement (scr_int mvar1, scr_int mvar2)
       break;
 
     case 1:                    /* Held by the player */
-      /* Version 3.8's "held by" passes Var2 straight through as the holder,
-         and there zero is the player (one is the referenced character).  */
+      /*
+       * Version 3.8's "held by" passes Var2 straight through as the holder,
+       * and there zero is the player (one is the referenced character).
+       */
       parse_fixup_v380_movement (mvar1, 0, 3, TRUE);
       break;
 
@@ -1534,14 +1537,14 @@ parse_fixup_v400 (const scr_char *fixup)
    * documented 0-4 range.
    *
    * Sophie's Adventure (IFComp 2003 release, sophie.taf) contains one such
-   * record: a restriction with Type 12 and Vars 7667826/7209070/7471205.  Those
-   * three integers are the four-byte little-endian halves of the UTF-16 string
-   * "runner", and 12 is its byte length -- a stray string blob that some tool
-   * wrote over the restriction.  The real run400.exe loads and plays the game
-   * regardless, so it consumes three Vars here and ignores the unknown type;
-   * without this, the parse slides three lines and dies shortly after on
-   * Tasks/4489/Actions/1/Type.  Field count inferred from that one sample,
-   * which is the only occurrence anywhere in the walkthrough corpus.
+   * record: a restriction with Type 12 and Vars 7667826/7209070/7471205.
+   * Those three integers are the four-byte little-endian halves of the UTF-16
+   * string "runner", and 12 is its byte length -- a stray string blob that
+   * some tool wrote over the restriction.  The real run400.exe loads and plays
+   * the game regardless, so it consumes three Vars here and ignores the
+   * unknown type; without this, the parse slides three lines and dies shortly
+   * after on Tasks/4489/Actions/1/Type.  Field count inferred from that one
+   * sample, which is the only occurrence anywhere in the walkthrough corpus.
    */
   if (strcmp (fixup, "|V400_TASK_RESTR:Type>4?#Var1,#Var2,#Var3|") == 0)
     {

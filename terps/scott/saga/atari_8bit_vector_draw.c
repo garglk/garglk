@@ -1,21 +1,28 @@
-//
-//  atari_8bit_vector_draw.c
-//  scott
-//
-//  Created by Administrator on 2026-01-13.
-//
-//  Renderer for the Atari 8-bit vector pictures of the Scott Adams games. The
-//  games' intro screens call the drawing code "Graphics Package for ATARI
-//  S.A.G.A. developed by SCOTT ADAMS. Art by AD-VENTURE GRAPHICS". The pictures
-//  were drawn with S.A.G.E., the Scott Adams Graphics Editor, which Adventure
-//  International later sold (manual dated October 1983). The S.A.G.E. disk
-//  includes the 6502 source of the drawing routine: GEDIT5.ASM ("MAIN GRAPHIC
-//  ROUTINE FOR SAGA": command loop, colour pairs, fill patterns) and GEDIT4.ASM
-//  (flood fill and line drawing). It is the routine the games use, except that
-//  the editor's screens are at $7000/$8000. The opcode, pattern and variable
-//  names below follow that source.
-//  Not related to Penguin's Graphics Magician on the Apple II.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  atari_8bit_vector_draw.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2026-01-13.
+ *
+ *  Renderer for the Atari 8-bit vector pictures of the Scott Adams games. The
+ *  games' intro screens call the drawing code "Graphics Package for ATARI
+ *  S.A.G.A. developed by SCOTT ADAMS. Art by AD-VENTURE GRAPHICS". The
+ *  pictures were drawn with S.A.G.E., the Scott Adams Graphics Editor, which
+ *  Adventure International later sold (manual dated October 1983). The
+ *  S.A.G.E. disk includes the 6502 source of the drawing routine: GEDIT5.ASM
+ *  ("MAIN GRAPHIC ROUTINE FOR SAGA": command loop, colour pairs, fill
+ *  patterns) and GEDIT4.ASM (flood fill and line drawing). It is the routine
+ *  the games use, except that the editor's screens are at $7000/$8000. The
+ *  opcode, pattern and variable names below follow that source.
+ *  Not related to Penguin's Graphics Magician on the Apple II.
+ */
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,52 +51,61 @@ typedef struct {
     uint8_t *imagedata;
     size_t datasize;
 
-    // Screen memory offset in pixels: ypos * 160 + xpos, a linear index into
-    // a8_pixels. Signed, as it goes negative above the top of the screen, and an
-    // x past 159 spills into the next row. Anything outside 0..A8_PIXEL_COUNT-1
-    // is off-screen.
+    /* Screen memory offset in pixels: ypos * 160 + xpos, a linear index into
+       a8_pixels. Signed, as it goes negative above the top of the screen, and
+       an x past 159 spills into the next row. Anything outside
+       0..A8_PIXEL_COUNT-1 is off-screen. */
     int pixel_offset;
 
-    uint8_t color_a_index; // color A index used for pattern lookup
-    uint8_t color_b_index; // color B index used for pattern lookup
+    uint8_t color_a_index; /* color A index used for pattern lookup */
+    uint8_t color_b_index; /* color B index used for pattern lookup */
 
-    // The fill pattern as built by create_patterns(): a 2x2 tile of pixel values,
-    // indexed [row parity][x parity]. Patterns 5..31 do not rebuild it, they
-    // reuse the previous one.
+    /* The fill pattern as built by create_patterns(): a 2x2 tile of pixel
+       values, indexed [row parity][x parity]. Patterns 5..31 do not rebuild
+       it, they reuse the previous one. */
     uint8_t tile[2][2];
-    // The two scanline patterns the drawing routines write with, indexed
-    // [0] = this scanline, [1] = the next one, then [x parity]. flood_fill()
-    // swaps the rows as it descends, so [0] is not necessarily an even
-    // scanline. A line is drawn with the solid colour in [0].
+    /* The two scanline patterns the drawing routines write with, indexed
+       [0] = this scanline, [1] = the next one, then [x parity]. flood_fill()
+       swaps the rows as it descends, so [0] is not necessarily an even
+       scanline. A line is drawn with the solid colour in [0]. */
     uint8_t rows[2][2];
-    // Lines-only mode: a line drawn in saved_pixel[0] is redrawn in saved_pixel[1].
+    /* Lines-only mode: a line drawn in saved_pixel[0] is redrawn in
+       saved_pixel[1]. */
     uint8_t saved_pixel[2];
 
-    uint16_t pattern_start_pixel; // start offset in pixels for pattern fill
+    uint16_t pattern_start_pixel; /* start offset in pixels for pattern fill */
 
-    uint8_t color_idx; // Current draw color
-    uint8_t fill_background_color; // Any pixels of this color inside a shape will be replaced with the fill color/pattern by the flood fill routine.
-    uint8_t fill_edge_color; // This is the color of "contours" that delimit the shapes that the flood fill routine will fill. The flood fill will never change this color.
-    bool boundary_fill; // FFLAG in the S.A.G.E. source: fill over anything until the edge (line) color is met. Otherwise only the background color is replaced.
-    bool lines_only_mode; // A special mode used to redraw the image lines on top in a second pass.
+    uint8_t color_idx; /* Current draw color */
+    /* Any pixels of this color inside a shape will be replaced with the fill
+       color/pattern by the flood fill routine. */
+    uint8_t fill_background_color;
+    /* The color of "contours" that delimit the shapes that the flood fill
+       routine will fill. The flood fill will never change this color. */
+    uint8_t fill_edge_color;
+    /* FFLAG in the S.A.G.E. source: fill over anything until the edge (line)
+       color is met. Otherwise only the background color is replaced. */
+    bool boundary_fill;
+    /* A special mode used to redraw the image lines on top in a second pass. */
+    bool lines_only_mode;
 
-    // The segment the fill last painted: where it started (GEDIT4's LEFT, the
-    // column the next row is entered at) and the column it stopped at (RIGHTX).
+    /* The segment the fill last painted: where it started (GEDIT4's LEFT, the
+       column the next row is entered at) and the column it stopped at
+       (RIGHTX). */
     uint16_t fill_left_pixoff;
     uint8_t fill_right_x;
 
-    uint8_t start_x; // previously stored X position (for line drawing)
-    uint8_t start_y; // previously stored Y position (for line drawing)
-    uint8_t target_x; // current drawing target X coordinate
-    uint8_t target_y; // current drawing target Y coordinate
-    uint8_t ypos; // current y coordinate
-    uint8_t xpos; // current x coordinate
+    uint8_t start_x; /* previously stored X position (for line drawing) */
+    uint8_t start_y; /* previously stored Y position (for line drawing) */
+    uint8_t target_x; /* current drawing target X coordinate */
+    uint8_t target_y; /* current drawing target Y coordinate */
+    uint8_t ypos;
+    uint8_t xpos;
 } a8_draw_ctx;
 
 /* The original draws on two screen planes, which GEDIT5 calls SCREEN1 and
    SCREEN2: $9000 and $A000 in the games ($7000 and $8000 in the editor). The
-   display alternated them every frame to fake 16 colors, but nothing here reads
-   one plane without the other. */
+   display alternated them every frame to fake 16 colors, but nothing here
+   reads one plane without the other. */
 typedef enum {
     A8_SCREEN1 = 0,
     A8_SCREEN2 = 1,
@@ -116,14 +132,14 @@ static inline uint8_t pixel_for_color_index(uint8_t index) {
 }
 
 typedef struct {
-    uint16_t offset; // screen memory byte offset: pixel index / 4
-    // The four pixels of that byte, as 4-bit pixel values: the first pixel in
-    // the top nibble. All four are the fill color for a fill_bg op.
+    uint16_t offset; /* screen memory byte offset: pixel index / 4 */
+    /* The four pixels of that byte, as 4-bit pixel values: the first pixel in
+       the top nibble. All four are the fill color for a fill_bg op. */
     uint16_t pixels;
     bool fill_bg;
-    // Slow-draw timer ticks to pause for an A8_OP_DELAY op (see
-    // atari8_delay_ticks()). Worst case is a few thousand ticks, so a uint16_t
-    // holds it with room to spare and keeps the struct compact.
+    /* Slow-draw timer ticks to pause for an A8_OP_DELAY op (see
+       atari8_delay_ticks()). Worst case is a few thousand ticks, so a uint16_t
+       holds it with room to spare and keeps the struct compact. */
     uint16_t delay;
 } a8_byte_to_write;
 
@@ -171,13 +187,13 @@ static void move_right(a8_draw_ctx *ctx) {
     ctx->pixel_offset++;
 }
 
-// Determine x and y coordinates from the pixel offset.
+/* Determine x and y coordinates from the pixel offset. */
 static void coordinates_from_pixel_offset(a8_draw_ctx *ctx) {
     ctx->ypos = ctx->pixel_offset / A8_SCREEN_WIDTH;
     ctx->xpos = ctx->pixel_offset % A8_SCREEN_WIDTH;
 }
 
-// Determine the pixel offset from x and y coordinates
+/* Determine the pixel offset from x and y coordinates */
 static void offset_from_coordinates(a8_draw_ctx *ctx) {
     ctx->pixel_offset = ctx->ypos * A8_SCREEN_WIDTH + ctx->xpos;
 }
@@ -211,7 +227,8 @@ static void draw_line(a8_draw_ctx *ctx) {
     ctx->ypos = y0;
     offset_from_coordinates(ctx);
 
-    /* The loop only moves pixel_offset; nothing reads xpos/ypos after a line. */
+    /* The loop only moves pixel_offset; nothing reads xpos/ypos after a
+       line. */
     int major = x_major ? dx : dy;
     int minor = x_major ? dy : dx;
     int major_step = x_major ? (x1 < x0 ? -1 : 1)
@@ -238,16 +255,22 @@ static void draw_line(a8_draw_ctx *ctx) {
 /*
  Pattern system overview:
 
- The Scott Adams Atari 8-bit vector draw code uses two screen memory planes ($9000 and $A000).
- Each byte holds four 2-bit pixels. The orignal code alternated between these on every screen update, giving the impression of a total of 16 colors (the color mixing being a side effect of the NTSC CRT hardware limitations, in combination with the perception limitations of the player.)
- We simulate this by storing each pixel as one 4-bit value, combining its two 2-bit values (SCREEN2 bits as high pair, SCREEN1 bits as low pair), and looking up the RGB color of the 16 possible values (a8_pixel_rgb()).
+ The Scott Adams Atari 8-bit vector draw code uses two screen memory planes
+ ($9000 and $A000).
+ Each byte holds four 2-bit pixels. The original code alternated between these
+ on every screen update, giving the impression of a total of 16 colors (the
+ color mixing being a side effect of the NTSC CRT hardware limitations, in
+ combination with the perception limitations of the player.)
+ We simulate this by storing each pixel as one 4-bit value, combining its two
+ 2-bit values (SCREEN2 bits as high pair, SCREEN1 bits as low pair), and
+ looking up the RGB color of the 16 possible values (a8_pixel_rgb()).
 
  On top of all this, additional colors are simulated by dithering.
 
  A dithering pattern is a 2x2 tile of two colors, A and B, built from the
- color_a_index and color_b_index of the last A8_OP_SET_COLOR. The tile is indexed
- by the parity of the scanline and of the x coordinate. Each pixel of it
- is either color A or color B, never a mix.
+ color_a_index and color_b_index of the last A8_OP_SET_COLOR. The tile is
+ indexed by the parity of the scanline and of the x coordinate. Each pixel of
+ it is either color A or color B, never a mix.
 
  Five pattern types (0-4) combine the colors in different ways.
 */
@@ -259,7 +282,8 @@ static void draw_line(a8_draw_ctx *ctx) {
               make this pixel checkerboard look like diamonds)
    Pattern 2: HORIZONTAL (A on even, B on odd scanlines)
    Pattern 3: VERTICAL (alternating B/A on all lines)
-   Pattern 4: CHECKERBOARD (solid A on even, alternating B/A on odd scanlines) */
+   Pattern 4: CHECKERBOARD (solid A on even, alternating B/A on odd
+   scanlines) */
 static const uint8_t pattern_defs[5][2][2] = {
     {{0, 0}, {0, 0}},
     {{0, 1}, {1, 0}},
@@ -273,12 +297,13 @@ static const uint8_t pattern_defs[5][2][2] = {
    1. Compute the seed pixel offset from the x/y arguments.
    2. Generate the pattern tile from color A and color B using the selected
       pattern type (0-4). Other types keep the previous tile.
-   3. Copy the tile into the two scanline patterns that the drawing routines use. */
+   3. Copy the tile into the two scanline patterns that the drawing routines
+      use. */
 static void create_patterns(uint8_t pattern, uint8_t op_arg_a, uint8_t op_arg_b, a8_draw_ctx *ctx) {
 
-    /* Convert the opcode's x/y arguments into a pixel offset for the flood fill
-     seed point. The formula op_arg_b * 160 + op_arg_a computes the linear pixel
-     position (160 pixels per scanline). */
+    /* Convert the opcode's x/y arguments into a pixel offset for the flood
+       fill seed point. The formula op_arg_b * 160 + op_arg_a computes the
+       linear pixel position (160 pixels per scanline). */
     ctx->pattern_start_pixel = (op_arg_b << 7) + op_arg_b * 32 + op_arg_a;
 
     if (pattern < 5) {
@@ -292,7 +317,8 @@ static void create_patterns(uint8_t pattern, uint8_t op_arg_a, uint8_t op_arg_b,
     memcpy(ctx->rows, ctx->tile, sizeof ctx->rows);
 }
 
-// Pixels outside screen memory read as color 0 (and count as an edge in at_edge())
+/* Pixels outside screen memory read as color 0 (and count as an edge in
+   at_edge()) */
 static uint8_t get_pixel_color(a8_draw_ctx *ctx) {
     if (!is_valid_pixel_offset(ctx->pixel_offset))
         return 0;
@@ -308,9 +334,10 @@ static bool at_edge(a8_draw_ctx *ctx) {
     return color != ctx->fill_background_color;
 }
 
-// Scan straight up (one full row of pixels per step) until the border above the
-// region is reached, or the top of the screen is passed (pixel_offset is signed
-// so it goes negative there). Leaves pixel_offset on the topmost fillable row.
+/* Scan straight up (one full row of pixels per step) until the border above
+   the region is reached, or the top of the screen is passed (pixel_offset is
+   signed so it goes negative there). Leaves pixel_offset on the topmost
+   fillable row. */
 static void scan_up(a8_draw_ctx *ctx) {
     for (;;) {
         ctx->pixel_offset -= A8_SCREEN_WIDTH;
@@ -320,11 +347,12 @@ static void scan_up(a8_draw_ctx *ctx) {
     }
 }
 
-// From an edge pixel, scan right looking for a gap to continue the fill through.
-// Returns false (and stops on it) as soon as a fillable pixel is found; returns
-// true if the row stays blocked all the way to the screen edge or to the column
-// where the segment above stopped (fill_right_x), meaning there is nothing more
-// to fill below and the sweep should stop.
+/* From an edge pixel, scan right looking for a gap to continue the fill
+   through.
+   Returns false (and stops on it) as soon as a fillable pixel is found;
+   returns true if the row stays blocked all the way to the screen edge or to
+   the column where the segment above stopped (fill_right_x), meaning there is
+   nothing more to fill below and the sweep should stop. */
 static bool scan_right(a8_draw_ctx *ctx) {
     for (;;) {
         move_right(ctx);
@@ -350,8 +378,8 @@ static uint8_t plane_byte_of_row(const uint8_t row[2], a8_screen screen) {
 }
 
 /* A Spatterlight shortcut with no counterpart in GEDIT4, which plots pixel by
-   pixel: a plain fill can write a whole aligned byte (four pixels) at once when
-   all four are still the background colour. */
+   pixel: a plain fill can write a whole aligned byte (four pixels) at once
+   when all four are still the background colour. */
 static bool whole_byte_is_background(const a8_draw_ctx *ctx) {
     if ((ctx->pixel_offset & 3) != 0 || ctx->boundary_fill)
         return false;
@@ -363,14 +391,15 @@ static bool whole_byte_is_background(const a8_draw_ctx *ctx) {
 }
 
 /* Fill the region around the seed pixel with the current dither pattern,
-   the way the original Atari S.A.G.A. graphics package does: scan straight up to the top
-   border, then sweep downward one scanline at a time, filling the connected
-   segment beneath the seed and dropping from its start column to the next line.
+   the way the original Atari S.A.G.A. graphics package does: scan straight up
+   to the top border, then sweep downward one scanline at a time, filling the
+   connected segment beneath the seed and dropping from its start column to the
+   next line.
 
    A pixel is "fillable" until at_edge() says otherwise: normally that means
-   anything still the background colour, or in a boundary fill anything that is not
-   the contour (edge) colour. Positions are tracked as a pixel offset and as
-   x/y, kept in sync by the move_* helpers. */
+   anything still the background colour, or in a boundary fill anything that is
+   not the contour (edge) colour. Positions are tracked as a pixel offset and
+   as x/y, kept in sync by the move_* helpers. */
 static void flood_fill(a8_draw_ctx *ctx) {
     ctx->pixel_offset = ctx->pattern_start_pixel;
     ctx->fill_background_color = get_pixel_color(ctx);
@@ -388,8 +417,8 @@ static void flood_fill(a8_draw_ctx *ctx) {
        against the second and swap if the signed difference is negative.
        GEDIT4 compares the bytes it wrote to the screen planes (C1..C4) and
        swaps "SO THAT COLORS MATCH UP ROW BY ROW", so we compute them. rows[0]
-       is the "even" pattern here and rows[1] the "odd" one, whatever the parity
-       of the starting line. */
+       is the "even" pattern here and rows[1] the "odd" one, whatever the
+       parity of the starting line. */
     const uint8_t *first = ctx->rows[ctx->ypos & 1];
     const uint8_t *second = ctx->rows[(ctx->ypos & 1) ^ 1];
     uint8_t first_screen1 = plane_byte_of_row(first, A8_SCREEN1);
@@ -403,11 +432,11 @@ static void flood_fill(a8_draw_ctx *ctx) {
         swap_scanline_patterns(ctx);
     }
 
-    /* Descend one scanline at a time, filling the connected segment beneath the
-       seed. */
+    /* Descend one scanline at a time, filling the connected segment beneath
+       the seed. */
     for (;;) {
-        /* Walk left to the segment's left border and stop on its first fillable
-           pixel (GEDIT4 steps 4-8). */
+        /* Walk left to the segment's left border and stop on its first
+           fillable pixel (GEDIT4 steps 4-8). */
         while (ctx->xpos > 0) {
             move_left(ctx);
             if (at_edge(ctx)) {
@@ -489,7 +518,7 @@ static inline uint32_t a8_pixel_rgb(uint8_t pixel) {
     return a8_rgb_of_pixel[pixel];
 }
 
-// Draws the four pixels of one screen memory byte
+/* Draws the four pixels of one screen memory byte */
 static void DrawSingleByteAt(uint16_t pixels, glsi32 x, glsi32 y) {
     for (int shift = 12; shift >= 0; shift -= 4) {
         SetColor(1, a8_pixel_rgb((pixels >> shift) & 0xf));
@@ -514,13 +543,13 @@ static void DrawAtari8bitImageFromScreenmem(void) {
 
 typedef enum  {
     A8_OP_END = 0,
-    A8_OP_SET_BACKGROUND_OR_MODE = 1, // S.A.G.E.: 0 = quick clear, 1 = swap line color
-    A8_OP_DELAY = 2,                  // S.A.G.E.: wait
+    A8_OP_SET_BACKGROUND_OR_MODE = 1, /* S.A.G.E.: 0 = quick clear, 1 = swap line color */
+    A8_OP_DELAY = 2,                  /* S.A.G.E.: wait */
     A8_OP_SET_COLOR = 3,
-    A8_OP_MOVE_TO = 4,                // S.A.G.E.: new line
+    A8_OP_MOVE_TO = 4,                /* S.A.G.E.: new line */
     A8_OP_DRAW_LINE = 5,
-    A8_OP_BOUNDARY_FILL = 6,          // S.A.G.E.: fill until line color met ("U" key)
-    A8_OP_FILL = 7,                   // S.A.G.E.: regular fill ("F" key)
+    A8_OP_BOUNDARY_FILL = 6,          /* S.A.G.E.: fill until line color met ("U" key) */
+    A8_OP_FILL = 7,                   /* S.A.G.E.: regular fill ("F" key) */
 } Opcode;
 
 /* A8_OP_DELAY (2) faithful timing.
@@ -537,10 +566,10 @@ typedef enum  {
  * uses arg_a == arg_b == 0, so this reduces to arg0 * 65536 (~0.34 s per arg0
  * unit), but we honour all three operands regardless.
  *
- * We convert that cycle count into slow-draw timer ticks so the pause lasts the
- * same real time the hardware waited. The busy-wait runs at ~1.74 MHz (1.79 MHz
- * NTSC minus ANTIC DMA; measured in MAME across several images), and the
- * graphics timer fires every TimerDelay() ms, hence
+ * We convert that cycle count into slow-draw timer ticks so the pause lasts
+ * the same real time the hardware waited. The busy-wait runs at ~1.74 MHz
+ * (1.79 MHz NTSC minus ANTIC DMA; measured in MAME across several images), and
+ * the graphics timer fires every TimerDelay() ms, hence
  *
  *     ticks = inner * 9 / (1740 * TimerDelay_ms).
  */
@@ -590,32 +619,35 @@ static bool handle_fill_or_set_background(a8_draw_ctx *ctx,
             if (ctx->lines_only_mode) return false;
             ctx->boundary_fill = true;
             ctx->fill_edge_color = pixel_for_color_index(ctx->color_idx);
-            // fallthrough
+            /* fallthrough */
         case A8_OP_FILL:
             if (ctx->lines_only_mode) return false;
             create_patterns(arg_0, arg_a, arg_b, ctx);
             flood_fill(ctx);
             break;
         case A8_OP_SET_BACKGROUND_OR_MODE:
-            /* If opcode_arg == 0 do an immediate background fill with pattern 0
-             (unless in lines-only mode) */
+            /* If opcode_arg == 0 do an immediate background fill with pattern
+               0 (unless in lines-only mode) */
             if (arg_0 == 0) {
                 if (ctx->lines_only_mode) return false;
                 create_patterns(0, arg_a, arg_b, ctx);
                 fill_screen(ctx->tile[0][0]);
-                /* The "teleport animation" in Pirate Adventure, which mostly just does a
-                   number of full-screen color changes in the Atari 8-bit version,
-                   needs an extra delay in order to be noticeable */
+                /* The "teleport animation" in Pirate Adventure, which mostly
+                   just does a number of full-screen color changes in the Atari
+                   8-bit version, needs an extra delay in order to be
+                   noticeable */
                 if (Game != NULL && CurrentGame == PIRATE_US && vector_image_shown == 90)
                     push_delay_op(10);
             } else {
                 /* If arg_0 == 1 we store the current pattern and then redraw
-                 the entire image in lines-only mode on top of the current one. */
-                /* (This is a common trick for drawing room objects such as the dragon
-                 on top of background images: draw a colored contour, fill it in boundary
-                 mode, then draw a black contour on top in lines-only mode.) */
+                 the entire image in lines-only mode on top of the current
+                 one. */
+                /* (This is a common trick for drawing room objects such as the
+                   dragon on top of background images: draw a colored contour,
+                   fill it in boundary mode, then draw a black contour on top
+                   in lines-only mode.) */
 
-                /* If lines-only mode is aready on,
+                /* If lines-only mode is already on,
                    we switch it off instead. */
                 ctx->lines_only_mode = !ctx->lines_only_mode;
                 if (ctx->lines_only_mode) {
@@ -717,7 +749,7 @@ uint8_t *DrawAtari8BitVectorImage(USImage *img) {
     ctx.imagedata = img->imagedata;
     ctx.datasize = img->datasize;
 
-    ctx.color_idx = 10; // initial color index. (SCREEN2 2, SCREEN1 3)
+    ctx.color_idx = 10; /* initial color index. (SCREEN2 2, SCREEN1 3) */
 
     if (a8_pixels == NULL)
         a8_pixels = MemCalloc(A8_PIXEL_COUNT);

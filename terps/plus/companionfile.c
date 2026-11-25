@@ -1,9 +1,14 @@
-//
-//  companionfile.c
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Created by Petter Sjölund on 2022-10-10.
-//
+/*
+ *  companionfile.c
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-10-10.
+ */
 
 #include "common.h"
 #include "companion_search.h"
@@ -11,15 +16,13 @@
 
 #define BUCKAROO_BANZAI_OFFSET 27
 
-/**
- * Standard bracket fallbacks, plus the special case of Buckaroo Banzai 177:
- * Changes 'a' to 'b' at a specific offset
- * Example: "177a - Buckaroo Banzai - Side 1.dsk" ->
- *        "177b - Buckaroo Banzai - Side 2.dsk"
- */
+/* Standard bracket fallbacks, plus the special case of Buckaroo Banzai 177:
+   changes 'a' to 'b' at a specific offset. For example,
+   "177a - Buckaroo Banzai - Side 1.dsk" becomes
+   "177b - Buckaroo Banzai - Side 2.dsk". */
 static uint8_t *PlusFallback(char *buffer, size_t bufsize, size_t namelen, int index, CompanionNameType type, CompanionReader read, void *user, size_t *size)
 {
-    if (type == TYPE_2) {
+    if (type == COMPANION_TYPE_2) {
         if (index > BUCKAROO_BANZAI_OFFSET && buffer[index - BUCKAROO_BANZAI_OFFSET] == 'a') {
             buffer[index - BUCKAROO_BANZAI_OFFSET] = 'b';
             debug_print("looking for companion file (Buckaroo hack): \"%s\"\n", buffer);

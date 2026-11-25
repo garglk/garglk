@@ -252,8 +252,8 @@ memo_save_game (scr_memo_setref_t memento, scr_gameref_t game,
    * Serialize the given game into this memo.  Undo memos are in-memory only,
    * rewritten every turn, and read back only by memo_load_game(), so they skip
    * zlib entirely and store the raw serialized bytes (see ser_set_raw_memo):
-   * the per-turn deflate profiled at ~20-48% of the interpreter.  ser_load_game
-   * reads them back through taf_create_tas_raw().
+   * the per-turn deflate profiled at ~20-48% of the interpreter.
+   * ser_load_game reads them back through taf_create_tas_raw().
    */
   ser_set_raw_memo (TRUE);
   ser_save_game (game, memo_save_game_callback, memo);
@@ -571,7 +571,7 @@ memo_restore_command (scr_memo_setref_t memento, const scr_char *command,
  * memo_unsave_command()
  *
  * Remove the last saved command.  This is special functionality for the
- * history lister.  To keep synchronized with the runner main loop, it needs
+ * history lister.  To keep synchronized with the `run_` main loop, it needs
  * to "invent" a history item at the end of the list before listing, then
  * remove it again as the main runner loop will add the real thing.
  */

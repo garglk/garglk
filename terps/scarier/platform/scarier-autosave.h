@@ -125,6 +125,16 @@ struct ScarierGlkFrontendState {
      * status redraw paints the bar with the reverse video that colour mode
      * drops -- the game's own text colour as a solid bar. */
     int colour_on = 0;
+    /* The colours text is drawn in when the mode is on: the background
+     * (which an ADRIFT <=4 game moves about with <bgcolour>, and the
+     * archived window keeps painted in) and the story window's last text
+     * colour, which the status redraw names again when it is done.  Left at
+     * their defaults the first lines after a relaunch come out on the
+     * starting black, in front of the window's own colour.
+     * colour_saved = 0: not recorded (an older autosave). */
+    int colour_saved = 0;
+    uint32_t colour_bg = 0;
+    uint32_t colour_main_fg = 0;
     /* Exact RNG state (erkyrath_random detstate): which generator is active
      * plus the xoshiro words, so deterministic randomness continues across
      * an autorestore.  -1 = not recorded (an older autosave). */

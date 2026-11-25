@@ -1,9 +1,14 @@
-//
-//  apple2detect.c
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Created by Petter Sjölund on 2022-08-03.
-//
+/*
+ *  apple2detect.c
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-08-03.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,8 +16,8 @@
 
 #include "common.h"
 #include "companionfile.h"
-#include "definitions.h"
-#include "read_le16.h"
+#include "common_defines.h"
+#include "byteorder.h"
 #include "graphics.h"
 
 #include "woz2nib.h"
@@ -41,11 +46,11 @@
    until LookForApple2Images() has taken the pictures from it. */
 static uint8_t *reversed_disk = NULL;
 
-// If the buffer is an Apple II WOZ disk image, convert it into a standard
-// 143360-byte DOS 3.3 ordered .dsk image (via the shared readwoz library) so
-// that the rest of this file can treat it exactly like a .dsk file.
-// Returns a newly allocated buffer (caller frees) and sets *outsize, or NULL
-// if the data is not WOZ or conversion fails.
+/* If the buffer is an Apple II WOZ disk image, convert it into a standard
+   143360-byte DOS 3.3 ordered .dsk image (via the shared readwoz library) so
+   that the rest of this file can treat it exactly like a .dsk file.
+   Returns a newly allocated buffer (caller frees) and sets *outsize, or NULL
+   if the data is not WOZ or conversion fails. */
 static uint8_t *ConvertWozToDsk(uint8_t *data, size_t datasize, size_t *outsize)
 {
     if (data == NULL || !is_woz_image(data, datasize))
@@ -65,7 +70,7 @@ static uint8_t *ConvertWozToDsk(uint8_t *data, size_t datasize, size_t *outsize)
     return dsk;
 }
 
-// If *data is a WOZ image, replace it with its conversion to a .dsk image.
+/* If *data is a WOZ image, replace it with its conversion to a .dsk image. */
 static void LoadAsDsk(uint8_t **data, size_t *size)
 {
     size_t dsksize;
@@ -77,8 +82,8 @@ static void LoadAsDsk(uint8_t **data, size_t *size)
     }
 }
 
-// Copy the 256-byte sectors of src into a new buffer of imagesize bytes
-// in reverse order, so that the last sector of src comes first.
+/* Copy the 256-byte sectors of src into a new buffer of imagesize bytes
+   in reverse order, so that the last sector of src comes first. */
 static uint8_t *ReverseSectors(const uint8_t *src, size_t srcsize, size_t imagesize)
 {
     uint8_t *reversed = MemAlloc(imagesize);
@@ -97,7 +102,7 @@ static int IsPlausibleActionSize(int actionsize)
 
 int DetectApple2(uint8_t **sf, size_t *extent)
 {
-    // Accept WOZ images by converting them to a .dsk image up front.
+    /* Accept WOZ images by converting them to a .dsk image up front. */
     LoadAsDsk(sf, extent);
 
     if (*sf == NULL || *extent > MAX_LENGTH || *extent < A2_DISK_SIZE)
@@ -110,7 +115,7 @@ int DetectApple2(uint8_t **sf, size_t *extent)
     if (!IsPlausibleActionSize(actionsize)) {
         size_t companionsize;
         uint8_t *companionfile = GetCompanionFile(game_file, &companionsize);
-        // The companion side may itself be a WOZ image; convert it too.
+        /* The companion side may itself be a WOZ image; convert it too. */
         if (companionfile != NULL)
             LoadAsDsk(&companionfile, &companionsize);
         if (companionfile && companionsize >= A2_DISK_SIZE) {
@@ -136,7 +141,10 @@ int DetectApple2(uint8_t **sf, size_t *extent)
 
 /* The special pictures, by number: where the database says each one is,
    or 0 if there is none with that number. */
-uint32_t Apple2SpecialImages[A2_SPECIAL_SLOTS];
+/* The most special pictures a game can have */
+#define A2_SPECIAL_SLOTS 50
+
+static uint32_t Apple2SpecialImages[A2_SPECIAL_SLOTS];
 
 enum {
     A2_TRACKS = 35,

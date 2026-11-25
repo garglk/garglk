@@ -1,11 +1,18 @@
-//
-//  loading_screen.c
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Decode a ZX Spectrum loading screen (the 6912-byte display-file dump:
-//  6144 bytes of bitmap in the Spectrum's non-linear layout, followed by
-//  768 bytes of 8x8 colour attributes) and show it as a title image.
-//
+/*
+ *  loading_screen.c
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2026-06-04.
+ *
+ *  Decode a ZX Spectrum loading screen (the 6912-byte display-file dump:
+ *  6144 bytes of bitmap in the Spectrum's non-linear layout, followed by
+ *  768 bytes of 8x8 colour attributes) and show it as a title image.
+ */
 
 #include <stdlib.h>
 #include <string.h>
@@ -18,9 +25,9 @@
    one go unless the -g option is given. */
 int gli_slowdraw = 0;
 #endif
-#include "decompressz80.h"      /* ZX_RAM_BASE, SCREEN$ geometry, the Alkatraz loader */
+#include "decompressz80.h"      /* ZX_RAM_BASE, SCREEN$ geometry, Alkatraz loader */
 #include "zx_title.h"           /* shared ZXTitle renderer */
-#include "aiukpalette.h"            /* pal[], palchosen, ZXOPT, DefinePalette */
+#include "aiukpalette.h"        /* pal[], palchosen, ZXOPT, DefinePalette */
 #include "taylor.h"
 #include "graphics.h"           /* GraphicsWindowChanged */
 #include "ui.h"                 /* Bottom, Top, Graphics, Open*Window */

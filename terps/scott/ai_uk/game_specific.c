@@ -1,9 +1,16 @@
-//
-//  game_specific.c
-//  part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  Created by Petter Sjölund on 2022-01-27.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  game_specific.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2022-01-27.
+ */
 
 #include <string.h>
 
@@ -107,7 +114,7 @@ void SecretAction(int p)
     case 2: /* ID picture */
         DrawImage(24);
         if (IsPresent(ITEM_SECURITY_ID)) {
-            DrawImage(27); // "Security" label
+            DrawImage(27); /* "Security" label */
         } else if (IsPresent(ITEM_VISITOR_ID) && !IsPresent(ITEM_MAINTENANCE_ID) && !IsPresent(ITEM_SABOTEUR_ID)) {
             DrawImage(28); /* "Visitor" label */
         }

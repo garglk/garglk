@@ -1,23 +1,41 @@
-//
-//  parseinput.c
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Created by Petter Sjölund on 2022-06-04.
-//
+/*
+ *  parseinput.c
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *  Shares code with ScottFree, by Alan Cox, Chris Spiegel and Petter Sjölund
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-06-04.
+ */
 
 #include <ctype.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 
-#include "glk.h"
-
 #include "common.h"
-#include "definitions.h"
+#include "common_defines.h"
 #include "extracommands.h"
+#include "loaddatabase.h"
 #include "dumpactions.h"
 #include "parseinput.h"
-#include "restorestate.h"
+
+typedef enum {
+    WORD_NOT_FOUND,
+    OTHER_TYPE,
+    VERB_TYPE,
+    NOUN_TYPE,
+    ADVERB_TYPE,
+    PREPOSITION_TYPE,
+    NUM_WORD_TYPES,
+} WordType;
+
+typedef struct {
+    WordType Type;
+    uint8_t Index;
+} WordToken;
 
 static char **InputWordStrings = NULL;  /* Array of uppercased word strings from the player's input */
 static int WordsInInput = 0;           /* Number of words in the current input line */
@@ -443,9 +461,9 @@ static int TokenizeInputWords(void)
         word_not_found = i;
     }
 
-    /* We wait to report "word not recognized" errors until we have tokenized all words   */
-    /* as we want to give other errors priority. Also helps deciding whether to say       */
-    /* "The rest of your command was ignored." */
+    /* We wait to report "word not recognized" errors until we have tokenized
+       all words, as we want to give other errors priority. Also helps deciding
+       whether to say "The rest of your input was ignored." */
     if (word_not_found >= 0) {
         if (!found_verb || verb_position > word_not_found)
             WordNotFoundError(0);
@@ -511,7 +529,7 @@ int IsNextParticiple(int partp, int noun2)
     if (WordIndex >= WordsInInput) {
         return 0;
     }
-    if (partp == 1) { // None
+    if (partp == 1) { /* None */
         return 0;
     }
     if (TokenWords[WordIndex].Type == NOUN_TYPE && partp == 2 && (noun2 == 0 || TokenWords[WordIndex].Index == noun2)) {
@@ -531,7 +549,6 @@ int IsNextParticiple(int partp, int noun2)
 }
 
 /* Debug display names for WordType enum values. */
-#ifdef DEBUG /* Only used by debug_print() */
 static const char * const WordTypeStrings[] = {
     "WORD_NOT_FOUND",
     "OTHER_TYPE",
@@ -540,7 +557,6 @@ static const char * const WordTypeStrings[] = {
     "ADVERB_TYPE",
     "PREPOSITION_TYPE"
 };
-#endif
 
 /* Map a token type to its corresponding dictionary array. */
 static DictWord *DictWordFromType(WordType type) {
@@ -597,8 +613,8 @@ typedef enum {
     NO_EXTRA_COMMAND_FOUND /* Only from HandleExtraCommand(): go on parsing */
 } ParseResult;
 
-/* Try to handle the current token as a meta-command (SAVE, LOAD, SCORE,
-   AGAIN, toggles like BRIEF/VERBOSE, etc.). Returns NO_EXTRA_COMMAND_FOUND
+/* Try to handle the current token as a meta-command (AGAIN, UNDO, RESTART,
+   TRANSCRIPT, RAMSAVE and so on; see ExtraWords). Returns NO_EXTRA_COMMAND_FOUND
    if the token isn't an extra command, COMMAND_READY if the player typed
    AGAIN (so the previous command is re-executed), or NO_COMMAND for other
    extra commands. */
@@ -609,9 +625,8 @@ static ParseResult HandleExtraCommand(void) {
         if (WordIndex < WordsInInput) {
             nextword = ParseWord(InputWordStrings[WordIndex], ExtraWords);
         }
-        /* The extra command words before ON are verbs */
-        /* and we want verb only or verb + noun/preposition, */
-        /* not two verbs. */
+        /* The extra command words before ON are verbs, and we want verb only
+           or verb + noun/preposition, not two verbs. */
         if (nextword < COM_ON) {
             nextword = 0;
         }

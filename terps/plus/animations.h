@@ -1,16 +1,24 @@
-//
-//  animations.h
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Created by Petter Sjölund on 2022-03-24.
-//
+/*
+ *  animations.h
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-03-24.
+ */
 
 #ifndef animations_h
 #define animations_h
 
+#include "glk.h"
+
 void UpdateAnimation(void);
 void StopAnimation(void);
 
+/* Add a picture to the images of the current animation */
 void AddRoomImage(int image);
 void AddItemImage(int image);
 void AddSpecialImage(int image);
@@ -20,6 +28,8 @@ void Animate(int frame);
 void ClearAnimationBuffer(void);
 void ClearFrames(void);
 void InitAnimationBuffer(void);
+
+extern glui32 AnimTimerRate;
 
 extern int AnimationRunning;
 extern int AnimationBackground;

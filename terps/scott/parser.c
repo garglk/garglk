@@ -1,8 +1,15 @@
-//
-//  parser.c
-//  part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  Created by Petter Sjölund on 2022-01-19.
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  parser.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2022-01-19. */
 
 #include <stdlib.h>
 #include <string.h>
@@ -24,7 +31,8 @@
 /* Direction array layout (see EnglishDirections[]):
    indices 1-6 = full names (N/S/E/W/U/D),
    indices 7-12 = single-letter abbreviations,
-   index 13 = alternate west (Spanish 'w' for 'oeste'). */
+   index 13 = alternate west ('w' in Spanish is used for 'oeste', and in
+   Italian for 'ovest'). */
 #define DIR_ABBREV_OFFSET 6
 #define DIR_WEST 4
 #define DIR_ALT_WEST 13
@@ -49,10 +57,7 @@ static int lastnoun = 0; /* Last noun used, for "IT" pronoun resolution */
 
 static glui32 *FirstErrorMessage = NULL; /* Deferred error message (shown after command processing) */
 
-/* Direction words by language — includes both full names and single-letter
-   abbreviations. Index 1-6 = full names (N/S/E/W/U/D), 7-12 = abbreviations,
-   13 = alternate west ('w' in Spanish is used for 'oeste', and in Italian
-   for 'ovest'). */
+/* Direction words by language, in the layout described at DIR_ABBREV_OFFSET. */
 const char *EnglishDirections[NUM_DIRECTIONS] = {
     NULL, "north", "south", "east", "west", "up", "down",
     "n", "s", "e", "w", "u", "d", " "
@@ -77,7 +82,8 @@ const char *Directions[NUM_DIRECTIONS];
    dictionary. Includes save/restore, undo, transcript, RAM save/load,
    and command-chain operators (EXCEPT/BUT). The '#' prefix forms are
    for compatibility with interpreters that use '#' as a command prefix.
-   The German, Spanish and Italian tables share the English words up to EXCEPT. */
+   The German, Spanish and Italian tables share the English words up to
+   EXCEPT. */
 #define COMMON_EXTRA_COMMANDS \
     NULL,                     \
     "restart",                \
@@ -220,7 +226,8 @@ static const char *const AbbreviationsKey[NUM_ABBREVIATIONS] = {
     NULL, "inventory", "look", "examine", "wait", "quit"
 };
 
-/* Filler words silently ignored by the parser (articles, prepositions, adverbs) */
+/* Filler words silently ignored by the parser (articles, prepositions,
+   adverbs) */
 const char *EnglishSkipList[NUM_SKIPPABLE_WORDS] = {
     NULL, "at", "to", "in", "into", "the",
     "a", "an", "my", "quickly", "carefully", "quietly",
@@ -288,8 +295,10 @@ static int AppendUnicode(glui32 *buffer, int length, const glui32 *src)
     return length;
 }
 
-/* Build a deferred error message from up to three parts (prefix + word + suffix).
-   Only the first error per input line is kept; subsequent calls are ignored. */
+/* Build a deferred error message from up to three parts (prefix + word +
+   suffix).
+   Only the first error per input line is kept; subsequent calls are
+   ignored. */
 static void CreateErrorMessage(const char *fchar, glui32 *second, const char *tchar)
 {
     if (FirstErrorMessage != NULL)
@@ -308,7 +317,8 @@ static void CreateErrorMessage(const char *fchar, glui32 *second, const char *tc
     free(third);
 }
 
-/* Single-byte mapping for bytes >= 0x80. Default: map byte to same codepoint (Latin-1). Overrides below. */
+/* Single-byte mapping for bytes >= 0x80. Default: map byte to same codepoint
+   (Latin-1). Overrides below. */
 static glui32 MapLatin1(unsigned char b)
 {
     return (glui32)b;
@@ -495,8 +505,8 @@ glui32 *ToUnicode(const char *string)
         if (mapped == '\r')
             mapped = '\n';
 
-        /* Special handling: We want the copyright symbol */
-        /* to be followed by a space in TI-99/4A games.   */
+        /* Special handling: We want the copyright symbol
+           to be followed by a space in TI-99/4A games. */
         if (mapper == MapTI994A && mapped == 0x00A9 && out_len < cap) {
             tmp[out_len++] = mapped;
             mapped = ' ';
@@ -568,7 +578,7 @@ static char *FromUnicode(glui32 *unicode_string, int origlength)
         const char *replacement = NULL;
         if ((unichar == '.' || unichar == ',' || unichar == ';') && origlength == 1)
             replacement = "and";
-        else if (unichar == 0xfc) // ü
+        else if (unichar == 0xfc) /* ü */
             replacement = IsGerman() ? "ue" : "u";
         else
             replacement = AsciiForDiacritic(unichar);
@@ -624,21 +634,21 @@ static int IsSpaceChar(glui32 c)
     case '!':
     case '?':
     case '\"':
-    case 0x83:   // ¿
-    case 0x80:   // ¡
-    case 0xa0:   // non-breaking space
-    case 0x2000: // en quad
-    case 0x2001: // em quad
-    case 0x2003: // em space
-    case 0x2004: // three-per-em space
-    case 0x2005: // four-per-em space
-    case 0x2006: // six-per-em space
-    case 0x2007: // figure space
-    case 0x2009: // thin space
-    case 0x200A: // hair space
-    case 0x202f: // narrow no-break space
-    case 0x205f: // medium mathematical space
-    case 0x3000: // ideographic space
+    case 0x83:   /* ¿ */
+    case 0x80:   /* ¡ */
+    case 0xa0:   /* non-breaking space */
+    case 0x2000: /* en quad */
+    case 0x2001: /* em quad */
+    case 0x2003: /* em space */
+    case 0x2004: /* three-per-em space */
+    case 0x2005: /* four-per-em space */
+    case 0x2006: /* six-per-em space */
+    case 0x2007: /* figure space */
+    case 0x2009: /* thin space */
+    case 0x200A: /* hair space */
+    case 0x202f: /* narrow no-break space */
+    case 0x205f: /* medium mathematical space */
+    case 0x3000: /* ideographic space */
         return 1;
     default:
         return 0;
@@ -658,7 +668,8 @@ typedef struct {
     int count;
 } WordSpans;
 
-/* Record a word starting at start. Returns 0 if MAX_WORDS are already found. */
+/* Record a word starting at start. Returns 0 if MAX_WORDS are already
+   found. */
 static int AddWordSpan(WordSpans *spans, int start, int length)
 {
     if (spans->count >= MAX_WORDS)
@@ -806,9 +817,8 @@ typedef enum {
 
 typedef struct {
     ListId list_id;
-    int use_header_word_length; /* 1 => use
-                                   GameHeader.WordLength, 0 =>
-                                   use strlen(word) */
+    /* 1 => use GameHeader.WordLength, 0 => use strlen(word) */
+    int use_header_word_length;
 } SearchSpec;
 
 /* Map ListId to actual pointers and lengths (lengths when
@@ -914,8 +924,8 @@ static int FindVerbOrNoun(const char *word, const SearchSpec *order, int list_si
                         return idx;
                     }
                 }
-                break; /* fall through to next spec if abbrev didn't
-                        map */
+                /* Go on to the next spec if abbrev didn't map */
+                break;
             }
 
             case L_SKIP:
@@ -1041,7 +1051,6 @@ static Command *CommandFromStrings(int index, Command *previous)
     int i = index;
 
     do {
-        /* Checking if it is a verb */
         verb = FindVerb(CharWords[i++], &list);
     } while ((list == SkipList || list == DelimiterList) && i < WordsInInput);
 
@@ -1055,11 +1064,13 @@ static Command *CommandFromStrings(int index, Command *previous)
 
     if (IsNounList(list)) {
         /* It is a noun */
-        /* If we find no verb, we try copying the verb from the previous command */
+        /* If we find no verb, we try copying the verb from the previous
+           command */
         if (previous) {
             lastverb = previous->verb;
         }
-        /* Unless the game is German, where we allow the noun to come before the verb */
+        /* Unless the game is German, where we allow the noun to come before
+           the verb */
         if (!IsGerman()) {
             if (!previous) {
                 DontKnowHowTo(i - 1);
@@ -1095,7 +1106,6 @@ static Command *CommandFromStrings(int index, Command *previous)
     int noun = 0;
 
     do {
-        /* Check if it is a noun */
         noun = FindNoun(CharWords[i++], &list);
     } while (list == SkipList && i < WordsInInput);
 
@@ -1121,7 +1131,6 @@ static Command *CommandFromStrings(int index, Command *previous)
     }
 
     if (list == DelimiterList) {
-        /* It is a delimiter */
         return CreateCommandStruct(verb, 0, verbindex, i, i, previous);
     }
 
@@ -1176,9 +1185,8 @@ static int CreateAllCommands(Command *command)
 
     Command *c = command;
     int found = 0;
-    /* Items are indexed 0..NumItems inclusive; <= so TAKE ALL / DROP ALL can
-       reach the last item in the database (the EXCEPT loop above and every
-       other item loop already use <=). */
+    /* Items are indexed 0..NumItems inclusive, so that TAKE ALL / DROP ALL
+       can reach the last item in the database. */
     for (int i = 0; i <= GameHeader.NumItems; i++) {
         if (Items[i].AutoGet != NULL && Items[i].AutoGet[0] != '*' && Items[i].Location == location) {
             int exception = 0;
@@ -1196,10 +1204,10 @@ static int CreateAllCommands(Command *command)
                 }
                 found = 1;
                 c->verb = command->verb;
-                /* The dictionary holds NumWords + 1 entries and WhichWord stops
-                   at list_length - 1, so passing NumWords here would make the
-                   last dictionary word unmatchable, leaving noun = 0 for an
-                   item whose AutoGet word is that entry. */
+                /* The dictionary holds NumWords + 1 entries and WhichWord
+                   stops at list_length - 1, so passing NumWords here would
+                   make the last dictionary word unmatchable, leaving noun = 0
+                   for an item whose AutoGet word is that entry. */
                 c->noun = WhichWord(Items[i].AutoGet, Nouns, GameHeader.WordLength,
                     GameHeader.NumWords + 1);
                 c->item = i;
@@ -1284,8 +1292,8 @@ int GetInput(int *vb, int *no)
         CurrentCommand->noun = ALL + GameHeader.NumWords;
     }
 
-    /* Hack to make RESTORE and RESTART work in Robin of Sherwood */
-    /* instead of being understood as REST, a synonym of WAIT.     */
+    /* Hack to make RESTORE and RESTART work in Robin of Sherwood
+       instead of being understood as REST, a synonym of WAIT. */
     if (Game->type == SHERWOOD_VARIANT && CurrentCommand->verb == SHERWOOD_REST_VERB) {
         char *verbword = CharWords[CurrentCommand->verbwordindex];
         if (xstrncasecmp(verbword, "restore", strlen("restore")) == 0)
@@ -1294,8 +1302,8 @@ int GetInput(int *vb, int *no)
             CurrentCommand->verb = GameHeader.NumWords + RESTART;
     }
 
-    /* We use NumWords + verb for our extra commands */
-    /* such as UNDO and TRANSCRIPT */
+    /* We use NumWords + verb for our extra commands
+       such as UNDO and TRANSCRIPT */
     if (CurrentCommand->verb > GameHeader.NumWords) {
         if (!PerformExtraCommand(0)) {
             CreateErrorMessage(sys[I_DONT_UNDERSTAND], NULL, NULL);

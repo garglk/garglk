@@ -1,12 +1,19 @@
-//
-//  terraquake_loadscreen_data.h
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Terraquake (Masters of the Universe) draws its loading screen with the
-//  Alkatraz loader, like Kayleth. Window descriptors recovered from the
-//  running loader; AlkatrazScreenOrder() expands them and the pixel stream
-//  in tape block 3 fills it. See DecodeAlkatrazLoadingScreen().
-//
+/*
+ *  terraquake_loadscreen_data.h
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2026-06-04.
+ *
+ *  Terraquake (Masters of the Universe) draws its loading screen with the
+ *  Alkatraz loader, like Kayleth. Window descriptors recovered from the
+ *  running loader; AlkatrazScreenOrder() expands them and the pixel stream
+ *  in tape block 3 fills it. See DecodeAlkatrazLoadingScreen().
+ */
 
 #ifndef terraquake_loadscreen_data_h
 #define terraquake_loadscreen_data_h
@@ -15,7 +22,8 @@
 
 #include "loading_screen.h"
 
-/* Decode parameters for the standard Terraquake TZX (file size 0xcd15/0xcd17). */
+/* Decode parameters for the standard Terraquake TZX (file size 0xcd15 or
+   0xcd17). */
 #define TERRAQUAKE_SCREEN_WINDOWS  46
 
 static const uint8_t terraquake_screen_descriptors[TERRAQUAKE_SCREEN_WINDOWS * 4] = {

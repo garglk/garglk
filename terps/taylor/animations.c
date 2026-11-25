@@ -1,15 +1,20 @@
-//
-//  animations.c
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Created by Petter Sjölund on 2022-03-24.
-//
+/*
+ *  animations.c
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-03-24.
+ */
 
-// Frames drawn into imagebuffer[] go to the screen through
-// DrawBufferedPicture(), which paints only the cells that changed. The
-// star field, force field, Queen computer and click shelves instead
-// paint pixels straight into the window with PutPixel() and RectFill(),
-// so each of their frames repaints its whole area.
+/* Frames drawn into imagebuffer[] go to the screen through
+   DrawBufferedPicture(), which paints only the cells that changed. The
+   star field, force field, Queen computer and click shelves instead
+   paint pixels straight into the window with PutPixel() and RectFill(),
+   so each of their frames repaints its whole area. */
 
 #include "graphics.h"
 #include "taylordraw.h"
@@ -305,7 +310,8 @@ static void AnimateKaylethClickShelves(int stage)
                     bits = imagebuffer[col + line * IRMAK_IMGWIDTH][i];
                     y = ypos;
                 } else {
-                    /* Left half: draw from mirrored source row, scrolling down */
+                    /* Left half: draw from mirrored source row, scrolling
+                       down */
                     bits = imagebuffer[col + (9 - line) * IRMAK_IMGWIDTH][7 - i];
                     y = 79 - ypos;
                 }

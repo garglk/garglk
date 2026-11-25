@@ -31,7 +31,8 @@
 
 /* ---------------------------------------------------- function replacement */
 
-/* %PopUpInput% host callback (a5text_set_popup_cb); NULL => use the default. */
+/* %PopUpInput% host callback (a5text_set_popup_cb); NULL => use the default.
+   */
 static a5_popup_cb a5_popup = nullptr;
 static void *a5_popup_ctx = nullptr;
 /* %PopUpChoice% host callback (a5text_set_popup_choice_cb); NULL => leave the
@@ -72,7 +73,8 @@ resolve_object_arg (a5_state_t *st, const char *args)
 }
 
 /* Join a list of object keys as an "a, b and c" list with the given article
-   ("" if empty).  Mirrors ObjectHashTable.List (StronglyTypedCollections.vb:183). */
+   ("" if empty).  Mirrors ObjectHashTable.List
+   (StronglyTypedCollections.vb:183). */
 static char *
 list_objects_art (a5_state_t *st, const std::vector<const char *> &keys,
                   a5_article_t art)
@@ -90,7 +92,8 @@ list_objects_art (a5_state_t *st, const std::vector<const char *> &keys,
   return strdup (join_and (names).c_str ());
 }
 
-/* Join a list of object keys as an indefinite "a, b and c" list ("" if empty). */
+/* Join a list of object keys as an indefinite "a, b and c" list ("" if empty).
+   */
 static char *
 list_objects (a5_state_t *st, const std::vector<const char *> &keys)
 {
@@ -109,14 +112,15 @@ objects_where (a5_state_t *st, a5_owhere_t want, const char *key)
   return v;
 }
 
-/* Objects placed on (want=A5_OWHERE_ON_OBJECT) or in a container object key. */
+/* Objects placed on (want=A5_OWHERE_ON_OBJECT) or in a container object key.
+   */
 static std::vector<const char *>
 objects_on_in (a5_state_t *st, const char *objkey, a5_owhere_t want)
 {
   return objects_where (st, want, objkey);
 }
 
-/* Join keys with '|', the runner's list-of-keys function result shape. */
+/* Join keys with '|', the Runner's list-of-keys function result shape. */
 static std::string
 join_keys_pipe (const std::vector<const char *> &keys)
 {
@@ -138,8 +142,8 @@ chars_on_in (a5_state_t *st, const char *objkey, int on)
      model load -- "On Object"/"In Object" CharacterLocation -- and the runtime
      ToSittingOn/ToLyingOn/ToStandingOn and inside moves), NOT the property
      override table: Head Case's Mysterious Voice starts CharacterLocation
-     "In Object"/CharInsideWhat, which the old prop probe ("Inside Object"/
-     "InsideWhat" vocabulary) never matched. */
+     "In Object"/CharInsideWhat, which a property probe ("Inside Object"/
+     "InsideWhat" vocabulary) would never match. */
   std::vector<const a5_character_t *> v;
   for (int i = 0; i < st->adv->n_characters; i++)
     {
@@ -157,7 +161,7 @@ chars_on_in (a5_state_t *st, const char *objkey, int on)
 /*
  * The on/in children listing shared by DisplayObjectChildren and the
  * List(bIncludeSubObjects) path: "<on-list> is/are on <the object>[, and
- * inside is/are <in-list>]" — the on-list ToProper-cased, both lists using
+ * inside is/are <in-list>]" -- the on-list ToProper-cased, both lists using
  * the objects' own (indefinite) articles, the parent definite, no trailing
  * period.  The inside list is suppressed for a closed openable object.
  * Returns "" when there is nothing to show.
@@ -169,7 +173,8 @@ object_children_block (a5_state_t *st, const char *objkey)
   std::vector<const char *> on = objects_on_in (st, objkey, A5_OWHERE_ON_OBJECT);
   std::vector<const char *> in = objects_on_in (st, objkey, A5_OWHERE_IN_OBJECT);
 
-  /* Inside children are only listed when the object is open (or not openable). */
+  /* Inside children are only listed when the object is open (or not openable).
+     */
   int openable = o && a5_prop_find (o->props, o->n_props, "Openable") != nullptr;
   if (openable)
     {
@@ -225,13 +230,31 @@ display_object_children (a5_state_t *st, const char *objkey)
 }
 
 /*
+ * What an OO ".List" appends for one object: DisplayObjectChildren without its
+ * final period, or NULL when the object has no children or is not an object.
+ * A closed container gives "Nothing is on or inside the box", as in the Runner.
+ * Caller frees.
+ */
+char *
+a5text_object_children (a5_state_t *st, const char *objkey)
+{
+  if (a5model_object (st->adv, objkey) == nullptr
+      || (objects_on_in (st, objkey, A5_OWHERE_ON_OBJECT).empty ()
+          && objects_on_in (st, objkey, A5_OWHERE_IN_OBJECT).empty ()))
+    return nullptr;
+  std::string s = display_object_children (st, objkey);
+  s.pop_back ();
+  return strdup (s.c_str ());
+}
+
+/*
  * Port of ObjectHashTable.List(sep, bIncludeSubObjects:=True, Indefinite)
  * (StronglyTypedCollections.vb:183) -- the indefinite main list followed, for
- * each object with on/inside children, by its DisplayObjectChildren-style block
- * joined with ".  " and *no* trailing period.  Used by %ListWorn% / %ListHeld%
- * (which both pass bIncludeSubObjects=True), so e.g. examining yourself shows
- * "... a scabbard and your clothes.  Inside the backpack are three food rations.
- * Inside the scabbard is a long sword".
+ * each object with on/inside children, by its DisplayObjectChildren-style
+ * block joined with ".  " and *no* trailing period.  Used by %ListWorn% /
+ * %ListHeld% (which both pass bIncludeSubObjects=True), so e.g. examining
+ * yourself shows "... a scabbard and your clothes.  Inside the backpack are
+ * three food rations.  Inside the scabbard is a long sword".
  */
 static char *
 list_objects_subobj (a5_state_t *st, const std::vector<const char *> &keys)
@@ -253,10 +276,10 @@ list_objects_subobj (a5_state_t *st, const std::vector<const char *> &keys)
 
 /*
  * Resolve a ListObjectsOnAndIn argument to the set of object keys it names.
- * The argument is the Adrift 5 runner's ReplaceFunctions-processed value: a single key,
- * a "key1|key2" pipe list, or an OO expression like "Player.WornAndHeld" (which
- * a5expr resolves to a pipe list).  Mirrors Global.vb:2055-2069 (split on '|',
- * trim a trailing ",..." per key, keep only real object keys).
+ * The argument is the Runner's ReplaceFunctions-processed value: a single key,
+ * a "key1|key2" pipe list, or an OO expression like "Player.WornAndHeld"
+ * (which a5expr resolves to a pipe list).  Mirrors Global.vb:2055-2069 (split
+ * on '|', trim a trailing ",..." per key, keep only real object keys).
  */
 static std::vector<std::string>
 arg_object_keys (a5_state_t *st, const char *args)
@@ -292,7 +315,7 @@ arg_object_keys (a5_state_t *st, const char *args)
   return keys;
 }
 
-/* ------------------------------------------ eval_function per-builtin handlers */
+/* -------------------------------------- eval_function per-builtin handlers */
 
 static char *
 fn_player (a5_state_t *st, const char * /*name*/, const char * /*args*/)
@@ -305,11 +328,11 @@ static char *
 fn_popupinput (a5_state_t * /*st*/, const char * /*name*/, const char *args)
 {
   /* clsFunction PopUpInput[prompt, default] -> VB InputBox (Global.vb:2296).
-     the runner splits sArgs on the single comma, evaluates arg[1] as the default,
-     and returns InputBox(prompt, default) wrapped in quotes.  Headless we
-     defer to an installed input callback (the host feeds the next script
-     line); with none, we evaluate to the default -- matching the Adrift 5 runner's
-     InputBox returning its default when unattended.  args are already
+     the Runner splits sArgs on the single comma, evaluates arg[1] as the
+     default, and returns InputBox(prompt, default) wrapped in quotes.
+     Headless we defer to an installed input callback (the host feeds the next
+     script line); with none, we evaluate to the default -- matching the
+     Runner's InputBox returning its default when unattended.  args are already
      function-expanded; each part may carry surrounding "double quotes". */
   std::string a = args ? args : "";
   std::string prompt = a, dflt;
@@ -361,11 +384,12 @@ fn_charactername (a5_state_t *st, const char * /*name*/, const char *args)
       st->pron_pending = char_perspective (st, ch);
       st->pron_pending_key = ch->key;
       st->pron_pending_pron = pron_none ? -1 : (int) pr;
-      /* The runner's "slight fudge" (Global.vb:2102-2107): a resolved %CharacterName%
-         whose two immediately-preceding chars are "  " or CRLF is PCase'd at
-         the emit site (the name starts a sentence -- e.g. the ExamineCharacter
-         message "%DisplayCharacter%  %CharacterName% ... carrying ..." where
-         the second-person name "you" must render "You"). */
+      /* The Runner's "slight fudge" (Global.vb:2102-2107): a resolved
+         %CharacterName% whose two immediately-preceding chars are "  " or CRLF
+         is PCase'd at the emit site (the name starts a sentence -- e.g. the
+         ExamineCharacter message "%DisplayCharacter%  %CharacterName% ...
+         carrying ..." where the second-person name "you" must render "You").
+         */
       st->name_cap_eligible = 1;
     }
   else
@@ -385,7 +409,7 @@ fn_characterproper (a5_state_t *st, const char * /*name*/, const char *args)
   if (key.empty ())
     key = st->ctx_char ? st->ctx_char : a5state_player_key (st);
   const a5_character_t *c = a5model_character (st->adv, key.c_str ());
-  /* The runner reports an unknown key with DisplayError; we have no such
+  /* The Runner reports an unknown key with DisplayError; we have no such
      channel, so an unresolved character takes the same "Anonymous" path
      a5expr's .ProperName does. */
   return strdup (char_proper_name_raw (st, c));
@@ -396,11 +420,12 @@ fn_turns (a5_state_t *st, const char * /*name*/, const char * /*args*/)
 {
   /* Global.vb:1763 substitutes %turns% with Adventure.Turns.ToString via
      ReplaceIgnoreCase, so %Turns%/%TURNS% resolve the same (ci_eq folds
-     case).  The runner's Runner bumps Adventure.Turns *after* Process() returns, so
-     the value visible inside a command's own task output is the pre-command
-     count.  Scarier bumps st->turns at the top of a5run_input (a5run.cpp),
-     so the matching value is st->turns - 1 (the same offset emit_endgame's
-     score line uses); clamp to 0 for text rendered before any turn. */
+     case).  The Runner's Runner bumps Adventure.Turns *after* Process()
+     returns, so the value visible inside a command's own task output is the
+     pre-command count.  Scarier bumps st->turns at the top of a5run_input
+     (a5run.cpp), so the matching value is st->turns - 1 (the same offset
+     emit_endgame's score line uses); clamp to 0 for text rendered before any
+     turn. */
   char buf[32];
   snprintf (buf, sizeof buf, "%d", st->turns > 0 ? st->turns - 1 : 0);
   return strdup (buf);
@@ -485,15 +510,15 @@ fn_displaylocation (a5_state_t *st, const char * /*name*/, const char *args)
       if (s == nullptr || s[0] == '\0')
         { free (s); return strdup ("There is nothing of interest here."); }
       /* The view is already fully adjudicated (its own ALR + cap ran on the
-         marked-up buffer, mirroring the runner's single Display pass), and it is
-         PLAIN -- its <br>s are now bare '\n's.  The enclosing fragment's
-         auto-capitalise must not treat those as line starts: in the runner the
-         substituted sView still carries its <br> tags, which sit between
-         the newline-to-be and the letter and block the cap regex (the
-         virtual human's lowercase "the virtual human is here." literal
-         must NOT re-cap into the "The virtual human is here." ALR-killed
-         form).  Leave the stripped-tag sentinel after each newline, exactly
-         like a5text_render_plain does for every other dropped tag. */
+         marked-up buffer, mirroring the Runner's single Display pass), and it
+         is PLAIN -- its <br>s are now bare '\n's.  The enclosing fragment's
+         auto-capitalise must not treat those as line starts: in the Runner the
+         substituted sView still carries its <br> tags, which sit between the
+         newline-to-be and the letter and block the cap regex (the virtual
+         human's lowercase "the virtual human is here." literal must NOT re-cap
+         into the "The virtual human is here." ALR-killed form).  Leave the
+         stripped-tag sentinel after each newline, exactly like
+         a5text_render_plain does for every other dropped tag. */
       {
         sb_t mb; sb_init (&mb);
         for (const char *p = s; *p != '\0'; p++)
@@ -520,7 +545,7 @@ fn_object_names (a5_state_t *st, const char *name, const char *args)
   a5_article_t art = (ci_eq (name, "theobject") || ci_eq (name, "theobjects"))
                        ? A5_ART_DEFINITE
                    : (ci_eq (name, "aobject") || ci_eq (name, "aobjects")
-                      /* The runner: Case "ObjectName" -> htblObjects.List(,,
+                      /* The Runner: Case "ObjectName" -> htblObjects.List(,,
                          ArticleTypeEnum.Indefinite) (Global.vb:2252) --
                          "You unfold a wet face towel.", not "...wet face
                          towel." (Head Case %ObjectName[%object%]%). */
@@ -528,8 +553,8 @@ fn_object_names (a5_state_t *st, const char *name, const char *args)
                        ? A5_ART_INDEFINITE
                        : A5_ART_NONE;
   /* A piped multi-object arg (%TheObjects[%objects%]% with a "k1|k2|..."
-     binding from resolve_plural) renders as the runner's "the a, the b and the c"
-     article list -- ReplaceFunctions builds a temp ObjectHashTable from the
+     binding from resolve_plural) renders as the Runner's "the a, the b and the
+     c" article list -- ReplaceFunctions builds a temp ObjectHashTable from the
      split keys and returns htblObjects.List (Global.vb:2056/2386). */
   if (o == nullptr && strchr (args, '|') != nullptr)
     {
@@ -553,7 +578,7 @@ fn_object_names (a5_state_t *st, const char *name, const char *args)
     }
   if (o != nullptr)
     return a5text_object_name (st, o, art);
-  /* No object resolved.  The Adrift 5 runner builds an ObjectHashTable from the key
+  /* No object resolved.  The Runner builds an ObjectHashTable from the key
      arg and renders htblObjects.List, which returns "nothing" for an empty
      set (Global.vb:804) -- so %TheObject[]% / %ObjectName[]% with an empty
      (or whitespace-only) argument is "nothing", not a blank.  A non-empty but
@@ -801,10 +826,10 @@ fn_display_char_obj (a5_state_t *st, const char *name, const char *args)
       std::string fb = "%CharacterName% see[//s] nothing interesting about ";
       if (is_char)
         {
-          /* The runner's clsCharacter.Name upgrades Objective->Reflective when the
-             same character key was already rendered Subjective earlier this
-             turn (PronounKeys).  The leading bare %CharacterName% renders the
-             viewpoint character subjectively ("You"), so when the examined
+          /* The Runner's clsCharacter.Name upgrades Objective->Reflective when
+             the same character key was already rendered Subjective earlier
+             this turn (PronounKeys).  The leading bare %CharacterName% renders
+             the viewpoint character subjectively ("You"), so when the examined
              character IS that viewpoint (examine yourself) the target form
              becomes reflexive -- "yourself", not "you".  Emit the reflective
              qualifier in exactly that case; every other target stays Objective
@@ -977,7 +1002,7 @@ fn_held_worn_keys (a5_state_t *st, const char *name, const char *args)
 {
   /* %Held[charkey]% / %Worn[charkey]% -> the "|"-joined keys of the objects
      the character directly holds / wears (Global.vb:2146/2401; HeldObjects /
-     WornObjects default bRecursive:=False).  The runner takes the argument as
+     WornObjects default bRecursive:=False).  The Runner takes the argument as
      a literal character KEY (htblCharacters.ContainsKey); an unknown key just
      DisplayErrors and renders "" (blank allowed, bAllowBlank). */
   const a5_character_t *c = a5model_character (st->adv, args);
@@ -1058,7 +1083,7 @@ static char *
 fn_popupchoice (a5_state_t * /*st*/, const char * /*name*/, const char *args)
 {
   /* %PopUpChoice[prompt, choice1, choice2]% (Global.vb:2278): a Yes/No dialog
-     where Yes picks choice1, No picks choice2.  Unlike PopUpInput, the runner
+     where Yes picks choice1, No picks choice2.  Unlike PopUpInput, the Runner
      asks with MsgBox, NOT the scripted-input channel, and MsgBox throws
      off-Windows, so FD lands in the ReplaceFunctions catch (Global.vb:2483)
      and the token stays verbatim -- no output, no script line consumed, and a
@@ -1071,7 +1096,8 @@ fn_popupchoice (a5_state_t * /*st*/, const char * /*name*/, const char *args)
      A host that CAN ask (a5text_set_popup_choice_cb -- the interactive Glk
      frontend, not the headless harness) gets the Windows behaviour instead:
      the chosen text replaces the token.  A malformed call with fewer than
-     three arguments has nothing to choose between, so it stays verbatim too. */
+     three arguments has nothing to choose between, so it stays verbatim too.
+     */
   if (a5_popup_choice == nullptr || args == nullptr)
     return nullptr;
 
@@ -1089,7 +1115,8 @@ fn_popupchoice (a5_state_t * /*st*/, const char * /*name*/, const char *args)
   int picked = a5_popup_choice (a5_popup_choice_ctx, prompt.c_str (),
                                 yes.c_str (), no.c_str ());
   if (picked < 0)
-    return nullptr;                /* host declined to ask: leave it verbatim */
+    /* host declined to ask: leave it verbatim */
+    return nullptr;
   return strdup (picked ? yes.c_str () : no.c_str ());
 }
 
@@ -1177,14 +1204,15 @@ udf_arg_is_expression (const char *s)
 static char *
 fn_convcharacter (a5_state_t *st, const char * /*name*/, const char * /*args*/)
 {
-  /* Global.vb:1762 substitutes %ConvCharacter% with the conversation char KEY. */
+  /* Global.vb:1762 substitutes %ConvCharacter% with the conversation char KEY.
+     */
   return strdup (st->conv_char ? st->conv_char : "");
 }
 
 static char *
 fn_replace (a5_state_t * /*st*/, const char * /*name*/, const char * /*args*/)
 {
-  /* In TEXT context the runner's function Select has no Replace arm --
+  /* In TEXT context the Runner's function Select has no Replace arm --
      sResult stays "" ("Bad Function - Nothing output") and the token
      renders empty; the usable replace(a,b,c) lives in expressions
      (a5sexpr.cpp). */
@@ -1223,7 +1251,7 @@ static const struct
   char *(*handler) (a5_state_t *st, const char *name, const char *args);
 } eval_builtins[] = {
   {"player", FN_ARGS_ANY, fn_player},
-  /* Bare %PopUpInput% (no [args]) is not a function call in the runner --
+  /* Bare %PopUpInput% (no [args]) is not a function call in the Runner --
      the args-form regex doesn't match it, so it survives verbatim (ProbePopups
      intro).  Evaluating it here would also eat a script line as the popup
      answer, desyncing the transcript. */
@@ -1276,13 +1304,13 @@ static const struct
   {"release", FN_ARGS_NONE, fn_release},
 };
 
-/* User-defined <Function>s (clsUserFunction): the runner's ReplaceFunctions runs
-   EvaluateUDF over every UDF FIRST (Global.vb:1748), matching the exact
+/* User-defined <Function>s (clsUserFunction): the Runner's ReplaceFunctions
+   runs EvaluateUDF over every UDF FIRST (Global.vb:1748), matching the exact
    case-sensitive name with an optional [args] block.  The Output is a
    restriction-gated description whose declared <Argument> names are
-   substituted with the (already function-expanded) argument values -- The
-   Last Expedition's %Lantern[]% renders "with his free gloved hand" while
-   the lantern is held, and its %Red[text]%-style wrappers colour the arg. */
+   substituted with the (already function-expanded) argument values -- The Last
+   Expedition's %Lantern[]% renders "with his free gloved hand" while the
+   lantern is held, and its %Red[text]%-style wrappers colour the arg. */
 static char *
 eval_udf (a5_state_t *st, const char *name, const char *args)
 {
@@ -1295,7 +1323,8 @@ eval_udf (a5_state_t *st, const char *name, const char *args)
       if (u->name == nullptr || strcmp (u->name, name) != 0)
         continue;
       const a5_xml_node_t *outp = a5xml_child (u->node, "Output");
-      if (outp == nullptr || udf_depth > 8)   /* The runner: recursive UDF = error */
+      /* The Runner: recursive UDF = error */
+      if (outp == nullptr || udf_depth > 8)
         return strdup ("");
       /* EvaluateUDF (Global.vb:1653) substitutes the arguments into the RAW
          Output text -- BEFORE any function/expression evaluation -- then
@@ -1361,7 +1390,7 @@ eval_udf (a5_state_t *st, const char *name, const char *args)
               vi++;
             }
         }
-      /* The runner's trailing ReplaceFunctions recursion: expand any
+      /* The Runner's trailing ReplaceFunctions recursion: expand any
          functions the substituted body carries (%TheObject[ObjectBall]%),
          keeping its <#...#> bodies untouched for the outer expression
          pass. */
@@ -1397,7 +1426,7 @@ eval_bound_reference (a5_state_t *st, const char *name, int *unbound)
            || ci_eq (name, "object1") || ci_eq (name, "object2"))
     {
       /* A plural %objects% that resolved to several items renders the whole
-         set as an "a, b and c" list of full names (mirroring the Adrift 5 runner's
+         set as an "a, b and c" list of full names (mirroring the Runner's
          %objects% -> "key1|key2|..." -> OO list render; each name without an
          article, like a bare %object%). */
       if (ci_eq (name, "objects") && st->n_ref_items > 1)
@@ -1406,7 +1435,7 @@ eval_bound_reference (a5_state_t *st, const char *name, int *unbound)
                                           st->ref_items + st->n_ref_items);
           return list_objects_art (st, keys, A5_ART_NONE);
         }
-      /* A bare %objectN% renders the entity KEY, mirroring the runner's
+      /* A bare %objectN% renders the entity KEY, mirroring the Runner's
          ReplaceFunctions (nr.Items(0).MatchingPossibilities(0), Global.vb:
          1795): ReplaceOO only rewrites `key.Property` tokens, so a standalone
          key survives verbatim.  For an ADRIFT-default noun-key that is the
@@ -1414,10 +1443,10 @@ eval_bound_reference (a5_state_t *st, const char *name, int *unbound)
          and -- crucially -- it lets an OO reference-list argument whose head
          is `%object%.Children(...)` chain from the real key. */
       /* The singular %object%/%object1% never resolves off a plural
-         %objects% binding here either (the runner GetReference needs
+         %objects% binding here either (the Runner's GetReference needs
          ReferenceMatch "object1", clsUserSession.vb:3990) -- so the
          Blender's "You put %object1%.Name on the Table." on a `put
-         %objects% on %object2%` command stays VERBATIM like the runner. */
+         %objects% on %object2%` command stays VERBATIM like the Runner. */
       if ((ci_eq (name, "object") || ci_eq (name, "object1"))
           && st->ref_object1_plural)
         return nullptr;
@@ -1437,7 +1466,7 @@ eval_bound_reference (a5_state_t *st, const char *name, int *unbound)
     }
   else if (is_ref && slot.compare (0, 16, "ReferencedObject") != 0)
     {
-      /* %locationN% / %itemN%.  Like %objectN%: the runner's
+      /* %locationN% / %itemN%.  Like %objectN%: the Runner's
          ReplaceFunctions substitutes the bound entity KEY
          (nr.Items(0).MatchingPossibilities(0)) for a resolved reference;
          an unbound one stays verbatim (in its numbered form -- see the
@@ -1463,7 +1492,7 @@ eval_variable (a5_state_t *st, const char *name)
     if (ci_eq (st->adv->variables[i].name, name))
       {
         /* Inside an ALR NewText the value must be the END-OF-TURN one
-           (the runner expands ALRs only at Display): emit a deferred sentinel,
+           (the Runner expands ALRs only at Display): emit a deferred sentinel,
            resolved by a5text_expand_var_defers in finish_turn. */
         if (st->alr_defer_vars)
           {
@@ -1505,9 +1534,9 @@ eval_variable_element (a5_state_t *st, const char *name, const char *args)
         while (end != nullptr && (*end == ' ' || *end == '\t'))
           end++;
         /* A non-literal index (e.g. %notallowed[RAND(1,6)]%) must be
-           evaluated as an expression -- the runner's clsVariable indexing runs the
-           bracket contents through EvaluateExpression.  Only fall through to
-           the plain-literal fast path when args is exactly an integer. */
+           evaluated as an expression -- the Runner's clsVariable indexing runs
+           the bracket contents through EvaluateExpression.  Only fall through
+           to the plain-literal fast path when args is exactly an integer. */
         if (end == args || (end != nullptr && *end != '\0'))
           {
             char *ev = a5text_eval_expression (st, args);
@@ -1577,8 +1606,9 @@ eval_function (a5_state_t *st, const char *name, const char *args)
 }
 
 /* Capture a pending CharacterName render as a PronounKeys entry at output
-   offset `off` -- the ledger half of the runner's Global.vb:2108 (the eval side sets
-   st->pron_pending; ReplaceFunctions adds in expression mode too). */
+   offset `off` -- the ledger half of the Runner's Global.vb:2108 (the eval
+   side sets st->pron_pending; ReplaceFunctions adds in expression mode too).
+   */
 void
 pron_capture (a5_state_t *st, long off)
 {
@@ -1597,20 +1627,21 @@ pron_capture (a5_state_t *st, long off)
   st->pron_pending_pron = 0;
 }
 
-/* The runner's ReplaceFunctions resolves model-variable tokens (%name% and %name[idx]%)
-   in variable-declaration order, in a pass (Global.vb:1972-2019, a
-   `For Each var In Adventure.htblVariables.Values` loop) that runs BEFORE the
-   left-to-right generic-function scan.  Scarier's replace pass is otherwise
-   strictly text-order, which only diverges when a single text holds two or more
-   variable tokens whose index/value evaluation has a side effect -- in practice
-   an embedded Rand.  Lost Coastlines' inventory line
-   "%defaultshirt[Rand(1,10)]% and %defaultpants[Rand(1,10)]%" is the corpus case:
-   the `defaultpants` variable is declared before `defaultshirt`, so the runner draws the
-   pants index first.  For pure (side-effect-free) reads the resolved value is
-   independent of order, so no other corpus text is affected.  This pre-pass
-   mirrors the runner: walk the model variables in order and splice in each variable's
-   tokens (via the same eval_function the inline path uses), leaving function and
-   reference tokens for the text-order scan that follows. */
+/* The Runner's ReplaceFunctions resolves model-variable tokens (%name% and
+   %name[idx]%) in variable-declaration order, in a pass (Global.vb:1972-2019,
+   a `For Each var In Adventure.htblVariables.Values` loop) that runs BEFORE
+   the left-to-right generic-function scan.  Scarier's replace pass is
+   otherwise strictly text-order, which only diverges when a single text holds
+   two or more variable tokens whose index/value evaluation has a side effect
+   -- in practice an embedded Rand.  Lost Coastlines' inventory line
+   "%defaultshirt[Rand(1,10)]% and %defaultpants[Rand(1,10)]%" is the corpus
+   case:  the `defaultpants` variable is declared before `defaultshirt`, so the
+   Runner draws the pants index first.  For pure (side-effect-free) reads the
+   resolved value is independent of order, so no other corpus text is affected.
+   This pre-pass mirrors the Runner: walk the model variables in order and
+   splice in each variable's tokens (via the same eval_function the inline path
+   uses), leaving function and reference tokens for the text-order scan that
+   follows. */
 static char *
 resolve_model_vars_ordered (a5_state_t *st, const char *src)
 {
@@ -1635,9 +1666,10 @@ resolve_model_vars_ordered (a5_state_t *st, const char *src)
           char *hit = nullptr, *scan = cur;
           const char *after;
           char *name, *rawargs = nullptr, *value = nullptr, *token;
-          char *tok_end;
+          const char *tok_end;
 
-          /* Find the next "%vname" (case-insensitive) delimited by '%' or '['. */
+          /* Find the next "%vname" (case-insensitive) delimited by '%' or '['.
+             */
           while ((scan = strchr (scan, '%')) != nullptr)
             {
               const char *nm = scan + 1;
@@ -1653,7 +1685,7 @@ resolve_model_vars_ordered (a5_state_t *st, const char *src)
           name = strndup (hit + 1, vlen);
           if (*after == '%')
             {
-              tok_end = (char *) after + 1;
+              tok_end = after + 1;
               value = eval_function (st, name, nullptr);
             }
           else                          /* '[' : an array element */
@@ -1669,17 +1701,20 @@ resolve_model_vars_ordered (a5_state_t *st, const char *src)
                   if (depth > 0) a++;
                 }
               if (!(*a == ']' && a[1] == '%'))
-                { free (name); break; }  /* unterminated -> leave for main loop */
-              tok_end = (char *) a + 2;
+                { /* unterminated -> leave for main loop */
+                  free (name); break; }
+              tok_end = a + 2;
               rawargs = strndup (astart, (size_t) (a - astart));
-              /* Deferred draw: inside an AggregateOutput completion (st->expr_defer
-                 armed), a random array index (`%flavorskybreak[rand(1,25)]%`) has
-                 its draw held to end-of-turn Display, just like a `<#Rand#>`
-                 expression -- the runner skips this substitution now (AggregateOutput ->
-                 ReplaceFunctions runs at Display).  Emit a `\004<idx>\004` sentinel
-                 and push the raw token (tagged \001) to the sink; the flush
-                 re-resolves it, drawing the index then.  So Skybreak's dock flavor
-                 draws AFTER the location-trigger task's `SidequestE = RAND(1,10)`. */
+              /* Deferred draw: inside an AggregateOutput completion
+                 (st->expr_defer armed), a random array index
+                 (`%flavorskybreak[rand(1,25)]%`) has its draw held to
+                 end-of-turn Display, just like a `<#Rand#>` expression -- the
+                 Runner skips this substitution now (AggregateOutput ->
+                 ReplaceFunctions runs at Display).  Emit a `\004<idx>\004`
+                 sentinel and push the raw token (tagged \001) to the sink; the
+                 flush re-resolves it, drawing the index then.  So Skybreak's
+                 dock flavor draws AFTER the location-trigger task's
+                 `SidequestE = RAND(1,10)`. */
               if (st->expr_defer != nullptr && expr_bears_random (rawargs))
                 {
                   std::vector<std::string> *sink =
@@ -1747,7 +1782,7 @@ eval_bracket_call (a5_state_t *st, const char *name_start, size_t nlen,
   /* Resolve any OO property chain left in the args (e.g.
      %LCase[%object%.OpenStatus]% -> args "Closet.OpenStatus"
      -> "Closed") before the outer function transforms it.
-     the Adrift 5 runner's ReplaceFunctions(sArgs) recursion runs its
+     the Runner's ReplaceFunctions(sArgs) recursion runs its
      own ReplaceOO pass on the args (Global.vb:2046); Scarier's
      OO pass otherwise runs only after the whole replace pass,
      too late for a function that consumed the chain as an
@@ -1771,7 +1806,7 @@ eval_bracket_call (a5_state_t *st, const char *name_start, size_t nlen,
 static void
 emit_function_value (a5_state_t *st, sb_t *sb, char *value)
 {
-  /* CharacterName sentence-start fudge (the runner Global.vb:2103): when
+  /* CharacterName sentence-start fudge (the Runner's Global.vb:2103): when
      the resolved name is immediately preceded by two spaces or a
      CRLF, capitalise its first character.  iMatchLoc>3 there means
      at least 3 chars precede the token (sb->len >= 3 here). */
@@ -1789,7 +1824,7 @@ emit_function_value (a5_state_t *st, sb_t *sb, char *value)
 static void
 emit_unresolved_token (sb_t *sb, const char *p, const char *q)
 {
-  /* leave the original token verbatim -- but the runner rewrites
+  /* leave the original token verbatim -- but the Runner rewrites
      EVERY bare singular reference alias to its numbered form
      BEFORE resolving (ReplaceIgnoreCase, Global.vb:1754-1760:
      %object% %character% %location% %direction% %item% %text%
@@ -1848,12 +1883,12 @@ replace_functions (a5_state_t *st, const char *src, int as_arg)
               if (*q == '%')
                 {
                   name = strndup (name_start, nlen);
-                  /* %reference%.Property...  : emit the resolved entity key and
-                     leave the ".chain" as literal text for the later OO pass
-                     (mirrors the Adrift 5 runner substituting %object%->key before
-                     ReplaceOO, so embedded %Func[]% are gone by then).  Require
-                     a real property step after the dot (an alpha char) so a
-                     sentence-ending period ("you take %objects%.") is not
+                  /* %reference%.Property...  : emit the resolved entity key
+                     and leave the ".chain" as literal text for the later OO
+                     pass (mirrors the Runner substituting %object%->key before
+                     ReplaceOO, so embedded %Func[]% are gone by then).
+                     Require a real property step after the dot (an alpha char)
+                     so a sentence-ending period ("you take %objects%.") is not
                      mistaken for a chain -- that renders via the bare path
                      below (the name / multi-object list), not the raw key. */
                   if (q[1] == '.' && isalpha ((unsigned char) q[2]))
@@ -1863,18 +1898,20 @@ replace_functions (a5_state_t *st, const char *src, int as_arg)
                         {
                           sb_puts (&sb, fk);
                           free (fk); free (name);
-                          p = q + 1;        /* past the closing %, before the '.' */
+                          /* past the closing %, before the '.' */
+                          p = q + 1;
                           continue;
                         }
                     }
                   /* A bare reference (%object%, %character%, ...) used as the
-                     argument of an outer %Func[...]% must resolve to the entity
-                     *key*, not its display name: the Adrift 5 runner substitutes
+                     argument of an outer %Func[...]% must resolve to the
+                     entity
+                     *key*, not its display name: the Runner substitutes
                      %object%->MatchingPossibilities(0) (the key) before any
                      %Func[]% is evaluated (Global.vb:1752+), so e.g.
-                     "%TheObject[%object%]%" keys off the exact referenced object
-                     rather than re-resolving the rendered noun by name (which
-                     would pick the first object sharing that noun). */
+                     "%TheObject[%object%]%" keys off the exact referenced
+                     object rather than re-resolving the rendered noun by name
+                     (which would pick the first object sharing that noun). */
                   if (as_arg)
                     {
                       char *fk = oo_firstkey (st, name);
@@ -1885,12 +1922,13 @@ replace_functions (a5_state_t *st, const char *src, int as_arg)
                           p = q + 1;
                           continue;
                         }
-                      /* An *unbound* object/character reference keyword used as a
-                         function argument resolves to the empty string, just as
-                         the Adrift 5 runner's GetReference("ReferencedObject") returns ""
-                         when no reference was captured (a reference-free task).
-                         The outer %TheObject[]%/%ObjectName[]% then renders
-                         "nothing" (htblObjects.List on an empty set) -- e.g. Anno's
+                      /* An *unbound* object/character reference keyword used
+                         as a function argument resolves to the empty string,
+                         just as the Runner's GetReference("ReferencedObject")
+                         returns "" when no reference was captured (a
+                         reference-free task).  The outer
+                         %TheObject[]%/%ObjectName[]% then renders "nothing"
+                         (htblObjects.List on an empty set) -- e.g. Anno's
                          OpeningHid displaying the carried "...can't see
                          %TheObject[%object%]%." as "You can't see nothing." */
                       if (is_obj_char_ref (name))
@@ -1934,7 +1972,7 @@ replace_functions (a5_state_t *st, const char *src, int as_arg)
   return sb_finish (&sb);
 }
 
-/* ---------------------------------------------------- PopUpInput side channel */
+/* ------------------------------------------------- PopUpInput side channel */
 
 void
 a5text_set_popup_cb (a5_popup_cb cb, void *ctx)

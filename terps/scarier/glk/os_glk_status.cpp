@@ -67,35 +67,35 @@ gsc_is_string_usable (const scr_char *string)
  *
  * Open and close a status line redraw, shared by the ADRIFT <=4 and ADRIFT 5
  * status lines.  gsc_status_begin() makes the status window current, blanks
- * it, and fills its width with spaces in the bar's style so that the bar
- * spans the whole line; it returns FALSE, having done nothing, if there is
+ * it, and fills every row with spaces in the bar's style so that the bar
+ * spans the whole width; it returns FALSE, having done nothing, if there is
  * no status window or it has no height, in which case the caller has nothing
  * to draw.  gsc_status_end() hands the current window back to the main one.
  */
 scr_bool
 gsc_status_begin (glui32 *width)
 {
-  glui32 height, index;
+  glui32 height, index, row;
 
-  if (!gsc_status_window)
+  if (!gsc_io.status_window)
     return FALSE;
 
-  glk_window_get_size (gsc_status_window, width, &height);
+  glk_window_get_size (gsc_io.status_window, width, &height);
   if (height == 0)
     return FALSE;
 
-  glk_window_clear (gsc_status_window);
-  glk_window_move_cursor (gsc_status_window, 0, 0);
-  glk_set_window (gsc_status_window);
+  glk_window_clear (gsc_io.status_window);
+  glk_window_move_cursor (gsc_io.status_window, 0, 0);
+  glk_set_window (gsc_io.status_window);
 
 #ifdef GSC_HAVE_ZCOLORS
   /* The colours have to be named again after every clear, not once when colour
      mode is turned on: in Gargoyle a grid clear re-seeds the window's
      attributes from the library's global override colours, which would wipe a
      colour set earlier on this stream. */
-  if (gsc_colour_enabled)
-    garglk_set_zcolors_stream (glk_window_get_stream (gsc_status_window),
-                               gsc_colour_background, gsc_colour_output);
+  if (gsc_colour.enabled)
+    garglk_set_zcolors_stream (glk_window_get_stream (gsc_io.status_window),
+                               gsc_colour.background, gsc_colour.output);
 #endif
 
   /* Out of colour mode the bar is a reverse-video User1 one, the way every
@@ -103,17 +103,21 @@ gsc_status_begin (glui32 *width)
      reversed -- the Runner draws it as the inverse of the story text, the
      game's text colour behind and its background colour for the letters -- but
      the inversion is in the colours named just above rather than in the style.
-     Doing it that way is what makes every library agree: stylehint_ReverseColor
-     is honoured by some and dropped by others once a zcolor is in force, so a
-     User1 bar here would come out inverted in one interpreter and plain in the
-     next.  An interpreter that is ignoring the colours we name takes the
-     reverse-video bar as well: the pair named just above would be dropped,
-     leaving the bar in the theme's plain text colours and so indistinguishable
-     from the story window. */
+     Doing it that way is what makes every library agree:
+     stylehint_ReverseColor is honoured by some and dropped by others once a
+     zcolor is in force, so a User1 bar here would come out inverted in one
+     interpreter and plain in the next.  An interpreter that is ignoring the
+     colours we name takes the reverse-video bar as well: the pair named just
+     above would be dropped, leaving the bar in the theme's plain text colours
+     and so indistinguishable from the story window. */
   glk_set_style (gsc_colour_visible () ? style_Normal : style_User1);
-  for (index = 0; index < *width; index++)
-    glk_put_char (' ');
-  glk_window_move_cursor (gsc_status_window, 0, 0);
+  for (row = 0; row < height; row++)
+    {
+      glk_window_move_cursor (gsc_io.status_window, 0, row);
+      for (index = 0; index < *width; index++)
+        glk_put_char (' ');
+    }
+  glk_window_move_cursor (gsc_io.status_window, 0, 0);
 
   return TRUE;
 }
@@ -124,16 +128,16 @@ gsc_status_end (void)
 #ifdef GSC_HAVE_ZCOLORS
   /* Name the story window's own colours again.  A library whose zcolors are
      global as well as per-stream (Gargoyle) paints window backgrounds from the
-     last colours it was told about, so leaving the bar's inverted pair in force
-     would tint the story window too.  Safe with respect to the input echo:
-     gsc_colour_echo() runs from gsc_read_line_locale(), after the status
+     last colours it was told about, so leaving the bar's inverted pair in
+     force would tint the story window too.  Safe with respect to the input
+     echo: gsc_colour_echo() runs from gsc_read_line_locale(), after the status
      redraw, so it always has the last word on the prompt's colour. */
-  if (gsc_colour_enabled && gsc_main_window)
-    garglk_set_zcolors_stream (glk_window_get_stream (gsc_main_window),
-                               gsc_colour_main_fg, gsc_colour_background);
+  if (gsc_colour.enabled && gsc_io.main_window)
+    garglk_set_zcolors_stream (glk_window_get_stream (gsc_io.main_window),
+                               gsc_colour.main_fg, gsc_colour.background);
 #endif
 
-  glk_set_window (gsc_main_window);
+  glk_set_window (gsc_io.main_window);
 }
 
 
@@ -141,17 +145,19 @@ gsc_status_end (void)
  * gsc_status_line_text()
  *
  * The game's status line or, when the game does not set a usable one, the
- * score, either way with trailing whitespace removed, and using the caller's
- * buffer where it needs one.
+ * score, either way with leading and trailing whitespace removed, and using
+ * the caller's buffer where it needs one.
  *
  * Authors pad StatusBoxText by hand to place it -- Three Monkeys, One Cage
  * stores "     The game is %winnable%        " -- because the Runner draws the
  * status box left-aligned.  Right-justifying that string as it stands ends the
  * line with the author's eight spaces, leaving the text itself floating short
- * of the right margin and looking mis-aligned.  The trailing run carries no
- * information here, so drop it and justify the text.  Leading spaces are kept:
- * they cost nothing at the left of a right-justified string, and are eaten
- * first by head-truncation in a narrow window.
+ * of the right margin and looking mis-aligned.  The leading run does as much
+ * harm on the bar's second row, where the status is left-aligned under the
+ * room name, and beside the room name it would count towards the width that
+ * decides whether the status moves down there at all (and earn an ellipsis
+ * when only blanks were cut).  Neither run carries any information here, so
+ * drop both.
  */
 static const scr_char *
 gsc_status_line_text (char *buffer, size_t length)
@@ -166,6 +172,8 @@ gsc_status_line_text (char *buffer, size_t length)
       return buffer;
     }
 
+  /* A usable status has something other than whitespace in it. */
+  status += strspn (status, WHITESPACE);
   for (trimmed = strlen (status);
        trimmed > 0 && strchr (WHITESPACE, status[trimmed - 1]);
        trimmed--)
@@ -197,6 +205,38 @@ enum { GSC_STATUS_ELLIPSIS = 0x2026, GSC_STATUS_MIN_TAIL = 1 };
 
 
 /*
+ * gsc_status_tail()
+ *
+ * The longest tail of status that fits in avail columns, without the blank a
+ * cut landing in a gap would start it with, or NULL if not even
+ * GSC_STATUS_MIN_TAIL columns of it fit.  The tail carries the parts that
+ * change -- score, moves, time, whatever the game keeps there -- so it is the
+ * head that a status too long for its room loses.
+ */
+static const scr_char *
+gsc_status_tail (const scr_char *status, glui32 avail,
+                 const gsc_status_writer_t *writer)
+{
+  glui32 status_width;
+
+  if (avail < GSC_STATUS_MIN_TAIL)
+    return nullptr;
+
+  while (*status != '\0')
+    {
+      status = writer->next (status);
+      if (*status == ' ')
+        continue;
+
+      status_width = writer->width (status);
+      if (status_width <= avail)
+        return status_width < GSC_STATUS_MIN_TAIL ? nullptr : status;
+    }
+  return nullptr;
+}
+
+
+/*
  * gsc_status_put_right()
  *
  * Print the status text right-justified on the status line, ending one column
@@ -205,14 +245,13 @@ enum { GSC_STATUS_ELLIPSIS = 0x2026, GSC_STATUS_MIN_TAIL = 1 };
  * free column after it, so the status may use only the columns from there on,
  * and must leave at least one blank between the two.
  *
- * A status too long for that gap is truncated at its head: the tail carries
- * the parts that change -- score, moves, time, whatever the game keeps there --
- * so it is the head that gets replaced with an ellipsis.  The ellipsis goes
- * straight after the room name and the tail straight after the ellipsis, with
- * no blanks around it.  If not even the ellipsis and a character of text will
- * fit, the status is dropped rather than allowed to run into the room name.
+ * A status too long for that gap is truncated at its head (gsc_status_tail).
+ * The ellipsis goes straight after the room name and the tail straight after
+ * the ellipsis, with no blanks around it.  If not even the ellipsis and a
+ * character of text will fit, the status is dropped rather than allowed to
+ * run into the room name.
  */
-void
+static void
 gsc_status_put_right (glui32 width, glui32 room_end,
                       const scr_char *status,
                       const gsc_status_writer_t *writer)
@@ -227,7 +266,7 @@ gsc_status_put_right (glui32 width, glui32 room_end,
   status_width = writer->width (status);
   if (status_width <= avail)
     {
-      glk_window_move_cursor (gsc_status_window,
+      glk_window_move_cursor (gsc_io.status_window,
                               width - status_width - 1, 0);
       writer->print (status);
       return;
@@ -235,28 +274,150 @@ gsc_status_put_right (glui32 width, glui32 room_end,
 
   /* Too wide: the ellipsis takes the column the blank would have had, so the
      longest tail that fits in the rest goes behind it. */
-  if (avail < GSC_STATUS_MIN_TAIL)
+  status = gsc_status_tail (status, avail, writer);
+  if (status)
+    {
+      glk_window_move_cursor (gsc_io.status_window, room_end, 0);
+      glk_put_char_uni (GSC_STATUS_ELLIPSIS);
+      writer->print (status);
+    }
+}
+
+
+/*
+ * gsc_status_put_below()
+ *
+ * Print the status text left-aligned on the bar's second row, at the same
+ * one-column indent as the room name above it.  A status too long even for a
+ * row of its own loses its head to an ellipsis, as on the first row.
+ */
+static void
+gsc_status_put_below (glui32 width, const scr_char *status,
+                      const gsc_status_writer_t *writer)
+{
+  glui32 avail;
+
+  if (width < 3)
+    return;
+  avail = width - 2;
+
+  glk_window_move_cursor (gsc_io.status_window, 1, 1);
+  if (writer->width (status) <= avail)
+    {
+      writer->print (status);
+      return;
+    }
+
+  status = gsc_status_tail (status, avail - 1, writer);
+  if (status)
+    {
+      glk_put_char_uni (GSC_STATUS_ELLIPSIS);
+      writer->print (status);
+    }
+}
+
+
+/*
+ * gsc_status_wants_second_row()
+ *
+ * Whether the status belongs on a second row of the bar, under the room name,
+ * rather than right-justified beside it.  The rule is Question's for moving
+ * its status from the banner to the side pane: the status leaves the first
+ * row once less than three quarters of it would survive gsc_status_put_right's
+ * cut, and -- below, the bar already having its second row -- comes back up
+ * only when all of it fits, so that a window dragged across the threshold does
+ * not flicker between the two.  The bar's own height is the memory of where
+ * the status was, so the answer survives an autorestore without a flag of its
+ * own.
+ */
+static scr_bool
+gsc_status_wants_second_row (glui32 width, glui32 room_end,
+                             const scr_char *status, scr_bool below,
+                             const gsc_status_writer_t *writer)
+{
+  glui32 avail, status_width, shown_width;
+  const scr_char *shown;
+
+  if (!gsc_is_string_usable (status))
+    return FALSE;
+
+  /* The same arithmetic as gsc_status_put_right(). */
+  avail = width >= room_end + 2 ? width - room_end - 2 : 0;
+  status_width = writer->width (status);
+  if (status_width <= avail)
+    return FALSE;
+  if (below)
+    return TRUE;
+
+  shown = gsc_status_tail (status, avail, writer);
+  shown_width = shown ? writer->width (shown) : 0;
+  return shown_width * 4 < status_width * 3;
+}
+
+
+/*
+ * gsc_status_set_rows()
+ *
+ * Give the status window the given number of rows, if it has not got them.
+ */
+static void
+gsc_status_set_rows (glui32 rows)
+{
+  glui32 height;
+
+  glk_window_get_size (gsc_io.status_window, nullptr, &height);
+  if (height != rows)
+    glk_window_set_arrangement (glk_window_get_parent (gsc_io.status_window),
+                                winmethod_Above | winmethod_Fixed, rows,
+                                nullptr);
+}
+
+
+/*
+ * gsc_status_draw()
+ *
+ * Redraw the status bar, shared by the ADRIFT <=4 and ADRIFT 5 status lines:
+ * the room name at the left of the first row, and the status either
+ * right-justified beside it or, when it does not fit there (see
+ * gsc_status_wants_second_row), left-aligned on a second row the bar grows
+ * for it.  room may be NULL, and status NULL or empty, for a bar with
+ * nothing of that kind to show; either way the bar drops back to one row.
+ */
+void
+gsc_status_draw (const scr_char *room, const scr_char *status,
+                 const gsc_status_writer_t *writer)
+{
+  glui32 width, height, room_end;
+  scr_bool below;
+
+  if (!gsc_io.status_window)
+    return;
+  glk_window_get_size (gsc_io.status_window, &width, &height);
+  if (height == 0)
     return;
 
-  while (*status != '\0')
+  room_end = 1 + (room ? writer->width (room) : 0);
+  below = status
+          && gsc_status_wants_second_row (width, room_end, status,
+                                          height > 1, writer);
+  gsc_status_set_rows (below ? 2 : 1);
+
+  if (!gsc_status_begin (&width))
+    return;
+
+  glk_window_move_cursor (gsc_io.status_window, 1, 0);
+  if (room)
+    writer->print (room);
+
+  if (status && *status != '\0')
     {
-      status = writer->next (status);
-
-      /* A cut landing in a gap would leave a blank after the ellipsis. */
-      if (*status == ' ')
-        continue;
-
-      status_width = writer->width (status);
-      if (status_width <= avail)
-        {
-          if (status_width < GSC_STATUS_MIN_TAIL)
-            return;
-          glk_window_move_cursor (gsc_status_window, room_end, 0);
-          glk_put_char_uni (GSC_STATUS_ELLIPSIS);
-          writer->print (status);
-          return;
-        }
+      if (below)
+        gsc_status_put_below (width, status, writer);
+      else
+        gsc_status_put_right (width, room_end, status, writer);
     }
+
+  gsc_status_end ();
 }
 
 
@@ -269,44 +430,36 @@ gsc_status_put_right (glui32 width, glui32 room_end,
 static void
 gsc_status_update (void)
 {
-  glui32 width;
-  assert (gsc_status_window);
+  const scr_char *room;
+  assert (gsc_io.status_window);
 
-  if (gsc_status_begin (&width))
+  /* See if the game is indicating any current player room. */
+  room = scr_get_game_room (gsc_game);
+  if (!gsc_is_string_usable (room))
     {
-      const scr_char *room;
+      /*
+       * Player location is indeterminate, so print out a generic status,
+       * showing the game name and author.
+       */
+      glui32 width;
 
-      /* See if the game is indicating any current player room. */
-      room = scr_get_game_room (gsc_game);
-      if (!gsc_is_string_usable (room))
+      gsc_status_set_rows (1);
+      if (gsc_status_begin (&width))
         {
-          /*
-           * Player location is indeterminate, so print out a generic status,
-           * showing the game name and author.
-           */
-          glk_window_move_cursor (gsc_status_window, 1, 0);
+          glk_window_move_cursor (gsc_io.status_window, 1, 0);
           gsc_put_string (scr_get_game_name (gsc_game));
           gsc_put_literal (" | ");
           gsc_put_string (scr_get_game_author (gsc_game));
+          gsc_status_end ();
         }
-      else
-        {
-          const scr_char *status;
-          char text[GSC_STATUS_TEXT_LENGTH] = {0};
+    }
+  else
+    {
+      char text[GSC_STATUS_TEXT_LENGTH] = {0};
 
-          /* Print the player location. */
-          glk_window_move_cursor (gsc_status_window, 1, 0);
-          gsc_put_string (room);
-
-          /* Get the game's status line, or if none, format score. */
-          status = gsc_status_line_text (text, sizeof (text));
-
-          /* Print the status line or score at window right. */
-          gsc_status_put_right (width, 1 + gsc_status_printed_width (room),
-                                status, &GSC_STATUS_WRITER);
-        }
-
-      gsc_status_end ();
+      /* The game's status line, or if none, the score. */
+      gsc_status_draw (room, gsc_status_line_text (text, sizeof (text)),
+                       &GSC_STATUS_WRITER);
     }
 }
 
@@ -388,7 +541,7 @@ gsc_status_notify (void)
 {
   if (gsc_is_a5)
     {
-      /* ADRIFT 5 games have no scare game state, so both v4 renderers would
+      /* ADRIFT 5 games have no ADRIFT 4 game state, so both v4 renderers would
          ask scr_* about a NULL game and paint "[invalid game]".  os_confirm()
          reaches here for the shared hint display and the quit/restart
          prompts, which both engines use. */
@@ -397,7 +550,7 @@ gsc_status_notify (void)
       return;
     }
 
-  if (gsc_status_window)
+  if (gsc_io.status_window)
     gsc_status_update ();
   else
     gsc_status_print ();
@@ -414,9 +567,10 @@ gsc_status_notify (void)
 void
 gsc_status_redraw (void)
 {
-  if (gsc_status_window)
+  if (gsc_io.status_window)
     {
       winid_t parent;
+      glui32 height;
 
       /*
        * Rearrange the status window, without changing its actual arrangement
@@ -426,14 +580,17 @@ gsc_status_redraw (void)
        * doesn't check for actual arrangement changes in any way before
        * invalidating its windows.  The hack should be harmless to Glk
        * libraries other than Xglk, moreover, we're careful to activate it
-       * only on resize and arrange events.
+       * only on resize and arrange events.  The bar keeps the rows it has;
+       * the redraw below gives or takes away a second one if the new width
+       * calls for it.
        */
-      parent = glk_window_get_parent (gsc_status_window);
+      parent = glk_window_get_parent (gsc_io.status_window);
+      glk_window_get_size (gsc_io.status_window, nullptr, &height);
       glk_window_set_arrangement (parent, winmethod_Above | winmethod_Fixed,
-                                  1, nullptr);
+                                  height, nullptr);
       if (gsc_is_a5)
         {
-          /* ADRIFT 5 games have no scare game state; use the a5 renderer. */
+          /* ADRIFT 5 games have no ADRIFT 4 game state; use the a5 renderer. */
           if (gsc_a5_run)
             gsc_a5_status (gsc_a5_run);
         }
@@ -444,6 +601,6 @@ gsc_status_redraw (void)
   /* The map is rasterised to the pixel size of its window, so a resize has to
      redraw it, not just repaint it -- and the window has lost what we drew
      there, so all of it must go out again, not just what the game changed. */
-  gsc_map_full_flush = TRUE;
+  gsc_map_pane.full_flush = TRUE;
   gsc_map_redraw ();
 }

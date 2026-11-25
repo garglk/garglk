@@ -1,22 +1,20 @@
-//
-//  definitions.h
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Created by Petter Sjölund on 2022-01-10.
-//
+/*
+ *  definitions.h
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-01-10.
+ */
 
 #ifndef definitions_h
 #define definitions_h
 
 #include <stddef.h>
 #include <stdint.h>
-
-#include "common_defines.h"
-#include "minmax.h"
-
-#define NO_DELAYS 128 /* Skip all pauses */
-#define FORCE_INVENTORY 1024 /* Inventory in upper window always on */
-#define FORCE_INVENTORY_OFF 2048 /* Inventory in upper window always off */
 
 /* Argument values in conditions and commands that stand for what the
    player typed rather than for a fixed item or dictionary word */
@@ -27,11 +25,13 @@
 /* The number of counters (16-bit registers) the action table can use */
 #define NUM_COUNTERS 64
 
-/* The counters the system itself uses. Counters 0-29 and 54-59 belong to the game. 36-41 are "old holding rooms" that games may redefine, and 60-62 are reserved. */
+/* The counters the system itself uses. Counters 0-29 and 54-59 belong to the
+   game. 36-41 are "old holding rooms" that games may redefine, and 60-62 are
+   reserved. */
 #define COUNTER_NOUN 30            /* The item ARG_NOUN stands for */
 #define COUNTER_NOUN2 31           /* The item ARG_NOUN2 stands for */
 #define COUNTER_ROOM 32            /* The current room */
-#define COUNTER_INVENTORY 33       /* Number of items carried, as of the last Get (action 52) */
+#define COUNTER_INVENTORY 33       /* Items carried, as last counted by Get (action 52) or a condition */
 #define COUNTER_TREASURE_ROOM 34
 #define COUNTER_DEAD_ROOM 35       /* Where the player goes on dying, initially the last room */
 #define COUNTER_MAX_CARRY 42       /* The number of items that can be carried */
@@ -94,26 +94,11 @@ typedef struct {
 } DictWord;
 
 typedef enum {
-    WORD_NOT_FOUND,
-    OTHER_TYPE,
-    VERB_TYPE,
-    NOUN_TYPE,
-    ADVERB_TYPE,
-    PREPOSITION_TYPE,
-    NUM_WORD_TYPES,
-} WordType;
-
-typedef enum {
     NO_IMG,
     IMG_ROOM,
     IMG_OBJECT,
     IMG_SPECIAL,
 } ImgType;
-
-typedef struct {
-    WordType Type;
-    uint8_t Index;
-} WordToken;
 
 typedef struct {
     char *SynonymString;
@@ -186,15 +171,6 @@ typedef struct {
     size_t Size;
 } imgrec;
 
-/* Where on a disk without a file system a picture is found */
-typedef struct imglist {
-    const char *filename;
-    size_t offset;
-    /* Nonzero if the picture is on the disk with the database rather than
-       on the picture disk (Atari 8-bit only) */
-    int on_boot_disk;
-} imglist;
-
 typedef enum {
     UNKNOWN_GAME,
     BANZAI,
@@ -204,23 +180,6 @@ typedef enum {
     XMEN,
     NUMGAMES
 } GameIDType;
-
-typedef enum {
-    ER_SUCCESS = 0,
-    ER_NO_RESULT = 1,
-    ER_RAN_ALL_LINES_NO_MATCH = -1,
-    ER_RAN_ALL_LINES = -2
-} CommandResultType;
-
-typedef enum {
-    ACT_SUCCESS = 0,
-    ACT_FAILURE = 1,
-    ACT_CONTINUE,
-    ACT_DONE,
-    ACT_LOOP_BEGIN,
-    ACT_LOOP,
-    ACT_GAMEOVER
-} ActionResultType;
 
 typedef enum {
     SYS_UNKNOWN,

@@ -19,9 +19,8 @@
  */
 
 /*
- * Module notes:
- *
- * o Put integer and boolean read functions in here?
+ * sctaffil.cpp: reading a .taf or .tas file -- deobfuscation,
+ * decompression and the line-by-line access the parser uses.
  */
 
 #include <assert.h>
@@ -73,7 +72,7 @@ static const scr_byte
  * version digit stepped down by one: "Version 3.70" and "Version 3.80" differ
  * in the character *after* the one that differs in the plaintext too, because
  * each is XOR'd with a different byte of the keystream.  Byte 10 is 0x39, not
- * the 0x35 that interpolating 3.80/3.90 would suggest.
+ * the 0x35 that interpolating 3.8/3.9 would suggest.
  */
 static const scr_byte
   V370_SIGNATURE[VERSION_HEADER_SIZE] = {0x3c, 0x42, 0x3f, 0xc9, 0x6a, 0x87,
@@ -191,9 +190,9 @@ taf_runtime_rnd (void)
  *
  * Run the obfuscation the other way, for writing a pre-4.0 saved game that the
  * original Runner can read back.  Xor is its own inverse, so this is
- * taf_unobfuscate()'s inner loop with the bytes going out instead of in.  Reset
- * once at the start of a stream, then feed it every byte in order; a saved game
- * has no header, so the keystream starts at index 0.
+ * taf_unobfuscate()'s inner loop with the bytes going out instead of in.
+ * Reset once at the start of a stream, then feed it every byte in order; a
+ * saved game has no header, so the keystream starts at index 0.
  */
 void
 taf_obfuscate_reset (void)
@@ -829,9 +828,9 @@ taf_populate_from_callback (scr_tafref_t taf,
     {
       /*
        * A saved game written by Scarier or by run400.exe is a zlib stream; one
-       * written by run390.exe (or by us for a pre-4.0 game) is PRNG-obfuscated.
-       * Peek at the first bytes to tell them apart, then read through the
-       * replaying wrapper so the peeked bytes are not lost.
+       * written by run390.exe (or by us for a pre-4.0 game) is
+       * PRNG-obfuscated.  Peek at the first bytes to tell them apart, then read
+       * through the replaying wrapper so the peeked bytes are not lost.
        */
       sniff.callback = callback;
       sniff.opaque = opaque;
@@ -1004,7 +1003,7 @@ taf_next_line (scr_tafref_t taf)
       scr_char *line;
 
       /* Get the effective address of the current line. */
-      line = (scr_char *) taf->slabs[taf->current_slab].data;
+      line = reinterpret_cast<scr_char *> (taf->slabs[taf->current_slab].data);
       line += taf->current_offset;
 
       /*

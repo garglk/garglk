@@ -1,35 +1,65 @@
-//
-//  irmak.c
-//  Drawing code for Adventure International UK / Adventure Soft graphics
-//  Used in ScottFree and TaylorMade
-//
-//  Created by Administrator on 2025-12-07.
-//
-//  Based on Sagadraw v2.5 by David Lodge
-//  with help from Paul David Doherty (including the colour code)
-//
-//  Original code at https://github.com/tautology0/textadventuregraphics
-//  See also http://aimemorial.if-legends.org/gfxbdp.html
-//
-//  The Irmak graphics system renders tile-based images used in
-//  Adventure International UK / Adventure Soft text adventures.
-//  Each image is stored as a stream of tile references with
-//  transformation commands (rotation, flip, overlay compositing),
-//  followed by colour attribute data (ink/paper pairs per tile cell).
-//
-//  Rendering proceeds in three stages:
-//    1. PerformTileTransformations — decode the tile stream, apply
-//       rotations/flips/overlays, and write the result into layout[][].
-//    2. DecodeAttributes — decode the RLE-compressed colour stream
-//       into attributes[], one Spectrum-style attribute per cell.
-//    3. DrawDecodedImage — rasterise the layout+attributes either
-//       to the screen directly, or into imagebuffer for later compositing.
-//
-//  Two rendering paths exist: "direct" mode renders each image
-//  independently to the screen; "buffer" mode composites multiple
-//  sub-images into the shared imagebuffer[][] before a final
-//  DrawIrmakPictureFromBuffer() renders the whole frame.
-//
+/*
+ *  irmak.c
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version.
+ *
+ *  Parts are based on code by David Lodge, which came with this notice:
+ *
+ *  MIT License
+ *
+ *  Copyright (c) 2018 D L
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ *  Drawing code for Adventure International UK / Adventure Soft graphics
+ *  Used in ScottFree and TaylorMade
+ *
+ *  Created by Petter Sjölund on 2025-12-07.
+ *
+ *  Based on Sagadraw v2.5 by David Lodge
+ *  with help from Paul David Doherty (including the colour code)
+ *
+ *  Original code at https://github.com/tautology0/textadventuregraphics
+ *  See also http://aimemorial.if-legends.org/gfxbdp.html
+ *
+ *  The Irmak graphics system renders tile-based images used in
+ *  Adventure International UK / Adventure Soft text adventures.
+ *  Each image is stored as a stream of tile references with
+ *  transformation commands (rotation, flip, overlay compositing),
+ *  followed by colour attribute data (ink/paper pairs per tile cell).
+ *
+ *  Rendering proceeds in three stages:
+ *    1. PerformTileTransformations — decode the tile stream, apply
+ *       rotations/flips/overlays, and write the result into layout[][].
+ *    2. DecodeAttributes — decode the RLE-compressed colour stream
+ *       into attributes[], one Spectrum-style attribute per cell.
+ *    3. DrawDecodedImage — rasterise the layout+attributes either
+ *       to the screen directly, or into imagebuffer for later compositing.
+ *
+ *  Two rendering paths exist: "direct" mode renders each image
+ *  independently to the screen; "buffer" mode composites multiple
+ *  sub-images into the shared imagebuffer[][] before a final
+ *  DrawIrmakPictureFromBuffer() renders the whole frame.
+ */
 
 #include <string.h>
 

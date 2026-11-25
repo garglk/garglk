@@ -1,14 +1,21 @@
-//
-//  kayleth_loadscreen_data.h
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Kayleth's loading screen is drawn by its Alkatraz turbo loader in a
-//  scrambled pixel order rather than stored as a plain SCREEN$ block. The
-//  loader's screen-draw is driven by a small list of "window" descriptors
-//  (recovered from the running loader); the generic Alkatraz address-order
-//  generator in alkatraz_screen.c expands them into the draw order, and the
-//  pixel stream in tape block 3 fills it. See DecodeAlkatrazLoadingScreen().
-//
+/*
+ *  kayleth_loadscreen_data.h
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2026-06-04.
+ *
+ *  Kayleth's loading screen is drawn by its Alkatraz turbo loader in a
+ *  scrambled pixel order rather than stored as a plain SCREEN$ block. The
+ *  loader's screen-draw is driven by a small list of "window" descriptors
+ *  (recovered from the running loader); the generic Alkatraz address-order
+ *  generator in alkatraz_screen.c expands them into the draw order, and the
+ *  pixel stream in tape block 3 fills it. See DecodeAlkatrazLoadingScreen().
+ */
 
 #ifndef kayleth_loadscreen_data_h
 #define kayleth_loadscreen_data_h

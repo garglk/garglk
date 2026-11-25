@@ -31,7 +31,7 @@
 #include "scprintf.h"
 #include "scgamest_api.h"
 #include "scresour.h"
-#include "scrunner_api.h"
+#include "schooks.h"
 #include "sctasks.h"
 #include "scnpcs.h"
 #include "scobjcts.h"
@@ -794,11 +794,11 @@ debug_game (scr_gameref_t game, scr_command_type_t type)
     if_print_debug (", Completed");
   else
     if_print_debug (", Not completed");
-  if (game->verbose)
+  if (game->settings.verbose)
     if_print_debug (", Verbose");
   else
     if_print_debug (", Not verbose");
-  if (game->bold_room_names)
+  if (game->settings.bold_room_names)
     if_print_debug (", Bold");
   else
     if_print_debug (", Not bold");
@@ -809,9 +809,9 @@ debug_game (scr_gameref_t game, scr_command_type_t type)
   if_print_debug_character ('\n');
 
   if_print_debug ("    Score ");
-  debug_print_integer (game->score);
+  debug_print_integer (game->world.score);
   if_print_debug (", Turns ");
-  debug_print_integer (game->turns);
+  debug_print_integer (game->world.turns);
   if_print_debug (", Seconds ");
   snprintf (buffer, sizeof (buffer), "%lu", debug->elapsed_seconds);
   if_print_debug (buffer);
@@ -1506,45 +1506,45 @@ debug_resources (scr_gameref_t game, scr_command_type_t type)
       return;
     }
 
-  if (game->stop_sound)
+  if (game->media.stop_sound)
     {
       if_print_debug ("Sound stop");
-      if (strlen (game->requested_sound.name) > 0)
+      if (strlen (game->media.requested_sound.name) > 0)
         if_print_debug (" before new sound");
       if_print_debug (" requested");
-      if (game->sound_active)
+      if (game->media.sound_active)
         if_print_debug (", sound active");
       if_print_debug (".\n");
       printed = TRUE;
     }
-  if (!res_compare_resource (&game->requested_sound,
-                             &game->playing_sound))
+  if (!res_compare_resource (&game->media.requested_sound,
+                             &game->media.playing_sound))
     {
       if_print_debug ("Requested Sound ");
-      debug_print_resource (&game->requested_sound);
+      debug_print_resource (&game->media.requested_sound);
       if_print_debug (".\n");
       printed = TRUE;
     }
-  if (!res_compare_resource (&game->requested_graphic,
-                             &game->displayed_graphic))
+  if (!res_compare_resource (&game->media.requested_graphic,
+                             &game->media.displayed_graphic))
     {
       if_print_debug ("Requested Graphic ");
-      debug_print_resource (&game->requested_graphic);
+      debug_print_resource (&game->media.requested_graphic);
       if_print_debug (".\n");
       printed = TRUE;
     }
 
-  if (strlen (game->playing_sound.name) > 0)
+  if (strlen (game->media.playing_sound.name) > 0)
     {
       if_print_debug ("Playing Sound ");
-      debug_print_resource (&game->playing_sound);
+      debug_print_resource (&game->media.playing_sound);
       if_print_debug (".\n");
       printed = TRUE;
     }
-  if (strlen (game->displayed_graphic.name) > 0)
+  if (strlen (game->media.displayed_graphic.name) > 0)
     {
       if_print_debug ("Displaying Graphic ");
-      debug_print_resource (&game->displayed_graphic);
+      debug_print_resource (&game->media.displayed_graphic);
       if_print_debug (".\n");
       printed = TRUE;
     }
@@ -1809,8 +1809,8 @@ debug_watchall_common (scr_gameref_t game,
 static scr_bool
 debug_compare_object (scr_gameref_t from, scr_gameref_t with, scr_int object)
 {
-  const scr_objectstate_t *from_object = &from->objects[object];
-  const scr_objectstate_t *with_object = &with->objects[object];
+  const scr_objectstate_t *from_object = &from->world.objects[object];
+  const scr_objectstate_t *with_object = &with->world.objects[object];
 
   return from_object->unmoved == with_object->unmoved
          && from_object->static_unmoved == with_object->static_unmoved
@@ -1831,8 +1831,8 @@ debug_compare_object (scr_gameref_t from, scr_gameref_t with, scr_int object)
 static scr_bool
 debug_compare_npc (scr_gameref_t from, scr_gameref_t with, scr_int npc)
 {
-  const scr_npcstate_t *from_npc = &from->npcs[npc];
-  const scr_npcstate_t *with_npc = &with->npcs[npc];
+  const scr_npcstate_t *from_npc = &from->world.npcs[npc];
+  const scr_npcstate_t *with_npc = &with->world.npcs[npc];
 
   if (from_npc->walkstep_count != with_npc->walkstep_count)
     scr_fatal ("debug_compare_npc: walkstep count error\n");
@@ -1853,8 +1853,8 @@ debug_compare_npc (scr_gameref_t from, scr_gameref_t with, scr_int npc)
 static scr_bool
 debug_compare_event (scr_gameref_t from, scr_gameref_t with, scr_int event)
 {
-  const scr_eventstate_t *from_event = &from->events[event];
-  const scr_eventstate_t *with_event = &with->events[event];
+  const scr_eventstate_t *from_event = &from->world.events[event];
+  const scr_eventstate_t *with_event = &with->world.events[event];
 
   return from_event->state == with_event->state
          && from_event->time == with_event->time;
@@ -1869,8 +1869,8 @@ debug_compare_event (scr_gameref_t from, scr_gameref_t with, scr_int event)
 static scr_bool
 debug_compare_task (scr_gameref_t from, scr_gameref_t with, scr_int task)
 {
-  const scr_taskstate_t *from_task = &from->tasks[task];
-  const scr_taskstate_t *with_task = &with->tasks[task];
+  const scr_taskstate_t *from_task = &from->world.tasks[task];
+  const scr_taskstate_t *with_task = &with->world.tasks[task];
 
   return from_task->done == with_task->done
          && from_task->scored == with_task->scored;
@@ -2370,7 +2370,7 @@ debug_cmd_debugger (scr_gameref_t game)
    * Set as administrative command, so as not to consume a game turn, and
    * return successfully.
    */
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   return TRUE;
 }
 
@@ -2435,7 +2435,7 @@ debug_game_ended (scr_gameref_t game)
    * debug_game_started() when the loop restarts.  So in this case, ignore
    * the call (even if single stepping).
    */
-  if (game->do_restart || game->do_restore)
+  if (game->turn.do_restart || game->turn.do_restore)
     return;
 
   /*
@@ -2485,7 +2485,7 @@ debug_turn_update (scr_gameref_t game)
    * longer running, as we'll see a debug_game_ended() call come along to
    * handle that.
    */
-  if (game->waitcounter > 0 || !game->is_running)
+  if (game->turn.waitcounter > 0 || !game->is_running)
     return;
 
   /*

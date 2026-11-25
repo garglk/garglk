@@ -29,12 +29,14 @@
 #include "sctypes.h"
 
 /* OS interface functions. */
+extern void if_set_trace_flags (scr_uint trace_flags);
 extern scr_bool if_get_trace_flag (scr_uint bitmask);
 extern void if_print_string (const scr_char *string);
 extern void if_print_debug (const scr_char *string);
 extern void if_print_character (scr_char character);
 extern void if_print_debug_character (scr_char character);
 extern void if_print_tag (scr_int tag, const scr_char *arg);
+extern void if_note_autorestored (void);
 extern void if_read_line (scr_char *buffer, scr_int length);
 extern void if_read_debug (scr_char *buffer, scr_int length);
 extern scr_bool if_confirm (scr_int type);

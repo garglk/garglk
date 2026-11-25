@@ -62,16 +62,16 @@ static const scr_char *const WHITESPACE = "\t\n\v\f\r ";
  * Fast non-local jumps.
  *
  * The expression evaluator, command parser, and restriction evaluator each arm
- * a setjmp() recovery point on essentially every turn, and the runner arms one
- * per game.  The C standard setjmp()/longjmp() save and restore the process
- * signal mask -- on macOS/BSD via a sigprocmask() (and sigaltstack()) syscall
- * pair on *every* call.  SCARE never alters the signal mask between a setjmp()
- * and its matching longjmp(), so that work is pure waste: profiling the
- * walkthrough corpus showed the kernel mask handling to be the single largest
- * steady-state cost, ahead even of the property-tree hot path.  _setjmp() /
- * _longjmp() (POSIX) give byte-identical control flow but skip the mask, for a
- * measured ~5-13% whole-run speedup with no output change.  Every set/longjmp
- * pair in the engine is file-local, so the swap is self-contained.
+ * a setjmp() recovery point on essentially every turn, and the `run_` code
+ * arms one per game.  The C standard setjmp()/longjmp() save and restore the
+ * process signal mask -- on macOS/BSD via a sigprocmask() (and sigaltstack())
+ * syscall pair on *every* call.  SCARE never alters the signal mask between a
+ * setjmp() and its matching longjmp(), so that work is pure waste: profiling
+ * the walkthrough corpus showed the kernel mask handling to be the single
+ * largest steady-state cost, ahead even of the property-tree hot path.
+ * _setjmp() / _longjmp() (POSIX) give byte-identical control flow but skip the
+ * mask, for a measured ~5-13% whole-run speedup with no output change.  Every
+ * set/longjmp pair in the engine is file-local, so the swap is self-contained.
  */
 #ifdef _WIN32
 /*

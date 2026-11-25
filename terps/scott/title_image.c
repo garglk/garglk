@@ -1,9 +1,16 @@
-//
-//  title_image.c
-//  part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  Created by Petter Sjölund on 2022-10-01.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  title_image.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2022-10-01.
+ */
 
 #include <stdlib.h>
 #include <string.h>
@@ -176,7 +183,7 @@ static int GetRTPILines(const char *text, char *lines[RTPI_TITLE_LINES]) {
     int lineidx = 0;
     int pos = 0;
     while (lineidx < RTPI_TITLE_LINES && text[pos] != '\0') {
-        // Skip leading spaces
+        /* Skip leading spaces */
         while (text[pos] == ' ') {
             pos++;
         }
@@ -202,35 +209,6 @@ static int GetRTPILines(const char *text, char *lines[RTPI_TITLE_LINES]) {
     }
     return 1;
 }
-
-/*
-
-0. (HIT ANY KEY)
-1. Texas Instruments and
-2. Adventure International
-3.
-4. Proudly present
-5. Scott Adams Graphic Adventure
-6.
-7.
-8. “RETURN TO PIRATE’S ISLE”
-9.
-10.
-11. Copyright 1983
-12. by Scott Adams
-13. Written by Scott Adams.
-14.
-15. With special assistance from: Eric White, Scott Smith, and Linda Paladino.
-16.
-17. With love to my Mom who made it all possible!
-18. The next picture you see is correct!
-19.
-20. Do not try to adjust your TV. Just use your Adventuring skills!
-21.
-22.
-23. GOOD LUCK !
-
-*/
 
 static void InitRTPITitle(void) {
     if (!title_screen)
@@ -331,7 +309,7 @@ void PrintTitleScreenGrid(void)
     int title_length = strlen(title_screen);
     glui32 rows = 0;
 
-    // Count rows
+    /* Count rows */
     for (int i = 0; i < title_length; i++)
         if (title_screen[i] == '\n')
             rows++;
@@ -341,8 +319,8 @@ void PrintTitleScreenGrid(void)
     glui32 width, height;
     glk_window_get_size(titlewin, &width, &height);
 
-    // If the screen size is too small to fit the entire text,
-    // just flush the text to the buffer window and be done with it.
+    /* If the screen size is too small to fit the entire text,
+       just flush the text to the buffer window and be done with it. */
     if (width < RTPI_TITLE_COLS || height < rows + 2) {
         glk_window_close(titlewin, NULL);
         PrintTitleScreenBuffer();

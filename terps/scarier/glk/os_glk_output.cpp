@@ -38,14 +38,14 @@ static int gsc_help_requested = FALSE,
            gsc_help_hints_silenced = FALSE;
 
 /*
- * Adrift text colours ("glk colour").
+ * ADRIFT text colours ("glk colour").
  *
- * Adrift games are written for a Runner that paints its output pane in a
+ * ADRIFT games are written for a Runner that paints its output pane in a
  * palette rather than in the interpreter's theme: a background, an "output"
- * (replies) colour for the story, and an "input" (typed) colour that <c>...</c>
- * also asks for, on top of whatever <font colour="..."> the text names.  Glk
- * has no colour of its own, so by default this port drops all of that and
- * shows the story in the interpreter's styles, as SCARE always has.
+ * (replies) colour for the story, and an "input" (typed) colour that
+ * <c>...</c> also asks for, on top of whatever <font colour="..."> the text
+ * names.  Glk has no colour of its own, so by default this port drops all of
+ * that and shows the story in the interpreter's styles, as SCARE always has.
  *
  * "glk colour on" turns the palette back on, through the Gargoyle/Spatterlight
  * garglk_set_zcolors extension.  Where that extension is missing (cheapglk,
@@ -54,8 +54,8 @@ static int gsc_help_requested = FALSE,
  *
  * A game that cannot be read without the palette -- an ADRIFT 5 adventure that
  * set colours of its own, or text that paints a background or names a colour
- * too close to the interpreter's to see -- turns the mode on for itself at load
- * time, before a word is printed; gsc_colour_detect is what asks.
+ * too close to the interpreter's to see -- turns the mode on for itself at
+ * load time, before a word is printed; gsc_colour_detect is what asks.
  *
  * Where the palette comes from differs by engine.  ADRIFT 5 stores it in the
  * adventure itself (a5model.h bg_colour and friends).  ADRIFT <=4 stores none:
@@ -63,9 +63,9 @@ static int gsc_help_requested = FALSE,
  * defaults below are the ones run400.exe ships, read out of the settings it
  * writes under HKCU\Software\VB and VBA Program Settings\ADRIFT\Runner:
  * Background 0, Text1 3289855 and Text2 65280 -- OLE colour integers (low byte
- * red), i.e. black, #FF3232 for typed text and #00FF00 for replies.  They match
- * the swatches in the Runner's own Options -> Display & Media dialog ("Set
- * typed colour", "Set replies colour", "Set background colour").
+ * red), i.e. black, #FF3232 for typed text and #00FF00 for replies.  They
+ * match the swatches in the Runner's own Options -> Display & Media dialog
+ * ("Set typed colour", "Set replies colour", "Set background colour").
  */
 /* GSC_HAVE_ZCOLORS is in os_glk_internal.h; the palette itself and the on/off
    flag are with the other module options in os_glk.cpp, since the status line
@@ -91,10 +91,16 @@ static glui32 gsc_attribute_bold = 0,
               gsc_attribute_center = 0,
               gsc_attribute_right = 0;
 
-/* Notional default font size, and limit font sizes. */
-static const scr_int GSC_DEFAULT_FONT_SIZE = 12,
-                    GSC_MEDIUM_FONT_SIZE = 14,
-                    GSC_LARGE_FONT_SIZE = 16;
+/* Notional default font size. */
+static const scr_int GSC_DEFAULT_FONT_SIZE = GSC_STYLE_DEFAULT_POINTS;
+
+/*
+ * The game's style assignment (os_glk_styles.cpp): which attribute states
+ * have a Glk style of their own, made from the game's text before the main
+ * window opens, and hinted by gsc_hint_window_styles().
+ */
+static gsc_style_table_t gsc_style_table;
+static scr_bool gsc_style_table_ready = FALSE;
 
 /* Milliseconds per second and timeouts count for delay tags. */
 static const glui32 GSC_MILLISECONDS_PER_SECOND = 1000;
@@ -146,15 +152,15 @@ gsc_output_provide_help_hint (void)
 /*
  * gsc_colour_lookup()
  *
- * Turn an Adrift colour token -- a name, or a hex triplet with or without its
+ * Turn an ADRIFT colour token -- a name, or a hex triplet with or without its
  * leading '#' -- into an 0xRRGGBB colour.  Returns GSC_COLOUR_NONE for the
  * empty token and for "default", both of which mean "back to the surrounding
  * colour" rather than a colour of their own.
  *
- * The names, and their values, are the Runner's own table (Global.ColourLookup),
- * including its aliases (cyan/turquoise/aqua, magenta/fuchsia) and its
- * treatment of anything unrecognised as a hex triplet right-padded with zeros.
- * `token` must already be lowercased and unquoted.
+ * The names, and their values, are the Runner's own table
+ * (Global.ColourLookup), including its aliases (cyan/turquoise/aqua,
+ * magenta/fuchsia) and its treatment of anything unrecognised as a hex triplet
+ * right-padded with zeros.  `token` must already be lowercased and unquoted.
  */
 glui32
 gsc_colour_lookup (const char *token)
@@ -217,24 +223,23 @@ gsc_colour_lookup (const char *token)
  * inside "bgcolour", and a background would silently become a foreground.
  *
  * Whitespace is allowed on either side of the '=', as it is in the HTML the
- * Runner hands its tags to; see a5_font_colour() in adrift5/text/a5text_render.cpp.
+ * Runner hands its tags to; a5_font_attribute() in
+ * adrift5/text/a5text_render.cpp reads ADRIFT 5 tags the same way.
  */
 static glui32
 gsc_colour_from_tag (const scr_char *tag, const char *key)
 {
   char american[16], token[32];
   const char *keys[2];
-  scr_char *lower;
+  std::string lowered (tag);
   glui32 result = GSC_COLOUR_NONE;
   int pass;
-  scr_int index_;
 
   /* Both the key and the value it finds are compared lowercased; the tag
      arrives as the author wrote it. */
-  lower = (decltype (lower)) gsc_malloc (strlen (tag) + 1);
-  memcpy (lower, tag, strlen (tag) + 1);
-  for (index_ = 0; lower[index_] != '\0'; index_++)
-    lower[index_] = glk_char_to_lower (lower[index_]);
+  for (char &c : lowered)
+    c = glk_char_to_lower (c);
+  const scr_char *const lower = lowered.c_str ();
 
   /* "colour" -> "color": drop the 'u' before the final 'r'. */
   {
@@ -299,7 +304,6 @@ gsc_colour_from_tag (const scr_char *tag, const char *key)
         }
     }
 
-  free (lower);
   return result;
 }
 
@@ -309,17 +313,18 @@ gsc_colour_from_tag (const scr_char *tag, const char *key)
  * gsc_colour_luminance()
  * gsc_colour_legible()
  *
- * Whether text in one colour can be read against another.  `gsc_colour_legible`
- * answers the WCAG contrast test -- the ratio of the two relative luminances,
- * each lifted by 0.05, against a 3:1 floor, which is the threshold for text
- * that is large or merely decorative rather than a page of body copy.
+ * Whether text in one colour can be read against another.
+ * `gsc_colour_legible` answers the WCAG contrast test -- the ratio of the two
+ * relative luminances, each lifted by 0.05, against a 3:1 floor, which is the
+ * threshold for text that is large or merely decorative rather than a page of
+ * body copy.
  *
  * Luminance is the sRGB one with the transfer curve approximated as a plain
- * square rather than the piecewise 2.4 power, which keeps this in integers (the
- * scale is 255*255) and, checked against the exact formula over the Runner's
- * whole colour table, changes no verdict here: red, green, blue, teal, navy and
- * grey stay legible on white, while white, silver, yellow, lime, cyan, orange
- * and pink stay illegible on it.
+ * square rather than the piecewise 2.4 power, which keeps this in integers
+ * (the scale is 255*255) and, checked against the exact formula over the
+ * Runner's whole colour table, changes no verdict here: red, green, blue,
+ * teal, navy and grey stay legible on white, while white, silver, yellow,
+ * lime, cyan, orange and pink stay illegible on it.
  */
 static glui32
 gsc_colour_luminance (glui32 rgb)
@@ -386,7 +391,6 @@ gsc_colour_wanted_by (const scr_char *text, void *opaque)
   for (at = text; (at = strchr (at, '<')) != nullptr; at++)
     {
       const scr_char *end = strchr (at, '>');
-      scr_char *tag;
       size_t length;
       glui32 colour;
 
@@ -401,18 +405,12 @@ gsc_colour_wanted_by (const scr_char *text, void *opaque)
           && scr_strncasecmp (at + 1, "bgcolo", 6) != 0)
         continue;
 
-      tag = (decltype (tag)) gsc_malloc (length + 1);
-      memcpy (tag, at + 1, length);
-      tag[length] = '\0';
+      const std::string tag (at + 1, length);
 
-      colour = gsc_colour_from_tag (tag, "bgcolour");
+      colour = gsc_colour_from_tag (tag.c_str (), "bgcolour");
       if (colour != GSC_COLOUR_NONE)
-        {
-          free (tag);
-          return TRUE;
-        }
-      colour = gsc_colour_from_tag (tag, "colour");
-      free (tag);
+        return TRUE;
+      colour = gsc_colour_from_tag (tag.c_str (), "colour");
       if (colour != GSC_COLOUR_NONE
           && !gsc_colour_legible (colour, wanted->background))
         return TRUE;
@@ -428,19 +426,20 @@ gsc_colour_wanted_by (const scr_char *text, void *opaque)
  *
  * Whether this game starts in its own palette without being asked for it.
  *
- * ADRIFT 5 answers from its header: an adventure whose palette differs from the
- * Runner's default has a look the author sat down and chose, and showing it in
- * the interpreter's theme instead throws that away.  ADRIFT <=4 has no header
- * to ask -- the .taf carries no colour fields at all, the palette being a Runner
- * preference -- so both engines fall back on the authored text, which is where
- * gsc_colour_wanted_by describes what counts.
+ * ADRIFT 5 answers from its header: an adventure whose palette differs from
+ * the Runner's default has a look the author sat down and chose, and showing
+ * it in the interpreter's theme instead throws that away.  ADRIFT <=4 has no
+ * header to ask -- the .taf carries no colour fields at all, the palette being
+ * a Runner preference -- so both engines fall back on the authored text, which
+ * is where gsc_colour_wanted_by describes what counts.
  *
- * Called while the loading window is still up, so the theme's background can be
- * measured before colour mode publishes stylehints of its own; the answer feeds
- * gsc_colour_startup, which the -c switch also sets, and so reaches the palette
- * by the same path -- hints published before the first window open, and no
- * rebuild.  That also means it is never consulted on an autorestore, which is
- * right: a restored session brings back the mode the player left it in.
+ * Called while the loading window is still up, so the theme's background can
+ * be measured before colour mode publishes stylehints of its own; the answer
+ * feeds gsc_colour.startup, which the -c switch also sets, and so reaches the
+ * palette by the same path -- hints published before the first window open,
+ * and no rebuild.  That also means it is never consulted on an autorestore,
+ * which is right: a restored session brings back the mode the player left it
+ * in.
  */
 scr_bool
 gsc_colour_detect (winid_t window)
@@ -480,14 +479,14 @@ void
 gsc_colour_apply (winid_t win, glui32 fg)
 {
 #ifdef GSC_HAVE_ZCOLORS
-  if (!gsc_colour_enabled || win == nullptr)
+  if (!gsc_colour.enabled || win == nullptr)
     return;
   if (fg == GSC_COLOUR_NONE)
-    fg = gsc_colour_output;
-  if (win == gsc_main_window)
-    gsc_colour_main_fg = fg;
+    fg = gsc_colour.output;
+  if (win == gsc_io.main_window)
+    gsc_colour.main_fg = fg;
   garglk_set_zcolors_stream (glk_window_get_stream (win),
-                             fg, gsc_colour_background);
+                             fg, gsc_colour.background);
 #else
   (void) win;
   (void) fg;
@@ -505,8 +504,8 @@ gsc_colour_apply (winid_t win, glui32 fg)
 void
 gsc_colour_echo (scr_bool typing)
 {
-  gsc_colour_apply (gsc_main_window,
-                    typing ? gsc_colour_input : GSC_COLOUR_NONE);
+  gsc_colour_apply (gsc_io.main_window,
+                    typing ? gsc_colour.input : GSC_COLOUR_NONE);
 }
 
 
@@ -588,86 +587,81 @@ static void
 gsc_set_glk_style (void)
 {
   const gsc_font_size_t font = gsc_font_top ();
-  const scr_bool is_monospaced = font.is_monospaced;
-  const scr_int font_size = font.size;
+  gsc_style_combo_t combo;
 
   /*
-   * In colour mode the Adrift colours ride alongside the Glk style: an
+   * In colour mode the ADRIFT colours ride alongside the Glk style: an
    * explicit <font colour=...> if one is open, otherwise the typed colour
    * while <c> is (the Runner's "replies" colour being the normal one).  The
    * Glk style is still set below, so bold and centering keep working; only
    * the ink changes.
    */
-  gsc_colour_apply (gsc_main_window,
+  gsc_colour_apply (gsc_io.main_window,
                     font.colour != GSC_COLOUR_NONE ? font.colour
-                    : gsc_attribute_secondary_colour > 0 ? gsc_colour_input
+                    : gsc_attribute_secondary_colour > 0 ? gsc_colour.input
                     : GSC_COLOUR_NONE);
 
   /*
-   * Map the font and current attributes into a Glk style.  Because Glk styles
-   * aren't cumulative this has to be done by precedences.
+   * Map the font and current attributes into a Glk style.  Glk styles aren't
+   * cumulative, so the whole state is one combo, printed in the style the
+   * game's assignment gives it or, failing that, in the nearest one that has
+   * fewer attributes (see gsc_style_lookup()).  With colours off, <c>
+   * secondary-colour text keeps its old Emphasized stand-in so it stays
+   * visually distinct.
    */
-  if (is_monospaced)
+  combo = gsc_style_combo (gsc_attribute_bold > 0,
+                           gsc_attribute_italic > 0
+                           || gsc_attribute_underline > 0,
+                           font.is_monospaced,
+                           gsc_attribute_center > 0, gsc_attribute_right > 0,
+                           gsc_attribute_secondary_colour > 0
+                           && !gsc_colour_visible (),
+                           font.size);
+  glk_set_style (gsc_style_lookup (gsc_styles_table (), combo));
+}
+
+
+/*
+ * gsc_styles_census()
+ * gsc_styles_census_a5()
+ * gsc_styles_table()
+ *
+ * Make the game's style assignment from its text, or today's fixed one with
+ * no game to scan, and return it.  Called before the hints are set,
+ * which is before the main window opens.
+ */
+void
+gsc_styles_census (scr_game game)
+{
+  if (game)
     {
-      /*
-       * No matter the size or attributes, if monospaced use Preformatted
-       * style, as it's all we have.
-       */
-      glk_set_style (style_Preformatted);
-    }
-  else if (gsc_attribute_right > 0)
-    {
-      /* RightFlush-hinted style_Note; character styles are not combined. */
-      glk_set_style (style_Note);
-    }
-  else if (gsc_attribute_center > 0)
-    {
-      /*
-       * Centered sections use the two justification-hinted user styles set up
-       * before the main window opened: User1 for plain centered text, User2
-       * for centered bold (title lines are typically <center><b>..., and Glk
-       * styles don't combine, so bold gets its own centered style).
-       */
-      glk_set_style (gsc_attribute_bold > 0 ? style_User2 : style_User1);
+      gsc_style_census_t census;
+
+      gsc_style_census_a4 (game, &census);
+      gsc_style_assign (&census, &gsc_style_table);
     }
   else
-    {
-      /*
-       * For large and medium point sizes, use Header or Subheader styles
-       * respectively.
-       */
-      if (font_size >= GSC_LARGE_FONT_SIZE)
-        glk_set_style (style_Header);
-      else if (font_size >= GSC_MEDIUM_FONT_SIZE)
-        glk_set_style (style_Subheader);
-      else
-        {
-          /*
-           * For bold, use Subheader; for italics or underline, use Emphasized.
-           * With colours disabled, <c> secondary-colour text keeps its old
-           * Emphasized stand-in so it stays visually distinct; bold still
-           * wins over it, as it always has.
-           */
-          if (gsc_attribute_bold > 0
-              && (gsc_attribute_italic > 0 || gsc_attribute_underline > 0))
-            glk_set_style (style_Alert);
-          else if (gsc_attribute_bold > 0)
-            glk_set_style (style_Subheader);
-          else if (gsc_attribute_italic > 0
-                   || gsc_attribute_underline > 0
-                   || (gsc_attribute_secondary_colour > 0
-                       && !gsc_colour_visible ()))
-            glk_set_style (style_Emphasized);
-          else
-            {
-              /*
-               * There's nothing special about this text, so drop down to
-               * Normal style.
-               */
-              glk_set_style (style_Normal);
-            }
-        }
-    }
+    gsc_style_table_natural (&gsc_style_table);
+  gsc_style_table_ready = TRUE;
+}
+
+void
+gsc_styles_census_a5 (const a5_adventure_t *adventure)
+{
+  gsc_style_census_t census;
+
+  gsc_style_census_a5 (adventure->root, adventure->introduction,
+                       adventure->title, &census);
+  gsc_style_assign (&census, &gsc_style_table);
+  gsc_style_table_ready = TRUE;
+}
+
+const gsc_style_table_t *
+gsc_styles_table (void)
+{
+  if (!gsc_style_table_ready)
+    gsc_styles_census (nullptr);
+  return &gsc_style_table;
 }
 
 
@@ -684,28 +678,23 @@ gsc_handle_font_tag (const scr_char *argument)
   /* Ignore the call on stack overrun. */
   if (gsc_font_index < GSC_MAX_STYLE_NESTING)
     {
-      scr_char *lower, *face, *size;
-      scr_int index_;
+      std::string lowered (argument);
+      const scr_char *lower, *face, *size;
 
       /* Start from the current top of stack, or default on empty stack. */
       gsc_font_size_t font = gsc_font_top ();
 
       /* Copy and convert argument to all lowercase. */
-      lower = (decltype(lower)) gsc_malloc (strlen (argument) + 1);
-      memcpy (lower, argument, strlen (argument) + 1);
-      for (index_ = 0; lower[index_] != '\0'; index_++)
-        lower[index_] = glk_char_to_lower (lower[index_]);
+      for (char &c : lowered)
+        c = glk_char_to_lower (c);
+      lower = lowered.c_str ();
 
       /* Find any face= portion of the tag argument. */
       face = strstr (lower, "face=");
       if (face)
         {
-          /*
-           * There may be plenty of monospaced fonts, but we do only courier
-           * and terminal.
-           */
-          font.is_monospaced = strncmp (face, "face=\"courier\"", 14) == 0
-                               || strncmp (face, "face=\"terminal\"", 15) == 0;
+          /* Shared with the style census, os_glk_styles.cpp. */
+          font.is_monospaced = gsc_style_face_is_monospaced (face);
 
           /*
            * Symbol faces need their content translated to Unicode rather than
@@ -729,22 +718,7 @@ gsc_handle_font_tag (const scr_char *argument)
       /* Find the size= portion of the tag argument. */
       size = strstr (lower, "size=");
       if (size)
-        {
-          scr_uint value;
-
-          /* Deal with incremental and absolute sizes. */
-          if (strncmp (size, "size=+", 6) == 0
-              && sscanf (size, "size=+%lu", &value) == 1)
-            font.size += value;
-          else if (strncmp (size, "size=-", 6) == 0
-                   && sscanf (size, "size=-%lu", &value) == 1)
-            font.size -= value;
-          else if (sscanf (size, "size=%lu", &value) == 1)
-            font.size = value;
-        }
-
-      /* Done with tag argument copy. */
-      free (lower);
+        font.size = gsc_style_apply_font_size (size, font.size);
 
       /*
        * Push the new font setting onto the font stack, and set Glk style.
@@ -865,7 +839,7 @@ gsc_handle_wait_tag (const scr_char *argument)
           scr_bool is_completed;
 
           /* Request timer events, and let a keypress cancel the wait. */
-          glk_request_char_event (gsc_main_window);
+          glk_request_char_event (gsc_io.main_window);
           glk_request_timer_events (timeout);
 
           /* Loop until delay completed or canceled by a keypress. */
@@ -885,13 +859,13 @@ gsc_handle_wait_tag (const scr_char *argument)
                       break;
                     }
                   else
-                    glk_request_char_event (gsc_main_window);
+                    glk_request_char_event (gsc_io.main_window);
                 }
              }
 
           /* Cancel any pending character input, and stop timers. */
           if (is_completed)
-            glk_cancel_char_event (gsc_main_window);
+            glk_cancel_char_event (gsc_io.main_window);
           glk_request_timer_events (0);
         }
     }
@@ -926,7 +900,7 @@ gsc_reset_glk_style (void)
 #if defined(GLK_MODULE_GARGLK_FILE_RESOURCES) || defined(SPATTERLIGHT)
 /*
  * Tracking for redrawing a graphic that an immediate screen clear would
- * otherwise wipe.  Adrift shows graphics in a separate pane that text clears
+ * otherwise wipe.  ADRIFT shows graphics in a separate pane that text clears
  * don't affect; this port draws them inline in the main window, so a graphic
  * drawn at the start of a turn is lost if that same turn's text then clears
  * the screen (as "examine girl" in Majesty Mall Center does).  We remember the
@@ -946,15 +920,15 @@ scr_bool gsc_graphic_drawn_since_input = FALSE;
 void
 gsc_draw_inline_graphic (glui32 id)
 {
-  strid_t stream = glk_window_get_stream (gsc_main_window);
+  strid_t stream = glk_window_get_stream (gsc_io.main_window);
 
   /* On the way back to a pause the picture is on screen already; only note
      it, for the clear that may yet come. */
-  if (!gsc_sc_silent)
+  if (!gsc_replay.sc_silent)
     {
       if (!gsc_main_at_line_start)
         glk_put_char_stream (stream, '\n');
-      glk_image_draw (gsc_main_window, id, imagealign_InlineDown, 0);
+      glk_image_draw (gsc_io.main_window, id, imagealign_InlineDown, 0);
       glk_put_char_stream (stream, '\n');
     }
   gsc_main_at_line_start = TRUE;
@@ -979,15 +953,15 @@ static void
 gsc_handle_cls_tag (void)
 {
   /* Clear the main text display window. */
-  if (!gsc_sc_silent)
-    glk_window_clear (gsc_main_window);
+  if (!gsc_replay.sc_silent)
+    glk_window_clear (gsc_io.main_window);
   gsc_main_at_line_start = TRUE;
-  gsc_main_window_empty = TRUE;
+  gsc_io.main_window_empty = TRUE;
 #if defined(GLK_MODULE_GARGLK_FILE_RESOURCES) || defined(SPATTERLIGHT)
   /*
    * If a graphic was drawn earlier this turn (no player input since), the
    * clear just wiped it.  Redraw it so it survives the clear, matching
-   * Adrift's separate graphics pane.
+   * ADRIFT's separate graphics pane.
    */
   if (gsc_graphic_drawn_since_input)
     gsc_draw_inline_graphic (gsc_pending_graphic_id);
@@ -1014,7 +988,7 @@ gsc_set_alignment (glui32 centered, glui32 right)
    */
   if (centered != gsc_attribute_center || right != gsc_attribute_right)
     {
-      if (!gsc_sc_silent)
+      if (!gsc_replay.sc_silent)
         glk_put_char ('\n');
       gsc_attribute_center = centered;
       gsc_attribute_right = right;
@@ -1059,14 +1033,14 @@ gsc_handle_bgcolour_tag (const scr_char *argument)
    */
   const glui32 colour = gsc_colour_from_tag (argument, "bgcolour");
   const glui32 wanted = (colour == GSC_COLOUR_NONE) ? 0x000000 : colour;
-  const scr_bool changed = (wanted != gsc_colour_background);
+  const scr_bool changed = (wanted != gsc_colour.background);
 
-  gsc_colour_background = wanted;
+  gsc_colour.background = wanted;
   gsc_set_glk_style ();
 
-  if (changed && gsc_colour_enabled && !gsc_sc_silent
-      && gsc_main_window_empty && gsc_main_window)
-    glk_window_clear (gsc_main_window);
+  if (changed && gsc_colour.enabled && !gsc_replay.sc_silent
+      && gsc_io.main_window_empty && gsc_io.main_window)
+    glk_window_clear (gsc_io.main_window);
 }
 
 static void
@@ -1078,7 +1052,7 @@ gsc_handle_waitkey_tag (void)
    * If reading an input log, ignore; it disrupts replay.  Write a newline
    * to separate off any unterminated game output instead.
    */
-  if (!gsc_readlog_stream)
+  if (!gsc_io.readlog_stream)
     {
       strid_t stream;
 #ifdef SPATTERLIGHT
@@ -1087,19 +1061,19 @@ gsc_handle_waitkey_tag (void)
       /* Running the turn again after a relaunch: go by the pauses the
          player had already been through, and stop at the one the game
          was closed at -- whose save is the one just restored. */
-      gsc_sc_waitkey_count++;
-      if (gsc_sc_silent)
+      gsc_replay.sc_waitkey_count++;
+      if (gsc_replay.sc_silent)
         {
-          if (gsc_sc_waitkey_count < gsc_sc_waitkey_skip)
+          if (gsc_replay.sc_waitkey_count < gsc_replay.sc_waitkey_skip)
             return;
-          gsc_sc_silent = FALSE;
-          gsc_sc_waitkey_skip = 0;
+          gsc_replay.sc_silent = FALSE;
+          gsc_replay.sc_waitkey_skip = 0;
           resumed = TRUE;
         }
 #endif
 
       /* Update the status line now only if it has its own window. */
-      if (gsc_status_window)
+      if (gsc_io.status_window)
         gsc_status_notify ();
 
       /* The turn that led here has already moved the player and marked
@@ -1118,7 +1092,7 @@ gsc_handle_waitkey_tag (void)
 #endif
 
       /* Request a character event, and wait for it to be filled. */
-      glk_request_char_event (gsc_main_window);
+      glk_request_char_event (gsc_io.main_window);
       gsc_event_wait (evtype_CharInput, &event);
     }
   else
@@ -1129,7 +1103,7 @@ gsc_handle_waitkey_tag (void)
 /*
  * os_print_tag()
  *
- * Interpret selected Adrift output control tags.  Not all are implemented
+ * Interpret selected ADRIFT output control tags.  Not all are implemented
  * here; several are ignored.
  */
 void
@@ -1188,9 +1162,9 @@ os_print_tag (scr_int tag, const scr_char *argument)
        * Update the status line now only if it has its own window, then
        * handle with a specialized handler.
        */
-      if (gsc_sc_silent)
+      if (gsc_replay.sc_silent)
         break;
-      if (gsc_status_window)
+      if (gsc_io.status_window)
         gsc_status_notify ();
       gsc_handle_wait_tag (argument);
       break;
@@ -1217,13 +1191,13 @@ os_print_string (const scr_char *string)
   assert (string);
   assert (glk_stream_get_current ());
 
-  /* Already on the restored screen: see gsc_sc_silent. */
-  if (gsc_sc_silent)
+  /* Already on the restored screen: see gsc_replay.sc_silent. */
+  if (gsc_replay.sc_silent)
     {
       if (string[0] != '\0')
         {
           gsc_main_at_line_start = (string[strlen (string) - 1] == '\n');
-          gsc_main_window_empty = FALSE;
+          gsc_io.main_window_empty = FALSE;
         }
       return;
     }
@@ -1241,10 +1215,12 @@ os_print_string (const scr_char *string)
    * Nevertheless, check anyway.
    */
   if (gsc_font_top ().symbol_font != GSC_SYMBOL_NONE
-      && glk_stream_get_current () == glk_window_get_stream (gsc_main_window))
+      && glk_stream_get_current ()
+         == glk_window_get_stream (gsc_io.main_window))
     gsc_put_string_symbol (string, gsc_font_top ().symbol_font);
   else if (gsc_font_top ().is_monospaced
-      && glk_stream_get_current () == glk_window_get_stream (gsc_main_window))
+      && glk_stream_get_current ()
+         == glk_window_get_stream (gsc_io.main_window))
     gsc_put_string_alternate (string);
   else
     gsc_put_string (string);
@@ -1326,7 +1302,13 @@ gsc_normal_char (char c)
 void
 gsc_header_string (const char *message)
 {
-  gsc_styled_string (style_Header, message);
+  /* Header may have been handed to one of the game's own states (a centred
+     italic epigraph, say); a heading of ours then takes the bold style. */
+  const gsc_style_table_t *table = gsc_styles_table ();
+
+  gsc_styled_string (table->natural[GSC_STYLE_HEADER]
+                     ? style_Header
+                     : gsc_style_lookup (table, GSC_COMBO_BOLD), message);
 }
 
 
@@ -1360,10 +1342,10 @@ gsc_report_fatal (scr_bool stopping)
       exit (EXIT_FAILURE);
     }
 #else
-  if (!gsc_main_window)
+  if (!gsc_io.main_window)
     return TRUE;
 
-  glk_set_window (gsc_main_window);
+  glk_set_window (gsc_io.main_window);
   gsc_normal_string (gsc_main_at_line_start ? "\n" : "\n\n");
   gsc_header_string ("Scarier internal error");
   gsc_normal_string (": ");

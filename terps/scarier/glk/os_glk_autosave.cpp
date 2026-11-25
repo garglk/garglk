@@ -193,7 +193,7 @@ gsc_sc_apply_all (const std::string &data)
       pos += strlen (GSC_SC_BOOT_MARK);
       if (!gsc_container_get_count (data, &pos, &pauses) || pauses < 1)
         return false;
-      gsc_sc_waitkey_skip = (int) pauses;
+      gsc_replay.sc_waitkey_skip = (int) pauses;
       gsc_sc_replay_boot = true;
       return true;
     }
@@ -247,7 +247,7 @@ gsc_sc_apply_all (const std::string &data)
             {
               gsc_sc_replay_command = chunk;
               gsc_sc_replay_pending = true;
-              gsc_sc_waitkey_skip = (int) pauses;
+              gsc_replay.sc_waitkey_skip = (int) pauses;
             }
         }
     }
@@ -373,10 +373,10 @@ gsc_a5_apply_all (const std::string &data)
   if (data.compare (pos, strlen (GSC_A5_BOOT_MARK), GSC_A5_BOOT_MARK) == 0)
     {
       pos += strlen (GSC_A5_BOOT_MARK);
-      if (!gsc_a5_get_answers (data, &pos, &gsc_a5_replay_answers))
+      if (!gsc_a5_get_answers (data, &pos, &gsc_replay.a5_replay_answers))
         return false;
-      gsc_a5_popup_replay = GSC_A5_POPUP_BOOT;
-      gsc_a5_waitkey_skip = gsc_a5_get_waitkeys (data, &pos);
+      gsc_replay.a5_popup_replay = GSC_A5_POPUP_BOOT;
+      gsc_replay.a5_waitkey_skip = gsc_a5_get_waitkeys (data, &pos);
       return true;
     }
 
@@ -385,7 +385,7 @@ gsc_a5_apply_all (const std::string &data)
   if (!a5run_restore (gsc_a5_run, chunk.data (), chunk.size ()))
     return false;
 
-  /* As on the scare side, a truncated undo tail is not fatal. */
+  /* As on the ADRIFT 4 side, a truncated undo tail is not fatal. */
   if (!gsc_container_get_chunk (data, &pos, &chunk))
     return true;
   a5run_set_turn_text (gsc_a5_run, chunk.data (), chunk.size ());
@@ -412,11 +412,11 @@ gsc_a5_apply_all (const std::string &data)
     {
       pos++;
       if (gsc_container_get_chunk (data, &pos, &chunk)
-          && gsc_a5_get_answers (data, &pos, &gsc_a5_replay_answers))
+          && gsc_a5_get_answers (data, &pos, &gsc_replay.a5_replay_answers))
         {
-          gsc_a5_replay_command = chunk;
-          gsc_a5_popup_replay = GSC_A5_POPUP_TURN;
-          gsc_a5_waitkey_skip = gsc_a5_get_waitkeys (data, &pos);
+          gsc_replay.a5_replay_command = chunk;
+          gsc_replay.a5_popup_replay = GSC_A5_POPUP_TURN;
+          gsc_replay.a5_waitkey_skip = gsc_a5_get_waitkeys (data, &pos);
         }
     }
   return true;
@@ -444,31 +444,35 @@ gsc_stash_frontend_state (ScarierGlkFrontendState *st)
 {
   int ch;
 
-  st->mainwintag = gsc_main_window ? gsc_main_window->tag : 0;
-  st->statuswintag = gsc_status_window ? gsc_status_window->tag : 0;
+  st->mainwintag = gsc_io.main_window ? gsc_io.main_window->tag : 0;
+  st->statuswintag = gsc_io.status_window ? gsc_io.status_window->tag : 0;
   st->sidewintag = gsc_a5_side_window ? gsc_a5_side_window->tag : 0;
-  st->mapwintag = gsc_map_window ? gsc_map_window->tag : 0;
-  st->gfxwintag = gsc_graphics_window ? gsc_graphics_window->tag : 0;
-  st->transcripttag = gsc_transcript_stream ? gsc_transcript_stream->tag : 0;
-  st->inputlogtag = gsc_inputlog_stream ? gsc_inputlog_stream->tag : 0;
-  st->readlogtag = gsc_readlog_stream ? gsc_readlog_stream->tag : 0;
+  st->mapwintag = gsc_map_pane.window ? gsc_map_pane.window->tag : 0;
+  st->gfxwintag = gsc_title.window ? gsc_title.window->tag : 0;
+  st->transcripttag = gsc_io.transcript_stream
+                       ? gsc_io.transcript_stream->tag : 0;
+  st->inputlogtag = gsc_io.inputlog_stream ? gsc_io.inputlog_stream->tag : 0;
+  st->readlogtag = gsc_io.readlog_stream ? gsc_io.readlog_stream->tag : 0;
   st->soundchanneltag = sound_channel ? sound_channel->tag : 0;
   for (ch = 0; ch < GSC_A5_MAX_CHANNELS; ch++)
     {
-      st->a5_channeltags[ch] = gsc_a5_channels[ch]
-                               ? gsc_a5_channels[ch]->tag : 0;
-      st->a5_chan_sound[ch] = gsc_a5_chan_sound[ch];
+      st->a5_channeltags[ch] = gsc_a5_media.channels[ch]
+                               ? gsc_a5_media.channels[ch]->tag : 0;
+      st->a5_chan_sound[ch] = gsc_a5_media.chan_sound[ch];
     }
-  st->seen_input = gsc_seen_input;
-  st->title_image = gsc_title_image;
-  st->map_shown = gsc_map_shown;
-  st->map_at_top = gsc_map_at_top;
-  st->map_zoom = gsc_map_zoom;
-  st->map_follow = gsc_map_follow;
-  st->map_cx = gsc_map_cam.cx;
-  st->map_cy = gsc_map_cam.cy;
-  st->map_page = gsc_map_cam.page;
-  st->colour_on = gsc_colour_enabled;
+  st->seen_input = gsc_title.seen_input;
+  st->title_image = gsc_title.image;
+  st->map_shown = gsc_map_pane.shown;
+  st->map_at_top = gsc_map_pane.at_top;
+  st->map_zoom = gsc_map_pane.zoom;
+  st->map_follow = gsc_map_pane.follow;
+  st->map_cx = gsc_map_pane.cam.cx;
+  st->map_cy = gsc_map_pane.cam.cy;
+  st->map_page = gsc_map_pane.cam.page;
+  st->colour_on = gsc_colour.enabled;
+  st->colour_saved = 1;
+  st->colour_bg = gsc_colour.background;
+  st->colour_main_fg = gsc_colour.main_fg;
 
   /* Saving at a question asked partway through a turn: the generators as
      they stood when the turn began, which is where the relaunch runs it
@@ -522,38 +526,47 @@ gsc_recover_frontend_state (const ScarierGlkFrontendState *st)
 {
   int ch;
 
-  gsc_main_window = gli_window_for_tag (st->mainwintag);
-  gsc_status_window = gli_window_for_tag (st->statuswintag);
+  gsc_io.main_window = gli_window_for_tag (st->mainwintag);
+  gsc_io.status_window = gli_window_for_tag (st->statuswintag);
   gsc_a5_side_window = gli_window_for_tag (st->sidewintag);
-  gsc_map_window = gli_window_for_tag (st->mapwintag);
-  gsc_graphics_window = gli_window_for_tag (st->gfxwintag);
-  gsc_transcript_stream = gli_stream_for_tag (st->transcripttag);
-  gsc_inputlog_stream = gli_stream_for_tag (st->inputlogtag);
-  gsc_readlog_stream = gli_stream_for_tag (st->readlogtag);
+  gsc_map_pane.window = gli_window_for_tag (st->mapwintag);
+  gsc_title.window = gli_window_for_tag (st->gfxwintag);
+  gsc_io.transcript_stream = gli_stream_for_tag (st->transcripttag);
+  gsc_io.inputlog_stream = gli_stream_for_tag (st->inputlogtag);
+  gsc_io.readlog_stream = gli_stream_for_tag (st->readlogtag);
   sound_channel = gli_schan_for_tag (st->soundchanneltag);
   for (ch = 0; ch < GSC_A5_MAX_CHANNELS; ch++)
     {
-      gsc_a5_channels[ch] = gli_schan_for_tag (st->a5_channeltags[ch]);
-      gsc_a5_chan_sound[ch] = st->a5_chan_sound[ch];
+      gsc_a5_media.channels[ch] = gli_schan_for_tag (st->a5_channeltags[ch]);
+      gsc_a5_media.chan_sound[ch] = st->a5_chan_sound[ch];
     }
-  gsc_seen_input = st->seen_input;
-  gsc_title_image = (glui32) st->title_image;
-  gsc_map_shown = st->map_shown;
-  gsc_map_at_top = st->map_at_top;
-  gsc_map_zoom = st->map_zoom;
-  gsc_map_follow = st->map_follow;
-  gsc_map_cam.cx = st->map_cx;
-  gsc_map_cam.cy = st->map_cy;
-  gsc_map_cam.page = st->map_page;
+  gsc_title.seen_input = st->seen_input;
+  gsc_title.image = (glui32) st->title_image;
+  gsc_map_pane.shown = st->map_shown;
+  gsc_map_pane.at_top = st->map_at_top;
+  gsc_map_pane.zoom = st->map_zoom;
+  gsc_map_pane.follow = st->map_follow;
+  gsc_map_pane.cam.cx = st->map_cx;
+  gsc_map_pane.cam.cy = st->map_cy;
+  gsc_map_pane.cam.page = st->map_page;
   /* So that the first redraw takes the restored pan as it finds it, instead
      of seeing a change of room and going back to following the player. */
-  gsc_map_last_player[0] = '\0';
+  gsc_map_pane.last_player[0] = '\0';
   /* The restored streams still carry the zcolors colour mode set on them, and
      the restored windows their black background, so taking the flag back is
      all it takes to pick the mode up where it left off.  (An autosave written
      before this field existed decodes as 0, which is what those sessions
      restored as anyway.) */
-  gsc_colour_enabled = st->colour_on;
+  gsc_colour.enabled = st->colour_on;
+  /* And the colours the restored windows were last drawn in: an ADRIFT <=4
+     game's <bgcolour> is display state the engine's save does not hold, so
+     without this the text after a relaunch goes back to the starting black
+     in front of a window still painted in the game's colour. */
+  if (st->colour_saved)
+    {
+      gsc_colour.background = st->colour_bg;
+      gsc_colour.main_fg = st->colour_main_fg;
+    }
   /* A map that was wanted but still waiting for somewhere to draw was archived
      closed, and looks exactly like one the player shut; what the map would do
      from a standing start -- the stored preference, or failing that the
@@ -562,7 +575,7 @@ gsc_recover_frontend_state (const ScarierGlkFrontendState *st)
   {
     int pref = gsc_map_pref_read (nullptr);
 
-    gsc_map_want = gsc_map_shown || pref == 1
+    gsc_map_pane.want = gsc_map_pane.shown || pref == 1
                    || (pref < 0 && gsc_map_default_shown ());
   }
   /* The restored map window holds the app's snapshot pixels, not ours:
@@ -585,13 +598,13 @@ gsc_recover_frontend_state (const ScarierGlkFrontendState *st)
                             st->rng_runner_state[2], st->rng_runner_state[3] };
       scr_set_runner_random_state (words, st->rng_runner_draws);
     }
-  /* Not stashed: gsc_map_taken, assist flags and locale are re-derived at
-     startup; the walk-in-progress state is deliberately dropped (a restored
-     session simply stops walking); gsc_map itself is authored data (ADRIFT
-     5, reloaded at boot) or rebuilt every redraw (ADRIFT 4); and the restart
-     count gsc_map_notice_restart watches is per-process on both sides of the
-     comparison, so a fresh process starts it and the engine's at zero
-     together. */
+  /* Not stashed: gsc_map_pane.taken, assist flags and locale are re-derived
+     at startup; the walk-in-progress state is deliberately dropped (a
+     restored session simply stops walking); gsc_map_pane.map itself is
+     authored data (ADRIFT 5, reloaded at boot) or rebuilt every redraw
+     (ADRIFT 4); and the restart count gsc_map_notice_restart watches is
+     per-process on both sides of the comparison, so a fresh process starts
+     it and the engine's at zero together. */
 }
 
 /*
@@ -677,25 +690,25 @@ gsc_a5_autosave_mid_turn (void)
   static const ScarierGlkFrontendState fresh;
   std::string state;
 
-  if (gsc_a5_popup_context == GSC_A5_POPUP_BOOT)
+  if (gsc_replay.a5_popup_context == GSC_A5_POPUP_BOOT)
     {
       state = GSC_A5_CONTAINER_MAGIC;
       state += GSC_A5_BOOT_MARK;
       gsc_rng_override = &fresh;
     }
-  else if (gsc_a5_popup_context == GSC_A5_POPUP_TURN
+  else if (gsc_replay.a5_popup_context == GSC_A5_POPUP_TURN
            && !gsc_a5_turn_state.empty ())
     {
       state = gsc_a5_turn_state;
       state += 'R';
-      gsc_container_put_chunk (state, gsc_a5_popup_command.data (),
-                               gsc_a5_popup_command.size ());
+      gsc_container_put_chunk (state, gsc_replay.a5_popup_command.data (),
+                               gsc_replay.a5_popup_command.size ());
       gsc_rng_override = &gsc_a5_turn_rng;
     }
   else
     return;
-  gsc_a5_put_answers (state, gsc_a5_popup_answers);
-  state += std::to_string ((long) gsc_a5_waitkey_count);
+  gsc_a5_put_answers (state, gsc_replay.a5_popup_answers);
+  state += std::to_string ((long) gsc_replay.a5_waitkey_count);
   state += '\n';
   scarier_autosave_write (state);
   gsc_rng_override = nullptr;
@@ -734,8 +747,8 @@ gsc_a5_autosave_waitkey (void)
  * prompt, whether or not it is written -- with the line typed there and
  * the number of pauses since.  The relaunch loads that, hands the line back
  * to the interpreter in place of reading one, and puts nothing out until
- * the pause comes round again (gsc_sc_silent).  A line of several commands
- * is one line here, and the count runs across all of them.
+ * the pause comes round again (gsc_replay.sc_silent).  A line of several
+ * commands is one line here, and the count runs across all of them.
  *
  * Pauses in the opening, before any line has been read, have nothing to
  * start from but the game as loaded: the relaunch starts it over, silently.
@@ -757,7 +770,7 @@ gsc_sc_note_turn_start (void)
   gsc_sc_turn_state.clear ();
   gsc_sc_turn_command.clear ();
   gsc_sc_turn_context = GSC_SC_TURN_NONE;
-  gsc_sc_waitkey_count = 0;
+  gsc_replay.sc_waitkey_count = 0;
   if (gsc_in_debug_read || !scarier_autosave_enabled ())
     return;
   if (gsc_game == nullptr || !scr_is_game_running (gsc_game))
@@ -816,7 +829,7 @@ gsc_sc_autosave_waitkey (void)
     }
   else
     return;
-  state += std::to_string ((long) gsc_sc_waitkey_count);
+  state += std::to_string ((long) gsc_replay.sc_waitkey_count);
   state += '\n';
   scarier_autosave_write (state);
   gsc_rng_override = nullptr;

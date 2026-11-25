@@ -50,6 +50,19 @@ extern scr_var_setref_t gs_get_vars (scr_gameref_t gs);
 extern scr_prop_setref_t gs_get_bundle (scr_gameref_t gs);
 extern scr_filterref_t gs_get_filter (scr_gameref_t gs);
 extern scr_memo_setref_t gs_get_memento (scr_gameref_t gs);
+
+/* Perspective enumeration, and the version and perspective of the game. */
+enum
+{ LIB_FIRST_PERSON = 0,
+  LIB_SECOND_PERSON = 1,
+  LIB_THIRD_PERSON = 2
+};
+
+/* Globals/Perspective as the Runner of this game's version reads it. */
+extern scr_int lib_get_perspective (scr_gameref_t game);
+extern scr_bool lib_is_version_400 (scr_gameref_t game);
+extern scr_bool lib_is_version_390 (scr_gameref_t game);
+
 extern void gs_set_playerroom (scr_gameref_t gs, scr_int room);
 extern void gs_set_playerposition (scr_gameref_t gs, scr_int position);
 extern void gs_set_playerparent (scr_gameref_t gs, scr_int parent);
@@ -82,6 +95,8 @@ extern scr_bool gs_runner_possessed (scr_gameref_t gs, scr_int object);
 extern void gs_carried_recompute (scr_gameref_t gs);
 extern void gs_set_capacity_assist (scr_bool flag);
 extern scr_bool gs_get_capacity_assist (void);
+extern void gs_set_score_notify_assist (scr_bool flag);
+extern scr_bool gs_get_score_notify_assist (void);
 /*
  * Index loops over a game's entities, one per kind:
  *
@@ -89,8 +104,8 @@ extern scr_bool gs_get_capacity_assist (void);
  *     ...
  *
  * is for (object = 0; object < gs_object_count (game); object++).  The index
- * is a variable the caller declares, as in the loops these replaced, so a
- * search loop can still break out and read it afterwards.
+ * is a variable the caller declares, so a search loop can still break out and
+ * read it afterwards.
  */
 #define GS_FOR_EACH_EVENT(game, event) \
   for ((event) = 0; (event) < gs_event_count (game); (event)++)

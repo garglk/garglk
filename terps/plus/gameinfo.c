@@ -1,11 +1,17 @@
-//
-//  gameinfo.c
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Created by Petter Sjölund on 2022-01-30.
-//
+/*
+ *  gameinfo.c
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *  Shares code with ScottFree, by Alan Cox, Chris Spiegel and Petter Sjölund
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-01-30.
+ */
 
-#include <stdio.h>
+#include <stddef.h>
 
 #include "definitions.h"
 #include "gameinfo.h"
@@ -16,9 +22,9 @@ const GameInfo games[] = {
         "BUCKAROO",
         BANZAI,
 
-        27, // room images
-        24, // item images
-        20, // special images
+        27, /* room images */
+        24, /* item images */
+        20, /* special images */
     },
 
     {
@@ -26,9 +32,9 @@ const GameInfo games[] = {
         "Sorcerer of Claymorgue Castle. SAGA#13.",
         CLAYMORGUE,
 
-        33, // room images
-        52, // item images
-        6, // special images
+        33, /* room images */
+        52, /* item images */
+        6, /* special images */
     },
 
     {
@@ -36,19 +42,19 @@ const GameInfo games[] = {
         "SPIDER-MAN (tm)",
         SPIDERMAN,
 
-        18, // room images
-        26, // item images
-        26, // special images
+        18, /* room images */
+        26, /* item images */
+        26, /* special images */
     },
 
     {
         "Questprobe 3: Fantastic Four",
         "FF #1 ",
-        FANTASTIC4, // game ID
+        FANTASTIC4, /* game ID */
 
-        21, // room images
-        22, // item images
-        21, // special images
+        21, /* room images */
+        22, /* item images */
+        21, /* special images */
     },
 
     /* The unfinished X-Men survives as an MS-DOS database (SPL54.DAT)
@@ -56,11 +62,11 @@ const GameInfo games[] = {
     {
         "Questprobe 4: X-Men (Unfinished)",
         "X-MEN ",
-        XMEN, // game ID
+        XMEN, /* game ID */
 
-        0, // no room images
-        0, // no item images
-        0, // no special images
+        0, /* no room images */
+        0, /* no item images */
+        0, /* no special images */
     },
 
     { NULL }

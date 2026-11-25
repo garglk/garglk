@@ -20,9 +20,6 @@
 /*
  * Retrying library commands as game tasks, and parsing "all"/"except"
  * multiple-object lists.
- *
- * See sclibrar.h for what the library files share and sclibrar_internal.h
- * for what the core files share.
  */
 
 #include "sclibrar.h"
@@ -58,7 +55,7 @@ lib_save_object_references (scr_gameref_t game, scr_bool buffer[], scr_int lengt
    * must not be handed NULL even for zero bytes.
    */
   if (required > 0)
-    memcpy (references, game->object_references.data (), required);
+    memcpy (references, game->refs.objects.data (), required);
   return references;
 }
 
@@ -70,7 +67,7 @@ lib_restore_object_references (scr_gameref_t game, const scr_bool references[])
   /* Calculate the bytes in the references array, and copy back to the game. */
   bytes = gs_object_count (game) * sizeof (references[0]);
   if (bytes > 0)
-    memcpy (game->object_references.data (), references, bytes);
+    memcpy (game->refs.objects.data (), references, bytes);
 }
 
 
@@ -92,9 +89,9 @@ lib_restore_object_references (scr_gameref_t game, const scr_bool references[])
  * below: if "key" names several objects, a generic game task matched by the
  * bare noun ("get key") is a disambiguation/catch-all handler, not a specific
  * override for the addressed object, and must not block the standard take of a
- * fully-qualified reference ("get brass key").  The Runner never reconstructs a
- * bare noun like this, so it never lets such a task hijack the take; mirror that
- * by only attempting the bare-name retry when the name is unambiguous.
+ * fully-qualified reference ("get brass key").  The Runner never reconstructs
+ * a bare noun like this, so it never lets such a task hijack the take; mirror
+ * that by only attempting the bare-name retry when the name is unambiguous.
  */
 static scr_bool
 lib_object_short_name_is_ambiguous (scr_gameref_t game, scr_int object)
@@ -135,7 +132,7 @@ lib_object_short_name_is_ambiguous (scr_gameref_t game, scr_int object)
  * `get pens` ("You take a pen from the drawer.") and NOT for `take pens`,
  * which completes the library take of the pens object untouched (probes
  * runner_probes/tenebraesemper.run400.probe.txt,
- * runner_probes/tenebraesemper.run400.probe3.txt, 2026-08-30) -- so the game's
+ * runner_probes/tenebraesemper.run400.probe3.txt) -- so the game's
  * "have a pen" gate on leaving the dorm really does require typing `get`.
  * Retrying with a canonical "get" let Scarier's `take pens` fire that task and
  * walk past the gate.  The precedents the retry was tuned on all keep the
@@ -195,7 +192,7 @@ lib_typed_verb (const scr_char *verb)
  * by the time 4.0 has loaded the game (loader @4900EC), so it composes as
  * "the" too.
  *
- * Not sclibrar_print.cpp's lib_definite_prefix(): that one opens the name
+ * Not core/scobjcts.cpp's lib_definite_prefix(): that one opens the name
  * lib_definite_object_name() prints, carries the pre-3.9 tense() arm, and
  * also skips a "the" already present.
  */
@@ -247,9 +244,11 @@ lib_task_prematches_input (scr_gameref_t game, scr_int class_filter)
   return input && lib_task_prematches_line (game, input, class_filter);
 }
 
-/* The same, answering the pre-matcher's result: 0 miss, 1 a task with text
-   of its own (or a fallback hit), 2 a silent first-pass hit, 3 a failing
-   restriction with a message; see run_does_command_match(). */
+/*
+ * The same, answering the pre-matcher's result: 0 miss, 1 a task with text
+ * of its own (or a fallback hit), 2 a silent first-pass hit, 3 a failing
+ * restriction with a message; see run_does_command_match().
+ */
 scr_int
 lib_task_prematch_kind_input (scr_gameref_t game, scr_int class_filter)
 {
@@ -290,7 +289,7 @@ lib_task_prematches_line (scr_gameref_t game, const scr_char *input,
  * the insides handler (Proc_19_43_46639C @465D21-465EB5) do: pre-match an
  * LCase()d copy, and on a hit dispatch the RAW line, whose capitals the
  * wildcard matcher compares binary (see uip_set_binary_input()).  The hit
- * claims even when the raw dispatch then runs nothing.  hcw (4.00,
+ * claims even when the raw dispatch then runs nothing.  hcw (4.0,
  * runner_probes/hcw.run400.txt turn 162): `put susan in trunk` with the Fembot
  * holding "sleeping Susan" pre-matches task 477 `get * susan` on "get
  * sleeping susan", dispatches "get sleeping Susan", runs nothing, and ends
@@ -382,7 +381,7 @@ lib_run_rebuilt_line_400 (scr_gameref_t game, const scr_char *command)
                             prop_get_global_string (gs_get_bundle (game),
                                                     "DontUnderstand"));
           pf_buffer_character (gs_get_filter (game), '\n');
-          game->is_admin = TRUE;
+          game->turn.is_admin = TRUE;
         }
       return kind == 1;
     }
@@ -403,17 +402,31 @@ lib_run_rebuilt_line_400 (scr_gameref_t game, const scr_char *command)
   return TRUE;
 }
 
+/*
+ * How lib_try_game_command_common() is to build its line.  The first two
+ * say what `associate` indexes, and are exclusive; with neither, the line
+ * is the verb and the object alone and `preposition` is unused.
+ */
+enum
+{
+  LIB_RETRY_ASSOCIATE_OBJECT = 1 << 0,
+  LIB_RETRY_ASSOCIATE_NPC = 1 << 1,
+  LIB_RETRY_TYPED_VERB = 1 << 2,  /* the verb as typed, not the canonical */
+  LIB_RETRY_DEFINITE = 1 << 3     /* 4.0's "the"-normalized names */
+};
+
 static scr_bool
 lib_try_game_command_common (scr_gameref_t game,
                              const scr_char *verb, scr_int object,
                              const scr_char *preposition,
-                             scr_int associate,
-                             scr_bool is_associate_object,
-                             scr_bool is_associate_npc,
-                             scr_bool use_typed_verb,
-                             scr_bool use_definite = FALSE)
+                             scr_int associate, scr_uint flags)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
+  const scr_bool is_associate_object
+    = (flags & LIB_RETRY_ASSOCIATE_OBJECT) != 0;
+  const scr_bool is_associate_npc = (flags & LIB_RETRY_ASSOCIATE_NPC) != 0;
+  const scr_bool use_typed_verb = (flags & LIB_RETRY_TYPED_VERB) != 0;
+  const scr_bool use_definite = (flags & LIB_RETRY_DEFINITE) != 0;
   /*
    * No pre-4.0 Runner rebuilds the line from the resolved object's authored
    * Prefix.  Measured on p37PRETRY / p38PRETRY / p39PRETRY (2026-09-20,
@@ -430,7 +443,7 @@ lib_try_game_command_common (scr_gameref_t game,
    * object.
    */
   /*
-   * Deliberate deviation (2026-09-27): on a line no task matches the
+   * Deliberate deviation: on a line no task matches the
    * Runner's way (run_lenient_task_matching()), the retry is made at every
    * version and with the canonical verb, so a task spelled `take a pebble`
    * answers `take pebble` below 4.0 too, and TenebraeSemper's `get * pen(s)`
@@ -523,15 +536,15 @@ lib_try_game_command_common (scr_gameref_t game,
 
       /*
        * Try the command with prefixes on both the target object and the
-       * associate.  This used to also try the prefix-dropped combinations,
-       * but the real Runner does not: probed live 2026-08-02 (FM7 + a
-       * TheADRIFTProject .tas transplant in run400), "put pill in cup"
-       * completes the library put untouched by a matched-but-failing
-       * "put * pill in cup" task -- the prefix-less retry is exactly the
-       * form that task would steal.  (The single-object retry below keeps
-       * its prefixed form too, which is what lets Wax Worx's "get * head"
-       * claim "get marie" via "get Marie Antoinette's head" -- the wildcard
-       * absorbs the prefix there, matching the Runner.)
+       * associate, but not the prefix-dropped combinations, because the real
+       * Runner does not try them: probed live (FM7 + a TheADRIFTProject .tas
+       * transplant in run400), "put pill in cup" completes the library put
+       * untouched by a matched-but-failing "put * pill in cup" task -- the
+       * prefix-less retry is exactly the form that task would steal.  (The
+       * single-object retry below keeps its prefixed form too, which is what
+       * lets Wax Worx's "get * head" claim "get marie" via "get Marie
+       * Antoinette's head" -- the wildcard absorbs the prefix there, matching
+       * the Runner.)
        *
        * Pre-4.0 there is no rebuilt line at all: the put handler moves the
        * bean and the task never sees a thing.
@@ -564,13 +577,12 @@ lib_try_game_command_common (scr_gameref_t game,
 
       /* Try the command with and without prefixes on the addressed object.
        * The prefix-less retry can re-hit a task that already matched and
-       * failed its restrictions this turn; that is what the Runner shows
-       * too (cobl: "take medicine" after "look in rubbish" prints the
-       * task's fail text, not the library take -- run400 probe
-       * 2026-08-30).  Pre-4.0 keeps only the prefix-less form: there the
-       * typed line has already been past the tasks, so the retry is a way
-       * for an ALIAS to reach one, not a second spelling of the noun the
-       * player used.
+       * failed its restrictions this turn; that is what the Runner shows too
+       * (cobl: "take medicine" after "look in rubbish" prints the task's fail
+       * text, not the library take -- run400 probe).  Pre-4.0 keeps only the
+       * prefix-less form: there the typed line has already been past the
+       * tasks, so the retry is a way for an ALIAS to reach one, not a second
+       * spelling of the noun the player used.
        */
       snprintf (command, command == buffer ? sizeof (buffer) : (size_t) required,
                 "%s %s %s", verb, prefix, name);
@@ -580,11 +592,11 @@ lib_try_game_command_common (scr_gameref_t game,
                   ? lib_run_rebuilt_line_400 (game, command)
                   : run_game_task_commands (game, command));
       /*
-       * Deliberate deviation (2026-09-30): on a line no task matches
+       * Deliberate deviation: on a line no task matches
        * strictly, the definite rebuild gets the prefix-less retry too.
-       * run400's take piece offers the tasks only "get the X" (9298e56b0),
-       * so `take mailbox` went past an author's literal `get mailbox` task
-       * and its "bolted to the post" restriction, and took the mailbox.
+       * run400's take piece offers the tasks only "get the X", so `take
+       * mailbox` went past an author's literal `get mailbox` task and its
+       * "bolted to the post" restriction, and took the mailbox.
        */
       if (!status && (!use_definite || run_lenient_task_matching ())
           && !lib_object_short_name_is_ambiguous (game, object))
@@ -614,8 +626,8 @@ scr_bool
 lib_try_game_command_short (scr_gameref_t game,
                             const scr_char *verb, scr_int object)
 {
-  return lib_try_game_command_common (game, verb, object,
-                                      nullptr, -1, FALSE, FALSE, TRUE);
+  return lib_try_game_command_common (game, verb, object, nullptr, -1,
+                                      LIB_RETRY_TYPED_VERB);
 }
 
 /*
@@ -631,8 +643,7 @@ scr_bool
 lib_try_game_command_short_canonical (scr_gameref_t game,
                                       const scr_char *verb, scr_int object)
 {
-  return lib_try_game_command_common (game, verb, object,
-                                      nullptr, -1, FALSE, FALSE, FALSE);
+  return lib_try_game_command_common (game, verb, object, nullptr, -1, 0);
 }
 
 /*
@@ -652,13 +663,13 @@ lib_try_game_command_short_canonical (scr_gameref_t game,
  * hat`, does not: run400 answers both `drop hat` turns out of the library,
  * "You drop the hat." and then "You are not holding the hat.", and neither the
  * CompleteText nor the RepeatText is ever printed
- * (runner_probes/repeat3.run400.txt, 2026-09-08).  "drop the hat" simply is
+ * (runner_probes/repeat3.run400.txt).  "drop the hat" simply is
  * not `drop hat`.
  *
  * Pre-4.0 has no authored-prefix form either -- run370/380/390 all answer
- * `drop coin` against a task `drop a coin` out of the library (p3xPRETRY,
- * 2026-09-20) -- and keeps only the bare-name retry, the typed line having
- * already been past the tasks before the library sees it.
+ * `drop coin` against a task `drop a coin` out of the library (p3xPRETRY) --
+ * and keeps only the bare-name retry, the typed line having already been past
+ * the tasks before the library sees it.
  */
 scr_bool
 lib_try_game_command_short_definite (scr_gameref_t game,
@@ -673,8 +684,8 @@ lib_try_game_command_short_definite (scr_gameref_t game,
   assert (lib_is_version_400 (game));
 
   run_set_task_class_filter (2);
-  status = lib_try_game_command_common (game, verb, object,
-                                        nullptr, -1, FALSE, FALSE, FALSE, TRUE);
+  status = lib_try_game_command_common (game, verb, object, nullptr, -1,
+                                        LIB_RETRY_DEFINITE);
 
   /*
    * Any of the object's names can fill the noun slot, not just its Short.
@@ -728,8 +739,9 @@ lib_try_game_command_take_definite (scr_gameref_t game, scr_int object)
 {
   scr_bool status;
 
-  /* The take piece's look-ups run in the pre-matcher's mode 1 (@462B12,
-   * @462B84): only tasks carrying the take flag can answer. */
+  /* The take piece's look-ups run in the pre-matcher's mode 1
+   * (run400 @462B12, @462B84): only tasks carrying the take flag can
+   * answer. */
   run_set_task_class_filter (1);
   lib_rebuilt_raw_dispatch = TRUE;
   lib_rebuilt_silent_continues = TRUE;
@@ -737,10 +749,11 @@ lib_try_game_command_take_definite (scr_gameref_t game, scr_int object)
     status = lib_try_game_command_common (game, "get", object,
                                           "from",
                                           gs_object_parent (game, object),
-                                          TRUE, FALSE, FALSE, TRUE);
+                                          LIB_RETRY_ASSOCIATE_OBJECT
+                                          | LIB_RETRY_DEFINITE);
   else
     status = lib_try_game_command_common (game, "get", object, nullptr, -1,
-                                          FALSE, FALSE, FALSE, TRUE);
+                                          LIB_RETRY_DEFINITE);
   lib_rebuilt_silent_continues = FALSE;
   lib_rebuilt_raw_dispatch = FALSE;
   run_set_task_class_filter (0);
@@ -761,7 +774,7 @@ lib_try_game_command_take_definite (scr_gameref_t game, scr_int object)
  * take on a 2.  The and-loop does the same per object.
  *
  * Measured on p4AUTOFROM.taf (make_400_autofromprobe.py, run400,
- * runner_probes/autofrom.run400.txt, 2026-09-13):
+ * runner_probes/autofrom.run400.txt):
  *
  *   get treat     treat on the stove, `get *stove*`   -> "T2 BOLTED."
  *   Get token     `get * token from * table`,
@@ -818,15 +831,15 @@ lib_try_game_command_take_from_parent_400 (scr_gameref_t game, scr_int object,
   status = lib_try_game_command_short (game, "get", object);
 
   /*
-   * Deliberate deviation (2026-09-30): the "from" retry is skipped when
+   * Deliberate deviation: the "from" retry is skipped when
    * "get <parent>" alone already matches a task, which is then the
    * parent's task and not the object's.  run400 lets warlord's `get
    * *stove*` ("The stove is bolted to the floor.") answer `get treat` for
    * the treat on the stove, so the treat, the bone and the cudgel could
-   * never be taken (0806086b4).  Only a task that names the parent and not
-   * the object counts: humbug's `[get/take] {a/the} %object% {from
-   * [dennis/fireman]}` matches "get table" and "get token" alike, and must
-   * not keep `get token` from its `get * token from * table`.
+   * never be taken.  Only a task that names the parent and not the object
+   * counts: humbug's `[get/take] {a/the} %object% {from [dennis/fireman]}`
+   * matches "get table" and "get token" alike, and must not keep `get token`
+   * from its `get * token from * table`.
    */
   if (!status)
     {
@@ -854,7 +867,8 @@ lib_try_game_command_take_from_parent_400 (scr_gameref_t game, scr_int object,
     }
   if (!status)
     status = lib_try_game_command_common (game, "get", object, "from", parent,
-                                          TRUE, FALSE, FALSE, TRUE);
+                                          LIB_RETRY_ASSOCIATE_OBJECT
+                                          | LIB_RETRY_DEFINITE);
   lib_rebuilt_silent_continues = FALSE;
   lib_rebuilt_raw_dispatch = FALSE;
   run_set_task_class_filter (0);
@@ -868,8 +882,9 @@ lib_try_game_command_with_object (scr_gameref_t game,
                                   scr_int other_object)
 {
   return lib_try_game_command_common (game, verb, object,
-                                      preposition, other_object, TRUE, FALSE,
-                                      TRUE);
+                                      preposition, other_object,
+                                      LIB_RETRY_ASSOCIATE_OBJECT
+                                      | LIB_RETRY_TYPED_VERB);
 }
 
 /*
@@ -888,25 +903,24 @@ lib_try_game_command_with_object (scr_gameref_t game,
  * on to its own refusal or move.  Here the pre-match and the dispatch are the
  * one run_game_task_commands() call on the definite line.
  *
- * The definite form is what reconciles the measurements: `put * firewood in
- * * fireplace` wins `put firewood in fireplace` in run400
+ * The definite form is what reconciles the measurements: `put * firewood in *
+ * fireplace` wins `put firewood in fireplace` in run400
  * (runner_probes/goldilocks.run400.txt 383, prefixes "a pile of" / "the"), as
  * does `put * battery * flashlight` (runner_transcripts/Tear.txt), while the
  * PUT5 arena probe's `put a bean in a jar`, `put * pill in cup` and `put coin
- * in box` tasks (runner_probes/put5.run400.txt, 2026-09-05) and sommeril's
- * `put fish in fountain` (runner_probes/sommeril.run400.probe.txt, both
- * prefixes empty) all lose to the library: none of those patterns matches "put
- * the bean in the jar" / "put the FISH in the FOUNTAIN".  The typed spelling
- * never reaches the tasks through this handler at all -- The ADRIFT Project's
- * `put battery in charger` comes out of the synonym table as "put
- * nickel-cadmium nickel-cadmium accumulator in charger", which no pattern of
- * its `#Charge battery` task matches, and the author's own run400 transcript
- * still shows the task firing: it is the rebuild "put the small battery in the
- * battery charger" that `put * battery * charger *` claims.  Pre-4.0 offers
- * the tasks nothing at all here: the p3xPRETRY probes put the bean in the jar
- * on all three Runners with `put a bean in a jar` matched and passing
- * (2026-09-20), and there the typed line has already been through the tasks
- * before the library sees it.
+ * in box` tasks (runner_probes/put5.run400.txt) and sommeril's `put fish in
+ * fountain` (runner_probes/sommeril.run400.probe.txt, both prefixes empty) all
+ * lose to the library: none of those patterns matches "put the bean in the
+ * jar" / "put the FISH in the FOUNTAIN".  The typed spelling never reaches the
+ * tasks through this handler at all -- The ADRIFT Project's `put battery in
+ * charger` comes out of the synonym table as "put nickel-cadmium
+ * nickel-cadmium accumulator in charger", which no pattern of its `#Charge
+ * battery` task matches, and the author's own run400 transcript still shows
+ * the task firing: it is the rebuild "put the small battery in the battery
+ * charger" that `put * battery * charger *` claims.  Pre-4.0 offers the tasks
+ * nothing at all here: the p3xPRETRY probes put the bean in the jar on all
+ * three Runners with `put a bean in a jar` matched and passing, and there the
+ * typed line has already been through the tasks before the library sees it.
  */
 scr_bool
 lib_try_game_command_with_object_400 (scr_gameref_t game,
@@ -918,17 +932,21 @@ lib_try_game_command_with_object_400 (scr_gameref_t game,
 
   assert (lib_is_version_400 (game));
 
-  /* The insides handler pre-matches its rebuilt line in mode 2 (@465D39):
-   * only tasks carrying the put/drop flag are consulted. */
-  /* The take report ahead of it, if any, is a clause of its own:
-     "Your hands are full.  You dump the wood ..." (House, patched). */
+  /* The insides handler pre-matches its rebuilt line in mode 2
+   * (run400 @465D39): only tasks carrying the put/drop flag are
+   * consulted. */
+  /*
+   * The take report ahead of it, if any, is a clause of its own:
+   * "Your hands are full.  You dump the wood ..." (House, patched).
+   */
   const scr_bool joined = pf_buffer_tentative_join (gs_get_filter (game));
 
   run_set_task_class_filter (2);
   lib_rebuilt_raw_dispatch = TRUE;
   status = lib_try_game_command_common (game, verb, object,
-                                        preposition, other_object, TRUE, FALSE,
-                                        FALSE, TRUE);
+                                        preposition, other_object,
+                                        LIB_RETRY_ASSOCIATE_OBJECT
+                                        | LIB_RETRY_DEFINITE);
   lib_rebuilt_raw_dispatch = FALSE;
   run_set_task_class_filter (0);
 
@@ -949,7 +967,7 @@ lib_try_game_command_with_object_400 (scr_gameref_t game,
  * fireplace` word for word but has no slot for the rebuild's first "the",
  * and the Runner answers "You are not holding the wood." with the fire left
  * unlaid; with the wood already in hand the library's own put claims it,
- * and the fire is just as dead.  Deliberate deviation (2026-09-27): the
+ * and the fire is just as dead.  Deliberate deviation: the
  * author's task wins -- but only a task that runs.  A task whose
  * restrictions fail leaves the put to the library, message or no message:
  * see run_passing_task_commands().  It also wins ahead of the size and
@@ -971,8 +989,8 @@ lib_try_typed_put_line_400 (scr_gameref_t game)
    * Task matching re-binds the references, and a miss must leave them as
    * the handler had them.
    */
-  const std::vector<scr_bool> references = game->object_references;
-  const std::vector<scr_bool> multiple = game->multiple_references;
+  const std::vector<scr_bool> references = game->refs.objects;
+  const std::vector<scr_bool> multiple = game->refs.multiple;
 
   /* The take report ahead of it, if any, is a clause of its own. */
   const scr_bool joined = pf_buffer_tentative_join (gs_get_filter (game));
@@ -985,8 +1003,8 @@ lib_try_typed_put_line_400 (scr_gameref_t game)
     pf_retract_tentative_join (gs_get_filter (game));
   if (!status)
     {
-      game->object_references = references;
-      game->multiple_references = multiple;
+      game->refs.objects = references;
+      game->refs.multiple = multiple;
     }
   return status;
 }
@@ -997,7 +1015,9 @@ lib_try_game_command_with_npc (scr_gameref_t game,
                                const scr_char *preposition, scr_int npc)
 {
   return lib_try_game_command_common (game, verb, object,
-                                      preposition, npc, FALSE, TRUE, TRUE);
+                                      preposition, npc,
+                                      LIB_RETRY_ASSOCIATE_NPC
+                                      | LIB_RETRY_TYPED_VERB);
 }
 
 
@@ -1024,16 +1044,15 @@ lib_parse_next_object (scr_gameref_t game, const scr_char *verb,
    * Look for "object" or "object and ...", and set match and more flags.
    *
    * Fall back to "object <trailing text>" -- a single object followed by
-   * anything that isn't "and" -- if neither matches.  run400 tolerates
-   * filler after a single object reference (probe DONE 2026-08-23: Space
-   * Boy's First Adventure Task 72's own command is the literal, unrestricted,
-   * textless "drop cape to the floor"; typing it live gets the library's
-   * ordinary "Player drop the cape." with the score unchanged,
-   * runner_probes/et2.run400.txt, runner_probes/et4.run400.txt), where
-   * scarier's exact-match-only %object% previously failed to parse "cape to
-   * the floor" at all, so the library's drop never ran and the command fell
-   * through to "Drop what?" instead.  This fallback is tried last so it never
-   * preempts a real "X and Y" list.
+   * anything that isn't "and" -- if neither matches.  run400 tolerates filler
+   * after a single object reference (probe DONE: Space Boy's First Adventure
+   * Task 72's own command is the literal, unrestricted, textless "drop cape to
+   * the floor"; typing it live gets the library's ordinary "Player drop the
+   * cape." with the score unchanged, runner_probes/et2.run400.txt,
+   * runner_probes/et4.run400.txt), where an exact-match-only %object% fails to
+   * parse "cape to the floor" at all, so the library's drop never runs and the
+   * command falls through to "Drop what?" instead.  This fallback is tried
+   * last so it never preempts a real "X and Y" list.
    */
   list = var_get_ref_text (vars);
   if (uip_match ("%object%", list, game))
@@ -1055,9 +1074,8 @@ lib_parse_next_object (scr_gameref_t game, const scr_char *verb,
        * it into a plain take -- "You take the stone." -- where run390 says
        * "You can't do that!" and run400 "I don't understand where you want to
        * get things from." (p39DARK/p4TFROM,
-       * runner_probes/dark.run390.feed3.txt, runner_probes/tfrom.run400.txt,
-       * 2026-09-10).  The take-from catch-alls carry both; see
-       * lib_cmd_take_from_nowhere().
+       * runner_probes/dark.run390.feed3.txt, runner_probes/tfrom.run400.txt).
+       * The take-from catch-alls carry both; see lib_cmd_take_from_nowhere().
        */
       *are_more_objects = FALSE;
       is_matched = TRUE;
@@ -1083,7 +1101,7 @@ lib_parse_next_object (scr_gameref_t game, const scr_char *verb,
  *
  * Parser for commands that take multiple object targets from a %text% match.
  * Parses object lists such as "object" and "object and object" and returns
- * the multiple objects in the game's multiple_references.
+ * the multiple objects in the game's refs.multiple.
  */
 scr_bool
 lib_parse_multiple_objects (scr_gameref_t game, const scr_char *verb,
@@ -1138,7 +1156,7 @@ lib_parse_multiple_objects (scr_gameref_t game, const scr_char *verb,
     }
 
   /* Mark this first object as referenced in the return array. */
-  game->multiple_references[object] = TRUE;
+  game->refs.multiple[object] = TRUE;
   count_++;
 
   /* Now parse each additional object from the list. */
@@ -1147,16 +1165,16 @@ lib_parse_multiple_objects (scr_gameref_t game, const scr_char *verb,
       scr_int last_object;
 
       /*
-       * If no next object, leave the loop.  If no disambiguation message
-       * then it was probably garble, so print a message for that case.  We
-       * also catch repeated objects here.
+       * If no next object, leave the loop.  With no disambiguation message,
+       * treat the line as garble and print a message for that case.  We also
+       * catch repeated objects here.
        */
       last_object = object;
       if (!lib_parse_next_object (game, verb,
                                   resolver, resolver_arg,
                                   &object, &are_more_objects, &is_ambiguous)
           || object == -1
-          || game->multiple_references[object])
+          || game->refs.multiple[object])
         {
           if (!is_ambiguous)
             {
@@ -1174,7 +1192,7 @@ lib_parse_multiple_objects (scr_gameref_t game, const scr_char *verb,
         }
 
       /* Mark the object as referenced in the return array. */
-      game->multiple_references[object] = TRUE;
+      game->refs.multiple[object] = TRUE;
       count_++;
     }
 
@@ -1227,7 +1245,7 @@ lib_multiple_retains_associate (scr_gameref_t game, scr_int associate,
 {
   const scr_filterref_t filter = gs_get_filter (game);
 
-  if (!game->multiple_references[associate])
+  if (!game->refs.multiple[associate])
     return FALSE;
 
   pf_buffer_string (filter, "I only understood you as far as wanting to ");
@@ -1271,17 +1289,17 @@ lib_apply_filter (scr_gameref_t game,
         continue;
 
       /* Consume the list entry, if this object was one. */
-      is_listed = game->multiple_references[object];
+      is_listed = game->refs.multiple[object];
       if (is_listed)
         {
-          game->multiple_references[object] = FALSE;
+          game->refs.multiple[object] = FALSE;
           references_--;
         }
 
       /* Reference the listed objects, or -- for "all except" -- the rest. */
       if (is_except ? !is_listed : is_listed)
         {
-          game->object_references[object] = TRUE;
+          game->refs.objects[object] = TRUE;
           count++;
         }
     }

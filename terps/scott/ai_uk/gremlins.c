@@ -1,9 +1,16 @@
-//
-//  gremlins.c
-//  part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  Created by Petter Sjölund on 2022-01-10.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  gremlins.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2022-01-10.
+ */
 
 #include "game_specific.h"
 #include "gremlins.h"
@@ -253,7 +260,7 @@ void LoadExtraGermanGremlinsC64Data(void)
     Nouns[0] = "ANY";
     Nouns[28] = "*Y.M.C";
 
-    // These are broken in some versions
+    /* These are broken in some versions */
     Actions[0].Condition[0] = 1005;
     Actions[6].Vocab = 100;
 

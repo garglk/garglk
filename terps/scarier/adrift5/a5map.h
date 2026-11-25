@@ -18,12 +18,14 @@
  */
 
 /*
- * The ADRIFT 5 map loader (Adrift 5 runner: clsMap.vb, Map.vb).
+ * The ADRIFT 5 map loader (Runner: clsMap.vb, Map.vb).  The FileIO.vb and
+ * Map.vb lines in a5map.cpp point into the original ADRIFT 5 source, not
+ * FrankenDrift; see notes/GLOSSARY.md.
  *
  * The room layout is authored data, not something the interpreter derives:
  * the Developer writes an <Adventure><Map> block of <Page>s, each holding
  * <Node>s with the location key and its X/Y/Z position in map units.  All we
- * have to do is read it; mapdraw.h then draws it.  (ADRIFT 4 stores no such
+ * have to do is read it; map/mapdraw.h then draws it.  (ADRIFT 4 stores no such
  * block, and no coordinates at all -- see scmap.h, which has to derive the
  * layout for itself.)
  */
@@ -32,7 +34,7 @@
 #define A5MAP_H
 
 #include "a5model.h"
-#include "../mapdraw.h"
+#include "../map/mapdraw.h"
 
 /* Parse <Map> out of a loaded adventure.  Returns NULL if the game has no map
    nodes at all.  The result aliases the adventure's XML document, so it must
@@ -40,7 +42,7 @@
 extern map_t *a5map_load (const a5_adventure_t *adv);
 
 /* Does the game define a task command of its own that a bare "map" would
-   match?  The runner's map is GUI chrome, not a game command, so ADRIFT
+   match?  The Runner's map is GUI chrome, not a game command, so ADRIFT
    authors are free to use MAP as a verb (Lost Coastlines does, for its sea
    chart).  A host that offers a "map" command must let the game's win. */
 extern int a5map_command_taken (const a5_adventure_t *adv);

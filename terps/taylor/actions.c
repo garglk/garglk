@@ -1,13 +1,18 @@
-//
-//  actions.c
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Created by Petter Sjölund on 2022-04-05.
-//
-//  The condition/action bytecode interpreter: running the status
-//  table and the event table, and the implementations
-//  of the individual action opcodes.
-//
+/*
+ *  actions.c
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-04-05.
+ *
+ *  The condition/action bytecode interpreter: running the status
+ *  table and the event table, and the implementations
+ *  of the individual action opcodes.
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -510,8 +515,9 @@ static void Q3UpdateFlags(void)
         ObjectLoc[Q3_OBJ_COVERED_IN_TAR] = LOC_INV_THING;
     if (IsThing) {
         if (ObjectLoc[Q3_OBJ_HOLDING_TORCH] == LOC_DESTROYED) {
-            /* If the "holding HUMAN TORCH by the hands" object is destroyed (i.e. not held) */
-            /* the "location of the other guy" flag is set to the location of the Human Torch object */
+            /* If the "holding HUMAN TORCH by the hands" object is destroyed
+               (i.e. not held), the "location of the other guy" flag is set
+               to the location of the Human Torch object. */
             OtherGuyLoc = ObjectLoc[Q3_OBJ_TORCH];
         } else {
             OtherGuyLoc = MyLoc;
@@ -519,8 +525,9 @@ static void Q3UpdateFlags(void)
         Q3SwitchInvFlags(LOC_INV_TORCH, LOC_INV_THING);
     } else { /* I'm the HUMAN TORCH */
         if (ObjectLoc[Q3_OBJ_HOLDING_THING] == LOC_DESTROYED) {
-            /* If the "holding THING by the hands" object is destroyed (i.e. not held) */
-            /* The "location of the other guy" flag is set to the location of the Thing object */
+            /* If the "holding THING by the hands" object is destroyed (i.e. not
+               held), the "location of the other guy" flag is set to the
+               location of the Thing object. */
             OtherGuyLoc = ObjectLoc[Q3_OBJ_THING];
         } else {
             OtherGuyLoc = MyLoc;
@@ -558,10 +565,10 @@ static void Q3UpdateFlags(void)
         TurnsLow = 0;
     }
 
-    ThingAsphyx++; // Turns since Thing started holding breath
+    ThingAsphyx++; /* Turns since Thing started holding breath */
     if (ThingAsphyx == 0)
         ThingAsphyx = 0xff;
-    TorchAsphyx++; // Turns since Torch started holding breath
+    TorchAsphyx++; /* Turns since Torch started holding breath */
     if (TorchAsphyx == 0)
         TorchAsphyx = 0xff;
 }
@@ -810,7 +817,6 @@ static int PerformAction(unsigned char op, unsigned char arg1, unsigned char arg
         Goto(arg1);
         break;
     case GOBY:
-        /* Blizzard pass era */
         if (Version == BLIZZARD_PASS_TYPE)
             Goto(ObjectLoc[arg1]);
         else
@@ -851,7 +857,8 @@ static int PerformAction(unsigned char op, unsigned char arg1, unsigned char arg
     case LET:
         if (BaseGame == TEMPLE_OF_TERROR) {
             if (arg1 == TOT_GUARD_FLAG && arg2 == 2) {
-                /* If the serpent guard is present, we have just kicked sand in his eyes */
+                /* If the serpent guard is present, we have just kicked sand in
+                   his eyes */
                 ToTGuardBlinded = (ObjectLoc[TOT_OBJ_SERPENT_GUARD] == MyLoc);
             }
         }
@@ -1057,10 +1064,6 @@ void QP3DrawExtraImages(void)
 {
     if (!TAYLOR_GRAPHICS_ENABLED)
         return;
-    /* There is an unused image of the cannon
-     on the road but it has the wrong background
-     colour.
-     */
     if (MyLoc == Q3_ROOM_ROAD && ObjectLoc[Q3_OBJ_CANNON] == Q3_ROOM_ROAD) {
         PatchAndDrawQP3Cannon();
     } else if (MyLoc == Q3_ROOM_TAR_PIT && ObjectLoc[Q3_OBJ_THING] == Q3_ROOM_TAR_PIT && TurnsLow > 16 && TurnsLow < 20) {
@@ -1102,8 +1105,8 @@ void RunStatusTable(void)
         DrawImages = 0;
 }
 
-/* Run the event table (EVENT in the BBC source), matching the parsed input words
-   against verb/noun entries. WORD_WILDCARD is a wildcard. The parser has
+/* Run the event table (EVENT in the BBC source), matching the parsed input
+   words against verb/noun entries. WORD_WILDCARD is a wildcard. The parser has
    put the verb first, whatever order the words were typed in. */
 void RunEventTable(void)
 {

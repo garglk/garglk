@@ -1,4 +1,11 @@
 /*
+ * woz2nib.c
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ *
  * WOZ to NIB converter.
  *
  * Converts WOZ 1.x and 2.x disk image files into raw nibble (.nib) format.
@@ -17,7 +24,6 @@
  * the file -- is an empty track of zeros, and the rest of the disk converts.
  *
  * Created by Petter Sjölund on 2022-09-09.
- * Based on woz2dsk.pl by LEE Sau Dan <leesaudan@gmail.com>
  */
 
 #include <stdint.h>
@@ -25,7 +31,7 @@
 #include <string.h>
 
 #include "debugprint.h"
-#include "read_le16.h"
+#include "byteorder.h"
 
 #include "woz2nib.h"
 

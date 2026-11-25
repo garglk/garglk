@@ -18,6 +18,23 @@ No build file and no tests of its own. Xcode finds these headers through the
 `common_sagadraw` group in the project file, not through a search path, so a
 new header must be added to that group.
 
+## Licences
+
+Everything here is GPL 2 or later, which suits both ScottFree and Plus (GPL 2 or
+later) and Comprehend. Two parts keep the notice of the code they came from:
+
+- `c64a8draw.c/.h` and `pcdraw.c/.h` keep David Lodge's MIT notice. No line matches
+  upstream any more, but the interlaced stepping in `pcdraw.c` still follows his.
+- `gm_artifact.c` keeps MAME's BSD 3-clause notice, because `artifact_color_lut` and
+  the palette are copied from `src/mame/apple/apple2video.cpp`.
+- `atari8_palette.h` holds `atari_colors` from `src/mame/atari/atari400.cpp`, which
+  is GPL 2 or later like the rest.
+
+`gm_vector.c/.h` was split out of the GPL 3 or later
+`scott/saga/apple2_vector_draw.c`, but it comes from the 6502 routines rather than
+from ScummVM's Comprehend, whose `drawLine` and `drawShape` work differently. The
+part of that file that does derive from Comprehend, `doImageOp`, stayed behind.
+
 ## The suites
 
 ```

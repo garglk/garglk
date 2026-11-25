@@ -1,7 +1,16 @@
-//  line_drawing.c
-//  part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  This file is based on code from the Level9 interpreter by Simon Baldwin
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  line_drawing.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2022-03-03.
+ */
 
 #include <stdlib.h>
 #include <string.h>
@@ -49,23 +58,11 @@ static uint8_t *picture_bitmap = NULL;
 static int line_colour = 15;
 static int bg_colour = 0;
 
-/*
- * scott_linegraphics_plot_clip()
- * scott_linegraphics_draw_line()
- *
- * Draw a line from x1,y1 to x2,y2 in colour line_colour.
- * The function uses Bresenham's algorithm.
- * The second function, scott_graphics_plot_clip, is a line drawing helper;
- * it handles clipping.
- */
-
+/* Sets a pixel in picture_bitmap and queues it for drawing, unless it is
+ * outside the picture. */
 static void
 scott_linegraphics_plot_clip(int x, int y, int colour)
 {
-    /*
-     * Clip the plot if the value is outside the context.  Otherwise, plot the
-     * pixel as colour.
-     */
     if (x >= 0 && x <= MYSTERIOUS_WIDTH && y >= 0 && y < MYSTERIOUS_CLIPHEIGHT) {
         picture_bitmap[y * MYSTERIOUS_WIDTH + x] = colour;
         pixel_to_draw *todraw = VectorOpListPush(&pixels_to_draw);
@@ -118,8 +115,7 @@ scott_linegraphics_draw_line(int x1, int y1, int x2, int y2,
      * Byte-exact reimplementation of the original Digital Fantasia /
      * Mysterious Adventures ROM line routine (Golden Baton ram:0x6c06..0x6ca3,
      * reverse-engineered from the ZX Spectrum snapshot in Ghidra). It is a
-     * centred Bresenham distinct from the generic Level9-derived one this file
-     * used to carry:
+     * centred Bresenham:
      *
      *   - error is initialised to major/2 (round-to-nearest), not 2*minor-major;
      *   - the major axis steps every iteration and the loop runs exactly
@@ -136,9 +132,9 @@ scott_linegraphics_draw_line(int x1, int y1, int x2, int y2,
      * room 0 (1740/1740 line pixels land on the real Spectrum bitmap).
      *
      * The two axes are symmetric, so rather than duplicate the loop we swap
-     * x<->y for steep lines and run a single x-major loop, swapping back at the
-     * plot. After the swap dx/sx/a are the major axis and dy/sy/b the minor;
-     * `steep` keeps the tie-break (dx == dy -> not steep -> x-major) and makes
+     * x<->y for steep lines and run a single x-major loop, swapping back at
+     * the plot. After the swap dx/sx/a are the major axis and dy/sy/b the
+     * minor; `steep` keeps the tie-break (dx == dy -> not steep -> x-major) and makes
      * the dx == 0 test fire only on a true zero-length segment.
      */
     int dx, dy, sx, sy, t, acc, a, b, i;
@@ -182,10 +178,11 @@ static void diamond_fill(uint8_t x, uint8_t y, int colour)
         /* Match the original ROM fill's interior clamp (Golden Baton
          * ram:0x6cee/0x6cf9/0x6d04/0x6d0f): it never grows into the top screen
          * row or the extreme edge columns, so the picture border acts as an
-         * implicit wall. The ROM-exact line rasterizer plots no pixel in row 0,
-         * so without this clamp a 4-connected flood escapes along the top edge
-         * and floods the whole image (the previous Level9 Bresenham only stayed
-         * contained because its ~1px-wide misplacement happened to seal row 0). */
+         * implicit wall. The ROM-exact line rasterizer plots no pixel in row
+         * 0, so without this clamp a 4-connected flood escapes along the top
+         * edge and floods the whole image (the earlier, uncentred Bresenham only
+         * stayed contained because its ~1px-wide misplacement happened to seal
+         * row 0). */
         if (x >= 1 && x < MYSTERIOUS_WIDTH - 1 && y >= 1 && y < MYSTERIOUS_CLIPHEIGHT && linegraphics_get_pixel(x, y) == bg_colour) {
             scott_linegraphics_plot_clip(x, y, colour);
             circular_buf_putXY(ringbuf, x, y + 1);
@@ -205,7 +202,7 @@ void DrawHowarthVectorPicture(int image)
         return;
     }
 
-    // If this image is already shown:
+    /* If this image is already shown: */
     if (vector_image_shown == image && pixels_to_draw.ops) {
         if (VectorState == SHOWING_VECTOR_IMAGE) {
             return;
@@ -220,8 +217,8 @@ void DrawHowarthVectorPicture(int image)
     glk_request_timer_events(0);
     vector_image_shown = image;
 
-    // Free any previous pixels and start a new list.
-    // scott_linegraphics_plot_clip() will grow this as needed.
+    /* Free any previous pixels and start a new list.
+       scott_linegraphics_plot_clip() will grow this as needed. */
     VectorOpListStartSession(&pixels_to_draw);
     vector_background_painted = 0;
 
@@ -268,7 +265,7 @@ void DrawHowarthVectorPicture(int image)
                 break;
             case HOWARTH_OP_END:
                 break;
-            default: // draw line
+            default: /* draw line */
                 arg1 = *(p++);
                 y2 = ConvertY(opcode);
                 scott_linegraphics_draw_line(x, y, arg1, y2, line_colour);
@@ -278,7 +275,7 @@ void DrawHowarthVectorPicture(int image)
         }
     }
 
-    // Free bitmap memory
+    /* Free bitmap memory */
     if (picture_bitmap != NULL) {
         free(picture_bitmap);
         picture_bitmap = NULL;
@@ -286,7 +283,7 @@ void DrawHowarthVectorPicture(int image)
 
     VectorOpListShrink(&pixels_to_draw);
 
-    // Either draw immediately or use a timer for slow, "animated" drawing
+    /* Either draw immediately or use a timer for slow, "animated" drawing */
     if (gli_slowdraw)
         glk_request_timer_events(20);
     else

@@ -1,20 +1,27 @@
-//
-//  ringbuffer.c
-//  part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  Created by Petter Sjölund on 2022-03-04.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  ringbuffer.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2022-03-04.
+ */
 
 #include "ringbuffer.h"
 #include "memory_allocation.h"
 #include <assert.h>
 
-// The hidden definition of our circular buffer structure
+/* The hidden definition of our circular buffer structure */
 struct circular_buf_t {
     uint8_t *buffer;
     size_t head;
     size_t tail;
-    size_t max; //of the buffer
+    size_t max; /* of the buffer */
     bool full;
 };
 
@@ -34,11 +41,11 @@ static void circular_buf_reset(cbuf_handle_t me)
     me->full = false;
 }
 
-// Return a pointer to a struct instance
+/* Return a pointer to a struct instance */
 cbuf_handle_t circular_buf_init(uint8_t *buffer, size_t size)
 {
     assert(buffer && size);
-    assert(size % 2 == 0); // XY-pair semantics require even buffer size
+    assert(size % 2 == 0); /* XY-pair semantics require even buffer size */
 
     cbuf_handle_t cbuf = MemAlloc(sizeof(circular_buf_t));
 

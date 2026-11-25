@@ -21,10 +21,6 @@
  * NPC and object disambiguation: the wording of the "which" question,
  * the NPC pick, and lib_disambiguate_object_common(), the driver every
  * object-taking handler resolves its noun through.
- *
- * See sclibrar.h for what the library files share, sclibrar_internal.h
- * for what the core files share, and sclibrar_disambig_internal.h for
- * what this file shares with the two split out of it.
  */
 
 #include "sclibrar.h"
@@ -152,7 +148,7 @@ lib_last_named_npc (scr_gameref_t game)
   npc = -1;
   GS_FOR_EACH_NPC (game, index_)
     {
-      if (game->npc_references[index_])
+      if (game->refs.npcs[index_])
         npc = index_;
     }
   return npc;
@@ -248,7 +244,7 @@ lib_disambiguate_npc_pick (scr_gameref_t game, const scr_char *verb,
   npc = -1;
   GS_FOR_EACH_NPC (game, index_)
     {
-      if (game->npc_references[index_]
+      if (game->refs.npcs[index_]
           && gs_npc_seen (game, index_)
           && npc_in_room (game, index_, gs_playerroom (game)))
         {
@@ -256,7 +252,7 @@ lib_disambiguate_npc_pick (scr_gameref_t game, const scr_char *verb,
           npc = index_;
         }
       else
-        game->npc_references[index_] = FALSE;
+        game->refs.npcs[index_] = FALSE;
     }
 
   /*
@@ -274,7 +270,7 @@ lib_disambiguate_npc_pick (scr_gameref_t game, const scr_char *verb,
     {
       const scr_char *line = run_get_dispatch_input ();
 
-      lib_keep_top_scored (game->npc_references, gs_npc_count (game), &count, &npc,
+      lib_keep_top_scored (game->refs.npcs, gs_npc_count (game), &count, &npc,
                            [&] (scr_int candidate)
         {
           return lib_npc_400_prefix_score (game, candidate, line);
@@ -333,7 +329,7 @@ lib_disambiguate_npc_pick (scr_gameref_t game, const scr_char *verb,
   listed = 0;
   GS_FOR_EACH_NPC (game, index_)
     {
-      if (game->npc_references[index_])
+      if (game->refs.npcs[index_])
         {
           lib_print_npc_np (game, index_);
           listed++;
@@ -378,11 +374,8 @@ lib_trace_runner_co (scr_gameref_t game, const scr_char *verb, scr_int count)
  * lib_disambiguate_object_common()
  * lib_disambiguate_object()
  *
- * Filter, then search the set of object matches.  If only one matched, note
- * and return it.  If multiple matched, print a disambiguation message and
- * the list, and return -1 with *is_ambiguous TRUE.  If none matched, return
- * -1 with *is_ambiguous FALSE if requested, otherwise print a message then
- * return -1.
+ * Filter, then search the set of object matches, with the same results as
+ * lib_disambiguate_npc() gives for NPCs.
  *
  * If normal disambiguation returns more than one object, the resolver
  * function, if supplied, is used to see if the multiple objects can be
@@ -423,7 +416,7 @@ lib_co_note_line_top (scr_gameref_t game)
  * by the generic can't-do tail in therest(), and that names the FIRST of
  * them by WORD POSITION, not by object index.  Measured on p*OPENW.taf (one
  * lit room holding a gem, a rock, a static slab and a closed chest, the gem
- * held), 2026-09-20:
+ * held):
  *
  *     command             run370               run380/run390
  *     open rock gem       can't open the rock. can't open the gem!
@@ -435,7 +428,7 @@ lib_co_note_line_top (scr_gameref_t game)
  * (runner_probes/openw.run370.ow.rtf, runner_probes/openw.run380.ow.rtf,
  * runner_probes/openw.run390.ow.txt, runner_probes/openw.run370.ox.rtf,
  * runner_probes/openw.run380.ox.rtf, runner_probes/openw.run390.ox.txt.)
- * 3.80 gave `open` a refusal of its own inside openclose(), above therest,
+ * 3.8 gave `open` a refusal of its own inside openclose(), above therest,
  * and that one names the lowest object INDEX instead and ends in a bang;
  * `close` got none until 4.0, so it keeps falling through to therest at
  * every pre-4.0 version.
@@ -477,7 +470,7 @@ lib_first_named_pre400 (scr_gameref_t game, scr_int fallback)
 
   GS_FOR_EACH_OBJECT (game, index_)
     {
-      if (!game->object_references[index_])
+      if (!game->refs.objects[index_])
         continue;
       offset = lib_name_offset_pre400 (game, index_, line);
       if (offset < 0)
@@ -494,7 +487,7 @@ lib_first_named_pre400 (scr_gameref_t game, scr_int fallback)
 /*
  * One lib_disambiguate_object_common() call: the verb and resolver it was
  * given, and the candidates still standing -- COUNT of them flagged in
- * object_references, OBJECT the last one found.  A stage that settles the
+ * refs.objects, OBJECT the last one found.  A stage that settles the
  * question returns TRUE and leaves the answer in RESULT.
  */
 struct lib_disambig_t
@@ -553,7 +546,7 @@ lib_disambig_t::gather_candidates (void)
   object = -1;
   GS_FOR_EACH_OBJECT (game, index_)
     {
-      if (game->object_references[index_]
+      if (game->refs.objects[index_]
           && (!requires_seen || gs_object_seen (game, index_))
           && obj_indirectly_in_room (game, index_, gs_playerroom (game)))
         {
@@ -561,7 +554,7 @@ lib_disambig_t::gather_candidates (void)
           object = index_;
         }
       else
-        game->object_references[index_] = FALSE;
+        game->refs.objects[index_] = FALSE;
     }
 
 #ifdef SCARIER_DUMP_TOOLS
@@ -594,14 +587,14 @@ lib_disambig_t::gather_candidates (void)
  * (runner_probes/task.run380.pname.rtf,
  * runner_probes/task.run380.pname2.rtf,
  * runner_probes/task.run390.pname.txt,
- * runner_probes/task.run390.pname2.txt, 2026-09-19).  Scarier narrows take
+ * runner_probes/task.run390.pname2.txt).  Scarier narrows take
  * and drop at 3.8 too, and wear and remove at both (deliberate deviation),
  * so that `wear hat` puts on the red hat.
  *
  * 3.9's examine narrows the same way -- referencedob() (42DF43) calls the
  * same co(obj, 0), so the last Prefix word settles a crowd for it too:
  * `x tree red` with trees Prefixed "a red" and "a blue" is "A red tree."
- * (p39PFX, run390x runner_probes/pfx.run390.txt turn 17, 2026-09-20).
+ * (p39PFX, run390x runner_probes/pfx.run390.txt turn 17).
  * What it does NOT do is answer when the word narrows nothing: there co()
  * is false for every candidate, referencedob() counts none, and
  * examines() keeps its own "Nothing special." below, under the
@@ -620,8 +613,10 @@ lib_disambig_t::narrow_named_pre400 (void)
       const scr_char *line = run_get_dispatch_input ();
       scr_int mode = 0, kept = 0;
 
-      /* The wear and remove modes, and all four at 3.8, are Scarier's
-         (deliberate deviation); see lib_co_pre400(). */
+      /*
+       * The wear and remove modes, and all four at 3.8, are Scarier's
+       * (deliberate deviation); see lib_co_pre400().
+       */
       if (strcmp (verb, "drop") == 0)
         mode = 2;
       else if (strcmp (verb, "take") == 0)
@@ -632,7 +627,7 @@ lib_disambig_t::narrow_named_pre400 (void)
         mode = 4;
       GS_FOR_EACH_OBJECT (game, index_)
         {
-          if (game->object_references[index_]
+          if (game->refs.objects[index_]
               && lib_co_pre400 (game, line, index_, mode))
             kept++;
         }
@@ -645,7 +640,7 @@ lib_disambig_t::narrow_named_pre400 (void)
            * 3.8 examines() "Nothing special.".  The end-of-turn prompt
            * wipes that unless a task ran this turn -- an event's does
            * (p38EVQ2/p39EVQ2, runner_probes/evq2.run380.rtf /
-           * runner_probes/evq2.run390.txt, 2026-09-20).
+           * runner_probes/evq2.run390.txt).
            */
           if (strcmp (verb, "take") == 0)
             lib_what (game, "Take");
@@ -661,14 +656,14 @@ lib_disambig_t::narrow_named_pre400 (void)
           object = -1;
           GS_FOR_EACH_OBJECT (game, index_)
             {
-              if (game->object_references[index_]
+              if (game->refs.objects[index_]
                   && lib_co_pre400 (game, line, index_, mode))
                 {
                   count++;
                   object = index_;
                 }
               else
-                game->object_references[index_] = FALSE;
+                game->refs.objects[index_] = FALSE;
             }
         }
     }
@@ -684,7 +679,7 @@ lib_disambig_t::narrow_named_pre400 (void)
  * tie at the top it is THOSE the question offers, not the whole reference
  * set.
  *
- * Measured 2026-09-20 on p4PFX2.taf, three trees Prefixed "a big red",
+ * Measured on p4PFX2.taf, three trees Prefixed "a big red",
  * "a red" and "the red" beside a "a" rock (run400x
  * runner_probes/pfx2.run400.txt):
  *
@@ -712,7 +707,8 @@ lib_disambig_t::narrow_top_scored_400 (void)
     {
       const scr_char *line = run_get_dispatch_input ();
 
-      lib_keep_top_scored (game->object_references, gs_object_count (game), &count, &object,
+      lib_keep_top_scored (game->refs.objects, gs_object_count (game),
+                           &count, &object,
                            [&] (scr_int candidate)
         {
           return lib_verb_object_name_score (game, candidate, line);
@@ -742,7 +738,7 @@ lib_disambig_t::narrow_with_resolver (void)
       object = -1;
       GS_FOR_EACH_OBJECT (game, index_)
         {
-          if (game->object_references[index_]
+          if (game->refs.objects[index_]
               && resolver (game, index_, resolver_arg))
             {
               retry_count++;
@@ -769,11 +765,11 @@ lib_disambig_t::narrow_with_resolver (void)
               count = 0;
               GS_FOR_EACH_OBJECT (game, index_)
                 {
-                  if (game->object_references[index_]
+                  if (game->refs.objects[index_]
                       && resolver (game, index_, resolver_arg))
                     count++;
                   else
-                    game->object_references[index_] = FALSE;
+                    game->refs.objects[index_] = FALSE;
                 }
             }
         }
@@ -783,7 +779,7 @@ lib_disambig_t::narrow_with_resolver (void)
 /*
  * 3.7 has no co() in its handlers, and each settles a namesake its own
  * way (p37TASK, runner_probes/task.run370.pname.rtf /
- * runner_probes/task.run370.pname2.rtf, 2026-09-19; two hats, red held
+ * runner_probes/task.run370.pname2.rtf; two hats, red held
  * and blue loose, two open boxes loose):
  *
  *   drops (430DDC) / takes (436280): every held (loose) namesake lacking
@@ -804,20 +800,20 @@ lib_disambig_t::narrow_with_resolver (void)
  * The wear/remove loops are folded here as "act on all but the last
  * directly, hand the last to the handler", so the handler's own wording
  * answers for the last one exactly as the Runner's overwriting loop
- * leaves it.  openclose's loop is the same fold, but 3.80 and 3.90 run it
+ * leaves it.  openclose's loop is the same fold, but 3.8 and 3.9 run it
  * too, so it lives in the pre-4.0 block below.
  */
 /*
  * examines() asks its own question, and it is not openclose's or takes':
  * "Which <Short of the LAST match by index> would you like to examine.
- * <the matches, in index order>?"  3.80 keeps it -- `read rock gem`, `read
+ * <the matches, in index order>?"  3.8 keeps it -- `read rock gem`, `read
  * gem rock` and `examine rock gem` are all "Which rock would you like to
  * examine.  The gem or the rock?" under run370 AND run380, and `read rock
  * with slab` is "Which slab would you like to examine.  The rock or the
  * slab?" (p*OPENW, runner_probes/openw.run370.ow.rtf,
  * runner_probes/openw.run380.ow.rtf, runner_probes/openw.run370.ox.rtf,
- * runner_probes/openw.run380.ox.rtf, 2026-09-20) -- so the word order on
- * the line never picks here, only the index does.  3.90 replaced the
+ * runner_probes/openw.run380.ox.rtf) -- so the word order on
+ * the line never picks here, only the index does.  3.9 replaced the
  * question with referencedob()'s last-word pass; see
  * lib_examine_crowded_390().
  *
@@ -840,7 +836,7 @@ lib_disambig_t::ask_which_examine_pre390 (void)
       listed = 0;
       GS_FOR_EACH_OBJECT (game, index_)
         {
-          if (!game->object_references[index_])
+          if (!game->refs.objects[index_])
             continue;
           if (listed > 0)
             pf_buffer_string (filter, listed == count - 1 ? " or " : ", ");
@@ -862,7 +858,7 @@ lib_disambig_t::ask_which_examine_pre390 (void)
  * Alias ever becomes a Short, and every other object must be named by
  * its Short: `don ball` holding a red and a blue ball, both aliased
  * "ball", is "Wear what?" (p37SLOT2, harness/make_37_slotprobe.py,
- * runner_probes/slot2.run370.b.rtf, 2026-09-21).  Deliberate deviation:
+ * runner_probes/slot2.run370.b.rtf).  Deliberate deviation:
  * Scarier lets every Alias name the object, as 3.8 does.
  */
 void
@@ -882,7 +878,7 @@ lib_disambig_t::pick_wear_remove_pre380 (void)
 
           GS_FOR_EACH_OBJECT (game, index_)
             {
-              if (!game->object_references[index_])
+              if (!game->refs.objects[index_])
                 continue;
               if (first == -1)
                 first = index_;
@@ -899,29 +895,28 @@ lib_disambig_t::pick_wear_remove_pre380 (void)
             }
           object = last != -1 ? last : first;
           GS_FOR_EACH_OBJECT (game, index_)
-            game->object_references[index_] = (index_ == object);
+            game->refs.objects[index_] = (index_ == object);
           count = 1;
         }
     }
 }
 
 /*
- * takes() (run370 436280, run380, run390) and drops() (430DDC) walk a
- * crowded line the same way openclose() does: every survivor moves, and
- * the last by index overwrites the message.  Below 3.90 that is the whole
- * rule -- `take red pin` with pins Prefixed "old red" and "new red" is
- * "You pick up new red pin." at 3.70 AND 3.80, and `i` afterwards lists
- * both; `drop red pin` then drops both (p*TAKEP,
- * runner_probes/takep.run370.rtf / runner_probes/takep.run380.rtf,
- * 2026-09-20).  3.90 keeps only the FIRST by index: the same line is "You
- * pick up old red pin." and `i` lists it alone.
+ * takes() (run370 436280, run380, run390) and drops() (430DDC) walk a crowded
+ * line the same way openclose() does: every survivor moves, and the last by
+ * index overwrites the message.  Below 3.9 that is the whole rule -- `take
+ * red pin` with pins Prefixed "old red" and "new red" is "You pick up new red
+ * pin." at 3.7 AND 3.8, and `i` afterwards lists both; `drop red pin` then
+ * drops both (p*TAKEP, runner_probes/takep.run370.rtf /
+ * runner_probes/takep.run380.rtf).  3.9 keeps only the FIRST by index: the
+ * same line is "You pick up old red pin." and `i` lists it alone.
  *
  * What survives is the Prefix contest, and which crowd runs it is the
  * version split:
  *
- *   3.80/3.90 have co() under every handler, so the crowd is the TERM's
+ *   3.8/3.9 have co() under every handler, so the crowd is the TERM's
  *     present namesakes and the block above has already narrowed it.
- *   3.70 has no co() at all, so a crowd is objects sharing a SHORT the
+ *   3.7 has no co() at all, so a crowd is objects sharing a SHORT the
  *     line names (lib_namesake_crowded_pre380), and the filter runs here:
  *     each crowded namesake keeps its reference only if the last word of
  *     its Prefix is typed (lib_co_names_prefix).  With none left the turn
@@ -929,10 +924,10 @@ lib_disambig_t::pick_wear_remove_pre380 (void)
  *     would you like to take" strings at 430866 are dead code -- and the
  *     line is answered, so no end-of-turn co() question follows it.
  *
- * Note that a one-word Prefix filters NOTHING below 3.90, because the
+ * Note that a one-word Prefix filters NOTHING below 3.9, because the
  * pre-3.9 co() drops the Prefix's first word before taking its last:
  * `take big gem` over gems Prefixed "big" and "small" is "Take what?" at
- * 3.70 and the co() question at 3.80, exactly as bare `take gem` is,
+ * 3.7 and the co() question at 3.8, exactly as bare `take gem` is,
  * while `take red gem` over "a very red" / "a very blue" answers (p*TAKEP
  * / p*TAKEQ, runner_probes/takep.run*.* and runner_probes/takeq.run*.*).
  */
@@ -961,7 +956,7 @@ lib_disambig_t::pick_take_drop_pre400 (void)
            * red ball` over a red and a blue ball both aliased "ball" picks
            * up BOTH, "You pick up the blue ball." -- `drop red ball` drops
            * both the same way (p37SLOT2, harness/make_37_slotprobe.py,
-           * run370x runner_probes/slot2.run370.c.rtf, 2026-09-21).  The
+           * run370x runner_probes/slot2.run370.c.rtf).  The
            * loop's action is under `If Not c("from")` (43648C), so a
            * take-from line keeps the parser's references.
            */
@@ -969,13 +964,13 @@ lib_disambig_t::pick_take_drop_pre400 (void)
                index_ < gs_object_count (game) && !lib_co_contains (line, "from");
                index_++)
             {
-              if (game->object_references[index_]
+              if (game->refs.objects[index_]
                   || obj_is_static (game, index_)
                   || !lib_co_candidate (game, index_, gs_playerroom (game))
                   || !lib_names_object_370 (game, line, index_)
                   || lib_names_only_shadowed_370 (game, line, index_))
                 continue;
-              game->object_references[index_] = TRUE;
+              game->refs.objects[index_] = TRUE;
               count++;
             }
 
@@ -995,7 +990,7 @@ lib_disambig_t::pick_take_drop_pre400 (void)
            */
           GS_FOR_EACH_OBJECT (game, index_)
             {
-              if (game->object_references[index_]
+              if (game->refs.objects[index_]
                   && lib_object_held_pre380 (game, index_) != is_take)
                 eligible++;
             }
@@ -1004,33 +999,33 @@ lib_disambig_t::pick_take_drop_pre400 (void)
               object = -1;
               if (is_take)
                 GS_FOR_EACH_OBJECT (game, index_)
-                  if (game->object_references[index_]
+                  if (game->refs.objects[index_]
                       && lib_object_held_pre380 (game, index_))
                     object = index_;
               if (object == -1)
                 object = lib_first_named_pre400 (game, -1);
               if (object == -1)
                 GS_FOR_EACH_OBJECT (game, index_)
-                  if (game->object_references[index_])
+                  if (game->refs.objects[index_])
                     {
                       object = index_;
                       break;
                     }
               GS_FOR_EACH_OBJECT (game, index_)
-                game->object_references[index_] = (index_ == object);
+                game->refs.objects[index_] = (index_ == object);
               count = 1;
               return FALSE;
             }
 
           GS_FOR_EACH_OBJECT (game, index_)
             {
-              if (!game->object_references[index_])
+              if (!game->refs.objects[index_])
                 continue;
               if (lib_object_held_pre380 (game, index_) == is_take
                   || (lib_namesake_crowded_pre380 (game, line, index_,
                                                    !is_take)
                       && !lib_co_names_prefix (game, line, index_)))
-                game->object_references[index_] = FALSE;
+                game->refs.objects[index_] = FALSE;
               else
                 kept++;
             }
@@ -1047,7 +1042,7 @@ lib_disambig_t::pick_take_drop_pre400 (void)
 
       GS_FOR_EACH_OBJECT (game, index_)
         {
-          if (!game->object_references[index_])
+          if (!game->refs.objects[index_])
             continue;
           if (first == -1)
             first = index_;
@@ -1065,7 +1060,7 @@ lib_disambig_t::pick_take_drop_pre400 (void)
 
       object = taf_version >= TAF_VERSION_390 ? first : last;
       GS_FOR_EACH_OBJECT (game, index_)
-        game->object_references[index_] = (index_ == object);
+        game->refs.objects[index_] = (index_ == object);
       count = 1;
     }
   return FALSE;
@@ -1077,21 +1072,21 @@ lib_disambig_t::pick_take_drop_pre400 (void)
  * the last by index overwriting the message -- run370, run380 and run390
  * all answer `open rock gem chest` with "You open the chest." (p*OPENW,
  * runner_probes/openw.run370.ox.rtf, runner_probes/openw.run380.ox.rtf,
- * runner_probes/openw.run390.ox.txt, 2026-09-20), and with two closed
+ * runner_probes/openw.run390.ox.txt), and with two closed
  * containers on the line all three answer `open box gem chest` with "You
- * open the chest." and leave the box open as well (p*OPENT, 2026-09-20).
- * So 3.7's every-namesake loop is not 3.7's alone: 3.80 and 3.90 run the
+ * open the chest." and leave the box open as well (p*OPENT).
+ * So 3.7's every-namesake loop is not 3.7's alone: 3.8 and 3.9 run the
  * same one.
  *
  * The test is "openable at all", not "in the state the verb wants": with
  * the box already open, `open box gem`, `open gem box`, `open gem chest`
  * and `open chest box` are all "The <box|chest> is already open!" at
- * 3.70, 3.80 and 3.90 -- the openable object still wins the line, and the
+ * 3.7, 3.8 and 3.9 -- the openable object still wins the line, and the
  * handler's own already-open wording answers for it.
  *
- * With NONE openable the versions part company.  3.80 gave `open` a
+ * With NONE openable the versions part company.  3.8 gave `open` a
  * refusal of its own inside openclose(), which names the LOWEST object
- * index on the line and ends in a bang; `close` never got one, and 3.70
+ * index on the line and ends in a bang; `close` never got one, and 3.7
  * has neither, so those fall through to therest()'s can-do tail and its
  * first name by WORD POSITION (lib_first_named_pre400()).
  */
@@ -1110,7 +1105,7 @@ lib_disambig_t::pick_open_close_pre400 (void)
 
       GS_FOR_EACH_OBJECT (game, index_)
         {
-          if (!game->object_references[index_])
+          if (!game->refs.objects[index_])
             continue;
           if (lowest == -1)
             lowest = index_;
@@ -1123,7 +1118,7 @@ lib_disambig_t::pick_open_close_pre400 (void)
               /*
                * The overwritten message was still built, contents list and
                * all, and in 3.9 listing is what makes an object seen.  The
-               * Gamma Gals (3.90, run390x, gamma_fridge probe 2026-10-09):
+               * Gamma Gals (3.9, run390x, gamma_fridge probe):
                * `open fridge and cupboards` answers for the cupboards
                * alone, and the `get all` after it takes the can of coke
                * from the refrigerator as well as the glass.  3.7 and 3.8
@@ -1146,7 +1141,7 @@ lib_disambig_t::pick_open_close_pre400 (void)
       else
         object = lib_first_named_pre400 (game, lowest);
       GS_FOR_EACH_OBJECT (game, index_)
-        game->object_references[index_] = (index_ == object);
+        game->refs.objects[index_] = (index_ == object);
       count = 1;
     }
 }
@@ -1228,7 +1223,7 @@ lib_disambig_t::resolve_take_400 (void)
       if (object >= 0)
         {
           GS_FOR_EACH_OBJECT (game, index_)
-            game->object_references[index_] = (index_ == object);
+            game->refs.objects[index_] = (index_ == object);
           var_set_ref_object (vars, object);
           if (is_ambiguous)
             *is_ambiguous = FALSE;
@@ -1289,8 +1284,10 @@ lib_disambig_t::raise_crowd_400 (void)
       if (lib_with_split_crowd_400 (game, examine, &crowd, &with_pending,
                                     &with_head))
         {
-          /* An examine whose head names one object describes it; see
-             lib_with_split_crowd_400(). */
+          /*
+           * An examine whose head names one object describes it; see
+           * lib_with_split_crowd_400().
+           */
           if (examine && with_head >= 0)
             {
               var_set_ref_object (vars, with_head);
@@ -1312,7 +1309,7 @@ lib_disambig_t::raise_crowd_400 (void)
            * second noun of the same score joins it, and a crowd it leads
            * asks nothing.  p4WTIE `cut stone knife` is therest's "You
            * can't cut that." where `cut stone` asks
-           * (runner_probes/wtie.run400.w6.txt, 2026-09-20) -- the knife
+           * (runner_probes/wtie.run400.w6.txt) -- the knife
            * is the crowd's first object, so the stones never park a
            * pending object.
            */
@@ -1332,7 +1329,7 @@ lib_disambig_t::raise_crowd_400 (void)
            * its own %text% row, which is where "You can't cut that." and
            * "You can't open that." come from
            * (runner_probes/wtie.run400.w6.txt `cut stone knife`, `open
-           * box knife`, 2026-09-20).  The invented listing below is
+           * box knife`).  The invented listing below is
            * 3.9-and-below's alone.
            */
           if (is_ambiguous)
@@ -1419,7 +1416,7 @@ lib_disambig_t::list_choices (void)
   listed = 0;
   GS_FOR_EACH_OBJECT (game, index_)
     {
-      if (game->object_references[index_])
+      if (game->refs.objects[index_])
         {
           lib_print_object_np (game, index_);
           listed++;

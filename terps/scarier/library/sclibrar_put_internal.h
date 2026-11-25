@@ -29,7 +29,10 @@
  *   sclibrar_put.cpp           the filters, the implicit take, the "in" and
  *                              "on" backends and their validity tests
  *   sclibrar_put_multiple.cpp  "put all", the named and multiple-object
- *                              handlers, the pre-4.0 and 3.9 questions
+ *                              handlers, "put X in Y" with no Y here
+ *   sclibrar_put_pre400.cpp    the same below 4.0: the early answers, the
+ *                              3.9 sweep, the named handler, co(), and
+ *                              "put X in that"
  */
 
 #include "sclibrar.h"
@@ -93,10 +96,15 @@ extern lib_put_outcome_t lib_put_on_backend (scr_gameref_t game,
                                              scr_int supporter);
 extern scr_bool lib_put_on_is_valid (scr_gameref_t game, scr_int supporter);
 
-/* sclibrar_put_multiple.cpp */
+/* sclibrar_put_pre400.cpp */
 extern scr_bool lib_put_refusal_first_390 (scr_gameref_t game);
 /* The refusal-first sweep itself, on text printed since from. */
 extern void lib_put_sweep_390 (scr_gameref_t game, const scr_char *input,
                                size_t from);
+extern scr_bool lib_put_no_object_pre400 (scr_gameref_t game);
+extern scr_bool lib_put_what_pre400 (scr_gameref_t game, scr_int object,
+                                     scr_bool typed_on);
+extern scr_bool lib_put_named_pre400 (scr_gameref_t game, scr_int target,
+                                      scr_bool typed_on);
 
 #endif

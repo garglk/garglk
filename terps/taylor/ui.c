@@ -1,7 +1,14 @@
-//
-//  ui.c
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
+/*
+ *  ui.c
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2026-05-18.
+ */
 
 #include <ctype.h>
 #include <stdarg.h>
@@ -30,7 +37,7 @@ static size_t OutCount;     /* Number of bytes currently buffered in OutWord. */
 static char OutWord[128];   /* Per-word output buffer, flushed on whitespace. */
 static int JustWroteNewline = 0; /* Suppresses runs of blank lines in Bottom */
 
-static glui32 TopWidth; /* Terminal width */
+static glui32 TopWidth; /* Width of top window */
 static glui32 TopHeight = 1; /* Height of top window */
 
 int Options; /* Option flags */
@@ -137,8 +144,8 @@ void PrintCharacter(unsigned char c)
             }
             return;
         }
-        /* In the top window we wrap at the actual terminal width so the
-           subsequent layout pass can break lines correctly. */
+        /* In the top window only a word wider than the window is split; the
+           subsequent layout pass breaks the lines. */
         AppendToWord(c, Top, TopWidth);
     }
 }
@@ -261,7 +268,7 @@ static void SetExclusiveOption(int setting, int first, int second)
 static void UpdateSettings(void)
 {
 #ifdef SPATTERLIGHT
-    /* Delay actions (the "delay" verb) unless the user opted out. */
+    /* Keep the games' pauses unless the user opted out. */
     if (gli_sa_delays)
         Options &= ~NO_DELAYS;
     else
@@ -302,13 +309,12 @@ static void UpdateSettings(void)
     }
 }
 
-/* Handle Glk events that arrive while we're not waiting for line input:
-   window resizes trigger a re-layout, and timer ticks drive the
+/* Handle Glk events other than the input being waited for: window resizes trigger a re-layout, and timer ticks drive the
    per-game animation loops (Rebel Planet, Kayleth). */
 void Updates(event_t ev)
 {
     if (ev.type == evtype_Arrange) {
-        /* Set Resizing so DrawRoomImage uses the buffered image rather
+        /* Set Resizing so DrawRoomPicture uses the buffered image rather
            than re-running the full render pipeline. */
         Resizing = 1;
         UpdateSettings();
@@ -387,9 +393,7 @@ static void FitGraphicsWindow(int shrink_only)
     x_offset = ((int)graphwidth - (int)optimal_width) / 2;
 
     if (!shrink_only || graphheight > optimal_height) {
-        winid_t parent = glk_window_get_parent(Graphics);
-        glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-            optimal_height, NULL);
+        SetFixedWindowHeight(Graphics, optimal_height);
     }
 }
 
@@ -412,10 +416,8 @@ void OpenGraphicsWindow(void)
             GRAPHICS_WINDOW_PERCENT, wintype_Graphics, GLK_GRAPHICS_ROCK);
         FitGraphicsWindow(1);
 
-        /* Set the graphics window background to match
-         * the main window background, best as we can,
-         * and clear the window.
-         */
+        /* Set the graphics window background to match the main window
+           background, best as we can, and clear the window. */
         glui32 background_color;
         if (glk_style_measure(Bottom, style_Normal, stylehint_BackColor,
                 &background_color)) {

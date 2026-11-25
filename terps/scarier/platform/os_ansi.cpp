@@ -209,11 +209,11 @@ os_print_tag (scr_int tag, const scr_char *argument)
          * Derivation aid: SCR_MARK_WAITKEY=1 notes each pause on stderr (after
          * the flush above, so with 2>&1 the marker lands in transcript order).
          * Combined with SCR_SKIP_WAITKEY=1 -- which keeps the command list in
-         * sync -- that turns "how many blank lines does this solution need, and
-         * where?" into a read rather than a bisection.  Without the skip, the
-         * marker also names the line the pause just ate, which is what tells a
-         * deliberate filler apart from a real command going missing (see
-         * harness/waitkey_audit.py).
+         * sync -- that turns "how many blank lines does this solution need,
+         * and where?" into a read rather than a bisection.  Without the skip,
+         * the marker also names the line the pause just ate, which is what
+         * tells a deliberate filler apart from a real command going missing
+         * (see harness/waitkey_audit.py).
          */
         mark_waitkey = getenv ("SCR_MARK_WAITKEY") != nullptr;
         if (mark_waitkey)
@@ -552,7 +552,7 @@ os_read_line (scr_char *buffer, scr_int length)
    * Compare aid: with SCR_MARK_PROMPT set, a \x02 in front of the prompt
    * tells it apart from game text that begins a line with '>'.  3monkeys'
    * ending prints "> GIVE FINGER TO DR. WICKETT", which the Wine compare
-   * otherwise split off as a turn of its own (2026-09-19).
+   * otherwise split off as a turn of its own.
    *
    * A `go <place>` walk types its own steps; show each as typed.  A step is
    * part of the typed turn, the Runner echoing it as "> East" inside the
@@ -704,7 +704,7 @@ os_confirm (scr_int type)
        * pause.  The answer is read without a prompt, so a tool that numbers
        * input lines by prompt drifts one line per question -- mould's
        * `hint`/`y` pairs threw the Wine compare's pause bookkeeping off
-       * (test/adrift4/harness/compare_wine_transcript.py, 2026-09-21).
+       * (test/adrift4/harness/compare_wine_transcript.py).
        */
       if (getenv ("SCR_MARK_CONFIRM"))
         {
@@ -867,14 +867,7 @@ main (int argc, const char *argv[])
   if (locale)
     scr_set_locale (locale);
 
-  /*
-   * Select portable, predictable random number generation *before* loading the
-   * game.  Game creation (run_create -> gs_create) draws random initial event
-   * times (scr_randomint, scgamest.cpp), so reseeding only after the load would
-   * leave those initial times -- and hence the whole event schedule -- governed
-   * by the unseeded, time-based RNG, making event-heavy games (Shadowpeak, …)
-   * nondeterministic run to run despite "stable random".
-   */
+  /* Select the portable RNG before loading the game; see glk/os_glk.cpp. */
   if (getenv ("SCR_STABLE_RANDOM_ENABLED"))
     {
       scr_set_portable_random (TRUE);

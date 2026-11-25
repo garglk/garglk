@@ -1,5 +1,5 @@
 /*
- *	  ScottFree Revision 1.14
+ *	  Based on ScottFree Revision 1.14
  *
  *
  *	  This program is free software; you can redistribute it and/or
@@ -8,7 +8,7 @@
  *	  2 of the License, or (at your option) any later version.
  *
  *
- *	  You must have an ANSI C compiler to build this program.
+ *	  You must have a C11 compiler to build this program.
  */
 
 /*
@@ -23,9 +23,9 @@
  *	 and the latter can be selected with the -w flag.
  *
  * o Game saving and loading uses Glk, which means that providing a
- *	 save game file on the command-line will no longer work.  Instead,
- *	 the verb "restore" has been special-cased to call GameLoad(), which
- *	 now prompts for a filename via Glk.
+ *	 save game file on the command-line does not work.  Instead,
+ *	 the verb "restore" has been special-cased to call LoadGame(), which
+ *	 prompts for a filename via Glk.
  *
  * o The local character set is expected to be compatible with ASCII, at
  *	 least in the printable character range.  Newlines are specially
@@ -98,7 +98,7 @@ int gli_slowdraw = 0;
 const char *game_file = NULL;
 char *DirPath = "."; /* Directory containing the game file */
 
-/* Core game data — populated by LoadDatabase or the SAGA/Plus loaders */
+/* Core game data — populated by LoadDatabase or the SAGA loaders */
 Header GameHeader;
 Item *Items = NULL;
 Room *Rooms = NULL;
@@ -139,7 +139,8 @@ size_t file_length;
 
 int AnimationFlag = 0;
 
-/* Display state flags — track what's currently shown to avoid redundant redraws */
+/* Display state flags — track what's currently shown to avoid redundant
+   redraws */
 int showing_inventory = 0;
 int showing_closeup = 0;
 int last_image_index = -1;
@@ -600,7 +601,8 @@ static void LoadMessages(FILE *f)
     }
 }
 
-/* Load items: description string (with optional /AutoGet/ word) and location */
+/* Load items: description string (with optional /AutoGet/ word) and
+   location */
 static int LoadItems(FILE *f)
 {
     LoadTrace("Reading %d items.\n", GameHeader.NumItems);
@@ -1051,8 +1053,8 @@ static void PlayTurn(void)
         break;
     case ER_RAN_ALL_LINES:
         Output(sys[YOU_CANT_DO_THAT_YET]);
-        // Failed actions should interrupt chains of commands
-        // but not TAKE ALL and DROP ALL
+        /* Failed actions should interrupt chains of commands
+           but not TAKE ALL and DROP ALL */
         if (CurrentCommand == NULL || !CurrentCommand->allflag)
             FreeCommands();
         break;

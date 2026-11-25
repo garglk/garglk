@@ -31,11 +31,9 @@
  *
  * Module notes:
  *
- * o Ensure module messages precisely match the real Runner ones.  This
- *   matters for ALRs.
- *
- * o Capacity checks on the player and on containers are implemented, but
- *   may not be right.
+ * o Library messages are meant to match the Runner's byte for byte, since
+ *   ALRs match on them.  Each is checked against the Wine Runner
+ *   transcripts and probes; the handlers cite the ones they rest on.
  */
 
 #include "sclibrar.h"
@@ -52,7 +50,7 @@
  *              by lib_co_400_reset().
  *   long_names the multi-word names lib_mask_long_names() masks, objects
  *              then characters; collected once per bundle, dropped by
- *              lib_forget_bundle() before the runner destroys it.
+ *              lib_forget_bundle() before the `run_` code destroys it.
  *   line       per typed line, set by lib_co_note_line_top(): the 3.7
  *              "a handler settled this line's object" flag, and the
  *              snapshot of which objects fitted the line's co() mode.
@@ -279,11 +277,11 @@ lib_drain_multiple_references_if (scr_gameref_t game, scr_int object_count,
   list.clear ();
   for (object = 0; object < object_count; object++)
     {
-      if (!game->multiple_references[object] || !keep (object))
+      if (!game->refs.multiple[object] || !keep (object))
         continue;
 
       list.push_back (object);
-      game->multiple_references[object] = FALSE;
+      game->refs.multiple[object] = FALSE;
     }
 }
 
@@ -297,6 +295,7 @@ extern void lib_take_from_npc_backend (scr_gameref_t game, scr_int associate);
 /* sclibrar_take_multiple.cpp */
 extern scr_bool lib_take_filter (scr_gameref_t game, scr_int object,
                                  scr_int unused);
+extern scr_bool lib_take_declines_get_motion (scr_gameref_t game);
 extern scr_int lib_take_absent_score (scr_gameref_t game, scr_int object,
                                       const scr_char *input,
                                       const scr_char **term);
@@ -306,6 +305,10 @@ extern scr_bool lib_take_tie_400 (scr_gameref_t game, const scr_char *line,
                                   const std::vector<scr_int> &marked,
                                   scr_int mark_count);
 extern void lib_take_from_task_sweep_380 (scr_gameref_t game);
+extern scr_bool lib_take_multiple_common (scr_gameref_t game,
+                                          scr_bool is_except);
+
+/* sclibrar_take_pre400.cpp */
 extern scr_bool lib_isheld_390 (scr_gameref_t game, scr_int object);
 extern scr_bool lib_name_instr_range (scr_gameref_t game, const scr_char *line,
                                       scr_int object, scr_int *lowest,
@@ -318,8 +321,6 @@ lib_move_named_whole_line_pre400 (scr_gameref_t game,
                                   scr_bool (*resolver) (scr_gameref_t, scr_int,
                                                         scr_int),
                                   scr_int mode, scr_int *references);
-extern scr_bool lib_take_multiple_common (scr_gameref_t game,
-                                          scr_bool is_except);
 
 /* sclibrar_takefrom.cpp */
 extern scr_bool lib_take_from_filter (scr_gameref_t game, scr_int object,
@@ -327,6 +328,7 @@ extern scr_bool lib_take_from_filter (scr_gameref_t game, scr_int object,
 extern void lib_take_from_empty (scr_gameref_t game, scr_int associate,
                                  scr_bool is_except);
 extern scr_bool lib_take_from_trailing (scr_gameref_t game);
+extern scr_bool lib_take_from_empty_head_400 (scr_gameref_t game);
 extern scr_bool lib_take_from_and_line (scr_gameref_t game);
 extern scr_bool lib_take_from_and (scr_gameref_t game);
 
@@ -362,13 +364,19 @@ typedef struct
    * definite helper Proc_2_36_42B0E8 (445CD4-445D0F): p39EXAM `drop stone`
    * with the stone on the floor, and `drop coin` with the coin in the open
    * crate, are "You don't have the stone!" and "... the coin!" (run390
-   * runner_probes/exam.run390.b.txt, 2026-09-14).  Its remove handler is
+   * runner_probes/exam.run390.b.txt).  Its remove handler is
    * unmeasured.
    */
   scr_bool lacks_single_390;
 } lib_move_verb_t;
 
 extern const lib_move_verb_t LIB_PUT_ON_VERB;
+extern scr_bool lib_drop_filter (scr_gameref_t game, scr_int object,
+                                 scr_int unused);
+extern scr_bool lib_wear_filter (scr_gameref_t game, scr_int object,
+                                 scr_int unused);
+extern scr_bool lib_remove_filter (scr_gameref_t game, scr_int object,
+                                   scr_int unused);
 extern scr_bool lib_move_backend (scr_gameref_t game,
                                   const lib_move_verb_t *verb, scr_int target,
                                   scr_bool has_printed);
@@ -421,11 +429,12 @@ extern scr_bool lib_lock_backend (scr_gameref_t game,
                                   const lib_lock_verb_t *verb,
                                   scr_bool with_key);
 
-/* sclibrar_put_multiple.cpp */
+/* sclibrar_put_pre400.cpp */
 extern scr_int lib_instr (const scr_char *line, const scr_char *term);
 
 /* sclibrar_battle.cpp */
 extern void lib_battle_who_store (const std::string &pending);
+extern void lib_battle_store_put_where (scr_gameref_t game, scr_int object);
 extern void lib_with_prefix_390_note (scr_gameref_t game);
 extern void lib_question_prefix_from_line (scr_gameref_t game);
 extern scr_bool lib_checkverb_bare_400 (scr_gameref_t game,
@@ -433,12 +442,11 @@ extern scr_bool lib_checkverb_bare_400 (scr_gameref_t game,
                                         const scr_char *label);
 
 /* sclibrar_refuse.cpp */
-extern scr_bool lib_cant_do_other (scr_gameref_t game, const scr_char *verb);
 extern scr_bool lib_cmd_unclear_object (scr_gameref_t game);
 extern scr_int lib_seen_named_object_400 (scr_gameref_t game,
                                           const scr_char *input);
 
-/* sclibrar_verbobj.cpp */
+/* sclibrar_resolve_400.cpp */
 extern scr_bool lib_resolve_admit_mode0 (scr_gameref_t game, scr_int object,
                                          scr_int pass);
 extern scr_bool lib_resolve_admit_take (scr_gameref_t game, scr_int object,

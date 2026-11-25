@@ -19,49 +19,305 @@
  */
 
 /*
- * Room contents, room descriptions and exits.
- *
- * See sclibrar.h for what the library files share.
+ * Room names and headings, room contents, room descriptions and exits.
  */
 
 #include "sclibrar.h"
 
 
 /*
- * lib_alrs_see_gap()
+ * lib_print_room_name_lower()
  *
- * TRUE if any of the game's ALRs could match across the Runner's literal
- * two-space gap after a line break: an Original that opens with a space, or
- * one that spans a break.  perspectives' ' Also here is a gun. ' is one --
- * it only fires on the Runner's "<br><br>  Also here is a gun.  " -- and
- * which ALRs fire is game behaviour, not text shape.
+ * Print a room's name for the where/find/locate answers.  The Runner folds
+ * the whole name to lower case there -- it builds the answer as `... &
+ * LCase(room.name) & "."` -- so "Drake Stables" comes out "Janai is drake
+ * stables." (aegis).
+ *      run400 @468143 (objects, whereis) and @47FD19 (characters)
+ *
+ * Deliberate deviation (WINE-TRANSCRIPTS.md): the fold reads well for
+ * "In the pantry", "Your room" or "EXERCISE YARD", but turns a name into
+ * a common noun.  Scarier keeps a name as authored when it capitalises two
+ * or more words past an opening article or preposition -- "Drake Stables",
+ * "Amanda's Living Room" -- or opens with a possessive, "Jane's house", and
+ * lowers only that opening word: "the Main Hall".  Everything else is
+ * folded as the Runner folds it, and so is every name in a game whose ALRs
+ * quote the folded form.
+ */
+static const scr_char *const LIB_ROOM_OPENING_WORDS[] =
+  { "a", "an", "the", "in", "inside", "on", "at", "by", "near", "outside",
+    "under", "underneath", "beneath", "below", "above", "behind",
+    "beside", "before", "within", "among", "atop", "along", "across",
+    "into", "onto", "upon", NULL };
+
+static scr_bool
+lib_room_opening_word (const std::string &word)
+{
+  const scr_char *const *entry;
+
+  for (entry = LIB_ROOM_OPENING_WORDS; *entry; entry++)
+    if (scr_strcasecmp (word.c_str (), *entry) == 0)
+      return TRUE;
+  return FALSE;
+}
+
+void
+lib_print_room_name_lower (scr_gameref_t game, scr_int room)
+{
+  const scr_filterref_t filter = gs_get_filter (game);
+  std::string name (lib_get_room_name (game, room));
+  std::string lower (name);
+  size_t index_ = 0, first_start = std::string::npos, first_end = 0;
+  scr_int words = 0, capitalised = 0;
+  scr_bool possessive = FALSE, opener = FALSE;
+
+  scr_lowercase (lower);
+  if (pf_alr_mentions (gs_get_bundle (game), lower.c_str ()))
+    {
+      pf_buffer_string (filter, lower.c_str ());
+      return;
+    }
+
+  /* Walk the words outside tags. */
+  while (index_ < name.size ())
+    {
+      size_t end;
+      scr_bool has_lower = FALSE;
+
+      if (name[index_] == '<')
+        {
+          const size_t close = name.find ('>', index_);
+          if (close == std::string::npos)
+            break;
+          index_ = close + 1;
+          continue;
+        }
+      if (!scr_isalpha (name[index_]))
+        {
+          index_++;
+          continue;
+        }
+      for (end = index_; end < name.size ()
+                         && (scr_isalpha (name[end]) || name[end] == '\'');
+           end++)
+        has_lower |= (scr_toupper (name[end]) != name[end]);
+
+      if (words == 0)
+        {
+          const std::string word (name, index_, end - index_);
+
+          first_start = index_;
+          first_end = end;
+          opener = lib_room_opening_word (word);
+          possessive = (scr_tolower (name[index_]) != name[index_]) && word.size () > 2
+                       && word.compare (word.size () - 2, 2, "'s") == 0;
+        }
+      if (!(words == 0 && opener)
+          && (scr_tolower (name[index_]) != name[index_]) && has_lower)
+        capitalised++;
+      words++;
+      index_ = end;
+    }
+
+  if (capitalised < 2 && !possessive)
+    {
+      pf_buffer_string (filter, lower.c_str ());
+      return;
+    }
+  if (opener)
+    for (index_ = first_start; index_ < first_end; index_++)
+      name[index_] = scr_tolower (name[index_]);
+  pf_buffer_string (filter, name.c_str ());
+}
+
+
+/*
+ * lib_room_name_text()
+ * lib_long_opens_with_name()
+ * lib_room_name_headings()
+ *
+ * Whether to head a 3.9/4.0 room description with the room's name.
+ *
+ * The heading is the Runner's "Room names in descriptions" Appearance
+ * option ("showshortroom", default on; see lib_describe_player_room()).  It
+ * is a player preference, not game data, and some authors wrote with it
+ * off: their descriptions carry the room's name themselves, so the Runner's
+ * default prints it twice -- CityInFear's "Alley" heading over "ALLEY", or
+ * SILKNOIL's "In Silk Tunnel" over its own bold "In Silk Tunnel".  Games
+ * upconverted from 3.8, where no Runner printed a heading, do the same.
+ *
+ * Deliberate deviation (WINE-TRANSCRIPTS.md): a game in which more than half
+ * of the rooms with a description open it with the room's name, standing on
+ * its own, gets no heading.  Counted across the corpus on 2026-11-04, 20
+ * of the 724 3.9/4.0 game files (16 games, plus patched copies) are over
+ * that line, every one at 60% or more; the next is at 50% (ssteacher, 1
+ * of 2), then 29%.  Scene of the Crime counts only 63%, but every one of its
+ * rooms opens with a heading of its own in other words ("Alley" over "AN
+ * ALLEY").
  */
 static scr_bool
-lib_alrs_see_gap (scr_gameref_t game)
+lib_is_word_char (scr_char character)
+{
+  return scr_isalpha (character) || isdigit ((unsigned char) character);
+}
+
+static std::string
+lib_room_name_text (const scr_char *text)
+{
+  std::string out;
+  scr_bool space = FALSE;
+
+  for (; *text; text++)
+    {
+      if (*text == '<')
+        {
+          const scr_char *close = strchr (text, '>');
+          if (!close)
+            break;
+          out += '\x01';
+          space = FALSE;
+          text = close;
+          continue;
+        }
+      if (*text == ' ' || *text == '\t')
+        {
+          space = TRUE;
+          continue;
+        }
+      if (space && !out.empty ())
+        out += ' ';
+      space = FALSE;
+      out += scr_tolower (*text);
+    }
+  return out;
+}
+
+static scr_bool
+lib_long_opens_with_name (const scr_char *short_name, const scr_char *long_text)
+{
+  std::string name = lib_room_name_text (short_name);
+  std::string text = lib_room_name_text (long_text);
+  size_t start, end, index_;
+
+  /* The name without tags, outer punctuation or space. */
+  name.erase (std::remove (name.begin (), name.end (), '\x01'), name.end ());
+  for (start = 0; start < name.size () && !lib_is_word_char (name[start]);
+       start++)
+    ;
+  for (end = name.size (); end > start && !lib_is_word_char (name[end - 1]);
+       end--)
+    ;
+  if (end - start < 2)
+    return FALSE;
+  name = name.substr (start, end - start);
+
+  /* The description's opening, past tags, newlines and quotes. */
+  for (index_ = 0; index_ < text.size ()
+                   && (text[index_] == '\x01' || text[index_] == '\n'
+                       || text[index_] == '\r' || text[index_] == ' '
+                       || text[index_] == '"');
+       index_++)
+    ;
+  if (text.compare (index_, name.size (), name) != 0)
+    return FALSE;
+
+  /* The name must stand alone, not open a sentence: "Alley" then "\n". */
+  for (index_ += name.size (); index_ < text.size () && text[index_] == ' ';
+       index_++)
+    ;
+  return index_ == text.size () || !lib_is_word_char (text[index_]);
+}
+
+static scr_bool
+lib_has_words (const scr_char *text)
+{
+  const std::string plain = lib_room_name_text (text);
+  size_t index_;
+
+  for (index_ = 0; index_ < plain.size (); index_++)
+    if (lib_is_word_char (plain[index_]))
+      return TRUE;
+  return FALSE;
+}
+
+scr_bool
+lib_room_name_headings (scr_gameref_t game)
 {
   const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[3];
-  scr_int alr_count, alr;
 
-  vt_key[0].string = "ALRs";
-  alr_count = prop_get_child_count (bundle, "I<-s", vt_key);
-  for (alr = 0; alr < alr_count; alr++)
+  if (game->room_name_headings == 0)
     {
-      const scr_char *original, *cursor;
+      scr_vartype_t vt_key[3];
+      scr_int room_count, room, described = 0, named = 0;
 
-      vt_key[1].integer = alr;
-      vt_key[2].string = "Original";
-      original = prop_get_string (bundle, "S<-sis", vt_key);
-      if (original[0] == ' ' || strchr (original, '\n'))
-        return TRUE;
-      for (cursor = strchr (original, '<'); cursor;
-           cursor = strchr (cursor + 1, '<'))
+      vt_key[0].string = "Rooms";
+      room_count = prop_get_child_count (bundle, "I<-s", vt_key);
+      for (room = 0; room < room_count; room++)
         {
-          if (scr_strncasecmp (cursor, "<br>", 4) == 0)
-            return TRUE;
+          const scr_char *short_name, *long_text;
+
+          vt_key[1].integer = room;
+          vt_key[2].string = "Short";
+          short_name = prop_get_string (bundle, "S<-sis", vt_key);
+          vt_key[2].string = "Long";
+          long_text = prop_get_string (bundle, "S<-sis", vt_key);
+          if (!lib_has_words (long_text))
+            continue;
+          described++;
+          if (lib_long_opens_with_name (short_name, long_text))
+            named++;
         }
+      game->room_name_headings = (described > 0 && named * 2 > described)
+                                 ? 2 : 1;
     }
-  return FALSE;
+  return game->room_name_headings == 1;
+}
+
+
+void
+lib_print_room_name (scr_gameref_t game, scr_int room)
+{
+  const scr_filterref_t filter = gs_get_filter (game);
+  const scr_char *name;
+
+  /*
+   * Open a paragraph for the name.  The Runner has no inline room name, so
+   * anything already buffered ran straight into the room description there;
+   * here it would run straight into a heading instead.  See
+   * pf_buffer_paragraph_break().
+   */
+  pf_buffer_paragraph_break (filter);
+
+  /* Print the room name, possibly in bold. */
+  name = lib_get_room_name (game, room);
+  if (game->settings.bold_room_names)
+    {
+      pf_buffer_tag (filter, SCR_TAG_BOLD);
+      pf_buffer_string (filter, name);
+      pf_buffer_tag (filter, SCR_TAG_ENDBOLD);
+    }
+  else
+    pf_buffer_string (filter, name);
+
+  /*
+   * The heading's newline is one the Runner has too, so it is not a section
+   * terminator of ours for pf_buffer_join() to pop.  Left unmarked, a room
+   * whose description is empty ran its contents straight on after the name:
+   *
+   *     Inside the Top Hat  A bunny twitches its whiskers at me  <- Scarier
+   *     Inside the Top Hat                                       <- run400
+   *     A bunny twitches its whiskers at me
+   *
+   * tophat.taf (4.0), whose one room has an empty Long, in both `up` turns
+   * of its transcript; professor t11/t18/t38/t54, viewtohome t20/t56 and
+   * woof t8 say the same.  Read with the leading break that
+   * pf_buffer_paragraph_break() supplies just above, the measurements fit a
+   * Runner that appends a break, the name and a break onto the one output
+   * string the turn is building -- pspace() only ever appends a separator,
+   * so it leaves that trailing Chr(10) standing and never takes it back.
+   * The P-code has not been read; the transcripts are the evidence.
+   */
+  pf_buffer_character (filter, '\n');
+  pf_buffer_hard_break (filter);
 }
 
 
@@ -73,11 +329,11 @@ lib_alrs_see_gap (scr_gameref_t game)
  * pspace() -- so after a block that ends in a line break, or a bare
  * heading, its line opens with two spaces.  Scarier deliberately keeps the
  * join but not that indent (deviation policy): the gap is left out where
- * the buffer is empty or already stands at the start of a line, unless an author ALR
- * could be matching on it (lib_alrs_see_gap), which keeps the Runner's text
- * so the same ALRs fire.  The exits sentence passes guarded FALSE: no corpus
- * ALR matches on its gap, and les_feux's leading-space ALRs would otherwise
- * keep every French exits line indented.
+ * the buffer is empty or already stands at the start of a line, unless an
+ * author ALR could be matching on it (lib_alrs_see_gap), which keeps the
+ * Runner's text so the same ALRs fire.  The exits sentence passes guarded
+ * FALSE: no corpus ALR matches on its gap, and les_feux's leading-space ALRs
+ * would otherwise keep every French exits line indented.
  */
 static void
 lib_buffer_literal_gap (scr_gameref_t game, scr_bool guarded)
@@ -233,21 +489,22 @@ lib_room_contents_npc_sentence (scr_gameref_t game, scr_int room)
    * something of their own to say.
    *
    * Two things about that split are not what they look like, both measured
-   * live in run400 (test/adrift4/notes/RUNNER_TESTS_TODO.md section 9).  The
-   * "#" substitution happens in the *loader* (@00091EDF): the text simply
-   * becomes "<name> is here." before the game starts, and by the time the room
-   * lister (@00072944) runs there is no "#" left to test for.  What it tests
-   * instead is the tail -- Right(text, 9) = " is here." -- so a character
-   * whose text the author wrote out in full joins the sentence too,
-   * contributing the text with those nine characters trimmed off rather than
-   * its own name.  Probe NPCs "Delta" ("Delta is here.") and "Foxtrot" ("The
-   * stranger is here.") come out as "Alpha, Charlie, Delta and The stranger
-   * are here.", so it is the text that is trimmed and not the name that is
-   * looked up.  The test is exact and case-sensitive: "Golf is here!" and
-   * "Hotel IS HERE." both stay in the second group.
+   * live in run400 ("Probe backlog" in
+   * test/adrift4/notes/RUNNER_TESTS.md).  The "#" substitution happens in
+   * the *loader* (@00091EDF): the text simply becomes "<name> is here." before
+   * the game starts, and by the time the room lister (@00072944) runs there is
+   * no "#" left to test for.  What it tests instead is the tail -- Right(text,
+   * 9) = " is here." -- so a character whose text the author wrote out in full
+   * joins the sentence too, contributing the text with those nine characters
+   * trimmed off rather than its own name.  Probe NPCs "Delta" ("Delta is
+   * here.") and "Foxtrot" ("The stranger is here.") come out as "Alpha,
+   * Charlie, Delta and The stranger are here.", so it is the text that is
+   * trimmed and not the name that is looked up.  The test is exact and
+   * case-sensitive: "Golf is here!" and "Hotel IS HERE." both stay in the
+   * second group.
    *
    * And the joined sentence comes *first*, ahead of the characters with their
-   * own text, which is the other half of what Scarier had backwards.
+   * own text.
    */
   GS_FOR_EACH_NPC (game, npc)
     {
@@ -266,7 +523,7 @@ lib_room_contents_npc_sentence (scr_gameref_t game, scr_int room)
            * run390 (@00466932), run380 (@00449463) and run370 (@0044071D)
            * append the raw Name.  Nothing downstream capitalises, so an
            * author's own " is here." text keeps its case in every version.
-           * twilight (3.80) prints "a monkey is here.", goldilocks (4.0)
+           * twilight (3.8) prints "a monkey is here.", goldilocks (4.0)
            * "My Fairy Godmother is here."  Scarier deliberately still opens
            * the sentence with a capital in every version (deviation
            * policy); see the pf_new_sentence() below.
@@ -469,7 +726,7 @@ lib_room_desc_long (scr_gameref_t game, scr_int room, scr_int start,
            * 3.8 substitutes "There is nothing of interest here." into an
            * empty Long at LOAD time (run380 447FEE), so the sentence prints
            * wherever the Long would -- even when an alt goes on to describe
-           * the room.  Measured live 2026-08-31 on cave.taf (3.80): "By the
+           * the room.  Measured live on cave.taf (3.8): "By the
            * old shack" and "By the large tree" have empty Longs and a
            * LastDesc alt, and run380 prints "There is nothing of interest
            * here.  You are standing..." on every show.  3.9's render-time
@@ -599,10 +856,10 @@ lib_room_desc_nothing_390 (scr_gameref_t game, scr_int room,
    * 447ACF, each preceded by a `<alt string> <> vbNullString` branch that
    * jumps clean past it).  3.8 does it at LOAD time instead, substituting the
    * sentence into the empty Long itself (run380 447FEE) -- and cave.taf
-   * (measured live 2026-08-31) proves the routes DIVERGE when an alt
+   * (measured live) proves the routes DIVERGE when an alt
    * describes the room: 3.8 prints the substitute in the Long's place AND
-   * the alt after it, where this render-time guard stayed silent.  The 3.80
-   * case therefore now lives up at the Long print; only 3.90 keeps this
+   * the alt after it, where this render-time guard stayed silent.  The 3.8
+   * case therefore now lives up at the Long print; only 3.9 keeps this
    * guarded tail.  3.7 has no such string and leaves the
    * room blank; 4.0 dropped it again.
    *
@@ -610,11 +867,11 @@ lib_room_desc_nothing_390 (scr_gameref_t game, scr_int room,
    * alone moves 16 of the 303 corpus goldens.  The guard needs BOTH halves:
    * the alt text empty AND the Long itself empty (`var_A4(4) = vbNullString`
    * at 4478C0, the room record's Long, not what got printed).  yeh.taf
-   * (3.90) measured on run390x 2026-09-12: "Outside", "Woods", "Spooky
+   * (3.9) measured on run390x: "Outside", "Woods", "Spooky
    * area." each have a Long and a start alt that suppresses it with empty
    * text, and the Runner prints the heading and the exits alone.
    *
-   * Measured on p39EXAM.taf (3.90), runner_probes/exam.run390.txt and
+   * Measured on p39EXAM.taf (3.9), runner_probes/exam.run390.txt and
    * runner_probes/exam.run390.held.txt: the Void Room has an empty Long, no
    * alts and no objects, and both `e` and `look` answer "There is nothing of
    * interest here.  You can only move west." -- the sentence joined to the
@@ -648,11 +905,11 @@ lib_room_desc_event_looks (scr_gameref_t game, scr_int room,
   scr_int event;
 
   /*
-   * Finally, print any relevant event look text.  The runner appends it dead
-   * last in the room block, after the object list and the character lines,
-   * run on with its two-space separator (probed live in both runners,
-   * 2026-08-02).  Join onto the description block only if this call printed
-   * one, so an event's text can't migrate up onto the room name line.
+   * Finally, print any relevant event look text.  The Runner appends it dead
+   * last in the room block, after the object list and the character lines, run
+   * on with its two-space separator (probed live in both runners).  Join onto
+   * the description block only if this call printed one, so an event's text
+   * can't migrate up onto the room name line.
    *
    * The visibility test asks about `room`, the room being described, not
    * about the player -- run400's viewroom indexes the event's room list with
@@ -705,7 +962,6 @@ void
 lib_print_room_description (scr_gameref_t game, scr_int room)
 {
   const scr_filterref_t filter = gs_get_filter (game);
-  const scr_prop_setref_t bundle = gs_get_bundle (game);
   scr_bool showobjects, is_described;
   scr_int start;
 
@@ -754,7 +1010,7 @@ lib_print_room_description (scr_gameref_t game, scr_int room)
    * match.
    *
    * That is the whole of ADRIFT 4's darkness.  Measured on p39DARK.taf
-   * (3.90): entering the Dark Cave unlit
+   * (3.9): entering the Dark Cave unlit
    * (runner_probes/dark.run390.unseen.txt) leaves `x stone`, `read stone` and
    * `x box` at the unmatched-noun answer "You can't see that very clearly.",
    * `take stone` at "Take what?" and `get all from box` at "You can't get
@@ -764,11 +1020,20 @@ lib_print_room_description (scr_gameref_t game, scr_int room)
    * succeeds and `x stone` answers the named form, "You can't see the stone
    * very clearly."  Being seen is permanent; being lit is not.
    *
-   * 4.0 is left alone: nothing has measured its marking loops against a
-   * HideObjects alt, and lib_room_is_dark() shows run400 never even assigns
-   * its darkness byte.
+   * run400 does the same, although it has no darkness byte.  Measured on
+   * p4DARK.taf, the same world in the 4.0 layout with the cave's darkness
+   * as an ordinary type-2 HideObjects alt (make_400_darkprobe.py):
+   * entering unlit (runner_probes/dark.run400.unseen.txt) leaves `x stone`,
+   * `x pebble`, `x box` and `read stone` at "You see no such thing.", `take
+   * stone` at "Take what?" and `get all from box` at "I don't understand
+   * where you want to get things from."; after one lit visit
+   * (runner_probes/dark.run400.seen.txt) `take stone` succeeds in the dark
+   * and `x stone` gives the plain description, not the 3.9 "can't see"
+   * form, since that needs the darkness byte run400 never assigns.  So in
+   * 4.0 a HideObjects alt hides objects from the noun resolver, but the
+   * examine messages are the lit ones.
    */
-  if (showobjects || prop_get_taf_version (bundle) >= TAF_VERSION_400)
+  if (showobjects)
     obj_mark_room_objects_seen (game, room);
 
   /* Print room contents. */
@@ -788,135 +1053,6 @@ lib_print_room_description (scr_gameref_t game, scr_int room)
 }
 
 
-/*
- * lib_can_go()
- *
- * Return TRUE if the player can move in the given direction.  Also the map's
- * test for which connectors are currently usable (scmap.cpp).
- */
-scr_bool
-lib_can_go (scr_gameref_t game, scr_int room, scr_int direction)
-{
-  const scr_prop_setref_t bundle = gs_get_bundle (game);
-  scr_vartype_t vt_key[5];
-  scr_int restriction;
-  scr_bool is_restricted = FALSE;
-
-  /* Set up invariant parts of key. */
-  vt_key[0].string = "Rooms";
-  vt_key[1].integer = room;
-  vt_key[2].string = "Exits";
-  vt_key[3].integer = direction;
-
-  /* Check for any movement restrictions. */
-  vt_key[4].string = "Var1";
-  restriction = prop_get_integer (bundle, "I<-sisis", vt_key) - 1;
-  if (restriction >= 0)
-    {
-      scr_int type;
-
-      if (lib_trace)
-        scr_trace ("Library: hit move restriction\n");
-
-      /* Get restriction type. */
-      vt_key[4].string = "Var3";
-      type = prop_get_integer (bundle, "I<-sisis", vt_key);
-      switch (type)
-        {
-        case 0:                /* Task type restriction */
-          {
-            scr_int check;
-
-            /* Get the expected completion state. */
-            vt_key[4].string = "Var2";
-            check = prop_get_integer (bundle, "I<-sisis", vt_key);
-
-            if (lib_trace)
-              {
-                scr_trace ("Library: task %ld, check %ld\n",
-                          restriction, check);
-              }
-
-            /* Restrict if task isn't done/not done as expected. */
-            if (gs_task_valid (game, restriction)
-                && (check != 0) == gs_task_done (game, restriction))
-              is_restricted = TRUE;
-            break;
-          }
-
-        case 1:                /* Object state restriction */
-          {
-            scr_int object, check, openable;
-
-            /* Get the target object; with none, nothing restricts. */
-            object = obj_stateful_object (game, restriction);
-            if (object < 0)
-              break;
-
-            /* Get the expected object state. */
-            vt_key[4].string = "Var2";
-            check = prop_get_integer (bundle, "I<-sisis", vt_key);
-
-            if (lib_trace)
-              scr_trace ("Library: object %ld, check %ld\n", object, check);
-
-            /* Check openable and lockable objects. */
-            vt_key[0].string = "Objects";
-            vt_key[1].integer = object;
-            vt_key[2].string = "Openable";
-            openable = prop_get_integer (bundle, "I<-sis", vt_key);
-            if (openable > 0)
-              {
-                scr_int lockable;
-
-                /* See if lockable. */
-                vt_key[2].string = "Key";
-                lockable = prop_get_integer (bundle, "I<-sis", vt_key);
-                if (lockable >= 0)
-                  {
-                    /* Lockable. */
-                    if (check <= 2)
-                      {
-                        if (gs_object_openness (game, object) != check + 5)
-                          is_restricted = TRUE;
-                      }
-                    else
-                      {
-                        if (gs_object_state (game, object) != check - 2)
-                          is_restricted = TRUE;
-                      }
-                  }
-                else
-                  {
-                    /* Not lockable, though openable. */
-                    if (check <= 1)
-                      {
-                        if (gs_object_openness (game, object) != check + 5)
-                          is_restricted = TRUE;
-                      }
-                    else
-                      {
-                        if (gs_object_state (game, object) != check - 1)
-                          is_restricted = TRUE;
-                      }
-                  }
-              }
-            else
-              {
-                /* Not openable. */
-                if (gs_object_state (game, object) != check + 1)
-                  is_restricted = TRUE;
-              }
-            break;
-          }
-        }
-    }
-
-  /* Return TRUE if not restricted. */
-  return !is_restricted;
-}
-
-
 /* List of direction names, for printing and counting exits. */
 static const scr_char *const DIRNAMES_4[] = {
   "north", "east", "south", "west", "up", "down", "in", "out",
@@ -930,14 +1066,10 @@ const scr_char *const DIRNAMES_8[] = {
 
 
 /*
- * lib_room_has_exits()
+ * lib_direction_name()
  *
- * Return TRUE if the player room has at least one usable exit.  Used to
- * suppress the automatic exit listing appended to room descriptions when a
- * room has no exits at all.  The original ADRIFT runner builds the exit
- * string and, for the room description (as opposed to an explicit "exits"
- * command), discards it if it ends in "any direction!"; testing for usable
- * exits up front is the equivalent.
+ * Return the name of a direction in the eight point list, or NULL if the
+ * index is out of range.
  */
 const scr_char *
 lib_direction_name (scr_int direction)
@@ -1013,6 +1145,16 @@ lib_room_exit_destination (scr_gameref_t game,
 }
 
 
+/*
+ * lib_room_has_exits()
+ *
+ * Return TRUE if the player room has at least one usable exit.  Used to
+ * suppress the automatic exit listing appended to room descriptions when a
+ * room has no exits at all.  The Runner builds the exit string and, for the
+ * room description (as opposed to an explicit "exits" command), discards it
+ * if it ends in "any direction!"; testing for usable exits up front is the
+ * equivalent.
+ */
 static scr_bool
 lib_room_has_exits (scr_gameref_t game, scr_int room)
 {
@@ -1053,12 +1195,11 @@ lib_print_exits_list (scr_gameref_t game, scr_int room)
   if (!list.empty ())
     {
       /*
-       * Vary text for a lone exit.  SCARE used to print "There is an
-       * exit "/"There are exits " on turn 0, but no Runner version has
-       * that wording at all (run370-run400 binaries carry only " can
-       * only move " and " can move "), and the run400 Goldilocks
-       * transcript says "I can move ..." even in the game-start room
-       * display.
+       * Vary text for a lone exit.  SCARE prints "There is an exit "/"There
+       * are exits " on turn 0, but no Runner version has that wording at all
+       * (run370-run400 binaries carry only " can only move " and " can move
+       * "), and the run400 Goldilocks transcript says "I can move ..." even in
+       * the game-start room display.
        */
       if (list.size () == 1)
         {
@@ -1077,12 +1218,14 @@ lib_print_exits_list (scr_gameref_t game, scr_int room)
                                                  "%player% can move "));
         }
       lib_print_name_list (game, list, dirnames, " and ");
-      /* The exits list is the `exits` command's answer, and like every other
-         library answer it stops at the full stop -- the room builder appends
-         it to the turn's one string (run400 472C64, run390 44813D) and the
-         walk and event tick that follows joins onto it.  shadowpeak (4.00):
-         "You can move north, east and west.  Seeker hums!"
-         (runner_transcripts/shadowpeak.txt). */
+      /*
+       * The exits list is the `exits` command's answer, and like every other
+       * library answer it stops at the full stop -- the room builder appends
+       * it to the turn's one string (run400 472C64, run390 44813D) and the
+       * walk and event tick that follows joins onto it.  shadowpeak (4.0):
+       * "You can move north, east and west.  Seeker hums!"
+       * (runner_transcripts/shadowpeak.txt).
+       */
       pf_buffer_character (filter, '.');
       pf_buffer_answer_break (filter);
     }
@@ -1095,6 +1238,34 @@ lib_print_exits_list (scr_gameref_t game, scr_int room)
                                       "%player% can't go in any direction!"));
       pf_buffer_answer_break (filter);
     }
+}
+
+
+/*
+ * lib_print_message_with_exits()
+ *
+ * Print a refusal that sends the player back to the compass -- "Unknown
+ * place." or "Just a direction will do." -- and follow it on the same line
+ * with the exits sentence, when the room has any exits.  No Runner does
+ * this; both strings stand alone at every version.  Deliberate deviation
+ * (WINE-TRANSCRIPTS.md): SCARE named the exits here, and a nudge toward
+ * directions is more useful when it says which ones.  The message is given
+ * without its newline.
+ */
+scr_bool
+lib_print_message_with_exits (scr_gameref_t game, const scr_char *message)
+{
+  const scr_filterref_t filter = gs_get_filter (game);
+
+  pf_buffer_string (filter, message);
+  if (lib_room_has_exits (game, gs_playerroom (game)))
+    {
+      pf_buffer_string (filter, "  ");
+      lib_print_exits_list (game, gs_playerroom (game));
+    }
+  else
+    pf_buffer_character (filter, '\n');
+  return TRUE;
 }
 
 
@@ -1177,11 +1348,11 @@ lib_print_room_exits (scr_gameref_t game, scr_int room)
  * their Options -> Appearance submenu offers colours and a font size only.  So
  * the pre-3.9 Runners print no heading at all in verbose mode, and in brief
  * mode print the room name *with a trailing period* as the whole of the
- * description.  Measured live under Wine 2026-08-24: arlo.taf (3.70) in
- * run370, twenty-odd room entries with Verbose on and not one heading, then
- * the same replay with Verbose off giving "Alice's Garden.  Horse walks
- * towards you from the north." for a revisit; and akron.taf (3.80) in run380,
- * 25 room entries, again no heading anywhere.
+ * description.  Measured live under Wine: arlo.taf (3.7) in run370,
+ * twenty-odd room entries with Verbose on and not one heading, then the same
+ * replay with Verbose off giving "Alice's Garden.  Horse walks towards you
+ * from the north." for a revisit; and akron.taf (3.8) in run380, 25 room
+ * entries, again no heading anywhere.
  */
 void
 lib_describe_player_room (scr_gameref_t game, scr_bool force_verbose)
@@ -1190,11 +1361,21 @@ lib_describe_player_room (scr_gameref_t game, scr_bool force_verbose)
   const scr_prop_setref_t bundle = gs_get_bundle (game);
   scr_bool is_verbose;
 
-  is_verbose = force_verbose
-               || game->verbose || !gs_room_seen (game, gs_playerroom (game));
+  is_verbose = force_verbose || game->settings.verbose
+               || !gs_room_seen (game, gs_playerroom (game));
 
   if (prop_get_taf_version (bundle) >= TAF_VERSION_390)
-    lib_print_room_name (game, gs_playerroom (game));
+    {
+      /*
+       * A game whose descriptions open with the room's own name gets no
+       * heading over them, unless the brief heading is all there is.  See
+       * lib_room_name_headings().
+       */
+      if (!is_verbose || lib_room_name_headings (game))
+        lib_print_room_name (game, gs_playerroom (game));
+      else
+        pf_buffer_paragraph_break (filter);
+    }
   else if (!is_verbose)
     {
       /*

@@ -1,9 +1,16 @@
-//
-//  atari8detect.c
-//  Part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  Created by Petter Sjölund on 2022-01-30.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  atari8detect.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2022-01-30.
+ */
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -67,16 +74,16 @@ typedef struct {
 /* ScottFree numbers some pictures otherwise than the disk does. See
    a2renumberlist in apple2detect.c. */
 static const a8renumber a8renumberlist[] = {
-    { COUNT_US, IMG_ROOM, 80, 90 }, // Closeup package
-    { COUNT_US, IMG_ROOM, 81, 91 }, // Closeup angry mob
-    { COUNT_US, IMG_ROOM_OBJ, 82, 81 }, // Other end of sheet in pit
-    { COUNT_US, IMG_ROOM_OBJ, 83, 82 }, // Coat-of-arms at gate
-    { COUNT_US, IMG_ROOM_OBJ, 84, 63 }, // Dumb-waiter
-    { VOODOO_CASTLE_US, IMG_ROOM, 81, 90 }, // Closeup broken sword
-    { VOODOO_CASTLE_US, IMG_ROOM, 82, 96 }, // Closeup chemicals
-    { VOODOO_CASTLE_US, IMG_ROOM, 83, 101 }, // Closeup Count Cristo
-    { VOODOO_CASTLE_US, IMG_ROOM, 84, 100 }, // Closeup dusty idol
-    { VOODOO_CASTLE_US, IMG_ROOM_OBJ, 70, 80 }, // Wooden boards unnailed
+    { COUNT_US, IMG_ROOM, 80, 90 }, /* Closeup package */
+    { COUNT_US, IMG_ROOM, 81, 91 }, /* Closeup angry mob */
+    { COUNT_US, IMG_ROOM_OBJ, 82, 81 }, /* Other end of sheet in pit */
+    { COUNT_US, IMG_ROOM_OBJ, 83, 82 }, /* Coat-of-arms at gate */
+    { COUNT_US, IMG_ROOM_OBJ, 84, 63 }, /* Dumb-waiter */
+    { VOODOO_CASTLE_US, IMG_ROOM, 81, 90 }, /* Closeup broken sword */
+    { VOODOO_CASTLE_US, IMG_ROOM, 82, 96 }, /* Closeup chemicals */
+    { VOODOO_CASTLE_US, IMG_ROOM, 83, 101 }, /* Closeup Count Cristo */
+    { VOODOO_CASTLE_US, IMG_ROOM, 84, 100 }, /* Closeup dusty idol */
+    { VOODOO_CASTLE_US, IMG_ROOM_OBJ, 70, 80 }, /* Wooden boards unnailed */
 };
 
 static int A8Renumber(USImageType usage, int slot)
@@ -281,7 +288,7 @@ static int ExtractImagesFromAtariCompanionFile(uint8_t *data, size_t datasize, u
     USImages = NewImage();
     USImage *image = USImages;
 
-    // Now loop round for each image
+    /* Now loop round for each image */
     for (outpic = 0; list[outpic].offset != 0; outpic++) {
 
         size_t offset = list[outpic].offset - 2;
@@ -390,10 +397,10 @@ static void SetA8Closeups(const uint8_t *table)
     AddExtraCloseups(CurrentGame);
 }
 
-// The only available source of Mission Impossible/Secret Mission
-// has an error at offset 0xfac1, but the correct data is available
-// at another offset on the disk image, so we copy it to the right
-// place.
+/* The only available source of Mission Impossible/Secret Mission
+   has an error at offset 0xfac1, but the correct data is available
+   at another offset on the disk image, so we copy it to the right
+   place. */
 static void PatchMissionImpossible(uint8_t *data, size_t size) {
     if (size > 0xfaf1 && memcmp(data + 0x7d3, "briefing", 8) == 0) {
         uint8_t source[0x30];
@@ -411,14 +418,14 @@ GameIDType DetectAtari8(uint8_t **sf, size_t *extent)
 {
     GameIDType result = UNKNOWN_GAME;
     size_t data_start = 0x04c1;
-    // Header actually starts at offset 0x04f9 (0x04c1 + 0x38).
-    // We add 50 bytes at the head to match the C64 files.
+    /* Header actually starts at offset 0x04f9 (0x04c1 + 0x38).
+       We add 50 bytes at the head to match the C64 files. */
 
     if (*extent > MAX_LENGTH || *extent < data_start)
         return UNKNOWN_GAME;
 
     if (memcmp(*sf, atrheader, sizeof atrheader) != 0) {
-        // Check for old version
+        /* Check for old version */
         if (memcmp(*sf, atrheader_old, sizeof atrheader_old) != 0)
             return UNKNOWN_GAME;
         data_start = 0x040c;

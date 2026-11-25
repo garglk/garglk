@@ -40,9 +40,9 @@ extern "C" {
 /* (Re)seed the v5 RNG.  Call once per game so each run is reproducible. */
 extern void a5rand_seed (unsigned int seed);
 
-/* A random integer in the inclusive range [lo, hi], mirroring the Adrift 5 runner
+/* A random integer in the inclusive range [lo, hi], mirroring the Runner
    Global.Random(iMin, iMax) (which returns r.Next(iMin, iMax + 1)).  Swaps the
-   bounds if hi < lo, exactly like the Adrift 5 runner. */
+   bounds if hi < lo, exactly like the Runner. */
 extern long a5rand_between (long lo, long hi);
 
 /* Draw for the bounds written after a function name: `args` points past the
@@ -51,10 +51,10 @@ extern long a5rand_between (long lo, long hi);
    so draws nothing. */
 extern long a5rand_between_args (const char *args);
 
-/* urand(min,max): the runner clsVariable.NoRepeatRandom -- a per-"min-max" shuffled
-   pool consumed without repeats (rebuilt when exhausted).  Pools reset on
-   a5rand_seed (new game); they are NOT part of the save state, like the runner's
-   Adventure.dictRandValues. */
+/* urand(min,max): the Runner's clsVariable.NoRepeatRandom -- a per-"min-max"
+   shuffled pool consumed without repeats (rebuilt when exhausted).  Pools
+   reset on a5rand_seed (new game); they are NOT part of the save state, like
+   the Runner's Adventure.dictRandValues. */
 extern long a5rand_norepeat (long lo, long hi);
 
 /* Diagnostic: total draws since process start (A5_TRACE_TASK correlation). */

@@ -1,4 +1,11 @@
 /*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
  *  scott_display.c
  *  Part of ScottFree, an interpreter for adventures in Scott Adams format
  *
@@ -249,10 +256,7 @@ void OpenGraphicsWindow(void)
         FitPictureToGraphicsWindow(&graphheight, &optimal_height);
 
         if (graphheight > optimal_height) {
-            winid_t parent = glk_window_get_parent(Graphics);
-            if (parent)
-                glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-                    optimal_height, NULL);
+            SetFixedWindowHeight(Graphics, optimal_height);
         }
 
     /* Set the graphics window background to match
@@ -272,10 +276,7 @@ void OpenGraphicsWindow(void)
             Graphics = glk_window_open(Bottom, winmethod_Above | winmethod_Proportional, GRAPHICS_WIN_PERCENT,
                 wintype_Graphics, GLK_GRAPHICS_ROCK);
         FitPictureToGraphicsWindow(&graphheight, &optimal_height);
-        winid_t parent = glk_window_get_parent(Graphics);
-        if (parent)
-            glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-                optimal_height, NULL);
+        SetFixedWindowHeight(Graphics, optimal_height);
     }
 }
 
@@ -525,14 +526,13 @@ void Look(void)
     r = &Rooms[MyLoc];
 
     if (!r->Text) {
-        /* Flush rather than bare-return: buf and room_description_stream are
-           already allocated/open, and only FlushRoomDescription frees and
-           closes them. A bare return leaks both every time it is hit. */
+        /* buf and room_description_stream are already allocated/open, and only
+           FlushRoomDescription frees and closes them. */
         FlushRoomDescription(buf);
         return;
     }
-    /* An initial asterisk means the room description should not */
-    /* start with "You are" or equivalent */
+    /* An initial asterisk means the room description should not
+       start with "You are" or equivalent */
     if (*r->Text == '*') {
         WriteToRoomDescriptionStream("%s", r->Text + 1);
     } else {

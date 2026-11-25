@@ -1,15 +1,22 @@
-//
-//  scott_game_info.c
-//  part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  Created by Petter Sjölund on 2022-01-30.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  scott_game_info.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2022-01-30.
+ */
 
 #include <stdio.h>
 
 #include "scott_defines.h"
 
-// clang-format off
+/* clang-format off */
 
 const GameInfo games[] = {
     {
@@ -1124,7 +1131,7 @@ const GameInfo games[] = {
         .start_of_item_descriptions = FOLLOWS,
         .start_of_item_locations = 0x8AFD,
 
-        // These are spread out all over the code
+        /* These are spread out all over the code */
         .start_of_system_messages = 0,
         .start_of_directions = 0xae25,
 
@@ -1515,7 +1522,7 @@ const GameInfo games[] = {
         .start_of_header = 0x1879,
         .header_style = SPIDERMAN_ATARI8_HEADER,
 
-        .start_of_actions = 0x1891, // straight after the 24-byte header
+        .start_of_actions = 0x1891, /* straight after the 24-byte header */
         .actions_style = COMPRESSED,
         .start_of_dictionary = 0x2258,
         .start_of_room_descriptions = 0x2712,
@@ -1604,7 +1611,7 @@ const GameInfo games[] = {
         .start_of_room_descriptions = 0x5528,
         .start_of_room_connections = FOLLOWS,
         .start_of_messages = FOLLOWS,
-        // 0x58f6, // start_of_messages
+        /* 0x58f6, // start_of_messages */
         .start_of_item_descriptions = FOLLOWS,
         .start_of_item_locations = FOLLOWS,
 
@@ -2135,14 +2142,14 @@ const GameInfo games[] = {
         .start_of_header = 0x3b5a,
         .header_style = LATE,
 
-        .start_of_room_image_list = 0, // 0x3d99, zero because it needs custom handling
+        .start_of_room_image_list = 0, /* 0x3d99, zero because it needs custom handling */
         .start_of_item_flags = 0x3db8,
         .start_of_item_image_list = FOLLOWS,
 
         .start_of_actions = 0x409b,
         .actions_style = COMPRESSED,
         .start_of_dictionary = 0x4dc3,
-        .start_of_room_descriptions = 0, // 0x9b53, zero because of custom handling
+        .start_of_room_descriptions = 0, /* 0x9b53, zero because of custom handling */
         .start_of_room_connections = 0x3e67,
         .start_of_messages = 0x5147,
         .start_of_item_descriptions = 0x5d65,
@@ -2180,14 +2187,14 @@ const GameInfo games[] = {
         .start_of_header = 0x1f85,
         .header_style = ROBIN_C64_HEADER,
 
-        .start_of_room_image_list = 0, // zero because it needs custom handling
+        .start_of_room_image_list = 0, /* zero because it needs custom handling */
         .start_of_item_flags = 0x201c,
         .start_of_item_image_list = FOLLOWS,
 
         .start_of_actions = 0x252b,
         .actions_style = COMPRESSED,
         .start_of_dictionary = 0x320a,
-        .start_of_room_descriptions = 0, // 0x9b53, zero because of custom handling
+        .start_of_room_descriptions = 0, /* 0x9b53, zero because of custom handling */
         .start_of_room_connections = 0x20cc,
         .start_of_messages = 0x358e,
         .start_of_item_descriptions = 0x4215,
@@ -2471,7 +2478,7 @@ const GameInfo games[] = {
     { NULL }
 };
 
-// clang-format on
+/* clang-format on */
 
 /* This is supposed to be the original ScottFree system
  messages in second person, as far as possible */

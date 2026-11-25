@@ -1,9 +1,15 @@
-//
-//  restorestate.c
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Created by Petter Sjölund on 2022-01-10.
-//
+/*
+ *  restorestate.c
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *  Shares code with ScottFree, by Alan Cox, Chris Spiegel and Petter Sjölund
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-01-10.
+ */
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -12,10 +18,30 @@
 
 #include "animations.h"
 #include "common.h"
-#include "glk.h"
 #include "graphics.h"
 #include "parseinput.h"
 #include "restorestate.h"
+
+/* The room columns a saved state keeps: the exits and the description, as
+   the original engines save them. The picture column never changes. */
+#define NUM_SAVED_EXIT_COLUMNS (EXIT_DESCRIPTION + 1)
+
+/* One allocation, freed with free(): the per-item and per-room arrays sit
+   after the struct, sized for the game in memory. */
+struct SavedState {
+    int16_t Counters[NUM_COUNTERS];
+    uint16_t *ObjectLocations;
+    uint16_t *ItemFlags;
+    int (*RoomExits)[NUM_SAVED_EXIT_COLUMNS];
+    uint64_t BitFlags;
+    int ProtagonistString;
+    ImgType LastImgType;
+    int LastImgIndex;
+    struct SavedState *previousState;
+    struct SavedState *nextState;
+};
+
+static void RestoreState(SavedState *state);
 
 #define MAX_UNDOS 100
 
@@ -70,7 +96,7 @@ static void RecoverFromBadRestore(SavedState *state, strid_t file)
     free(state);
 }
 
-void RestoreState(SavedState *state)
+static void RestoreState(SavedState *state)
 {
     StopAnimation();
     memcpy(Counters, state->Counters, sizeof state->Counters);

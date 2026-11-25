@@ -21,15 +21,13 @@
 /*
  * Module notes:
  *
- * o Adds new "types" to jAsea's property descriptor: 'M' for multiline
+ * o The property descriptors extend jAsea's with 'M' for multiline
  *   strings, 'Z', 'F'/'T', and 'E' for defaulted integers, booleans, and
  *   strings, 'i', 'b', and 's' for ignored integers, booleans, and strings,
  *   and '{...}' and '|...|' for "special" descriptions and version fixups
- *   that can't be described as things stand.
+ *   that the plain types cannot describe.
  *
- * o Adds new 'G' expression test, to check Global boolean.
- *
- * o The stack "adjustment" stuff is a bit of a bother.
+ * o The 'G' expression test checks a Global boolean.
  *
  * o The '|...|' version fixup handlers live in sctafpar_fixups.cpp, and the
  *   targeted game patches in sctafpar_patches.cpp; sctafpar_internal.h
@@ -376,8 +374,8 @@ static const scr_parse_schema_t V380_PARSE_SCHEMA[] = {
  *     held or worn -- see |V370_OBJECT:_InitialPositions_|.
  *
  * All four, and the burden model, were then confirmed against the genuine
- * 3.70 Runner (run370.exe under Wine); see
- * test/adrift4/notes/RUNNER_TESTS_TODO.md.
+ * 3.7 Runner (run370.exe under Wine); see "ADRIFT 3.70" in
+ * test/adrift4/notes/RUNNER_TESTS.md.
  */
 static const scr_parse_schema_t V370_PARSE_SCHEMA[] = {
   {"_GAME_",
@@ -469,8 +467,10 @@ static scr_int parse_tafline = 0;
 /* The parse descriptor selected for this TAF file's version. */
 static const scr_parse_version_t *parse_version = nullptr;
 
-/* Properties bundle and trace flag, set before parsing; shared with the
-   fixups and patches files through sctafpar_internal.h. */
+/*
+ * Properties bundle and trace flag, set before parsing; shared with the
+ * fixups and patches files through sctafpar_internal.h.
+ */
 scr_prop_setref_t parse_bundle = (scr_prop_setref_t) nullptr;
 scr_bool parse_trace = FALSE;
 
@@ -515,9 +515,8 @@ parse_pop_key (void)
 /*
  * parse_retrieve_stack()
  *
- * This is ugly.  The parse produces indexes before the things that they
- * index.  An expedient fix is to switch i-s keys before storing a property
- * value
+ * The parse produces indexes before the things that they index, so switch i-s
+ * keys before storing a property value.
  */
 static void
 parse_retrieve_stack (scr_char format[], scr_vartype_t vt_key[], scr_int *depth)
@@ -1071,8 +1070,10 @@ enum
   PARSE_IGNORE_STRING = 's'
 };
 
-/* Forward declarations of parse functions for recursion; parse_descriptor()
-   is already declared in sctafpar_internal.h. */
+/*
+ * Forward declarations of parse functions for recursion; parse_descriptor()
+ * is already declared in sctafpar_internal.h.
+ */
 static void parse_element (const scr_char *element);
 static void parse_class (const scr_char *class_);
 
@@ -1472,7 +1473,7 @@ parse_clear_v400_resources_table (void)
  * rule reproduces all 535 negative records in the 427-game version 4.0
  * corpus exactly, and the "##" stripping is not cosmetic: To_Hell_And_Beyond
  * has 21 records that only line up once it is done
- * (test/adrift4/notes/RUNNER_TESTS_TODO.md section 9).
+ * ("Probe backlog" in test/adrift4/notes/RUNNER_TESTS.md).
  *
  * We resolve back-references by name rather than by index, which comes to
  * the same thing and needs no separate count.  The one case where the
@@ -1587,7 +1588,7 @@ parse_get_v400_resource_offset (const scr_char *name,
  * Extra special handling for a version 4.0 resource; extracts details of
  * the sound or graphic just parsed, and adds an offset property if defined.
  *
- * Adrift uses -ve numbers as lengths for resources already parsed, where TAF
+ * ADRIFT uses -ve numbers as lengths for resources already parsed, where TAF
  * files include the resource: -N means "see entry N of the resource table",
  * counting from one over distinct names in encounter order.  We ignore the
  * number and work off the resource file name given, which reaches the same
@@ -1595,7 +1596,7 @@ parse_get_v400_resource_offset (const scr_char *name,
  * evidence, above.  This is why we have to look for length not equal to
  * zero, not just lengths greater than zero.
  *
- * Zero-length slots we drop here still occupy a numbered entry in Adrift's
+ * Zero-length slots we drop here still occupy a numbered entry in ADRIFT's
  * table.  That costs us nothing, since we never count -- but it does mean a
  * back-reference can name a resource we have never recorded, and that case
  * is handled where the lookup fails rather than here.
@@ -1624,7 +1625,7 @@ parse_handle_v400_resource (const scr_char *file_key,
                            (!scr_strempty (file) && length > 0) ? 1 : 0);
 
   /*
-   * Named but with no data of its own.  We drop it below; Adrift still counts
+   * Named but with no data of its own.  We drop it below; ADRIFT still counts
    * it, so trace it -- a back-reference that lands here is why one can dangle.
    */
   if (parse_trace && length == 0
@@ -1977,7 +1978,7 @@ parse_class (const scr_char *class_)
  * becomes the literal "a", while an authored " " is not empty, escapes the
  * substitution, and is then trimmed to a genuinely empty prefix that no later
  * code puts an article back into.  Both halves are measured -- probe ISARE
- * (run400, runner_probes/isare.run400.txt, 2026-09-07) lists its no-prefix
+ * (run400, runner_probes/isare.run400.txt) lists its no-prefix
  * boots as "a boots" and its single-space rings as " rings", with the joining
  * space and no article, and answers `where rings` with " rings are test
  * arena."
@@ -2341,8 +2342,10 @@ parse_game (scr_tafref_t taf, scr_prop_setref_t bundle)
   if (taf_more_lines (parse_taf))
     scr_error ("parse_game: unexpected trailing data\n");
 
-  /* Trim object names as the loader does, then append post-processing
-     walkalerts and move times. */
+  /*
+   * Trim object names as the loader does, then append post-processing
+   * walkalerts and move times.
+   */
   parse_trim_object_names (parse_bundle);
   parse_add_walkalerts (parse_bundle);
   parse_add_movetimes (parse_bundle);
@@ -2354,9 +2357,11 @@ parse_game (scr_tafref_t taf, scr_prop_setref_t bundle)
   /* Add a note of the TAF file version. */
   parse_add_version (parse_bundle, parse_taf);
 
-  /* Correct the few games with a data bug that makes them unwinnable; a
-     no-op unless patching is on and this is one of them.  Last, because it
-     wants the game complete, and before solidify, which freezes it. */
+  /*
+   * Correct the few games with a data bug that makes them unwinnable; a
+   * no-op unless patching is on and this is one of them.  Last, because it
+   * wants the game complete, and before solidify, which freezes it.
+   */
   parse_apply_game_patches (parse_bundle);
 
   /* Trim excess allocations from properties. */

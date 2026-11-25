@@ -102,10 +102,10 @@ extern void scr_set_trace_flags (scr_uint trace_flags);
 /*
  * Interpreter interface function prototypes.  This header is a supported
  * embedding API, not just the seam to Spatterlight's Glk front end: the folder
- * is meant to drop into other hosts (Gargoyle among them), so entry points that
- * no front end in this tree calls -- the filename and stream save/load forms,
- * the compile-date, max-score, font, bold-room-name, score-notify, patch,
- * capacity-assist and debugger queries, scr_scarier_version /
+ * is meant to drop into other hosts (Gargoyle among them), so entry points
+ * that no front end in this tree calls -- the filename and stream save/load
+ * forms, the compile-date, max-score, font, bold-room-name, score-notify,
+ * patch, capacity-assist and debugger queries, scr_scarier_version /
  * scr_scarier_emulation -- stay and are kept working.  Do not remove one
  * because nothing here calls it.
  */
@@ -174,8 +174,8 @@ extern scr_bool scr_does_game_use_sounds (scr_game);
 extern scr_bool scr_does_game_use_graphics (scr_game);
 
 /*
- * Offer every authored string in the TAF to `accept`, returning TRUE as soon as
- * one is accepted (nothing further is visited).  The strings arrive as the
+ * Offer every authored string in the TAF to `accept`, returning TRUE as soon
+ * as one is accepted (nothing further is visited).  The strings arrive as the
  * author wrote them, markup included, which is how a host greps a game for the
  * tags it cares about -- ADRIFT <=4 keeps no header fields for any of them.
  */
@@ -183,6 +183,27 @@ extern scr_bool scr_game_scan_strings (scr_game game,
                                        scr_bool (*accept) (const scr_char *text,
                                                            void *opaque),
                                        void *opaque);
+
+/*
+ * Send every authored string in the game through the same tag dissection the
+ * printfilter uses on output, for a host that wants to know which markup the
+ * game uses before it opens its windows.  For each string `begin` is called
+ * with the string's place in the game -- its property path, keys joined by
+ * '/' ("Header/StartupText" is the introduction, "Rooms/3/Long" a room
+ * description) -- then `text` and `tag` in order for its pieces, exactly as
+ * os_print_string() and os_print_tag() would receive them were it printed
+ * as it stands.  Nothing is filtered first: variables and ALRs stay as
+ * written.  `begin` may be NULL.
+ */
+typedef struct
+{
+  void (*begin) (const scr_char *path, void *opaque);
+  void (*text) (const scr_char *text, void *opaque);
+  void (*tag) (scr_int tag, const scr_char *argument, void *opaque);
+  void *opaque;
+} scr_markup_sink_t;
+extern void scr_game_scan_markup (scr_game game,
+                                  const scr_markup_sink_t *sink);
 
 typedef void *scr_game_hint;
 extern scr_game_hint scr_get_first_game_hint (scr_game game);
@@ -220,6 +241,8 @@ extern void scr_set_room_assist (scr_bool flag);
 extern scr_bool scr_get_room_assist (void);
 extern void scr_set_capacity_assist (scr_bool flag);
 extern scr_bool scr_get_capacity_assist (void);
+extern void scr_set_score_notify_assist (scr_bool flag);
+extern scr_bool scr_get_score_notify_assist (void);
 extern void scr_set_game_patches (scr_bool flag);
 extern scr_bool scr_get_game_patches (void);
 extern const scr_char *scr_get_applied_game_patch (void);

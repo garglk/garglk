@@ -1,9 +1,14 @@
-//
-//  graphics.c
-//  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
-//
-//  Created by Petter Sjölund on 2022-06-04.
-//
+/*
+ *  graphics.c
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-06-04.
+ */
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -16,11 +21,9 @@
 
 #include "animations.h"
 #include "apple2draw.h"
-#include "sagadraw_host.h"
 #include "common.h"
 #include "graphics.h"
 #include "loaddatabase.h"
-#include "read_le16.h"
 #include "c64a8draw.h"
 #include "pcdraw.h"
 #include "sagadraw_glue.h"
@@ -34,7 +37,7 @@ int upside_down = 0;
 int pixel_size;
 int x_offset, y_offset;
 
-glui32 pal[16];
+static glui32 pal[16];
 
 imgrec *Images;
 
@@ -174,7 +177,7 @@ char *ShortNameFromType(char type, int index)
 
 /* The kind of picture an image name is, from its first letter, e.g.
    IMG_ROOM for "R003". NO_IMG if it is none of the three. */
-ImgType ImageTypeFromName(const char *name)
+static ImgType ImageTypeFromName(const char *name)
 {
     switch (name[0]) {
     case 'B':
@@ -206,7 +209,7 @@ static struct {
 /* Send the run collected so far to the graphics window. Must be called
    before anything else draws to or clears the window, and when a
    picture is finished. */
-void FlushPixels(void)
+static void FlushPixels(void)
 {
     if (pending_run.width == 0)
         return;
@@ -246,13 +249,6 @@ static void FillRun(glui32 color, glsi32 x, glsi32 y, glui32 width, glui32 heigh
     pending_run.y = y;
     pending_run.width = width;
     pending_run.height = height;
-}
-
-/* Used by IBM PC graphics in "striped" mode where every other pixel is skipped
-   to make halftones */
-void PutPixel(glsi32 xpos, glsi32 ypos, int32_t color)
-{
-    PutPixelWithWidth(xpos, ypos, color, 1);
 }
 
 void PutDoublePixel(glsi32 xpos, glsi32 ypos, int32_t color) {

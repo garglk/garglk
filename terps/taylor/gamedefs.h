@@ -1,11 +1,18 @@
-//
-//  gamedefs.h
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Flags, objects, rooms, messages and dictionary words of particular
-//  games that the interpreter refers to by number. The numbers are those
-//  of the game file; the names come from the game's own text.
-//
+/*
+ *  gamedefs.h
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2026-10-14.
+ *
+ *  Flags, objects, rooms, messages and dictionary words of particular
+ *  games that the interpreter refers to by number. The numbers are those
+ *  of the game file; the names come from the game's own text.
+ */
 
 #ifndef gamedefs_h
 #define gamedefs_h
@@ -134,6 +141,8 @@ enum {
    KUBE move the player here to take or drop the object, and back out on
    the next turn. There is no such room, and no picture. */
 #define REBEL_ROOM_INSIDE_KUBE 250
+/* Rebel Planet: the header of the inventory list */
+#define REBEL_MSG_YOU_ARE_CARRYING 156
 /* Kayleth: AZAP CODE ELY moves the player into this Azap Chamber before
    the status table moves object 0, the chamber's description, after them,
    so until then the room reads only ". You could go Up." */

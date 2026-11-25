@@ -36,7 +36,7 @@
  *                   restriction and action with its Type and Var1/Var2/Var3,
  *                   plus a container-index table and the full event table.
  *                   Object/task references are resolved to names.  Decoding
- *                   keys (verified against the original 3.90/4.0 Runner):
+ *                   keys (verified against the original 3.9/4.0 Runner):
  *                     - action Type: 0 move-obj, 1 move-char, 2 obj-status,
  *                       3 change-var, 4 ChangeScore (Var1=points),
  *                       5 exec/unset, 6 EndGame (Var1: 0 win, 1 lose,
@@ -218,7 +218,7 @@ scdump_battle_ranges (scr_prop_setref_t bundle, const scr_char *format,
         lo = bv.integer;
       if (hi < 0)
         {
-          key[slot].string = (scr_char *) attrs[a];
+          key[slot].string = attrs[a];
           if (prop_get (bundle, format, &bv, key))
             lo = hi = bv.integer;
           else
@@ -724,7 +724,7 @@ scdump_objects_lockkeys (scr_gameref_t game)
       /*
        * Tolerant fetch: prop_get_integer() is FATAL on a missing property, and
        * "Openable" really can be absent -- Where Is Richard? (V390) has such
-       * an object and the whole dump used to die on it.  Skip instead.
+       * an object and the whole dump would die on it.  Skip instead.
        */
       if (!prop_get (bundle, "I<-sis", &kv, kk))
         continue;
@@ -759,7 +759,8 @@ scdump_objects_lockkeys (scr_gameref_t game)
  * resolvable key, and pre-4.0 games never have one (parse_fixup_openable_key
  * always writes Key = -1), so this is the line that lets the gen400
  * conversion oracle check the V390/V380_OBJECT fixup that swaps Openable
- * 5 and 6.  See test/adrift4/notes/RUNNER_TESTS_TODO.md section 3(a).
+ * 5 and 6.  See "Scarier's own V390 parse fixups" in
+ * test/adrift4/notes/RUNNER_TESTS.md.
  */
 static void
 scdump_objects_openable (scr_gameref_t game)
@@ -851,9 +852,10 @@ scdump_rewrite_rules (scr_gameref_t game)
    * Worth dumping for a reason that has nothing to do with the game: an ALR's
    * *Original* string is the author's own transcription of a **Runner**
    * message, typed while looking at the real Runner's output.  That makes the
-   * corpus' ALR tables a free, offline oracle for library wording -- see the
-   * asteroid_after measurement in test/adrift4/notes/WINE-TRANSCRIPTS-TODO.md,
-   * where `Which valve.` and `Which satellite.   satellite,  satellite or
+   * corpus' ALR tables a free, offline oracle for library wording -- see
+   * "An empty character Prefix keeps its space in the Which list" in
+   * test/adrift4/notes/WINE-TRANSCRIPTS.md, where asteroid_after's
+   * `Which valve.` and `Which satellite.   satellite,  satellite or
    * satellite?` pin run400's ambiguity message and its
    * `tense(Prefix) & " " & Short` list construction without launching Wine.
    */
@@ -888,6 +890,8 @@ struct scdump_task_t
   void texts ();
   void alt_commands ();
   void reverse_commands ();
+  void typed_vars (const char *list, scr_int i,
+                   scr_int *type, scr_int *v1, scr_int *v2, scr_int *v3);
   void restriction (scr_int i);
   void action (scr_int i);
 };
@@ -944,11 +948,11 @@ scdump_task_t::summary ()
     if (prop_get (bundle, "I<-sis", &vt, k))
       score = vt.integer;
     /*
-     * srd: the task's ShowRoomDesc, as the raw field -- 0 for none,
-     * otherwise room + 1.  See test/adrift4/notes/RUNNER_TESTS_TODO.md
-     * section 4, where run400 is measured printing that room's description
-     * with no room name heading, and task_run_task_unrestricted() prints
-     * both.
+     * srd: the task's ShowRoomDesc, as the raw field -- 0 for none, otherwise
+     * room + 1.  See the standing divergence table in
+     * test/adrift4/notes/RUNNER_TESTS.md, where run400 is measured
+     * printing that room's description with no room name heading, and
+     * task_run_task_unrestricted() prints both.
      */
     k[2].string = "ShowRoomDesc";
     if (prop_get (bundle, "I<-sis", &vt, k))
@@ -977,8 +981,8 @@ scdump_task_t::summary ()
  * scdump_task_t::where_rooms()
  *
  * For SOME_ROOMS (where=2) tasks, dump the room-group membership (the
- * "Where"/"Rooms" boolean array indexed by room; see sctasks.c
- * task_can_run_task_directional). Lets us tell whether a group-scoped
+ * "Where"/"Rooms" boolean array indexed by room; see sctasks.cpp
+ * task_can_run_task_directional).  Lets us tell whether a group-scoped
  * death (e.g. the Morac castle timer T327) fires in a given room.
  */
 void
@@ -1035,19 +1039,17 @@ scdump_task_t::hints ()
 /*
  * scdump_task_t::texts()
  *
- * The task's own text.  A wording measurement against a Runner
- * transcript stands or falls on knowing which words the author wrote:
- * the dump used to show only the command, so an engine-supplied phrase
- * and an authored one looked alike.  CompleteText is what the task
- * prints when it runs, AdditionalMessage what task_run_task_
- * unrestricted() appends after the actions, RepeatText what answers a
- * second typing (see run_task_refusal()), and ReverseMessage what an
- * "un-doing" of the task says.  humbug's task 80 "put * sweet on *
- * plinth" is the worked example: its CompleteText is a bare "I put the
- * sweet on the plinth.", so neither of the two "Okay."s the Runner
- * prefixes to it is authored -- both come from the game's own
- * self-containing ALR [I put ] -> [Okay.  I put ], one per filter pass
- * the turn runs (see pf_refilter()).
+ * The task's own text.  A wording measurement against a Runner transcript
+ * stands or falls on knowing which words the author wrote: if the dump showed
+ * only the command, an engine-supplied phrase and an authored one would look
+ * alike.  CompleteText is what the task prints when it runs, AdditionalMessage
+ * what task_run_task_unrestricted() appends after the actions, RepeatText what
+ * answers a second typing (see run_task_refusal()), and ReverseMessage what an
+ * "un-doing" of the task says.  humbug's task 80 "put * sweet on * plinth" is
+ * the worked example: its CompleteText is a bare "I put the sweet on the
+ * plinth.", so neither of the two "Okay."s the Runner prefixes to it is
+ * authored -- both come from the game's own self-containing ALR [I put ] ->
+ * [Okay.  I put ], one per filter pass the turn runs (see pf_refilter()).
  */
 void
 scdump_task_t::texts ()
@@ -1100,16 +1102,15 @@ scdump_task_t::alt_commands ()
  * scdump_task_t::reverse_commands()
  *
  * The reverse half of a reversible task.  A reversible task matches its
- * ReverseCommand patterns as well as its Command ones, so those strings
- * are typeable too -- and when the ReverseMessage is empty the reverse
- * run prints nothing, which makes the whole turn silent and sends a
- * pre-4.0 Runner to the game's DontUnderstand string instead of the
- * library (see silent-task rule).  lifesimulation's task 10 "turn on tv"
- * is the worked example: its ReverseCommand is the bare literal "turn
- * off tv" with no ReverseMessage, and only that exact string diverges,
- * which is why five probe drives could not find a pattern in it
- * (2026-09-05).  The dump used to show neither the flag nor the reverse
- * commands, so the task looked like an ordinary one-way task.
+ * ReverseCommand patterns as well as its Command ones, so those strings are
+ * typeable too -- and when the ReverseMessage is empty the reverse run prints
+ * nothing, which makes the whole turn silent and sends a pre-4.0 Runner to the
+ * game's DontUnderstand string instead of the library (see silent-task rule).
+ * lifesimulation's task 10 "turn on tv" is the worked example: its
+ * ReverseCommand is the bare literal "turn off tv" with no ReverseMessage, and
+ * only that exact string diverges, which is why five probe drives could not
+ * find a pattern in it.  Without the flag and the reverse commands the task
+ * looks like an ordinary one-way task.
  */
 void
 scdump_task_t::reverse_commands ()
@@ -1135,6 +1136,35 @@ scdump_task_t::reverse_commands ()
 
 
 /*
+ * scdump_task_t::typed_vars()
+ *
+ * Read Type and Var1..Var3 of entry i in the task's Restrictions or
+ * Actions list, leaving k[2..3] pointing at that entry.  A missing Var
+ * reads as -999.
+ */
+void
+scdump_task_t::typed_vars (const char *list, scr_int i,
+                           scr_int *type, scr_int *v1, scr_int *v2,
+                           scr_int *v3)
+{
+  static const char *const vars[3] = { "Var1", "Var2", "Var3" };
+  scr_int *const out[3] = { v1, v2, v3 };
+
+  k[2].string = list;
+  k[3].integer = i;
+  k[4].string = "Type";
+  *type = prop_get_integer (bundle, "I<-sisis", k);
+  for (int n = 0; n < 3; n++)
+    {
+      *out[n] = -999;
+      k[4].string = vars[n];
+      if (prop_get (bundle, "I<-sisis", &vt, k))
+        *out[n] = vt.integer;
+    }
+}
+
+
+/*
  * scdump_task_t::restriction()
  * scdump_task_t::action()
  *
@@ -1147,20 +1177,7 @@ scdump_task_t::restriction (scr_int i)
   char nm[96];
 
   nm[0] = '\0';
-  k[2].string = "Restrictions";
-  k[3].integer = i;
-  k[4].string = "Type";
-  rtype = prop_get_integer (bundle, "I<-sisis", k);
-  v1 = v2 = v3 = -999;
-  k[4].string = "Var1";
-  if (prop_get (bundle, "I<-sisis", &vt, k))
-    v1 = vt.integer;
-  k[4].string = "Var2";
-  if (prop_get (bundle, "I<-sisis", &vt, k))
-    v2 = vt.integer;
-  k[4].string = "Var3";
-  if (prop_get (bundle, "I<-sisis", &vt, k))
-    v3 = vt.integer;
+  typed_vars ("Restrictions", i, &rtype, &v1, &v2, &v3);
 
   obj = -1;
   if (rtype == 0)
@@ -1210,20 +1227,7 @@ scdump_task_t::action (scr_int i)
   char nm[96];
 
   nm[0] = '\0';
-  k[2].string = "Actions";
-  k[3].integer = i;
-  k[4].string = "Type";
-  atype = prop_get_integer (bundle, "I<-sisis", k);
-  v1 = v2 = v3 = -999;
-  k[4].string = "Var1";
-  if (prop_get (bundle, "I<-sisis", &vt, k))
-    v1 = vt.integer;
-  k[4].string = "Var2";
-  if (prop_get (bundle, "I<-sisis", &vt, k))
-    v2 = vt.integer;
-  k[4].string = "Var3";
-  if (prop_get (bundle, "I<-sisis", &vt, k))
-    v3 = vt.integer;
+  typed_vars ("Actions", i, &atype, &v1, &v2, &v3);
 
   obj = -1;
   if (atype == 0)
@@ -1232,9 +1236,10 @@ scdump_task_t::action (scr_int i)
     {
       /*
        * Object-status ACTIONS index the stateful-object list 0-based
-       * (sctasks.c task_run_change_object_status: obj_stateful_object
+       * (sctasks_action.cpp task_run_change_object_status:
+       * obj_stateful_object
        * (var1)), whereas the matching type-1 RESTRICTION is 1-based
-       * (var1-1, with 0 = "the referenced object"; screstrs.c).  This
+       * (var1-1, with 0 = "the referenced object"; screstrs.cpp).  This
        * is a genuine ADRIFT schema asymmetry, not a bug.  Pass v1+1 so
        * the resolver's -1 cancels and we label the object the runtime
        * actually changes (e.g. Space Boy's task 44 "unlock door" sets
@@ -1452,12 +1457,11 @@ scdump_event (scr_gameref_t game, scr_int e)
   if (prop_get (bundle, "I<-sis", &evt, ek))
     o3d = evt.integer;
   /*
-   * Which of the three texts the event actually carries.  This is what
-   * decides exposure to the turn-0 ordering divergence (RUNNER_TESTS_TODO
-   * section 4): the real Runner starts an immediate event during load, so
-   * a StarterType=1 event's StartText is printed into the cleared
-   * pre-intro screen and its LookText joins the opening room
-   * description.
+   * Which of the three texts the event actually carries.  This is what decides
+   * exposure to the turn-0 ordering divergence (the standing divergence table
+   * in RUNNER_TESTS.md): the real Runner starts an immediate event during
+   * load, so a StarterType=1 event's StartText is printed into the cleared
+   * pre-intro screen and its LookText joins the opening room description.
    */
   {
     const scr_char *stx = nullptr, *ltx = nullptr, *ftx = nullptr;
@@ -1705,7 +1709,8 @@ scdump_npcs (scr_gameref_t game)
  * means every line before the score summary came from the winning task's
  * CompleteText.  (The engine adds nothing of its own there -- the
  * Runners' "Congratulations!" is a status bar caption, not game text.
- * See test/adrift4/notes/RUNNER_TESTS_TODO.md section 4.)
+ * See the standing divergence table in
+ * test/adrift4/notes/RUNNER_TESTS.md.)
  */
 static void
 scdump_win_text (scr_gameref_t game)
@@ -1754,9 +1759,9 @@ scdump_room_names (scr_gameref_t game)
  *
  * Room exits + their task gates.  The exit array is in ADRIFT's own direction
  * order -- the diagonals are NE,SE,SW,NW, NOT NE,NW,SE,SW (DIRNAMES_8 in
- * sclibrar_room.cpp, and mapdraw.cpp's map_dirs, which both engines share).  Getting
- * this wrong mislabels every diagonal exit and sends a route derivation into
- * the wrong room.
+ * sclibrar_room.cpp, and map/mapdraw.cpp's map_dirs, which both engines share).
+ * Getting this wrong mislabels every diagonal exit and sends a route
+ * derivation into the wrong room.
  */
 static void
 scdump_room_exits (scr_gameref_t game)
@@ -1838,8 +1843,8 @@ scdump_room_exits (scr_gameref_t game)
  * Room description alts.  In 4.0 these are an authored array; in 3.9/3.8
  * they are synthesised by parse_fixup_v390_v380_room_alts() from the
  * fixed AltDesc/Task1/Task2/LastDesc fields, so dumping them is how the
- * gen400 conversion oracle checks that fixup (see
- * test/adrift4/notes/RUNNER_TESTS_TODO.md §3a).
+ * gen400 conversion oracle checks that fixup (see "Scarier's own V390 parse
+ * fixups" in test/adrift4/notes/RUNNER_TESTS.md).
  */
 static void
 scdump_room_alts (scr_gameref_t game)
@@ -1956,8 +1961,8 @@ scr_dump_structure_once (scr_gameref_t game)
 
   /*
    * SCR_TRACE_EVENTS: per-turn event state machine trace (start/tick/finish +
-   * the object moves an event performs).  Separate from SCR_TRACE_TASKS because
-   * an event that silently never fires is invisible in the task trace.
+   * the object moves an event performs).  Separate from SCR_TRACE_TASKS
+   * because an event that silently never fires is invisible in the task trace.
    */
   if (trace_events)
     evt_debug_trace (TRUE);
@@ -2019,7 +2024,7 @@ scr_dump_npc_trace (scr_gameref_t game)
   if (trace_player)
     {
       scr_dump_log ("PLAYERROOM room=%ld stamina=%ld\n",
-            gs_playerroom (game), game->playerstamina);
+            gs_playerroom (game), game->world.playerstamina);
       scr_dump_flush ();
     }
 
@@ -2132,7 +2137,7 @@ scr_dump_npc_trace (scr_gameref_t game)
 
 
 /*
- * The deviations already reported on the runner's current input line
+ * The deviations already reported on the `run_` code's current input line
  * (run_trace_last_input, from runner/scrunner.h).
  */
 static std::set<std::string> scr_deviations_seen;

@@ -1,11 +1,16 @@
-//
-//  plusmain.c
-//  The Plus interpreter
-//
-//  Created by Petter Sjölund on 2022-05-06.
-//
+/*
+ *  plusmain.c
+ *  Part of Plus, an interpreter for Scott Adams Graphic Adventures Plus
+ *  Shares code with ScottFree, by Alan Cox, Chris Spiegel and Petter Sjölund
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-05-06.
+ */
 
-#include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,12 +24,11 @@
 
 #include "animations.h"
 #include "apple2detect.h"
-#include "apple2draw.h"
-#include "sagadraw_host.h"
 #include "atari8detect.h"
 #include "c64detect.h"
 #include "common.h"
-#include "definitions.h"
+#include "common_defines.h"
+#include "minmax.h"
 #include "gameinfo.h"
 #include "graphics.h"
 #include "layouttext.h"
@@ -36,6 +40,30 @@
 #include "restorestate.h"
 #include "stdetect.h"
 #include "stdraw.h"
+
+#define NO_DELAYS 128 /* Skip all pauses */
+#define FORCE_INVENTORY 1024 /* Inventory in upper window always on */
+#define FORCE_INVENTORY_OFF 2048 /* Inventory in upper window always off */
+
+typedef enum {
+    ER_SUCCESS = 0,
+    ER_NO_RESULT = 1,
+    ER_RAN_ALL_LINES_NO_MATCH = -1,
+    ER_RAN_ALL_LINES = -2
+} CommandResultType;
+
+typedef enum {
+    ACT_SUCCESS = 0,
+    ACT_FAILURE = 1,
+    ACT_CONTINUE,
+    ACT_DONE,
+    ACT_LOOP_BEGIN,
+    ACT_LOOP,
+    ACT_GAMEOVER
+} ActionResultType;
+
+/* A printf-style function that prints somewhere */
+typedef void (*PrintFunction)(const char *fmt, ...);
 
 const char *game_file = NULL;    /* Path to the game file being played */
 char *DirPath = "";              /* Directory containing the game file, with its slash (for image lookups) */
@@ -56,7 +84,8 @@ int should_restart = 0;          /* Set by DoneIt() to trigger a restart at the 
 
 static glui32 TopWidth, TopHeight;      /* Current dimensions of the status/room-description window */
 
-winid_t Bottom, Top, Graphics;   /* Glk windows: main text, status bar, graphics */
+static winid_t Top;
+winid_t Bottom, Graphics;   /* Glk windows: main text, status bar, graphics */
 
 strid_t Transcript = NULL;
 
@@ -202,10 +231,7 @@ static void FitImageToGraphicsWindow(glui32 *graphheight, glui32 *optimal_height
 /* Make the graphics window exactly height pixels tall. */
 static void SetGraphicsWindowHeight(glui32 height)
 {
-    winid_t parent = glk_window_get_parent(Graphics);
-    if (parent)
-        glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-            height, NULL);
+    SetFixedWindowHeight(Graphics, height);
 }
 
 static winid_t OpenGraphicsWindowAboveBottom(void)
@@ -413,7 +439,7 @@ static void ArmDismissTimer(void)
    auto-dismiss after ~3 seconds. Continues processing timer events
    (animations, colour cycling) while waiting. Claymorgue disables
    the timeout to avoid auto-advancing plot text. */
-void AnyKey(int timeout, int message)
+static void AnyKey(int timeout, int message)
 {
     if (message) {
         SystemMessage(HIT_ANY);
@@ -462,8 +488,8 @@ void AnyKey(int timeout, int message)
     } while (result == 0);
 }
 
-/* Draw a line of DelimiterChar across the bottom row of the status window. */
-/* Currently, DelimiterChar is always an underscore character. */
+/* Draw a line of DelimiterChar across the bottom row of the status window.
+   Currently, DelimiterChar is always an underscore character. */
 static void PrintWindowDelimiter(void)
 {
     glk_window_get_size(Top, &TopWidth, &TopHeight);
@@ -657,8 +683,8 @@ void Look(int transcript)
         free(buf);
         return;
     }
-    /* An initial asterisk means the room description should not */
-    /* start with "You are" or equivalent */
+    /* An initial asterisk means the room description should not start with
+       "You are" or equivalent */
     if (*r->Text == '*') {
         WriteToRoomDescriptionStream("%s", r->Text + 1);
     } else {
@@ -772,7 +798,7 @@ static int RandomPercent(int n)
 }
 
 /* Count items in a room (0 = CARRIED). Also stores the carried count
-   in Counter[33] when checking carried items. */
+   in InventoryCount when checking carried items. */
 static int CountItemsInRoom(int room)
 {
     int ct = 0;
@@ -2627,7 +2653,7 @@ void glk_main(void)
     InitAnimationBuffer();
     InitialState = SaveCurrentState();
 
-    /* --- Main game loop --- */
+    /* Main game loop */
     while (1) {
         glk_tick();
 

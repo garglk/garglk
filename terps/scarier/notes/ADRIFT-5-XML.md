@@ -10,7 +10,7 @@ This document describes the ADRIFT-5 adventure document format and related save-
   - [1.1 Adventure XML (logical document)](#11-adventure-xml-logical-document)
     - [1.1.1 Adventure XML file extensions](#111-adventure-xml-file-extensions)
   - [1.2 `.taf` binary layout (v5)](#12-taf-binary-layout-v5)
-    - [1.2.1 Tools that work with `.taf` files](#121-tools-that-work-with-taf-files)
+    - [1.2.1 Blorb `ADRI` layout](#121-blorb-adri-layout)
   - [1.3 `.amf` library modules](#13-amf-library-modules)
   - [1.4 Save games (`.tas`)](#14-save-games-tas)
 - [2. General conventions](#2-general-conventions)
@@ -121,17 +121,23 @@ Within the `<Adventure>` element you'll find "header" child elements and then "i
 
 A `.taf` file compresses Adventure XML and adds some extra metadata, like this:
 
-1. **12-byte header** — always obfuscated, never plaintext. For v5 files it is the magic bytes  
-   `3C 42 3F C9 6A 87 C2 CF 92 45 3E 61`. The loader (`FileIO.vb`) compares against the known v5/v4/v3.9 magic sequences; anything else is run through the de-obfuscator and must then read `"Version X.XX"`, so a file whose header is literal ASCII text is rejected.
+1. **12-byte header** — always obfuscated, never plaintext. It is the string `Version 5.00` passed through `Dencode` (below) at offset 0, which for v5 files gives the magic bytes  
+   `3C 42 3F C9 6A 87 C2 CF 92 45 3E 61`. ADRIFT 4 files have the same bytes except byte 9 (0-based 8), which is `93` instead of `92`; ADRIFT 3.9 files read `3C 42 3F C9 6A 87 C2 CF 94 45 37 61`. The loader (`FileIO.vb`) compares against those three sequences; anything else is run through `Dencode` and must then read `"Version X.XX"`, so a file whose header is literal ASCII text is rejected. The original Generator loads the v4 / v3.9 layouts through its `LoadOlder` path (start priority 50000); FrankenDrift rejects them.
 2. **Optional Babel / IFID section** (5.0.20+) — the loader reads bytes 12–15 as a 4-hex-digit length and bytes 16–23 as a marker; the Babel block is recognized when the length reads `"0000"` **or** the marker reads `<ifindex` (an OR test, `FileIO.vb`). When present, a Babel block of that length follows. Pre-5.0.20 files (and extracted `.taf`s) have no Babel section and their payload is *not* obfuscated.
-3. **zlib-compressed Adventure XML**, usually **XOR-obfuscated** with the fixed ADRIFT key
-4. **14-byte trailer** after the compressed payload — the loader seeks to `fileLength - 14` to read it. (The `26` sometimes seen in loader arithmetic is the 12-byte header plus this 14-byte trailer combined, not the trailer size.)
+3. **zlib-compressed Adventure XML**, usually **XOR-obfuscated** with the fixed 1024-byte ADRIFT key (`a5deobf.cpp` carries it as `A5_KEY`; `FileIO.vb` `ObfuscateByteArray`).
+4. **14-byte trailer** after the compressed payload — the loader seeks to `fileLength - 14` to read it. The first 12 bytes are the password block: the Generator writes `Dencode(pass[0..3] & "Wild" & pass[4..7], payloadLength + 13 + babelLength)` and the loader decodes those 12 bytes with offset `fileLength - 13`, then takes the password as the left four plus right four characters, trimmed. The last two bytes are `0D 0A`. A game with no password has eight spaces round `Wild`. (The `26` sometimes seen in loader arithmetic is the 12-byte header plus this 14-byte trailer combined, not the trailer size.)
+
+**`Dencode`** is not the payload XOR key. It is a stream cipher seeded from VB's `Rnd`: `Rnd(-1)`, `Randomize(1976)`, discard `offset - 1` draws, then XOR each byte with `Int(Rnd() * 255 - 0.5)`. The same routine encodes the header (offset 1, the first draw) and the trailer; a reimplementation needs VB's `Rnd` generator to reproduce it.
+
+#### 1.2.1 Blorb `ADRI` layout
+
+Inside a `.blorb` the `Exec` chunk of type `ADRI` holds a whole `.taf`: for 5.0.20+ games the chunk is header + literal `0000` + payload + trailer, so the payload starts at chunk offset 16 and runs for `chunkLength - 30` bytes; older games (and `.exe`-wrapped ones) use offset 12 / `chunkLength - 26`. The payload is de-obfuscated only when the Blorb has no metadata chunk, or its `IFmd` XML contains `compilerversion` (FrankenDrift `FileIO.vb`; Scarier `a5model.cpp`). The Blorb reader accepts the Exec ids `ZCOD`, `GLUL`, `TAD2`, `TAD3`, `HUGO`, `ALAN`, `ADRI`, `LEVE`, `AGT `, `MAGS`, `ADVS` and `EXEC`.
 
 ### 1.3 `.amf` library modules
 
 Plain Adventure XML (not compressed) for reusable item packs (properties, tasks, ALRs, …). The Generator merges selected `.amf` files into an adventure; the most important is `StandardLibrary.amf`.
 
-When loading an `.amf` as a library (`bLibrary`), every imported item is stamped library-owned: `IsLibrary` / `<Library>1</Library>` and an in-memory `LoadedFromLibrary` flag. See [§2.9](#29-library-flag). Header fields like `Title` / `Author` from the `.amf` are **not** applied to the adventure (except library-only metadata such as Babel `Description`). Maps and `<Exclude>` lists from libraries are skipped; exclusions come from the **adventure**.
+When loading an `.amf` as a library (`bLibrary`), every imported item is stamped library-owned: `IsLibrary` / `<Library>1</Library>` and an in-memory `LoadedFromLibrary` flag. See [§2.9](#29-library-flag). Only three header fields are guarded by `Not bLibrary`: `Version`, `Title` and `Author`. Every other header element present in the module (`FontName`, `FontSize`, the four colours, `UserStatus`, `Introduction`, `ShowFirstLocation`, `ShowExits`, `EnableMenu`, `TaskExecution`, `WaitTurns`, `KeyPrefix`, the `Direction*` regexes, `Cover`, …) **is** applied to the adventure, so a module that carries them overwrites the game's own settings. The header `<Description>` is written by the Generator but never read by any v5 loader. Maps and `<Exclude>` lists from libraries are skipped; exclusions come from the **adventure**.
 
 ### 1.4 Save games (`.tas`)
 
@@ -147,7 +153,7 @@ ADRIFT-5 almost never uses XML attributes. Structure is **nested elements with t
 
 ### 2.2 Booleans
 
-Usually `"1"` / `"0"`. The `ADRIFT-5` writer normally **omits** default-false flags; readers treat absence as the default. Presence of `"1"` means true. The loader's boolean parse accepts `-1` / `1` / `TRUE` / `VRAI` as true (`VRAI` is a French-locale artifact of VB serialization); anything else is false.
+Usually `"1"` / `"0"` (`SafeInt(True)` is `1`; the 84 Standard Library tasks all carry `<Repeatable>1</Repeatable>`), but some Generator builds write `True` / `False`, and loaders must accept both. The `ADRIFT-5` writer normally **omits** default-false flags; readers treat absence as the default. Not every false flag is omitted, though: `Repeatable` is written unconditionally. The loader's boolean parse accepts `-1` / `1` / `TRUE` / `VRAI` as true (`VRAI` is a French-locale artifact of VB serialization); anything else, including `0` and `FALSE`, is false.
 
 ### 2.3 Enumerations
 
@@ -155,7 +161,7 @@ Written as Visual Basic enum member names (PascalCase), e.g. `North`, `Specific`
 
 ### 2.4 Dates
 
-`yyyy-MM-dd HH:mm:ss` in `LastUpdated` / `Created`. No timezone is included; these datetimes are in whatever timezone the `ADRIFT-5` Generator app was using at the time the XML was created.
+`yyyy-MM-dd HH:mm:ss` in `LastUpdated` / `Created`. No timezone is included; these datetimes are in whatever timezone the `ADRIFT-5` Generator app was using at the time the XML was created. For files older than 5.000022 the loader's `GetDate` forces `:` at string positions 13 and 16 before parsing, a fix for dates written under a non-UK locale.
 
 ### 2.5 Version string
 
@@ -167,12 +173,12 @@ It's formatted as a string like `5.0000366` in this format: `Major.MMMBBBR`
 - Minor (MMM): Minor version number, zero-padded to 3 digits
   - This has always been `000` in practice
 - Build (BBB): Build number, zero-padded to 3 digits
-  - The latest build number as of July 2026 is `036`
+  - The last build is `036`
 - Revision (R): The revision number
-  - The latest revision number as of July 2026 is `6`
-  - The revision digit is only present in newer builds — older files use the 6-digit form (e.g. `5.000020`)
+  - The last revision is `6`
+  - The revision digit is only present in newer builds — older files use the 6-digit form (e.g. `5.000020`). The open-sourced writer always appends it: `Major & "." & Format(Minor, "000") & Format(Build, "000") & Revision`.
 
-Thus, the latest version string is `5.0000366`. Readers compare version strings numerically (parsed as a double), so both forms order correctly.
+Thus, the final version string is `5.0000366` (the open-sourced 5.0.36.6 Generator; development stopped there, so nothing newer exists). Readers compare version strings numerically (parsed as a double), so both forms order correctly. Load-time version gates in this document are written the way the loader compares them, e.g. `< 5.000022`.
 
 ### 2.6 Colours (`BackgroundColour`, `InputColour`, `OutputColour`, `LinkColour`)
 
@@ -184,7 +190,18 @@ For example, in OLE, pure Red would be `0x0000FF`, which would be `#FF0000` almo
 
 But then, for a double whammy, Adventure XML converts those three Blue, Green, Red and bytes into an integer, and stores it as a decimal string.
 
-For example, cyan is 100% Blue, 100% Green, 0% Red: `0xFFFF00` in OLE order is 16,776,960, so you'd see it written in Adventure XML as `<OutputColour>16776960</OutputColour>`. (The actual Runner default output colour, for reference, is the teal RGB 25,165,138 — `DEFAULT_OUTPUTCOLOUR` — and colour elements are only written when they differ from the defaults.)
+For example, cyan is 100% Blue, 100% Green, 0% Red: `0xFFFF00` in OLE order is 16,776,960, so you'd see it written in Adventure XML as `<OutputColour>16776960</OutputColour>`.
+
+Colour elements are only written when they differ from the Generator defaults (`Global.vb` ARGB constants; written with `ColorTranslator.ToOle`, read with `FromOle`):
+
+| Element | Default RGB | ARGB constant |
+|---------|-------------|---------------|
+| `BackgroundColour` | 0, 0, 0 (black) | −16777216 |
+| `InputColour` | 210, 37, 39 (red) | −3005145 |
+| `OutputColour` | 25, 165, 138 (teal) | −15096438 |
+| `LinkColour` | 75, 215, 188 | −11806788 |
+
+The Runner nulls all four before loading (an `#If Runner` block), so an absent element means "use the Runner's own theme", not "use the Generator default".
 
 ### 2.7 Omitted defaults
 
@@ -215,10 +232,11 @@ Bug: When adding `<Member>` elements to `<Group>`s provided by a library, the Ge
 
 **Merge / exclude**
 
-- Adventure-level [`<Exclude>`](#614-exclude) keys: do not load matching library items when merging.
-- Duplicate keys: library load may update, skip, or keep both depending on Generator overwrite settings and whether the existing item still has `<Library>1</Library>`.
-- Tasks loaded from a library get a large priority bump so they sort after author tasks ([§6.5](#65-task)).
-- Task [`ReplaceTask`](#65-task) can force a library task to replace an existing key.
+- An item counts as a library item when its own `<Library>` is true **or** the file is being loaded as a library.
+- Adventure-level [`<Exclude>`](#614-exclude) keys: do not load matching library items when merging. `<Exclude>` and `<Map>` are read only when the file is not being loaded as a library.
+- Duplicate keys (`FileIO.vb` `ShouldWeLoadLibraryItem`): the incoming item is skipped when its `LastUpdated` is missing or not newer than the existing item's. Otherwise an excluded key is skipped, a "yes" answer removes the existing item, and anything else renames the incoming key with `IncrementKey` and records the mapping (`htblDuplicateKeyMapping`) so references inside the module follow it.
+- Tasks loaded from a library whose own `<Library>` flag is absent or false get `Priority += 50000` so they sort after author tasks ([§6.5](#65-task)). `StandardLibrary.amf` carries no `<Library>` on its tasks, so all of them are bumped; a module whose tasks already say `<Library>1</Library>` is not.
+- Task [`ReplaceTask`](#65-task) removes the existing task with that key before the library task is added.
 
 ### 2.10 Expressions (overview)
 
@@ -244,7 +262,7 @@ N to M
 
 Examples: `3`, `1 to 2`, `0 to 5`. When the runner needs a concrete value, it picks uniformly from `N`…`M` inclusive (or just `N` if no `to` clause).
 
-Used in event `Length` / `StartDelay` / SubEvent timing, walk step durations, and similar duration fields.
+Used in event `Length` / `StartDelay`, SubEvent `When` (`N [to M] FromStartOfEvent`), walk `Step` (`LocationKey N [to M]`, `%Player% N [to M]`) and walk `Activity` `When`. The parser is a plain `Split(" ")`: the first token is `N`, and `M` is read from the third token whenever a second token exists, so `to` is not actually checked.
 
 ### 2.12 `Control`
 
@@ -254,7 +272,7 @@ Task-triggered start/stop lines on events and walks:
 Start|Stop|Suspend|Resume  Completion|UnCompletion  TaskKey
 ```
 
-Example: `Start Completion TaskBeginStorm` — when `TaskBeginStorm` completes, start this event/walk. `UnCompletion` fires when that (completed) task is unset by a `SetTasks Unset` **action**; an event's/walk's own `UnsetTask` sub-action only clears the completed flag and fires no controls. See [§6.6 Event](#66-event) and [§6.7 Character](#67-character) (walks).
+Example: `Start Completion TaskBeginStorm` — when `TaskBeginStorm` completes, start this event/walk. `UnCompletion` fires when that (completed) task is unset by a `SetTasks Unset` **action**; an event's/walk's own `UnsetTask` sub-action only clears the completed flag and fires no controls. The loader splits on spaces and parses the first two tokens as the enums `ControlEnum {Start, Stop, Suspend, Resume}` and `CompleteOrNotEnum {Completion, UnCompletion}`; the task key is the third token. See [§6.6 Event](#66-event) and [§6.7 Character](#67-character) (walks).
 
 ### 2.13 Inline HTML-like tags
 
@@ -278,10 +296,12 @@ Tags are case-insensitive. Unknown tags are usually ignored (unless an ALR rewri
 
 **`<font>` attributes** (any combination):
 
-- `color="#RRGGBB"` or `color="RRGGBB"` — text colour (note: RGB _not_ OLE BGR)
+- `color="#RRGGBB"` or `color="RRGGBB"` — text colour (note: RGB _not_ OLE BGR). The `#` is stripped; more than six hex digits collapses to `ffffff`; shorter values are right-padded with `0`. FrankenDrift also accepts the names `black`, `blue`, `cyan` / `turquoise` / `aqua`, `default`, `gray`, `green`, `lime`, `magenta` / `fuchsia`, `maroon`, `navy`, `olive`, `orange`, `pink`, `purple`, `red`, `silver`, `teal`, `white` and `yellow`
 - `face="Font Name"` — typeface
 - `size="N"` — absolute point size (ADRIFT treats body default as 12pt)
 - `size="+N"` / `size="-N"` — relative to the current font size
+
+Attribute values may be quoted or bare (the web runner and FrankenDrift match `size ?= ?"?([+-]?\d+)"?`).
 
 Example: `<font face="Courier New" size=14 color="#00FFFF">mono cyan</font>`
 
@@ -291,14 +311,16 @@ Example: `<font face="Courier New" size=14 color="#00FFFF">mono cyan</font>`
 |-----|---------|
 | `<cls>` | Clear the main output window |
 | `<del>` | Delete the previous character of output (backspace one glyph) |
-| `<wait N>` | Pause **N** seconds (N may be fractional), then continue |
+| `<wait N>` | Pause **N** seconds, then continue. Authors write integers; no surviving runner source documents fractional values (the Windows Runner's tag dispatcher is not in the published tree, the web runner has no `wait` case, FrankenDrift drops the tag, Scarier passes the argument through) |
 | `<waitkey>` | Pause until the player presses a key |
 | `<img src="path">` | Show an image. `src` is a filename/path as in the adventure (resolved via [§6.16 FileMappings](#616-filemappings-blorb-export) inside a Blorb, else as an absolute path to a file on disk). Official Runner often paints the Graphics pane / pastes into the transcript |
-| `<audio play src="…" [channel=N] [loop=Y\|N]>` | Start sound on channel 1–8 (default 1) |
-| `<audio pause [channel=N]>` / `<audio stop [channel=N]>` | Pause or stop that channel |
-| `<window Name>` | Official Windows Runner only: open/route following text into a named dockable output pane |
+| `<audio play src="…" [channel=N] [loop=Y\|N]>` | Start sound on channel 1–8 (default 1). The Generator's grammar is `<audio (play src="…"\|pause\|stop)( channel=\d)?( loop=(Y\|N))?`; `loop` accepts `Y`, `y`, `1`, `True`, `true`, `TRUE` |
+| `<audio pause [channel=N]>` / `<audio stop [channel=N]>` | Pause or stop that channel (channel 1 when omitted) |
+| `<window Name>…</window>` | Route the enclosed text into a named output pane. Implemented by the Windows Runner, by FrankenDrift's WinForms Runner (`AdriftOutput.cs`) and by Scarier; it is a **paired** tag, nested `<window>` tags are counted so the matching `</window>` is found |
 
 Channels outside 1–8 are ignored. `loop=Y` repeats playback.
+
+**Responses made only of tags.** Before a task's text is added to the output the Runner asks `bHasOutput` (`clsUserSession.vb`): text that is empty once every `<…>` tag is stripped counts as output only if it contains one of `<br>`, `<center>`, `<centre>`, `<i>`, `<b>`, `<u>`, `<c>`, `<font`, `<right>`, `<left>`, `<del>`, `<wait` (which `<waitkey>` also satisfies), `<cls>` or `<img `, or is itself an ALR key. `<audio` and `<window` are not on the list, so a response consisting solely of an audio or window tag is dropped as "no output", and task matching continues as though the task had printed nothing.
 
 #### Character entities
 
@@ -411,7 +433,7 @@ Commands use **percent-tokens**. Restrictions and actions usually use the **expa
 | Text | `%text%`, `%text1%`…`%text5%` | `ReferencedText`, `ReferencedText1`…`ReferencedText5` |
 | Item (object or character) | `%item%`, `%item1%`…`%item5%` | `ReferencedItem`, `ReferencedItem1`…`ReferencedItem5` |
 
-There is no `%locations%` / `%directions%` / `%numbers%` / `%texts%` / `%items%` in `ReferenceNames()`. Plurals exist only for objects and characters.
+Plurals exist only for objects and characters. `ReferenceNames()` (`Global.vb`) lists `%objects%` but not `%characters%`; `%characters%` is recognised separately by the command matcher and by `ReplaceFunctions`. There is no `%locations%` / `%directions%` / `%numbers%` / `%texts%` / `%items%` anywhere.
 
 Mapping: `%object%` / `%object1%` → `ReferencedObject` / `ReferencedObject1`; `%objects%` → `ReferencedObjects`; and so on for the other types (`%character%` → `ReferencedCharacter`, …).
 
@@ -495,27 +517,37 @@ After [percent-functions](#46-percent-functions-and-special-tokens) / `%variable
 
 **Arithmetic:** `+` `-` `*` `/` `^` `mod`, parentheses. Integer division **rounds to nearest, halves away from zero** (`Math.Round(a/b, MidpointRounding.AwayFromZero)`): `-5/2` = `-3`. Note this differs from ADRIFT 4, whose epsilon-biased rounding gives `-5/2` = `-2` — a portability trap when converting games.
 
-**Comparisons:** symbolic only — `=` / `==`, `<>` / `!=`, `<`, `<=`, `>`, `>=`. The word forms (`EqualTo`, `GreaterThan`, …) belong to the *restriction* language, not expressions; a bare word like `EQ` inside an expression parses as a string literal, not an operator.
+**Precedence:** the evaluator (`clsVariable.SetToExpression`) is a token reducer that runs in passes, not a grammar. `*` and `/` reduce in the first pass; `+`, `-`, `^` and `mod` all reduce together in the second pass, left to right. So `^` and `mod` bind no tighter than `+`: `2*3^2` = 36, `2^3^2` = 64, `-2^2` = 4 (pinned in `test/adrift5/harness/a5sexpr_test.cpp`).
 
-**Logic:** `AND` `OR`
+**Comparisons:** symbolic only — `=` / `==`, `<>` / `!=`, `<`, `<=`, `>`, `>=`. Both sides numeric → numeric compare; otherwise a string compare. Comparisons do not chain. The word forms (`EqualTo`, `GreaterThan`, …) belong to the *restriction* language, not expressions; a bare word like `EQ` inside an expression parses as a string literal, not an operator.
 
-**Strings:** `"…"` literals; `&` concatenation
+**Logic:** `AND` `OR`. The tokeniser also reads `&` / `&&` as `AND` and `|` / `||` as `OR`. `AND` between two values that are not comparison results concatenates them (VB `&`), so `"a" & "b"` yields `ab` by that route; between two comparisons it is a logical AND. `IF` / `AND` / `OR` evaluate every operand — there is no short-circuiting in expressions (restriction lists do short-circuit, [§4.4.1](#441-bracketsequence)).
 
-**Booleans:** `True` / `False` (case-insensitive) as whole expressions
+**Strings:** `"…"` literals; `+` concatenates unless **both** operands are numeric. A bare identifier that is not a builtin or variable is a string literal.
 
-**Selected builtins** (names are case-insensitive):
+**Booleans:** `True` / `False` (case-insensitive) as whole expressions. `IF(cond, …)` treats `cond` as true when `Val(cond) > 0`.
 
-| Kind | Examples |
+**Builtins** (names are case-insensitive; this is the full `GetToken` list):
+
+| Kind | Builtins |
 |------|----------|
 | Conditionals / choice | `IF(cond, then, else)`, `EITHER(a, b)`, `ONEOF(a, b, …)` |
 | Random | `RAND(lo, hi)` / `RAND(n)` — with replacement; `URAND(…)` — unique (no-repeat) |
-| Numeric | `ABS(n)`, `MIN(a, b)`, `MAX(a, b)`, `VAL(s)`, `STR(n)` |
-| String | `LEN(s)`, `LEFT`/`LFT`, `RIGHT`/`RGT`, `MID`, `INSTR`, `REPLACE` |
-| Case | `UPPER`/`UCASE`/`UPR`, `LOWER`/`LCASE`/`LWR`, `PROPER`/`PCASE`/`PPR` |
+| Numeric | `ABS(n)`, `MIN(a, b)`, `MAX(a, b)`, `VAL(s)` (truncates), `STR(n)`, `MOD` |
+| String | `LEN(s)`, `LEFT`, `RIGHT`, `MID`, `INSTR`, `REPLACE` |
+| Case | `UPPER` / `UCASE`, `LOWER` / `LCASE`, `PROPER` / `PCASE` |
 
-**Variables** may appear by name or via `%VarName%` / `%VarName[index]%` (index may itself be an expression). Runtime tokens such as `%text%` / `%number%` are substituted first; in expression mode, text refs are typically auto-quoted.
+The short names seen inside `clsVariable.vb` (`LFT`, `RGT`, `UPR`, `LWR`, `PPR`, `IST`) are internal token names, not accepted spellings. `PROPER(` is broken in the Runner: `GetToken` matches six characters but strips five, so write `PCASE(`.
 
-`RAND` vs `URAND`: both take `RAND(n)` → `0..n` or `RAND(lo, hi)` → inclusive range. **`RAND`** draws independently each time (duplicates allowed). **`URAND`** (“unique rand”) draws without replacement from that range until every value has been used, then reshuffles and starts over (per min–max pair, adventure-wide).
+**Variables** may appear by name or via `%VarName%` / `%VarName[index]%` (index may itself be an expression). Runtime tokens such as `%text%` / `%number%` are substituted first; in expression mode, text variables and text refs are auto-quoted, and an item ref expands to a `|`-joined key list, quoted unless a `.` path follows. Inside an expression `%Player%` is the player's **name**, `%Turns%`, `%Score%`, `%MaxScore%`, `%Loop%` are numbers, `%Time%` is always `0`, and `%Version%` is major, two-digit minor and four-digit build concatenated (a different shape from the `%Version%` percent-function).
+
+`RAND` vs `URAND`: both take `RAND(n)` → `0..n` or `RAND(lo, hi)` → inclusive range. **`RAND`** draws independently each time (duplicates allowed). **`URAND`** (“unique rand”) draws without replacement from that range until every value has been used, then reshuffles and starts over (per min–max pair, adventure-wide). `EITHER(a, b)` draws one random bit.
+
+**Runner quirks worth knowing** (all verified in the open-sourced 5.0.36 code, none fixed there; the record is `test/adrift4/notes/RUNNER_TESTS.md` §4):
+
+- A parenthesised group that needs the second pass cannot collapse during the first, so `*` / `/` to its **right** reduce first: `(A)/B/C` is `(A/B)/C` but `(A+0)/B/C` is `A/(B/C)`. Observable only through division rounding. Scarier evaluates uniformly left to right instead; no corpus game hits the difference.
+- `ReplaceExpressions` replaces **all** occurrences of each matched `<#…#>` text, so two identical expressions in one text block both show the first one's value (the second still evaluates, so `RAND` still draws). Scarier reproduces this.
+- When two `rand` / `urand` calls sit in one expression and one has a compound argument, the simple call draws first.
 
 Examples:
 
@@ -539,12 +571,12 @@ Root.Segment.Segment…
 Root.Method(args).Segment…
 ```
 
-- **Root** — an item key (`Player`, `ObjectHat`, `LocationLab`, `CharacterBob`), a runtime ref after expansion (`%Player%` → key, `%object1%` → key or `KeyA|KeyB`), or a pipe-separated multi-key list.
+- **Root** — an item key (`Player`, `ObjectHat`, `LocationLab`, `CharacterBob`, a group key, an event key), a direction name (`North.List`), a runtime ref after expansion (`%Player%` → key, `%object1%` → key or `KeyA|KeyB`), or a pipe-separated multi-key list. A group key starts from its member list.
 - **Segments** — built-ins below, or an adventure **property key** (e.g. `OpenStatus`, `Weight`).
 - **`(args)`** — optional method filters / list options (comma-separated keywords).
 - Intermediate steps that produce **lists** can continue with `.Count`, `.List` / `.Name`, `.Parent`, `.Children…`, or further property filters.
 
-Bare keys without `%…%` also work in text that goes through `ReplaceFunctions` (e.g. `LocationLab.Exits.Count`).
+Bare keys without `%…%` also work in text that goes through `ReplaceFunctions` (e.g. `LocationLab.Exits.Count`), but only when at least one `.segment` follows; a bare key on its own is left as text.
 
 **Built-ins by root kind**
 
@@ -556,36 +588,40 @@ Bare keys without `%…%` also work in text that goes through `ReplaceFunctions`
 | Any list | `Description` | Joined long descriptions / location views |
 | Any list | `Parent` | Immediate parents (container / holder / room) |
 | Object | `Children(…)` | Contained items. Recognized args (space-stripped, lowercased): empty/`all`/`onandin`/`all,onandin` (everything), `in`, `objects`, `characters`, and `objects,in` / `objects,on` / `objects,onandin` / `characters,in` / `characters,on` / `characters,onandin`. **Bare `on` is not recognized** — an unrecognized arg combination yields the empty set (the runner's `Select Case` falls through) |
-| Object | `Contents(…)` | Contents **inside** the object only (never on it). Args: empty/`all`, `objects`, `characters`. Objects only — locations have no `Contents` |
+| Object | `Contents(…)` | Contents **inside** the object only (never on it). Args: empty/`all`, `objects`, `characters`. Args are lowercased but not space-stripped, so `objects ` with a trailing space fails |
 | Object | `Objects` | Objects related to this object (children context) |
-| Character | `Held` / `Worn` / `WornAndHeld` | Inventory subsets. `Held(true)` (default) vs `Held(false)` — include/exclude nested carried containers as FrankenDrift does |
+| Object | `Article` / `Prefix` (or `Adjective`) / `Noun` / `Location` / `Parent` | Naming parts (`Noun` is the first `<Name>`), the room the object ultimately sits in, and its direct holder |
+| Character | `Held` / `Worn` / `WornAndHeld` | Inventory subsets. Arg empty / `true` / `1` / `-1` (default) includes objects nested in carried containers; `false` / `0` gives the directly held list only; **any other arg yields an empty list**. `WornAndHeld` is the worn list followed by the held list |
 | Character | `Location` | Character’s **room** (walks through on/in to ultimate location) |
-| Character | `Exits` | Directions **that character** can currently take from its room (route restrictions are checked against that character, not the player) |
-| Character | `Descriptor` / `Description` / `Name(…)` / `Parent` | Naming and parent |
+| Character | `Exits` | In the Runner this is the **player's** open exits from the **player's** room whatever character is named (`Global.vb` `Case "Exits"` calls `Adventure.Player.HasRouteInDirection`). Scarier deliberately evaluates the named character's own exits from its own room instead |
+| Character | `Descriptor` / `ProperName` / `Description` / `Name(…)` / `Parent` | Naming and parent |
 | Location | `Name` | Short description |
-| Location | `Description` | View / long text |
-| Location | `Objects` / `Characters` | Items in the room (no `Contents` on locations) |
+| Location | `Description` | View / long text; an empty description prints `There is nothing of interest here.` |
+| Location | `Objects` / `Characters` | Objects in the room; characters **visible** at the location |
+| Location | `Contents(…)` | Objects at the location plus characters directly in it. Args: empty/`all`, `objects`, `characters` |
 | Location | `Exits` | Directions with a destination set (not necessarily currently passable) |
 | Location | `LocationTo(South)` / `LocationTo(South\|East)` | Neighbouring location(s) by direction name(s) |
 | Event | `Length` / `Position` | Event length / current position within it (when rooted on an event) |
 
-If a path **stops on a list** with no further segment (for example `%Player%.Held` rather than `%Player%.Held.Count` or `%Player%.Held.List`), the result is the item keys joined with `|`, e.g. `ObjectLamp|ObjectKey`. That string can feed another path or comparison that expects keys.
+If a path **stops on a list** with no further segment (for example `%Player%.Held` rather than `%Player%.Held.Count` or `%Player%.Held.List`), the result is the item keys joined with `|`, e.g. `ObjectLamp|ObjectKey`. That string can feed another path or comparison that expects keys. A direction list stopped the same way gives the **enum** names (`North|South`), not the game's direction words; `.List` / `.Name` on a direction list gives the lowercased localised words, and the only joiner it accepts is `or`.
+
+`Count` on an empty or missing list is `0`. A list's `Description` joins the items' descriptions with two spaces.
 
 **`List` and `Name`:** both turn a collection into printed text (empty → `"nothing"`). Multiple items become English lists such as `the lamp, the key and the box`, or direction names such as `north, south and west`.
 
-Optional args in parentheses, comma-separated, may mix any of these:
+Optional args in parentheses, comma-separated, may mix any of these. The Runner tests the whole arg string by **substring**, not by keyword, so `force` also matches `or` (the joiner becomes " or "), `none` sets both the article and the pronoun to none, and any arg containing a `0` (a stray `10`, say) turns nested listing off. Only the single-item `.Name` form matches `definite` / `indefinite` as whole words.
 
 | Concern | Keywords | Effect |
 |---------|----------|--------|
 | Joiner | *(default)* / `or` / `rows` | `" and "` between the last two items; `" or "` instead; or one item per line |
 | Article (objects) | *(default)* / `indefinite` / `none` | `the lamp` vs `a lamp` vs `lamp` |
 | Article (characters) | *(default)* / `definite` | Characters default to **indefinite** (`a tall man`); `definite` → `the tall man` |
-| Pronouns (characters) | `force`, `objective`, `possessive`, `reflective`, `none` | Pronoun form when listing characters |
+| Pronouns (characters) | `force`, `objective` (or `object` / `target`), `possessive` (or `possess`), `reflective` (or `reflect`), `none` | Pronoun form when listing characters; default is subjective |
 | Nested contents | *(default for `List`)* / `false` / `0` | In the desktop Runner, `List` may append what’s in/on each object (e.g. `the box.  On the box is a coin.`); `Name` never does; `false`/`0` disables nesting on `List`. (Reimplementations render the flat list; treat the nested append as Runner-specific display behavior rather than a guaranteed value) |
 
 Examples: `%Player%.Held.List` → `the lamp and the key`; `%Player%.Held.List(Indefinite, False)` → `a lamp and a key` with no in/on append; `%objects%.Name(Indefinite)` → names only, indefinite articles.
 
-**Adventure properties as segments:** any property key defined for that item type becomes a path step. Integer / value-list / state / selection-only properties filter or expose values; key-typed properties (`ObjectKey`, `LocationKey`, …) replace the current list with the referenced item(s). Optional `(value)` filters (e.g. `OpenStatus(Open)`).
+**Adventure properties as segments:** any property key defined for that item type becomes a path step. Integer / value-list / state / selection-only properties filter or expose values; key-typed properties (`ObjectKey`, `LocationKey`, …) replace the current list with the referenced item(s). Optional `(value)` filters (e.g. `OpenStatus(Open)`): a ValueList filter takes a number or a label, a StateList filter is case-insensitive, and a SelectionOnly filter of `false` / `0` keeps the items that **lack** the property. Text and key-typed properties have no working filter (a `TODO` in the Runner). On a single item, a missing Integer / ValueList / SelectionOnly property reads as `0` and a present SelectionOnly property as `1`; a Text property on a list joins the values with `, ` and ` and `. `Sum` needs a property step before it, else it is `0`. Filter args containing `.` go through `ReplaceFunctions` first and args containing `+` or `-` through the expression evaluator. Files older than 5.0000311 are patched at load so an Integer / ValueList property step with nothing after it becomes `.Prop.Sum`.
 
 **Examples**
 
@@ -636,11 +672,11 @@ The **first child element name** in the `<Restriction>` element is the restricti
 | `Object` | `key1 Must\|MustNot ObjectOp key2` |
 | `Character` | `key1 Must\|MustNot CharacterOp key2` |
 | `Item` | `key1 Must\|MustNot ItemOp key2` |
-| `Task` | `taskKey Must\|MustNot BeComplete` |
+| `Task` | `taskKey Must\|MustNot BeComplete` (the only task op) |
 | `Variable` | `varKey[index]? Must\|MustNot BeEqualTo\|… value` |
-| `Property` | `propKey itemKey Must\|MustNot [EqualTo…] value` — note the **property key comes first**, then the item reference |
+| `Property` | `propKey itemKey Must\|MustNot [op] value` — note the **property key comes first**, then the item reference. `op` is a Variable op name **without** the `Be` prefix (`EqualTo`, `GreaterThan`, …) and defaults to `EqualTo` when omitted |
 | `Direction` | `Must\|MustNot BeNorth` (etc.; direction after `Be`) |
-| `Expression` | boolean [expression](#43-expressions) |
+| `Expression` | boolean [expression](#43-expressions), always `Must` |
 
 **Location ops:** `BeInGroup`, `HaveBeenSeenByCharacter`, `HaveProperty`, `BeLocation`, `Exist`
 
@@ -648,15 +684,18 @@ The **first child element name** in the `<Restriction>` element is the restricti
 
 **Character ops:** `BeAlone`, `BeAloneWith`, `BeAtLocation`, `BeCharacter`, `BeInConversationWith`, `Exist`, `HaveRouteInDirection`, `HaveSeenCharacter`, `HaveSeenLocation`, `HaveSeenObject`, `BeHoldingObject`, `BeInSameLocationAsCharacter`, `BeInSameLocationAsObject`, `BeLyingOnObject`, `BeInGroup`, `BeOfGender`, `BeSittingOnObject`, `BeStandingOnObject`, `BeWearingObject`, `BeWithinLocationGroup`, `HaveProperty`, `BeInPosition`, `BeInsideObject`, `BeOnObject`, `BeOnCharacter`, `BeVisibleToCharacter`
 
-**Variable ops** (written after `Be`): `EqualTo`, `GreaterThan`, `GreaterThanOrEqualTo`, `LessThan`, `LessThanOrEqualTo`, `Contain`
+**Item ops** (`<Item>`, for a `%item%` ref that may be an object or a character): `BeAtLocation`, `BeCharacter`, `BeInSameLocationAsCharacter`, `BeInSameLocationAsObject`, `BeInsideObject`, `BeLocation`, `BeInGroup`, `BeObject`, `BeOnCharacter`, `BeOnObject`, `BeType`, `Exist`, `HaveProperty`
+
+**Variable ops** (written after `Be`): `EqualTo`, `GreaterThan`, `GreaterThanOrEqualTo`, `LessThan`, `LessThanOrEqualTo`, `Contain` (`Contain` works on Text variables only; on a Numeric variable it is always false)
 
 **Variable values:**
 
-- Bare integer → numeric constant
-- `"quoted"` → string constant
-- `'expr'` → [expression](#43-expressions) (single quotes mark “evaluate this”)
+- Bare integer (the whole body is exactly four tokens and the last is numeric) → numeric constant
+- `"quoted"` or `'quoted'` → the quotes are stripped at load and the body is run through the [expression](#43-expressions) evaluator **at check time**. The two quote styles are equivalent despite the Generator's "string constant" / "expression" labels: `"a+b"` evaluates
 - Bare key → another variable’s value
 - Array index: `Variable1[%IndexVar%]` or `Variable1[2]`
+
+**Expression restrictions** hold the expression text bare. Nothing strips a `<#…#>` wrapper: the text goes verbatim to `EvaluateExpression`, where `<` tokenises as less-than and `#` breaks the parse, so a wrapped expression evaluates to the empty string, which is false.
 
 #### 4.4.1 `BracketSequence`
 
@@ -677,11 +716,11 @@ Each `#` consumes one restriction in document order (a cursor advances through t
 
 **Too many `#`s:** An out-of-range `#` throws internally, but the Runner catches the exception in `GetGeneralTask` and reports "I didn't understand that command" — the command fails soft; the app does not crash. Still, do not author sequences with more `#`s than restrictions.
 
-**Malformed sequences:** Things like consecutive hashes (`#A#A##`) or other junk between `#` slots fail the whole list (treated as false).
+**Malformed sequences:** Things like consecutive hashes (`#A#A##`) or other junk between `#` slots fail the whole list (treated as false). An empty sequence, or one that starts with anything but `(` or `#`, is "Bad Bracket Sequence" and fails the block the same way. A `#` followed by something other than `A`, `O` or the end defaults to false.
 
-Generator normally writes one `#` per restriction, joined with `A`/`O` and parentheses as needed. An empty `BracketSequence` with restrictions present is unusual; prefer an explicit sequence.
+Generator normally writes one `#` per restriction, joined with `A`/`O` and parentheses as needed. A `<Restrictions>` element with no `<BracketSequence>` child at all crashes the Runner's loader (null reference in `FileIO.vb`), so always write one, even `<BracketSequence />` when there are no restrictions. With zero restrictions the block passes.
 
-**5.0.26 upgrade path (`CorrectBracketSequence`):** ADRIFT 5.0.26 changed how mixed sequences bind, and when loading a file older than 5.0.26 the loader offers to *rewrite* stored sequences: the longest run of the form `#A#O#O#…` becomes `#A(#O#O#…)`. A spec-compliant reader of pre-5.0.26 files should be aware the on-disk sequence may predate this correction (the desktop Runner asks the user via an "Adventure Upgrade" dialog before mutating).
+**5.0.26 upgrade path (`CorrectBracketSequence`):** ADRIFT 5.0.26 changed how mixed sequences bind, and when loading a file older than 5.0.26 whose sequences contain the substring `#A#O#` the loader offers to *rewrite* them: the longest run of the form `#A#O#O#…` becomes `#A(#O#O#…)`. A spec-compliant reader of pre-5.0.26 files should be aware the on-disk sequence may predate this correction (the desktop Runner asks the user via an "Adventure Upgrade" dialog before mutating; unattended FrankenDrift reads the sequence verbatim, and Scarier answers no except for a short per-game allow-list keyed on IFID).
 
 Examples (three restrictions R0, R1, R2):
 
@@ -716,13 +755,13 @@ The **tag name is the action type**; text is the payload.
 | `MoveCharacter` / `AddCharacterToGroup` / `RemoveCharacterFromGroup` | see [§4.5.2](#452-movecharacter-and-character-groups) |
 | `AddLocationToGroup` / `RemoveLocationFromGroup` | see [§4.5.3](#453-location-groups) |
 | `SetProperty` | `itemKey propKey value…` |
-| `SetTasks` | `Execute\|Unset\|Clear taskKey (params)?` or FOR-loop form (`Clear` is a synonym for `Unset`) |
-| `SetVariable` / `IncVariable` / `DecVariable` | `key[index]? = "expr"` or FOR-loop form ([§4.3](#43-expressions)) |
-| `Conversation` | `Greet\|Ask\|Tell\|Say\|Farewell\|EnterWith\|LeaveWith …` |
-| `Time` | `Skip "N" turns` |
-| `EndGame` | `Win` \| `Lose` \| `Neutral` |
+| `SetTasks` | `Execute\|Unset taskKey (params)?` or the FOR-loop form `FOR %Loop% = N TO M : Execute taskKey : NEXT %Loop%` (fixed token positions). `Execute` and `Unset` are the only verbs; anything else throws at load |
+| `SetVariable` / `IncVariable` / `DecVariable` | `key[index]? = "expr"` or the FOR-loop form `FOR %Loop% = N TO M : SET key[index] = expr : NEXT %Loop%` ([§4.3](#43-expressions)). The quotes round `expr` are stripped at load only for files newer than 5.0000321 |
+| `Conversation` | `Greet\|Farewell charKey [with 'text']`, `Ask\|Tell charKey About 'topic'`, `Say 'text' to charKey`, `EnterWith\|LeaveWith charKey` |
+| `Time` | `Skip "expr" turns` (the first and last character of the quoted part are stripped, then it is evaluated) |
+| `EndGame` | `Win` \| `Lose` \| `Neutral` (the enum also has `Running`, never authored) |
 
-(There are no `WalkTo` or `Score` action types — the Runner's action enum (`clsTask.vb ItemEnum`) contains only the tags above. `WalkTo` exists only as a runtime player field driving map-click auto-walk, never as an authored `<Actions>` child.)
+Two legacy tags are still read: `<Score>` (loaded and ignored) and `<ExecuteTask>` (an old spelling of `SetTasks Execute`). There is no `WalkTo` action; `WalkTo` exists only as a runtime player field driving map-click auto-walk. Files of version 5.000016 and older carry three-token `MoveObject` / `MoveCharacter` payloads (`key1 Destination key2`, with the legacy selectors `AllHeldObjects` / `AllWornObjects`), which the loader rewrites to the four-token form below.
 
 Keys in these payloads are adventure keys or runtime placeholders (`ReferencedObject`, `Player`, `%Player%`, …).
 
@@ -810,11 +849,11 @@ These **block** for player input. `run500.exe` displays a modal dialog. (It seem
 
 | Function | Arguments | Result |
 |----------|-----------|--------|
-| `%PopUpChoice[prompt, choiceYes, choiceNo]%` | Exactly three (often quoted strings) | Yes → `choiceYes`, No → `choiceNo`. Dialog text is `prompt` plus “Yes for …, No for …” |
+| `%PopUpChoice[prompt, choiceYes, choiceNo]%` | Exactly three, split on commas **without** regard to quotes | Yes → `choiceYes`, No → `choiceNo`, the chosen one run through the expression evaluator; quoted only in expression mode. Dialog text is `prompt` plus “Yes for …, No for …” |
 | `%PopUpInput[prompt]%` | Prompt only | Player’s typed string, wrapped in `"…"` for expression/display use |
 | `%PopUpInput[prompt, default]%` | Prompt + default | Same; empty input keeps `default`. Always returned as `"…"` |
 
-Arguments may themselves be expressions / nested functions; Runner evaluates them when building the dialog. Do not rely on pop-ups in pure output text unless you intend to interrupt mid-message — store the result in a variable, then print `%ChoiceResult%`.
+Arguments may themselves be expressions / nested functions; Runner evaluates them when building the dialog. A bare `%PopUpInput%` with no `[…]` is not a call. Do not rely on pop-ups in pure output text unless you intend to interrupt mid-message — store the result in a variable, then print `%ChoiceResult%`.
 
 #### Session / environment tokens
 
@@ -826,7 +865,7 @@ Arguments may themselves be expressions / nested functions; Runner evaluates the
 | `%AloneWithChar%` | Key of the single NPC alone with the player, or a no-character sentinel |
 | `%ConvCharacter%` | Key of the character currently in conversation |
 | `%CharacterName%` | Short for `%CharacterName[%Player%]%` |
-| `%CharacterName[subject\|object\|possessive|…]%` | Pronoun helper for the player (rewritten to an explicit `%CharacterName[%Player%, …]%` call) |
+| `%CharacterName[subject\|object\|possessive\|…]%` | Pronoun helper for the player (rewritten to an explicit `%CharacterName[%Player%, …]%` call when the sole argument is one of `subject`, `subjective`, `personal`, `target`, `object`, `objective`, `possessive`). The pronoun argument of the two-argument form accepts `subject` / `subjective` / `personal`, `target` / `object` / `objective`, `possess` / `possessive`, and `none` |
 
 #### Listing and display helpers
 
@@ -836,14 +875,16 @@ Common keyed functions (arg is usually an item key, sometimes a pipe-separated l
 |----------|-------------|
 | `DisplayLocation[loc]`, `LocationName[loc]` | Room name / description snippets |
 | `DisplayObject[ob]`, `ObjectName[…]`, `TheObject[…]`, `TheObjects[…]` | Object naming |
-| `DisplayCharacter[ch]`, `CharacterName[…]`, `CharacterDescriptor[…]`, `CharacterProper[…]`, `ProperName[…]` | Character naming |
-| `LocationOf[ch]`, `ParentOf[…]`, `PrevParentOf[…]` | Containment / previous parent |
+| `DisplayCharacter[ch]`, `CharacterName[…]`, `CharacterDescriptor[…]`, `CharacterProper[…]` (same as `ProperName[…]`) | Character naming |
+| `LocationOf[ch]`, `ParentOf[…]` | Containment |
+| `PrevParentOf[…]` | The Runner **ignores the argument** and returns the previous parents of every object and character, pipe-joined. Scarier returns the named item's previous parent |
 | `Held[ch]`, `Worn[ch]`, `ListHeld[ch]`, `ListWorn[ch]` | Inventory lists |
 | `ListObjectsAtLocation[loc]`, `ListObjectsOn[ob]`, `ListObjectsIn[ob]`, `ListObjectsOnAndIn[ob]`, `ObjectsIn[ob]` | Object lists |
 | `ListCharactersOn[ob]`, `ListCharactersIn[ob]`, `ListCharactersOnAndIn[ob]` | Character lists |
 | `ListExits[ch]` | Exits from that character’s location |
 | `PropertyValue[itemKey, propKey]` | Property string value |
 | `TaskCompleted[taskKey]` | `True` / `False` |
+| `TheObject[…]`, `TheObjects[…]` | The objects' full names, listed |
 | `PrevListObjectsOn[…]` | Same as list helpers, evaluated against **previous-turn** state |
 
 #### Text utilities
@@ -852,8 +893,8 @@ Common keyed functions (arg is usually an item key, sometimes a pipe-separated l
 |----------|---------|
 | `LCase[s]` / `UCase[s]` / `PCase[s]` | Lower / upper / proper case |
 | `NumberAsText[n]` | Spell out a number |
-| `Replace[haystack, old, new]` | Substring replace |
-| `Sum[…]` | Sum numbers found in the argument text |
+| `Replace[haystack, old, new]` | Substring replace. Listed in the Runner's `FunctionNames` but there is **no** `Case "Replace"` in `ReplaceFunctions` in either source tree, so the Runner leaves it unexpanded; Scarier implements it. Use the expression builtin `REPLACE(…)` instead |
+| `Sum[…]` | Sum numbers found in the argument text (keeps digits and `-`, splits, sums) |
 
 Author **user-defined functions** ([§6.13](#613-function-user-defined)) use the same `%Name[args]%` calling convention once defined.
 
@@ -867,25 +908,27 @@ Children of `<Adventure>` (all optional except where noted by practice):
 |---------|---------|--------|
 | `Version` | File/product version | Required for load |
 | `LastUpdated` | Adventure timestamp | |
-| `Title` | Game title | |
-| `Author` | Author | |
-| `Description` | Babel bibliographic description | Only on library `.amf` modules |
-| `FontName`, `FontSize` | Defaults (Arial, 12) | |
-| `BackgroundColour`, `InputColour`, `OutputColour`, `LinkColour` | OLE colours | |
-| `UserStatus` | Status-bar expression / text | May contain [expressions](#43-expressions) / `%…%` |
+| `Title` | Game title | Ignored when the file is loaded as a library |
+| `Author` | Author | Ignored when the file is loaded as a library |
+| `Description` | Babel bibliographic description | Written on every **uncompressed** save (`.amf` / `.xml`) when the Babel record has one; never written into a `.taf`; **never read** by any v5 loader |
+| `FontName`, `FontSize` | Defaults (Arial, 12) | Written only when not the default. On load an empty `FontName` is ignored and `FontSize` is accepted only in 8…36 |
+| `BackgroundColour`, `InputColour`, `OutputColour`, `LinkColour` | OLE colours | Written only when not the Generator default ([§2.6](#26-colours-backgroundcolour-inputcolour-outputcolour-linkcolour)) |
+| `UserStatus` | Status-bar expression / text | May contain [expressions](#43-expressions) / `%…%`; written only when non-empty |
 | `Introduction` | Opening text | Description block |
-| `ShowFirstLocation` | Show room after intro | `"1"`/`"0"`; compressed saves |
-| `ShowExits` | Boolean, whether or not to display the list of exits | |
-| `EnableMenu`, `EnableDebugger` | Runner UI | |
+| `ShowFirstLocation` | Show room after intro | `"1"`/`"0"`; default true |
+| `ShowExits` | Boolean, whether or not to display the list of exits | Default true |
+| `EnableMenu`, `EnableDebugger` | Runner UI | Default true; `EnableDebugger` is written only when false |
 | `Elapsed` | Developer time spent | |
-| `Cover` | Cover image filename | |
+| `Cover` | Cover image filename | Written only when non-empty |
 | `EndGameText` | Win/end text | Description block |
-| `TaskExecution` | Matching strategy, an enum | **Version-gated default:** when the tag is absent, files with version ≥ 5.0.22 default to `HighestPriorityTask`, but older files (< 5.000022) must default to `HighestPriorityPassingTask` — the element and the new default were introduced together in 5.0.22. Getting this wrong makes some pre-5.0.22 games (e.g. *Return to Camelot*, v5.000020) unwinnable. |
-| `WaitTurns` | Number of turns for “wait” (default 3) | |
-| `KeyPrefix` | Prefix for new keys | |
-| `DirectionNorth` … `DirectionOut` | Direction command regexes | Slash-separated synonyms; only written if non-default |
-| `NotUnderstood` | Fallback message | Loaded by some runners |
+| `TaskExecution` | Matching strategy, an enum | Written only when not `HighestPriorityTask`. **Version-gated default:** when the tag is absent, files with version ≥ 5.0.22 default to `HighestPriorityTask`, but older files (< 5.000022) must default to `HighestPriorityPassingTask` — the element and the new default were introduced together in 5.0.22. Getting this wrong makes some pre-5.0.22 games (e.g. *Return to Camelot*, v5.000020) unwinnable. |
+| `WaitTurns` | Number of turns for “wait” (default 3) | Written only when ≠ 3; the loader clamps to ≥ 0 |
+| `KeyPrefix` | Prefix for new keys | Written only when non-empty |
+| `DirectionNorth` … `DirectionOut` | Direction command regexes | Slash-separated synonyms; only written if non-default; an empty element is ignored on load |
+| `NotUnderstood` | Fallback message | **Not read** by either v5 XML loader (it survives only in the v4 / v3.9 binary paths). Both loaders default it to `Sorry, I didn't understand that command.` |
 | `ifindex` | Legacy Babel | Rare |
+
+`ShowFirstLocation`, `ShowExits`, `EnableMenu`, `EnableDebugger` and `Elapsed` are written only into compressed (`.taf`) saves, never into `.amf` modules ("We don't want to save these settings in any modules"), but a module that does carry them is still applied ([§1.3](#13-amf-library-modules)).
 
 Default direction regexes (when tags omitted):
 
@@ -1064,7 +1107,9 @@ A task runs its [`<Actions>`](#45-actions) when executed. When tasks are complet
 </Task>
 ```
 
-- `Priority` — matching order among General tasks: **lower number is tried first**. When multiple tasks match (or Continue keeps searching), the runner walks rising `Priority` values. Equal `Priority` values have **no defined order** (do not rely on which tied task runs first).
+`Priority`, `Description` and `Repeatable` are required: the loader dereferences them without a null check and crashes on a task that lacks any of them. `Priority` is always written; so is `Repeatable`, even when `0`.
+
+- `Priority` — matching order among General tasks: **lower number is tried first**. When multiple tasks match (or Continue keeps searching), the runner walks rising `Priority` values. Equal `Priority` values have **no defined order** (do not rely on which tied task runs first). Library tasks are offset by 50000 at load ([§2.9](#29-library-flag)).
 - `AutoFillPriority` — The `run500.exe` runner can autocomplete commands. Lower values prefer that task’s commands in suggestions; `0` disables auto-fill for the task. Default `10`; writers omit the tag when it is still the default. General tasks only.
 - `LowPriority` — if a better-priority matching task has already failed with restriction/fail text, skip this task rather than letting it override that failure. Typical for library fallbacks. Written as `<LowPriority>1</LowPriority>` when set.
 - `PreventOverriding` — Generator authoring: do not offer this task as a parent (`GeneralTask`) for new Specific tasks (“Prevent this task from being inherited”). Not used at play time by runners.
@@ -1109,7 +1154,7 @@ A Specific task specializes a General parent for particular referenced values. I
 ```
 
 - `GeneralTask` — key of the parent General task (e.g. `TakeObjects`)
-- One `<Specific>` per reference slot in the parent’s first command, in that order
+- One `<Specific>` per reference slot in the parent’s **first** `<Command>`, in that order (slots are matched by position, so a parent whose later commands order their references differently will mis-bind)
   - `Type` — reference kind: `Object`, `Character`, `Number`, `Text`, `Direction`, `Location`, `Item`
   - `Multiple` — `1` if that slot may match multiple items (as with `%objects%`); else `0`
   - `Key` — required match for that slot; empty (`<Key />` or `<Key></Key>`) means any value of that type; may use placeholders such as `%Player%`
@@ -1119,7 +1164,10 @@ A Specific task specializes a General parent for particular referenced values. I
   - `BeforeTextAndActions` — this task first, then the parent's text *and* actions
   - `BeforeTextOnly` — this task first, then only the parent's *text* (parent actions suppressed)
   - `BeforeActionsOnly` — this task first, then only the parent's *actions* (parent text suppressed)
-  - `AfterTextAndActions` — the parent first, then this task. (`AfterTextOnly` / `AfterActionsOnly` are accepted but unimplemented in the Runner — an explicit TODO in the source — and behave like `AfterTextAndActions`)
+  - `AfterTextAndActions` — the parent first, then this task.
+  - `AfterTextOnly` / `AfterActionsOnly` — accepted, but only partly implemented. The branch that would suppress the parent's actions or text is an empty `TODO` in `clsUserSession.vb`, so the parent still runs in full; the one difference from `AfterTextAndActions` is that `AfterTextOnly` shares its rule that a failing-restriction message printed after a successful parent still counts as a pass.
+
+Files older than the `SpecificOverrideType` element carry the checkbox `<ExecuteParentActions>` instead. The loader maps it from the flag and whether the task has a `CompletionMessage`: true with no message → `BeforeTextAndActions`; true with a message → `BeforeActionsOnly`; false with no message → `BeforeTextOnly`; false with a message → `Override`. A later `<SpecificOverrideType>` in the same task overrides the mapping.
 
 Example with two slots (`say %text% to %character%`):
 
@@ -1155,7 +1203,7 @@ System tasks have no player command patterns. They run only when triggered. They
 
 ##### `LocationTrigger`
 
-Value is a **location key**. When the player character moves to a location whose key equals that value, the runner queues this System task (if it is still runnable: `Repeatable` or not yet completed). Same-location “moves” do not fire it. Non-player character movement does not.
+Value is a **location key**. When the player character moves to a location whose key equals that value, the runner queues this System task (if it is still runnable: `Repeatable` or not yet completed). Same-location “moves” do not fire it. Non-player character movement does not. The start location is marked seen only after the `RunImmediately` tasks have run (`clsUserSession.vb`), so a `RunImmediately` task that tests `HaveBeenSeenByCharacter` on the start room sees "not yet".
 
 Omit `LocationTrigger` (and omit `RunImmediately`) for tasks that should run only when explicitly executed.
 
@@ -1196,17 +1244,21 @@ Timed or turn-based scripting. An event starts, runs for a `Length`, optionally 
 #### Type and lifespan
 
 - `Type` — `TurnBased` (advances with turns) or `TimeBased` (wall-clock; SubEvents may use real timers).
-- `Length` — how long the event runs once started. `FromTo` form: `"N"` or `"N to M"` (a value in that inclusive range is chosen each start/reset). Required.
+- `Length` — how long the event runs once started. `FromTo` form: `"N"` or `"N to M"` (a value in that inclusive range is chosen each start/reset). Required, as are `Description` and `WhenStart`; the loader crashes without them.
 - `Repeating` (`1`) — when the event finishes after `Length`, it may start again (not restarted if `Length` resolves to 0).
-- `RepeatCountdown` (`1`) — if repeating, wait out `StartDelay` again before each restart; otherwise restart immediately.
+- `RepeatCountdown` (`1`) — if repeating, go back to `CountingDownToStart` with a freshly rolled `StartDelay`; the remaining-time counter is then `StartDelay + Length`. Without it the event restarts immediately.
+
+The restart check runs whenever the event finishes with its remaining-time counter at 0, and a never-started event's counter **is** 0, so a `Stop` control aimed at a not-yet-started repeating event starts it (measured in the Runner; *Tempus Fugit* depends on it). Scarier reproduces this (`adrift5/run/a5run_events.cpp`).
 
 #### WhenStart
 
 How the event begins:
 
-* `Immediately`: Start the event when play begins
+* `Immediately`: Start the event when play begins. After that first start the Runner flips the field to `BetweenXandYTurns` so a repeat uses the countdown path, which has one visible effect: a `0 FromStartOfEvent` SubEvent does **not** fire on the first start of an `Immediately` event, only on repeats.
 * `BetweenXandYTurns`: Wait a random delay from start. Requires a `<StartDelay>1 to 3</StartDelay>` to specify how long to delay. The delay starts when play begins. (`StartDelay` never applies to `<SubEvent>`s — their timing is always relative to their **own** event via `FromStartOfEvent` / `FromLastSubEvent` / `BeforeEndOfEvent`; see below.)
-* `AfterATask` (or `0`): Starts when a `<Control>` starts the task. See below
+* `AfterATask`: Starts when a `<Control>` starts the event. See below
+
+The enum is `Immediately = 1`, `BetweenXandYTurns = 2`, `AfterATask = 3`. A `0` or any other unparsable value leaves the event `NotYetStarted` until a `Start` control reaches it, which in practice behaves like `AfterATask`, but no Generator writes it.
 
 #### Control
 
@@ -1231,14 +1283,14 @@ Zero or more `<SubEvent>` children. Timing is checked each tick while the event 
 ```
 
 - `When` — fire after a randomized [`FromTo`](#211-fromto-inclusive-ranges) inclusive range of "units" (turns or seconds), measured as:
-  - `FromStartOfEvent` — from when the event started
-  - `FromLastSubEvent` — since the previous SubEvent ran (the first uses start-of-event if nothing has run yet)
+  - `FromStartOfEvent` — from when the event started. Fires only if the value is ≤ `Length`, and a value of `0` is honoured only when `WhenStart` is not `Immediately` (see above).
+  - `FromLastSubEvent` — since the previous SubEvent ran. The SubEvent is considered only if the **immediately preceding** SubEvent in document order was the last one to run; the first SubEvent uses start-of-event if nothing has run yet.
   - `BeforeEndOfEvent` — when only that many units remain until `Length` elapses
 - `Measure` — the unit for the number in `<When>`:
-  - On a **TurnBased** event: `Turns` means player turns; `Seconds` means real-world wall-clock seconds (a timer, independent of turns). Example: `<When>5 FromStartOfEvent</When>` with `<Measure>Seconds</Measure>` fires five seconds after the event starts, even if the player has not taken a turn.
+  - On a **TurnBased** event: `Turns` means player turns. `Seconds` means real-world wall-clock seconds: the turn-tick scan skips such SubEvents and the Runner instead arms a real-time timer when the event starts (`FromStartOfEvent`) or when the previous SubEvent fires (`FromLastSubEvent`). `BeforeEndOfEvent` with `Seconds` on a TurnBased event has no timer and never fires. Example: `<When>5 FromStartOfEvent</When>` with `<Measure>Seconds</Measure>` fires five seconds after the event starts, even if the player has not taken a turn. Timer details worth knowing: a `FromLastSubEvent` Seconds SubEvent is armed by whichever SubEvent precedes it in document order (Turns or Seconds), and if its offset is `0` it runs immediately, in the same breath as the preceding one; `Pause`/`Resume` suspend and restart the countdowns, `Stop` discards them. Scarier honours all of this on its deterministic one-second clock (one processed input line is one second in the headless harness; the Glk host drives the same tick from a real-time timer), so transcripts stay reproducible; FrankenDrift's console build has no timers and never fires them.
   - On a **TimeBased** event: the event itself already advances once per real second, so `Turns` and `Seconds` both count those seconds. Prefer `Seconds` for clarity.
 - `What` / `Action` / `OnlyApplyAt`:
-  - `DisplayMessage` — `<Action>` holds a description block. `OnlyApplyAt` is a location or location-group key; display runs only if the player is there. Use `AllLocations` for everywhere. Without `OnlyApplyAt`, the message is not shown.
+  - `DisplayMessage` — `<Action>` holds a description block. `OnlyApplyAt` is a location or location-group key; display runs only if the player is there. Use `AllLocations` for everywhere. Without `OnlyApplyAt` (or with it empty), the message is not shown: the Runner tests `OnlyApplyAt <> ""` before anything else.
   - `SetLook` — `<Action>` holds a description block that displays when the player runs the `look` command while the event is running. `OnlyApplyAt` adds the description block only in the matching locations.
   - `ExecuteTask` — `<Action>` text is `ExecuteTask TaskKey` (no `OnlyApplyAt`).
   - `UnsetTask` — `<Action>` text is `UnsetTask TaskKey` (marks that task incomplete; no `OnlyApplyAt`).
@@ -1350,14 +1402,14 @@ NPC itineraries. Zero or more `<Walk>` children per character.
 </Walk>
 ```
 
-- `Description` — label for the Generator / debugger
-- `Loops` — `1` to repeat the walk when it finishes; `0` otherwise
+- `Description` — label for the Generator / debugger. Required, with `Loops` and `StartActive`: the loader crashes on a walk that lacks any of the three.
+- `Loops` — `1` to repeat the walk when it finishes; `0` otherwise. The walk loops only after it ends **naturally** (not after a `Stop` control) and only when its total length is greater than 0.
 - `StartActive` — `1` to start the walk when the adventure begins.
   - To start an inactive walk later, use a `<Control>` like this: `<Control>Start Completion TaskKey</Control>`. Then complete that task (for example `<SetTasks>Execute TaskKey</SetTasks>`) to start the walk.
-- `Step` — `Destination FromTo` (duration is `"N"` or `"N to M"` turns). One or more steps define the route. The destination may be a location key, `Hidden`, a location-**group** key (a random member is drawn each time, re-rolling until one adjacent to the walker is found — the re-rolls consume RNG draws), or a character key / `%Player%` (step toward that character, taken only when adjacent).
+- `Step` — `Destination FromTo` (duration is `"N"` or `"N to M"` turns). One or more steps define the route. The destination may be a location key, `Hidden`, a location-**group** key (a random member is drawn each time, re-rolling until one adjacent to the walker is found — the re-rolls consume RNG draws), or a character key / `%Player%` (step toward that character, taken only when adjacent). For files older than 5.000029 a `%Player%` step's duration is forced to at least 1 turn.
 - `Control` — same compact form as events: `Start|Stop|Suspend|Resume Completion|UnCompletion TaskKey` (drives the walk when that task completes or is unset)
 - `Activity` (SubWalk) — optional side effects while walking:
-  - `When` — either `ComesAcross Key`, or `FromTo FromStartOfWalk|FromLastSubWalk|BeforeEndOfWalk`. In practice `ComesAcross` fires only on meeting the **player**: the desktop Runner ignores the key entirely and tests walker-location == player-location, so author it as `ComesAcross %Player%` (object keys never fire)
+  - `When` — either `ComesAcross Key`, or `FromTo FromStartOfWalk|FromLastSubWalk|BeforeEndOfWalk`. In practice `ComesAcross` fires only on meeting the **player**: the desktop Runner ignores the key entirely and tests walker-location == player-location, so author it as `ComesAcross %Player%` (object keys never fire). It is edge-triggered: it fires on the tick the two become co-located and not again while they stay together
   - `Action` — description block (display message), or `ExecuteTask TaskKey` / `UnsetTask TaskKey`
   - `OnlyApplyAt` — location or location-group key restricting when a display message is shown (`AllLocations` for everywhere)
 
@@ -1385,8 +1437,8 @@ Conversation nodes for this character. Zero or more `<Topic>` children.
 
 - `Key` — topic id (conversation “node”)
 - `ParentKey` — optional tree link. The runner keeps a single current-node key for whoever you’re talking to. A topic with `ParentKey` set is only considered when that current node equals the parent; topics with no `ParentKey` are always eligible for that character. There is no adventure property, variable, or restriction that exposes the current node — the only way to branch is by giving child topics the right `ParentKey`. (A Character restriction like `%Player% Must BeInConversationWith CharacterBob` only checks *which character* you are talking to, not which topic.)
-- `Summary` — short label (Generator / UI)
-- `Keywords` — match text for Ask/Tell/Command (comma-separated for Ask/Tell keyword lists; command patterns when `IsCommand`)
+- `Summary` — short label (Generator / UI). Required, with `Keywords`; the loader crashes on a topic without them
+- `Keywords` — match text for Ask/Tell/Command (comma-separated for Ask/Tell keyword lists; command patterns when `IsCommand`). Matching splits on commas, lowercases, and compares each keyword with the subject the player typed; a `*` keyword is a wildcard that matches anything at the lowest priority. Among equally good matches the first topic in document order wins
 - `Description` — reply text (description block)
 - `IsAsk` / `IsTell` / `IsCommand` / `IsFarewell` / `IsIntro` — which kind of conversation attempt can match this topic (`1` when set; omitted when false):
   - `IsIntro` — opening/greeting someone (Conversation `Greet` / first talk)
@@ -1414,13 +1466,13 @@ Set variables wih a `SetVariable` action; read variables with expressions.
 </Variable>
 ```
 
-**Type** is only `Numeric` or `Text`. A variable becomes an array when `<ArrayLength>` is present and greater than 1 (omit it, or treat as 1, for a scalar). That gives four useful forms: numeric, text, numeric array, text array.
+**Type** is only `Numeric` or `Text`. `Name`, `Type` and `InitialValue` are required (the loader dereferences them). A variable becomes an array when `<ArrayLength>` is present and greater than 1 (omit it, or treat as 1, for a scalar). That gives four useful forms: numeric, text, numeric array, text array.
 
 - Scalar: `<InitialValue>` holds one number or one string.
-- Numeric array: initials are usually comma-separated (`1,2,3`); if there is a single value, every slot is filled with it.
-- Text array: initials are newline-separated (one entry per line in the saved string).
+- Numeric array: initials are comma-separated (`1,2,3`); if there is a single value, every slot is filled with it. The split is on commas only.
+- Text array: there is **no** per-slot syntax. The loader (`FileIO.vb`) assigns the whole `InitialValue` string to every slot `1…ArrayLength`, newlines and all, so a text array starts with identical elements and can only be differentiated by `SetVariable` actions.
 
-ADRIFT arrays are 1-indexed. Some older files write array size as `<Length>` instead of `<ArrayLength>`; loaders may accept both.
+ADRIFT arrays are 1-indexed. The array size element is `<ArrayLength>` only; neither loader reads a `<Length>` alias on a Variable (`Length` is an Event element).
 
 ### 6.9 Group
 
@@ -1546,7 +1598,7 @@ The `run500.exe` Runner displays an automatic map using the `<Map>` element.
 
 The `<Map>` is for _displaying_ the map; it doesn't control character movement or apply restrictions. That's defined on each location's [`Movement`](#63-location) children.
 
-The runner can generate a map even if the `<Map>` element is missing, empty, or has a single page with no nodes, building it from location `<Movement>` elements.
+The runner can generate a map even if the `<Map>` element is missing, empty, or has a single page with no nodes, building it from location `<Movement>` elements. The exact trigger in the Runner is "exactly one page, keyed `0`, with zero nodes" (or no `<Map>` at all); a map with two empty pages, or one empty page keyed anything but `0`, is left empty.
 
 #### Page
 
@@ -1554,7 +1606,7 @@ Zero or more `<Page>` children under `<Map>`.
 
 | Child | Required | Notes |
 |-------|----------|-------|
-| `Key` | Yes | Integer page id. Default page is `0`. |
+| `Key` | Yes | Integer page id. Default page is `0`. A non-numeric key makes the loader skip the whole page. |
 | `Selected` | No | `"1"` marks the page the Generator UI had selected. At most one page is selected. |
 | `Label` | No | Display name for the page tab. Labels default to `Page N` where `N = Key + 1` if `Label` is omitted. |
 | `Node` | Zero+ | One node per location shown on this page. |
@@ -1577,9 +1629,11 @@ Each `<Node>` is one location rectangle on a page.
 
 #### Link
 
-Each `<Link>` is stored under the source node. Destination location key, duplex (two-way vs one-way), and line style are **not** serialized in `<Map>`; load reconstructs them from location movements. A movement with restrictions makes the link *eligible* for dotted rendering, but the Runner’s draw rules decide solid / dotted / omitted (see below).
+Each `<Link>` is stored under the source node. Destination location key, duplex (two-way vs one-way), and line style are **not** serialized in `<Map>`; load reconstructs them from location movements. A movement with restrictions makes the link *eligible* for dotted rendering, but the Runner’s draw rules decide solid / dotted / omitted (see below). For a duplex link the loader marks it restricted when **either** direction's movement has restrictions (`FileIO.vb` map load), so a one-way lock still dots the whole line.
 
 **Duplex (two-way):** On load, the link is duplex when the destination location’s movement for `DestinationAnchor` points back to the source location. Otherwise it is one-way.
+
+In/Out and Up/Down badges are derived from the location `<Movement>` elements, not from `<Link>` children, so a badge appears even for an exit with no map link.
 
 | Child | Required | Notes |
 |-------|----------|-------|
@@ -1666,7 +1720,9 @@ Typically zlib-compressed in `.tas` files. Root is **`<Game>`**, not `<Adventure
 
 Booleans in this file are usually VB `.ToString` (`True` / `False`), not Adventure’s `1` / `0`.
 
-Several item children may include **`<Displayed>`** elements: save-only markers for which `DisplayOnce` description fragments have already been shown ([§4.2](#42-description-blocks)). Each value is `descriptionIndex-singleIndex` (1-based): which description list on the item, and which `<Description>` child within it. Example: `<Displayed>1-2</Displayed>`.
+Several item children may include **`<Displayed>`** elements: save-only markers for which `DisplayOnce` description fragments have already been shown ([§4.2](#42-description-blocks)). Each value is `descriptionIndex-singleIndex` (1-based): which description list on the item, and which `<Description>` child within it. Example: `<Displayed>1-2</Displayed>`. Only `DisplayOnce` fragments are recorded; other `DisplayWhen` kinds never produce a `<Displayed>`.
+
+A save that names a `Character` or `Variable` key the adventure does not have fails to load (the loader indexes the dictionaries directly); unknown Location, Object, Task, Event and Group keys are skipped. Every item element must carry a `<Key>`.
 
 ### 7.1 Location
 
@@ -1704,7 +1760,7 @@ Does **not** store fog-of-war location seen state (that lives on [Character `See
 | `Key` | Object key |
 | `DynamicExistWhere` | Omitted when `Hidden`. Values: `Hidden`, `InLocation`, `InObject`, `OnObject`, `HeldByCharacter`, `WornByCharacter` |
 | `StaticExistWhere` | Omitted when `NoRooms`. Values: `NoRooms`, `SingleLocation`, `LocationGroup`, `AllRooms`, `PartOfCharacter`, `PartOfObject` |
-| `LocationKey` | Key of the place/holder implied by those where-enums (location, object, character, group, …) |
+| `LocationKey` | Key of the place/holder implied by those where-enums (location, object, character, group, …). Always written, even when empty |
 | `Property` | Zero or more instance properties. **Must stay consistent with the location triple**: FrankenDrift applies `DynamicExistWhere`/`LocationKey` first, then overwrites from these properties, and object `Location` GET is derived from `DynamicLocation` / `HeldByWho` / `WornByWho` / `InLocation` / `InsideWhat` / `OnWhat` (or the static equivalents). Values use adventure wording (`Held By Character`, `Inside Object`, …), not the enum names |
 | `Displayed` | Zero or more |
 
@@ -1725,7 +1781,7 @@ Adventure XML places objects via properties ([§6.4](#64-object)); the save repe
 |-------|-------|
 | `Key` | Task key |
 | `Completed` | Whether the task has successfully run. Non-`Repeatable` tasks with `Completed` true are not runnable again until unset ([§6.5](#65-task)) |
-| `Scored` | Whether this task has already applied its score change (first time completing updates `Score`; prevents double-counting on later runs) |
+| `Scored` | Whether this task has already applied its score change (first time completing updates `Score`; prevents double-counting on later runs). Optional on load; absent means false |
 | `Displayed` | Zero or more |
 
 ### 7.4 Event
@@ -1746,8 +1802,8 @@ Adventure XML places objects via properties ([§6.4](#64-object)); the save repe
 | `Key` | Event key |
 | `Status` | `NotYetStarted`, `Running`, `CountingDownToStart`, `Paused`, `Finished` |
 | `Timer` | Remaining time to end of event (`TimerToEndOfEvent`) |
-| `SubEventTime` | Event timer when the last SubEvent fired (`iLastSubEventTime` / `TimerFromStartOfEvent` then). Keeps `FromLastSubEvent` timing correct after load ([§6.6](#66-event)) |
-| `SubEventIndex` | 0-based index of that last SubEvent in the event’s `SubEvents` list |
+| `SubEventTime` | Event timer when the last SubEvent fired (`iLastSubEventTime` / `TimerFromStartOfEvent` then). Keeps `FromLastSubEvent` timing correct after load ([§6.6](#66-event)). Optional |
+| `SubEventIndex` | 0-based index of that last SubEvent in the event’s `SubEvents` list. Optional |
 | `Displayed` | Zero or more |
 
 ### 7.5 Character
@@ -1771,10 +1827,10 @@ Adventure XML places objects via properties ([§6.4](#64-object)); the save repe
 | Child | Notes |
 |-------|-------|
 | `Key` | Character key |
-| `ExistWhere` | Omitted when `Hidden`. Values: `Hidden`, `AtLocation`, `OnObject`, `InObject`, `OnCharacter` |
+| `ExistWhere` | Omitted when `Hidden`. Values: `Hidden`, `AtLocation`, `OnObject`, `InObject`, `OnCharacter` (the enum also has `InCharacter`, never written) |
 | `Position` | Omitted when `Standing`. Values: `Standing`, `Sitting`, `Lying` |
 | `LocationKey` | Key of location / object / character for `ExistWhere` (omitted if empty) |
-| `Walk` | Zero or more, **in adventure walk order**. Each has `Status` (`NotYetStarted`, `Running`, `Paused`, `Finished`) and `Timer` (turns left in the current walk / `iTimerToEndOfWalk`) |
+| `Walk` | Zero or more, **in adventure walk order** (matched by position, so the count must equal the character's walk count). Each has `Status` (`NotYetStarted`, `Running`, `Paused`, `Finished`; the enum values are 0, 1, 3, 4, there is no 2) and `Timer` (turns left in the current walk / `iTimerToEndOfWalk`) |
 | `Seen` | Zero or more keys this character has seen — **locations, objects, and characters** in one flat list. On load, membership is tested against each keyspace (`HasSeenLocation` / `HasSeenObject` / `HasSeenCharacter`). Automap fog of war uses the **Player**’s seen locations |
 | `Property` | Zero or more instance properties (may include `ProperName`). Location-related properties (`CharacterLocation`, `CharacterAtLocation`, `CharInsideWhat`, `CharOnWhat`, `CharOnWho`) must match `ExistWhere` / `LocationKey` |
 | `Displayed` | Zero or more |
@@ -1794,7 +1850,7 @@ Adventure placement uses properties ([§6.7](#67-character)); the save uses the 
 | Child | Notes |
 |-------|-------|
 | `Key` | Variable key |
-| `Value_N` | Current value of array slot `N` (0-based). Numeric slots equal to `0` and empty text slots are **omitted**. Older saves may use a single `<Value>` for slot 0 |
+| `Value_N` | Current value of array slot `N` (0-based). A slot whose string form is `0` or empty is **omitted**, so a missing slot means `0` / `""`. Older saves use a single `<Value>` for slot 0; the loader reads it **after** the `Value_N` elements, so a `<Value>` next to a `<Value_0>` wins |
 | `Displayed` | Zero or more |
 
 ### 7.7 Group
@@ -1817,7 +1873,7 @@ Adventure placement uses properties ([§6.7](#67-character)); the save uses the 
 <Turns>42</Turns>
 ```
 
-Integer turn counter for the session (displayed in the status bar).
+Integer turn counter for the session (displayed in the status bar). Optional on load; absent means `0`.
 
 ---
 
@@ -1826,7 +1882,7 @@ Integer turn counter for the session (displayed in the status bar).
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <Adventure>
-  <Version>5.000036</Version>
+  <Version>5.0000366</Version>
   <Title>Example</Title>
   <Author>Author</Author>
   <Introduction>

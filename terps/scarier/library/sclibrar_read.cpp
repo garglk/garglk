@@ -20,8 +20,6 @@
 
 /*
  * Reading objects.
- *
- * See sclibrar.h for what the library files share.
  */
 
 #include "sclibrar.h"
@@ -68,7 +66,7 @@ static scr_bool lib_read_object (scr_gameref_t game, scr_int object);
  * readable object with no ReadText falls back to, the darkness line -- goes
  * on into the examine tail: the openness state ("  The <Short> is closed.")
  * and whatisinon()'s contents.  run390 44BE30 -> 44BE60-44BEE6, run380
- * 43CF22, run370 435629.  Measured on Lair of the CyberCow (3.90,
+ * 43CF22, run370 435629.  Measured on Lair of the CyberCow (3.9,
  * runner_transcripts/cybercow_win.txt T97): `read envelope` answers
  * "\"Hero.\"  The envelope is closed.".  4.0 is unread and left alone.
  */
@@ -186,8 +184,8 @@ lib_cmd_read_other (scr_gameref_t game)
    * "Nothing special." tail, the same one lib_cmd_examine_other prints.  4.0
    * gave read its own handler and its own "<player> see no such thing."
    *
-   * Measured: p39EXAM.taf (3.90), runner_probes/exam.run390.txt, `read
-   * zzzz` -> "Nothing special."; p4EXAM.taf (4.00),
+   * Measured: p39EXAM.taf (3.9), runner_probes/exam.run390.txt, `read
+   * zzzz` -> "Nothing special."; p4EXAM.taf (4.0),
    * runner_probes/exam.run400.txt, the same command -> "You see no such
    * thing."
    *
@@ -198,16 +196,15 @@ lib_cmd_read_other (scr_gameref_t game)
     {
       /*
        * Sharing examines() means sharing its object as well: a `read` line
-       * that names more than one is settled exactly as an `x` line is --
-       * 3.90 by referencedob()'s last-word pass, 3.70 and 3.80 by the
-       * "Which <X> would you like to examine." question -- and only a line
-       * naming none reaches the flat tail.  Measured on p*OPENW.taf,
-       * 2026-09-20: `read rock gem` / `read gem rock` are "You can't read
-       * the gem!" / "You can't read the rock!" under run390 and "Which rock
-       * would you like to examine.  The gem or the rock?" under run370 and
-       * run380, and `read rock with slab` is "You can't read the slab!" /
-       * "Which slab would you like to examine.  The rock or the slab?"
-       * (runner_probes/openw.run3[789]0.ow.*,
+       * that names more than one is settled exactly as an `x` line is -- 3.9
+       * by referencedob()'s last-word pass, 3.7 and 3.8 by the "Which <X>
+       * would you like to examine." question -- and only a line naming none
+       * reaches the flat tail.  Measured on p*OPENW.taf: `read rock gem` /
+       * `read gem rock` are "You can't read the gem!" / "You can't read the
+       * rock!" under run390 and "Which rock would you like to examine.  The
+       * gem or the rock?" under run370 and run380, and `read rock with slab`
+       * is "You can't read the slab!" / "Which slab would you like to examine.
+       * The rock or the slab?"  (runner_probes/openw.run3[789]0.ow.*,
        * runner_probes/openw.run3[789]0.ox.*).
        */
       const scr_char *line = run_get_dispatch_input ();
@@ -228,9 +225,9 @@ lib_cmd_read_other (scr_gameref_t game)
         {
           GS_FOR_EACH_OBJECT (game, index_)
             {
-              game->object_references[index_]
+              game->refs.objects[index_]
                 = lib_co_pre400 (game, line, index_, 0);
-              if (game->object_references[index_])
+              if (game->refs.objects[index_])
                 matched++;
             }
           if (matched > 1)
@@ -269,6 +266,6 @@ lib_cmd_read_other (scr_gameref_t game)
                               "You see no such thing.\n",
                               "I see no such thing.\n",
                               "%player% see no such thing.\n");
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   return TRUE;
 }

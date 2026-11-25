@@ -1,9 +1,16 @@
-//
-//  c64decrunch.c
-//  part of ScottFree, an interpreter for adventures in Scott Adams format
-//
-//  Created by Petter Sjölund on 2022-01-30.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  c64decrunch.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2022-01-30.
+ */
 
 #include <stdlib.h>
 #include <string.h>
@@ -32,166 +39,169 @@
    unp64 decompression iterations, unp64 switches, appended filename on disk,
    parameter (iteration for switches or special flag), copy source/dest/size
    for relocating graphics data, and image data offset. */
-// clang-format off
+/* clang-format off */
 static const c64rec c64_registry[] = {
-    { BATON_C64,        0x2ab00, 0xc3fc, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // Mysterious Adventures C64 dsk 1
+    { BATON_C64,        0x2ab00, 0xc3fc, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, /* Mysterious Adventures C64 dsk 1 */
     { TIME_MACHINE_C64, 0x2ab00, 0xc3fc, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 },
     { ARROW1_C64,       0x2ab00, 0xc3fc, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 },
     { ARROW2_C64,       0x2ab00, 0xc3fc, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 },
     { PULSAR7_C64,      0x2ab00, 0xc3fc, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 },
     { CIRCUS_C64,       0x2ab00, 0xc3fc, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 },
 
-    { FEASIBILITY_C64,  0x2ab00, 0x9eaa, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // Mysterious Adventures C64 dsk 2
+    { FEASIBILITY_C64,  0x2ab00, 0x9eaa, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, /* Mysterious Adventures C64 dsk 2 */
     { AKYRZ_C64,        0x2ab00, 0x9eaa, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 },
     { PERSEUS_C64,      0x2ab00, 0x9eaa, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 },
     { INDIANS_C64,      0x2ab00, 0x9eaa, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 },
     { WAXWORKS_C64,     0x2ab00, 0x9eaa, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 },
     { BATON_C64,        0x2ab00, 0x9dca, TYPE_D64, 2, NULL, NULL, 0, 0, 0, 0, 0 },
 
-    { BATON_C64,        0x5170,  0xb240, TYPE_T64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, // The Golden Baton C64, T64
-    { BATON_C64,        0x2ab00, 0xbfbf, TYPE_D64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, // Mysterious Adventures C64 dsk 1 alt
-    { FEASIBILITY_C64,  0x2ab00, 0x9c18, TYPE_D64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, // Mysterious Adventures C64 dsk 2 alt
-    { TIME_MACHINE_C64, 0x5032,  0x5635, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // The Time Machine C64
-    { TIME_MACHINE_C64, 0x2ab00, 0xed21, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // The Time Machine D64
-    { TIME_MACHINE_C64, 0x2ab00, 0x6ed7, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // The Time Machine D64, Supersoft
-    { TIME_MACHINE_C64, 0x2ab00, 0x446e, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // The Time Machine D64, Cream Crackers
-    { TIME_MACHINE_C64, 0x2ab00, 0x4c9e, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // The Time Machine D64, Megabyte
-    { TIME_MACHINE_C64, 0x2ab00, 0x37c1, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // The Time Machine D64, BASIC loader and TIME2
-    { ARROW1_C64,       0x5b46,  0x92db, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Arrow of Death part 1 C64
-    { ARROW1_C64,       0x2ab00, 0xe71d, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // Arrow of Death part 1 C64 D64
-    { ARROW1_C64,       0x2ab00, 0x7687, TYPE_D64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, // Arrow of Death part 1 C64 D64 alt
-    { ARROW2_C64,       0x5fe2,  0xe14f, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Arrow of Death part 2 C64
-    { PULSAR7_C64,      0x46bf,  0x1679, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Escape from Pulsar 7 C64
-    { CIRCUS_C64,       0x4269,  0xa449, TYPE_T64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, // Circus C64
-    { FEASIBILITY_C64,  0x5a7b,  0x0f48, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Feasibility Experiment C64
-    { AKYRZ_C64,        0x2ab00, 0x6cca, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // The Wizard of Akyrz C64
-    { AKYRZ_C64,        0x4be1,  0x5a00, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // The Wizard of Akyrz C64, T64
-    { PERSEUS_C64,      0x502b,  0x913b, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Perseus and Andromeda C64
-    { PERSEUS_C64,      0x2ab00, 0xdc5e, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Perseus and Andromeda C64 D64
-    { INDIANS_C64,      0x4f9f,  0xe6c8, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Ten Little Indians C64
-    { WAXWORKS_C64,     0x4a11,  0xa37a, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Waxworks C64
-    { WAXWORKS_C64,     0x2ab00, 0x0a78, TYPE_D64, 3, NULL, NULL, 0, 0, 0, 0, 0 }, // Waxworks C64 D64
+    { BATON_C64,        0x5170,  0xb240, TYPE_T64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, /* The Golden Baton C64, T64 */
+    { BATON_C64,        0x2ab00, 0xbfbf, TYPE_D64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, /* Mysterious Adventures C64 dsk 1 alt */
+    { FEASIBILITY_C64,  0x2ab00, 0x9c18, TYPE_D64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, /* Mysterious Adventures C64 dsk 2 alt */
+    { TIME_MACHINE_C64, 0x5032,  0x5635, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, /* The Time Machine C64 */
+    { TIME_MACHINE_C64, 0x2ab00, 0xed21, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, /* The Time Machine D64 */
+    { TIME_MACHINE_C64, 0x2ab00, 0x6ed7, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, /* The Time Machine D64, Supersoft */
+    { TIME_MACHINE_C64, 0x2ab00, 0x446e, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, /* The Time Machine D64, Cream Crackers */
+    { TIME_MACHINE_C64, 0x2ab00, 0x4c9e, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, /* The Time Machine D64, Megabyte */
+    { TIME_MACHINE_C64, 0x2ab00, 0x37c1, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, /* The Time Machine D64, BASIC loader and TIME2 */
+    { ARROW1_C64,       0x5b46,  0x92db, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, /* Arrow of Death part 1 C64 */
+    { ARROW1_C64,       0x2ab00, 0xe71d, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, /* Arrow of Death part 1 C64 D64 */
+    { ARROW1_C64,       0x2ab00, 0x7687, TYPE_D64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, /* Arrow of Death part 1 C64 D64 alt */
+    { ARROW2_C64,       0x5fe2,  0xe14f, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, /* Arrow of Death part 2 C64 */
+    { PULSAR7_C64,      0x46bf,  0x1679, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, /* Escape from Pulsar 7 C64 */
+    { CIRCUS_C64,       0x4269,  0xa449, TYPE_T64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, /* Circus C64 */
+    { FEASIBILITY_C64,  0x5a7b,  0x0f48, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, /* Feasibility Experiment C64 */
+    { AKYRZ_C64,        0x2ab00, 0x6cca, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, /* The Wizard of Akyrz C64 */
+    { AKYRZ_C64,        0x4be1,  0x5a00, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, /* The Wizard of Akyrz C64, T64 */
+    { PERSEUS_C64,      0x502b,  0x913b, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, /* Perseus and Andromeda C64 */
+    { PERSEUS_C64,      0x2ab00, 0xdc5e, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, /* Perseus and Andromeda C64 D64 */
+    { INDIANS_C64,      0x4f9f,  0xe6c8, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, /* Ten Little Indians C64 */
+    { WAXWORKS_C64,     0x4a11,  0xa37a, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, /* Waxworks C64 */
+    { WAXWORKS_C64,     0x2ab00, 0x0a78, TYPE_D64, 3, NULL, NULL, 0, 0, 0, 0, 0 }, /* Waxworks C64 D64 */
 
-    { ADVENTURELAND_C64, 0x6a10,  0x1910, TYPE_T64, 1, NULL, NULL,    0,        0, 0, 0, 0 },      // Adventureland C64 (T64) CruelCrunch v2.2
-    { ADVENTURELAND_C64, 0x6a10,  0x1b10, TYPE_T64, 1, NULL, NULL,    0,        0, 0, 0, 0 },      // Adventureland C64 (T64) alt CruelCrunch v2.2
-    { ADVENTURELAND_C64, 0x2ab00, 0x6638, TYPE_D64, 1, NULL, NULL,    0,        0, 0, 0, 0 },      // Adventureland C64 (D64) CruelCrunch v2.2
-    { ADVENTURELAND_C64, 0x2adab, 0x751f, TYPE_D64, 0, NULL, NULL,    0,        0, 0, 0, 0 },      // Adventureland C64 (D64) alt
-    { ADVENTURELAND_C64, 0x2adab, 0x64a4, TYPE_D64, 0, NULL, "SAG1PIC", -0xa53, 0, 0, 0, 0x65af }, // Adventureland C64 (D64) alt 2
-    { ADVENTURELAND_C64, 0x2adab, 0x8847, TYPE_D64, 0, NULL, NULL,    0,        0, 0, 0, 0 }, // Adventureland C64 (D64) alt 3
-    { ADVENTURELAND_US, 0x2ab00, 0x78fa, TYPE_D64, 0, NULL, NULL,    0,        0, 0, 0, 0 }, // Scott Adams Adventure Pack (1983)(Adventure International)
+    { ADVENTURELAND_C64, 0x6a10,  0x1910, TYPE_T64, 1, NULL, NULL,    0,        0, 0, 0, 0 },      /* Adventureland C64 (T64) CruelCrunch v2.2 */
+    { ADVENTURELAND_C64, 0x6a10,  0x1b10, TYPE_T64, 1, NULL, NULL,    0,        0, 0, 0, 0 },      /* Adventureland C64 (T64) alt CruelCrunch v2.2 */
+    { ADVENTURELAND_C64, 0x2ab00, 0x6638, TYPE_D64, 1, NULL, NULL,    0,        0, 0, 0, 0 },      /* Adventureland C64 (D64) CruelCrunch v2.2 */
+    { ADVENTURELAND_C64, 0x2adab, 0x751f, TYPE_D64, 0, NULL, NULL,    0,        0, 0, 0, 0 },      /* Adventureland C64 (D64) alt */
+    { ADVENTURELAND_C64, 0x2adab, 0x64a4, TYPE_D64, 0, NULL, "SAG1PIC", -0xa53, 0, 0, 0, 0x65af }, /* Adventureland C64 (D64) alt 2 */
+    { ADVENTURELAND_C64, 0x2adab, 0x8847, TYPE_D64, 0, NULL, NULL,    0,        0, 0, 0, 0 }, /* Adventureland C64 (D64) alt 3 */
+    { ADVENTURELAND_US, 0x2ab00, 0x78fa, TYPE_D64, 0, NULL, NULL,    0,        0, 0, 0, 0 }, /* Scott Adams Adventure Pack (1983)(Adventure International) */
 
-    { PIRATE_US, 0x2adab, 0x04c5, TYPE_US, 0, NULL, "PIRATE", 0, 0, 0, 0, 0x6d30 }, // Pirate Adventure S.A.G.A version
-    { PIRATE_US, 0x2adab, 0xbea0, TYPE_US, 0, NULL, "PIRATE", 0, 0, 0, 0, 0x6d30 }, // Pirate Adventure S.A.G.A version (c64.com)
-    { PIRATE_US, 0x2ab00, 0xac87, TYPE_US, 1, NULL, "PIRATE ADVENTURE", 0, 0, 0, 0, 0x6d30 }, // Pirate Adventure S.A.G.A version
-    { PIRATE_US, 0x57c6, 0x82ab, TYPE_T64_US, 1, NULL, "PIRATE ADVENTURE", 0, 0, 0, 0, 0x6d30 }, // Pirate Adventure S.A.G.A version
+    { PIRATE_US, 0x2adab, 0x04c5, TYPE_US, 0, NULL, "PIRATE", 0, 0, 0, 0, 0x6d30 }, /* Pirate Adventure S.A.G.A version */
+    { PIRATE_US, 0x2adab, 0xbea0, TYPE_US, 0, NULL, "PIRATE", 0, 0, 0, 0, 0x6d30 }, /* Pirate Adventure S.A.G.A version (c64.com) */
+    { PIRATE_US, 0x2ab00, 0xac87, TYPE_US, 1, NULL, "PIRATE ADVENTURE", 0, 0, 0, 0, 0x6d30 }, /* Pirate Adventure S.A.G.A version */
+    { PIRATE_US, 0x57c6, 0x82ab, TYPE_T64_US, 1, NULL, "PIRATE ADVENTURE", 0, 0, 0, 0, 0x6d30 }, /* Pirate Adventure S.A.G.A version */
 
-    { SECRET_MISSION_C64, 0x88be, 0xa122, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Secret Mission  C64 (T64) Section8 Packer
-    { SECRET_MISSION_C64, 0x2ab00, 0x04d6, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, -0x1bff }, // Secret Mission  C64 (D64)
-    { SECRET_MISSION_C64, 0x2ab00, 0x167b, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Secret Mission  C64 (D64) c64.com, Section8 packer
-    { SECRET_MISSION_C64, 0x2adab, 0x3ca3, TYPE_D64, 0, NULL, "SAG3PIC", -0x83a, 0, 0, 0, 0x67c8 }, // Secret Mission  C64 (D64)
+    { SECRET_MISSION_C64, 0x88be, 0xa122, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, /* Secret Mission  C64 (T64) Section8 Packer */
+    { SECRET_MISSION_C64, 0x2ab00, 0x04d6, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, -0x1bff }, /* Secret Mission  C64 (D64) */
+    { SECRET_MISSION_C64, 0x2ab00, 0x167b, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, /* Secret Mission  C64 (D64) c64.com, Section8 packer */
+    { SECRET_MISSION_C64, 0x2adab, 0x3ca3, TYPE_D64, 0, NULL, "SAG3PIC", -0x83a, 0, 0, 0, 0x67c8 }, /* Secret Mission  C64 (D64) */
 
-    { VOODOO_CASTLE_US, 0x2adab, 0xcb2b, TYPE_US, 0, NULL, "SAGA1", 0, 0, 0, 0, 0x6c30 }, // Voodoo Castle S.A.G.A version
-    { VOODOO_CASTLE_US, 0x2ab00, 0x8969, TYPE_US, 1, NULL, "VOODOO CASTLE", 0, 0, 0, 0, 0x6c30 }, // Voodoo Castle S.A.G.A version, packed
-    { VOODOO_CASTLE_US, 0x2ab00, 0x2682, TYPE_US, 1, NULL, "VOODOO CASTLE", 0, 0, 0, 0, 0x6c30 }, // Voodoo Castle S.A.G.A version, packed 2
-    { VOODOO_CASTLE_US, 0x2ab00, 0xac79, TYPE_US, 0, NULL, "VOODOO CASTLE 2", 0, 0, 0, 0, 0x6c30 }, // Voodoo Castle S.A.G.A version "Cracked by Toko"
+    { VOODOO_CASTLE_US, 0x2adab, 0xcb2b, TYPE_US, 0, NULL, "SAGA1", 0, 0, 0, 0, 0x6c30 }, /* Voodoo Castle S.A.G.A version */
+    { VOODOO_CASTLE_US, 0x2ab00, 0x8969, TYPE_US, 1, NULL, "VOODOO CASTLE", 0, 0, 0, 0, 0x6c30 }, /* Voodoo Castle S.A.G.A version, packed */
+    { VOODOO_CASTLE_US, 0x2ab00, 0x2682, TYPE_US, 1, NULL, "VOODOO CASTLE", 0, 0, 0, 0, 0x6c30 }, /* Voodoo Castle S.A.G.A version, packed 2 */
+    { VOODOO_CASTLE_US, 0x2ab00, 0xac79, TYPE_US, 0, NULL, "VOODOO CASTLE 2", 0, 0, 0, 0, 0x6c30 }, /* Voodoo Castle S.A.G.A version "Cracked by Toko" */
 
     { VOODOO_CASTLE_US, 0x5f91, 0x04fc, TYPE_T64_US, 1, NULL, "VOODOO CASTLE    ", 0, 0, 0, 0, 0x6c30 },
 
-    { STRANGE_ODYSSEY_US, 0x2ab00, 0x12d2, TYPE_US, 1, NULL, "STRANGE ODYSSEY", 0, 0, 0, 0, 0 }, // Strange Odyssey S.A.G.A version (c64.com), PUCrunch; DB starts at offset 0
+    { STRANGE_ODYSSEY_US, 0x2ab00, 0x12d2, TYPE_US, 1, NULL, "STRANGE ODYSSEY", 0, 0, 0, 0, 0 }, /* Strange Odyssey S.A.G.A version (c64.com), PUCrunch; DB starts at offset 0 */
 
-    { COUNT_US, 0x2ab00, 0x2827, TYPE_US, 1, "-d0x7f50", "THE COUNT", 1, 0, 0, 0, 0x3800 }, // The Count S.A.G.A version (c64.com); IRQ packer, depack-done $7f50; DB preamble at $4000 (text only)
-    { VOODOO_CASTLE_US, 0x2ab00, 0x7822, TYPE_US, 1, "-e0x840 -d0x7f50", "VOODOO CASTLE", 1, 0, 0, 0, 0x3800 }, // Voodoo Castle S.A.G.A version (c64.com); REM-before-SYS, depack-done $7f50; DB preamble at $4000 (text only)
+    { COUNT_US, 0x2ab00, 0x2827, TYPE_US, 1, "-d0x7f50", "THE COUNT", 1, 0, 0, 0, 0x3800 }, /* The Count S.A.G.A version (c64.com); IRQ packer, depack-done $7f50; DB preamble at $4000 (text only) */
+    { VOODOO_CASTLE_US, 0x2ab00, 0x7822, TYPE_US, 1, "-e0x840 -d0x7f50", "VOODOO CASTLE", 1, 0, 0, 0, 0x3800 }, /* Voodoo Castle S.A.G.A version (c64.com); REM-before-SYS, depack-done $7f50; DB preamble at $4000 (text only) */
 
-    { CLAYMORGUE_C64, 0x6ff7,  0xe4ed, TYPE_T64, 3, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (T64), MasterCompressor / Relax
-                                                                                             // -> ECA Compacker -> MegaByte Cruncher v1.x Missing 17 pictures
-    { CLAYMORGUE_C64, 0x912f,  0xa69f, TYPE_T64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (T64) alt, MegaByte Cruncher
-                                                                                             // v1.x Missing 17 pictures
-    { CLAYMORGUE_C64, 0x2ab00, 0xf70c, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), Cracked by ABC, missing 17 pictures
-    { CLAYMORGUE_C64, 0xc0dd,  0x3701, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, -0x7fe },// Sorcerer Of Claymorgue Castle C64 (T64) alt 2, Trilogic Expert v2.7
-    { CLAYMORGUE_C64, 0xbc5f,  0x492c, TYPE_T64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (T64) alt 3, , Section8 Packer
-    { CLAYMORGUE_C64, 0x2ab00, 0xfd67, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), Section8 Packer
-    { CLAYMORGUE_C64, 0x2ab00, 0x7ece, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, -0x7fe }, // Sorcerer Of Claymorgue Castle C64 (D64), Trilogic Expert v2.7
+    { CLAYMORGUE_C64, 0x6ff7,  0xe4ed, TYPE_T64, 3, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, /* Sorcerer Of Claymorgue Castle C64 (T64), MasterCompressor / Relax */
+                                                                                             /* -> ECA Compacker -> MegaByte Cruncher v1.x Missing 17 pictures */
+    { CLAYMORGUE_C64, 0x912f,  0xa69f, TYPE_T64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, /* Sorcerer Of Claymorgue Castle C64 (T64) alt, MegaByte Cruncher */
+                                                                                             /* v1.x Missing 17 pictures */
+    { CLAYMORGUE_C64, 0x2ab00, 0xf70c, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, /* Sorcerer Of Claymorgue Castle C64 (D64), Cracked by ABC, missing 17 pictures */
+    { CLAYMORGUE_C64, 0xc0dd,  0x3701, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, -0x7fe },/* Sorcerer Of Claymorgue Castle C64 (T64) alt 2, Trilogic Expert v2.7 */
+    { CLAYMORGUE_C64, 0xbc5f,  0x492c, TYPE_T64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, /* Sorcerer Of Claymorgue Castle C64 (T64) alt 3, , Section8 Packer */
+    { CLAYMORGUE_C64, 0x2ab00, 0xfd67, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, /* Sorcerer Of Claymorgue Castle C64 (D64), Section8 Packer */
+    { CLAYMORGUE_C64, 0x2ab00, 0x7ece, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, -0x7fe }, /* Sorcerer Of Claymorgue Castle C64 (D64), Trilogic Expert v2.7 */
 
 
     { CLAYMORGUE_US, 0x2adab, 0x1fac, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 },
-    { CLAYMORGUE_US, 0x2ab00, 0xa957, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, // Sorcerer Of Claymorgue Castle US side A (D64)
+    { CLAYMORGUE_US, 0x2adab, 0x1fba, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, /* The same disk with the error bytes of track 34, sectors 3-16, set to 3 */
+                                                                                   /* (the "21" errors its copy protection looks for; VICE needs them so):
+                                                                                      saga/test/groundtruth_scene/claymorgueus_pictures_c64/clay.d64 */
+    { CLAYMORGUE_US, 0x2ab00, 0xa957, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, /* Sorcerer Of Claymorgue Castle US side A (D64) */
     { CLAYMORGUE_US, 0x2ab00, 0xfbb6, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 },
     { CLAYMORGUE_US, 0x2ab00, 0x0b54, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 },
 
-    { CLAYMORGUE_C64, 0x2ab00, 0x2c7a, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), Dr. Bakterius & Mr. L, Section8 Packer
-    { CLAYMORGUE_C64, 0x2ab00, 0xc349, TYPE_D64, 2, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), All Stars, Time Cruncher v3.x -> MC-Cracken Compressor
-    { CLAYMORGUE_C64, 0x2ab00, 0x7ea6, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, -0x7fe }, // Sorcerer Of Claymorgue Castle C64 (D64), Trilogic Expert v2.7
-    { CLAYMORGUE_C64, 0x2ab00, 0x2e5d, TYPE_D64, 3, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), Cracked by ABC, MasterCompressor / Relax -> ECA Compacker -> MegaByte Cruncher v1.x, missing 17 pictures
-    { CLAYMORGUE_C64, 0x2ab00, 0x188f, TYPE_D64, 0, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), NICS, not packed, loads at $0801
-    { CLAYMORGUE_C64, 0x2ab00, 0x95c1, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), Doctor Mabuse, Section8 Packer
-    { CLAYMORGUE_C64, 0x2ab00, 0x5592, TYPE_D64, 0, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), Danish Crackers, not packed. 14 damaged bytes, see RepairDanishCrackersClaymorgue()
-    { CLAYMORGUE_C64, 0x2ab00, 0x10a5, TYPE_D64, 2, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), the Danish Crackers release behind a "773 - 695" menu, menu mover -> MegaByte Cruncher
-    { CLAYMORGUE_C64, 0x2ab00, 0xf8c2, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), Slam compilation with English Civil War: the Danish Crackers release in a file without a directory entry, Super Compressor
-    { CLAYMORGUE_C64, 0x2ab00, 0x6dbd, TYPE_D64, 0, NULL, "CC3", -2, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), The Phantoms / SCS, not packed, in two files loading at $1000 and $8000
-    { CLAYMORGUE_US, 0x2ab00, 0x0975, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, // Sorcerer Of Claymorgue Castle US (D64), Section 8
-    { CLAYMORGUE_US, 0x2ab00, 0x3bd6, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, // Sorcerer Of Claymorgue Castle US (D64), TIF. Picture R13006 is damaged
-    { CLAYMORGUE_US, 0x2ab00, 0x3f2b, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, // Sorcerer Of Claymorgue Castle US (D64), e=mc2, disk A
-    { CLAYMORGUE_US, 0x30300, 0x8ef3, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, // Sorcerer Of Claymorgue Castle US (D64, 40 tracks), OLICS
-    { CLAYMORGUE_US, 0x2ab00, 0x4224, TYPE_US, 1, NULL, "SAGA 13", 0, 0, 0, 0, 0 }, // Sorcerer Of Claymorgue Castle US (D64), Florasoft, Section8 Packer. Interpreter and database in one file
-    { HULK_C64,      0x2ab00, 0xcdd8, TYPE_D64, 0, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64)
-    { HULK_C64,      0x2ab00, 0x3d57, TYPE_D64, 1, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 1
-    { HULK_C64,      0x2ab00, 0x910b, TYPE_D64, 1, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 2 (TCS-Crunch)
-    { HULK_C64,      0x2ab00, 0xaadc, TYPE_D64, 2, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 3 (two compression layers)
-    { HULK_C64,      0x2ab00, 0x01c9, TYPE_D64, 1, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 4 (Pock&CPU)
-    { HULK_C64,      0x2ab00, 0x0332, TYPE_D64, 1, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 5 (Killersoft)
-    { HULK_C64,      0x8534,  0x623a, TYPE_T64, 2, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64)
-    { HULK_US,       0x2ab00,  0x2918, TYPE_US, 0, NULL, "SHULK.DB", 0, 0, 0, 0, 0 },  // Questprobe 1 - The Hulk C64 US (D64)
-    { HULK_US,       0x2adab,  0x5eeb, TYPE_US, 0, NULL, "SHULK.DB", 0, 0, 0, 0, 0 },  // Questprobe 1 - The Hulk C64 US (D64) [cbm_1984]
-    { HULK_US,       0x2ab00,  0xdcfe, TYPE_US, 0, NULL, "SHULK.DB", 0, 0, 0, 0, 0 },  // Questprobe 1 - The Hulk C64 US (D64) [gvp_1986]
-    { HULK_US,       0x2ab00,  0x14e7, TYPE_US, 0, NULL, "SHULK.DB", 0, 0, 0, 0, 0 },  // Questprobe 1 - The Hulk C64 US (D64) [sharedata_1987]
-    { SPIDERMAN_C64, 0x2ab00, 0xde56, TYPE_D64, 0, NULL, NULL, 0, 0x1801, 0xa801, 0x2000, 0 }, // Spiderman C64 (D64)
-    { SPIDERMAN_C64, 0x2ab00, 0x2736, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // Spiderman C64 (D64) alt
-    { SPIDERMAN_C64, 0x2ab00, 0x490a, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, -0x7ff }, // Spiderman C64 (D64) alt 2
-    { SPIDERMAN_C64, 0x2ab00, 0xc4c4, TYPE_D64, 0, NULL, NULL, 0, 0x1801, 0xa801, 0x2000, 0 }, // Spiderman C64 (D64) (Mr. Z)
-    { SPIDERMAN_C64, 0x08e72, 0xb2f4, TYPE_T64, 3, NULL, NULL, 0, 0, 0, 0, 0 }, // Spiderman C64 (T64) MasterCompressor / Relax -> ECA Compacker -> Section8 Packer
+    { CLAYMORGUE_C64, 0x2ab00, 0x2c7a, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, /* Sorcerer Of Claymorgue Castle C64 (D64), Dr. Bakterius & Mr. L, Section8 Packer */
+    { CLAYMORGUE_C64, 0x2ab00, 0xc349, TYPE_D64, 2, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, /* Sorcerer Of Claymorgue Castle C64 (D64), All Stars, Time Cruncher v3.x -> MC-Cracken Compressor */
+    { CLAYMORGUE_C64, 0x2ab00, 0x7ea6, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, -0x7fe }, /* Sorcerer Of Claymorgue Castle C64 (D64), Trilogic Expert v2.7 */
+    { CLAYMORGUE_C64, 0x2ab00, 0x2e5d, TYPE_D64, 3, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, /* Sorcerer Of Claymorgue Castle C64 (D64), Cracked by ABC, MasterCompressor / Relax -> ECA Compacker -> MegaByte Cruncher v1.x, missing 17 pictures */
+    { CLAYMORGUE_C64, 0x2ab00, 0x188f, TYPE_D64, 0, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, /* Sorcerer Of Claymorgue Castle C64 (D64), NICS, not packed, loads at $0801 */
+    { CLAYMORGUE_C64, 0x2ab00, 0x95c1, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, /* Sorcerer Of Claymorgue Castle C64 (D64), Doctor Mabuse, Section8 Packer */
+    { CLAYMORGUE_C64, 0x2ab00, 0x5592, TYPE_D64, 0, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, /* Sorcerer Of Claymorgue Castle C64 (D64), Danish Crackers, not packed. 14 damaged bytes, see RepairDanishCrackersClaymorgue() */
+    { CLAYMORGUE_C64, 0x2ab00, 0x10a5, TYPE_D64, 2, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, /* Sorcerer Of Claymorgue Castle C64 (D64), the Danish Crackers release behind a "773 - 695" menu, menu mover -> MegaByte Cruncher */
+    { CLAYMORGUE_C64, 0x2ab00, 0xf8c2, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, /* Sorcerer Of Claymorgue Castle C64 (D64), Slam compilation with English Civil War: the Danish Crackers release in a file without a directory entry, Super Compressor */
+    { CLAYMORGUE_C64, 0x2ab00, 0x6dbd, TYPE_D64, 0, NULL, "CC3", -2, 0x855, 0x7352, 0x20, 0 }, /* Sorcerer Of Claymorgue Castle C64 (D64), The Phantoms / SCS, not packed, in two files loading at $1000 and $8000 */
+    { CLAYMORGUE_US, 0x2ab00, 0x0975, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, /* Sorcerer Of Claymorgue Castle US (D64), Section 8 */
+    { CLAYMORGUE_US, 0x2ab00, 0x3bd6, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, /* Sorcerer Of Claymorgue Castle US (D64), TIF. Picture R13006 is damaged */
+    { CLAYMORGUE_US, 0x2ab00, 0x3f2b, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, /* Sorcerer Of Claymorgue Castle US (D64), e=mc2, disk A */
+    { CLAYMORGUE_US, 0x30300, 0x8ef3, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, /* Sorcerer Of Claymorgue Castle US (D64, 40 tracks), OLICS */
+    { CLAYMORGUE_US, 0x2ab00, 0x4224, TYPE_US, 1, NULL, "SAGA 13", 0, 0, 0, 0, 0 }, /* Sorcerer Of Claymorgue Castle US (D64), Florasoft, Section8 Packer. Interpreter and database in one file */
+    { HULK_C64,      0x2ab00, 0xcdd8, TYPE_D64, 0, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  /* Questprobe 1 - The Hulk C64 (D64) */
+    { HULK_C64,      0x2ab00, 0x3d57, TYPE_D64, 1, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  /* Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 1 */
+    { HULK_C64,      0x2ab00, 0x910b, TYPE_D64, 1, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  /* Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 2 (TCS-Crunch) */
+    { HULK_C64,      0x2ab00, 0xaadc, TYPE_D64, 2, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  /* Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 3 (two compression layers) */
+    { HULK_C64,      0x2ab00, 0x01c9, TYPE_D64, 1, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  /* Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 4 (Pock&CPU) */
+    { HULK_C64,      0x2ab00, 0x0332, TYPE_D64, 1, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  /* Questprobe 1 - The Hulk C64 (D64) www.c64hq.com crack 5 (Killersoft) */
+    { HULK_C64,      0x8534,  0x623a, TYPE_T64, 2, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  /* Questprobe 1 - The Hulk C64 (D64) */
+    { HULK_US,       0x2ab00,  0x2918, TYPE_US, 0, NULL, "SHULK.DB", 0, 0, 0, 0, 0 },  /* Questprobe 1 - The Hulk C64 US (D64) */
+    { HULK_US,       0x2adab,  0x5eeb, TYPE_US, 0, NULL, "SHULK.DB", 0, 0, 0, 0, 0 },  /* Questprobe 1 - The Hulk C64 US (D64) [cbm_1984] */
+    { HULK_US,       0x2ab00,  0xdcfe, TYPE_US, 0, NULL, "SHULK.DB", 0, 0, 0, 0, 0 },  /* Questprobe 1 - The Hulk C64 US (D64) [gvp_1986] */
+    { HULK_US,       0x2ab00,  0x14e7, TYPE_US, 0, NULL, "SHULK.DB", 0, 0, 0, 0, 0 },  /* Questprobe 1 - The Hulk C64 US (D64) [sharedata_1987] */
+    { SPIDERMAN_C64, 0x2ab00, 0xde56, TYPE_D64, 0, NULL, NULL, 0, 0x1801, 0xa801, 0x2000, 0 }, /* Spiderman C64 (D64) */
+    { SPIDERMAN_C64, 0x2ab00, 0x2736, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, /* Spiderman C64 (D64) alt */
+    { SPIDERMAN_C64, 0x2ab00, 0x490a, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, -0x7ff }, /* Spiderman C64 (D64) alt 2 */
+    { SPIDERMAN_C64, 0x2ab00, 0xc4c4, TYPE_D64, 0, NULL, NULL, 0, 0x1801, 0xa801, 0x2000, 0 }, /* Spiderman C64 (D64) (Mr. Z) */
+    { SPIDERMAN_C64, 0x08e72, 0xb2f4, TYPE_T64, 3, NULL, NULL, 0, 0, 0, 0, 0 }, /* Spiderman C64 (T64) MasterCompressor / Relax -> ECA Compacker -> Section8 Packer */
 
-    { SAVAGE_ISLAND_C64,  0x2ab00, 0x8801, TYPE_D64, 1, "-f86 -d0x1793", "SAVAGEISLAND1+",   1, 0, 0, 0, 0 }, // Savage Island part 1 C64 (D64)
-    { SAVAGE_ISLAND2_C64, 0x2ab00, 0x8801, TYPE_D64, 1, "-f86 -d0x178b", "SAVAGEISLAND2+",   1, 0, 0, 0, 0 }, // Savage Island part 2 C64 (D64)
-    { SAVAGE_ISLAND_C64,  0x2ab00, 0xc361, TYPE_D64, 1, "-f86 -d0x1793", "SAVAGE ISLAND P1", 1, 0, 0, 0, 0 }, // Savage Island part 1 C64 (D64) alt
-    { SAVAGE_ISLAND2_C64, 0x2ab00, 0xc361, TYPE_D64, 1, NULL,            "SAVAGE ISLAND P2", 0, 0, 0, 0, 0 }, // Savage Island part 2  C64 (D64) alt
-    { SAVAGE_ISLAND_US,  0x2ab00, 0x1a2e, TYPE_US, 1, NULL, "SAVAGE ISLAND P1", 0, 0, 0, 0, 0 }, // Savage Island part 1 C64 (D64) US version
-    { SAVAGE_ISLAND_2_US,  0x2ab00, 0xeea6, TYPE_US, 1, NULL, "SAVAGE ISLAND P2", 0, 0, 0, 0, 0 }, // Savage Island part 2 C64 (D64) US version
-    { SAVAGE_ISLAND_US,  0x2812, 0xd13a, TYPE_T64_US, 1, NULL, "SAVAGE ISLAND P1", 0, 0, 0, 0, 0 }, // Savage Island part 1 C64 (T64) US version
-    { SAVAGE_ISLAND_2_US,  0x2825, 0xa5b1, TYPE_T64_US, 1, NULL, "SAVAGE ISLAND P2", 0, 0, 0, 0, 0 }, // Savage Island part 2 C64 (T64) US version
+    { SAVAGE_ISLAND_C64,  0x2ab00, 0x8801, TYPE_D64, 1, "-f86 -d0x1793", "SAVAGEISLAND1+",   1, 0, 0, 0, 0 }, /* Savage Island part 1 C64 (D64) */
+    { SAVAGE_ISLAND2_C64, 0x2ab00, 0x8801, TYPE_D64, 1, "-f86 -d0x178b", "SAVAGEISLAND2+",   1, 0, 0, 0, 0 }, /* Savage Island part 2 C64 (D64) */
+    { SAVAGE_ISLAND_C64,  0x2ab00, 0xc361, TYPE_D64, 1, "-f86 -d0x1793", "SAVAGE ISLAND P1", 1, 0, 0, 0, 0 }, /* Savage Island part 1 C64 (D64) alt */
+    { SAVAGE_ISLAND2_C64, 0x2ab00, 0xc361, TYPE_D64, 1, NULL,            "SAVAGE ISLAND P2", 0, 0, 0, 0, 0 }, /* Savage Island part 2  C64 (D64) alt */
+    { SAVAGE_ISLAND_US,  0x2ab00, 0x1a2e, TYPE_US, 1, NULL, "SAVAGE ISLAND P1", 0, 0, 0, 0, 0 }, /* Savage Island part 1 C64 (D64) US version */
+    { SAVAGE_ISLAND_2_US,  0x2ab00, 0xeea6, TYPE_US, 1, NULL, "SAVAGE ISLAND P2", 0, 0, 0, 0, 0 }, /* Savage Island part 2 C64 (D64) US version */
+    { SAVAGE_ISLAND_US,  0x2812, 0xd13a, TYPE_T64_US, 1, NULL, "SAVAGE ISLAND P1", 0, 0, 0, 0, 0 }, /* Savage Island part 1 C64 (T64) US version */
+    { SAVAGE_ISLAND_2_US,  0x2825, 0xa5b1, TYPE_T64_US, 1, NULL, "SAVAGE ISLAND P2", 0, 0, 0, 0, 0 }, /* Savage Island part 2 C64 (T64) US version */
 
-    { ROBIN_OF_SHERWOOD_C64, 0x2ab00, 0xcf9e, TYPE_D64, 1, NULL, NULL, 0, 0x1802, 0xbd27, 0x1f6c, 0 }, // Robin Of Sherwood D64 * unknown packer
-    { ROBIN_OF_SHERWOOD_C64, 0x2ab00, 0xc0c7, TYPE_D64, 1, NULL, NULL, 0, 0xd7fb, 0xbd20, 0x1f6c, 0 }, // Robin Of Sherwood D64 * PUCrunch
-    { ROBIN_OF_SHERWOOD_C64, 0x2ab00, 0xc6e6, TYPE_D64, 1, NULL, NULL, 0, 0x9702, 0x9627, 0x1f6c, 0 }, // Robin Of Sherwood D64 * unknown packer
-    { ROBIN_OF_SHERWOOD_C64, 0xb2ef,  0x7c44, TYPE_T64, 1, NULL, NULL, 0, 0x9702, 0x9627, 0x1f6c, 0 }, // Robin Of Sherwood C64 (T64) * TCS Cruncher v2.0
-    { ROBIN_OF_SHERWOOD_C64, 0xb690,  0x7b61, TYPE_T64, 1, NULL, NULL, 0, 0x9702, 0x9627, 0x1f6c, 0 }, // Robin Of Sherwood C64 (T64) alt * TCS Cruncher v2.0
-    { ROBIN_OF_SHERWOOD_C64, 0x8db6,  0x7853, TYPE_T64, 1, NULL, NULL, 0, 0xd7fb, 0xbd20, 0x1f6c, 0 }, // Robin Of Sherwood T64 alt 2 * PUCrunch
+    { ROBIN_OF_SHERWOOD_C64, 0x2ab00, 0xcf9e, TYPE_D64, 1, NULL, NULL, 0, 0x1802, 0xbd27, 0x1f6c, 0 }, /* Robin Of Sherwood D64 * unknown packer */
+    { ROBIN_OF_SHERWOOD_C64, 0x2ab00, 0xc0c7, TYPE_D64, 1, NULL, NULL, 0, 0xd7fb, 0xbd20, 0x1f6c, 0 }, /* Robin Of Sherwood D64 * PUCrunch */
+    { ROBIN_OF_SHERWOOD_C64, 0x2ab00, 0xc6e6, TYPE_D64, 1, NULL, NULL, 0, 0x9702, 0x9627, 0x1f6c, 0 }, /* Robin Of Sherwood D64 * unknown packer */
+    { ROBIN_OF_SHERWOOD_C64, 0xb2ef,  0x7c44, TYPE_T64, 1, NULL, NULL, 0, 0x9702, 0x9627, 0x1f6c, 0 }, /* Robin Of Sherwood C64 (T64) * TCS Cruncher v2.0 */
+    { ROBIN_OF_SHERWOOD_C64, 0xb690,  0x7b61, TYPE_T64, 1, NULL, NULL, 0, 0x9702, 0x9627, 0x1f6c, 0 }, /* Robin Of Sherwood C64 (T64) alt * TCS Cruncher v2.0 */
+    { ROBIN_OF_SHERWOOD_C64, 0x8db6,  0x7853, TYPE_T64, 1, NULL, NULL, 0, 0xd7fb, 0xbd20, 0x1f6c, 0 }, /* Robin Of Sherwood T64 alt 2 * PUCrunch */
 
-    { GREMLINS_C64,        0xdd94,    0x25a8, TYPE_T64, 1, NULL,       NULL, 0, 0, 0, 0, 0 },     // Gremlins C64 (T64) version * Action Replay v4.x
-    { GREMLINS_C64,        0x2ab00,   0xc402, TYPE_D64, 0, NULL, "G1", -0x8D, 0, 0, 0, 0 }, // Gremlins C64 (D64) version
-    { GREMLINS_C64,        0x2ab00,   0x3ccf, TYPE_D64, 0, NULL, "G1", -0x8D, 0, 0, 0, 0 }, // Gremlins C64 (D64) version 2
-    { GREMLINS_C64,        0x2ab00,   0xabf8, TYPE_D64, 2, "-e0x1255", NULL, 2, 0, 0, 0, 0 },   // Gremlins C64 (D64) version alt * ByteBoiler, Exomizer
-    { GREMLINS_C64,        0x2ab00,   0xa265, TYPE_D64, 2, "-e0x1255", NULL, 2, 0, 0, 0, 0 },   // Gremlins C64 (D64)  version alt 2 * ByteBoiler, Exomizer
-    { GREMLINS_C64,        0x2ab00,   0xa1dc, TYPE_D64, 2, "-e0x1255", NULL, 2, 0, 0, 0, 0 }, // Gremlins C64 (D64) version alt 3  * ByteBoiler, Exomizer
-    { GREMLINS_SPANISH_C64,0x2ab00,   0x2ad9, TYPE_D64, 1, NULL, NULL, 0, 0xd002, 0xbf8a, 0x1f00, 0 }, // Gremlins Spanish C64 (D64) PUCrunch Generic Hack
-    { GREMLINS_C64,        0x2ab00,   0x4be2, TYPE_D64, 0, NULL, "G1", -0x8D, 0, 0, 0, 0 }, // Not compressed
-    { GREMLINS_C64,        0x2ab00,   0x5c7a, TYPE_D64, 3, "-e0x2ec2", NULL, 2, 0xc801, 0xd774, 0xbeb, 0 }, // CruelCrunch v2.5 -> AbuzeCrunch
-    { GREMLINS_C64,        0x2ab00,   0x331a, TYPE_D64, 2, NULL, NULL, 0, 0xd80f, 0xc782, 0x1f00, 0 }, // Gremlins C64 (D64) version alt 5 * Beta Dynamic Compressor v3.x/FX * Mr.Cross v2.x
-    { GREMLINS_GERMAN_C64, 0xc003,    0x558c, TYPE_T64, 1, NULL,       NULL, 0, 0xd801, 0xc6c0, 0x1f00, 0 }, // German Gremlins C64 (T64) * TBC Multicompactor v2.x
-    { GREMLINS_GERMAN_C64, 0x2ab00,   0x6729, TYPE_D64, 2, NULL,       NULL, 0, 0xdc02, 0xcac1, 0x1f00, 0 }, // German Gremlins C64 (D64) version * Exomizer
+    { GREMLINS_C64,        0xdd94,    0x25a8, TYPE_T64, 1, NULL,       NULL, 0, 0, 0, 0, 0 },     /* Gremlins C64 (T64) version * Action Replay v4.x */
+    { GREMLINS_C64,        0x2ab00,   0xc402, TYPE_D64, 0, NULL, "G1", -0x8D, 0, 0, 0, 0 }, /* Gremlins C64 (D64) version */
+    { GREMLINS_C64,        0x2ab00,   0x3ccf, TYPE_D64, 0, NULL, "G1", -0x8D, 0, 0, 0, 0 }, /* Gremlins C64 (D64) version 2 */
+    { GREMLINS_C64,        0x2ab00,   0xabf8, TYPE_D64, 2, "-e0x1255", NULL, 2, 0, 0, 0, 0 },   /* Gremlins C64 (D64) version alt * ByteBoiler, Exomizer */
+    { GREMLINS_C64,        0x2ab00,   0xa265, TYPE_D64, 2, "-e0x1255", NULL, 2, 0, 0, 0, 0 },   /* Gremlins C64 (D64)  version alt 2 * ByteBoiler, Exomizer */
+    { GREMLINS_C64,        0x2ab00,   0xa1dc, TYPE_D64, 2, "-e0x1255", NULL, 2, 0, 0, 0, 0 }, /* Gremlins C64 (D64) version alt 3  * ByteBoiler, Exomizer */
+    { GREMLINS_SPANISH_C64,0x2ab00,   0x2ad9, TYPE_D64, 1, NULL, NULL, 0, 0xd002, 0xbf8a, 0x1f00, 0 }, /* Gremlins Spanish C64 (D64) PUCrunch Generic Hack */
+    { GREMLINS_C64,        0x2ab00,   0x4be2, TYPE_D64, 0, NULL, "G1", -0x8D, 0, 0, 0, 0 }, /* Not compressed */
+    { GREMLINS_C64,        0x2ab00,   0x5c7a, TYPE_D64, 3, "-e0x2ec2", NULL, 2, 0xc801, 0xd774, 0xbeb, 0 }, /* CruelCrunch v2.5 -> AbuzeCrunch */
+    { GREMLINS_C64,        0x2ab00,   0x331a, TYPE_D64, 2, NULL, NULL, 0, 0xd80f, 0xc782, 0x1f00, 0 }, /* Gremlins C64 (D64) version alt 5 * Beta Dynamic Compressor v3.x/FX * Mr.Cross v2.x */
+    { GREMLINS_GERMAN_C64, 0xc003,    0x558c, TYPE_T64, 1, NULL,       NULL, 0, 0xd801, 0xc6c0, 0x1f00, 0 }, /* German Gremlins C64 (T64) * TBC Multicompactor v2.x */
+    { GREMLINS_GERMAN_C64, 0x2ab00,   0x6729, TYPE_D64, 2, NULL,       NULL, 0, 0xdc02, 0xcac1, 0x1f00, 0 }, /* German Gremlins C64 (D64) version * Exomizer */
 
-    { SUPERGRAN_C64, 0x726f, 0x0901, TYPE_T64, 1, NULL, NULL, 0, 0xd802, 0xc623, 0x1f00, 0 }, // Super Gran C64 (T64) PUCrunch Generic Hack
-    { SUPERGRAN_C64, 0x2ab00, 0x538c, TYPE_D64, 1, NULL, NULL, 0, 0xd802, 0xc623, 0x1f00, 0 }, // Super Gran C64 (D64) PUCrunch Generic Hack
+    { SUPERGRAN_C64, 0x726f, 0x0901, TYPE_T64, 1, NULL, NULL, 0, 0xd802, 0xc623, 0x1f00, 0 }, /* Super Gran C64 (T64) PUCrunch Generic Hack */
+    { SUPERGRAN_C64, 0x2ab00, 0x538c, TYPE_D64, 1, NULL, NULL, 0, 0xd802, 0xc623, 0x1f00, 0 }, /* Super Gran C64 (D64) PUCrunch Generic Hack */
 
-    { SEAS_OF_BLOOD_C64, 0xa209,  0xf115, TYPE_T64, 6, "-e0x1000", NULL, 3, 0xd802, 0xb07c, 0x1fff, 0 }, // Seas of Blood C64 (T64) MasterCompressor / Relax -> ECA
-                                                                                                         // Compacker -> Unknown -> MasterCompressor / Relax -> ECA
-                                                                                                         // Compacker -> CCS Packer
-    { SEAS_OF_BLOOD_C64, 0x2ab00, 0x5c1d, TYPE_D64, 1, NULL, NULL, 0, 0xd802, 0xb07c, 0x1fff, 0 }, // Seas of Blood C64 (D64) CCS Packer
-    { SEAS_OF_BLOOD_C64, 0x2ab00, 0xe308, TYPE_D64, 1, NULL, NULL, 0, 0xd802, 0xb07c, 0x1fff, 0 }, // Seas of Blood C64 (D64) alt CCS Packer
-    { SEAS_OF_BLOOD_C64, 0x2ab00, 0x3df2, TYPE_D64, 6, "-e0x1000", NULL, 3, 0xd802, 0xb07c, 0x1fff, 0 }, // Seas of Blood C64 (D64) alt CCS Packer
+    { SEAS_OF_BLOOD_C64, 0xa209,  0xf115, TYPE_T64, 6, "-e0x1000", NULL, 3, 0xd802, 0xb07c, 0x1fff, 0 }, /* Seas of Blood C64 (T64) MasterCompressor / Relax -> ECA */
+                                                                                                         /* Compacker -> Unknown -> MasterCompressor / Relax -> ECA
+                                                                                                            Compacker -> CCS Packer */
+    { SEAS_OF_BLOOD_C64, 0x2ab00, 0x5c1d, TYPE_D64, 1, NULL, NULL, 0, 0xd802, 0xb07c, 0x1fff, 0 }, /* Seas of Blood C64 (D64) CCS Packer */
+    { SEAS_OF_BLOOD_C64, 0x2ab00, 0xe308, TYPE_D64, 1, NULL, NULL, 0, 0xd802, 0xb07c, 0x1fff, 0 }, /* Seas of Blood C64 (D64) alt CCS Packer */
+    { SEAS_OF_BLOOD_C64, 0x2ab00, 0x3df2, TYPE_D64, 6, "-e0x1000", NULL, 3, 0xd802, 0xb07c, 0x1fff, 0 }, /* Seas of Blood C64 (D64) alt CCS Packer */
 
     { UNKNOWN_GAME, 0, 0, UNKNOWN_FILE_TYPE, 0, NULL, NULL, 0, 0, 0, 0, 0 }
 };
-// clang-format off
+/* clang-format off */
 
 static GameIDType ProcessC64(uint8_t **sf, size_t *extent, c64rec entry);
 
@@ -411,9 +421,11 @@ static void LoadC64USImages(uint8_t *data, size_t length)
                         image->imagedata = di_read_file_named(d64, shortname, &image->datasize);
                     if (image->imagedata) {
                         image->systype = SYS_C64;
-                        /* Parse 3-digit image index from filename positions 3–5 */
+                        /* Parse 3-digit image index from filename positions
+                           3–5 */
                         image->index = shortname[5] - '0' + (shortname[4] - '0') * 10 + (shortname[3] - '0') * 100;
-                        /* Filename convention: 'R' prefix = room, char 6 'R' = room+object, 'I' = inventory */
+                        /* Filename convention: 'R' prefix = room, char 6 'R' =
+                           room+object, 'I' = inventory */
                         if (shortname[0] == 'R') {
                             image->usage = IMG_ROOM;
                         } else if (shortname[6] == 'R') {
@@ -639,8 +651,8 @@ static void ExtractT64File(uint8_t **sf, size_t *extent)
    Matches the file against the c64_registry by size + checksum. For multi-game
    compilation disks, presents a selection menu. Depending on the container
    type (D64, T64, or US/S.A.G.A.), extracts the game file, optionally appends
-   companion data, decompresses via unp64, and loads the game database. Replaces
-   *sf and *extent with the final game data on success. */
+   companion data, decompresses via unp64, and loads the game database.
+   Replaces *sf and *extent with the final game data on success. */
 GameIDType DetectC64(uint8_t **sf, size_t *extent, const char *filename)
 {
     if (*extent > MAX_LENGTH || *extent < MIN_LENGTH)
@@ -695,9 +707,11 @@ GameIDType DetectC64(uint8_t **sf, size_t *extent, const char *filename)
                     newlength = len;
                 }
 
-                /* There are at least two C64 S.A.G.A. games (Pirate Adventure and Voodoo Castle)
-                   which do not have a separate database file, but have their interpreter, image data
-                   and database all in a single file. We pass them off to a separate function, handle_all_in_one() in c64_small.c.
+                /* There are at least two C64 S.A.G.A. games (Pirate Adventure
+                   and Voodoo Castle) which do not have a separate database
+                   file, but have their interpreter, image data and database
+                   all in a single file. We pass them off to a separate
+                   function, handle_all_in_one() in c64_small.c.
                  */
                 if (c64_registry[i].imgoffset && c64_registry[i].imgoffset < newlength) {
                     return handle_all_in_one(&database_file, &newlength, c64_registry[i]);
@@ -828,7 +842,8 @@ static GameIDType ProcessC64(uint8_t **sf, size_t *extent, c64rec record)
 
     /* Relocate graphics data to the addresses the drawing engine expects.
        Gremlins preserves a $1000-byte block that would otherwise be lost
-       across the CopyData reallocation, and rewrites it at a shifted offset. */
+       across the CopyData reallocation, and rewrites it at a shifted
+       offset. */
     if (CurrentGame == GREMLINS_C64 && record.copysource == 0xc801) {
         uint8_t overlap[0x1000];
         memcpy(overlap, *sf + 0xd801, 0x1000);

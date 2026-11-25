@@ -1,3 +1,34 @@
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ *
+ *	  Parts are based on code by David Lodge, which came with this notice:
+ *
+ *	  MIT License
+ *
+ *	  Copyright (c) 2018 D L
+ *
+ *	  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *	  of this software and associated documentation files (the "Software"), to deal
+ *	  in the Software without restriction, including without limitation the rights
+ *	  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *	  copies of the Software, and to permit persons to whom the Software is
+ *	  furnished to do so, subject to the following conditions:
+ *
+ *	  The above copyright notice and this permission notice shall be included in all
+ *	  copies or substantial portions of the Software.
+ *
+ *	  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *	  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *	  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *	  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *	  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *	  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *	  SOFTWARE.
+ */
+
 //
 //  c64a8draw.c
 //
@@ -10,7 +41,7 @@
 //  Original code at https://github.com/tautology0/textadventuregraphics
 
 #include "glk.h"
-#include "read_le16.h"
+#include "byteorder.h"
 #include "c64a8draw.h"
 #include "sagadraw_host.h"
 
@@ -26,28 +57,29 @@ struct atari8override {
 };
 
 static const struct atari8override atari8overrides[] = {
-    { 0x0e, 0xe0e0e0 }, // 0xd1d1d1: most games
-    { 0x0f, 0xe0e0e0 }, // 0xd1d1d1: Count, Hulk, Voodoo Castle. Must match
-                        // 0x0e, e.g. the Count inventory picture vs. the
-                        // object overlays drawn on it
-    { 0x12, 0xad5f64 }, // 0x521d00: Claymorgue
-    { 0x25, 0xad5f64 }, // 0x762e00: Voodoo Castle
-    { 0x32, 0xad5f64 }, // 0x54050b: Claymorgue, Hulk, Voodoo Castle
-    { 0x34, 0xa23f40 }, // 0x712329: Claymorgue, Hulk
-    { 0x36, 0xa23f40 }, // 0x8f4146: most games
-    { 0x3a, 0xad5f64 }, // 0xcb7d82: Claymorgue, Hulk, Spider-Man
-    { 0x56, 0x4b1ead }, // 0x693ccb: Claymorgue
-    { 0x66, 0x7941c3 }, // 0x4f43ee: Count, Hulk
-    { 0x85, 0x3468ee }, // 0x073bc5: Voodoo Castle
-    { 0xc6, 0x088817 }, // 0x497600: Buckaroo Banzai, Claymorgue,
-                        // Fantastic Four, Hulk, Spider-Man
-    { 0xc7, 0x3a6700 }, // 0x497600: Claymorgue, Fantastic Four, Spider-Man
-    { 0xc8, 0x088817 }, // 0x679405: Buckaroo Banzai, Hulk
-    { 0xd8, 0x637000 }, // 0x818d00: Hulk
-    { 0xe4, 0x944c02 }, // 0x5e4700: Claymorgue
-    { 0xf7, 0xad5f64 }, // 0x8d5900: Count, Voodoo Castle
-    { 0xf8, 0x8d5900 }, // 0xab7700: Claymorgue, Fantastic Four, Voodoo Castle
-    { 0xff, 0xba8600 }, // 0xeed146: Claymorgue, Voodoo Castle
+    { 0x06, 0x888888 }, // 0x666666: Fantastic Four, Voodoo Castle
+    { 0x0c, 0xaaaaaa }, // 0xcccccc: Buckaroo Banzai
+    { 0x12, 0xa44c31 }, // 0x3c2900: Claymorgue
+    { 0x25, 0xa44c31 }, // 0x753900: Voodoo Castle
+    { 0x32, 0xa44c31 }, // 0x600800: Claymorgue, Hulk, Voodoo Castle
+    { 0x34, 0xa44c31 }, // 0x822a0f: Claymorgue, Hulk
+    { 0x36, 0xa44c31 }, // 0xa44c31: most games
+    { 0x38, 0xa44c31 }, // 0xc66e53: Hulk, Spider-Man
+    { 0x3a, 0xa44c31 }, // 0xe89075: Claymorgue, Hulk, Spider-Man
+    { 0x45, 0xa44161 }, // 0x821f3f: Spider-Man
+    { 0x56, 0x761d70 }, // 0x983f92: Claymorgue
+    { 0x66, 0x7941c3 }, // 0x8144bb: Count, Hulk
+    { 0x85, 0x4961d2 }, // 0x273fb0: Voodoo Castle
+    { 0x97, 0x4961d2 }, // 0x3373bd: Claymorgue
+    { 0xc6, 0x156b1a }, // 0x378d33: Buckaroo Banzai, Claymorgue, Fantastic Four, Hulk, Spider-Man
+    { 0xc7, 0x156b1a }, // 0x378d33: Claymorgue, Fantastic Four, Spider-Man
+    { 0xc8, 0x156b1a }, // 0x59af55: Buckaroo Banzai, Hulk
+    { 0xd6, 0x156b1a }, // 0x4e8711: Claymorgue, Hulk, Spider-Man
+    { 0xd8, 0x156b1a }, // 0x70a92f: Hulk
+    { 0xe4, 0x975b0b }, // 0x495704: Claymorgue
+    { 0xf7, 0xc66e53 }, // 0x876800: Count, Voodoo Castle
+    { 0xf8, 0x876800 }, // 0xa98a1d: Claymorgue, Fantastic Four, Voodoo Castle
+    { 0xff, 0xa98a1d }, // 0xfff087: Claymorgue, Voodoo Castle
 };
 
 static void TranslateColorAtari8(uint8_t index, uint8_t value)
@@ -83,23 +115,24 @@ enum c64_color {
     C64_LGREY
 };
 
-static const glui32 c64colors[16] = {
+// VICE's colodore.vpl
+const uint32_t c64colors[16] = {
     [C64_BLACK]  = 0x000000,
     [C64_WHITE]  = 0xffffff,
-    [C64_RED]    = 0xbf6148,
-    [C64_CYAN]   = 0x99e6f9,
-    [C64_PURPLE] = 0xb159b9,
-    [C64_GREEN]  = 0x79d570,
-    [C64_BLUE]   = 0x5f48e9,
-    [C64_YELLOW] = 0xf7ff6c,
-    [C64_ORANGE] = 0xba8620,
-    [C64_BROWN]  = 0x837000,
-    [C64_LRED]   = 0xe79a84,
-    [C64_DGREY]  = 0x454545,
-    [C64_GREY]   = 0xa7a7a7,
-    [C64_LGREEN] = 0xc0ffb9,
-    [C64_LBLUE]  = 0xa28fff,
-    [C64_LGREY]  = 0xc8c8c8,
+    [C64_RED]    = 0x96282e,
+    [C64_CYAN]   = 0x5bd6ce,
+    [C64_PURPLE] = 0x9f2dad,
+    [C64_GREEN]  = 0x41b936,
+    [C64_BLUE]   = 0x2724c4,
+    [C64_YELLOW] = 0xeff347,
+    [C64_ORANGE] = 0x9f4815,
+    [C64_BROWN]  = 0x5e3500,
+    [C64_LRED]   = 0xda5f66,
+    [C64_DGREY]  = 0x474747,
+    [C64_GREY]   = 0x787878,
+    [C64_LGREEN] = 0x91ff84,
+    [C64_LBLUE]  = 0x6864ff,
+    [C64_LGREY]  = 0xaeaeae,
 };
 
 // The colour values in the image files are Atari 8-bit colours: hue in the

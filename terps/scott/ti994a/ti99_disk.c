@@ -1,15 +1,22 @@
-//
-//  ti99_disk.c
-//  scott
-//
-//  Reads TI-99/4A disk images: the directory, the sectors of a file,
-//  and the object files written by the TI Editor/Assembler.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
+
+/*
+ *  ti99_disk.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Reads TI-99/4A disk images: the directory, the sectors of a file,
+ *  and the object files written by the TI Editor/Assembler.
+ */
 
 #include <stdlib.h>
 #include <string.h>
 
-#include "read_le16.h"
+#include "byteorder.h"
 #include "memory_allocation.h"
 
 #include "ti99_disk.h"
@@ -35,8 +42,6 @@
 #define FDR_FLAG_PROGRAM    0x01
 #define FDR_FLAG_VARIABLE   0x80
 
-/* List the files of a disk image. The list ends with an entry whose
-   filename is NULL. Returns NULL if there is no directory. */
 ti99_disk_file *TI99ReadDirectory(const uint8_t *dsk, size_t length) {
     if (length < SECTOR_SIZE * 2)
         return NULL;
@@ -304,16 +309,11 @@ static int LoadTaggedObject(const uint8_t *dsk, size_t length, const ti99_disk_f
     return 1;
 }
 
-/* Load the object file of that name. Returns 0 if it is missing or
-   is not an object file. On success the caller calls TI99FreeObject(). */
 int TI99LoadObject(const uint8_t *dsk, size_t length, const ti99_disk_file *files, const char *name, ti99_object *obj) {
     const ti99_disk_file *file = FindFile(files, name);
     return file != NULL && LoadTaggedObject(dsk, length, file, obj);
 }
 
-/* Copy length bytes of what an object file loads from address on.
-   Bytes past the last one it loads are returned as zeros. Returns
-   NULL if it loads nothing there. */
 uint8_t *TI99CopyObjectBytes(const ti99_object *obj, size_t address, size_t length) {
     if (address < obj->low || address >= obj->high)
         return NULL;

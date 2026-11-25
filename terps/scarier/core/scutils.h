@@ -54,11 +54,11 @@ extern void scr_fatal (const scr_char *format, ...);
 #ifdef __cplusplus
 /*
  * Exception thrown by scr_fatal() instead of abort()-ing the host.  Every
- * engine fatal -- allocation failure, malformed-game consistency check, etc. --
- * raises this, and the public entry points in scinterf.cpp catch it at the host
- * boundary and return a clean failure rather than crashing Spatterlight.  The
- * engine still leaks on this path (raw malloc'd state is not unwound -- see
- * P3), but the whole game session is torn down at the catch site anyway.
+ * engine fatal -- allocation failure, malformed-game consistency check, etc.
+ * -- raises this, and the public entry points in scapi.cpp catch it at the
+ * host boundary and return a clean failure rather than crashing Spatterlight.
+ * The engine still leaks on this path (raw malloc'd state is not unwound), but
+ * the whole game session is torn down at the catch site anyway.
  */
 struct scr_fatal_error
 {
@@ -75,11 +75,11 @@ extern scr_char *scr_strdup (const scr_char *string);
 #ifdef __cplusplus
 #include <memory>
 /*
- * RAII owner for a scr_malloc'd C string.  Frees with scr_free() at scope exit,
- * so an scr_fatal_error / run_loop_halt thrown between acquiring the buffer and
- * the end of its scope does not leak it.  This keeps the engine's char*
- * contract intact: .get() hands the raw pointer back to the C call sites and
- * to the pointer-aliasing logic that decides which buffer "wins".
+ * RAII owner for a scr_malloc'd C string.  Frees with scr_free() at scope
+ * exit, so an scr_fatal_error / run_loop_halt thrown between acquiring the
+ * buffer and the end of its scope does not leak it.  This keeps the engine's
+ * char* contract intact: .get() hands the raw pointer back to the C call sites
+ * and to the pointer-aliasing logic that decides which buffer "wins".
  */
 struct scr_free_deleter
 {

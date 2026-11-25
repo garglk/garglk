@@ -20,8 +20,6 @@
 
 /*
  * Movement: compass directions and "go to" a named place.
- *
- * See sclibrar.h for what the library files share.
  */
 
 #include "sclibrar.h"
@@ -108,7 +106,7 @@ lib_go (scr_gameref_t game, scr_int direction)
    * that count.  No Runner from 3.7 to 4.0 carries an "(at present)"
    * string at all; Scarier's old "can't go in that direction (at present)"
    * for an exit that exists but is currently shut was an invention.
-   * Measured on humbug (4.00, runner_probes/humbug.run400.b.txt): `W` into the
+   * Measured on humbug (4.0, runner_probes/humbug.run400.b.txt): `W` into the
    * keypad door, an exit gated on a task, answers "I can't go in that
    * direction, but I can move north, east and south."
    */
@@ -176,33 +174,33 @@ lib_go (scr_gameref_t game, scr_int direction)
    * and loc_4319A9 for "(Standing up first)").  An earlier census read
    * run390 as having no "Getting off" literal at all and gated this
    * `< 3.90 || >= 4.00`; the literal lives in run390_3.bas:9909, and the
-   * wingman1.taf (3.90) replay of 2026-08-30 (runner_transcripts/wingman1.txt,
+   * wingman1.taf (3.9) replay of 2026-08-30 (runner_transcripts/wingman1.txt,
    * brackets ON) prints "(Getting off the Barstool first)" before "You
    * move in."
    *
    * Scarier models the Runner with that box ticked -- the reference
    * setting the transcripts are measured under -- so every version prints
-   * the lines.  Measured on monsters (4.00) commands 5 and 23, where
+   * the lines.  Measured on monsters (4.0) commands 5 and 23, where
    * run400 with brackets on answers "in" from the bed with "(Getting off
    * Sissy's four poster bed first)" on its own line before "I move in."
    * (and later "(Getting off the pink plastic chair first)"); with the box
-   * unticked (humbug command 254, 2026-08-24) it prints nothing.
+   * unticked (humbug command 254) it prints nothing.
    *
    * The parent-less half -- sitting or lying on the FLOOR, so "(Standing up
-   * first)" rather than "(Getting off X first)" -- was measured 2026-09-07 on
-   * Main Course.taf (4.00, runner_probes/maincourse.run400.txt), whose player
+   * first)" rather than "(Getting off X first)" -- was measured on Main
+   * Course.taf (4.0, runner_probes/maincourse.run400.txt), whose player
    * starts sitting with ParentObject 0, and on goldilocks
-   * (runner_transcripts/goldilocks.txt) turn 94, where a task
-   * action seats the player on an unset object.  Both print the line with the
-   * box ticked and nothing without it, and both had earlier brackets-OFF
-   * transcripts that read as an engine bug until they were re-driven.
+   * (runner_transcripts/goldilocks.txt) turn 94, where a task action seats the
+   * player on an unset object.  Both print the line with the box ticked and
+   * nothing without it, and both had earlier brackets-OFF transcripts that
+   * read as an engine bug until they were re-driven.
    *
    * From 3.9 the name goes through the object-name composer in mode 0
    * (run390 431943 -> compose_object_name 42B0E8, run400 450354 -> 448710),
    * which answers "that" for an object the player has not seen.  gateway
-   * (3.90) seats the player on a chair only a task's text mentions, and
+   * (3.9) seats the player on a chair only a task's text mentions, and
    * run390x answers `east` with "(Getting off that first)"
-   * (runner_transcripts/gateway.txt, 2026-09-14).  run370/380 concatenate the
+   * (runner_transcripts/gateway.txt).  run370/380 concatenate the
    * name directly, with no seen test.  Scarier deliberately names the object
    * in every version (deviation policy): the player is sitting on it, so
    * hiding its name behind "that" only loses information.
@@ -213,7 +211,7 @@ lib_go (scr_gameref_t game, scr_int direction)
    * it.  So `stand on crate`, `s`, `sit`, `stand` is "You move south.", ...,
    * "You stand up from the crate." (p37SIT/p38SIT, run370x
    * runner_probes/sit.run370.sit2.rtf, run380x
-   * runner_probes/sit.run380.sit2.rtf, 2026-09-19).  run380's take-from reach
+   * runner_probes/sit.run380.sit2.rtf).  run380's take-from reach
    * test reads the same stale parent (446BA5).
    */
   stale_parent = -1;
@@ -240,7 +238,7 @@ lib_go (scr_gameref_t game, scr_int direction)
 
   gs_move_player_to_room (game, destination);
   gs_set_playerparent (game, stale_parent);
-  game->player_moved_by_command = TRUE;
+  game->turn.player_moved_by_command = TRUE;
 
   /* Describe the new room and return. */
   lib_describe_player_room (game, FALSE);
@@ -260,15 +258,16 @@ lib_go (scr_gameref_t game, scr_int direction)
  * with c(): run370 loc_434AEA / loc_434C02, run380 loc_43B44D / loc_43B556,
  * run390 loc_44FDF6 / loc_44FF01, run400 loc_474FEF / loc_4750A4.
  *
- * `exit` used to sit in the `exits`/`where`/`directions` row below, which is
- * only right for a room with no out exit.  A room that has one is left by
- * `exit`, and where it has none the wording still differs from a real exits
- * request: the Runner seeds the response of all twenty movement words with
- * the exits summary before the direction blocks get their chance to overwrite
- * it (run380 loc_43AA58), and the several-exits form of that seed is prefixed
- * " can't go in that direction, but" for every word except `exits`, `where`
- * and `directions` (loc_43AC7E).  That is exactly lib_go()'s own refusal, so
- * routing `exit` to lib_cmd_go_out() gets both cases right at once.
+ * `exit` does not sit in the `exits`/`where`/`directions` row below, which
+ * would only be right for a room with no out exit.  A room that has one is
+ * left by `exit`, and where it has none the wording still differs from a real
+ * exits request: the Runner seeds the response of all twenty movement words
+ * with the exits summary before the direction blocks get their chance to
+ * overwrite it (run380 loc_43AA58), and the several-exits form of that seed is
+ * prefixed " can't go in that direction, but" for every word except `exits`,
+ * `where` and `directions` (loc_43AC7E).  That is exactly lib_go()'s own
+ * refusal, so routing `exit` to lib_cmd_go_out() gets both cases right at
+ * once.
  *
  * `inside` and `outside` are absent from that twenty-word seed list, so in a
  * room without the matching exit the Runner has nothing to say and drops
@@ -339,7 +338,7 @@ lib_cmd_go_out (scr_gameref_t game)
 scr_bool
 lib_cmd_just_a_direction (scr_gameref_t game)
 {
-  return lib_print_message (game, "Just a direction will do.\n");
+  return lib_print_message_with_exits (game, "Just a direction will do.");
 }
 
 
@@ -525,7 +524,7 @@ scr_bool lib_go_place_off = FALSE;
 /*
  * lib_command_slot_370()
  *
- * The game's own word in 3.70 command slot SLOT (MemVar_4460FC(SLOT)),
+ * The game's own word in 3.7 command slot SLOT (MemVar_4460FC(SLOT)),
  * lower-cased; empty from 3.8 on, which has no command block.
  */
 std::string
@@ -767,7 +766,7 @@ lib_goto_walk (scr_gameref_t game, scr_int target, const std::string &name)
   pf_buffer_string (filter, "Moving to ");
   pf_buffer_string (filter, name.c_str ());
   pf_buffer_string (filter, "...\n");
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
 }
 
 
@@ -881,7 +880,7 @@ lib_cmd_go_place (scr_gameref_t game)
                               "You can't get there from here.\n",
                               "I can't get there from here.\n",
                               "%player% can't get there from here.\n");
-      return lib_print_message (game, "Unknown place.\n");
+      return lib_print_message_with_exits (game, "Unknown place.");
     }
 
   if (count > 1)

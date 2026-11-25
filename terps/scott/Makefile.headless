@@ -105,6 +105,11 @@ endef
 
 $(eval $(call TOOL,scott_death_test,death_test))
 
+# Regression test for the crash on resizing during a multi-game disk's menu:
+# Updates() before any database is loaded. Needs no game file; see
+# test/resize_test.c.
+$(eval $(call TOOL,scott_resize_test,resize_test))
+
 # Regression tests. test/headless_stubs.c forces the engine's determinism mode,
 # so the RNG-driven events (Adventureland's chiggers and bees) replay the same
 # way every run and a transcript can be diffed against a golden file. CheapGlk
@@ -114,7 +119,9 @@ $(eval $(call TOOL,scott_death_test,death_test))
 UITESTS := ../../UITests/Supporting Files
 NOISE   := grep -v 'Glk library error'
 
-check: scott_hl
+check: scott_hl scott_resize_test
+	@echo "--- test/resize_test.c: resize event during the game menu, before a game is loaded"
+	@./scott_resize_test 2>&1 | grep -q 'resize_test: survived' && echo "    ok"
 	@echo "--- test/regression.dat: TAKE ALL chain, last-dictionary-word noun, Mr./Dr. tokenizer"
 	@printf 'take all\ninv\ncall dr.\ndr. medal\n' | ./scott_hl test/regression.dat 2>/dev/null \
 	    | $(NOISE) > $(OBJDIR)/regression.out
@@ -132,8 +139,8 @@ check: scott_hl
 	@echo "PASS"
 
 clean:
-	rm -rf $(OBJDIR) scott_hl scott_death_test scott_all_audit scott_format_probe \
-	    scott_cond_audit
+	rm -rf $(OBJDIR) scott_hl scott_death_test scott_resize_test scott_all_audit \
+	    scott_format_probe scott_cond_audit
 
 .PHONY: clean check
 

@@ -20,25 +20,52 @@
 /*
  * Examining the player, NPCs and objects, absent-object refusals, and
  * the listing of container/supporter contents.
- *
- * See sclibrar.h for what the library files share and sclibrar_internal.h
- * for what the core files share.
  */
 
 #include "sclibrar.h"
 #include "sclibrar_internal.h"
 
 /*
+ * lib_examine_self_worn()
+ *
+ * List each object worn by the player.  The 3.7/3.8 Runners never do so
+ * after their fallback description; Scarier does (see
+ * lib_examine_self_pre390()).
+ */
+static void
+lib_examine_self_worn (scr_gameref_t game)
+{
+  const scr_filterref_t filter = gs_get_filter (game);
+  scr_int object;
+  lib_list_t list;
+
+  GS_FOR_EACH_OBJECT (game, object)
+    {
+      if (gs_object_position (game, object) == OBJ_WORN_PLAYER)
+        list.push_back (object);
+    }
+  if (!list.empty ())
+    {
+      lib_print_clause (game, TRUE,
+                        "You are wearing ",
+                        "I am wearing ",
+                        "%player% is wearing ");
+      lib_print_list (game, list, lib_print_object, " and ");
+      pf_buffer_character (filter, '.');
+    }
+}
+
+
+/*
  * lib_examine_self_pre390()
  *
  * The 3.7/3.8 self description fallback, closed with its answer break.
- * 3.7/3.8 build the whole reply in one piece (run370 435AED-435BEA,
- * run380 43D43E): the fallback's own full stop comes only with the
- * sitting/lying clause, the standing-on clause follows with two spaces
- * and no full stop before it, the object is named by its raw Prefix,
- * and one "." closes the lot.  run370x p3738sit3 (2026-09-19): "...the
- * circumstances.  You are sitting down on a stool." and "...the
- * circumstances  You are standing on a stool.".
+ * 3.7/3.8 build the whole reply in one piece (run380 43D43E): the
+ * fallback's own full stop comes only with the sitting/lying clause, the
+ * standing-on clause follows with two spaces and no full stop before it,
+ * the object is named by its raw Prefix, and one "." closes the lot.  run370x
+ * p3738sit3: "...the circumstances.  You are sitting down on a stool." and
+ * "...the circumstances  You are standing on a stool.".
  */
 static void
 lib_examine_self_pre390 (scr_gameref_t game)
@@ -85,14 +112,15 @@ lib_examine_self_pre390 (scr_gameref_t game)
     }
   pf_buffer_character (filter, '.');
   /*
-   * And that is the whole reply: neither run370's block (435A9B-435BEA)
-   * nor run380's (43D3EC-43D53B) walks the worn objects, so a 3.7/3.8
-   * `x me` never says "You are wearing ..." -- only `i` does.  run370x/
-   * run380x p37SITN/p38SITN `wear hat sit` then `x me`
-   * (runner_probes/sitn.run370.rtf, runner_probes/sitn.run380.rtf,
-   * 2026-09-20): "...the circumstances.  You are sitting down." while `i`
-   * lists the hat worn.
+   * The Runner stops here: neither run370's block nor run380's walks the
+   * worn objects, so a 3.7/3.8 `x me` never says "You are wearing ..." --
+   * only `i` does.  run370x/run380x p37SITN/p38SITN `wear hat sit` then
+   * `x me` (runner_probes/sitn.run3[78]0.rtf): "...the circumstances.  You
+   * are sitting down." while `i` lists the hat worn.  Deliberate deviation:
+   * list the worn objects as 3.9+ and an authored PlayerDesc already do
+   * (WINE-TRANSCRIPTS.md).
    */
+  lib_examine_self_worn (game);
   pf_buffer_answer_break (filter);
 }
 
@@ -150,55 +178,43 @@ lib_examine_self_close (scr_gameref_t game, const scr_char *description)
       /*
        * The Runner closes the description with a full stop if the author
        * did not.  It looks at the raw text's last character BEFORE any ALR
-       * replacement: run390 examines() @44C488, loc_44C1F1-44C21E, appends
-       * "." when Right$(text, 1) <> "."; run400 Proc_19_87_471F94,
-       * loc_471C6D-471D40, also lets "!", ")", "%" and "?" stand.  (When
-       * the position clause above is printed its own "." satisfies the same
-       * test, so only the bare description needs it here.)  Measured on
-       * Archie's Birthday (3.90, run390, 2026-09-05): its PlayerDesc is the
-       * ALR key "[player=%player val%]", so the Runner appends "." to the
-       * key and the substituted paragraph ends "...self-delusions."; and on
-       * yak_shaving (4.00, run400, same day): `x me` answers "You are
-       * somewhat raggedy looking after your journey." for a PlayerDesc with
-       * no full stop.  3.7/3.8 (run370 examines @435C9C, run380 @43D5EC)
-       * build the reply differently and are not modelled.
+       * replacement: run390 examines() @44C488 appends "." when
+       * Right$(text, 1) <> "."; run400 Proc_19_87_471F94 also lets "!", ")",
+       * "%" and "?" stand.  (When the position clause above is printed its
+       * own "." satisfies the same test, so only the bare description needs
+       * it here.)  Measured on Archie's Birthday (3.9, run390): its
+       * PlayerDesc is the ALR key "[player=%player val%]", so the Runner
+       * appends "." to the key and the substituted paragraph ends
+       * "...self-delusions."; and on yak_shaving (4.0, run400, same day):
+       * `x me` answers "You are somewhat raggedy looking after your journey."
+       * for a PlayerDesc with no full stop.  3.7/3.8 (run380 examines
+       * @43D5EC) build the reply differently and are not modelled.
        */
-      const scr_char last = description[strlen (description) - 1];
+      /*
+       * Deliberate deviation (WINE-TRANSCRIPTS.md): the Runner's test sees
+       * a closing tag's ">" and adds a second stop to CD.taf's "...in one
+       * piece.</i>".  Scarier looks past trailing tags and spaces.
+       */
+      std::string text (description);
+      for (;;)
+        {
+          while (!text.empty () && scr_isspace (text.back ()))
+            text.pop_back ();
+          if (text.empty () || text.back () != '>')
+            break;
+          const std::string::size_type open = text.rfind ('<');
+          if (open == std::string::npos)
+            break;
+          text.erase (open);
+        }
+      if (text.empty ())
+        return;
+      const scr_char last = text.back ();
       const scr_bool closed = prop_get_taf_version (bundle) >= TAF_VERSION_400
                               ? strchr (".!)%?", last) != nullptr
                               : last == '.';
       if (!closed)
         pf_buffer_character (filter, '.');
-    }
-}
-
-
-/*
- * lib_examine_self_worn()
- *
- * List each object worn by the player (3.9+; 3.7/3.8 never do, see
- * lib_examine_self_pre390()).
- */
-static void
-lib_examine_self_worn (scr_gameref_t game)
-{
-  const scr_filterref_t filter = gs_get_filter (game);
-  scr_int object;
-  lib_list_t list;
-
-  GS_FOR_EACH_OBJECT (game, object)
-    {
-      if (gs_object_position (game, object) == OBJ_WORN_PLAYER)
-        list.push_back (object);
-    }
-  if (!list.empty ())
-    {
-      lib_print_clause (game, TRUE,
-                        "You are wearing ",
-                        "I am wearing ",
-                        "%player% is wearing ");
-      lib_print_list (game, list, lib_print_object, " and ");
-      pf_buffer_character (filter, '.');
     }
 }
 
@@ -219,12 +235,12 @@ lib_cmd_examine_self (scr_gameref_t game)
 
   /*
    * The darkness fork again, this time on its `x me` arm: run390 44C424
-   * answers "<player> can just make out that <you> <are> okay." (44C430) in
-   * place of the whole self description.  The two slots are the person
-   * array's 5 and 4, filled at 464800-4648A8 -- "I"/"am" in the first
-   * person, "you"/"are" in the second; a third-person player cannot reach
-   * this at all, lib_get_perspective() clamping pre-4.0 to those two.  See
-   * lib_room_is_dark() and lib_cmd_examine_other().
+   * answers "<player> can just make out that <you> <are> okay." in place of
+   * the whole self description.  The two slots are the person array's 5 and
+   * 4 -- "I"/"am" in the first person, "you"/"are" in the second; a
+   * third-person player cannot reach this at all, lib_get_perspective()
+   * clamping pre-4.0 to those two.  See lib_room_is_dark() and
+   * lib_cmd_examine_other().
    */
   if (lib_room_is_dark (game, gs_playerroom (game)))
     return lib_print_response_message (game,
@@ -274,13 +290,13 @@ lib_cmd_examine_self (scr_gameref_t game)
 
 
 /*
- * The score is run400's noun score, Proc_21_58_463640 4632AC-463387,
- * shared with the unhandled-verb resolver below: 1 if the object's Short
- * name is whole-phrase in the typed line, +1 if ANY alias is (the alias
- * loop leaves at its first hit, 463304), then +1 for every Prefix word
- * present.  A multi-word Short scores only as the whole phrase -- "east
- * wall" earns nothing from `x wall`; it is the alias "wall" that scores.
- * 0 means the object was never a candidate at all (var_9E).
+ * The score is run400's noun score, Proc_21_58_463640, shared with the
+ * unhandled-verb resolver below: 1 if the object's Short name is
+ * whole-phrase in the typed line, +1 if ANY alias is (the alias loop leaves
+ * at its first hit), then +1 for every Prefix word present.  A multi-word
+ * Short scores only as the whole phrase -- "east wall" earns nothing from
+ * `x wall`; it is the alias "wall" that scores.  0 means the object was
+ * never a candidate at all.
  */
 
 static scr_int
@@ -294,20 +310,19 @@ lib_absent_seen_object (scr_gameref_t game)
 
   /*
    * This is run400's up-front resolver Proc_21_58_463640, called once per
-   * line from generaltasks (48A3F5, mode 0) and read back by the examine
-   * resolver Proc_19_88_457034 before anything else (456DFC).  Pass 1
-   * scores objects that are present AND seen (463119-463137); only when
-   * that leaves no unique winner does the re-entry at 46360D-46363B run
-   * pass 2 over every SEEN object (463143-463156), present or not.  The
-   * winner is the unique maximum score; equal scores tie (4633C3-46341F
-   * encodes the tie as a negative result), and a tie or no candidate falls
-   * back to 457034's own pass A, co(i, 3), which needs a same-named object
-   * PRESENT and so answers &HFF, "<player> see no such thing."  (457034
-   * does have passes after A -- see lib_examine_referencedob_400() -- but
-   * with no present namesake pass A marks nothing and they never run; the
-   * "co(i, 4)" at 456E6A is a single vestigial call, not a loop.)
+   * line from generaltasks (mode 0) and read back by the examine resolver
+   * Proc_19_88_457034 before anything else.  Pass 1 scores objects that are
+   * present AND seen; only when that leaves no unique winner does the
+   * re-entry run pass 2 over every SEEN object, present or not.  The winner
+   * is the unique maximum score; equal scores tie (encoded as a negative
+   * result), and a tie or no candidate falls back to 457034's own pass A,
+   * co(i, 3), which needs a same-named object PRESENT and so answers &HFF,
+   * "<player> see no such thing."  (457034 does have passes after A -- see
+   * lib_examine_referencedob_400() -- but with no present namesake pass A
+   * marks nothing and they never run; the "co(i, 4)" at 456E6A is a single
+   * vestigial call, not a loop.)
    *
-   * Measured on cowboyblues (4.00, runner_probes/cowboyblues.run400.txt line
+   * Measured on cowboyblues (4.0, runner_probes/cowboyblues.run400.txt line
    * 1070): `x wall` in the Sheriff's Office after visiting the Back Room
    * ("east wall" 91, alias "wall") and Blood Alley ("walls" 96, alias "wall")
    * answers "You see no such thing." -- both score 1 on the alias and tie.
@@ -333,7 +348,7 @@ lib_absent_seen_object (scr_gameref_t game)
   GS_FOR_EACH_OBJECT (game, index_)
     {
       /* Something the noun names is here; the ordinary path handles it. */
-      if (game->object_references[index_]
+      if (game->refs.objects[index_]
           && obj_indirectly_in_room (game, index_, gs_playerroom (game)))
         return -1;
     }
@@ -345,11 +360,50 @@ lib_absent_seen_object (scr_gameref_t game)
   /* Pass 2, every seen object; a tie or no score is -1 as well. */
   object = lib_verb_object_resolve_400_string (game, input, nullptr, FALSE);
   if (object < 0
-      || !game->object_references[object]
+      || !game->refs.objects[object]
       || obj_indirectly_in_room (game, object, gs_playerroom (game)))
     return -1;
 
   return object;
+}
+
+/*
+ * lib_examine_present_winner_400()
+ *
+ * The up-front resolver's unique PRESENT winner, when nothing %object% bound
+ * is here, else -1.  examines (457034) reads MemVar_4942F8 back before it
+ * looks at anything else, so a present object whose name the line holds as
+ * a whole word is described even where the positional match settled on an
+ * object elsewhere.  House, the Lounge furniture chopped: `x rocking chair`
+ * with the rocking chair gone and the "ex chair" (Short "chair") in the
+ * room is "A pile of wood that used to be a chair.", and `x tea chest` "A
+ * load of planks that used to be a chest."
+ * (runner_probes/house.run400.exfurniture_nouns.txt); the positional
+ * binding alone answered "You see no such thing."  A present binding is
+ * left to the ordinary path (unmeasured against the read-back).
+ */
+static scr_int
+lib_examine_present_winner_400 (scr_gameref_t game)
+{
+  const scr_char *input;
+  scr_int index_, object;
+
+  if (!lib_is_version_400 (game))
+    return -1;
+  input = run_get_dispatch_input ();
+  if (!input)
+    return -1;
+
+  GS_FOR_EACH_OBJECT (game, index_)
+    {
+      if (game->refs.objects[index_]
+          && (obj_indirectly_in_room (game, index_, gs_playerroom (game))
+              || obj_indirectly_held_by_player (game, index_)))
+        return -1;
+    }
+
+  object = lib_verb_object_resolve_400_string (game, input, nullptr, TRUE);
+  return object >= 0 ? object : -1;
 }
 
 scr_bool
@@ -384,13 +438,11 @@ lib_cant_see_absent_object (scr_gameref_t game,
  * The 3.7 and 3.8 Runners' co() (run380 42DE60) matches an object's Short or
  * alias wherever the object is, seen or not, and each verb handler then
  * answers for the first match it cannot reach.  Measured on p38EXAM and
- * p37EXAM (make_3738_examprobe.py; run380 runner_probes/exam.run380.txt and
- * runner_probes/exam.run380.2.txt, run370 runner_probes/exam.run370.txt and
- * runner_probes/exam.run370.2.txt, 2026-09-14), with the statue seen in the
- * North Room and a gem in a room the player never enters, both named from
- * elsewhere:
+ * p37EXAM (make_3738_examprobe.py; runner_probes/exam.run3[78]0{,.2}.txt),
+ * with the statue seen in the North Room and a gem in a room the player never
+ * enters, both named from elsewhere:
  *
- *     command       3.80                                3.70
+ *     command       3.8                                 3.7
  *     x statue      seen:   You can't see a statue      the same
  *                           from here!
  *                   unseen: You can't see that.
@@ -401,14 +453,13 @@ lib_cant_see_absent_object (scr_gameref_t game,
  *     close statue  as open, "Close what?"              as open
  *     buy statue    I don't think that is for sale.     as open
  *
- * The indefinite "a statue" is each handler's own Prefix & " " & Short:
- * examines 43D258, takes 43E4CA, wears 433218, openclose 42F1B1/42F36B.
- * Only examines and openclose read the seen byte (record field 40).  3.7's
- * open, close and buy never get as far as a verb branch: its openclose
- * (426770) has no refusals at all, and therest's up-front test
- * (43D169-43D187) names the first matched object that is not here through
- * tense(), the definite form.  run390's co() wants the object present, so
- * none of this survives into 3.9.
+ * The indefinite "a statue" is each handler's own Prefix & " " & Short
+ * (examines 43D258).  Only examines and openclose read the seen byte
+ * (record field 40).  3.7's open, close and buy never get as far as a verb
+ * branch: its openclose has no refusals at all, and therest's up-front test
+ * (43D169) names the first matched object that is not here through tense(),
+ * the definite form.  run390's co() wants the object present, so none of this
+ * survives into 3.9.
  *
  * takes() walks every object and overwrites a message that still ends in
  * " from here!" (43E3F6), so the LAST match speaks: cave.taf `take parchment`
@@ -438,7 +489,7 @@ lib_absent_named_object_pre_390 (scr_gameref_t game, scr_bool last)
   first = -1;
   GS_FOR_EACH_OBJECT (game, object)
     {
-      if (!game->object_references[object])
+      if (!game->refs.objects[object])
         continue;
 
       if (obj_indirectly_in_room (game, object, gs_playerroom (game))
@@ -475,7 +526,7 @@ lib_cant_see_named_pre_390 (scr_gameref_t game, scr_int object,
  * lib_therest_absent_370()
  *
  * run370's therest() opens with a test the later Runners dropped
- * (43D169-43D187): when the line names an object that is not here, it
+ * (43D169): when the line names an object that is not here, it
  * answers "You can't see " & tense(Prefix) & " " & Short & "." and leaves
  * before any verb arm.  The caller only asks for lines that get this far in
  * the Runner -- see run_therest_absent_370().  Measured on p37GOTO
@@ -544,17 +595,16 @@ lib_list_npc_inventory (scr_gameref_t game, scr_int npc, scr_bool is_described)
           /*
            * "... is wearing a hat, and carrying a document." -- the second
            * clause has no subject and no second "is".  run390 and run400
-           * build it the same way: the worn-items branch sets a flag (var_AA),
-           * and the carried-items branch tests it, appending ", and" and
-           * jumping straight past the name and the " is" to " carrying "
-           * (run400 @45BA6B/45BA91/45BAA5, run390 @382E1/382FF/38311).
+           * build it the same way: the worn-items branch sets a flag
+           * (wearing), and the carried-items branch tests it, appending
+           * ", and" and jumping straight past the name and the " is" to
+           * " carrying " (run400 @45BA91).
            *
            * 3.8 does repeat the subject: run380 @2CA67 appends ", and " and
-           * then falls through to its own name & " is", giving "... is
-           * wearing a hat, and Grandad is carrying a document."  (run370 has
-           * no NPC worn/carried listing at all.)  Measured on humbug.taf,
-           * 2026-08-24: run400 prints "Grandad is wearing a hat, and
-           * carrying a document."
+           * then falls through to its own name & " is", giving "... is wearing
+           * a hat, and Grandad is carrying a document."  (run370 has no NPC
+           * worn/carried listing at all.)  Measured on humbug.taf: run400
+           * prints "Grandad is wearing a hat, and carrying a document."
            */
           if (prop_get_taf_version (gs_get_bundle (game)) < TAF_VERSION_390)
             {
@@ -639,15 +689,15 @@ lib_describe_npc (scr_gameref_t game, scr_int npc)
    * moves no walker and ticks no event after it, exactly as it treats its
    * own `turns` and `score`.  3.9 counts it like any other command.
    *
-   * Measured 2026-08-29 under Wine.  run400, arena probes EV14/EV15/EV16
-   * (harness/make_arena_probe.py; runner_probes/ev14.run400.txt,
-   * runner_probes/ev15.run400.txt, runner_probes/ev16.run400.txt): a one-turn
-   * event started by the previous command finishes on the `z` AFTER `x bob`,
-   * not on `x bob` itself; a looping walker with enter/exit lines prints
-   * nothing on that turn; and `turns` reads 0 after `x bob`, `x carl` (empty
-   * description), `look at bob` and `examine bob`, while `x me` and `x pebble`
-   * count.  run390, BobBobsly.taf (3.90), runner_probes/bob_bobsly.run390.txt:
-   * `turns` climbs by one across `x bouncer`.
+   * Measured under Wine.  run400, arena probes EV14/EV15/EV16
+   * (harness/make_arena_probe.py; runner_probes/ev1[456].run400.txt): a
+   * one-turn event started by the previous command finishes on the `z` AFTER
+   * `x bob`, not on `x bob` itself; a looping walker with enter/exit lines
+   * prints nothing on that turn; and `turns` reads 0 after `x bob`, `x carl`
+   * (empty description), `look at bob` and `examine bob`, while `x me` and
+   * `x pebble` count.  run390, BobBobsly.taf (3.9),
+   * runner_probes/bob_bobsly.run390.txt: `turns` climbs by one across
+   * `x bouncer`.
    *
    * This is Beanstalk turn 45: the stranger's greeting is a one-turn event
    * started by `sell cow`, the player examines him and walks east, and by
@@ -655,7 +705,7 @@ lib_describe_npc (scr_gameref_t game, scr_int npc)
    * the road it is restricted to.
    */
   if (lib_is_version_400 (game))
-    game->is_admin = TRUE;
+    game->turn.is_admin = TRUE;
 }
 
 scr_bool
@@ -670,20 +720,19 @@ lib_cmd_examine_npc (scr_gameref_t game)
   if (npc == -1)
     return is_ambiguous;
 
-  was_admin = game->is_admin;
+  was_admin = game->turn.is_admin;
   lib_describe_npc (game, npc);
 
   /*
-   * 4.0: the NPC arm of characters() (47FE19-480157) stores no not-a-turn
-   * flag; a plain `x <npc>` is administrative only because examines() ran
-   * first and found no object, whose "see no such thing" arm stores
-   * MemVar_494281 at 471F02.  When the 463640 scorer's seen pass instead
-   * settles on a unique object that is not here, examines answers "can't
-   * see <it> from here!" (471958) with no flag, characters() overwrites it
-   * with the description, and the line is a turn.  Humbug T634 `X robot` at
-   * the Bus Stop, with the static robot (213) seen in the tunnel: run400
-   * draws for the tick and Grandad arrives on that line
-   * (runner_transcripts/humbug.txt).
+   * 4.0: the NPC arm of characters() stores no not-a-turn flag; a plain
+   * `x <npc>` is administrative only because examines() ran first and found
+   * no object, whose "see no such thing" arm stores MemVar_494281 at 471F02.
+   * When the 463640 scorer's seen pass instead settles on a unique object
+   * that is not here, examines answers "can't see <it> from here!" with no
+   * flag, characters() overwrites it with the description, and the line is a
+   * turn.  Humbug T634 `X robot` at the Bus Stop, with the static robot (213)
+   * seen in the tunnel: run400 draws for the tick and Grandad arrives on that
+   * line (runner_transcripts/humbug.txt).
    */
   if (lib_is_version_400 (game))
     {
@@ -693,7 +742,7 @@ lib_cmd_examine_npc (scr_gameref_t game)
       object = lib_verb_object_resolve_400_string (game, input, nullptr, FALSE);
       if (object >= 0
           && !obj_indirectly_in_room (game, object, gs_playerroom (game)))
-        game->is_admin = was_admin;
+        game->turn.is_admin = was_admin;
     }
   return TRUE;
 }
@@ -721,14 +770,13 @@ lib_list_in_object_normal (scr_gameref_t game,
       lib_print_object_np (game, container);
       /*
        * " is ", never " are ", however plural the contents.  The Runner has
-       * an is/are helper (run400 isare(), Proc_19_69_4507BC @4507BC) and uses
-       * it for "Also here is/are", but this listing does not call it: the
-       * string is a literal, at run400 46A7C7 and run390 43E245's sibling.
-       * Measured on humbug.taf, 2026-08-24: run400 prints "On the triangular
-       * table is some swimming goggles, a watch, a musket and a china doll."
-       * Scarier deliberately keeps number agreement instead ("... table are
-       * some swimming goggles, ..."): the literal is a display accident, not
-       * behaviour (deviation policy).
+       * an is/are helper (run400 isare(), Proc_19_69_4507BC) and uses it for
+       * "Also here is/are", but this listing does not call it: the string is
+       * a literal, at run400 46A7C7.  Measured on humbug.taf: run400 prints
+       * "On the triangular table is some swimming goggles, a watch, a musket
+       * and a china doll."  Scarier deliberately keeps number agreement
+       * instead ("... table are some swimming goggles, ..."): the literal is
+       * a display accident, not behaviour (deviation policy).
        */
       pf_buffer_string (filter,
                         lib_select_list_plurality (game, container, list,
@@ -782,13 +830,13 @@ lib_list_in_object_alternate (scr_gameref_t game,
  * List the objects in a given container object, run onto the end of a
  * surface listing already printed for the same object.
  *
- * The Runner's combined lister keeps a flag, var_9E, that it sets when it
- * has printed an "on" listing, and the container half then tests it before
- * anything else: at run400 loc_46A786 var_9E == 1 appends the literal
- * ", and inside is " and jumps straight to loc_46A7E0, the list loop the
+ * The Runner's combined lister keeps a flag (joined, here) that it sets
+ * when it has printed an "on" listing, and the container half then tests it
+ * before anything else: at run400 46A786 a set flag appends the literal
+ * ", and inside is " and jumps straight to the list loop the
  * "Inside <cont> is " branch also falls into.  So the joined form takes no
  * format choice, names no container, opens no new sentence, and gets the
- * turn's single closing '.' (appended once at loc_46A8C6) -- see
+ * turn's single closing '.' (appended once at the end of whatisinon) -- see
  * lib_list_in_on_object() for where the two halves meet.
  */
 static scr_bool
@@ -823,19 +871,19 @@ lib_list_in_object_joined (scr_gameref_t game, scr_int container)
  * The Runner has two distinct styles for listing a container's contents, and
  * run400.exe selects purely on the *number* of contained objects.  The
  * listing helper at 0006A418 in run400.txt counts the objects whose position
- * is 246 (in object) and whose parent is this container into var_98, then
+ * is 246 (in object) and whose parent is this container into count, then
  *
- *   0006A49E   if (var_98 == 1 && var_9E == 0)  ->  "<obj> is inside <cont>."
- *   0006A607   if (var_98 == 2 && var_9E == 0)  ->  "<a> and <b> are inside <cont>."
+ *   0006A49E   if (count == 1 && !joined)       ->  "<obj> is inside <cont>."
+ *   0006A607   if (count == 2 && !joined)       ->  "<a> and <b> are inside <cont>."
  *   0006A786   otherwise                        ->  "Inside <cont> is <list>."
  *
  * -- i.e. one or two objects get the alternate (postfixed) format and three or
  * more get the normal (prefixed) one, with no test on the container being
- * static or dynamic anywhere in the chain.  var_9E == 1 is the case where
- * an "on" listing for this same object has already gone out; that one is
+ * static or dynamic anywhere in the chain.  joined is the case where an
+ * "on" listing for this same object has already gone out; that one is
  * lib_list_in_object_joined(), and note that its guard comes FIRST, so a
  * surface listing forces the joined wording whatever the count -- the
- * count-1 and count-2 branches above are both guarded on var_9E == 0.
+ * count-1 and count-2 branches above are both guarded on !joined.
  *
  * Confirmed against the real Runner in the "It's Easter, Peeps!" walkthrough
  * transcript, which exercises all three: "An umbrella is inside the umbrella
@@ -854,7 +902,7 @@ lib_list_in_object_joined (scr_gameref_t game, scr_int container)
  * the whole of it, `"  Inside " & tense(prefix) & " " & short & " is " &
  * list` -- and neither binary contains " is inside " or " are inside "
  * anywhere; both strings first appear in run390.  Measured live under Wine
- * 2026-08-24 on mikes.taf (3.80) in run380, whose toilet holds exactly one
+ * 2026-08-24 on mikes.taf (3.8) in run380, whose toilet holds exactly one
  * object: `open toilet` answers "You open the toilet.  Inside the toilet is
  * a poop." where 3.9 and 4.0 would say "A poop is inside the toilet."  The
  * same replay shows it again on `look in mailbox`.
@@ -979,7 +1027,7 @@ lib_list_on_object_alternate (scr_gameref_t game, scr_int supporter,
  * three or more the normal (prefixed) one -- see lib_list_in_object() for
  * the run400 derivation.  SCARE used the postfixed format unconditionally
  * for surfaces.  Both halves are visible in the Professor Von Witt
- * walkthrough transcript (Runner 4.00, 2026-08-18): "On the shelves is a
+ * walkthrough transcript (Runner 4.0): "On the shelves is a
  * leg to stand on, a handy dandy extra hand, the sloppy jalopy, a portable
  * doorknob and a pollen popper upper." (5 objects) against "A container of
  * Reggie's Remedy Rust Resolvent is on the shelves." (1 object).
@@ -1027,14 +1075,13 @@ lib_list_on_object (scr_gameref_t game, scr_int supporter,
  * List both what is on an object and what is inside it.
  *
  * The Runner does the two together, in one helper -- whatisinon(), run400
- * Proc_19_26_46A950 @46A950 (mdlSpreadTheLoad.bas:21880), body 46A058-46A94A.
- * Its second argument is a mode: the "on" half is guarded on mode <> 0
- * (loc_46A083) and the "in" half on mode <> 1 (loc_46A41E), so mode 0 is
- * containers only, mode 1 surfaces only, and mode 2 both.  Of its four
- * callers, openclose() (@475852) and the room-description lister in
- * General.bas (@479919) pass 0, while inventory() (@45C2C8) and examines()
- * (@471928) pass 2 -- which is why `open desk` and `x desk` word the same
- * desk differently.
+ * Proc_19_26_46A950 (mdlSpreadTheLoad.bas:21880).  Its second argument is a
+ * mode: the "on" half is guarded on mode <> 0 and the "in" half on
+ * mode <> 1, so mode 0 is containers only, mode 1 surfaces only, and mode 2
+ * both.  Of its four callers, openclose() (@475852) and the room-description
+ * lister in General.bas (@479919) pass 0, while inventory() (@45C2C8) and
+ * examines() (@471928) pass 2 -- which is why `open desk` and `x desk` word
+ * the same desk differently.
  *
  * When both halves have something to say, the surface goes FIRST and the
  * container is run onto the end of the same sentence:
@@ -1044,21 +1091,20 @@ lib_list_on_object (scr_gameref_t game, scr_int supporter,
  *   inside is Gun Holster, Your Cell Phone, Neatly Wrapped Gift and Your
  *   Badge.
  *
- * measured live in run400 on The_X-Files_A_New_Beginning.taf (4.00),
+ * measured live in run400 on The_X-Files_A_New_Beginning.taf (4.0),
  * 2026-08-25, runner_probes/xfiles.run400.txt line 9.  SCARE had it the other
  * way and as two sentences, "Inside Your Desk is ...  Your Coffee Mug and The
  * Memo are on Your Desk."  The single closing '.' is appended once at the end
- * of whatisinon (loc_46A8C6, and only if anything was added at all), so the
- * "on" clause does not carry one when an "in" clause follows it.
+ * of whatisinon (and only if anything was added at all), so the "on" clause
+ * does not carry one when an "in" clause follows it.
  *
  * All of that is 3.9-and-later.  Before 3.9 there is no combined lister at
- * all: run380 has whatisin1() @4297AC and whatisin2() @42998C as separate
- * subs, and its examines() (@43D5EC) carries its own listing inline, an
- * either/or on one field -- run380 loc_43D07A prints "  Inside <obj>" when
- * that field is 1 and loc_43D0D0 prints "  On <obj>" when it is 2, never
- * both.  ", and inside is " is absent from run370.exe and run380.exe and
- * first appears in run390.exe (same boundary as " is inside " and " is on ",
- * counted in the binaries 2026-08-25), so pre-3.9 games keep the older
+ * all: run380 has whatisin1() and whatisin2() as separate subs, and its
+ * examines() (@43D5EC) carries its own listing inline, an either/or on one
+ * field -- it prints "  Inside <obj>" when that field is 1 and "  On <obj>"
+ * when it is 2, never both.  ", and inside is " is absent from run370.exe and
+ * run380.exe and first appears in run390.exe (same boundary as " is inside "
+ * and " is on ", counted in the binaries), so pre-3.9 games keep the older
  * container-then-surface pair of sentences here rather than take a wording
  * their Runner cannot produce.
  */
@@ -1149,13 +1195,13 @@ lib_list_object_state (scr_gameref_t game, scr_int object, scr_bool is_described
       /*
        * run400 examines() builds this line at 4718E1 from a literal " is "
        * and the raw state name, the same as the open/closed suffix above
-       * it; isare() is never consulted.  magicshow (4.00, Prefix "the",
+       * it; isare() is never consulted.  magicshow (4.0, Prefix "the",
        * Short "gates", states "Up|Down") measures `examine gates` as "The
        * gates are down." (runner_probes/magicshow.run400.b.txt T80) only
        * because the game's own ALRs rewrite "The gates is Down." -- an "are"
        * never matches them.  Only 4.0 gets here: the 3.7-3.9 schemas have no
-       * states (ZCurrentState), and run390's examine tail (44BE60-44BEEE) is
-       * just the open/closed line and whatisinon().
+       * states (ZCurrentState), and run390's examine tail is just the
+       * open/closed line and whatisinon().
        */
       pf_buffer_string (filter, " is ");
 
@@ -1180,31 +1226,12 @@ lib_list_object_state (scr_gameref_t game, scr_int object, scr_bool is_described
 
 
 /*
- * lib_examine_referencedob_400()
+ * lib_co_400_name_word()
  *
- * run400's examine resolver referencedob, Proc_19_88_457034, for a line
- * whose up-front noun score (Proc_21_58_463640, MemVar_4942F8) tied.  It
- * works from co() (Proc_21_39_46486C), whose first step picks ONE name word
- * per object: the Short if it is a whole word of the line (454CB0), else
- * the LAST alias that is (the alias loop 4642DE never breaks).  co() then
- * counts the objects that answer to exactly that word (4465C8) and are
- * present and seen (46435A-46437E).
- *
- *   pass A  456E2D  co(i, 3): marks every object whose word has ANY such
- *                   namesake -- the object itself need not be present.
- *                   None marked -> &HFF; one -> that object.
- *   pass B  456ED3  co(i, 0) over the marked: true when the word has
- *                   exactly one namesake (464853).  One true -> that
- *                   object.  More than one namesake takes the 454454/
- *                   "Which" arm at 464560, modelled for the question it
- *                   leaves by lib_co_400_raise_for_references(), not here.
- *   pass C  456F5D  over the marked, count the words of the Prefix found in
- *                   the line; a new best takes the object, an equal count
- *                   gives &HFE.  With no Prefix word anywhere the answer is
- *                   whatever pass B (or A) touched last.
- *
- * Returns the object, -1 for &HFF, -2 for &HFE, and -3 when pass B met a
- * crowded name and the answer is the unmodelled arm's.
+ * The first step of run400's co() (Proc_21_39_46486C): pick the ONE word an
+ * object answers to on this line.  That is the Short if it is a whole word
+ * of the line, else the LAST alias that is (the alias loop never breaks),
+ * else NULL.
  */
 const scr_char *
 lib_co_400_name_word (scr_gameref_t game, scr_int object, const scr_char *input)
@@ -1230,6 +1257,12 @@ lib_co_400_name_word (scr_gameref_t game, scr_int object, const scr_char *input)
   return word;
 }
 
+/*
+ * lib_co_400_present_namesakes()
+ *
+ * The count co() takes next: the objects that answer to exactly this word
+ * and are present and seen.
+ */
 scr_int
 lib_co_400_present_namesakes (scr_gameref_t game, const scr_char *word)
 {
@@ -1246,6 +1279,35 @@ lib_co_400_present_namesakes (scr_gameref_t game, const scr_char *word)
   return count;
 }
 
+/*
+ * lib_examine_referencedob_ex_400()
+ * lib_examine_referencedob_400()
+ *
+ * run400's examine resolver referencedob, Proc_19_88_457034, for a line
+ * whose up-front noun score (Proc_21_58_463640, MemVar_4942F8) tied.  It
+ * works from co() (Proc_21_39_46486C), which picks one name word per object
+ * (lib_co_400_name_word()) and counts that word's present, seen namesakes
+ * (lib_co_400_present_namesakes()).
+ *
+ *   pass A  456E2D  co(i, 3): marks every object whose word has ANY such
+ *                   namesake -- the object itself need not be present.
+ *                   None marked -> &HFF; one -> that object.
+ *   pass B  456ED3  co(i, 0) over the marked: true when the word has
+ *                   exactly one namesake (464853).  One true -> that
+ *                   object.  More than one namesake takes the 454454/
+ *                   "Which" arm at 464560, modelled for the question it
+ *                   leaves by lib_co_400_raise_for_references(), not here.
+ *   pass C  456F5D  over the marked, count the words of the Prefix found in
+ *                   the line; a new best takes the object, an equal count
+ *                   gives &HFE.  With no Prefix word anywhere the answer is
+ *                   whatever pass B (or A) touched last.
+ *
+ * Returns the object, -1 for &HFF, -2 for &HFE, and -3 when pass B met a
+ * crowded name and the answer is the unmodelled arm's.  With crowd_contest,
+ * pass B instead counts a crowded name as true when the object wins
+ * lib_co_400_prefix_contest(), and -3 does not arise.
+ * lib_examine_referencedob_400() is the form without crowd_contest.
+ */
 scr_int
 lib_examine_referencedob_ex_400 (scr_gameref_t game, const scr_char *input,
                                  scr_bool crowd_contest)
@@ -1334,16 +1396,16 @@ lib_examine_referencedob_400 (scr_gameref_t game, const scr_char *input)
  *
  * Where referencedob's answer to a tied line is an object that is not
  * here, examines speaks for THAT object (471933): "<player> can't see
- * <the X> from here!" when it has been seen (471958), else "<player> can't
- * see that." (471995).  Neither sets the not-a-turn flag.  Measured on
- * warlord (runner_probes/warlord.run400.txt): in the Great Hall "tapestries"
- * (90, alias "tapestry") and "third tapestry" (91, alias "tapestry three")
- * both score 1 on `x tapestry three`; pass A marks 90, 91 and the unseen
+ * <the X> from here!" when it has been seen, else "<player> can't see
+ * that."  Neither sets the not-a-turn flag.  Measured on warlord
+ * (runner_probes/warlord.run400.txt): in the Great Hall "tapestries" (90,
+ * alias "tapestry") and "third tapestry" (91, alias "tapestry three") both
+ * score 1 on `x tapestry three`; pass A marks 90, 91 and the unseen
  * tapestries of room 35 (286), whose word "tapestry" has the present 90 as
  * its namesake; pass B is true for all three; no "the" is typed, so pass C
  * leaves 286 and the Runner answers "You can't see that." (and the same for
- * `x tapestry six`).  Only the absent answer is taken over; the others
- * stay with the ordinary path.
+ * `x tapestry six`).  Only the absent answer is taken over; the others stay
+ * with the ordinary path.
  */
 static scr_bool
 lib_examine_tied_absent_400 (scr_gameref_t game)
@@ -1383,8 +1445,8 @@ lib_examine_tied_absent_400 (scr_gameref_t game)
  *
  * The present character an object examine line also names, or -1.  run400
  * calls characters() from the generaltasks tail (48B56E), after examines()
- * has already described the object, and its per-NPC examine arm (47FE19-
- * 480157: x/ex/examine/look/exam, no task ran, NPC in the room) assigns the
+ * has already described the object, and its per-NPC examine arm
+ * (x/ex/examine/look/exam, no task ran, NPC in the room) assigns the
  * description to the message buffer without testing it -- so the object's
  * answer is thrown away.  The NPC gate is 45E99C mode 1, Name or any alias as
  * a word and no present namesake character; each passing NPC overwrites the
@@ -1393,29 +1455,27 @@ lib_examine_tied_absent_400 (scr_gameref_t game)
  * MemVar_494281, and marking it administrative moves Lair's ambient room text
  * from T180 on out of step with runner_probes/lair.run400.a.txt.
  *
- * Measured on Lair of the Vampire (4.00): in the Ancient Feasthall, static
+ * Measured on Lair of the Vampire (4.0): in the Ancient Feasthall, static
  * object "skeleton" and Havelock's skeleton (alias skeleton) share the room,
  * and `x skeleton` answers only "Havelock's skeletal remains sit on the
- * throne..." (runner_probes/lair.run400.b.txt:1573,
- * runner_probes/lair.run400.c.txt:1574).
+ * throne..." (runner_probes/lair.run400.b.txt:1573).
  *
- * run390 has the same arm (characters() 459E2A-459FD9, called at 460675
- * below therest), gated only on c(Name) or c(Alias) at 4592B8, no task ran
- * (468198) and the NPC in the player's room, and it too assigns the
- * description untested.  Measured on Lair of the CyberCow (3.90,
- * runner_transcripts/cybercow_win.txt T72): object 4 "the fairy" and
- * Vluurinik (alias fairy) share the meadow, and `x fairy` answers only "The
- * fairy darts in circles around the warm bowl of CyberCow milk.", the
- * character's AltText.
+ * run390 has the same arm (characters(), called at 460675 below therest),
+ * gated only on c(Name) or c(Alias), no task ran and the NPC in the
+ * player's room, and it too assigns the description untested.  Measured
+ * on Lair of the CyberCow (3.9, runner_transcripts/cybercow_win.txt T72):
+ * object 4 "the fairy" and Vluurinik (alias fairy) share the meadow, and
+ * `x fairy` answers only "The fairy darts in circles around the warm bowl of
+ * CyberCow milk.", the character's AltText.
  *
- * run380's arm (440D0B-440D88) and run370's (438E23) are the same again:
- * c("x") Or c("ex") Or c("examine") Or c("look at") Or c("exam") [And no
- * task ran, 3.8 only, by VB precedence], the NPC named by Name or first
- * Alias (lib_npc_named_in_line()) and in the room, the description or
- * "There's nothing special about <Name>." assigned outright, then charinv.
- * Measured on p37/p38NPCAMB (make_3738_npcambprobe.py): `x dave with stone`
- * answers "A quiet man." (run370x runner_probes/npcamb.run370.with.rtf,
- * run380x runner_probes/npcamb.run380.with.rtf), not the stone's description.
+ * run380's arm (440D0B) and run370's are the same again: c("x") Or c("ex") Or
+ * c("examine") Or c("look at") Or c("exam") [And no task ran, 3.8 only, by VB
+ * precedence], the NPC named by Name or first Alias (lib_npc_named_in_line())
+ * and in the room, the description or "There's nothing special about <Name>."
+ * assigned outright, then charinv.  Measured on p37/p38NPCAMB
+ * (make_3738_npcambprobe.py): `x dave with stone` answers "A quiet man."
+ * (run370x/run380x runner_probes/npcamb.run3[78]0.with.rtf), not the stone's
+ * description.
  */
 scr_int
 lib_examine_npc_overwrite_400 (scr_gameref_t game)
@@ -1429,13 +1489,12 @@ lib_examine_npc_overwrite_400 (scr_gameref_t game)
     return -1;
 
   /*
-   * Deliberate deviation (2026-09-30): a character's name inside a longer
+   * Deliberate deviation: a character's name inside a longer
    * object name on the line does not count (lib_mask_long_names()).  The
    * Runners' c() finds "dog" in `x dog collar`, so the collar's examine
    * printed the dog, and `take dog collar` took the collar while saying "I
-   * don't think dog would appreciate being handled." (bec2def78, 0b6154aa4,
-   * 9b5cdae73).  A character whose name IS an object's (Lair's skeleton)
-   * still overwrites.
+   * don't think dog would appreciate being handled."  A character whose name
+   * IS an object's (Lair's skeleton) still overwrites.
    */
   const std::string masked = lib_mask_long_names (game, input, TRUE);
 
@@ -1489,12 +1548,12 @@ lib_examine_tail (scr_gameref_t game, scr_int object, scr_bool is_described)
       {
         /*
          * Openness state, indexed by openness from OBJ_OPEN.  Always " is ":
-         * no Runner inflects this one.  run370, run380, run390 and run400
-         * each carry only " is open." / " is closed." / " is locked."
-         * (run400 examine at 47395C and 4717F5/47183E/471887), with no
-         * " are " variant anywhere in their string pools, and man_overboard
-         * (4.00) measures `x drawers` as "The set of drawers is closed."
-         * where we used to select "are" from the "some"-ish prefix.
+         * no Runner inflects this one.  run370, run380, run390 and run400 each
+         * carry only " is open." / " is closed." / " is locked."  (run400
+         * examines at 4717F5, get_piece at 47395C), with no " are " variant
+         * anywhere in their string pools, and man_overboard (4.0) measures
+         * `x drawers` as "The set of drawers is closed."  although its prefix
+         * is "some"-ish.
          */
         static const scr_char *const states[] = {
           " is open.", " is closed.", " is locked."
@@ -1503,13 +1562,12 @@ lib_examine_tail (scr_gameref_t game, scr_int object, scr_bool is_described)
         /*
          * How the object is named here splits at 4.0.  run370, run380 and
          * run390 all build the line as `"  The " & Name & " is open."` from
-         * the bare Short name -- run370 loc_435629/loc_435659, run380
-         * loc_43CF4A/loc_43CF7A, run390 loc_44BE84/loc_44BEB4 -- so a
-         * multi-word prefix vanishes: gamma.taf (3.90, Prefix "a mini",
-         * Short "fridge") measures `x mini fridge` as "The fridge is
-         * open." (runner_transcripts/gamma.txt).  run400 instead composes the
+         * the bare Short name (run390 44BE84), so a multi-word prefix
+         * vanishes: gamma.taf (3.9, Prefix "a mini", Short "fridge")
+         * measures `x mini fridge` as "The fridge is open."
+         * (runner_transcripts/gamma.txt).  run400 instead composes the
          * name with the tensed prefix (Proc_21_31_448710 at 4717D1): man
-         * overboard.taf (4.00, Prefix "the set of", Short "drawers")
+         * overboard.taf (4.0, Prefix "the set of", Short "drawers")
          * measures `x drawers` as "The set of drawers is closed."
          */
         lib_new_clause (game, is_described);
@@ -1557,15 +1615,15 @@ lib_examine_tail (scr_gameref_t game, scr_int object, scr_bool is_described)
  * counts the objects co(obj, 0) accepts -- Short or Alias in the line,
  * then the present-and-seen namesake count, then the last word of the
  * object's own Prefix (lib_co_pre400).  None is -1 ("Nothing special.");
- * one is the answer.  MORE than one runs a second pass (42DF60-42DFD4)
- * that is nothing like the first: it walks EVERY object in the game,
- * present or not, seen or not, and keeps the ones whose Short or FIRST
- * Alias is exactly lastword(line) -- the last space-delimited word typed.
- * Exactly one survivor is the answer; anything else returns &HFE = -2 and
- * examines() prints "Please examine one object at a time." (44BFA9), the
- * line a bare `x all` gets.
+ * one is the answer.  MORE than one runs a second pass that is nothing
+ * like the first: it walks EVERY object in the game, present or not, seen or
+ * not, and keeps the ones whose Short or FIRST Alias is exactly
+ * lastword(line) -- the last space-delimited word typed.  Exactly one
+ * survivor is the answer; anything else returns &HFE = -2 and examines()
+ * prints "Please examine one object at a time." (44BFA9), the line a bare
+ * `x all` gets.
  *
- * MEASURED p39PFX2 (run390x, runner_probes/pfx2.run390.txt, 2026-09-20): three
+ * MEASURED p39PFX2 (run390x, runner_probes/pfx2.run390.txt): three
  * trees, all Short "tree", Prefixed "a big red", "a red" and "the red".  `x
  * red tree`, `x a red tree`, `x the red tree` and `x big red tree` all type
  * the last Prefix word "red" that all three share, so pass one keeps
@@ -1641,8 +1699,12 @@ lib_cmd_examine_object (scr_gameref_t game)
   if (lib_examine_tied_absent_400 (game))
     return TRUE;
 
+  /* 4.0 reads the up-front noun score's present winner back first. */
+  object = lib_examine_present_winner_400 (game);
+
   /* 3.9's referencedob() settles a crowd of co()-true objects itself. */
-  object = lib_examine_crowded_390 (game);
+  if (object == -1)
+    object = lib_examine_crowded_390 (game);
   if (object == -2)
     return lib_print_message (game,
                               "Please examine one object at a time.\n");
@@ -1662,7 +1724,7 @@ lib_cmd_examine_object (scr_gameref_t game)
    */
   gs_set_object_seen (game, object, TRUE);
 
-  /* 4.0 names a present object to the antecedent setter (471749-471789). */
+  /* 4.0 names a present object to the antecedent setter (471749). */
   if (lib_is_version_400 (game)
       && (obj_indirectly_in_room (game, object, gs_playerroom (game))
           || obj_indirectly_held_by_player (game, object)))
@@ -1672,11 +1734,11 @@ lib_cmd_examine_object (scr_gameref_t game)
   npc = lib_examine_npc_overwrite_400 (game);
   if (npc != -1)
     {
-      scr_bool was_admin = game->is_admin;
+      scr_bool was_admin = game->turn.is_admin;
 
       gs_set_npc_seen (game, npc, TRUE);
       lib_describe_npc (game, npc);
-      game->is_admin = was_admin;
+      game->turn.is_admin = was_admin;
       return TRUE;
     }
 
@@ -1690,19 +1752,19 @@ lib_cmd_examine_object (scr_gameref_t game)
    * The darkness fork's other half.  Pre-4.0 consults its darkness byte the
    * moment the object has been matched and before a single word of
    * description is composed: run390 44BC37 substitutes "<player> can't see "
-   * & <the object> & " very clearly." for the message and jumps (44BC7E) to
-   * 44BE60 -- which is *not* the end of the answer but the openness state
-   * lines, so what the jump skips is only the description, its alternate and
-   * the associated resource.  run380 43CD95 and run370 435481 do the same at
-   * the same point, and the same byte is read before examines() has even
-   * looked at whether the verb was `read` (44BC81), so a readable object in
-   * the dark answers this too; see lib_cmd_read_object().
+   * & <the object> & " very clearly." for the message and jumps to 44BE60 --
+   * which is *not* the end of the answer but the openness state lines, so
+   * what the jump skips is only the description, its alternate and the
+   * associated resource.  run380 and run370 do the same at the same point,
+   * and the same byte is read before examines() has even looked at whether
+   * the verb was `read`, so a readable object in the dark answers this too;
+   * see lib_cmd_read_object().
    *
    * It applies to a carried object as much as a scenery one -- the byte is
    * computed from the room alone, and the Runner's object loop never
    * separates the two.
    *
-   * Measured on p39DARK.taf (3.90), runner_probes/dark.run390.seen.txt: with
+   * Measured on p39DARK.taf (3.9), runner_probes/dark.run390.seen.txt: with
    * the box already seen, `x box` in the dark answers "You can't see the box
    * very clearly.  The box is open.  A coin is inside the box.", and `x lamp`
    * -- held -- answers "You can't see the lamp very clearly."
@@ -1764,15 +1826,14 @@ lib_cmd_examine_object (scr_gameref_t game)
    * 3.7, 3.8 and 3.9 an object whose Description is empty leaves the Runner's
    * message string empty, and the empty string falls all the way through to
    * the same tail that answers an unmatched noun: a flat "Nothing special."
-   * (run370 435BF4, run380 43D545, run390 44C3DC, all reached from `If msg =
-   * vbNullString`).  4.0 fills the message in here instead, one branch before
-   * that tail can see it, with "<player> see nothing special about <obj>."
-   * (run400 471A08/471A1C).  Beware the near-miss: "There's nothing special
-   * about <obj>." (run380 440D4C, run390 459EC1, run400 480041) is the
+   * (run390 44C3DC, reached from `If msg = vbNullString`).  4.0 fills the
+   * message in here instead, one branch before that tail can see it, with
+   * "<player> see nothing special about <obj>." (run400 471A08).  Beware the
+   * near-miss: "There's nothing special about <obj>." (run400 480041) is the
    * CHARACTER default, not this one; Scarier already prints it, at
    * lib_cmd_examine_npc.
    *
-   * Measured on p39EXAM.taf (3.90), runner_probes/exam.run390.txt: `x stone`
+   * Measured on p39EXAM.taf (3.9), runner_probes/exam.run390.txt: `x stone`
    * -- the stone is in the room, has an empty Description, and answers
    * "Nothing special."  runner_probes/exam.run390.held.txt repeats it with the
    * stone held, and answers the same, so being carried makes no difference.
@@ -1798,4 +1859,336 @@ lib_cmd_examine_object (scr_gameref_t game)
 
   pf_buffer_answer_break (filter);
   return TRUE;
+}
+
+
+/*
+ * lib_npc_examine_absent()
+ *
+ * `x <character who is somewhere else>`.  Every Runner rewrites the examine
+ * tail below when the line names a character who is not in the room:
+ *
+ *     run370 438F2F-438F4F ... run400 4801AD-48021F
+ *
+ * All four are the same clause, inside characters()' examine branch, and all
+ * four compose the same sentence: person word, " cannot see ", the record's
+ * Name verbatim, " from here.".  It is a REWRITE, not a handler -- it fires
+ * only when the message the turn has produced so far is the examine tail
+ * itself, which is what makes this the right place for it:
+ *
+ *     pre-4.0   msg contains "<player> can't see that", or msg is exactly
+ *               "Nothing special."
+ *     4.0       msg contains "<player> can't see that", or msg is exactly
+ *               "<player> see no such thing."  AND the character's seen
+ *               byte is 1.
+ *
+ * That seen byte is the whole 3.9-vs-4.0 difference, and it is already
+ * measured from the other side: run400 on EV16 answers `x dave`, with Dave
+ * alive in the next room and never yet met, "You see no such thing." rather
+ * than naming him (runner_probes/ev16.run400.txt; see lib_cmd_examine_other
+ * below).  Pre-4.0 has no such test -- probe 1 on ALEXIS.TAF under run390
+ * named an unseen character back at the player
+ * (runner_probes/alexis.run390.absent_npc.txt).  The 4.0 half is measured too:
+ * cobl (4.0), `x cat` for the ginger cat seen in an earlier room, "You cannot
+ * see the ginger cat from here."
+ *
+ * The reference test is the shared Name-or-first-Alias one, run390 4592B8
+ * (`c(LCase(Name)) Or c(LCase(Alias))`); see lib_npc_named_in_line().
+ *
+ * The one suppression: if the line names the character by its ALIAS and also
+ * names any object, the rewrite is skipped (run390 459FFE sets the clash
+ * flag from co(); run400 does the same through Proc_21_39_46486C).  A
+ * character named only by its Name never runs that scan, so `x goblin`
+ * against an object called "goblin" still speaks.  The first named absent
+ * character wins: the rewrite destroys the message the guard tests, so no
+ * later character in the loop can pass it.
+ *
+ * The guard is an EQUALITY against the engine's own default, so where the game
+ * ALRs that default the answer depends on WHEN the Runner applies its ALRs --
+ * before characters() the equality would miss and the ALR'd tail would stand.
+ * Scarier applies them in the output filter, after this hook, as the Runner
+ * does:
+ *
+ *   run400, p4ALRNPC.taf (runner_probes/alrnpc.run400.txt), ALRs "You see no
+ *     such thing." -> "... , or else it is unimportant." and "cannot see" ->
+ *     "cannot spot".  `x dave` from the next room, Dave seen: "You cannot spot
+ *     Dave from here."  The rewrite fired against the UNALR'd default, and its
+ *     own output was then ALR'd -- so the ALR pass runs strictly after this
+ *     one.  `x erin` (alive, never seen) gives the ALR'd tail on the same
+ *     path, which is the seen gate and the ALR wiring in one control.
+ *   run390, p39ALRNPC.taf (runner_probes/alrnpc.run390.txt), the same world
+ *     with "Nothing special." ALR'd instead: `x dave` and `x erin` both
+ *     answer "You cannot spot <Name> from here." -- the pre-4.0 arm, with
+ *     no seen gate.
+ *
+ * Both transcripts are identical to scarier's on every turn.  That settles
+ * the_pk_girl t~3067, whose golden line this rule moved.
+ */
+static scr_bool
+lib_npc_examine_absent (scr_gameref_t game)
+{
+  const scr_prop_setref_t bundle = gs_get_bundle (game);
+  const scr_filterref_t filter = gs_get_filter (game);
+  const scr_char *input = run_get_dispatch_input ();
+  scr_int npc;
+
+  if (!input)
+    return FALSE;
+
+  GS_FOR_EACH_NPC (game, npc)
+    {
+      const scr_char *name, *alias;
+      scr_vartype_t vt_key[4];
+
+      if (!lib_npc_named_in_line (game, npc, input))
+        continue;
+
+      /* Present: the examine branch above prints the description instead. */
+      if (npc_in_room (game, npc, gs_playerroom (game)))
+        return FALSE;
+
+      if (lib_is_version_400 (game) && !gs_npc_seen (game, npc))
+        continue;
+
+      alias = lib_first_alias (bundle, vt_key, "NPCs", npc);
+      if (alias && alias[0] != NUL && lib_input_contains_word (input, alias))
+        {
+          scr_int object;
+          scr_bool clash = FALSE;
+
+          GS_FOR_EACH_OBJECT (game, object)
+            {
+              if (lib_verb_object_name_score (game, object, input) > 0)
+                {
+                  clash = TRUE;
+                  break;
+                }
+            }
+          if (clash)
+            continue;
+        }
+
+      name = prop_get_indexed_string (bundle, "NPCs", npc, "Name");
+      if (!name || name[0] == NUL)
+        continue;
+
+      pf_buffer_string (filter,
+                        lib_select_response (game, "You cannot see ",
+                                             "I cannot see ",
+                                             "%player% cannot see "));
+      pf_buffer_string (filter, name);
+      pf_buffer_string (filter, " from here.\n");
+      return TRUE;
+    }
+
+  return FALSE;
+}
+
+
+/*
+ * lib_cmd_examine_other()
+ *
+ * `x <noun>` where the noun names nothing at all, in a lit room.  This is the
+ * last line of the Runner's examines(), and 4.0 rewrote it.  Pre-4.0 answers
+ * the flat, person-free "Nothing special." (run370 435BF4, readable verbatim
+ * in run370's Form1.frm; the string is in all four exes).  4.0 answers
+ * "<player> see no such thing." (run400 471EF6) -- and that string is in
+ * run400.exe alone, which is what dates the change.
+ *
+ * Both halves are measured, not argued:
+ *   run390, Merry_Murders.taf (3.9),
+ *     runner_probes/merry_murders.run390.pocket.txt line 38 --
+ *     `x pocket` in the lit Plaza, no `pocket` object in the game:
+ *     "Nothing special."
+ *   run400, The_X-Files_A_New_Beginning.taf (4.0),
+ *     runner_probes/xfiles.run400.txt lines 187 and 233 -- `look at camera`
+ *     and `look up byers`, neither noun an object: "You see no such
+ *     thing."
+ *
+ * 4.0 also sets a flag beside this message (MemVar_494281 at 471F02), and
+ * that is the whole of 4.0's tail.  Pre-4.0 puts a darkness fork in front of
+ * it instead: run390 44BFDE tests the message it has built so far against ""
+ * and "Nothing special.", and when the room is dark (lib_room_is_dark())
+ * answers "<player> can't see that very clearly.", or, for `x me`,
+ * "<player> can just make out that <you> <are> okay.".  Note that
+ * lib_npc_examine_absent()'s guard already anticipates this: it fires on a
+ * message that CONTAINS "<player> can't see that", which is the darkness
+ * tail as well as the lit one, so the absent-character rewrite still wins
+ * in a dark room -- and that is why it is tested first here.
+ *
+ * The object-found-but-silent default one branch up is the SAME 4.0 rewrite
+ * and splits the same way, but it is decompile-only so far -- see
+ * lib_cmd_examine_object() and harness/make_39_examprobe.py.
+ */
+scr_bool
+lib_cmd_examine_other (scr_gameref_t game)
+{
+  /*
+   * A bare `x`, `ex` or `examine` never reaches this tail from 3.9 on:
+   * examines exits on it at once (run400 471340, run390 44B758).  run400's
+   * line falls to the game's DontUnderstand -- see lib_cmd_look_typed() --
+   * but run390's therest() still has checkverb arms for all three, so 3.9
+   * answers "Examine what?".  `exam` is not in that test and still comes
+   * here: "Nothing special." at 3.9, "You see no such thing." at 4.0.
+   * 3.7/3.8 have no exit, and every bare form is "Nothing special.".
+   * p38EXAM/p39EXAM/p4EXAM under run380x/run390x/run400x,
+   * runner_probes/exam.run*.abbr.*.
+   */
+  if (lib_is_version_390 (game) || lib_is_version_400 (game))
+    {
+      const scr_char *input = run_get_dispatch_input ();
+
+      if (input)
+        {
+          scr_owned_string owned_line (scr_strdup (input));
+          scr_char *const line = owned_line.get ();
+          scr_bool is_bare;
+
+          scr_normalize_string (line);
+          is_bare = scr_strcasecmp (line, "x") == 0
+                    || scr_strcasecmp (line, "ex") == 0
+                    || scr_strcasecmp (line, "examine") == 0;
+          if (is_bare)
+            {
+              if (!lib_is_version_390 (game))
+                return FALSE;
+              lib_what (game, "Examine");
+              /* `x` / `stone` examines the stone
+               * (runner_probes/task.run390.pfx.txt); lib_what() stores only
+               * a line equal to its verb. */
+              lib_battle_who_pending = input;
+              return TRUE;
+            }
+        }
+    }
+
+  /*
+   * Pre-4.0 characters() names a character by c(Name) Or c(Alias) anywhere
+   * in the line, and its examine arm assigns the description of every one
+   * that is here -- so `x big dave` and `x tall guard`, which SCARE's
+   * %character% pattern does not bind, describe Dave and (of Ann and Bob,
+   * both guards) Bob, the LAST present (run370x/run380x/run390x,
+   * runner_probes/npcamb.{run370.b.rtf,run380.rtf,run390.txt}; run380
+   * 440D0B).
+   */
+  if (!lib_is_version_400 (game))
+    {
+      const scr_char *input = run_get_dispatch_input ();
+      scr_int npc, found = -1;
+
+      for (npc = 0; input && npc < gs_npc_count (game); npc++)
+        {
+          if (npc_in_room (game, npc, gs_playerroom (game))
+              && lib_npc_named_in_line (game, npc, input))
+            found = npc;
+        }
+      if (found != -1)
+        {
+          GS_FOR_EACH_NPC (game, npc)
+            game->refs.npcs[npc] = (npc == found);
+          if (lib_cmd_examine_npc (game))
+            return TRUE;
+        }
+    }
+
+  /*
+   * characters() rewrites this tail when the noun names an absent character;
+   * see lib_npc_examine_absent().  4.0 has already set its not-a-turn flag
+   * by then (471F02, before characters() runs), so the named answer is an
+   * admin turn there and an ordinary one pre-4.0, exactly like the tail it
+   * replaces.
+   */
+  if (lib_npc_examine_absent (game))
+    {
+      if (lib_is_version_400 (game))
+        game->turn.is_admin = TRUE;
+      return TRUE;
+    }
+
+  if (!lib_is_version_400 (game))
+    {
+      if (lib_room_is_dark (game, gs_playerroom (game)))
+        return lib_print_response_message (game,
+                                  "You can't see that very clearly.\n",
+                                  "I can't see that very clearly.\n",
+                                  "%player% can't see that very clearly.\n");
+      return lib_print_message (game, "Nothing special.\n");
+    }
+
+  /*
+   * The 4.0 text is the player's name and the literal " see no such thing."
+   * (471EF6), so a named third-person player gets "Player see no such
+   * thing." -- measured run400, EV16, runner_probes/ev16.run400.txt (`x dave`,
+   * Dave being in the next room).  The same probe reads `turns` unchanged
+   * across it: the flag 4.0 sets beside the message (MemVar_494281 at 471F02,
+   * and at 4801E1 for the character handler's copy) is the Runner's "not a
+   * turn" flag, the one `turns` and `score` set.
+   */
+  lib_print_response_message (game,
+                              "You see no such thing.\n",
+                              "I see no such thing.\n",
+                              "%player% see no such thing.\n");
+  game->turn.is_admin = TRUE;
+  return TRUE;
+}
+
+/*
+ * lib_cmd_look_anywhere_pre_400()
+ *
+ * Pre-4.0 therest() tests c("look") over the WHOLE line, not just its first
+ * word, and answers the flat "Nothing special." (run370 43D906 ... run390
+ * 45DB9F):
+ *
+ *     If c("look") Or (input = "l" And msg = "") Then msg = "Nothing special."
+ *
+ * The typed-look list (lib_cmd_look_typed()) has already taken an exact
+ * `look`, so what reaches here is a line with "look" somewhere else in it:
+ * `look,`, `zzz, look` and `, look` (run380x
+ * runner_probes/ask.run380.split2.rtf) and, at 3.9 only, `look.` (run390x
+ * runner_probes/ask.run390.split.txt) -- 3.9's c() also ends a word at a
+ * period, 3.8 answers `look.` with the game's DontUnderstand.
+ *
+ * c() is the Runner's (run_c_word_pre400()), not uip_contains_words().
+ * The row sits above the object and character catch-alls, which the Runner
+ * reaches only on an empty message.  A line whose look is overwritten by a
+ * later arm (`look, push lamp`) never gets here: run_therest_pre400() has
+ * answered it with that arm.
+ */
+scr_bool
+lib_cmd_look_anywhere_pre_400 (scr_gameref_t game)
+{
+  const scr_int version = prop_get_taf_version (gs_get_bundle (game));
+  const scr_char *const input = run_get_dispatch_input ();
+
+  if (version >= TAF_VERSION_400 || !input
+      || run_c_word_pre400 (version, input, "look") < 0)
+    return FALSE;
+
+  return lib_print_message (game, "Nothing special.\n");
+}
+
+/*
+ * lib_cmd_examine_absent()
+ *
+ * `x <object seen elsewhere>`, once every other examine row has declined it.
+ * 4.0 only; see lib_absent_seen_object() for the measurement.
+ */
+scr_bool
+lib_cmd_examine_absent (scr_gameref_t game)
+{
+  /* Pre-3.9; see lib_absent_named_object_pre_390(). */
+  const scr_int object = lib_absent_named_object_pre_390 (game);
+
+  if (object != -1)
+    {
+      if (gs_object_seen (game, object))
+        return lib_cant_see_named_pre_390 (game, object, FALSE,
+                                           " from here!\n");
+      return lib_print_response_message (game,
+                                         "You can't see that.\n",
+                                         "I can't see that.\n",
+                                         "%player% can't see that.\n");
+    }
+
+  return lib_cant_see_absent_object (game, " from here!\n", TRUE);
 }

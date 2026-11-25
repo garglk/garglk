@@ -476,7 +476,7 @@ static const scr_patch_edit_t PATCH_LIQID[] = {
  * author did not do was tick Repeatable, so the second east is claimed by
  * the pre-4.0 spent-task rule, prints the blank line, and the game walls at
  * 70 of 100 in the backyard with Jon awake and nowhere to take him
- * (RUNNER-MEASURED 2026-08-31, run390 runner_probes/vampire.run390.txt).
+ * (RUNNER-MEASURED in run390 runner_probes/vampire.run390.txt).
  * Ticking the box is what the CompleteText already claims: the RepeatText
  * is whitespace, so the task re-runs forwards and says its line again.
  */
@@ -500,7 +500,7 @@ static const scr_patch_edit_t PATCH_VAMPIRE[] = {
  * slot is `n` itself, so the unlock consumes the walk: the spent task then
  * claims every later `n` in the room ("I have already done that.") and the
  * Archives, the Hidden Room and the roof finale are unreachable at 120 of
- * 135 (RUNNER-MEASURED 2026-08-31, run390
+ * 135 (RUNNER-MEASURED in run390
  * runner_probes/merry_murders.run390.txt).  The slot is redundant -- the
  * same task is reached by `open door`, `unlock door` and four `use key`
  * spellings, all of them in the list already -- so it is renamed to a
@@ -707,15 +707,16 @@ static const scr_patch_edit_t PATCH_GOLDILOCKS_BE[] = {
  * pair the author clearly meant as "either spelling will do": synonym 3
  * rewrites `dryer` to `drier`, synonym 4 rewrites `drier` back to `dryer`.
  * The Runner applies the table as a sequence, each rule rewriting the
- * previous rule's output -- see pf_filter_input() in scprintf_input.cpp, and the
- * Vardock Bates transcript that pins the order -- so both spellings arrive at
- * the tasks as `dryer`, and task 48's pattern `turn* drier` is out of reach of
- * any ordinary line, in run390 exactly as here.  "turn on drier" falls instead
- * to task 56 eight slots along, the same room and the same restriction and the
- * same first action but no ChangeScore, and answers "You set the dryer for an
- * appropriate period of time and turn it on." -- measured, score unmoved.
- * The only line that does reach 48 is one built to defeat the rewrite's
- * whole-word gate, `turn driers drier`, and taking it is a trap: see below.
+ * previous rule's output -- see pf_filter_input() in scprintf_input.cpp, and
+ * the Vardock Bates transcript that pins the order -- so both spellings arrive
+ * at the tasks as `dryer`, and task 48's pattern `turn* drier` is out of reach
+ * of any ordinary line, in run390 exactly as here.  "turn on drier" falls
+ * instead to task 56 eight slots along, the same room and the same restriction
+ * and the same first action but no ChangeScore, and answers "You set the dryer
+ * for an appropriate period of time and turn it on." -- measured, score
+ * unmoved.  The only line that does reach 48 is one built to defeat the
+ * rewrite's whole-word gate, `turn driers drier`, and taking it is a trap: see
+ * below.
  *
  * So the pattern is re-spelt to what the rewrite actually produces, which is
  * also what 56 already accepts (`turn* dr*`); 48 is the lower-numbered and
@@ -728,15 +729,9 @@ static const scr_patch_edit_t PATCH_GOLDILOCKS_BE[] = {
  * goes for a point.  Fixed, the task does what its twin does, and what its
  * own "You turn on the drier." says it does.
  *
- * That is one point and not three, because the other two are beyond any
- * route.  `drink coffee` is written four times over, once per cup and once
- * per state of `drink oil` (task 7, the game's only penalty; a task-state
- * restriction names it 8, one-based).  Tasks 41 (yellow cup, oil not drunk)
- * and 42 (red cup, oil not drunk) would be the pair to have, but the red cup
- * stays hidden until the Captain trade in task 36, and that wants the oil
- * drunk -- which shuts 42 and opens 39, whose point the -1 then pays for.  At
- * most two of the three ever score, and never for more than one point net.
- * 39 of 41 is the ceiling; faithful, the route reaches 38.
+ * That is one point and not three: the other two are beyond any route (see
+ * test/adrift4/notes/Melbourne_Beach_walkthrough.md).  39 of 41 is the
+ * ceiling; faithful, the route reaches 38.
  */
 static const scr_patch_edit_t PATCH_MELBOURNE_BEACH[] = {
   PATCH_VERIFY ("Synonyms/3/Original", "dryer"),
@@ -772,7 +767,7 @@ static const scr_patch_edit_t PATCH_MELBOURNE_BEACH[] = {
  * `vzyat' stakan` now arrives as `get stakan` and finds the task written for
  * it.  Nothing else changes: the restrictions, actions and texts are the
  * author's, including the sever/yug tasks' gates (Rozhe's protest, the lab
- * guard's badge check) that the library walk used to skip.
+ * guard's badge check) that a library walk would skip.
  */
 static const scr_patch_edit_t PATCH_CRIME_SCENE_2[] = {
   PATCH_VERIFY ("Synonyms/5/Original", "\xfe\xe3"),
@@ -887,7 +882,7 @@ static const scr_patch_edit_t PATCH_FUGITIVE[] = {
  * What 53 is missing is the complement of the gate 54 adds -- the case it was
  * written for is riding WITHOUT the cap -- so it gains it: object restriction
  * Var1 = 14 again, Var2 = 7, the negated "held by the player" (6..11 are the
- * negated forms, and the runner evaluates them for a named object; see
+ * negated forms, and the Runner evaluates them for a named object; see
  * restr_pass_task_object_location()).  RestrMask goes from "#" to "#A#" with
  * it, because a mask that names one restriction leaves any others
  * unevaluated.  Nothing else moves: 52, 53 and 54 keep their commands, their
@@ -1139,16 +1134,16 @@ static const scr_patch_edit_t PATCH_HOUSE_OF_HORROR[] = {
  * earlier and locked to room 0.  73 is the task that claims the line, and out
  * of its room it answers "You can't do that here!", so the only way 110 ever
  * runs is on the fall-through past a room list that rules 73 out.  110 *is*
- * reached -- what stops it there is its own first restriction, a character test
- * addressing Var1 = 0, "the Player", against Var3 = 0, "the Player": the Player
- * must be in the same room as the Player.  Version 3.90's passrest leaves that
- * exit with the result still zero and without copying the FailMessage
- * ("What?"), so the restriction fails silently, the fall-through lands back
- * on 73's refusal, and the four points are gone
+ * reached -- what stops it there is its own first restriction, a character
+ * test addressing Var1 = 0, "the Player", against Var3 = 0, "the Player": the
+ * Player must be in the same room as the Player.  Version 3.9's passrest
+ * leaves that exit with the result still zero and without copying the
+ * FailMessage ("What?"), so the restriction fails silently, the fall-through
+ * lands back on 73's refusal, and the four points are gone
  * (runner_transcripts/studio.txt), so the Runner's ceiling is 96.  Scarier no
  * longer reproduces that exit: a deliberate deviation (self_room_390 in
- * restr_pass_task_char(), screstrs.cpp) passes the restriction as 4.0 does,
- * so 110 runs unpatched too -- but then whether or not Shelby is in the room.
+ * restr_pass_task_char(), screstrs.cpp) passes the restriction as 4.0 does, so
+ * 110 runs unpatched too -- but then whether or not Shelby is in the room.
  *
  * Var1 = 2 is Shelby, the first of the game's two characters, and that is what
  * the restriction was meant to say.  Its two immediate neighbours, tasks 111
@@ -1205,27 +1200,12 @@ static const scr_patch_edit_t PATCH_STUDIO[] = {
  * through to 23, 24 and 25 exactly as it falls through to 22 before then.
  *
  * With that a female player banks 30 of the 90 and carries the Queen of
- * Diamonds out of the puzzle the author's own hint text describes -- clear the
- * debris, close the valve, mount the fittings, open the valve -- which is the
- * chain task 24 asks for and task 25 does not.  The game stays unwinnable and
- * nothing here pretends otherwise.  Rage's only exit is gated on task 25
- * SPECIFICALLY (`EXIT room=9 N -> dest=7 gateTask=25 wantDone=1`), so she ends
- * in the room where her points are; the two other female twins are broken in
- * their own ways (task 75 drops no card where task 74 drops the King of
- * Spades, and the Gnarled Woods' only way back is gated on task 74); and the
- * card game that would end the game has no command that starts it, for anyone.
- * 30 is what the patched female career is worth, the same as the unpatched
- * one, which reaches Terror instead and comes home with nothing.  The male
- * task 25, unstolen, is worth 10 more to a male player, who can still walk out
- * of Rage.
- *
- * The route also needs the repeat assist, which is not a patch: the Lair's
- * task 3 is a one-shot with a bare `*` pattern, and pre-4.0's spent-task claim
- * (run_spent_task_390()) then answers every later command in that room with
- * "You have already done that.", which is where the faithful row stops at
- * 5/90.  No data edit repairs that -- tasks 4 and 5 claim all twenty direction
- * words on the same terms -- so the walkthrough row carries
- * SCR_ASSUME_REPEATS=1 alongside SCR_ASSUME_PATCHES=1.
+ * Diamonds out of the puzzle the author's hint text describes.  The game stays
+ * unwinnable: Rage's only exit is gated on task 25 and the card game has no
+ * command that starts it.  The route also needs SCR_ASSUME_REPEATS=1, because
+ * the spent task 3 walls the Lair (run_spent_task_390()) and no data edit
+ * repairs that.  See journ2_patched_solution.txt in
+ * test/adrift4/notes/v4_walkthrough_rows.md, and INCOMPLETE.md beside it.
  */
 static const scr_patch_edit_t PATCH_JOURN2[] = {
   PATCH_VERIFY ("Tasks/22/Command/0", "#12 turn valve debris here"),
@@ -1286,7 +1266,7 @@ static const scr_patch_edit_t PATCH_PROVENANCE[] = {
 };
 
 /*
- * Outside (Matt Ingrey), a 3.90 game whose own guide admits it went out
+ * Outside (Matt Ingrey), a 3.9 game whose own guide admits it went out
  * untested.  Its last act is three rooms -- Roses House, Phureo, Alexes
  * House and its back room -- and each of the three doors between them is a
  * task that forgets to open:
@@ -1663,8 +1643,10 @@ parse_patch_edit (scr_prop_setref_t bundle,
         return FALSE;
       if (apply && edit->mode == 'S')
         {
-          /* String table values are literals, so putting the pointer is
-             enough; the bundle never frees what it didn't allocate. */
+          /*
+           * String table values are literals, so putting the pointer is
+           * enough; the bundle never frees what it didn't allocate.
+           */
           vt_value.string = edit->to_string;
           prop_put (bundle, format_put, vt_value, vt_key);
         }

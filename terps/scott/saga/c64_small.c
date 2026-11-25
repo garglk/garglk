@@ -1,15 +1,22 @@
-//
-//  c64_small_graphics.c
-//  scott
-//
-//  Created by Administrator on 2026-01-23.
-//
+/*
+ *	  This program is free software; you can redistribute it and/or
+ *	  modify it under the terms of the GNU General Public License
+ *	  as published by the Free Software Foundation; either version
+ *	  2 of the License, or (at your option) any later version.
+ */
 
-// Handles the compact C64 graphics format used by early Scott Adams
-// SAGA adventures (Pirate Adventure, Voodoo Castle) where game database
-// and image data are bundled in a single file. Room backgrounds use
-// RLE-compressed multicolor bitmaps; small item images are stored
-// as C64 hardware sprites (24x21 monochrome).
+/*
+ *  c64_small.c
+ *  Part of ScottFree, an interpreter for adventures in Scott Adams format
+ *
+ *  Created by Petter Sjölund on 2026-01-23.
+ */
+
+/* Handles the compact C64 graphics format used by early Scott Adams
+   SAGA adventures (Pirate Adventure, Voodoo Castle) where game database
+   and image data are bundled in a single file. Room backgrounds use
+   RLE-compressed multicolor bitmaps; small item images are stored
+   as C64 hardware sprites (24x21 monochrome). */
 
 #include <stdlib.h>
 #include <string.h>
@@ -24,9 +31,9 @@
 
 /* Screen position for drawing a C64 sprite overlay */
 typedef struct {
-    int index; // object index this sprite represents
-    int x;     // pixel x position on screen
-    int y;     // pixel y position on screen
+    int index; /* object index this sprite represents */
+    int x;     /* pixel x position on screen */
+    int y;     /* pixel y position on screen */
 } spritelist;
 
 #define MAX_SPRITES 32
@@ -91,10 +98,10 @@ static const struct {
     int item;
     int like;
 } pirate_extras[] = {
-    {  7, 25 }, // empty bottle: bottle of rum
-    { 42, 25 }, // bottle of salt water
-    { 63,  8 }, // burnt-out torch: unlit torch
-    {  9,  8 }, // lit torch
+    {  7, 25 }, /* empty bottle: bottle of rum */
+    { 42, 25 }, /* bottle of salt water */
+    { 63,  8 }, /* burnt-out torch: unlit torch */
+    {  9,  8 }, /* lit torch */
 };
 
 /* Room gates of our own. The original draws the open treasure chest
@@ -336,7 +343,7 @@ static void PrependDarknessImage(void)
     /* 7 repeat-128 commands, each emitting 128 pairs of color-0 pixels.
        Comfortably covers 19 columns x up to 41 pairs = 779 pairs. */
     for (int i = 0; i < 7; i++) {
-        // This leaves two zero bytes after every 0xff.
+        /* This leaves two zero bytes after every 0xff. */
         background->imagedata[8 + i * 3] = 0xff;
     }
     background->next = USImages;
@@ -399,25 +406,6 @@ GameIDType handle_all_in_one(uint8_t **sf, size_t *extent, c64rec c64_registry)
 }
 
 /* Standard Commodore 64 color palette (16 colors, RGB) */
-glui32 colorC64[16] = {
-    0x000000, // black
-    0xffffff, // white
-    0xbf6148, // red
-    0x99e6f9, // cyan
-    0xb159b9, // purple
-    0x62D375, // green
-    0x5f48e9, // blue
-    0xf7ff6c, // yellow
-    0xba8620, // orange
-    0x877219, // brown
-    0xe79a84, // light red
-    0x7B7B7B, // light grey
-    0xa7a7a7, // grey
-    0xc0ffb9, // light green
-    0xa28fff, // light blue
-    0x454545, // dark grey
-};
-
 /* Decode and draw an RLE-compressed multicolor bitmap.
    Returns a pointer past the consumed data, or NULL on error.
 
@@ -434,36 +422,39 @@ glui32 colorC64[16] = {
      count <  0: one pair follows, repeated (count & 0x7f)+1 times
 
    Pixels are drawn in 8-pixel-wide columns, top to bottom. When the
-   bottom edge is reached, drawing advances to the next column. */
-static uint8_t *DrawMiniC64ImageFromData(uint8_t *ptr, size_t datasize)
+   bottom edge is reached, drawing advances to the next column.
+
+   A room picture is centred: the original rewrites its left and right
+   columns as left = (40 - (right - left)) / 2 and right = left + (right -
+   left) before it draws (Voodoo Castle's hidden voodoo room, 2..18, is
+   drawn at 12..28). An object picture is drawn where its header says. */
+static uint8_t *DrawMiniC64ImageFromData(uint8_t *ptr, size_t datasize, int centre)
 {
     if (datasize < 8)
         return NULL;
 
     uint8_t *endptr = ptr + datasize - 1;
 
-    /* Parse the bounding rectangle (in character-cell coordinates).
-       Images with left < 10 are shifted right so all images align to
-       column 11, with the right edge extended to match. */
-    int shifted = 0;
+    /* Parse the bounding rectangle (in character-cell coordinates). */
     int left = *ptr++;
-    if (left < 10) {
-        shifted = 11 - left;
-        left = 11;
-    }
-    left *= 8;
-    int xpos = left;
-
     int top = *ptr++;
-    int ypos = top;
-
-    int right = (*ptr++ + shifted) * 8;
-
+    int right = *ptr++;
     int bottom = *ptr++;
 
-    /* Read and apply the 4-entry palette (multicolor mode: 2 bits per pixel.) */
-    /* Overlay images have all colors set to 0. For these, don't apply the palette –
-       these use the palette of the background image */
+    if (centre) {
+        int width = right - left;
+        left = (40 - width) / 2;
+        right = left + width;
+    }
+    left *= 8;
+    right *= 8;
+    int xpos = left;
+    int ypos = top;
+
+    /* Read and apply the 4-entry palette (multicolor mode: 2 bits per
+       pixel.) */
+    /* Overlay images have all colors set to 0. For these, don't apply the
+       palette – these use the palette of the background image */
     if (ptr + 4 > endptr)
         return NULL;
     for (int i = 0; i < 4; i++) {
@@ -472,7 +463,7 @@ static uint8_t *DrawMiniC64ImageFromData(uint8_t *ptr, size_t datasize)
             fprintf(stderr, "Error Illegal color!\n");
             return NULL;
         } else if (color != 0) {
-            SetColor(i, colorC64[color]);
+            SetColor(i, c64colors[color]);
         }
     }
 
@@ -546,7 +537,7 @@ int DrawMiniC64(USImage *img) {
             }
         }
     }
-    uint8_t *result  = DrawMiniC64ImageFromData(img->imagedata, img->datasize);
+    uint8_t *result  = DrawMiniC64ImageFromData(img->imagedata, img->datasize, img->usage == IMG_ROOM);
     if (result == NULL)
         return 0;
 

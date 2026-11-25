@@ -19,9 +19,6 @@
 
 /*
  * 4.0 noun scoring and the unhandled verb-object / verb-NPC catch-alls.
- *
- * See sclibrar.h for what the library files share and sclibrar_internal.h
- * for what the core files share.
  */
 
 #include "sclibrar.h"
@@ -37,27 +34,25 @@
  * scores every candidate by the words of its name the line contains --
  * one for the Short as a whole word, one more for any alias (4632D3: the
  * alias loop runs whether or not the Short hit), and one more for each
- * word of the Prefix found (4632A9-463387, whole-word test
- * Proc_21_38_454CB0) -- and keeps the unique maximum.  thelasthour's
- * spyhole (Short "spyhole", alias "spyhole") outscores its bowl 2 to 1 on
- * `put bowl near spyhole` (runner_probes/thelasthour.run400.spyhole.txt);
- * Shadowpeak's "cell door" scores 0 on `put sword near cell door`, "door"
- * being no alias of it (runner_probes/shadowpeak.run400.celldoor.txt).  Two
- * candidates with different names and the same score leave it with a negative
- * index (4633C3-463405), and the "I don't understand what you want me to do
- * with" catch-all at 48B1B0-48B236 needs MemVar_4942F8 > -1, so a tie prints
- * NOTHING and the line falls to the game's DontUnderstand text.
+ * word of the Prefix found (whole-word test Proc_21_38_454CB0) -- and keeps
+ * the unique maximum.  thelasthour's spyhole (Short "spyhole", alias
+ * "spyhole") outscores its bowl 2 to 1 on `put bowl near spyhole`
+ * (runner_probes/thelasthour.run400.spyhole.txt); Shadowpeak's "cell door"
+ * scores 0 on `put sword near cell door`, "door" being no alias of it
+ * (runner_probes/shadowpeak.run400.celldoor.txt).  Two candidates with
+ * different names and the same score leave it with a negative index, and
+ * the "I don't understand what you want me to do with" catch-all needs
+ * MemVar_4942F8 > -1, so a tie prints NOTHING and the line falls to the
+ * game's DontUnderstand text.
  *
- * Measured on House (4.00) from the fireplace, run400
- * runner_probes/house.run400.cathy_l.txt and
- * runner_probes/house.run400.cathy_m.txt, 2026-09-06: `throw diary at cathy`,
- * `throw diary at zzz`, `wibble diary` and `wibble diary cathy` all answer "I
- * don't understand what you want me to do with the diary." (an NPC is not a
- * candidate), while `throw diary at fireplace`, `throw fireplace at diary`,
- * `throw diary at hook`, `throw fireplace diary` and `wibble diary fireplace`
- * all print "What?", House's [error=6] DontUnderstand -- with the fireplace
- * freshly examined or not.  Scarier used to speak for the first object its
- * `* %object% *` row bound.
+ * Measured on House (4.0) from the fireplace, run400
+ * runner_probes/house.run400.cathy_{l,m}.txt: `throw diary at cathy`,
+ * `throw diary at zzz`, `wibble diary` and `wibble diary cathy` all answer
+ * "I don't understand what you want me to do with the diary." (an NPC is
+ * not a candidate), while `throw diary at fireplace`,
+ * `throw fireplace at diary`, `throw diary at hook`, `throw fireplace diary`
+ * and `wibble diary fireplace` all print "What?", House's [error=6]
+ * DontUnderstand -- with the fireplace freshly examined or not.
  *
  * Returns the resolver's object, -1 for a tie, -2 when nothing scored.
  * 3.8 (run380 442F5D) instead walks the objects in index order and speaks
@@ -73,8 +68,10 @@ lib_verb_object_name_score (scr_gameref_t game,
   scr_vartype_t vt_key[4];
   scr_int alias_count, alias, score;
 
-  /* A name the line holds only inside a longer one does not score; see
-     lib_co_term_shadowed() (deliberate deviation). */
+  /*
+   * A name the line holds only inside a longer one does not score; see
+   * lib_co_term_shadowed() (deliberate deviation).
+   */
   score = 0;
   shortname = prop_get_indexed_string (bundle, "Objects", object, "Short");
   if (shortname && shortname[0] != NUL
@@ -104,8 +101,8 @@ lib_verb_object_name_score (scr_gameref_t game,
    * The 4.0 loader stores "a" for an empty Prefix (run400 4900EC), so an
    * object authored without one scores the word "a" like any "a X" object:
    * House's fireplace ties the diary on `throw a diary at fireplace` and
-   * `throw diary at a fireplace` (runner_probes/house.run400.cathy_n.txt,
-   * runner_probes/house.run400.cathy_o.txt), and matches the hook's "the" on
+   * `throw diary at a fireplace` (runner_probes/house.run400.cathy_{n,o}.txt),
+   * and matches the hook's "the" on
    * `throw a fireplace at the hook` (runner_probes/house.run400.cathy_p.txt).
    */
   prefix = prop_get_indexed_string (bundle, "Objects", object, "Prefix");
@@ -133,13 +130,13 @@ lib_resolve_admit_mode0 (scr_gameref_t game, scr_int object, scr_int pass)
 }
 
 /*
- * The take handler's 463640 mode 1 (463161-463224): a candidate is
- * visible where it is (44B578), dynamic, seen, and on the first pass not
- * held or worn by the player, directly or inside something held (44615C,
- * which ignores openness).  A second pass admits held objects when the
- * first found no unique winner (46360D: any negative result, a tie
- * included).  hub `take drying-up cloth` with the sink cloth held, and
- * ilgolem `prendi mano mozzata del nonno` with the static "nonno" in the
+ * The take handler's 463640 mode 1: a candidate is visible where it is
+ * (44B578), dynamic, seen, and on the first pass not held or worn by the
+ * player, directly or inside something held (44615C, which ignores
+ * openness).  A second pass admits held objects when the first found no
+ * unique winner (46360D: any negative result, a tie included).
+ * hub `take drying-up cloth` with the sink cloth held, and ilgolem
+ * `prendi mano mozzata del nonno` with the static "nonno" in the
  * room, both resolve uniquely in run400 (runner_transcripts/hub.txt:251,
  * ilgolem.txt:312) where a plain present-and-seen scan would tie.
  */
@@ -170,8 +167,8 @@ lib_resolve_admit_take (scr_gameref_t game, scr_int object, scr_int pass)
 }
 
 /*
- * Mode 1 with a container named (463161-463224, arg <> &HFF): visible where
- * it is (44B578) and its parent the container.  Nothing else is tested.
+ * Mode 1 with a container named (arg <> &HFF): visible where it is and its
+ * parent the container.  Nothing else is tested.
  */
 scr_bool
 lib_resolve_admit_parent (scr_gameref_t game, scr_int object,
@@ -249,7 +246,10 @@ lib_verb_object_resolve_400_string (scr_gameref_t game, const scr_char *input,
                                            present_only ? 0 : 1);
 }
 
-/* Mode 1: two passes, the second only after no unique winner (46360D). */
+/*
+ * Mode 1: two passes, the second only after no unique winner
+ * (run400 46360D).
+ */
 scr_int
 lib_take_resolve_400_string (scr_gameref_t game, const scr_char *input,
                              std::vector<scr_int> *tied)
@@ -278,8 +278,8 @@ lib_verb_object_resolve_400_common (scr_gameref_t game,
  * run400 resolves the catch-all's object once, at the top of the line:
  * MemVar_4942F8 is written only at 48A3FD, from Proc_21_58_463640, before
  * any task runs.  The catch-all at 48B19A then tests THAT object's presence
- * with obhere (48B1E1), after the tasks.  Noted here from run_all_commands()
- * ahead of task dispatch; -2 when there is none or the game is not 4.0.
+ * with obhere, after the tasks.  Noted here from run_all_commands() ahead of
+ * task dispatch; -2 when there is none or the game is not 4.0.
  */
 static scr_int lib_verb_object_line_top = -2;
 
@@ -304,18 +304,18 @@ lib_verb_object_resolve_400 (scr_gameref_t game)
  * The 4.0 put parser (Proc 459DB4, branch 46DC34-46DD2C) takes a line
  * that starts "put", has neither " in " nor " on " in it and no word
  * "down", and that no task pre-matched (453C50 = 0): it asks the same noun
- * resolver as the catch-all (46DCC7, mode 0) and answers "Where do you
- * want to put <the object>?" for a unique winner (46DCDB) or "Where do
- * you want to put that?" (46DD19) for a tie or nothing scoring.  Both set
- * MemVar_494281 (46DD25), so like the catch-all the answer is not a turn.
+ * resolver as the catch-all (mode 0) and answers "Where do you want to put
+ * <the object>?" for a unique winner or "Where do you want to put that?"
+ * for a tie or nothing scoring.  Both set MemVar_494281, so like the
+ * catch-all the answer is not a turn.
  *
- * Measured 2026-09-06: thelasthour `put bowl near spyhole` answers "Where
- * do you want to put the spyhole?" and no event fires
+ * Measured: thelasthour `put bowl near spyhole` answers "Where do you want to
+ * put the spyhole?" and no event fires
  * (runner_probes/thelasthour.run400.spyhole.txt); Shadowpeak `put sword near
  * cell door` answers "Where do you want to put the sword?" and Seeker stays
- * quiet (runner_probes/shadowpeak.run400.celldoor.txt).  Scarier's catch-all
- * used to answer "I don't understand what you want me to do with the
- * bowl." and tick.
+ * quiet (runner_probes/shadowpeak.run400.celldoor.txt).  Without this the
+ * catch-all answers "I don't understand what you want me to do with the bowl."
+ * and ticks.
  *
  * Only lines the can't-see clause above lets through get here, which is
  * the Runner's order too (therest 4887C1 runs before the put parser: see
@@ -340,8 +340,10 @@ lib_is_put_where_line_400 (scr_gameref_t game)
          && !strstr (input, " into ") && !strstr (input, " onto ")
          && !lib_input_contains_word (input, "down")))
     return FALSE;
-  /* A task pre-match skips the question (46DC85), and a held object then
-     has the line claimed by insides; see lib_put_held_unsplit_400(). */
+  /*
+   * A task pre-match skips the question (46DC85), and a held object then
+   * has the line claimed by insides; see lib_put_held_unsplit_400().
+   */
   return !(lib_put_held_unsplit_400 (game, input)
            && lib_task_prematches_input (game, 0));
 }
@@ -356,6 +358,7 @@ lib_put_where_400_common (scr_gameref_t game, scr_int resolved)
       var_set_ref_object (gs_get_vars (game), resolved);
       lib_print_wrapped_object (game, "Where do you want to put ",
                                 resolved, "?\n");
+      lib_battle_store_put_where (game, resolved);
     }
   else
     pf_buffer_string (filter, "Where do you want to put that?\n");
@@ -364,7 +367,7 @@ lib_put_where_400_common (scr_gameref_t game, scr_int resolved)
    * the line is claimed as its answer (p4PUT2 `put coin on jar` / `put zzz
    * on jar` -> "That is still ambiguous!",
    * runner_probes/put2.run400.txt). */
-  game->is_admin = TRUE;
+  game->turn.is_admin = TRUE;
   lib_co_400_note_refusal ();
   return TRUE;
 }
@@ -423,7 +426,7 @@ lib_put_where_question_400 (scr_gameref_t game, std::string *question)
  * answer for Y alone.  Every line holding the whole word "put" or "drop"
  * goes through it, ahead of the task dispatcher, and it starts with the
  * four plain Replace() calls run_normalise_put_line() repeats ("drop " ->
- * "put ", "inside"/"into" -> "in", "onto" -> "on").  Then (459BCD-459C39):
+ * "put ", "inside"/"into" -> "in", "onto" -> "on").  Then:
  *
  *   - a whole-word "in" splits the line at the first " in ";
  *   - a whole-word "on" splits it at the first " on " unless an " in " came
@@ -444,50 +447,47 @@ lib_put_where_question_400 (scr_gameref_t game, std::string *question)
  *     above; this handler adds the zeroed "on" split: `put zzz on desk`
  *     answers "Where do you want to put the desk?", `put zzz on box` "...
  *     the box?", `put zzz on yyy` "... that?";
- *   - else the text after the preposition (46DD34, Right past " in " /
- *     " on ") is resolved with the same scorer (46DD65, mode 0) and gated
- *     by co(i, 0) (46DD7F).  Nothing: "I don't understand what you want to
- *     put things inside." / "... onto." (46DDBC), MemVar_494281 set -- NOT
- *     a turn -- unless a task pre-matches the line, in which case the line
- *     falls through to the dispatcher untouched;
+ *   - else the text after the preposition (Right past " in " / " on ") is
+ *     resolved with the same scorer (mode 0) and gated by co(i, 0).
+ *     Nothing: "I don't understand what you want to put things inside." /
+ *     "... onto.", MemVar_494281 set -- NOT a turn -- unless a task
+ *     pre-matches the line, in which case the line falls through to the
+ *     dispatcher untouched;
  *   - a winner that is not a container ("inside") or not a surface
- *     ("onto"): "<You> can't put anything inside/onto <the Y>!" (46DE47), a
- *     turn, again unless a task pre-matches;
+ *     ("onto"): "<You> can't put anything inside/onto <the Y>!", a turn,
+ *     again unless a task pre-matches;
  *   - a fitting winner goes on to name X at 46DE99 -- the ordinary put rows
  *     and lib_put_in_multiple_common()'s 46E142 clobber.
  *
- * All three of these gates call the pre-matcher UNFILTERED (46DCB2, 46DDAB
- * and 46DE29 push 0 for its class argument, so any task pattern matching
+ * All three of these gates call the pre-matcher UNFILTERED (each pushes 0
+ * for its class argument, 46DCB2 the first, so any task pattern matching
  * the line -- with a put word or without -- keeps the line for the
- * dispatcher); only the 46E142 clobber's gate at 46E15A, and put_drop_list's
- * own at 459B19, pass class mode 2.  herrdoktor turns on the difference:
+ * dispatcher); only the 46E142 clobber's gate, and put_drop_list's own,
+ * pass class mode 2.  herrdoktor turns on the difference:
  * its task 3 `*roll*jetpack*` has no put word, and `put roll in jetpack`
  * -- whose jetpack sits unseen inside the worn lab coat, so the scorer
  * names nothing -- must reach it (runner_transcripts/herrdoktor.txt).
  *
- * Measured 2026-09-08 on the hand-built p4PUT/p4PUT2 probes
- * (runner_probes/put.run400.txt, runner_probes/put2.run400.txt;
- * make_400_putprobe.py), 44 cells: `put coin in zzz`, `put
- * coin into zzz`, `drop coin in zzz`, `put zzz in yyy`, `put zzz in bob`
- * (an NPC is nothing here), `put all in zzz` all say "... put things
- * inside." with no tick; the "on"/"onto" spellings "... put things onto.";
- * `put zzz in desk` "You can't put anything inside the desk!" and ticks,
- * `put coin on box` "You can't put anything onto the box!" -- "onto", where
- * 3.7/3.8 store "on" as a literal and 3.9 is unmeasured, so the wording is
- * 4.0's alone.  A container the player has SEEN but left behind names
- * nothing: `put coin in bag` from the next room is "... put things inside."
- * even though `x bag` there says "You can't see the bag from here!"  (The
- * comment on lib_cmd_put_unclear() that the seen-but-absent clause speaks
- * first for a put line was never measured and is wrong for the container;
- * whether it holds for a seen-but-absent X is still unmeasured.)  Two
- * present containers sharing a Short raise the ordinary ambiguity prompt
- * (`put coin in jar` -> "Which jar.  The jar or the jar?"), so a tie is
- * left to the rows below.  A line with " and " at or beyond the split runs
- * put_drop_list's own clause loop (459C75), and its clauses reach this
- * handler one at a time; see lib_put_clauses_400().  (`put coin in zzz and
- * yyy` is not that loop at all -- the top-level splitter cuts it into two
- * commands, which is why "... put things inside." and the DontUnderstand
- * text are two turns; see run_find_split_400().)
+ * Measured on the hand-built p4PUT/p4PUT2 probes
+ * (runner_probes/put{,2}.run400.txt; make_400_putprobe.py), 44 cells:
+ * `put coin in zzz`, `put coin into zzz`, `drop coin in zzz`,
+ * `put zzz in yyy`, `put zzz in bob` (an NPC is nothing
+ * here), `put all in zzz` all say "... put things inside." with no tick; the
+ * "on"/"onto" spellings "... put things onto."; `put zzz in desk` "You can't
+ * put anything inside the desk!" and ticks, `put coin on box` "You can't put
+ * anything onto the box!" -- "onto", where 3.7/3.8 store "on" as a literal and
+ * 3.9 is unmeasured, so the wording is 4.0's alone.  A container the player
+ * has SEEN but left behind names nothing: `put coin in bag` from the next room
+ * is "... put things inside." even though `x bag` there says "You can't see
+ * the bag from here!"  Whether a seen-but-absent X speaks first is unmeasured.
+ * Two present containers sharing a Short raise the ordinary ambiguity prompt
+ * (`put coin in jar` -> "Which jar.  The jar or the jar?"), so a tie is left
+ * to the rows below.  A line with " and " at or beyond the split runs
+ * put_drop_list's own clause loop (459C75), and its clauses reach this handler
+ * one at a time; see lib_put_clauses_400().  (`put coin in zzz and yyy` is not
+ * that loop at all -- the top-level splitter cuts it into two commands, which
+ * is why "... put things inside." and the DontUnderstand text are two turns;
+ * see run_find_split_400().)
  *
  * Pre-4.0 Runners have none of this; run390's put parser (461769) says
  * "<You> can't put anything <inside/on> that!" for an unknown container,
@@ -502,11 +502,11 @@ lib_phrase_has_word (const std::string &line, const scr_char *word)
 /*
  * lib_put_split_400()
  *
- * The preposition split put_drop_list computes at 459BCD-459C4A: the first
- * whole-word " in ", or the first " on " when no " in " came earlier
+ * The preposition split put_drop_list computes: the first whole-word
+ * " in ", or the first " on " when no " in " came earlier
  * (Proc_19_44_4434F4 keeps the earlier positive of the two).  With ON_TEST
  * set -- which is how the routine enters, but NOT how its clause loop
- * re-enters (459D11-459D6B has the two whole-word tests and nothing else)
+ * re-enters (the re-entry has the two whole-word tests and nothing else)
  * -- a line without "all" also has Left(line, split) resolved by the noun
  * scorer, and a split whose left half names nothing is ZEROED, so the line
  * goes on with no preposition at all.  *ON_BRANCH, when asked for, says
@@ -538,7 +538,7 @@ lib_put_split_400 (scr_gameref_t game, const std::string &line,
           /*
            * And this one scorer runs UNGATED by co(): an object the player
            * has seen and walked away from still keeps the split.  p4SURF
-           * under run400, 2026-09-12: `put stone on lamp` from the lit room
+           * under run400: `put stone on lamp` from the lit room
            * with the stone left behind in the cave is "You can't put
            * anything onto the lamp!" (runner_probes/surf3.run400.txt:6) -- the
            * split held and the lamp was weighed as a supporter -- where the
@@ -551,8 +551,8 @@ lib_put_split_400 (scr_gameref_t game, const std::string &line,
            *
            * Only "nothing named" zeroes the split, not a tie.  Widening the
            * scorer past co() makes namesakes elsewhere in the game tie where
-           * the present one used to win alone, and a tie must not be allowed
-           * to undo a split the narrow scorer kept: provenance's two wooden
+           * the present one would win alone, and a tie must not be allowed to
+           * undo a split the narrow scorer kept: provenance's two wooden
            * canteens turn `put canteen on altar` into "Where do you want to
            * put that?" (against runner_probes/provenance.run400.txt, which
            * puts it on the altar), and Dragon Shrine's two bodies do the same
@@ -572,7 +572,7 @@ lib_put_split_400 (scr_gameref_t game, const std::string &line,
  * lib_put_clauses_400()
  *
  * put_drop_list's own multi-clause loop (run400 loc_459C75).  With the
- * split in hand the routine looks for " and " AT OR BEYOND it (459C60, the
+ * split in hand the routine looks for " and " AT OR BEYOND it (the
  * InStr starts at the split, and a line with no preposition splits at
  * Len(line), so its " and " is never found).  Each turn of the loop takes
  * Left(line, and_at - 1) as a clause and runs the whole of name_object on
@@ -580,8 +580,8 @@ lib_put_split_400 (scr_gameref_t game, const std::string &line,
  * the front if the remainder lost it, and recomputes the split -- this time
  * without the "on" scorer test and without the Len(line) fallback.  A
  * remainder with no preposition left therefore ends the loop and is DROPPED
- * unrun (459D8C pushes &HFF into the loop variable, which terminates it,
- * and the final name_object at 459D94 is gated on split > 0).
+ * unrun (the loop variable is set to &HFF, which terminates it, and the
+ * final name_object is gated on split > 0).
  *
  * So `put coin in box and hat in desk` is ONE turn that runs two puts, and
  * their two answers come out concatenated with no separator at all: "The
@@ -646,7 +646,7 @@ lib_put_clauses_400 (scr_gameref_t game, const scr_char *input,
 /*
  * lib_put_task_tie_400()
  *
- * A put line with no in/on split goes to name_object whole (459C55), and
+ * A put line with no in/on split goes to name_object whole, and
  * when a task pre-matches it (453C50, unfiltered) 46DC85 skips "Where do
  * you want to put ..." for the mode-2 scorer at 46DE99.  Its flat tie exit
  * at 46E192 has no task gate: "It is not clear which <term> you are
@@ -813,11 +813,27 @@ lib_cmd_put_container_400 (scr_gameref_t game)
     {
       if (lib_task_prematches_input (game, 0))
         return FALSE;
+      /*
+       * wears() (463690) runs after put_drop_list on every line holding
+       * the words "wear" or "put on", or "put" with a trailing " on", and
+       * its "all" branch (463736) writes its own answer over the response
+       * whatever it found: `put on all` is "I put on the wristwatch." with
+       * the watch in hand and "I don't have anything to wear." with
+       * nothing wearable, never this refusal -- goldilocks, measured
+       * 2026-11-07 (runner_probes/goldilocks.run400.q.txt,
+       * goldilocks.run400.q2.txt; `put all on` and `put everything on`
+       * the same, `put on everything` "Where do you want to put that?" as
+       * the Runner knows no "everything").  Leave the line to the wear-all
+       * row.
+       */
+      if (has_all && strcmp (preposition, "onto") == 0
+          && lib_input_contains_word (line.c_str (), "put on"))
+        return FALSE;
       pf_buffer_string (filter,
                         "I don't understand what you want to put things ");
       pf_buffer_string (filter, preposition);
       pf_buffer_string (filter, ".\n");
-      game->is_admin = TRUE;
+      game->turn.is_admin = TRUE;
       lib_co_400_note_refusal ();
       return TRUE;
     }
@@ -848,8 +864,8 @@ lib_cmd_put_container_400 (scr_gameref_t game)
 /*
  * lib_put_container_fits_400()
  *
- * TRUE when name_object's container look-up above (46DD34-46DD65) names a
- * container for an " in " line or a surface for an " on " line.  run400
+ * TRUE when name_object's container look-up above names a container for
+ * an " in " line or a surface for an " on " line.  run400
  * resolves the container with its noun scorer, which is indifferent to
  * words that belong to no object, so `put my homework on my desk` puts the
  * homework on "your school desk" (Prefix "your school") ahead of every
@@ -909,7 +925,7 @@ lib_put_container_fits_400 (scr_gameref_t game, const scr_char *input)
 /*
  * lib_verb_object_catch_all_pre390()
  *
- * The 3.7/3.8 catch-all for a line no handler answered: run380 442F5D-443134
+ * The 3.7/3.8 catch-all for a line no handler answered: run380 442F5D
  * (run370 has the same loop).  It walks every object co() matches, in index
  * order, and keeps one message:
  *
@@ -923,9 +939,8 @@ lib_put_container_fits_400 (scr_gameref_t game, const scr_char *input)
  * one, so the first present object on the line wins; an unseen object
  * speaks only into an empty buffer.  co() never reads the seen byte before
  * 3.9, so an unseen object is matched and asked about -- `frob stone` in the
- * Test Room of p38EXAM, the stone not yet listed, is "What stone?"
- * (runner_probes/exam.run380.verb.rtf, and the same in 3.7's
- * runner_probes/exam.run370.verb.rtf).
+ * Test Room of p38EXAM, the stone not yet listed, is "What stone?", in 3.7
+ * as in 3.8 (runner_probes/exam.run3[78]0.verb.rtf).
  *
  * 3.7's therest() refuses an absent object with "You can't see X." before
  * the catch-all is reached (see run_therest_absent_370()), so 3.7 never
@@ -942,19 +957,19 @@ lib_put_container_fits_400 (scr_gameref_t game, const scr_char *input)
  * Returns the present object the caller goes on to answer for, -2 once this
  * has printed its own answer, or -1 when there is nothing to say.
  *
- * The walk's membership is the Runner's, not our matcher's: run380 442F5D
- * asks co() about EVERY object, so every object whose Short or one of whose
- * Aliases is in the line is a candidate and index order alone decides which
- * of them speaks.  Our references bind one candidate off the line, which
- * puts the answer in line order instead: with a gem at index 0 aliased
- * "stone" and a rock at index 1, run370 and run380 answer both `zug rock
- * stone` and `zug stone rock` with "I don't understand what you want me to
- * do with the gem." (p37/p38TEXTSRC, runner_probes/textsrc.run370.rtf,
- * runner_probes/textsrc.run380.rtf, 2026-09-20), where we used to answer the
- * rock for the first line.  3.70 resolves the alias here although its takes()
- * test is a bare c(Short) -- `blip stone` against a game with no matching task
- * is the gem's catch-all in both older Runners -- so the scan below reads
- * the Aliases at both versions, unlike lib_co_pre400().
+ * The walk's membership is the Runner's, not our matcher's: run380's walk asks
+ * co() about EVERY object, so every object whose Short or one of whose Aliases
+ * is in the line is a candidate and index order alone decides which of them
+ * speaks.  Our references bind one candidate off the line, which puts the
+ * answer in line order instead: with a gem at index 0 aliased "stone" and a
+ * rock at index 1, run370 and run380 answer both `zug rock stone` and `zug
+ * stone rock` with "I don't understand what you want me to do with the gem."
+ * (p37/p38TEXTSRC, runner_probes/textsrc.run3[78]0.rtf), not with the rock
+ * for the first line.
+ * 3.7 resolves the alias here although its takes() test is a bare c(Short) --
+ * `blip stone` against a game with no matching task is the gem's catch-all in
+ * both older Runners -- so the scan below reads the Aliases at both versions,
+ * unlike lib_co_pre400().
  */
 scr_bool
 lib_catch_all_names_pre390 (scr_gameref_t game, scr_int object)
@@ -1007,7 +1022,7 @@ lib_verb_object_catch_all_pre390 (scr_gameref_t game)
   unseen = -1;
   GS_FOR_EACH_OBJECT (game, object)
     {
-      if (!game->object_references[object]
+      if (!game->refs.objects[object]
           && !lib_catch_all_names_pre390 (game, object))
         continue;
 
@@ -1016,7 +1031,7 @@ lib_verb_object_catch_all_pre390 (scr_gameref_t game)
        * word the line lacks, so `poke hat` beside a red and a blue hat
        * walks nothing: the buffer stays empty, no tick runs, and the
        * end-of-turn "Which hat." answers even when an event runs a task
-       * every turn (p38EVQ2, runner_probes/evq2.run380.rtf, 2026-09-20).
+       * every turn (p38EVQ2, runner_probes/evq2.run380.rtf).
        */
       if (run_get_dispatch_input ()
           && lib_catch_all_names_pre390 (game, object)
@@ -1074,10 +1089,10 @@ lib_verb_object_catch_all_pre390 (scr_gameref_t game)
  * Whether run400's therest leaves a " with " line without a word: it splits
  * at the first " with " (4883C5) and resolves each half with 463640 in mode
  * 0 (present and seen, then seen only; lib_with_half_400()), and a half
- * that resolves nothing restores the line and exits (488430 for the head,
- * 4884DB for the tail) ahead of every verb arm and of the can't-see clause
- * 4887A0.  On TRUE, *top is the whole line's mode-0 object, what the
- * unhandled-verb catch-all 48B19A then speaks for (MemVar_4942F8), or -1.
+ * that resolves nothing restores the line and exits ahead of every verb arm
+ * and of the can't-see clause 4887A0.  On TRUE, *top is the whole line's
+ * mode-0 object, what the unhandled-verb catch-all 48B19A then speaks for
+ * (MemVar_4942F8), or -1.
  */
 static scr_bool
 lib_therest_with_silent_400 (scr_gameref_t game, scr_int *top)
@@ -1128,7 +1143,7 @@ lib_verb_object_count_present (scr_gameref_t game,
   *object = -1;
   GS_FOR_EACH_OBJECT (game, index_)
     {
-      if (game->object_references[index_]
+      if (game->refs.objects[index_]
           && (gs_object_seen (game, index_)
               || !lib_matcher_requires_seen (game))
           && obj_indirectly_in_room (game, index_, gs_playerroom (game)))
@@ -1221,14 +1236,15 @@ lib_verb_object_first_named_370 (scr_gameref_t game,
 
 /*
  * 3.9: the catch-all is a walk of the objects in index order (run390
- * 4601D4-460284) -- co(obj, 0), the seen byte, obhere() -- and the FIRST
- * present match is the one named (var_CA = 2 shuts the later ones out).
+ * 4601D4) -- co(obj, 0), the seen byte, obhere() -- and the FIRST present
+ * match is the one named (it sets a state flag to 2 that shuts the later
+ * ones out).
  * co() with two present namesakes needs the Prefix's last word in the
  * line, so a bare `red box` beside the blue box names the red one and
  * `box` alone names neither (the end-of-turn "Which box." asks instead).
  * Our matcher's references are the wrong instrument for that: `red box`
  * binds both boxes.  runner_probes/task.run390.pfx.txt T35-37 (`red box`,
- * `red hat`, `blue hat`), 2026-09-19.
+ * `red hat`, `blue hat`).
  */
 static void
 lib_verb_object_first_named_390 (scr_gameref_t game,
@@ -1267,7 +1283,7 @@ lib_verb_object_absent (scr_gameref_t game, scr_int *count, scr_int *object)
   /*
    * 3.9: co(obj, 0) (run390 43B6BC) matches only an object that is both
    * present and seen, so a line naming nothing here matches nothing, the
-   * catch-all at 4601D4 stays silent and the DontUnderstand text answers.
+   * catch-all stays silent and the DontUnderstand text answers.
    * p39EXAM (runner_probes/exam.run390.verb.txt): `frob stone`, `z stone`,
    * `frob statue` and `eat statue` from the wrong room are all "I don't
    * understand."
@@ -1283,10 +1299,10 @@ lib_verb_object_absent (scr_gameref_t game, scr_int *count, scr_int *object)
    * otherwise unhandled command this way: therest() resolves a noun,
    * and when obhere() says the object is not present it prints
    * "<player> can't see <the object>." and returns without running any
-   * of the verb branches below it (run370 43D169 @Form1.frm:3336,
-   * run380 443C6A, run400 4887C1 @mdlSpreadTheLoad.bas:41196).  The
-   * clause is reached only when nothing else produced output, which is
-   * exactly where we are.
+   * of the verb branches below it (run370 43D169 @Form1.frm:3336 to
+   * run400 4887C1 @mdlSpreadTheLoad.bas:41196).  The clause is reached
+   * only when nothing else produced output, which is exactly where we
+   * are.
    *
    * Measured on hauntedhouse.taf (runner_probes/hauntedhouse.run400.txt,
    * turn 34): "melt statue" from the Front porch, with the statue in the
@@ -1303,18 +1319,18 @@ lib_verb_object_absent (scr_gameref_t game, scr_int *count, scr_int *object)
     {
       /*
        * therest splits the line at its first " with " before anything
-       * else (4883C5) and leaves SILENTLY when either half resolves no
-       * object (488430 / 4884DB), so its can't-see clause 4887A0 never
-       * speaks for such a line; the unhandled-verb catch-all 48B19A
-       * does, on the line-top 463640 object (MemVar_4942F8, 48A3FD:
-       * present and seen first, then seen only).  Seen and absent is
-       * its second arm, 48B24B, "must be in the same room as", and a
-       * turn.  wonderland T7-T10 `attack card guard with knife`, the
-       * knife two rooms back: dobattle names nothing present, the head
-       * "attack card guard" resolves no object, and run400 answers
+       * else and leaves SILENTLY when either half resolves no object,
+       * so its can't-see clause 4887A0 never speaks for such a line; the
+       * unhandled-verb catch-all 48B19A does, on the line-top 463640
+       * object (MemVar_4942F8: present and seen first, then seen only).
+       * Seen and absent is its second arm, 48B24B, "must be in the same
+       * room as", and a turn.  wonderland T7-T10
+       * `attack card guard with knife`, the knife two rooms back:
+       * dobattle names nothing present, the head "attack card guard"
+       * resolves no object, and run400 answers
        * "You must be in the same room as the ethereal knife to be able
        * to do anything with it." with the Card Guard's blow appended
-       * (runner_transcripts/wonderland.txt, 2026-09-25).
+       * (runner_transcripts/wonderland.txt).
        */
       scr_int top;
 
@@ -1339,7 +1355,7 @@ lib_verb_object_absent (scr_gameref_t game, scr_int *count, scr_int *object)
       *object = -1;
       GS_FOR_EACH_OBJECT (game, index_)
         {
-          if (game->object_references[index_]
+          if (game->refs.objects[index_]
               && (gs_object_seen (game, index_)
                   || !lib_matcher_requires_seen (game)))
             {
@@ -1405,7 +1421,7 @@ lib_verb_object_pick_400 (scr_gameref_t game, scr_int *object)
 /*
  * 4.0: the object is the one the line resolved to before its task ran (see
  * lib_verb_object_note_line_top()), and a task that took it away leaves
- * the second arm of the catch-all, 48B24B-48B282: "You must be in the
+ * the second arm of the catch-all, 48B24B: "You must be in the
  * same room as <the object> to be able to do anything with it."  That arm
  * sets no MemVar_494281, so unlike the first it is a turn.  seaside's
  * `do form` (runner_transcripts/seaside.txt:123): silent TASK3 hides the
@@ -1436,19 +1452,19 @@ lib_verb_object_answer (scr_gameref_t game, scr_int object)
   var_set_ref_object (vars, object);
 
   /*
-   * 4.0: this answer is not a turn.  The catch-all at run400 48B19A-48B30A
-   * stores 1 in MemVar_494281 (48B232), and the end-of-turn walk+event tick
-   * at 48B599 runs only while that flag is 0; the DontUnderstand path a tie
-   * takes (48B573) jumps past the tick too.  So neither answer moves an NPC
-   * or advances an event.  Shadowpeak's second `attack margo with sword`
-   * used to be followed by "Seeker hums!" here; run400 is silent.
+   * 4.0: this answer is not a turn.  The catch-all at run400 48B19A stores
+   * 1 in MemVar_494281, and the end-of-turn walk+event tick at 48B599 runs
+   * only while that flag is 0; the DontUnderstand path a tie takes jumps
+   * past the tick too.  So neither answer moves an NPC or
+   * advances an event.  Shadowpeak's second `attack margo with sword` is not
+   * followed by "Seeker hums!" here; run400 is silent.
    */
   if (lib_is_version_400 (game))
-    game->is_admin = TRUE;
+    game->turn.is_admin = TRUE;
 
   /*
    * Print don't understand message.  run400's generaltasks composes this
-   * object as the antecedent in the definite form (loc_48A409-48A42E):
+   * object as the antecedent in the definite form (loc_48A409):
    * `throw shovel` then `x it` echoes "(the shovel)" -- see
    * uip_definite_form() in scparser.cpp.
    */
@@ -1539,16 +1555,16 @@ lib_cmd_verb_object (scr_gameref_t game)
    * 4.0: a task that has just ended the game takes this answer off the line.
    * run400's generaltasks tests the gameover byte right after the turn
    * counter -- `If MemVar_4941AD <> 0 Then GoTo loc_48B4E3` at loc_48AC62 --
-   * and 48B4E3 is the tail of the routine, past the object-counting loop at
-   * 48AFF0 and past this catch-all at 48B19A.  The verb branches ahead of
-   * 48AC62 (open/close 48A515, movement 48A5D8, wear, remove, look, the wait
-   * loop) all still run, so an ending does not silence the library as such;
-   * only the unhandled-verb tail is lost, and what the tail does print is
-   * characters() (48B56E) and then, with the message buffer still empty and
-   * no character named, the game's DontUnderstand text (48B58F).
+   * and 48B4E3 is the tail of the routine, past the object-counting loop
+   * and past this catch-all at 48B19A.  The verb branches ahead of 48AC62
+   * (open/close, movement, wear, remove, look, the wait loop) all still
+   * run, so an ending does not silence the library as such; only the
+   * unhandled-verb tail is lost, and what the tail does print is
+   * characters() and then, with the message buffer still empty and no
+   * character named, the game's DontUnderstand text.
    *
-   * Measured live on relojero.taf (4.00, run400
-   * runner_probes/relojero.run400.b.txt, 2026-09-07):
+   * Measured live on relojero.taf (4.0, run400
+   * runner_probes/relojero.run400.b.txt):
    * from the state the walkthrough reaches at `x trozo`, holding both the
    * Phoenix and the broken cord, `pulir fenix`, bare `fenix`, `pulir trozo`,
    * `tirar fenix`, `dar fenix` and `poner fenix` all get this catch-all
@@ -1570,7 +1586,7 @@ lib_cmd_verb_object (scr_gameref_t game)
    * to the DontUnderstand text in run_element_not_understood(), which is the
    * tail's order too.
    */
-  if (lib_is_version_400 (game) && game->pending_endgame != 0)
+  if (lib_is_version_400 (game) && game->turn.pending_endgame != 0)
     return FALSE;
 
   if (lib_is_version_400 (game)
@@ -1584,10 +1600,10 @@ lib_cmd_verb_object (scr_gameref_t game)
  * lib_npc_absent_or_unknown()
  *
  * The other two arms of the character catch-all.  run400's characters()
- * walks every NPC (the outer loop 47F2C5..48066E) and, for the first one the
- * line refers to while nothing has been printed yet (4805DA-4805F1:
- * `MemVar_4941B0 = vbNullString And Proc_21_40_45E99C(index, 0)`), answers
- * with one of three lines and nothing else:
+ * walks every NPC and, for the first one the line refers to while nothing
+ * has been printed yet
+ * (`MemVar_4941B0 = vbNullString And Proc_21_40_45E99C(index, 0)`),
+ * answers with one of three lines and nothing else:
  *
  *   the NPC is in the player's room (field 14 = the player-room global)
  *       "I don't understand what you want to do with <Name>."   [480603]
@@ -1600,43 +1616,43 @@ lib_cmd_verb_object (scr_gameref_t game)
  *
  * The last two fall straight through to 480660, so both are ordinary turns
  * and the walk+event tick runs after them.  4.0 puts the name of the middle
- * arm through the Runner's capitaliser (Proc_21_3_446BB4 at 480638); 3.9
- * pushes the raw field (45AC9F), the same split npc_announce() carries.
+ * arm through the Runner's capitaliser (Proc_21_3_446BB4); 3.9 pushes the
+ * raw field (45AC9F), the same split npc_announce() carries.
  *
- * 3.9 has the identical three-arm tail -- characters() @45ACD8, the branch
- * 45AC65..45ACC1, tests in the same order, "I don't understand what you want
- * to do with " at 45AC77, `" is not here!"` at 45ACA4 and "Who?" at 45ACBA --
- * so the floor is 3.90 and not lower: neither run370.exe nor run380.exe
- * contains the string "Who?" at all, and their `" is not here!"` lines
- * (run370 43865D and 438707, run380 4404D9 and 440596) sit inside the
- * per-verb attack and take handlers, not in a generic tail.
+ * 3.9 has the identical three-arm tail -- characters() @45ACD8, the same
+ * tests in the same order and the same three strings, "I don't understand
+ * what you want to do with ", `" is not here!"` and "Who?" -- so the floor
+ * is 3.9 and not lower: neither run370.exe nor run380.exe contains the
+ * string "Who?" at all, and their `" is not here!"` lines (run380 4404D9,
+ * for one) sit inside the per-verb attack and take handlers, not in a
+ * generic tail.
  *
- * The ceiling is 4.00, and that is measured, not assumed.  3.9 spells its
- * own reach test out inline at 45ABFB-45AC56 -- nothing printed yet, AND the
- * typed line whole-word contains the NPC's LCase Name (var_16C(0), tested at
- * 45AC24) OR its LCase Alias (var_16C(8), 45AC4D) -- while 4.0 replaced that
- * pair of c() calls with the opaque Proc_21_40_45E99C(index, 0) (4805E8),
- * whose body the decompile does not carry.  Whatever it tests, the 2026-09-08
- * capture shows it failing on exactly the lines 3.9 would answer: maincourse
- * (4.00) answers `attack cat` and `attack human` with the game's own
- * DontUnderstand text, and thepkgirl (4.00) answers `revive ethan`, `spray
- * chadwick` and `hug katryn` with "Pardon me?" -- never the tail.  So this
- * is ported for 3.90 and 3.9x only.
+ * The ceiling is 4.0, and that is measured, not assumed.  3.9 spells its
+ * own reach test out inline -- nothing printed yet, AND the typed line
+ * whole-word contains the NPC's LCase Name OR its LCase Alias -- while 4.0
+ * replaced that pair of c() calls with the opaque
+ * Proc_21_40_45E99C(index, 0) (4805E8), whose body the decompile does not
+ * carry.  Whatever it tests, the 2026-09-08 capture shows it failing on
+ * exactly the lines 3.9 would answer: maincourse (4.0) answers
+ * `attack cat` and `attack human` with the game's own DontUnderstand text,
+ * and thepkgirl (4.0) answers `revive ethan`, `spray chadwick` and
+ * `hug katryn` with "Pardon me?" -- never the tail.  So this is ported for
+ * 3.9 and 3.9x only.
  *
  * thepkgirl's `attack chadwick` -> "The man is not here!" is a different
  * site: run400 keeps the pre-battle per-verb attack handler, and its own
  * absent-NPC else prints `" is not here!"` at 47F700, inside the verb branch
- * that ends at 47F70B where "take"/"get" begins.  Ported for the Battle
+ * that ends where "take"/"get" begins.  Ported for the Battle
  * System off as lib_attack_absent_npc().
  *
- * Measured on the 2026-09-08 whole-corpus capture: alexis_worn_cube (3.90)
+ * Measured on the 2026-09-08 whole-corpus capture: alexis_worn_cube (3.9)
  * answers `attack narfild`, `attack goblin` and `attack monster` from rooms
- * those NPCs have never been seen in with "Who?" -- 94 turns of it, and
- * eight more on `alexis` -- where Scarier printed the DontUnderstand text.
+ * those NPCs have never been seen in with "Who?" -- 94 turns of it, and eight
+ * more on `alexis` -- not with the DontUnderstand text.
  *
  * The Runner's tail consults no reference flags: it rescans the typed line
  * for every NPC in index order, so this does the same rather than reading
- * game->npc_references[], which the parser sets from prefixes and positions
+ * game->refs.npcs[], which the parser sets from prefixes and positions
  * the tail knows nothing about.  The in-room case returns FALSE and leaves
  * lib_cmd_verb_npc()'s own unambiguous-reference test to answer it, which is
  * where this differs from the Runner: the Runner has no such test and prints
@@ -1689,28 +1705,28 @@ lib_cmd_verb_npc (scr_gameref_t game)
 
   /*
    * 4.0: the ending takes the character catch-all off the line as well.
-   * This message is the tail of run400's characters() (Proc_19_0_480674,
-   * printed at 480603), and the instruction before it is
+   * This message is the tail of run400's characters() (Proc_19_0_480674),
+   * and the instruction before it is
    * `loc_4805CD: If MemVar_4941AD > 0 Then Exit Sub` -- the same gameover
    * byte the object catch-all above is gated on, tested a second time
    * because characters() is called from the routine's tail (48B56E), below
    * the jump at 48AC62.
    *
    * Measured live on easter.taf (run400
-   * runner_probes/easter.run400.txt:304-308, 2026-09-07): `show basket to
+   * runner_probes/easter.run400.txt:304-308): `show basket to
    * shopkeeper`, the winning move, prints the task's text and the WinText and
    * nothing in between -- no "I don't understand what you want to do with
    * shopkeeper.", and no DontUnderstand either, because the line names a
-   * character (48B573's var_29C).
+   * character (the DontUnderstand path at 48B573 tests for one).
    */
-  if (lib_is_version_400 (game) && game->pending_endgame != 0)
+  if (lib_is_version_400 (game) && game->turn.pending_endgame != 0)
     return FALSE;
 
   /*
    * 3.7/3.8 have no character catch-all: run380 characters() has arms for
    * named verbs only, so `hug dave`, `eat dave` or a bare `dave` end on
-   * DontUnderstand (run380x runner_probes/npcamb.run380.one.rtf, run370x
-   * runner_probes/npcamb.run370.one.rtf).
+   * DontUnderstand (run370x and run380x,
+   * runner_probes/npcamb.run3[78]0.one.rtf).
    */
   if (prop_get_taf_version (gs_get_bundle (game)) < TAF_VERSION_390)
     return FALSE;
@@ -1724,7 +1740,7 @@ lib_cmd_verb_npc (scr_gameref_t game)
   npc = -1;
   GS_FOR_EACH_NPC (game, index_)
     {
-      if (game->npc_references[index_]
+      if (game->refs.npcs[index_]
           && gs_npc_seen (game, index_)
           && npc_in_room (game, index_, gs_playerroom (game)))
         {
@@ -1737,16 +1753,15 @@ lib_cmd_verb_npc (scr_gameref_t game)
     count = 1;
   /*
    * 4.0: the Prefix contest settles the crowd before the question is even
-   * considered.  The tail calls npc_in_command(index, 0) per NPC (4805EB),
-   * and mode 0 with two or more present, seen namesakes falls to 45E892:
-   * `If Proc_21_49_450610(word) = index` -- the contest's winner returns
-   * the containment TRUE and every rival returns FALSE, so the catch-all
-   * names the winner.  Only a tie (450610 = &HFF) flags Me(424) and leaves
-   * the "Which <term>." question to generaltasks.  p4PFX `blue guard`, a
-   * line with no verb at all and three characters aliased "guard", is
-   * "I don't understand what you want to do with Bob."
-   * (runner_probes/pfx.run400.txt turn 5), where we printed the bare
-   * DontUnderstand.
+   * considered.  The tail calls npc_in_command(index, 0) per NPC (4805EB), and
+   * mode 0 with two or more present, seen namesakes falls to 45E892: `If
+   * Proc_21_49_450610(word) = index` -- the contest's winner returns the
+   * containment TRUE and every rival returns FALSE, so the catch-all names the
+   * winner.  Only a tie (450610 = &HFF) flags Me(424) and leaves the "Which
+   * <term>." question to generaltasks.  p4PFX `blue guard`, a line with no
+   * verb at all and three characters aliased "guard", is "I don't understand
+   * what you want to do with Bob."  (runner_probes/pfx.run400.txt turn 5), not
+   * the bare DontUnderstand.
    */
   if (count > 1 && lib_is_version_400 (game) && run_get_dispatch_input ())
     {
@@ -1760,7 +1775,7 @@ lib_cmd_verb_npc (scr_gameref_t game)
         {
           scr_int score;
 
-          if (!game->npc_references[index_]
+          if (!game->refs.npcs[index_]
               || !gs_npc_seen (game, index_)
               || !npc_in_room (game, index_, gs_playerroom (game)))
             continue;
@@ -1783,7 +1798,7 @@ lib_cmd_verb_npc (scr_gameref_t game)
     }
   /*
    * 4.0: namesakes get generaltasks' "Which <term>." question, which is
-   * asked of the line before any library branch (run400 48B6AE-48BB92).
+   * asked of the line before any library branch (run400 48B6AE).
    * `attack droid and guard` splits to a bare `guard` that lands here:
    * "Which Guard.  A guard or a guard?"
    * (runner_probes/battlemulti.run400.txt).  Not while the battle
@@ -1805,18 +1820,17 @@ lib_cmd_verb_npc (scr_gameref_t game)
    * 4.0: like the object catch-all above, this answer is not a turn.  The
    * character pass stores 1 in MemVar_494281 -- the not-a-turn flag the
    * walk+event tick at 48B599 is gated on -- as the last thing it does with
-   * this message (run400 loc_48061A-48061E), and neither of the two
-   * neighbouring branches does: `" is not here!"` at 480640 and `"Who?"` at
-   * 480659 both fall straight through to 480660.
+   * this message (run400 loc_48061A), and neither of the two neighbouring
+   * branches does: `" is not here!"` and `"Who?"` both fall straight
+   * through to 480660.
    *
-   * Measured on p4REPEAT3.taf (run400 runner_probes/repeat3.run400.txt,
-   * 2026-09-08): every line of that probe is followed by the every-turn
-   * event's "TICK." except the two `bob, hello` turns, which print "I don't
-   * understand what you want to do with Bob." and the game's DontUnderstand
-   * text and stop.
+   * Measured on p4REPEAT3.taf (run400 runner_probes/repeat3.run400.txt): every
+   * line of that probe is followed by the every-turn event's "TICK." except
+   * the two `bob, hello` turns, which print "I don't understand what you want
+   * to do with Bob." and the game's DontUnderstand text and stop.
    */
   if (lib_is_version_400 (game))
-    game->is_admin = TRUE;
+    game->turn.is_admin = TRUE;
 
   /* Under a character question this line is its answer; see the slot in
    * run_element_questions() and lib_co_400_npc_answer_line(). */
@@ -1824,6 +1838,21 @@ lib_cmd_verb_npc (scr_gameref_t game)
       && lib_co_400_pending_is_npc ())
     lib_co_400_note_refusal ();
   lib_battle_who_note_unanswered ();
+
+  /*
+   * Deliberate deviation (WINE-TRANSCRIPTS.md): a character's name that
+   * heads a comma line, `creature, take tube`, is the player addressing
+   * them, and the rest of the line gets its own answer.  The Runner says "I
+   * don't understand what you want to do with Creature." first anyway
+   * (p4REPEAT3 `bob, hello`); Scarier leaves that line out unless an ALR
+   * restyles it.
+   */
+  if (run_element_addresses_line ()
+      && !pf_alr_mentions (gs_get_bundle (game), "what you want to do with"))
+    {
+      run_skip_element_separator ();
+      return TRUE;
+    }
 
   /* Print don't understand message; unlike objects, there's no "me" here. */
   lib_print_wrapped_npc (game, "I don't understand what you want to do with ",
@@ -1841,4 +1870,5 @@ void
 lib_debug_trace (scr_bool flag)
 {
   lib_trace = flag;
+  room_debug_trace (flag);
 }

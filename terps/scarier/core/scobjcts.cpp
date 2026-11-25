@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <string>
 #include <vector>
 
 #include "scarier.h"
@@ -52,14 +53,14 @@ static scr_bool obj_trace = FALSE;
  * was a property tree lookup, and together they were up to a fifth of a
  * walkthrough's run time.  So read every object's attributes once, the first
  * time any is asked for, along with the per-kind numberings.  The cache is
- * keyed by bundle, which the undo and temporary game copies share; the runner
- * calls obj_forget_bundle() before destroying a bundle, so a later one
+ * keyed by bundle, which the undo and temporary game copies share; the `run_`
+ * code calls obj_forget_bundle() before destroying a bundle, so a later one
  * allocated at the same address can't inherit it.
  *
  * Every object version carries Static, Container, Surface, Openable, SitLie
  * and CurrentState, and Wearable exactly when it is not static (see the
- * object grammars in sctafpar.cpp), so the reads below are the ones the old
- * object-by-object lookups made.
+ * object grammars in sctafpar.cpp), so the reads below always find their
+ * property.
  *
  * A static object's Where room list and Parent are kept too: every "is it
  * here" question about a static that no event has moved is answered from
@@ -300,11 +301,10 @@ obj_is_surface (scr_gameref_t game, scr_int object)
 /*
  * obj_nth_object()
  *
- * Adrift numbers objects of a given kind separately from objects at large,
+ * ADRIFT numbers objects of a given kind separately from objects at large,
  * so each kind needs a conversion from that numbering to objects at large:
- * the n'th object of the kind.  As the walk over the objects this replaced
- * did, a negative n gives -1 and an n past the last of the kind gives the
- * last object.
+ * the n'th object of the kind.  A negative n gives -1 and an n past the last
+ * of the kind gives the last object.
  */
 static scr_int
 obj_nth_object (scr_gameref_t game, scr_int kind, scr_int n)
@@ -429,13 +429,12 @@ obj_state_name (scr_gameref_t game, scr_int objnum)
  * an object count: 'tens' of Capacity multiplied by the scale factor raised to
  * the 'units'.
  *
- * The two scale factors are per-game, stored in the pair of globals that this
- * parser used to discard as iUnk1/iUnk2.  The ADRIFT editor always writes 3
- * for both, which is why a hardwired 3 went unnoticed for so long, but the
- * Runner really does read them: a game built with a size base of 2 and a
- * weight base of 5 and MaxSize = MaxWt = 102 reports its player limits as
- * 40 and 250 in the Runner's own debugger, not 90 and 90.  Files too old to
- * carry the fields (v3.8 and earlier) get the editor's 3.
+ * The two scale factors are per-game, stored in the pair of globals that
+ * SCARE's parser discards as iUnk1/iUnk2.  The ADRIFT editor always writes 3
+ * for both, but the Runner really does read them: a game built with a size
+ * base of 2 and a weight base of 5 and MaxSize = MaxWt = 102 reports its
+ * player limits as 40 and 250 in the Runner's own debugger, not 90 and 90.
+ * Files too old to carry the fields (v3.8 and earlier) get the editor's 3.
  */
 enum
 { OBJ_DIMENSION_DIVISOR = 10,
@@ -549,9 +548,9 @@ enum { OBJ_WEIGH_DEPTH_LIMIT = 32 };
  * inventory (evt_move_object is the only mover that will), so both functions
  * have to answer for one.  Zero is right: run400 never counts an event-placed
  * object towards the player's limits at all, static or not -- measured live,
- * test/adrift4/notes/RUNNER_TESTS_TODO.md section 9 -- so a static, which can
- * arrive no other way, contributes nothing to the carried totals in either
- * engine.
+ * "Probe backlog" in test/adrift4/notes/RUNNER_TESTS.md -- so a static,
+ * which can arrive no other way, contributes nothing to the carried totals in
+ * either engine.
  */
 scr_int
 obj_get_size (scr_gameref_t game, scr_int object)
@@ -620,24 +619,22 @@ obj_weigh (scr_gameref_t game, scr_int object, scr_int depth)
   /*
    * Add the recursive weights of "child" objects: those in or on this one.
    *
-   * Deliberate deviation (2026-10-17): run400's weigh routine (Sub_22_63
-   * @447600) matches children on the bare per-object container field
-   * ([2E]) with only an i <> self guard -- it checks neither the child's
-   * position nor whether the weighed object is a container or surface, so
-   * objects whose [2E] is stale (leftover raw Parent data that ordinary
-   * takes, drops, and task/event moves never touch, or the NPC index its
-   * loader leaves on an NPC-held or NPC-worn object) silently add phantom
-   * weight; see the runner_parent notes in scgamest.h.  From 2026-08-22 to
-   * 2026-10-17 a 4.0 game matched on the runner_parent shadow of that
-   * field, which made Welcome to Wonderland's only weapon untakeable (the
-   * Card Guard's rod, letter and key weigh into the knife, 94 > 90) and put
-   * 19 of goldilocks' worn watch and dress into the package.  That is a
-   * Runner bug no game needs, so every version now weighs the position-
-   * filtered membership, as 3.9 always did and as `glk capacity on`
-   * (game->capacity_recompute) already did at 4.0.  runner_parent itself
-   * stays: the possession predicates (gs_runner_possessed()) still read it.
-   * Logged under "Deliberate deviations" in
-   * test/adrift4/notes/WINE-TRANSCRIPTS-TODO.md.
+   * Deliberate deviation: run400's weigh routine (Sub_22_63 @447600) matches
+   * children on the bare per-object container field ([2E]) with only an i <>
+   * self guard -- it checks neither the child's position nor whether the
+   * weighed object is a container or surface, so objects whose [2E] is stale
+   * (leftover raw Parent data that ordinary takes, drops, and task/event moves
+   * never touch, or the NPC index its loader leaves on an NPC-held or NPC-worn
+   * object) silently add phantom weight; see the runner_parent notes in
+   * scgamest.h.  Matching a 4.0 game on the runner_parent shadow of that field
+   * makes Welcome to Wonderland's only weapon untakeable (the Card Guard's
+   * rod, letter and key weigh into the knife, 94 > 90) and puts 19 of
+   * goldilocks' worn watch and dress into the package.  That is a Runner bug
+   * no game needs, so every version weighs the position-filtered membership,
+   * as 3.9 does and as `glk capacity on` (settings.capacity_recompute) does
+   * at 4.0.  runner_parent itself stays: the possession predicates
+   * (gs_runner_possessed()) still read it.  Logged under "Deliberate
+   * deviations" in test/adrift4/notes/WINE-TRANSCRIPTS.md.
    */
   GS_FOR_EACH_OBJECT (game, other)
     {
@@ -729,17 +726,16 @@ obj_get_player_weight_limit (scr_gameref_t game)
  * The version 3.8 carrying model, which is not the version 4.0 one at all.
  *
  * A 3.8 object has a single "Size/weight" class, 0..4, and the player has a
- * single "MaxCarried".  Measured in the genuine run380.exe (2026-08-03, with
- * probe files patched through the plaintext of a 3.80 .taf, in the Wine Runner
- * harness), those are one *pooled burden*: each class costs 1, 3, 7, 3 or 7,
- * the costs of everything held are summed, and the sum may not exceed
- * MaxCarried.  Pinned at MaxCarried 1, 2, 3, 6, 7 and 8: at 2 a class-1 or
- * class-3 object is refused and a class-0 accepted, at 3 both go; at 6
- * Marooned's tires (class 4) are refused, at 7 they are accepted alone, at 8
- * tires + map fit and tires + flint + map do not.  Tires (7) and a class-2 gas
- * can (7) never coexist at any limit, which is what rules out a separate size
- * axis and weight axis: two axes would have let the two heavy objects sit one
- * on each.
+ * single "MaxCarried".  Measured in the genuine run380.exe (with probe files
+ * patched through the plaintext of a 3.8 .taf, in the Wine Runner harness),
+ * those are one *pooled burden*: each class costs 1, 3, 7, 3 or 7, the costs
+ * of everything held are summed, and the sum may not exceed MaxCarried.
+ * Pinned at MaxCarried 1, 2, 3, 6, 7 and 8: at 2 a class-1 or class-3 object
+ * is refused and a class-0 accepted, at 3 both go; at 6 Marooned's tires
+ * (class 4) are refused, at 7 they are accepted alone, at 8 tires + map fit
+ * and tires + flint + map do not.  Tires (7) and a class-2 gas can (7) never
+ * coexist at any limit, which is what rules out a separate size axis and
+ * weight axis: two axes would have let the two heavy objects sit one on each.
  *
  * The refusal is 3.8's only one -- there is no "too heavy" message.  Crime
  * Adventure's kettle (class 2 = 7 against MaxCarried 5) is refused with "Your
@@ -790,7 +786,7 @@ obj_uses_burden_model (scr_gameref_t game)
  * command handler in turn -- and its arithmetic comes out exact, so a 3.9
  * game is indistinguishable from recomputing the totals afresh.
  *
- * Measured on the p39leak probe, one Runner each, same commands (2026-08-23).
+ * Measured on the p39leak probe, one Runner each, same commands.
  * Size after take bag + take rock, put rock in bag, drop bag, take cape,
  * wear cape, drop cape:
  *
@@ -822,7 +818,7 @@ obj_uses_running_load (scr_gameref_t game)
  * the Runner allows.
  *
  * Measured in run390 on Lara Croft - The Sun Obelisk (croft_count, croft_wa,
- * croft_wd probes, 2026-10-09).  Lara starts with her Magnums (9) and a
+ * croft_wd probes).  Lara starts with her Magnums (9) and a
  * closed backpack (9) holding a journal (9): `count` says 18, not 27.
  * `drop backpack` takes it to 0 with the Magnums still in hand, `get
  * backpack` back to 18.  With an Aztec coin (3) the total is 21, and the belt
@@ -846,7 +842,7 @@ obj_uses_running_weight (scr_gameref_t game)
  *
  * Return what the given object costs against the player's 3.8 carry limit.
  * Unlike weight, a container is not charged for what it holds, measured in
- * run380 2026-08-03: against a MaxCarried of 1, a class-0 box (cost 1) holding
+ * run380: against a MaxCarried of 1, a class-0 box (cost 1) holding
  * a class-4 object (cost 7) is picked up without complaint, and only the next
  * cost-1 object is refused.  Charging the contents would have made the box
  * alone cost 8 and refused everything after it.
@@ -921,19 +917,18 @@ obj_get_player_burden_limit (scr_gameref_t game)
  * Version 3.8's Capacity is a plain object count instead, which is why the
  * V380 fixups normalise every object to a "size" of 22 and store Capacity as
  * count*10+2: one object then costs exactly one count.  Measured in run380
- * 2026-08-03 with a Capacity of 2, which swallows a class-4 object and then a
- * class-1 one, and is filled by two class-0 ones -- so the Size/weight class
- * is not charged against the container any more than against its carrier.  A
- * Capacity of 0 is full from the start rather than unlimited.  3.8 has only
- * the one refusal for all of this, "The box is full." (see
- * library/sclibrar_put.cpp).
+ * with a Capacity of 2, which swallows a class-4 object and then a class-1
+ * one, and is filled by two class-0 ones -- so the Size/weight class is not
+ * charged against the container any more than against its carrier.  A Capacity
+ * of 0 is full from the start rather than unlimited.  3.8 has only the one
+ * refusal for all of this, "The box is full." (see library/sclibrar_put.cpp).
  *
  * Version 3.9 reads only the FIRST digit of the count.  Its loader (run390
  * 46537C-46540C) takes Val(Left(Format(Capacity, "00"), 1)) times the scale
  * factor to the power of Val(Right(..., 1)), so a Capacity of 100 is one
  * object of size 1, not ten.  run400 fixed it: its loader takes
  * Left(s, Len(s) - 1) (4904D3-490574).  Measured on pPUTREF39.taf
- * (make_39_putrefprobe.py) under run390x, 2026-09-19: an empty bag of
+ * (make_39_putrefprobe.py) under run390x: an empty bag of
  * Capacity 100 takes the stone and then refuses four more size-1 objects
  * with "The lamp can't fit inside the bag at the moment."
  * (runner_probes/putref.run390.v4.txt).
@@ -949,11 +944,11 @@ obj_get_container_capacity (scr_gameref_t game, scr_int object)
   count = packed / OBJ_DIMENSION_DIVISOR;
 
   /*
-   * Deliberate deviation (2026-09-30): run390 reads only the first digit
-   * of the count (6db5e9698) -- it would divide count by ten until it fell
-   * below ten -- so a 3.9 container authored to hold ten or more objects
-   * held one.  Scarier honours the authored count; a game the Runner could
-   * finish can never need less room than that.
+   * Deliberate deviation: run390 reads only the first digit of the count -- it
+   * would divide count by ten until it fell below ten -- so a 3.9 container
+   * authored to hold ten or more objects held one.  Scarier honours the
+   * authored count; a game the Runner could finish can never need less room
+   * than that.
    */
   if (prop_get_taf_version (bundle) == TAF_VERSION_390
       && count >= OBJ_DIMENSION_DIVISOR)
@@ -1024,7 +1019,7 @@ obj_get_container_free_space (scr_gameref_t game, scr_int object)
  *    not a name ending in "s".
  *
  * Measured cell by cell on probe ISARE (run400,
- * runner_probes/isare.run400.txt, 2026-09-07), twelve objects one per
+ * runner_probes/isare.run400.txt), twelve objects one per
  * spelling, read back through `where <name>`:
  *
  *     where boots   (Prefix "")       The boots is test arena.
@@ -1291,8 +1286,10 @@ static scr_bool
 obj_indirectly_held_by_player_internal (scr_gameref_t game,
                                         scr_int object)
 {
-  /* See if the object is static or dynamic.  A static is held only if an
-     event has moved it into the player's hands. */
+  /*
+   * See if the object is static or dynamic.  A static is held only if an
+   * event has moved it into the player's hands.
+   */
   if (obj_is_static (game, object))
     {
       return !gs_object_static_unmoved (game, object)
@@ -1419,15 +1416,14 @@ obj_initial_location_code (scr_gameref_t game, scr_int object)
  *      only while the object still sits where it started
  *
  * so mode 1 is "until the player first picks it up" -- a drop, a put, a task
- * moving the object, an NPC taking it all leave it showing -- and mode 0
- * with an EMPTY InRoomDesc means "print nothing AND stay out of the list",
- * which is how a 4.0 author silences an object the room's own long text
- * already mentions.  Measured 2026-09-06 under Wine: camelot15's four
- * bottles (mode 1, empty InRoomDesc) and takeone's jewel (mode 2, empty
- * InRoomDesc, still in its initial room) are both invisible to run400's
- * lister where Scarier used to list them, while zelda's shield (mode 1, a
- * description, dropped back on the ground) is listed rather than described,
- * because the take spent its byte.
+ * moving the object, an NPC taking it all leave it showing -- and mode 0 with
+ * an EMPTY InRoomDesc means "print nothing AND stay out of the list", which is
+ * how a 4.0 author silences an object the room's own long text already
+ * mentions.  Measured under Wine: camelot15's four bottles (mode 1, empty
+ * InRoomDesc) and takeone's jewel (mode 2, empty InRoomDesc, still in its
+ * initial room) are both invisible to run400's lister, while zelda's shield
+ * (mode 1, a description, dropped back on the ground) is listed rather than
+ * described, because the take spent its byte.
  *
  * Pre-4.0 games carry neither property, and their defaults -- empty
  * InRoomDesc, mode 0 -- land on "not shown, therefore listed", which is what
@@ -1488,14 +1484,14 @@ obj_shows_initial_description (scr_gameref_t game, scr_int object,
  * examines, charinv, inventory, drops, whatisinon, insides, afteroa,
  * checkevent.
  *
- * Measured in run400's runner_probes/xfiles.run400.txt (The X-Files, 4.00):
+ * Measured in run400's runner_probes/xfiles.run400.txt (The X-Files, 4.0):
  * task 7 "Use Key" carries ShowRoomDesc = 0, so entering Garage 5 through it
  * prints no room description -- and `take knife` there answers "Take what?",
  * although the Small Pocket Knife (object 31, InitialPosition 11 = room 7) is
  * lying loose on the floor.  The very next command, `out`, moves normally, so
  * the player really is in the room; the knife simply does not exist to the
- * parser until something lists it.  Scarier used to mark it seen every turn
- * regardless and took it.
+ * parser until something lists it; marking it seen every turn regardless would
+ * take it.
  *
  * Both tests use the room being listed.  run400's viewroom reads the
  * static's presence array at its own room argument (@00472639), while
@@ -1614,6 +1610,312 @@ obj_mark_npc_parts_seen (scr_gameref_t game)
               && gs_npc_seen (game, npc - 1)))
         gs_set_object_seen (game, index_, TRUE);
     }
+}
+
+
+/*
+ * lib_definite_object_name()
+ *
+ * An object's name with a "normalized" prefix -- any "a"/"an"/"some" is
+ * replaced by "the".  The library prints it (lib_print_object_np, in
+ * library/sclibrar_names.cpp, beside lib_print_object for the full
+ * prefix).  lib_definite_object_name builds the normalized form as a string,
+ * for %theobject% too (scvars.cpp): run400 expands that marker through the
+ * same name builder in the same normalizing mode, Proc_21_31_448710 mode 0
+ * called from Proc_21_15_4619CC.
+ *
+ * Pre-3.9 normalizes far less, and the branch below spells out exactly what
+ * Form1.tense() does instead.  "some" is the case that was measured first:
+ * it joined the normalized list in 3.9, and 3.7 and 3.8 leave a "some" prefix
+ * exactly as the author wrote it.  Measured live on one game carried across
+ * three .taf versions by the ADRIFT generators, so the data is provably
+ * identical in all three: microwaveman.taf (3.8) upconverted with gen390 and
+ * gen400, `take clothes` on an object whose Prefix is "some" -- run380 "You
+ * pick up some aluminum clothes.", run390 "You pick up the aluminum clothes.",
+ * run400 "You take the aluminum clothes."  3.7 answers like 3.8: a copy of
+ * arlo.taf with the bone's "a" prefix rewritten to "some" gives "You pick up
+ * some bone." in run370.  See the standing divergence table in
+ * test/adrift4/notes/RUNNER_TESTS.md.
+ */
+/*
+ * lib_compare_article()
+ *
+ * scr_compare_word() for the article normalizer, but case-SENSITIVE.
+ *
+ * Form1.tense() is VB6 string equality and Left$() comparison under the
+ * default Option Compare Binary, so an author who capitalised the article
+ * gets it back untouched -- exactly as an authored "The" already does, there
+ * being no "the" test at all.  Measured on probe PFX (run400,
+ * runner_probes/pfx.run400.tense.txt), eleven objects one per spelling:
+ *
+ *     take alpha    (Prefix "a")      Player take the alpha.
+ *     take bravo    (Prefix "A")      Player take A bravo.
+ *     take charlie  (Prefix "an")     Player take the charlie.
+ *     take delta    (Prefix "An")     Player take An delta.
+ *     take echo     (Prefix "some")   Player take the echo.
+ *     take foxtrot  (Prefix "Some")   Player take Some foxtrot.
+ *     take golf     (Prefix "a big")  Player take the big golf.
+ *     take hotel    (Prefix "A big")  Player take A big hotel.
+ *     take india    (Prefix "SOME")   Player take SOME india.
+ *     take juliet   (Prefix "the")    Player take the juliet.
+ *
+ * The same run's `i` and room listing print every prefix verbatim, so only
+ * the definite form was ever folding case.  The live game that turned this
+ * up is The X-Files: A New Beginning, whose Stool carries the Prefix "A":
+ * run400 answers `u` from it with "(Getting off A Stool first)".
+ *
+ * The pre-3.9 branch below already compares with strcmp/strncmp, and run370
+ * and run380 are the same VB, so this makes all four Runners agree.
+ *
+ * Scarier deliberately does not follow the Runner here (deviation policy):
+ * an author's capital article mid-sentence ("You drop A Bow of Icy Arrows.",
+ * "(Getting off A Stool first)") is a display accident, so the comparison
+ * folds case and every spelling becomes "the".
+ */
+static scr_bool
+lib_compare_article (const scr_char *string, const scr_char *word,
+                     scr_int length)
+{
+  assert (string && word);
+
+  return scr_compare_word (string, word, length);
+}
+
+
+/*
+ * lib_definite_prefix()
+ *
+ * Write the article lib_definite_object_name() opens with to RESULT, and
+ * return what is left of PREFIX to follow it.  The 4.0 name builder's own
+ * rule, for command lines rather than printed names, is
+ * sclibrar_dispatch.cpp's lib_definite_prefix_400().
+ */
+static const scr_char *
+lib_definite_prefix (const scr_char *prefix, scr_bool is_pre_390,
+                     std::string &result)
+{
+  const scr_char *normalized;
+
+  /*
+   * Normalize by skipping any leading "a"/"an"/"some", replacing it instead
+   * with "the", and skipping any odd "the" already present.  If no prefix at
+   * all, add a "the " anyway.
+   *
+   * This is empirical, based on observed ADRIFT Runner behavior.  The empty
+   * prefix case was the last guess left in it, and it is measured now:
+   * run400.exe playing La hija del relojero (whose Phoenix has no prefix)
+   * answers "coger fenix" with "You take the Fenix de laton de el cajon.",
+   * i.e. "the " is right.  lib_print_object below defaults the same empty
+   * prefix to "a ", and that is right too -- the same run prints "Encontre un
+   * Fenix de laton dentro del cajon." on the container-reveal path.  See the
+   * divergence table in test/adrift4/notes/RUNNER_TESTS.md.
+   */
+  normalized = prefix;
+
+  /*
+   * Pre-3.9 is Form1.tense(), and it is a much smaller thing: three
+   * literal tests and no default (run370 @420F28, run380 @425FA8, the two
+   * byte-identical).  An exact "a" becomes "the"; a prefix opening "a " or
+   * "an " has that much replaced by "the "; anything else -- a bare "an",
+   * a "some" -- comes back untouched.  So run370 answers `take implement
+   * of destruction` with "You pick up an implement of destruction." where
+   * 3.9 and 4.0 say "the".  Measured live under Wine on
+   * arlo.taf.
+   *
+   * tense() has no empty-prefix branch either, but pre-3.9 still comes
+   * out with "the", because the empty prefix never reaches it: the .taf
+   * loader rewrites it on the way in.  run380 @4481B2 reads the Prefix
+   * line and, `If (Prefix = vbNullString) Then Prefix = "a"`, substitutes
+   * a literal "a" (run370 @43F5DA does the same).  So pre-3.9
+   * an empty prefix simply *is* an "a" prefix, and both of scarier's
+   * existing defaults -- "the " here, "a " in lib_print_object below --
+   * already fall out of it correctly.  4.0 turns out to do it too, at
+   * loc_4900EC in its own object loader (mdlSpreadTheLoad.bas:7599), so
+   * the substitution is not a pre-3.9 quirk at all; it is only that the
+   * defaults here make it invisible.
+   *
+   * Measured live under Wine on mikes.taf (3.8) in run380,
+   * whose dresser, toilet, poop and vans all carry an empty Prefix
+   * (deobfuscated straight out of the .taf, so this is not inference):
+   * `take vans` answers "You pick up the pair of vans.", `take poop`
+   * "You take a poop from the toilet.", `take all from dresser` "You
+   * take a socks, a shirt, a underwear and a pair of pants from the
+   * dresser."  Note "a underwear" -- the substituted article is never
+   * inflected to "an", exactly as lib_print_object's own default isn't.
+   *
+   * Scarier deliberately normalizes a bare "an" (and the "the"/capital
+   * spellings below) in every version all the same (deviation policy):
+   * "You pick up an implement of destruction." names an object already
+   * in hand as if it were a new one.  Only the grammatical "some" keeps
+   * its pre-3.9 spelling.
+   */
+  if (lib_compare_article (prefix, "a", 1))
+    {
+      normalized = prefix + 1;
+      result += "the";
+    }
+  else if (scr_compare_word (prefix, "an", 2))
+    {
+      normalized = prefix + 2;
+      result += "the";
+    }
+  /*
+   * No "the" branch.  The Runner's normalizer only ever rewrites the three
+   * indefinite articles, so a prefix the author wrote as "The" comes back
+   * "The", capital and all.  run400's tense (Proc_21_13_44F474, called from
+   * the name builder Proc_21_31_448710 in its normalizing mode 0) tests
+   * exactly six things -- the whole string against "a", "an" and "some", and
+   * its head against "a ", "an " and "some " -- and returns its argument
+   * untouched otherwise; pre-3.9's tense is the same shape with the two "some"
+   * tests missing (see the branch above).  Measured live: run400 playing The
+   * X-Files: A New Beginning, whose Memo carries the Prefix "The", answers
+   * `take all from desk` with "... Your Badge and The Memo from Your Desk.",
+   * `x desk` with "Your Coffee Mug and The Memo are on Your Desk" and `burn
+   * memo` with "I don't understand what you want me to do with The Memo."
+   * (runner_probes/xfiles.run400.txt).  Falling through leaves the
+   * prefix in "normalized", which the tail below prints verbatim, so all this
+   * branch ever did was lower-case the author's capital.
+   *
+   * 3.9 is bracketed rather than read: the run390 decompilation does not
+   * reach its normalizer.  Both neighbours leave "the" alone, and the only
+   * thing 3.9 is known to have added to tense is the "some" pair, so the
+   * 3.9 games in the corpus (The Spirit's Flight, whose Spirit Dagger and
+   * Orb of Storms both carry a "The" prefix) follow 4.0 here.
+   *
+   * Scarier deliberately keeps a "the" branch anyway (deviation policy): "You
+   * take The Grim Reaper's Scythe." is a capital mid-sentence and nothing
+   * more, so an authored "The" is folded.
+   */
+  else if (lib_compare_article (prefix, "the", 3))
+    {
+      normalized = prefix + 3;
+      result += "the";
+    }
+  else if (!is_pre_390 && lib_compare_article (prefix, "some", 4))
+    {
+      normalized = prefix + 4;
+      result += "the";
+    }
+  else if (scr_strempty (prefix))
+    {
+      normalized = "";
+      result += "the";
+    }
+
+  return normalized;
+}
+
+/*
+ * lib_short_without_article()
+ *
+ * An object's Short name, past any leading article that has more of the
+ * name after it.
+ */
+static const scr_char *
+lib_short_without_article (const scr_char *name)
+{
+  /*
+   * Print the object's name, verbatim.  Inherited SCARE looked for a leading
+   * article here and stripped it, on the grounds that "some games may avoid
+   * prefix and do this instead".  No Runner can do that, and the whole path
+   * is readable end to end:
+   *
+   * - The object loader normalizes the two fields as it reads them.  run400
+   *   at loc_4900E3 (mdlSpreadTheLoad.bas:7594) LineInputs the Prefix,
+   *   substitutes a literal "a" for an empty one, then loops stripping
+   *   trailing spaces; it then LineInputs the Short and loops stripping
+   *   *leading* spaces, and moves straight on to the alias count.  Nothing
+   *   looks at an article.  run370 @43F5DA and run380 @4481B2 make the same
+   *   "a" substitution.
+   * - run400 builds every object name in one place, Proc_21_31_448710
+   *   (General.bas:7041, 232 call sites), as the single string
+   *   `Prefix & " " & Short`.
+   * - It hands that to tense, Proc_21_13_44F474 (General.bas:1728), which
+   *   tests exactly six things and nothing else: the whole string against
+   *   "a", "an" and "some", and its first 2/3/5 characters against "a ",
+   *   "an " and "some ".  Callers tense the result a second time (e.g.
+   *   Battles.bas:261 then :265), which changes nothing.
+   *
+   * So the only characters ever inspected are at the head of the
+   * concatenation, and after the loader's substitution the head is always the
+   * prefix.  An object with Prefix "The" and Short "the Memo" comes out of
+   * run400 as "The the Memo"; one with no prefix at all is "a Fenix de
+   * laton" going in and "the Fenix de laton" coming out, which is what run400
+   * playing La hija del relojero answers to "coger fenix" and what the two
+   * defaults in this file and in lib_print_object below already reproduce.
+   * Pre-3.9's tense is the same shape with the two "some" tests missing (see
+   * the branch above), so this holds in all four Runners.
+   *
+   * The loader's whitespace trims -- trailing spaces off Prefix, leading ones
+   * off Short -- are modelled too, in parse_trim_object_names().
+   *
+   * Scarier deliberately strips a leading article off the Short all the same
+   * (deviation policy), as SCARE did: "the The horn of the angels" and "The
+   * the Memo" are doubled articles, nothing more.  Only an article followed
+   * by more of the name goes, with the spaces after it, so the old "the  horn"
+   * double space does not come back either.
+   */
+  static const struct { const scr_char *word; scr_int length; } articles[] = {
+    {"a", 1}, {"an", 2}, {"the", 3}, {"some", 4}
+  };
+  size_t index_;
+
+  for (index_ = 0; index_ < sizeof (articles) / sizeof (articles[0]);
+       index_++)
+    {
+      if (scr_compare_word (name, articles[index_].word,
+                            articles[index_].length)
+          && !scr_strempty (name + articles[index_].length))
+        {
+          name += articles[index_].length;
+          while (scr_isspace (*name))
+            name++;
+          break;
+        }
+    }
+
+  return name;
+}
+
+std::string
+lib_definite_object_name (scr_prop_setref_t bundle, scr_int object)
+{
+  std::string result;
+  scr_vartype_t vt_key[3], vt_version[1];
+  const scr_char *prefix, *normalized, *name;
+  scr_bool is_pre_390;
+
+  vt_version[0].string = "Version";
+
+  /* Get the object's prefix. */
+  vt_key[0].string = "Objects";
+  vt_key[1].integer = object;
+  vt_key[2].string = "Prefix";
+  prefix = prop_get_string (bundle, "S<-sis", vt_key);
+
+  is_pre_390 = prop_get_integer (bundle, "I<-s", vt_version) < TAF_VERSION_390;
+  normalized = lib_definite_prefix (prefix, is_pre_390, result);
+
+  /*
+   * Print what the normalizer left of the prefix, and a separating space.
+   * Both are unconditional: the Runner's name builder is a plain
+   * `tense(Prefix) & " " & Short` concatenation, so a prefix it hands back
+   * empty still costs a space.  That case is only reachable at all for an
+   * authored whitespace-only prefix, which the loader trims to nothing after
+   * declining to substitute an "a" into it -- probe ISARE's single-space
+   * rings answers `where rings` with " rings are test arena.", leading space
+   * and no article (run400, runner_probes/isare.run400.txt).
+   * Scarier deliberately gives that empty prefix a "the" instead (deviation
+   * policy).
+   */
+  result += normalized;
+  result += ' ';
+
+  vt_key[2].string = "Short";
+  name = prop_get_string (bundle, "S<-sis", vt_key);
+  name = lib_short_without_article (name);
+  result += name;
+  return result;
 }
 
 

@@ -25,7 +25,7 @@
  * .taf) is a zlib stream that has been XOR'd against a fixed 1024-byte key,
  * repeating.  Undo that, inflate, and you get UTF-8 XML.
  *
- * Borrowed concept: the Adrift 5 runner FileIO.ObfuscateByteArray / Decompress.
+ * Borrowed concept: the Runner's FileIO.ObfuscateByteArray / Decompress.
  */
 
 #ifndef SCARIER_A5DEOBF_H
@@ -51,10 +51,11 @@ extern uint8_t *a5_inflate (const uint8_t *data, uint32_t length,
 
 /*
  * Deflate a buffer into a freshly malloc'd RFC-1950 zlib stream (0x78 header +
- * DEFLATE + Adler-32 trailer), the framing the Adrift 5 runner wraps its saved games in
- * (FileIO.SaveState -> ZLibStream(CompressionLevel.Optimal)).  Returns the buffer
- * and writes its length to *out_size, or NULL on error.  Caller frees with
- * free().  Uses the best compression level so the output matches the runner's Optimal.
+ * DEFLATE + Adler-32 trailer), the framing the Runner wraps its saved games in
+ * (FileIO.SaveState -> ZLibStream(CompressionLevel.Optimal)).  Returns the
+ * buffer and writes its length to *out_size, or NULL on error.  Caller frees
+ * with free().  Uses the best compression level so the output matches the
+ * Runner's Optimal.
  */
 extern uint8_t *a5_deflate (const uint8_t *data, uint32_t length,
                             uint32_t *out_size);

@@ -25,7 +25,7 @@
  * Developer tooling, compiled only with SCARIER_DUMP_TOOLS (see scdump.cpp
  * beside it); the whole file is inside that guard.  Split out of
  * runner/scrun_dispatch.cpp, and still a runner file in everything but its
- * directory: see runner/scrunner.h for what it shares with the runner.
+ * directory: see runner/scrunner.h for what it shares with runner/.
  */
 
 #include <assert.h>
@@ -332,14 +332,17 @@ run_census_t::matches (scr_int which, const std::string &line,
 scr_bool
 run_census_t::splits (const std::string &line) const
 {
+  const scr_bool period_splits = run_period_splits (game, line.c_str ());
   scr_int unused = 0;
 
   if (version >= TAF_VERSION_400)
-    return run_find_split_400 (game, line.c_str (), &unused) >= 0;
-  return run_find_split_pre400 (version, line.c_str (), &unused,
+    return run_find_split_400 (game, line.c_str (), &unused,
+                               period_splits) >= 0;
+  return run_find_split_pre400 (game, version, line.c_str (), &unused,
                                 version < TAF_VERSION_390
                                 && run_comma_splits_pre390
-                                     (game, line.c_str ())) >= 0;
+                                     (game, line.c_str ()),
+                                period_splits) >= 0;
 }
 
 

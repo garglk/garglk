@@ -1,12 +1,17 @@
 /*
  * rgbsurface.h -- a small software rasteriser for Glk graphics windows.
  *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ *
  * Glk's only drawing primitive is the filled rectangle, so a terp that wants
  * lines, circles or text in a graphics window draws them into an RGB surface
  * of its own and sends the result to the window as runs of
  * glk_window_fill_rect().  This is that surface: blending, rectangles, pen
  * strokes, filled circles, two bitmap fonts, and the "send only the rows that
- * changed" flush.  Used by the Scarier map pane (mapdraw.cpp) and the Quest 5
+ * changed" flush.  Used by the Scarier map pane (map/mapdraw.cpp) and the Quest 5
  * grid map (aslxglk-map.inc).
  *
  * Every primitive clips to the surface before it loops, so coordinates and

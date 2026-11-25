@@ -19,20 +19,19 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  *
- * ADRIFT 5 support for Scarier -- turn loop (Phase 3).
+ * ADRIFT 5 support for Scarier -- turn loop.
  *
  * Drives the player turn: lower-cases the input, walks the General tasks in
- * priority order (the Adrift 5 runner TaskSorter / GetGeneralTask), matches each task's
- * command patterns (a5parse), resolves the captured references to model keys in
- * scope, evaluates restrictions (a5restr), and -- on the first fully-passing
- * task -- runs its actions (a5run executes the core action set: MoveObject,
- * MoveCharacter, Set/Inc/DecVariable, SetProperty, SetTasks Execute, EndGame)
- * and prints its completion message, else surfaces the first failing
- * restriction's message.  Movement, take/drop, open and examine work.
+ * priority order (the Runner's TaskSorter / GetGeneralTask), matches each
+ * task's command patterns (a5parse), resolves the captured references to model
+ * keys in scope, evaluates restrictions (a5restr), and -- on the first
+ * fully-passing task -- runs its actions (a5run_act.cpp) and prints its
+ * completion message, else surfaces the first failing restriction's message.
+ * Events and walks run in a5run_events.cpp.
  *
  * Mirrors clsUserSession.EvaluateInput / GetGeneralTask / ExecuteActions,
- * including general-reference disambiguation ("Which X?" + cross-turn clarifier);
- * the full event/character/walk/score machinery is the rest of Phase 4.
+ * including general-reference disambiguation ("Which X?" + cross-turn
+ * clarifier).
  */
 
 #ifndef SCARIER_A5RUN_H
@@ -62,37 +61,46 @@ extern char *a5run_input (a5_run_t *run, const char *line);
    wall-clock 1-second timer instead -- the real Runner's tmrEvents_Tick.
    a5run_time_tick returns the tick's rendered output (caller frees), or NULL
    when the tick flushed nothing; a non-NULL return rebuilds the media-event
-   list (a5run_media_*) with the tick's own images/sounds.  The flag is per-run:
-   set it again after every a5run_new.  a5run_has_time_events reports whether
-   the game defines any TimeBased event at all, so hosts can skip the timer
-   entirely for the (many) games with none. */
+   list (a5run_media_*) with the tick's own images/sounds.  The flag is
+   per-run:  set it again after every a5run_new.  a5run_has_time_events reports
+   whether the game defines any TimeBased event at all, so hosts can skip the
+   timer entirely for the (many) games with none. */
 extern void  a5run_set_real_time   (a5_run_t *run, int on);
 extern char *a5run_time_tick       (a5_run_t *run);
 extern int   a5run_has_time_events (a5_run_t *run);
+/* True when the text of the last a5run_input ends on a time tick that left no
+   line break, so the Runner's transcript has no blank line before the next
+   command.  Only the transcript harness uses this; the Glk host keeps the gap. */
+extern int   a5run_turn_is_open (a5_run_t *run);
 
 /* Non-zero once an EndGame action has fired. */
 extern int a5run_is_over (a5_run_t *run);
 
 /* Status-line accessors.  a5run_location_name returns the current room NAME as
-   plain text (caller frees; NULL if unknown); the others read Adventure.Score /
-   MaxScore / Turns (0 when the game defines no Score/MaxScore variable). */
+   plain text (caller frees; NULL if unknown); the others read Adventure.Score
+   / MaxScore / Turns (0 when the game defines no Score/MaxScore variable). */
 extern char *a5run_location_name (a5_run_t *run);
 extern long  a5run_score         (a5_run_t *run);
 extern long  a5run_maxscore      (a5_run_t *run);
 extern int   a5run_turns         (a5_run_t *run);
 
 /* Embedded-media events produced by the most recent a5run_intro / a5run_input,
-   in display order, for the host to show images / play sounds.  `kind` is one of
-   the A5_MEDIA_* values (a5text.h); `number` is the Blorb resource number (from
-   <FileMappings>, or the host's media resolver), or -1 when unresolved / for
-   sound-stop.  The list is rebuilt
-   each turn; pointers from a5run_media_get are valid until the next turn. */
+   in display order, for the host to show images / play sounds.  `kind` is one
+   of the A5_MEDIA_* values (a5text.h); `number` is the Blorb resource number
+   (from <FileMappings>, or the host's media resolver), or -1 when unresolved /
+   for sound-stop.  The list is rebuilt each turn; pointers from
+   a5run_media_get are valid until the next turn. */
 typedef struct {
-  int kind;          /* A5_MEDIA_IMAGE / A5_MEDIA_SOUND / _SOUND_STOP / _PAUSE   */
-  int number;        /* Blorb resource number, or -1                            */
-  int channel;       /* sound channel 1..8 (audio; 1 = the default), else 0     */
-  int loop;          /* sound loop flag                                         */
-  int shown;         /* host bookkeeping: presented at its positional mark      */
+  /* A5_MEDIA_IMAGE / A5_MEDIA_SOUND / _SOUND_STOP / _PAUSE */
+  int kind;
+  /* Blorb resource number, or -1 */
+  int number;
+  /* sound channel 1..8 (audio; 1 = the default), else 0 */
+  int channel;
+  /* sound loop flag */
+  int loop;
+  /* host bookkeeping: presented at its positional mark */
+  int shown;
 } a5_media_event_t;
 
 /* Optional host hook for media the Blorb may not hold.  When set, every
@@ -117,17 +125,17 @@ extern const char             *a5run_media_src   (a5_run_t *run, int i);
    Cleared with the rest of the event when the list is rebuilt next turn. */
 extern void                    a5run_media_note_shown (a5_run_t *run, int i);
 
-/* Save/restore (Phase 5).  a5run_save serialises the full mutable runtime state
+/* Save/restore.  a5run_save serialises the full mutable runtime state
    -- object/character locations, variable values, completed tasks, property
    overrides, the "seen" sets, event/walk timers, displayed <DisplayOnce>
-   segments, conversation state and the RNG -- to a malloc'd, NUL-terminated XML
-   buffer (caller frees); *out_len receives its byte length (excluding the NUL).
-   Returns NULL on failure.  a5run_restore applies such a buffer to `run` (which
-   must have been created from the *same* game), returning 1 on success, 0 on a
-   malformed/incompatible buffer (in which case `run` is left unchanged on the
-   structural level, though a partial apply may have occurred -- callers should
-   treat a 0 return as fatal for the session).  The buffer is the v5 save body;
-   the Glk/Spatterlight layer may compress/wrap it. */
+   segments, conversation state and the RNG -- to a malloc'd, NUL-terminated
+   XML buffer (caller frees); *out_len receives its byte length (excluding the
+   NUL).  Returns NULL on failure.  a5run_restore applies such a buffer to
+   `run` (which must have been created from the *same* game), returning 1 on
+   success, 0 on a malformed/incompatible buffer (in which case `run` is left
+   unchanged on the structural level, though a partial apply may have occurred
+   -- callers should treat a 0 return as fatal for the session).  The buffer is
+   the v5 save body; the Glk/Spatterlight layer may compress/wrap it. */
 extern char *a5run_save    (a5_run_t *run, size_t *out_len);
 extern int   a5run_restore (a5_run_t *run, const char *data, size_t len);
 
@@ -155,7 +163,7 @@ extern char *a5run_look (a5_run_t *run);
    back after an autorestore.  a5run_undo_peek indexes oldest-first and returns
    NULL past the end; a5run_undo_push_blob appends as the newest entry
    (dropping the oldest at the depth cap, like a5run_snapshot).  The last
-   processed turn's composed output (the runner's sTurnOutput, replayed by a
+   processed turn's composed output (the Runner's sTurnOutput, replayed by a
    post-game-over UNDO) crosses over separately via a5run_get/set_turn_text. */
 extern int         a5run_undo_depth (a5_run_t *run);
 extern const char *a5run_undo_peek  (a5_run_t *run, int i, size_t *len,

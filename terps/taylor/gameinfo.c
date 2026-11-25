@@ -1,9 +1,14 @@
-//
-//  gameinfo.c
-//  Part of TaylorMade, an interpreter for Adventure Soft UK games
-//
-//  Created by Petter Sjölund on 2022-03-23.
-//
+/*
+ *  gameinfo.c
+ *  Part of TaylorMade, an interpreter for Adventure Soft UK games
+ *  Based on original code by Alan Cox
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License, as
+ *  published by the Free Software Foundation. See the file COPYING.
+ *
+ *  Created by Petter Sjölund on 2022-03-23.
+ */
 
 #include <stdio.h>
 
@@ -318,7 +323,8 @@ GameInfo games[NUMGAMES] = {
 
         TOT_TEXT_ONLY_TABLES_64,
 
-        /* Where c64decrunch.c splices them: HYBRID_IMAGES_TO, HYBRID_TILES_TO */
+        /* Where c64decrunch.c splices them: HYBRID_IMAGES_TO,
+           HYBRID_TILES_TO */
         .start_of_tiles = 0x8888,
         .start_of_image_blocks = 0x8ef0,
         .start_of_image_instructions = 0x16ea,
