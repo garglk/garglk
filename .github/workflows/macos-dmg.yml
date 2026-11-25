@@ -7,16 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build (${{ matrix.arch }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-15
-            arch: arm64
-          - os: macos-15-intel
-            arch: x86_64
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -35,5 +26,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: Gargoyle-${{ matrix.arch }}.dmg
+          name: Gargoyle-arm64.dmg
           path: gargoyle*.dmg
