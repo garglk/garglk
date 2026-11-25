@@ -20,6 +20,9 @@ jobs:
 
       - name: Build (Qt)
         run: |
+          # fluidsynth.pc requires readline, which is keg-only in Homebrew, so
+          # its .pc file isn't on pkg-config's default search path.
+          export PKG_CONFIG_PATH="$(brew --prefix readline)/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
           mkdir build-cmake
           cd build-cmake
           cmake .. -DINTERFACE=QT -DSOUND=QT -DCMAKE_FIND_FRAMEWORK=LAST
